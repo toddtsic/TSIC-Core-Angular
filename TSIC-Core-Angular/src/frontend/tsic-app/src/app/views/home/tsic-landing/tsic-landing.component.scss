@@ -1,11 +1,13 @@
 // ============================================================
-//  TSIC Landing v3 — Clean & Bold
+//  TSIC Landing — Clean & Bold
 //  Full-bleed hero, bento grid, alternating splits, dark proof
 // ============================================================
 
 :host {
   display: block;
   background: var(--neutral-50);
+  // LinkedIn "T" logo brand green — fixed identity color, not palette-responsive
+  --tsic-green: #16a34a;
 }
 
 // ============================================================
@@ -64,7 +66,7 @@
     }
 
     &-accent {
-      color: var(--bs-primary);
+      color: var(--tsic-green);
     }
   }
 
@@ -130,13 +132,6 @@
   }
 }
 
-// TSIC brand green — always matches the logo regardless of selected palette
-.lp-nav__wordmark-accent,
-.hero__brand-accent,
-.footer-logo__accent {
-  color: #16a34a !important;
-}
-
 // Palette swatches
 .palette-swatch {
   width: 20px;
@@ -167,50 +162,6 @@
 // ============================================================
 //  HERO — full-bleed image with gradient veil
 // ============================================================
-
-// Slideshow keyframes
-@keyframes heroSlideFirst {
-  0%      { opacity: 1; }
-  20%     { opacity: 1; }
-  25%     { opacity: 0; }
-  95%     { opacity: 0; }
-  100%    { opacity: 1; }
-}
-
-@keyframes heroSlide {
-  0%      { opacity: 0; }
-  5%      { opacity: 1; }
-  20%     { opacity: 1; }
-  25%     { opacity: 0; }
-  100%    { opacity: 0; }
-}
-
-// Slideshow slides (children of .hero__bg)
-.hero__slide {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: 60% center;
-  opacity: 0;
-  animation: heroSlide 24s ease-in-out infinite;
-
-  &--1 {
-    background-image: url('/images/hero-sports.jpg');
-    animation-name: heroSlideFirst;
-  }
-  &--2 {
-    background-image: url('/images/svc-tournaments.jpg');
-    animation-delay: 6s;
-  }
-  &--3 {
-    background-image: url('/images/svc-leagues.jpg');
-    animation-delay: 12s;
-  }
-  &--4 {
-    background-image: url('/images/svc-clubs.jpg');
-    animation-delay: 18s;
-  }
-}
 
 .hero {
   position: relative;
@@ -268,7 +219,7 @@
   }
 
   &__brand-accent {
-    color: var(--bs-primary);
+    color: var(--tsic-green);
   }
 
   &__eyebrow {
@@ -371,6 +322,40 @@
 @keyframes scrollPulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
+}
+
+// Hero slideshow — 6 images × 6s = 36s cycle
+// heroSlideFirst: first image starts visible; heroSlide: used with animation-delay per image
+@keyframes heroSlideFirst {
+  0%   { opacity: 1; }
+  13%  { opacity: 1; }
+  17%  { opacity: 0; }
+  96%  { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes heroSlide {
+  0%   { opacity: 0; }
+  4%   { opacity: 1; }
+  13%  { opacity: 1; }
+  17%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.hero__slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: 60% center;
+  opacity: 0;
+  animation: heroSlide 36s ease-in-out infinite;
+
+  &--1 { background-image: url('/images/hero-sports.jpg');      animation-name: heroSlideFirst; opacity: 1; }
+  &--2 { background-image: url('/images/hero-girls-lax-2.jpg'); animation-delay: 6s; }
+  &--3 { background-image: url('/images/hero-boys-lax.jpg');    animation-delay: 12s; }
+  &--4 { background-image: url('/images/hero-basketball.jpg');  animation-delay: 18s; }
+  &--5 { background-image: url('/images/hero-soccer.jpg');      animation-delay: 24s; }
+  &--6 { background-image: url('/images/hero-baseball.jpg');    animation-delay: 30s; }
 }
 
 // ============================================================
@@ -1022,7 +1007,7 @@
   }
 
   &__accent {
-    color: var(--bs-primary);
+    color: var(--tsic-green);
   }
 
   &__tagline {
@@ -1074,4 +1059,5 @@
   .services__image img {
     transition: none !important;
   }
+
 }

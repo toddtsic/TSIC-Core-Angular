@@ -24,6 +24,21 @@ export class PaletteService {
 
     readonly palettes: ColorPalette[] = [
         {
+            name: 'TSIC Green',
+            description: 'TeamSportsInfo brand green — default',
+            primary: '#16a34a',
+            secondary: '#57534e',
+            success: '#22c55e',
+            danger: '#dc2626',
+            warning: '#ca8a04',
+            info: '#0891b2',
+            light: '#f0fdf4',
+            dark: '#14532d',
+            bodyBg: '#f7fee7',
+            bodyColor: '#365314',
+            cardBg: '#f0fdf4'
+        },
+        {
             name: 'Friendly Sky',
             description: 'Sky blue primary with warm orange accent',
             primary: '#0ea5e9',
@@ -37,21 +52,6 @@ export class PaletteService {
             bodyBg: '#ffffff',
             bodyColor: '#1e293b',
             cardBg: '#ffffff'
-        },
-        {
-            name: 'TSIC Green',
-            description: 'TeamSportsInfo brand green',
-            primary: '#16a34a',
-            secondary: '#57534e',
-            success: '#22c55e',
-            danger: '#dc2626',
-            warning: '#ca8a04',
-            info: '#0891b2',
-            light: '#f0fdf4',
-            dark: '#14532d',
-            bodyBg: '#f7fee7',
-            bodyColor: '#365314',
-            cardBg: '#f0fdf4'
         },
         {
             name: 'Deep Ocean',
@@ -178,13 +178,6 @@ export class PaletteService {
 
     private applyPalette(index: number): void {
         this.selectedIndex.set(index);
-
-        // Default palette (index 0) matches SCSS defaults — no injection needed.
-        // This lets _theme-dark.scss dark-mode overrides work unopposed.
-        if (index === 0) {
-            document.getElementById('tsic-palette')?.remove();
-            return;
-        }
 
         const palette = this.palettes[index];
 
