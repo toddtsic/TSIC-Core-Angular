@@ -18,7 +18,8 @@
       "Bash(git log:*)",
       "Bash(taskkill:*)",
       "Bash(netstat:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "WebFetch(domain:unsplash.com)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular"

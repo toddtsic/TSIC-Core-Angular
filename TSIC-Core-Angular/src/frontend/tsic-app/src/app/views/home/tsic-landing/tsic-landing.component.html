@@ -6,23 +6,14 @@
   <nav class="lp-nav" [class.lp-nav--solid]="navSolid()">
     <div class="lp-nav__inner">
       <a class="lp-nav__brand" href="#top" (click)="scrollToTop($event)">
-        <!-- TSI monogram with lacrosse ball on I -->
-        <svg class="lp-nav__icon" viewBox="0 0 48 46" fill="none" aria-hidden="true">
-          <circle cx="41" cy="9" r="5" fill="#F4D03F" stroke="#D4B020" stroke-width="0.4"/>
-          <path d="M 37 7 Q 41 5 45 7" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
-          <path d="M 37 11 Q 41 13 45 11" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
-          <rect x="0" y="12" width="17" height="34" rx="2" fill="#16a34a"/>
-          <path d="M 0 14 H 16 V 20 H 11 V 44 H 5 V 20 H 0 Z" fill="#ffffff"/>
-          <path d="M 30 20 C 30 13 20 13 20 20 C 20 27 30 29 30 36 C 30 43 20 43 20 36"
-                stroke="#292524" stroke-width="6" fill="none" stroke-linecap="square"/>
-          <rect x="38" y="14" width="6" height="30" fill="#292524"/>
-        </svg>
+        <img class="lp-nav__icon" src="images/blackTLogo.jpg" alt="TSIC">
         <span class="lp-nav__wordmark">Team<span class="lp-nav__wordmark-accent">Sports</span>Info</span>
       </a>
 
       <div class="lp-nav__links">
         <a href="#features" (click)="scrollTo($event, '#features')">Platform</a>
         <a href="#services" (click)="scrollTo($event, '#services')">Services</a>
+        <a href="#why-us" (click)="scrollTo($event, '#why-us')">Why Us</a>
         <a href="#about" (click)="scrollTo($event, '#about')">About</a>
       </div>
 
@@ -41,7 +32,7 @@
           }
         </div>
         <a class="lp-nav__cta" [routerLink]="['/tsic', 'login']">
-          <span>Get Started</span>
+          <span>Login</span>
           <i class="bi bi-arrow-right"></i>
         </a>
       </div>
@@ -58,7 +49,6 @@
       <div class="hero__slide hero__slide--3"></div>
       <div class="hero__slide hero__slide--4"></div>
       <div class="hero__slide hero__slide--5"></div>
-      <div class="hero__slide hero__slide--6"></div>
     </div>
     <div class="hero__veil" aria-hidden="true"></div>
 
@@ -67,7 +57,7 @@
 
       <span class="hero__eyebrow">
         <i class="bi bi-cpu-fill"></i>
-        AI-Powered Sports Management
+        AI-Powered Youth Sports Management
       </span>
 
       <h1 class="hero__headline">
@@ -77,7 +67,7 @@
 
       <p class="hero__sub">
         Registration, scheduling, communication, and payments &mdash;
-        intelligently automated for clubs, leagues, camps, and tournaments.
+        intelligently automated for tournaments, leagues, clubs, <span style="white-space:nowrap">camps and clinics.</span>
       </p>
 
       <div class="hero__actions">
@@ -97,44 +87,26 @@
     </div>
   </section>
 
-  <!-- ══════════════════════════════════════════════════
-       TRUST BAR — animated stat counters on dark strip
-       ══════════════════════════════════════════════════ -->
-  <section class="trust-bar stats-trigger reveal">
-    <div class="trust-bar__inner">
-      @for (stat of animatedStats(); track stat.label) {
-        <div class="trust-bar__stat">
-          <span class="trust-bar__num">{{ stat.current }}{{ stat.suffix }}</span>
-          <span class="trust-bar__label">{{ stat.label }}</span>
-        </div>
-      }
-    </div>
-  </section>
 
   <!-- ══════════════════════════════════════════════════
-       CAPABILITIES — bento grid (1 hero + 3 standard)
+       FEATURES — AI capabilities grid
        ══════════════════════════════════════════════════ -->
-  <section class="capabilities" id="features">
+  <section class="features" id="features">
     <div class="container">
-      <div class="capabilities__header reveal">
-        <span class="section-eyebrow">The Platform</span>
-        <h2 class="section-heading">
-          Intelligence Built Into<br>
-          <span class="gradient-text">Every Feature</span>
-        </h2>
-        <p class="section-sub">Our AI engine powers every aspect of your season &mdash; from first registration to final standings.</p>
+      <div class="features__header reveal">
+        <span class="section-badge">Intelligent by Design</span>
+        <h2>Built by People Who Know<br><span class="gradient-text">Youth Sports</span></h2>
+        <p>TeamSportsInfo is an <strong>all-in-one platform</strong> designed for youth sports organizations<br>that want simple tools with powerful capabilities. We combine streamlined technology<br>with responsive, hands-on support so you can focus on the game.</p>
       </div>
 
-      <div class="capabilities__bento">
-        @for (cap of capabilities; track cap.title; let i = $index) {
-          <div class="bento-card reveal"
-               [class.bento-card--hero]="cap.size === 'hero'"
-               [class]="'bento-card reveal reveal-delay-' + (i + 1)">
-            <div class="bento-card__icon">
-              <i class="bi" [class]="'bi ' + cap.icon"></i>
+      <div class="features__grid">
+        @for (feat of aiFeatures; track feat.title; let i = $index) {
+          <div class="feat-card reveal" [class]="'feat-card reveal reveal-delay-' + (i + 1)">
+            <div class="feat-card__icon">
+              <i class="bi" [class]="'bi ' + feat.icon"></i>
             </div>
-            <h3 class="bento-card__title">{{ cap.title }}</h3>
-            <p class="bento-card__desc">{{ cap.description }}</p>
+            <h3>{{ feat.title }}</h3>
+            <p>{{ feat.description }}</p>
           </div>
         }
       </div>
@@ -142,38 +114,27 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════
-       SERVICES — alternating image-text split rows
+       SERVICES — photo cards with gradient overlay
        ══════════════════════════════════════════════════ -->
   <section class="services" id="services">
     <div class="container">
       <div class="services__header reveal">
-        <span class="section-eyebrow">Who We Serve</span>
-        <h2 class="section-heading">
-          From Neighborhood Leagues to<br>
-          <span class="gradient-text">National Tournaments</span>
-        </h2>
+        <span class="section-badge">One Platform, Every Sport</span>
+        <h2>From Neighborhood Leagues to <span class="gradient-text">National Tournaments</span></h2>
       </div>
 
-      @for (row of serviceRows; track row.image; let i = $index) {
-        <div class="services__row reveal" [class.services__row--reverse]="row.reverse">
-          <div class="services__image">
-            <img [src]="row.image" [alt]="row.imageAlt" loading="lazy">
-          </div>
-          <div class="services__text">
-            <div class="services__pair">
-              @for (item of row.items; track item.title) {
-                <div class="services__item">
-                  <i class="bi" [class]="'bi ' + item.icon"></i>
-                  <div>
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.description }}</p>
-                  </div>
-                </div>
-              }
+      <div class="services__grid">
+        @for (svc of services; track svc.title; let i = $index) {
+          <div class="svc-card reveal" [class]="'svc-card reveal reveal-delay-' + (i + 1)">
+            <img [src]="svc.image" [alt]="svc.title" loading="lazy">
+            <div class="svc-card__overlay">
+              <i class="bi" [class]="'bi ' + svc.icon"></i>
+              <h3>{{ svc.title }}</h3>
+              <p>{{ svc.description }}</p>
             </div>
           </div>
-        </div>
-      }
+        }
+      </div>
     </div>
   </section>
 
@@ -184,10 +145,7 @@
     <div class="container">
       <div class="process__header reveal">
         <span class="section-eyebrow">How It Works</span>
-        <h2 class="section-heading">
-          Up and Running in<br>
-          <span class="gradient-text">Days, Not Months</span>
-        </h2>
+        <h2 class="section-heading">Up and Running in <span class="gradient-text">Days</span></h2>
       </div>
 
       <div class="process__timeline reveal">
@@ -206,16 +164,36 @@
   <!-- ══════════════════════════════════════════════════
        PROOF — single rotating testimonial on dark bg
        ══════════════════════════════════════════════════ -->
-  <section class="proof">
+  <section class="proof" id="why-us">
     <div class="container">
+
+      <div class="proof__pillars reveal">
+        <h2 class="proof__pillars-heading">Why <span class="gradient-text">Directors</span> Choose Us</h2>
+        <div class="proof__pillars-grid">
+          @for (pillar of pillars; track pillar.title) {
+            <div class="proof__pillar-card">
+              <div class="proof__pillar-icon">
+                <i class="bi" [class]="'bi ' + pillar.icon"></i>
+              </div>
+              <h3>{{ pillar.title }}</h3>
+              <p>{{ pillar.description }}</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="proof__divider" aria-hidden="true"></div>
+
       <div class="proof__content reveal">
         <i class="bi bi-quote proof__mark" aria-hidden="true"></i>
         <blockquote class="proof__quote">
           &ldquo;{{ testimonials[activeTestimonial()].quote }}&rdquo;
         </blockquote>
         <div class="proof__attribution">
-          <strong>{{ testimonials[activeTestimonial()].name }}</strong>
-          <span>{{ testimonials[activeTestimonial()].title }}, {{ testimonials[activeTestimonial()].org }}</span>
+          @if (testimonials[activeTestimonial()].name) {
+            <strong>{{ testimonials[activeTestimonial()].name }}</strong>
+          }
+          <span>{{ testimonials[activeTestimonial()].title }}{{ testimonials[activeTestimonial()].org ? ', ' + testimonials[activeTestimonial()].org : '' }}</span>
         </div>
         @if (testimonials.length > 1) {
           <div class="proof__dots">
@@ -238,15 +216,16 @@
   <section class="mission" id="about">
     <div class="container">
       <div class="mission__content reveal">
-        <span class="section-eyebrow">Since 2005</span>
-        <h2 class="mission__headline">
-          20+ Years of Keeping<br>
-          Teams <span class="gradient-text">Connected</span>
-        </h2>
+        <span class="section-eyebrow">Since 2000</span>
+        <h2 class="mission__headline">Trusted by <span class="gradient-text">Programs Like Yours</span></h2>
+        <p class="mission__body">
+          TeamSportsInfo is a family-run business with <strong><em>over 25 years of experience</em></strong> supporting
+          tournament organizers, club directors, as well as recreational team and college coaches.
+        </p>
         <p class="mission__body">
           We believe every athlete &mdash; youth or adult &mdash; deserves an organization
           that runs smoothly, communicates clearly, and puts the game first.
-          Real people. Real support. No ticket queues.
+          <strong><em>Real people. Real support.</em></strong>
         </p>
       </div>
     </div>
@@ -257,27 +236,28 @@
        ══════════════════════════════════════════════════ -->
   <section class="cta" id="book-demo">
     <div class="container">
-      <div class="cta__content reveal">
-        <h2>Ready to See It <span class="gradient-text">in Action?</span></h2>
-        <p>Book a live demo and we'll walk you through the platform.</p>
-
-        <div class="cta__calendar">
+      <div class="cta__layout">
+        <div class="cta__text reveal">
+          <h2>Ready to See It <span class="gradient-text">in Action?</span></h2>
+          <p>Book a live demo — pick a time that works for you, and we'll walk you through the platform. Or simply call/email us and we will get back to you as soon as possible to discuss how we can help your organization.</p>
+          <div class="cta__contact">
+            <a href="tel:4102803272">
+              <i class="bi bi-telephone-fill"></i>
+              410-280-3272
+            </a>
+            <a href="mailto:support&#64;teamsportsinfo.com">
+              <i class="bi bi-envelope-fill"></i>
+              support&#64;teamsportsinfo.com
+            </a>
+          </div>
+        </div>
+        <div class="cta__calendar reveal">
           <!-- TODO: Replace with Google Calendar Appointment Scheduling embed URL -->
           <div class="cta__calendar-placeholder">
             <i class="bi bi-calendar2-week"></i>
             <span>Google Calendar Scheduling</span>
             <small>Embed coming soon</small>
           </div>
-        </div>
-
-        <div class="cta__contact">
-          <a href="tel:4102803272">
-            <i class="bi bi-telephone-fill"></i> 410-280-3272
-          </a>
-          <span class="cta__sep" aria-hidden="true">|</span>
-          <a href="mailto:support&#64;teamsportsinfo.com">
-            <i class="bi bi-envelope-fill"></i> support&#64;teamsportsinfo.com
-          </a>
         </div>
       </div>
     </div>
@@ -306,7 +286,7 @@
               <span class="footer-logo__tagline">Your season, supported every step of the way</span>
             </div>
           </div>
-          <small>&copy; {{ currentYear }} TeamSportsInfo &mdash; AI-Powered Sports Management</small>
+          <small>&copy; {{ currentYear }} TeamSportsInfo &mdash; AI-Powered Youth Sports Management</small>
         </div>
         <div class="site-footer__col">
           <h4>Contact</h4>
