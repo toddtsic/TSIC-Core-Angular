@@ -28,6 +28,7 @@ export class EmailLogComponent {
     readonly selectedEmailId = signal<number | null>(null);
     readonly selectedDetail = signal<EmailLogDetailDto | null>(null);
     readonly isDetailLoading = signal(false);
+    readonly copied = signal(false);
 
     // Sorting (default: newest first)
     readonly sortColumn = signal<SortColumn>('sendTs');
@@ -137,5 +138,15 @@ export class EmailLogComponent {
     closeDetail() {
         this.selectedEmailId.set(null);
         this.selectedDetail.set(null);
+    }
+
+    copyMessageHtml() {
+        const html = this.selectedDetail()?.msg;
+        if (!html) return;
+
+        navigator.clipboard.writeText(html).then(() => {
+            this.copied.set(true);
+            setTimeout(() => this.copied.set(false), 2000);
+        });
     }
 }

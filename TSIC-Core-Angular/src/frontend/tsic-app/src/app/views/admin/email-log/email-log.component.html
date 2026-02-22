@@ -142,10 +142,15 @@
 
                             <!-- Message Body -->
                             <div class="detail-section">
-                                <h6 class="detail-label">
-                                    <i class="bi bi-body-text me-1"></i>
-                                    Message
-                                </h6>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <h6 class="detail-label mb-0">
+                                        <i class="bi bi-body-text me-1"></i>
+                                        Message
+                                    </h6>
+                                    <button class="icon-btn" (click)="copyMessageHtml()" title="Copy message HTML">
+                                        <i class="bi" [class.bi-clipboard]="!copied()" [class.bi-check-lg]="copied()"></i>
+                                    </button>
+                                </div>
                                 <div class="message-body" [innerHTML]="selectedDetail()?.msg"></div>
                             </div>
                         </div>

@@ -46,6 +46,10 @@
         cursor: pointer;
         transition: background-color 0.15s ease;
     }
+
+    tbody tr:nth-child(even) > td {
+        background: var(--bs-secondary-bg);
+    }
 }
 
 .sort-icon {
@@ -124,7 +128,7 @@
 }
 
 .message-body {
-    background-color: var(--neutral-0);
+    background-color: var(--bs-body-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding: var(--space-3);
