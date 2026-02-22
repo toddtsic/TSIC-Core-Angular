@@ -33,6 +33,11 @@ export const routes: Routes = [
 		path: 'tsic-v3',
 		loadComponent: () => import('./views/home/tsic-landing-v3/tsic-landing-v3.component').then(m => m.TsicLandingV3Component)
 	},
+	// V4 snapshot for A/B comparison
+	{
+		path: 'tsic-v4',
+		loadComponent: () => import('./views/home/tsic-landing-v4/tsic-landing-v4.component').then(m => m.TsicLandingV4Component)
+	},
 
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)
 	{
