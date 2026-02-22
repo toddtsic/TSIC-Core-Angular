@@ -27,17 +27,7 @@
 
       <div class="lp-nav__right">
         <div class="lp-nav__palette">
-          @for (palette of paletteService.palettes; track $index) {
-            <button class="palette-swatch"
-              [style.background]="palette.primary"
-              [class.active]="paletteService.selectedIndex() === $index && $index !== 0"
-              [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
-              (click)="paletteService.togglePalette($index)">
-              @if (paletteService.selectedIndex() === $index && $index !== 0) {
-                <i class="bi bi-check2"></i>
-              }
-            </button>
-          }
+          <app-palette-picker size="sm"></app-palette-picker>
         </div>
         <a class="lp-nav__cta" [routerLink]="['/tsic', 'login']">
           <span>Get Started</span>

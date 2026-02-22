@@ -7,6 +7,7 @@ import { PaletteService } from '@infrastructure/services/palette.service';
 import { ThemeService } from '@infrastructure/services/theme.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { MenuStateService } from '../../services/menu-state.service';
+import { PalettePickerComponent } from '../palette-picker/palette-picker.component';
 
 /** Admin roles that can customize dashboards */
 const ADMIN_ROLES = ['Superuser', 'Director', 'SuperDirector'];
@@ -14,6 +15,7 @@ const ADMIN_ROLES = ['Superuser', 'Director', 'SuperDirector'];
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
+    imports: [PalettePickerComponent],
     templateUrl: './client-header-bar.component.html',
     styleUrls: ['./client-header-bar.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush

@@ -8,12 +8,13 @@ import {
   signal
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { PalettePickerComponent } from '../../../layouts/components/palette-picker/palette-picker.component';
 import { PaletteService } from '../../../infrastructure/services/palette.service';
 
 @Component({
   selector: 'app-tsic-landing-v3',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, PalettePickerComponent],
   templateUrl: './tsic-landing-v3.component.html',
   styleUrl: './tsic-landing-v3.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

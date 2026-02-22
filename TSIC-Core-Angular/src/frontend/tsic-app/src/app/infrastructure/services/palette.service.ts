@@ -26,7 +26,7 @@ export class PaletteService {
         {
             name: 'Default',
             description: 'Base theme — no palette override',
-            primary: '#0ea5e9',
+            primary: '#94a3b8',
             secondary: '#64748b',
             success: '#22c55e',
             danger: '#ef4444',
@@ -86,7 +86,7 @@ export class PaletteService {
         {
             name: 'Forest Green',
             description: 'Natural greens with earth tones',
-            primary: '#15803d',
+            primary: '#16a34a',
             secondary: '#57534e',
             success: '#22c55e',
             danger: '#dc2626',

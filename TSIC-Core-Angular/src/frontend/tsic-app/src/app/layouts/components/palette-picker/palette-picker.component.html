@@ -1,0 +1,15 @@
+<div class="palette-picker" [class.palette-picker--sm]="size() === 'sm'">
+  @for (palette of paletteService.palettes; track $index) {
+    @if ($index !== 0) {
+      <button class="palette-picker__swatch"
+              [style.background]="palette.primary"
+              [class.active]="paletteService.selectedIndex() === $index"
+              [title]="palette.name"
+              (click)="onSwatchClick($index)">
+        @if (paletteService.selectedIndex() === $index) {
+          <i class="bi bi-check2"></i>
+        }
+      </button>
+    }
+  }
+</div>

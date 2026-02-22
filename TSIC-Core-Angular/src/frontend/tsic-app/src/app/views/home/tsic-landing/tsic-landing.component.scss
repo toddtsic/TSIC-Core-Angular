@@ -136,32 +136,6 @@
   }
 }
 
-// Palette swatches
-.palette-swatch {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--neutral-300);
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s, box-shadow 0.15s;
-
-  &:hover {
-    transform: scale(1.2);
-  }
-
-  &.active {
-    box-shadow: 0 0 0 2px var(--bs-primary);
-  }
-
-  i {
-    font-size: 10px;
-    color: var(--neutral-0);
-  }
-}
 
 // ============================================================
 //  HERO — full-bleed image with gradient veil

@@ -1,0 +1,51 @@
+.palette-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+
+  &__swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: var(--font-size-xs);
+    padding: 0;
+
+    &:hover {
+      transform: scale(1.15);
+      box-shadow: var(--shadow-md);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.35);
+    }
+
+    &.active {
+      border-color: var(--bs-body-color);
+      box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--bs-body-color);
+    }
+
+    .bi {
+      font-size: 0.7rem;
+      line-height: 1;
+    }
+  }
+
+  // Small variant — 20px swatches for tight nav bars
+  &--sm &__swatch {
+    width: 20px;
+    height: 20px;
+
+    &.active {
+      box-shadow: 0 0 0 2px var(--bs-primary);
+    }
+  }
+}

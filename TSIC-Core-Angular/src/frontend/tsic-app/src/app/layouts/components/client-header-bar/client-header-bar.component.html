@@ -90,19 +90,7 @@
                 <div class="user-menu-backdrop" (click)="closeMobilePalette()"></div>
                 <div class="mobile-palette-panel"
                     [style.top.px]="mobilePaletteTop()" [style.right.px]="mobilePaletteRight()">
-                    <div class="palette-swatch-row">
-                        @for (palette of paletteService.palettes; track $index) {
-                        <button class="palette-swatch"
-                            [style.background]="palette.primary"
-                            [class.active]="paletteService.selectedIndex() === $index && $index !== 0"
-                            [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
-                            (click)="paletteService.togglePalette($index); closeMobilePalette()">
-                            @if (paletteService.selectedIndex() === $index && $index !== 0) {
-                            <i class="bi bi-check2"></i>
-                            }
-                        </button>
-                        }
-                    </div>
+                    <app-palette-picker (selected)="closeMobilePalette()"></app-palette-picker>
                 </div>
                 }
 
@@ -187,19 +175,7 @@
                         </button>
 
                         @if (paletteExpanded()) {
-                        <div class="palette-swatch-row">
-                            @for (palette of paletteService.palettes; track $index) {
-                            <button class="palette-swatch"
-                                [style.background]="palette.primary"
-                                [class.active]="paletteService.selectedIndex() === $index && $index !== 0"
-                                [title]="palette.name + ($index === 0 ? ' (Default)' : '')"
-                                (click)="paletteService.togglePalette($index); closeUserMenu()">
-                                @if (paletteService.selectedIndex() === $index && $index !== 0) {
-                                <i class="bi bi-check2"></i>
-                                }
-                            </button>
-                            }
-                        </div>
+                        <app-palette-picker (selected)="closeUserMenu()"></app-palette-picker>
                         }
 
                         <div class="user-menu-divider"></div>
