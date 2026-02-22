@@ -39,6 +39,21 @@ export class PaletteService {
             cardBg: '#ffffff'
         },
         {
+            name: 'TSIC Green',
+            description: 'TeamSportsInfo brand green',
+            primary: '#16a34a',
+            secondary: '#57534e',
+            success: '#22c55e',
+            danger: '#dc2626',
+            warning: '#ca8a04',
+            info: '#0891b2',
+            light: '#f0fdf4',
+            dark: '#14532d',
+            bodyBg: '#f7fee7',
+            bodyColor: '#365314',
+            cardBg: '#f0fdf4'
+        },
+        {
             name: 'Deep Ocean',
             description: 'Rich navy blues with coral accents',
             primary: '#1e40af',

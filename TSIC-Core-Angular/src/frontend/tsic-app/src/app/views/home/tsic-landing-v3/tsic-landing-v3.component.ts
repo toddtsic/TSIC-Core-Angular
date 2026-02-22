@@ -11,14 +11,14 @@ import { RouterLink } from '@angular/router';
 import { PaletteService } from '../../../infrastructure/services/palette.service';
 
 @Component({
-  selector: 'app-tsic-landing',
+  selector: 'app-tsic-landing-v3',
   standalone: true,
   imports: [RouterLink],
-  templateUrl: './tsic-landing.component.html',
-  styleUrl: './tsic-landing.component.scss',
+  templateUrl: './tsic-landing-v3.component.html',
+  styleUrl: './tsic-landing-v3.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TsicLandingComponent implements OnDestroy {
+export class TsicLandingV3Component implements OnDestroy {
   private readonly elRef = inject(ElementRef);
   readonly paletteService = inject(PaletteService);
   private observer: IntersectionObserver | null = null;
@@ -34,13 +34,13 @@ export class TsicLandingComponent implements OnDestroy {
     {
       icon: 'bi-calendar2-check-fill',
       title: 'Smart Scheduling',
-      description: 'Resolve field conflicts and balance team schedules automatically. Our platform handles round-robin, pool play, and bracket generation \u2014 what used to take days now takes seconds.',
+      description: 'Resolve field conflicts and balance team schedules automatically. Our AI engine handles round-robin, pool play, and bracket generation \u2014 what used to take days now takes seconds.',
       size: 'hero' as const
     },
     {
       icon: 'bi-people-fill',
       title: 'Intelligent Rostering',
-      description: 'Smart player placement based on age, skill, and availability. Balance teams and manage waitlists without spreadsheets.',
+      description: 'AI-assisted player placement based on age, skill, and availability. Balance teams and manage waitlists without spreadsheets.',
       size: 'standard' as const
     },
     {
@@ -51,28 +51,28 @@ export class TsicLandingComponent implements OnDestroy {
     },
     {
       icon: 'bi-graph-up-arrow',
-      title: 'Reporting & Analytics',
-      description: 'Enrollment trends, revenue summaries, and participation insights at a glance. Actionable information before and after the season.',
+      title: 'Predictive Analytics',
+      description: 'Enrollment trends, revenue forecasts, and participation insights at a glance. Data-driven decisions before the season starts.',
       size: 'standard' as const
     }
   ];
 
   readonly serviceRows = [
     {
-      image: 'images/svc-tournaments.jpg', // Replace with basketball action photo when available
-      altText: 'Tournament and league action',
+      image: 'images/svc-clubs.jpg',
+      imageAlt: 'Youth lacrosse club in action',
       items: [
-        { icon: 'bi-flag-fill', title: 'Tournaments', description: 'Bracket management, team registration, and recruiting tools for any event.' },
-        { icon: 'bi-trophy-fill', title: 'Leagues', description: 'Standings, schedules, and championship brackets \u2014 fully automated.' }
+        { icon: 'bi-shield-fill', title: 'Clubs', description: 'Registration, payments, rosters, and reporting \u2014 everything your rec or travel club needs.' },
+        { icon: 'bi-sun-fill', title: 'Camps', description: 'Scheduling, roommate rostering, and skills tracking for camps of every size.' }
       ]
     },
     {
-      image: 'images/svc-clubs.jpg', // Replace with younger players photo when available
-      altText: 'Youth sports players',
+      image: 'images/svc-tournaments.jpg',
+      imageAlt: 'Tournament lacrosse game',
       reverse: true,
       items: [
-        { icon: 'bi-shield-fill', title: 'Clubs', description: 'Registration, payments, rosters, and reporting \u2014 everything your rec or travel club needs.' },
-        { icon: 'bi-sun-fill', title: 'Camps and Clinics', description: 'Scheduling, roommate rostering, and skills tracking for camps and clinics of every size.' }
+        { icon: 'bi-trophy-fill', title: 'Leagues', description: 'Standings, schedules, and championship brackets \u2014 fully automated.' },
+        { icon: 'bi-flag-fill', title: 'Tournaments', description: 'Bracket management, team registration, and recruiting tools for any event.' }
       ]
     }
   ];
@@ -107,7 +107,7 @@ export class TsicLandingComponent implements OnDestroy {
   readonly animatedStats = signal([
     { target: 1000, suffix: '+', current: 0, label: 'Teams Managed' },
     { target: 50, suffix: '+', current: 0, label: 'Organizations' },
-    { target: 25, suffix: '+', current: 0, label: 'Years of Service' },
+    { target: 20, suffix: '+', current: 0, label: 'Years of Service' },
     { target: 24, suffix: '/7', current: 0, label: 'Support' }
   ]);
 

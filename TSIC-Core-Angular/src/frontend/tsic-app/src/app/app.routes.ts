@@ -28,6 +28,12 @@ export const routes: Routes = [
 		loadComponent: () => import('./views/home/tsic-landing-v2/tsic-landing-v2.component').then(m => m.TsicLandingV2Component)
 	},
 
+	// V3 snapshot for A/B comparison
+	{
+		path: 'tsic-v3',
+		loadComponent: () => import('./views/home/tsic-landing-v3/tsic-landing-v3.component').then(m => m.TsicLandingV3Component)
+	},
+
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)
 	{
 		path: 'not-found',

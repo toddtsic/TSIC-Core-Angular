@@ -6,7 +6,16 @@
   <nav class="lp-nav" [class.lp-nav--solid]="navSolid()">
     <div class="lp-nav__inner">
       <a class="lp-nav__brand" href="#top" (click)="scrollToTop($event)">
-        <img class="lp-nav__icon" src="images/tsic-notext-logo.png" alt="TSIC">
+        <!-- TSI monogram with lacrosse ball on I -->
+        <svg class="lp-nav__icon" viewBox="0 0 48 46" fill="none" aria-hidden="true">
+          <circle cx="41" cy="9" r="5" fill="#F4D03F" stroke="#D4B020" stroke-width="0.4"/>
+          <path d="M 37 7 Q 41 5 45 7" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+          <path d="M 37 11 Q 41 13 45 11" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+          <path d="M 0 14 H 16 V 20 H 11 V 44 H 5 V 20 H 0 Z" fill="#292524"/>
+          <path d="M 30 20 C 30 13 20 13 20 20 C 20 27 30 29 30 36 C 30 43 20 43 20 36"
+                stroke="#292524" stroke-width="6" fill="none" stroke-linecap="square"/>
+          <rect x="38" y="14" width="6" height="30" fill="#292524"/>
+        </svg>
         <span class="lp-nav__wordmark">Team<span class="lp-nav__wordmark-accent">Sports</span>Info.com</span>
       </a>
 
@@ -43,10 +52,7 @@
        ══════════════════════════════════════════════════ -->
   <section class="hero" id="top">
     <div class="hero__bg" aria-hidden="true">
-      <div class="hero__slide hero__slide--1"></div>
-      <div class="hero__slide hero__slide--2"></div>
-      <div class="hero__slide hero__slide--3"></div>
-      <div class="hero__slide hero__slide--4"></div>
+      <img src="images/hero-sports.jpg" alt="" loading="eager">
     </div>
     <div class="hero__veil" aria-hidden="true"></div>
 
@@ -54,8 +60,8 @@
       <div class="hero__brand-name">Team<span class="hero__brand-accent">Sports</span>Info.com</div>
 
       <span class="hero__eyebrow">
-        <i class="bi bi-award-fill"></i>
-        Powerful. Personal. Sports Management.
+        <i class="bi bi-cpu-fill"></i>
+        AI-Powered Sports Management
       </span>
 
       <h1 class="hero__headline">
@@ -65,8 +71,7 @@
 
       <p class="hero__sub">
         Registration, scheduling, communication, and payments &mdash;
-        seamlessly managed for clubs, leagues, camps, and tournaments.
-        Backed by real people and real support, every step of the way.
+        intelligently automated for clubs, leagues, camps, and tournaments.
       </p>
 
       <div class="hero__actions">
@@ -146,7 +151,7 @@
       @for (row of serviceRows; track row.image; let i = $index) {
         <div class="services__row reveal" [class.services__row--reverse]="row.reverse">
           <div class="services__image">
-            <img [src]="row.image" [alt]="row.altText" loading="lazy">
+            <img [src]="row.image" [alt]="row.imageAlt" loading="lazy">
           </div>
           <div class="services__text">
             <div class="services__pair">
@@ -175,7 +180,7 @@
         <span class="section-eyebrow">How It Works</span>
         <h2 class="section-heading">
           Up and Running in<br>
-          <span class="gradient-text">Days</span>
+          <span class="gradient-text">Days, Not Months</span>
         </h2>
       </div>
 
@@ -227,15 +232,15 @@
   <section class="mission" id="about">
     <div class="container">
       <div class="mission__content reveal">
-        <span class="section-eyebrow">Since 2000</span>
+        <span class="section-eyebrow">Since 2005</span>
         <h2 class="mission__headline">
-          25+ Years of Keeping<br>
+          20+ Years of Keeping<br>
           Teams <span class="gradient-text">Connected</span>
         </h2>
         <p class="mission__body">
           We believe every athlete &mdash; youth or adult &mdash; deserves an organization
           that runs smoothly, communicates clearly, and puts the game first.
-          Real people. Real support. Always available &mdash; no ticket queues, no runarounds.
+          Real people. Real support. No ticket queues.
         </p>
       </div>
     </div>
@@ -251,7 +256,7 @@
         <p>Book a live demo and we'll walk you through the platform.</p>
 
         <div class="cta__calendar">
-          <!-- Replace with Google Calendar Appointment Scheduling embed URL when ready -->
+          <!-- TODO: Replace with Google Calendar Appointment Scheduling embed URL -->
           <div class="cta__calendar-placeholder">
             <i class="bi bi-calendar2-week"></i>
             <span>Google Calendar Scheduling</span>
@@ -280,13 +285,21 @@
       <div class="site-footer__grid">
         <div class="site-footer__brand">
           <div class="footer-logo">
-            <img class="footer-logo__icon" src="images/tsic-notext-logo.png" alt="TSIC">
+            <svg class="footer-logo__icon" viewBox="0 0 48 46" fill="none" aria-hidden="true">
+              <circle cx="41" cy="9" r="5" fill="#F4D03F" stroke="#D4B020" stroke-width="0.4"/>
+              <path d="M 37 7 Q 41 5 45 7" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+              <path d="M 37 11 Q 41 13 45 11" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
+              <path d="M 0 14 H 16 V 20 H 11 V 44 H 5 V 20 H 0 Z" fill="#292524"/>
+              <path d="M 30 20 C 30 13 20 13 20 20 C 20 27 30 29 30 36 C 30 43 20 43 20 36"
+                    stroke="#292524" stroke-width="6" fill="none" stroke-linecap="square"/>
+              <rect x="38" y="14" width="6" height="30" fill="#292524"/>
+            </svg>
             <div class="footer-logo__text">
               <span class="footer-logo__name">Team<span class="footer-logo__accent">Sports</span>Info.com</span>
-              <span class="footer-logo__tagline">Proven &amp; Personal &middot; Keeping Teams Connected Since 2000</span>
+              <span class="footer-logo__tagline">AI-Powered &middot; Stay Connected On and Off the Field</span>
             </div>
           </div>
-          <small>&copy; {{ currentYear }} TeamSportsInfo.com &mdash; Powerful Sports Management</small>
+          <small>&copy; {{ currentYear }} TeamSportsInfo.com &mdash; AI-Powered Sports Management</small>
         </div>
         <div class="site-footer__col">
           <h4>Contact</h4>
