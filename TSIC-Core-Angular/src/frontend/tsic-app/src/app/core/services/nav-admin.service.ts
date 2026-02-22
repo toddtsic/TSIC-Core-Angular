@@ -10,7 +10,8 @@ import type {
     ReorderNavItemsRequest,
     CreateNavRequest,
     ToggleNavActiveRequest,
-    CascadeRouteRequest
+    CascadeRouteRequest,
+    CloneBranchRequest
 } from '@core/api';
 
 @Injectable({
@@ -115,6 +116,14 @@ export class NavAdminService {
                 error: () => this.isLoading.set(false)
             })
         );
+    }
+
+    /**
+     * Clone a Level 1 nav item and its active children to another role's nav.
+     * Returns the count of items cloned (parent + children).
+     */
+    cloneBranch(request: CloneBranchRequest): Observable<number> {
+        return this.http.post<number>(`${this.apiUrl}/items/clone-branch`, request);
     }
 
     /**

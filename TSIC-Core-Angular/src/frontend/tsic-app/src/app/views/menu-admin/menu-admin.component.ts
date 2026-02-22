@@ -39,6 +39,12 @@ export class MenuAdminComponent implements OnInit {
     exportLoading = signal(false);
     copySuccess = signal(false);
 
+    // Clone dialog state
+    cloneDialogOpen = signal(false);
+    cloneSourceItem = signal<NavEditorNavItemDto | null>(null);
+    cloneTargetNavId = signal<number | null>(null);
+    cloneLoading = signal(false);
+
     // Computed values
     navs = computed(() => this.navAdminService.navs());
     isLoading = computed(() => this.navAdminService.isLoading());
@@ -47,6 +53,13 @@ export class MenuAdminComponent implements OnInit {
         const roleId = this.selectedRoleId();
         if (!roleId) return null;
         return this.navs().find(n => n.roleId === roleId) ?? null;
+    });
+
+    /** Navs excluding the currently selected one — for clone target picker. */
+    cloneTargetNavs = computed(() => {
+        const current = this.selectedNav();
+        if (!current) return [];
+        return this.navs().filter(n => n.navId !== current.navId);
     });
 
     ngOnInit(): void {
@@ -277,6 +290,64 @@ export class MenuAdminComponent implements OnInit {
         this.navAdminService.deleteItem(item.navItemId).subscribe({
             next: () => { this.toast.show('Nav item deleted.', 'success'); this.loadNavs(); },
             error: () => this.toast.show('Failed to delete nav item.', 'danger')
+        });
+    }
+
+    // ── Clone branch ──
+
+    openCloneDialog(parentItem: NavEditorNavItemDto): void {
+        this.cloneSourceItem.set(parentItem);
+        this.cloneTargetNavId.set(null);
+        this.cloneDialogOpen.set(true);
+    }
+
+    cloneBranch(): void {
+        const source = this.cloneSourceItem();
+        const targetNavId = this.cloneTargetNavId();
+        if (!source || !targetNavId) return;
+
+        const targetNav = this.navs().find(n => n.navId === targetNavId);
+        if (!targetNav) return;
+
+        // Client-side duplicate detection
+        const duplicate = targetNav.items.find(
+            i => i.text.toLowerCase() === source.text.toLowerCase()
+        );
+
+        let replaceExisting = false;
+        if (duplicate) {
+            const confirmed = confirm(
+                `"${targetNav.roleName}" already has a "${source.text}" section.\n\n` +
+                `Replace it and its children with the cloned version?`
+            );
+            if (!confirmed) return;
+            replaceExisting = true;
+        }
+
+        this.cloneLoading.set(true);
+
+        this.navAdminService.cloneBranch({
+            sourceNavItemId: source.navItemId,
+            targetNavId: targetNavId,
+            replaceExisting: replaceExisting
+        }).subscribe({
+            next: (count) => {
+                this.toast.show(
+                    `Cloned "${source.text}" (${count} items) to ${targetNav.roleName}.`,
+                    'success'
+                );
+                this.cloneDialogOpen.set(false);
+                this.cloneLoading.set(false);
+                this.loadNavs();
+            },
+            error: (err) => {
+                console.error('Clone branch failed:', err);
+                this.toast.show(
+                    `Clone failed: ${err.error?.message || err.statusText}`,
+                    'danger'
+                );
+                this.cloneLoading.set(false);
+            }
         });
     }
 

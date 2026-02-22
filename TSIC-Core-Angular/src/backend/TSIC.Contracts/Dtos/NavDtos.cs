@@ -183,3 +183,18 @@ public record ToggleNavActiveRequest
 {
     public required bool Active { get; init; }
 }
+
+/// <summary>
+/// Clone a Level 1 nav item and its active children to another role's nav.
+/// </summary>
+public record CloneBranchRequest
+{
+    /// <summary>The NavItemId of the source Level 1 item to clone.</summary>
+    public required int SourceNavItemId { get; init; }
+
+    /// <summary>The NavId of the target nav (must be a different nav).</summary>
+    public required int TargetNavId { get; init; }
+
+    /// <summary>If true, replace an existing Level 1 item with the same text in the target.</summary>
+    public required bool ReplaceExisting { get; init; }
+}

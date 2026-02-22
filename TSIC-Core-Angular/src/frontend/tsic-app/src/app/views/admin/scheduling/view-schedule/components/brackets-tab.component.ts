@@ -352,6 +352,21 @@ export class BracketsTabComponent implements OnDestroy {
                 const t2Score = data.t2Score != null ? data.t2Score : '';
                 const loc = data.locationTime ? this.escapeHtml(data.locationTime) : '';
 
+                // Score-based styling: green winner, red loser, default on tie/pending
+                const bothScored = data.t1Score != null && data.t2Score != null;
+                let t1RowStyle = 'color:var(--bs-body-color);';
+                let t2RowStyle = 'color:var(--bs-body-color);';
+                let t1ScoreColor = '';
+                let t2ScoreColor = '';
+
+                if (bothScored && data.t1Score !== data.t2Score) {
+                    const t1Wins = data.t1Score! > data.t2Score!;
+                    t1RowStyle = t1Wins ? 'font-weight:700;' : 'opacity:0.7;';
+                    t2RowStyle = t1Wins ? 'opacity:0.7;' : 'font-weight:700;';
+                    t1ScoreColor = t1Wins ? 'color:var(--bs-success);' : 'color:var(--bs-danger);';
+                    t2ScoreColor = t1Wins ? 'color:var(--bs-danger);' : 'color:var(--bs-success);';
+                }
+
                 // Team name spans — clickable via DOM delegation when team ID exists
                 const t1NameHtml = data.t1Id
                     ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;">${this.escapeHtml(data.t1Name)}</span>`
@@ -366,11 +381,11 @@ export class BracketsTabComponent implements OnDestroy {
                     ? `<span data-field-id="${data.fieldId}" style="text-decoration:underline;cursor:pointer;">${loc}</span>`
                     : loc;
 
-                // Pencil icon — top-right corner, only for authenticated admins
+                // Pencil icon — boxed button, top-right corner, only for authenticated admins
                 const canClick = this.canScore();
-                const pencilSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.707-6.793zm-11.354 5.96-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>`;
+                const pencilSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg>`;
                 const pencilHtml = canClick
-                    ? `<span data-score-gid="${data.gid}" style="position:absolute;top:4px;right:4px;cursor:pointer;color:var(--bs-secondary-color);opacity:0.6;line-height:1;" title="Edit Score">${pencilSvg}</span>`
+                    ? `<span data-score-gid="${data.gid}" style="position:absolute;top:3px;right:3px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:var(--bs-secondary-bg);border:1px solid var(--bs-border-color);color:var(--bs-primary);line-height:1;" title="Edit Score">${pencilSvg}</span>`
                     : '';
 
                 node.shape = {
@@ -379,14 +394,14 @@ export class BracketsTabComponent implements OnDestroy {
                         <div style="position:relative;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px;">
                             ${pencilHtml}
                             <div style="text-align:center;font-size:10px;color:var(--bs-secondary-color);margin-bottom:3px;line-height:1.2;">${locHtml}</div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${this.teamStyle(data.t1Css)}">
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${t1RowStyle}">
                                 ${t1NameHtml}
-                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;">${t1Score}</span>
+                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;${t1ScoreColor}">${t1Score}</span>
                             </div>
                             <div style="height:1px;background:var(--bs-border-color);margin:2px 0;"></div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${this.teamStyle(data.t2Css)}">
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${t2RowStyle}">
                                 ${t2NameHtml}
-                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;">${t2Score}</span>
+                                <span style="font-weight:700;font-size:12px;min-width:1.2rem;text-align:right;margin-left:6px;${t2ScoreColor}">${t2Score}</span>
                             </div>
                         </div>
                     `
@@ -408,17 +423,6 @@ export class BracketsTabComponent implements OnDestroy {
     }
 
     // ── Helpers ──
-
-    private teamStyle(css: string): string {
-        switch (css) {
-            case 'winner':
-                return 'font-weight:700;color:var(--bs-success);';
-            case 'loser':
-                return 'color:var(--bs-danger);opacity:0.7;';
-            default:
-                return 'color:var(--bs-body-color);';
-        }
-    }
 
     private escapeHtml(text: string): string {
         return text

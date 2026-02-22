@@ -394,6 +394,103 @@ public class NavEditorService : INavEditorService
         await _navEditorRepo.SaveChangesAsync(ct);
     }
 
+    public async Task<int> CloneBranchAsync(
+        CloneBranchRequest request, string userId, CancellationToken ct = default)
+    {
+        // 1. Load and validate source item
+        var sourceItem = await _navEditorRepo.GetNavItemByIdAsync(request.SourceNavItemId, ct);
+        if (sourceItem == null)
+            throw new InvalidOperationException($"Source nav item {request.SourceNavItemId} not found");
+        if (sourceItem.ParentNavItemId != null)
+            throw new InvalidOperationException("Source item must be a Level 1 (root) item");
+
+        // 2. Validate target nav exists and differs from source
+        var targetNav = await _navEditorRepo.GetNavByIdAsync(request.TargetNavId, ct);
+        if (targetNav == null)
+            throw new InvalidOperationException($"Target nav {request.TargetNavId} not found");
+        if (targetNav.NavId == sourceItem.NavId)
+            throw new InvalidOperationException("Cannot clone to the same nav");
+
+        // 3. Load source's active children
+        var allSourceItems = await _navEditorRepo.GetNavItemsByNavIdAsync(sourceItem.NavId, ct);
+        var activeChildren = allSourceItems
+            .Where(i => i.ParentNavItemId == sourceItem.NavItemId && i.Active)
+            .OrderBy(i => i.SortOrder)
+            .ToList();
+
+        // 4. If ReplaceExisting, find and remove duplicate in target
+        if (request.ReplaceExisting)
+        {
+            var targetItems = await _navEditorRepo.GetNavItemsByNavIdAsync(request.TargetNavId, ct);
+            var duplicate = targetItems.FirstOrDefault(
+                i => i.ParentNavItemId == null
+                  && string.Equals(i.Text, sourceItem.Text, StringComparison.OrdinalIgnoreCase));
+
+            if (duplicate != null)
+            {
+                var trackedChildren = await _navEditorRepo.GetSiblingItemsAsync(
+                    request.TargetNavId, duplicate.NavItemId, ct);
+                var trackedDuplicate = await _navEditorRepo.GetNavItemByIdAsync(duplicate.NavItemId, ct);
+
+                if (trackedChildren.Count > 0)
+                    _navEditorRepo.RemoveNavItems(trackedChildren);
+                if (trackedDuplicate != null)
+                    _navEditorRepo.RemoveNavItem(trackedDuplicate);
+
+                await _navEditorRepo.SaveChangesAsync(ct);
+            }
+        }
+
+        // 5. Determine sort order for new parent
+        var siblingCount = await _navEditorRepo.GetSiblingCountAsync(request.TargetNavId, null, ct);
+        var now = DateTime.UtcNow;
+
+        // 6. Create the cloned parent
+        var clonedParent = new NavItem
+        {
+            NavId = request.TargetNavId,
+            ParentNavItemId = null,
+            Text = sourceItem.Text,
+            IconName = sourceItem.IconName,
+            RouterLink = sourceItem.RouterLink,
+            NavigateUrl = sourceItem.NavigateUrl,
+            Target = sourceItem.Target,
+            Active = true,
+            SortOrder = siblingCount + 1,
+            Modified = now,
+            ModifiedBy = userId
+        };
+        _navEditorRepo.AddNavItem(clonedParent);
+        await _navEditorRepo.SaveChangesAsync(ct);
+
+        // 7. Create cloned children
+        var childSort = 0;
+        foreach (var sourceChild in activeChildren)
+        {
+            childSort++;
+            var clonedChild = new NavItem
+            {
+                NavId = request.TargetNavId,
+                ParentNavItemId = clonedParent.NavItemId,
+                Text = sourceChild.Text,
+                IconName = sourceChild.IconName,
+                RouterLink = sourceChild.RouterLink,
+                NavigateUrl = sourceChild.NavigateUrl,
+                Target = sourceChild.Target,
+                Active = true,
+                SortOrder = childSort,
+                Modified = now,
+                ModifiedBy = userId
+            };
+            _navEditorRepo.AddNavItem(clonedChild);
+        }
+
+        await _navEditorRepo.SaveChangesAsync(ct);
+
+        // Return total items cloned (parent + children)
+        return 1 + childSort;
+    }
+
     public async Task<int> EnsureAllRoleNavsAsync(string userId, CancellationToken ct = default)
     {
         // All roles that should have platform default navs

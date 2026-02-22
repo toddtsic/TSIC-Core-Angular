@@ -104,6 +104,9 @@
                             <button class="icon-btn icon-btn-sm icon-btn-success" (click)="createChildItem(parentItem)" title="Add Child">
                                 <i class="bi bi-plus-circle"></i>
                             </button>
+                            <button class="icon-btn icon-btn-sm" (click)="openCloneDialog(parentItem)" title="Clone to another role">
+                                <i class="bi bi-copy"></i>
+                            </button>
                             <button class="icon-btn icon-btn-sm icon-btn-danger" (click)="deleteItem(parentItem)" title="Delete">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -200,6 +203,51 @@
             >
                 <i class="bi" [class.bi-clipboard]="!copySuccess()" [class.bi-check-lg]="copySuccess()"></i>
                 {{ copySuccess() ? 'Copied!' : 'Copy to Clipboard' }}
+            </button>
+        </div>
+    </div>
+</tsic-dialog>
+}
+
+<!-- Clone Branch Dialog -->
+@if (cloneDialogOpen()) {
+<tsic-dialog [open]="true" size="sm" (requestClose)="cloneDialogOpen.set(false)">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Clone "{{ cloneSourceItem()?.text }}"</h5>
+            <button type="button" class="btn-close" (click)="cloneDialogOpen.set(false)"></button>
+        </div>
+        <div class="modal-body">
+            <p class="text-muted mb-3">
+                Clone this section and its active children to another role's nav.
+            </p>
+            <label for="cloneTarget" class="form-label fw-medium">Target Role</label>
+            <select
+                id="cloneTarget"
+                class="form-select"
+                [value]="cloneTargetNavId() ?? ''"
+                (change)="cloneTargetNavId.set(+$any($event.target).value || null)"
+            >
+                <option value="">-- Select target role --</option>
+                @for (nav of cloneTargetNavs(); track nav.navId) {
+                    <option [value]="nav.navId">{{ nav.roleName }}</option>
+                }
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="cloneDialogOpen.set(false)">Cancel</button>
+            <button
+                type="button"
+                class="btn btn-primary"
+                (click)="cloneBranch()"
+                [disabled]="!cloneTargetNavId() || cloneLoading()"
+            >
+                @if (cloneLoading()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Cloning...
+                } @else {
+                    <i class="bi bi-copy me-1"></i> Clone
+                }
             </button>
         </div>
     </div>

@@ -157,6 +157,19 @@ public class NavController : ControllerBase
         return Ok(new { updated });
     }
 
+    /// <summary>Clone a Level 1 nav item and its active children to another role's nav.</summary>
+    [HttpPost("editor/items/clone-branch")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<int>> CloneBranch([FromBody] CloneBranchRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token");
+
+        var count = await _navEditorService.CloneBranchAsync(request, userId);
+        return Ok(count);
+    }
+
     /// <summary>Delete a nav item.</summary>
     [HttpDelete("editor/items/{navItemId:int}")]
     [Authorize(Policy = "SuperUserOnly")]

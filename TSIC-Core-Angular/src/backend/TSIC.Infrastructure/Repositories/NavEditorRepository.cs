@@ -222,6 +222,8 @@ public class NavEditorRepository : INavEditorRepository
 
     public void RemoveNavItem(NavItem navItem) => _context.NavItem.Remove(navItem);
 
+    public void RemoveNavItems(IEnumerable<NavItem> navItems) => _context.NavItem.RemoveRange(navItems);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);

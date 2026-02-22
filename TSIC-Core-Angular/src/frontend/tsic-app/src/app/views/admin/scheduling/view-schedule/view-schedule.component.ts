@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy, Component, inject, OnInit, signal, computed
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { AuthService } from '../../../../infrastructure/services/auth.service';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import type {
@@ -160,7 +161,7 @@ interface FilterChip {
                     @case ('games') {
                         <app-games-tab
                             [games]="games()"
-                            [canScore]="capabilities()?.canScore ?? false"
+                            [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
                             (quickScore)="onQuickScore($event)"
                             (editGame)="onEditGameOpen($event)"
@@ -177,7 +178,7 @@ interface FilterChip {
                     @case ('brackets') {
                         <app-brackets-tab
                             [brackets]="brackets()"
-                            [canScore]="capabilities()?.canScore ?? false"
+                            [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
                             (editBracketScore)="onBracketScoreEdit($event)"
                             (viewTeamResults)="onViewTeamResults($event)"
@@ -511,6 +512,7 @@ interface FilterChip {
 export class ViewScheduleComponent implements OnInit {
     private readonly svc = inject(ViewScheduleService);
     private readonly route = inject(ActivatedRoute);
+    protected readonly auth = inject(AuthService);
 
     // ── Route state ──
     private jobPath: string | undefined;

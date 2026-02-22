@@ -63,6 +63,7 @@ export type { ChangeJobResponse } from './models/ChangeJobResponse';
 export type { ChargeTypeRefDto } from './models/ChargeTypeRefDto';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { ChildDto } from './models/ChildDto';
+export type { CloneBranchRequest } from './models/CloneBranchRequest';
 export type { CloneByDivisionRequest } from './models/CloneByDivisionRequest';
 export type { CloneByDowRequest } from './models/CloneByDowRequest';
 export type { CloneByFieldRequest } from './models/CloneByFieldRequest';

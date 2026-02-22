@@ -81,6 +81,9 @@ public interface INavEditorRepository
     /// <summary>Remove a nav item from the context.</summary>
     void RemoveNavItem(NavItem navItem);
 
+    /// <summary>Remove multiple nav items from the context.</summary>
+    void RemoveNavItems(IEnumerable<NavItem> navItems);
+
     /// <summary>Save all pending changes to the database.</summary>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

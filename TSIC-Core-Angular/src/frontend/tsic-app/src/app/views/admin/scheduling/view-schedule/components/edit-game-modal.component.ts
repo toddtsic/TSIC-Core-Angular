@@ -1,5 +1,5 @@
 import {
-    ChangeDetectionStrategy, Component, effect, EventEmitter,
+    ChangeDetectionStrategy, Component, computed, effect, EventEmitter,
     input, Output, signal
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -13,84 +13,105 @@ import type { ViewGameDto, EditGameRequest } from '@core/api';
     template: `
         @if (visible()) {
             <div class="modal-backdrop" (click)="close.emit()">
-                <div class="modal-card" (click)="$event.stopPropagation()">
+                <div class="modal-card" [class.compact]="isBracketMode()" (click)="$event.stopPropagation()">
                     <!-- Header -->
                     <div class="modal-header">
-                        <h3 class="modal-title">Edit Game #{{ game()?.gid }}</h3>
+                        <h3 class="modal-title">{{ isBracketMode() ? 'Score' : 'Edit Game #' + game()?.gid }}</h3>
                         <button class="modal-close" (click)="close.emit()" aria-label="Close">&times;</button>
                     </div>
 
                     <!-- Body -->
                     <div class="modal-body">
                         @if (game(); as g) {
-                            <!-- Team 1 -->
-                            <div class="form-section">
-                                <div class="section-label">Team 1</div>
-
-                                <div class="form-group">
-                                    <label class="form-label">Name</label>
-                                    <input type="text" class="form-input"
-                                           [ngModel]="t1Name()"
-                                           (ngModelChange)="t1Name.set($event)" />
+                            @if (isBracketMode()) {
+                                <!-- Compact bracket scoring: team names + score inputs -->
+                                <div class="score-row">
+                                    <span class="team-label">{{ t1Name() }}</span>
+                                    <input type="number" class="form-input score-box"
+                                           min="0" max="99"
+                                           [ngModel]="t1Score()"
+                                           (ngModelChange)="t1Score.set($event)"
+                                           (keydown.enter)="onSave()" />
                                 </div>
+                                <div class="score-row">
+                                    <span class="team-label">{{ t2Name() }}</span>
+                                    <input type="number" class="form-input score-box"
+                                           min="0" max="99"
+                                           [ngModel]="t2Score()"
+                                           (ngModelChange)="t2Score.set($event)"
+                                           (keydown.enter)="onSave()" />
+                                </div>
+                            } @else {
+                                <!-- Full edit: names, scores, annotations, status -->
+                                <!-- Team 1 -->
+                                <div class="form-section">
+                                    <div class="section-label">Team 1</div>
 
-                                <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label class="form-label">Score</label>
-                                        <input type="number" class="form-input"
-                                               min="0" max="99"
-                                               [ngModel]="t1Score()"
-                                               (ngModelChange)="t1Score.set($event)" />
-                                    </div>
-                                    <div class="form-group form-group-half">
-                                        <label class="form-label">Annotation</label>
+                                    <div class="form-group">
+                                        <label class="form-label">Name</label>
                                         <input type="text" class="form-input"
-                                               [ngModel]="t1Ann()"
-                                               (ngModelChange)="t1Ann.set($event)" />
+                                               [ngModel]="t1Name()"
+                                               (ngModelChange)="t1Name.set($event)" />
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group form-group-half">
+                                            <label class="form-label">Score</label>
+                                            <input type="number" class="form-input"
+                                                   min="0" max="99"
+                                                   [ngModel]="t1Score()"
+                                                   (ngModelChange)="t1Score.set($event)" />
+                                        </div>
+                                        <div class="form-group form-group-half">
+                                            <label class="form-label">Annotation</label>
+                                            <input type="text" class="form-input"
+                                                   [ngModel]="t1Ann()"
+                                                   (ngModelChange)="t1Ann.set($event)" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Team 2 -->
-                            <div class="form-section">
-                                <div class="section-label">Team 2</div>
+                                <!-- Team 2 -->
+                                <div class="form-section">
+                                    <div class="section-label">Team 2</div>
 
-                                <div class="form-group">
-                                    <label class="form-label">Name</label>
-                                    <input type="text" class="form-input"
-                                           [ngModel]="t2Name()"
-                                           (ngModelChange)="t2Name.set($event)" />
-                                </div>
-
-                                <div class="form-row">
-                                    <div class="form-group form-group-half">
-                                        <label class="form-label">Score</label>
-                                        <input type="number" class="form-input"
-                                               min="0" max="99"
-                                               [ngModel]="t2Score()"
-                                               (ngModelChange)="t2Score.set($event)" />
-                                    </div>
-                                    <div class="form-group form-group-half">
-                                        <label class="form-label">Annotation</label>
+                                    <div class="form-group">
+                                        <label class="form-label">Name</label>
                                         <input type="text" class="form-input"
-                                               [ngModel]="t2Ann()"
-                                               (ngModelChange)="t2Ann.set($event)" />
+                                               [ngModel]="t2Name()"
+                                               (ngModelChange)="t2Name.set($event)" />
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group form-group-half">
+                                            <label class="form-label">Score</label>
+                                            <input type="number" class="form-input"
+                                                   min="0" max="99"
+                                                   [ngModel]="t2Score()"
+                                                   (ngModelChange)="t2Score.set($event)" />
+                                        </div>
+                                        <div class="form-group form-group-half">
+                                            <label class="form-label">Annotation</label>
+                                            <input type="text" class="form-input"
+                                                   [ngModel]="t2Ann()"
+                                                   (ngModelChange)="t2Ann.set($event)" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Status -->
-                            <div class="form-group">
-                                <label class="form-label">Status</label>
-                                <select class="form-input"
-                                        [ngModel]="gStatusCode()"
-                                        (ngModelChange)="gStatusCode.set(+$event)">
-                                    <option [value]="1">Scheduled</option>
-                                    <option [value]="2">Completed</option>
-                                    <option [value]="3">Cancelled</option>
-                                    <option [value]="4">Postponed</option>
-                                </select>
-                            </div>
+                                <!-- Status -->
+                                <div class="form-group">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-input"
+                                            [ngModel]="gStatusCode()"
+                                            (ngModelChange)="gStatusCode.set(+$event)">
+                                        <option [value]="1">Scheduled</option>
+                                        <option [value]="2">Completed</option>
+                                        <option [value]="3">Cancelled</option>
+                                        <option [value]="4">Postponed</option>
+                                    </select>
+                                </div>
+                            }
                         }
                     </div>
 
@@ -125,6 +146,10 @@ import type { ViewGameDto, EditGameRequest } from '@core/api';
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
+        }
+
+        .modal-card.compact {
+            max-width: 380px;
         }
 
         .modal-header {
@@ -257,6 +282,37 @@ import type { ViewGameDto, EditGameRequest } from '@core/api';
         .btn-save:hover {
             opacity: 0.9;
         }
+
+        /* ── Compact bracket score layout ── */
+        .score-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-2) 0;
+        }
+
+        .score-row + .score-row {
+            border-top: 1px solid var(--bs-border-color);
+        }
+
+        .team-label {
+            flex: 1;
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--bs-body-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .score-box {
+            width: 64px;
+            flex: none;
+            text-align: center;
+            font-size: var(--font-size-base);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
     `]
 })
 export class EditGameModalComponent {
@@ -265,6 +321,9 @@ export class EditGameModalComponent {
 
     @Output() close = new EventEmitter<void>();
     @Output() save = new EventEmitter<EditGameRequest>();
+
+    /** Bracket mode: mock game from brackets has empty gDate */
+    readonly isBracketMode = computed(() => !this.game()?.gDate);
 
     // Local form state signals
     readonly t1Name = signal('');

@@ -53,7 +53,7 @@ public class ViewScheduleController : ControllerBase
             // .NET 10's JsonWebTokenHandler may not remap "role" → ClaimTypes.Role.
             var roleName = User.FindFirstValue(ClaimTypes.Role)
                 ?? User.FindFirstValue("role");
-            var isAdmin = roleName is "SuperUser" or "Director" or "SuperDirector" or "Scorer";
+            var isAdmin = roleName is "Superuser" or "Director" or "SuperDirector" or "Scorer";
 
             return (jobId, userId, isAdmin, null);
         }

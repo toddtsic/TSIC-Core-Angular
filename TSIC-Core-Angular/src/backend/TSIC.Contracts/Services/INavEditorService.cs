@@ -41,6 +41,13 @@ public interface INavEditorService
     /// </summary>
     Task<int> CascadeRouteAsync(CascadeRouteRequest request, string userId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Clone a Level 1 nav item and its active children to a target nav.
+    /// If ReplaceExisting, removes any existing Level 1 item with the same text first.
+    /// Returns the count of items cloned (parent + children).
+    /// </summary>
+    Task<int> CloneBranchAsync(CloneBranchRequest request, string userId, CancellationToken ct = default);
+
     /// <summary>Toggle the Active state of a nav.</summary>
     Task ToggleNavActiveAsync(int navId, bool active, CancellationToken ct = default);
 

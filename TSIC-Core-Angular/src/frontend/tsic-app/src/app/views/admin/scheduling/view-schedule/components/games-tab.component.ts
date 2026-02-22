@@ -34,9 +34,7 @@ import type { ViewGameDto } from '@core/api';
                         <tr>
                             <th class="col-date">Date</th>
                             <th class="col-time">Time</th>
-                            <th class="col-field">Field</th>
-                            <th class="col-div">Division</th>
-                            <th class="col-team">Home</th>
+                            <th class="col-team col-team-home">Home</th>
                             <th class="col-score">Score</th>
                             <th class="col-team">Away</th>
                             @if (canScore()) {
@@ -44,106 +42,64 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </tr>
                     </thead>
-                    <tbody>
-                        @for (game of games(); track game.gid) {
-                            <tr class="game-row"
-                                [style.border-left-color]="game.color ?? 'transparent'">
-
-                                <!-- Date -->
+                    @for (game of games(); track game.gid; let i = $index) {
+                        <tbody class="game-group" [class.game-even]="i % 2 === 1">
+                            <!-- Row 1: main data -->
+                            <tr class="game-row-main">
                                 <td class="cell-date">{{ formatDate(game.gDate) }}</td>
-
-                                <!-- Time -->
                                 <td class="cell-time">{{ formatTime(game.gDate) }}</td>
-
-                                <!-- Field -->
-                                <td class="cell-field">
-                                    <span class="clickable" (click)="viewFieldInfo.emit(game.fieldId)">
-                                        {{ game.fName }}
-                                    </span>
-                                </td>
-
-                                <!-- Division -->
-                                <td class="cell-div">{{ game.agDiv }}</td>
-
-                                <!-- Home -->
                                 <td class="cell-team cell-team-home">
                                     @if (game.t1Id) {
-                                        <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">
-                                            {{ game.t1Name }}
-                                        </span>
+                                        <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                     } @else {
                                         {{ game.t1Name }}
                                     }
-                                    @if (game.t1Record) {
-                                        <div class="record">({{ game.t1Record }})</div>
-                                    }
-                                    @if (game.t1Ann) {
-                                        <div class="annotation">{{ game.t1Ann }}</div>
-                                    }
                                 </td>
-
-                                <!-- Score (between teams) -->
-                                <td class="cell-score"
+                                <td class="cell-score" rowspan="2"
                                     [class.editable]="canScore()"
                                     (click)="onScoreCellClick(game)">
                                     @if (editingGid() === game.gid) {
                                         <div class="score-edit" (click)="$event.stopPropagation()">
-                                            <input type="number"
-                                                   class="score-input"
-                                                   [min]="0"
-                                                   [max]="99"
+                                            <input type="number" class="score-input"
+                                                   [min]="0" [max]="99"
                                                    [ngModel]="editT1Score()"
                                                    (ngModelChange)="editT1Score.set($event)"
                                                    (keydown.enter)="saveScore(game.gid)"
                                                    (keydown.escape)="cancelEdit()"
                                                    #t1Input>
                                             <span class="score-dash">&ndash;</span>
-                                            <input type="number"
-                                                   class="score-input"
-                                                   [min]="0"
-                                                   [max]="99"
+                                            <input type="number" class="score-input"
+                                                   [min]="0" [max]="99"
                                                    [ngModel]="editT2Score()"
                                                    (ngModelChange)="editT2Score.set($event)"
                                                    (keydown.enter)="saveScore(game.gid)"
                                                    (keydown.escape)="cancelEdit()">
                                         </div>
                                     } @else if (hasScore(game)) {
-                                        <span [class.winner]="isT1Winner(game)">{{ game.t1Score }}</span>
+                                        <span class="score-val" [class.winner]="isT1Winner(game)" [class.loser]="isT2Winner(game)">{{ game.t1Score }}</span>
                                         <span class="score-dash">&ndash;</span>
-                                        <span [class.winner]="isT2Winner(game)">{{ game.t2Score }}</span>
+                                        <span class="score-val" [class.winner]="isT2Winner(game)" [class.loser]="isT1Winner(game)">{{ game.t2Score }}</span>
                                     } @else if (game.t1Score != null) {
-                                        <span>{{ game.t1Score }}</span>
+                                        <span class="score-val">{{ game.t1Score }}</span>
                                         <span class="score-dash">&ndash;</span>
-                                        <span class="no-score">&middot;</span>
+                                        <span class="score-val no-score">&middot;</span>
                                     } @else if (game.t2Score != null) {
-                                        <span class="no-score">&middot;</span>
+                                        <span class="score-val no-score">&middot;</span>
                                         <span class="score-dash">&ndash;</span>
-                                        <span>{{ game.t2Score }}</span>
+                                        <span class="score-val">{{ game.t2Score }}</span>
                                     } @else {
-                                        <span class="no-score">vs</span>
+                                        <span class="score-val no-score">&ndash;</span>
                                     }
                                 </td>
-
-                                <!-- Away -->
                                 <td class="cell-team">
                                     @if (game.t2Id) {
-                                        <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">
-                                            {{ game.t2Name }}
-                                        </span>
+                                        <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                                     } @else {
                                         {{ game.t2Name }}
                                     }
-                                    @if (game.t2Record) {
-                                        <div class="record">({{ game.t2Record }})</div>
-                                    }
-                                    @if (game.t2Ann) {
-                                        <div class="annotation">{{ game.t2Ann }}</div>
-                                    }
                                 </td>
-
-                                <!-- Actions -->
                                 @if (canScore()) {
-                                    <td class="cell-actions">
+                                    <td class="cell-actions" rowspan="2">
                                         <button class="btn-edit-game"
                                                 title="Edit game"
                                                 (click)="editGame.emit(game.gid)">
@@ -152,8 +108,38 @@ import type { ViewGameDto } from '@core/api';
                                     </td>
                                 }
                             </tr>
-                        }
-                    </tbody>
+                            <!-- Row 2: field, division, records -->
+                            <tr class="game-row-sub">
+                                <td class="cell-meta" colspan="2">
+                                    <span class="meta-date-mobile">{{ formatDate(game.gDate) }} &middot; </span>
+                                    <span class="meta-time-mobile">{{ formatTime(game.gDate) }} &middot; </span>
+                                    <span class="clickable" (click)="viewFieldInfo.emit(game.fieldId)">{{ game.fName }}</span>
+                                    <span class="meta-sep">&middot;</span>
+                                    <span class="ag-badge"
+                                          [style.background-color]="game.color"
+                                          [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
+                                </td>
+                                <td class="cell-team cell-team-home cell-sub">
+                                    @if (game.t1Record) {
+                                        <span class="record">({{ game.t1Record }})</span>
+                                    }
+                                    @if (game.t1Ann) {
+                                        <span class="annotation">{{ game.t1Ann }}</span>
+                                    }
+                                </td>
+                                <!-- score cell spanned -->
+                                <td class="cell-team cell-sub">
+                                    @if (game.t2Record) {
+                                        <span class="record">({{ game.t2Record }})</span>
+                                    }
+                                    @if (game.t2Ann) {
+                                        <span class="annotation">{{ game.t2Ann }}</span>
+                                    }
+                                </td>
+                                <!-- actions cell spanned -->
+                            </tr>
+                        </tbody>
+                    }
                 </table>
             </div>
         }
@@ -197,34 +183,62 @@ import type { ViewGameDto } from '@core/api';
             text-align: left;
         }
 
-        .col-score,
+        .col-score {
+            text-align: center;
+            border-left: 1px solid var(--bs-border-color);
+            border-right: 1px solid var(--bs-border-color);
+        }
+
         .col-actions {
             text-align: center;
         }
 
-        th.col-team:first-of-type {
+        .col-team-home {
             text-align: right;
         }
 
-        /* ── Rows ── */
-        .game-row {
-            border-left: 3px solid transparent;
+        /* ── Game group (tbody per game) ── */
+        .game-group td {
+            padding: 0 var(--space-2);
+            color: var(--bs-body-color);
         }
 
-        .game-row td {
-            padding: var(--space-1) var(--space-2);
+        /* Only force nowrap on fixed-width data cells */
+        .cell-date,
+        .cell-time,
+        .cell-score,
+        .cell-actions {
             white-space: nowrap;
-            border-bottom: 1px solid var(--bs-border-color-translucent);
-            color: var(--bs-body-color);
+        }
+
+        /* Row 1: no bottom border */
+        .game-row-main td {
+            padding-top: var(--space-1);
+            padding-bottom: 0;
+            vertical-align: bottom;
+        }
+
+        /* Row 2: bottom border, tight top padding */
+        .game-row-sub td {
+            padding-top: 0;
+            padding-bottom: var(--space-1);
+            border-bottom: 1px solid var(--bs-border-color);
             vertical-align: top;
         }
 
-        /* Alternating row colors */
-        .game-row:nth-child(even) td {
+        /* Rowspan cells: top-aligned with team names */
+        .game-row-main td[rowspan] {
+            vertical-align: top;
+            padding-top: var(--space-1);
+            padding-bottom: var(--space-1);
+        }
+
+        /* Alternating group colors */
+        .game-even td {
             background: var(--bs-tertiary-bg);
         }
 
-        .game-row:hover td {
+        .game-group:hover td {
             background: var(--bs-secondary-bg);
         }
 
@@ -238,30 +252,43 @@ import type { ViewGameDto } from '@core/api';
             text-align: right;
         }
 
-        .cell-field .clickable,
-        .cell-team .clickable {
+        .cell-team .clickable,
+        .cell-meta .clickable {
             color: var(--bs-primary);
             cursor: pointer;
             text-decoration: none;
         }
 
-        .cell-field .clickable:hover,
-        .cell-team .clickable:hover {
+        .cell-team .clickable:hover,
+        .cell-meta .clickable:hover {
             text-decoration: underline;
         }
 
-        .record {
+        /* ── Row 2 metadata: field · division ── */
+        .cell-meta {
             font-size: var(--font-size-xs, 0.75rem);
             color: var(--bs-secondary-color);
-            line-height: 1.2;
+        }
+
+        .meta-sep {
+            margin: 0 var(--space-1);
+            opacity: 0.5;
+        }
+
+        /* ── Row 2 sub cells: records & annotations ── */
+        .cell-sub {
+            font-size: var(--font-size-xs, 0.75rem);
+        }
+
+        .record {
+            color: var(--bs-secondary-color);
             font-variant-numeric: tabular-nums;
         }
 
         .annotation {
-            font-size: var(--font-size-xs, 0.75rem);
             font-style: italic;
             color: var(--bs-secondary-color);
-            line-height: 1.2;
+            margin-left: var(--space-1);
         }
 
         /* ── Score column ── */
@@ -269,6 +296,10 @@ import type { ViewGameDto } from '@core/api';
             text-align: center;
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
+            border: 1px solid var(--bs-border-color);
+            border-top: none;
+            padding-left: var(--space-3);
+            padding-right: var(--space-3);
         }
 
         .cell-score.editable {
@@ -276,19 +307,30 @@ import type { ViewGameDto } from '@core/api';
         }
 
         .cell-score.editable:hover {
-            background: var(--bs-primary-bg-subtle);
+            background: var(--bs-primary-bg-subtle) !important;
         }
 
-        .winner {
+        .score-val {
+            font-size: var(--font-size-xl);
             font-weight: 700;
-        }
-
-        .no-score {
-            color: var(--bs-secondary-color);
+            font-variant-numeric: tabular-nums;
         }
 
         .score-dash {
             margin: 0 var(--space-1);
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-sm);
+        }
+
+        .winner {
+            color: var(--bs-success);
+        }
+
+        .loser {
+            color: var(--bs-danger);
+        }
+
+        .no-score {
             color: var(--bs-secondary-color);
         }
 
@@ -300,10 +342,10 @@ import type { ViewGameDto } from '@core/api';
         }
 
         .score-input {
-            width: 40px;
-            padding: 1px var(--space-1);
+            width: 44px;
+            padding: 2px var(--space-1);
             text-align: center;
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-base);
             font-family: var(--bs-font-monospace);
             border: 1px solid var(--bs-primary);
             border-radius: var(--bs-border-radius-sm, 0.2rem);
@@ -329,26 +371,64 @@ import type { ViewGameDto } from '@core/api';
         /* ── Actions column ── */
         .cell-actions {
             text-align: center;
-            padding: var(--space-1);
         }
 
         .btn-edit-game {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border: none;
-            background: transparent;
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--bs-border-color);
+            background: var(--bs-secondary-bg);
             color: var(--bs-secondary-color);
             cursor: pointer;
-            padding: 2px var(--space-1);
+            padding: 0;
             border-radius: var(--bs-border-radius-sm, 0.2rem);
             font-size: var(--font-size-sm);
-            transition: color 0.15s, background-color 0.15s;
+            transition: color 0.15s, background-color 0.15s, border-color 0.15s;
         }
 
         .btn-edit-game:hover {
             color: var(--bs-primary);
             background: var(--bs-primary-bg-subtle);
+        }
+
+        /* ── Age-group color badge ── */
+        .ag-badge {
+            display: inline-block;
+            padding: 0 var(--space-1);
+            border-radius: var(--radius-sm, 4px);
+            font-weight: 600;
+            line-height: 1.4;
+            white-space: nowrap;
+        }
+
+        /* ── Mobile date/time (hidden on desktop) ── */
+        .meta-date-mobile,
+        .meta-time-mobile {
+            display: none;
+        }
+
+        /* ── Responsive: tablet ── */
+        @media (max-width: 767px) {
+            .col-date, .cell-date { display: none; }
+            .meta-date-mobile { display: inline; }
+
+            .games-table { font-size: var(--font-size-xs, 0.75rem); }
+            .game-group td { padding: 0 var(--space-1); }
+            .cell-score { padding-left: var(--space-2); padding-right: var(--space-2); }
+            .score-val { font-size: var(--font-size-lg); }
+        }
+
+        /* ── Responsive: phone ── */
+        @media (max-width: 575px) {
+            .col-time, .cell-time { display: none; }
+            .meta-time-mobile { display: inline; }
+
+            .score-val { font-size: var(--font-size-base); }
+            .score-dash { margin: 0 2px; }
+            .cell-score { padding-left: var(--space-1); padding-right: var(--space-1); }
         }
     `]
 })
@@ -389,6 +469,29 @@ export class GamesTabComponent {
         hours = hours % 12 || 12;
         const mm = minutes.toString().padStart(2, '0');
         return `${hours}:${mm} ${ampm}`;
+    }
+
+    // ── Color helpers ──
+
+    private contrastCache = new Map<string, string>();
+
+    /** Resolves any CSS color to RGB via canvas, returns black or white for contrast */
+    contrastColor(cssColor: string | null | undefined): string {
+        if (!cssColor) return 'inherit';
+        const cached = this.contrastCache.get(cssColor);
+        if (cached) return cached;
+
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        ctx.fillStyle = cssColor;
+        const hex = ctx.fillStyle.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        const result = luminance > 150 ? '#000' : '#fff';
+
+        this.contrastCache.set(cssColor, result);
+        return result;
     }
 
     // ── Score helpers ──
