@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../../infrastructure/services/auth.service';
+import { JobService } from '../../../../infrastructure/services/job.service';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import type {
@@ -58,102 +59,56 @@ interface FilterChip {
         <div class="view-schedule-page">
             <!-- Header -->
             <div class="page-header">
-                <h2 class="page-title">Schedule</h2>
+                <h1 class="page-title">Schedule</h1>
+                @if (eventName()) {
+                    <p class="page-subtitle">{{ eventName() }}</p>
+                }
             </div>
 
-            <!-- Filter Bar (horizontal) -->
-            <div class="filter-bar">
-                <div class="filter-bar-row">
-                    <i class="bi bi-funnel filter-icon"></i>
-
-                    <!-- Game Days dropdown -->
-                    @if (filterOptions()?.gameDays?.length) {
-                        <select class="filter-select"
-                                [ngModel]="selectedGameDay()"
-                                (ngModelChange)="selectedGameDay.set($event); refreshTab()">
-                            <option value="">All Game Days</option>
-                            @for (day of filterOptions()!.gameDays; track day) {
-                                <option [value]="day">{{ formatGameDay(day) }}</option>
-                            }
-                        </select>
+            <!-- Toolbar: filter trigger + segment tabs -->
+            <div class="toolbar">
+                <button class="filter-trigger"
+                        (click)="filterModalVisible.set(true)"
+                        aria-label="Open filters">
+                    <i class="bi bi-funnel"></i>
+                    @if (activeFilterCount() > 0) {
+                        <span class="filter-badge">{{ activeFilterCount() }}</span>
                     }
+                </button>
 
-                    <!-- Unscored checkbox -->
-                    <label class="filter-checkbox-label">
-                        <input type="checkbox"
-                               [ngModel]="unscoredOnly()"
-                               (ngModelChange)="unscoredOnly.set($event); refreshTab()" />
-                        Unscored only
-                    </label>
-
-                    <!-- CADT toggle (only if tree has data) -->
-                    @if (hasCadtData()) {
-                        <button class="cadt-toggle-btn"
-                                [class.active]="cadtTreeExpanded()"
-                                (click)="cadtTreeExpanded.set(!cadtTreeExpanded())">
-                            <i class="bi bi-diagram-3"></i>
-                            Teams
-                            @if (cadtFilterCount() > 0) {
-                                <span class="filter-count">{{ cadtFilterCount() }}</span>
-                            }
-                            <span class="toggle-chevron" [class.expanded]="cadtTreeExpanded()"></span>
-                        </button>
-                    }
-
-                    <!-- Clear -->
-                    @if (hasActiveFilters()) {
-                        <button class="clear-filters-btn" (click)="clearFilters()">
-                            <i class="bi bi-x-circle"></i> Clear
-                        </button>
+                <div class="segment-tabs" role="tablist">
+                    <button class="segment-btn"
+                            [class.active]="activeTab() === 'games'"
+                            (click)="switchTab('games')" role="tab">Games</button>
+                    <button class="segment-btn"
+                            [class.active]="activeTab() === 'standings'"
+                            (click)="switchTab('standings')" role="tab">Standings</button>
+                    <button class="segment-btn"
+                            [class.active]="activeTab() === 'brackets'"
+                            (click)="switchTab('brackets')" role="tab">Brackets</button>
+                    @if (!capabilities()?.hideContacts) {
+                        <button class="segment-btn"
+                                [class.active]="activeTab() === 'contacts'"
+                                (click)="switchTab('contacts')" role="tab">Contacts</button>
                     }
                 </div>
-
-                <!-- CADT tree (collapsible) -->
-                @if (cadtTreeExpanded() && hasCadtData()) {
-                    <div class="cadt-section">
-                        <app-cadt-tree-filter
-                            [treeData]="filterOptions()?.clubs ?? []"
-                            [checkedIds]="checkedIds"
-                            (checkedIdsChange)="onCadtSelectionChange($event)" />
-                    </div>
-                }
-
-                <!-- Filter chips strip -->
-                @if (activeFilterChips().length > 0) {
-                    <div class="filter-chips-strip">
-                        @for (chip of activeFilterChips(); track chip.nodeId ?? chip.type) {
-                            <span class="filter-chip">
-                                <span class="chip-category">{{ chip.category }}:</span>
-                                <span class="chip-label">{{ chip.label }}</span>
-                                <button type="button" class="chip-remove"
-                                        (click)="removeChip(chip)"
-                                        aria-label="Remove filter">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </span>
-                        }
-                        <button type="button" class="chip-clear-all" (click)="clearFilters()">Clear All</button>
-                    </div>
-                }
             </div>
 
-            <!-- Tab Bar -->
-            <div class="tab-bar">
-                <button class="tab-btn" [class.active]="activeTab() === 'games'"
-                        (click)="switchTab('games')">Games</button>
-                <button class="tab-btn" [class.active]="activeTab() === 'standings'"
-                        (click)="switchTab('standings')">Standings</button>
-                <button class="tab-btn" [class.active]="activeTab() === 'brackets'"
-                        (click)="switchTab('brackets')">Brackets</button>
-                @if (!capabilities()?.hideContacts) {
-                    <button class="tab-btn" [class.active]="activeTab() === 'contacts'"
-                            (click)="switchTab('contacts')">Contacts</button>
-                }
-            </div>
+            <!-- Filter chips -->
+            @if (activeFilterChips().length > 0) {
+                <div class="filter-chips-strip">
+                    @for (chip of activeFilterChips(); track chip.nodeId ?? chip.type) {
+                        <span class="filter-chip">
+                            <span class="chip-category">{{ chip.category }}:</span>
+                            <span class="chip-label">{{ chip.label }}</span>
+                            <button type="button" class="chip-remove"
+                                    (click)="removeChip(chip)"
+                                    aria-label="Remove filter">&times;</button>
+                        </span>
+                    }
+                    <button type="button" class="chip-clear-all" (click)="clearFilters()">Clear All</button>
+                </div>
+            }
 
             <!-- Tab content (full width) -->
             <div class="tab-content">
@@ -192,6 +147,66 @@ interface FilterChip {
                 }
             </div>
         </div>
+
+        <!-- Filter Modal -->
+        @if (filterModalVisible()) {
+            <tsic-dialog size="sm" (requestClose)="closeFilterModal()">
+                <div class="modal-content filter-modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-funnel me-2"></i>Filters
+                        </h5>
+                        <button class="btn-close" (click)="closeFilterModal()"></button>
+                    </div>
+                    <div class="modal-body filter-modal-body">
+                        <!-- Game Days -->
+                        @if (filterOptions()?.gameDays?.length) {
+                            <div class="filter-group">
+                                <label class="filter-group-label">Game Day</label>
+                                <select class="form-select form-select-sm"
+                                        [ngModel]="selectedGameDay()"
+                                        (ngModelChange)="selectedGameDay.set($event); refreshTab()">
+                                    <option value="">All Game Days</option>
+                                    @for (day of filterOptions()!.gameDays; track day) {
+                                        <option [value]="day">{{ formatGameDay(day) }}</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+
+                        <!-- Unscored toggle -->
+                        <div class="filter-group">
+                            <label class="filter-check">
+                                <input type="checkbox"
+                                       [ngModel]="unscoredOnly()"
+                                       (ngModelChange)="unscoredOnly.set($event); refreshTab()" />
+                                Show unscored games only
+                            </label>
+                        </div>
+
+                        <!-- CADT Tree -->
+                        @if (hasCadtData()) {
+                            <div class="filter-group filter-group-tree">
+                                <label class="filter-group-label">Teams</label>
+                                <app-cadt-tree-filter
+                                    [treeData]="filterOptions()?.clubs ?? []"
+                                    [checkedIds]="checkedIds"
+                                    (checkedIdsChange)="onCadtSelectionChange($event)" />
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-sm btn-outline-danger me-auto"
+                                [disabled]="!hasActiveFilters()"
+                                (click)="clearFilters()">
+                            <i class="bi bi-x-circle me-1"></i>Reset
+                        </button>
+                        <button class="btn btn-sm btn-primary"
+                                (click)="closeFilterModal()">Done</button>
+                    </div>
+                </div>
+            </tsic-dialog>
+        }
 
         <!-- Team Results Modal -->
         <app-team-results-modal
@@ -253,144 +268,102 @@ interface FilterChip {
 
         /* ── Header ── */
         .page-header {
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
+            text-align: center;
+            padding: var(--space-2) 0;
         }
 
         .page-title {
             margin: 0;
-            font-size: var(--font-size-xl, 1.5rem);
+            font-size: var(--font-size-3xl);
             font-weight: 700;
             color: var(--bs-body-color);
         }
 
-        /* ── Filter Bar (horizontal) ── */
-        .filter-bar {
-            background: var(--bs-card-bg);
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-md);
-            padding: var(--space-3);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-3);
-        }
-
-        .filter-bar-row {
-            display: flex;
-            align-items: center;
-            gap: var(--space-3);
-            flex-wrap: wrap;
-        }
-
-        .filter-icon {
+        .page-subtitle {
+            margin: var(--space-1) 0 0;
+            font-size: var(--font-size-sm);
             color: var(--bs-secondary-color);
-            font-size: var(--font-size-lg);
-            flex-shrink: 0;
+            font-weight: 400;
         }
 
-        .filter-select {
-            padding: var(--space-1) var(--space-3);
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-sm);
-            background: var(--bs-body-bg);
-            color: var(--bs-body-color);
-            font-size: var(--font-size-sm);
-            cursor: pointer;
-            min-width: 160px;
-        }
-
-        .filter-checkbox-label {
+        /* ── Toolbar ── */
+        .toolbar {
             display: flex;
             align-items: center;
-            gap: var(--space-2);
-            font-size: var(--font-size-sm);
-            color: var(--bs-body-color);
-            cursor: pointer;
-            white-space: nowrap;
+            gap: var(--space-3);
         }
 
-        .filter-checkbox-label input {
-            accent-color: var(--bs-primary);
-        }
-
-        .cadt-toggle-btn {
-            display: flex;
-            align-items: center;
-            gap: var(--space-2);
-            padding: var(--space-1) var(--space-3);
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-sm);
-            background: var(--bs-body-bg);
-            color: var(--bs-body-color);
-            font-size: var(--font-size-sm);
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
-        }
-
-        .cadt-toggle-btn:hover {
-            background: var(--bs-tertiary-bg);
-        }
-
-        .cadt-toggle-btn.active {
-            border-color: var(--bs-primary);
-            color: var(--bs-primary);
-        }
-
-        .filter-count {
+        .filter-trigger {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 var(--space-1);
-            background: var(--bs-primary);
-            color: white;
-            border-radius: 10px;
-            font-size: var(--font-size-xs);
-            font-weight: 700;
-        }
-
-        .toggle-chevron {
-            display: inline-block;
-            width: 0;
-            height: 0;
-            border-left: 5px solid var(--bs-secondary-color);
-            border-top: 4px solid transparent;
-            border-bottom: 4px solid transparent;
-            transition: transform 0.15s ease;
-        }
-
-        .toggle-chevron.expanded {
-            transform: rotate(90deg);
-        }
-
-        .clear-filters-btn {
-            display: flex;
-            align-items: center;
-            gap: var(--space-1);
-            padding: var(--space-1) var(--space-3);
+            position: relative;
+            width: 40px;
+            height: 40px;
             border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-sm);
-            background: none;
+            border-radius: var(--radius-md);
+            background: var(--bs-card-bg);
             color: var(--bs-secondary-color);
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-lg);
             cursor: pointer;
-            margin-left: auto;
+            flex-shrink: 0;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
         }
 
-        .clear-filters-btn:hover {
-            background: var(--bs-tertiary-bg);
+        .filter-trigger:hover {
+            background: var(--bs-secondary-bg);
             color: var(--bs-body-color);
         }
 
-        /* ── CADT Section (collapsible) ── */
-        .cadt-section {
-            border-top: 1px solid var(--bs-border-color);
-            padding-top: var(--space-3);
-            max-height: 300px;
-            overflow-y: auto;
+        .filter-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            background: var(--bs-primary);
+            color: white;
+            border-radius: var(--radius-full);
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* ── Segment Tabs ── */
+        .segment-tabs {
+            display: inline-flex;
+            background: var(--bs-tertiary-bg);
+            border-radius: var(--radius-full);
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .segment-btn {
+            padding: var(--space-2) var(--space-4);
+            border: none;
+            border-radius: var(--radius-full);
+            background: transparent;
+            color: var(--bs-secondary-color);
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+
+        .segment-btn:hover:not(.active) {
+            color: var(--bs-body-color);
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        .segment-btn.active {
+            background: var(--bs-primary);
+            color: white;
+            box-shadow: var(--shadow-sm);
         }
 
         /* ── Filter Chips ── */
@@ -398,8 +371,6 @@ interface FilterChip {
             display: flex;
             flex-wrap: wrap;
             gap: var(--space-2);
-            padding-top: var(--space-2);
-            border-top: 1px solid var(--bs-border-color);
             align-items: center;
         }
 
@@ -410,7 +381,7 @@ interface FilterChip {
             padding: var(--space-1) var(--space-2);
             background: var(--bs-primary);
             color: var(--bs-white, #fff);
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius-full);
             font-size: var(--font-size-xs);
             font-weight: 500;
             line-height: 1.2;
@@ -428,13 +399,15 @@ interface FilterChip {
             width: 16px;
             height: 16px;
             padding: 0;
-            margin-left: var(--space-1);
+            margin-left: 2px;
             background: transparent;
             border: none;
             border-radius: 50%;
             color: var(--bs-white, #fff);
             cursor: pointer;
             opacity: 0.7;
+            font-size: var(--font-size-sm);
+            line-height: 1;
             transition: opacity 0.15s, background 0.15s;
         }
 
@@ -447,7 +420,7 @@ interface FilterChip {
             padding: var(--space-1) var(--space-2);
             background: transparent;
             border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius-full);
             font-size: var(--font-size-xs);
             font-weight: 500;
             color: var(--bs-secondary-color);
@@ -460,51 +433,81 @@ interface FilterChip {
             color: var(--bs-body-color);
         }
 
-        /* ── Tab Bar ── */
-        .tab-bar {
+        /* ── Filter Modal ── */
+        .filter-modal-content {
             display: flex;
-            gap: 0;
-            border-bottom: 2px solid var(--bs-border-color);
-            overflow-x: auto;
+            flex-direction: column;
+            max-height: 80vh;
         }
 
-        .tab-btn {
-            padding: var(--space-2) var(--space-4);
-            border: none;
-            background: none;
-            color: var(--bs-secondary-color);
+        .filter-modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .filter-group-tree {
+            min-height: 0;
+            flex-shrink: 1;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .filter-group-label {
             font-weight: 600;
             font-size: var(--font-size-sm);
-            cursor: pointer;
-            white-space: nowrap;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: color 0.15s, border-color 0.15s;
-        }
-
-        .tab-btn:hover {
             color: var(--bs-body-color);
         }
 
-        .tab-btn.active {
-            color: var(--bs-primary);
-            border-bottom-color: var(--bs-primary);
+        .filter-check {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-sm);
+            color: var(--bs-body-color);
+            cursor: pointer;
+        }
+
+        .filter-check input {
+            accent-color: var(--bs-primary);
         }
 
         /* ── Responsive ── */
-        @media (max-width: 768px) {
-            .filter-bar-row {
-                flex-direction: column;
-                align-items: stretch;
+        @media (max-width: 575px) {
+            .view-schedule-page {
+                padding: var(--space-2);
+                gap: var(--space-2);
             }
 
-            .clear-filters-btn {
-                margin-left: 0;
+            .page-title {
+                font-size: var(--font-size-2xl);
             }
 
-            .filter-select {
-                width: 100%;
-                min-width: unset;
+            .toolbar {
+                flex-wrap: wrap;
+            }
+
+            .segment-tabs {
+                flex: 1;
+                min-width: 0;
+                overflow-x: auto;
+                scrollbar-width: none;
+            }
+
+            .segment-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .segment-btn {
+                padding: var(--space-1) var(--space-3);
+                font-size: var(--font-size-xs);
             }
         }
     `]
@@ -513,6 +516,7 @@ export class ViewScheduleComponent implements OnInit {
     private readonly svc = inject(ViewScheduleService);
     private readonly route = inject(ActivatedRoute);
     protected readonly auth = inject(AuthService);
+    private readonly jobService = inject(JobService);
 
     // ── Route state ──
     private jobPath: string | undefined;
@@ -520,13 +524,13 @@ export class ViewScheduleComponent implements OnInit {
     // ── Filter state ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
     readonly capabilities = signal<ScheduleCapabilitiesDto | null>(null);
+    readonly filterModalVisible = signal(false);
 
     // CADT selection (mutable Set shared with child)
     checkedIds = new Set<string>();
     readonly cadtSelectionSignal = signal<CadtSelectionEvent>({
         clubNames: [], agegroupIds: [], divisionIds: [], teamIds: []
     });
-    readonly cadtTreeExpanded = signal(false);
     readonly selectedGameDay = signal('');
     readonly unscoredOnly = signal(false);
 
@@ -557,6 +561,8 @@ export class ViewScheduleComponent implements OnInit {
 
     // ── Computed helpers ──
 
+    readonly eventName = computed(() => this.jobService.currentJob()?.jobName ?? '');
+
     readonly hasCadtData = computed(() => (this.filterOptions()?.clubs?.length ?? 0) > 0);
 
     readonly cadtFilterCount = computed(() => {
@@ -569,6 +575,13 @@ export class ViewScheduleComponent implements OnInit {
         return this.cadtFilterCount() > 0
             || this.selectedGameDay() !== ''
             || this.unscoredOnly();
+    });
+
+    readonly activeFilterCount = computed(() => {
+        let count = this.cadtFilterCount();
+        if (this.selectedGameDay()) count++;
+        if (this.unscoredOnly()) count++;
+        return count;
     });
 
     readonly activeFilterChips = computed<FilterChip[]>(() => {
@@ -607,6 +620,14 @@ export class ViewScheduleComponent implements OnInit {
         // Load filter options and capabilities in parallel
         this.svc.getFilterOptions(this.jobPath).subscribe(opts => {
             this.filterOptions.set(opts);
+            // Debug: check if tree contains teams
+            const totalTeams = (opts.clubs ?? []).reduce((sum, club) =>
+                sum + (club.agegroups ?? []).reduce((s2, ag) =>
+                    s2 + (ag.divisions ?? []).reduce((s3, div) =>
+                        s3 + (div.teams?.length ?? 0), 0), 0), 0);
+            console.log('[CADT] filter options loaded:',
+                'clubs:', opts.clubs?.length ?? 0,
+                'totalTeams in tree:', totalTeams);
         });
 
         this.svc.getCapabilities(this.jobPath).subscribe(caps => {
@@ -619,8 +640,17 @@ export class ViewScheduleComponent implements OnInit {
 
     // ── Filter handling ──
 
-    onCadtSelectionChange(event: CadtSelectionEvent): void {
-        this.cadtSelectionSignal.set(event);
+    onCadtSelectionChange(checked: Set<string>): void {
+        this.checkedIds = checked;
+        this.deriveCadtSelection();
+        console.log('[CADT] checkedIds:', [...checked]);
+        console.log('[CADT] derived signal:', this.cadtSelectionSignal());
+    }
+
+    closeFilterModal(): void {
+        this.filterModalVisible.set(false);
+        const req = this.buildFilterRequest();
+        console.log('[FILTER] closeFilterModal → request:', JSON.stringify(req));
         this.refreshTab();
     }
 
@@ -629,7 +659,6 @@ export class ViewScheduleComponent implements OnInit {
         this.cadtSelectionSignal.set({ clubNames: [], agegroupIds: [], divisionIds: [], teamIds: [] });
         this.selectedGameDay.set('');
         this.unscoredOnly.set(false);
-        this.cadtTreeExpanded.set(false);
         this.refreshTab();
     }
 
@@ -689,8 +718,14 @@ export class ViewScheduleComponent implements OnInit {
 
         switch (tab) {
             case 'games':
+                console.log('[FILTER] POST games with:', JSON.stringify(request));
                 this.svc.getGames(request, this.jobPath).subscribe({
-                    next: data => { this.games.set(data); this.loadedTabs.add('games'); },
+                    next: data => {
+                        console.log('[FILTER] games response:', data.length, 'games');
+                        this.games.set(data);
+                        this.loadedTabs.add('games');
+                    },
+                    error: err => console.error('[FILTER] games ERROR:', err),
                     complete: () => this.tabLoading.set(false)
                 });
                 break;
@@ -898,20 +933,78 @@ export class ViewScheduleComponent implements OnInit {
         }
     }
 
-    /** Rebuild cadtSelectionSignal from current checkedIds */
+    /**
+     * Rebuild cadtSelectionSignal from current checkedIds.
+     *
+     * Key design constraints:
+     * - Agegroups and divisions are JOB-level (shared across all clubs)
+     * - The CADT tree duplicates them under each club for display
+     * - The backend uses OR-union logic across filter arrays
+     *
+     * Strategy:
+     * 1. First pass: find checked clubs, collect ALL their descendant
+     *    division/team IDs into a "covered" set so we don't double-count
+     *    them when iterating other clubs (since IDs are shared job-level).
+     * 2. Second pass: for unchecked clubs, collect division/team IDs
+     *    that aren't already covered by a checked club.
+     */
     private deriveCadtSelection(): void {
-        const clubNames: string[] = [];
-        const agegroupIds: string[] = [];
-        const divisionIds: string[] = [];
-        const teamIds: string[] = [];
+        const clubNameSet = new Set<string>();
+        const divisionIdSet = new Set<string>();
+        const teamIdSet = new Set<string>();
+        const coveredDivIds = new Set<string>();
+        const coveredTeamIds = new Set<string>();
 
-        for (const id of this.checkedIds) {
-            if (id.startsWith('club:')) clubNames.push(id.substring(5));
-            else if (id.startsWith('ag:')) agegroupIds.push(id.substring(3));
-            else if (id.startsWith('div:')) divisionIds.push(id.substring(4));
-            else if (id.startsWith('team:')) teamIds.push(id.substring(5));
+        const clubs = this.filterOptions()?.clubs ?? [];
+
+        // Pass 1: checked clubs — collect their names and mark descendant IDs as covered
+        for (const club of clubs) {
+            if (this.checkedIds.has(`club:${club.clubName}`)) {
+                clubNameSet.add(club.clubName);
+                for (const ag of club.agegroups ?? []) {
+                    for (const div of ag.divisions ?? []) {
+                        coveredDivIds.add(div.divId);
+                        for (const team of div.teams ?? []) {
+                            coveredTeamIds.add(team.teamId);
+                        }
+                    }
+                }
+            }
         }
 
-        this.cadtSelectionSignal.set({ clubNames, agegroupIds, divisionIds, teamIds });
+        // Pass 2: unchecked clubs — collect divisions/teams not covered by a checked club
+        for (const club of clubs) {
+            if (this.checkedIds.has(`club:${club.clubName}`)) continue; // already handled
+
+            for (const ag of club.agegroups ?? []) {
+                for (const div of ag.divisions ?? []) {
+                    if (coveredDivIds.has(div.divId)) continue; // covered by a checked club
+                    if (this.checkedIds.has(`div:${div.divId}`)) {
+                        divisionIdSet.add(div.divId);
+                        continue; // division covers child teams
+                    }
+                    for (const team of div.teams ?? []) {
+                        if (coveredTeamIds.has(team.teamId)) continue;
+                        if (this.checkedIds.has(`team:${team.teamId}`)) {
+                            teamIdSet.add(team.teamId);
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log('[CADT] deriveCadtSelection →',
+            'clubs:', [...clubNameSet],
+            'divs:', [...divisionIdSet],
+            'teams:', [...teamIdSet],
+            'coveredDivs:', coveredDivIds.size,
+            'coveredTeams:', coveredTeamIds.size);
+
+        this.cadtSelectionSignal.set({
+            clubNames: [...clubNameSet],
+            agegroupIds: [],  // intentionally empty — too broad for cross-club filtering
+            divisionIds: [...divisionIdSet],
+            teamIds: [...teamIdSet]
+        });
     }
 }

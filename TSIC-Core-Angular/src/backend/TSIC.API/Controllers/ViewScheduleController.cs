@@ -17,16 +17,13 @@ namespace TSIC.API.Controllers;
 [Route("api/view-schedule")]
 public class ViewScheduleController : ControllerBase
 {
-    private readonly ILogger<ViewScheduleController> _logger;
     private readonly IViewScheduleService _service;
     private readonly IJobLookupService _jobLookupService;
 
     public ViewScheduleController(
-        ILogger<ViewScheduleController> logger,
         IViewScheduleService service,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _service = service;
         _jobLookupService = jobLookupService;
     }

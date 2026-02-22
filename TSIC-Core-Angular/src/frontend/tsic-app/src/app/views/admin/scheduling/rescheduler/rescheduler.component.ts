@@ -13,7 +13,7 @@ import {
 } from './services/rescheduler.service';
 import { formatGameDay } from '../shared/utils/scheduling-helpers';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
-import { CadtTreeFilterComponent, type CadtSelectionEvent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 @Component({
@@ -131,11 +131,21 @@ export class ReschedulerComponent implements OnInit {
 
     // ── CADT tree selection handler ──
 
-    onCadtSelectionChange(event: CadtSelectionEvent): void {
-        this.selectedClubNames.set(event.clubNames);
-        this.selectedAgegroupIds.set(event.agegroupIds);
-        this.selectedDivisionIds.set(event.divisionIds);
-        this.selectedTeamIds.set(event.teamIds);
+    onCadtSelectionChange(checked: Set<string>): void {
+        const clubNames: string[] = [];
+        const agegroupIds: string[] = [];
+        const divisionIds: string[] = [];
+        const teamIds: string[] = [];
+        for (const id of checked) {
+            if (id.startsWith('club:')) clubNames.push(id.substring(5));
+            else if (id.startsWith('ag:')) agegroupIds.push(id.substring(3));
+            else if (id.startsWith('div:')) divisionIds.push(id.substring(4));
+            else if (id.startsWith('team:')) teamIds.push(id.substring(5));
+        }
+        this.selectedClubNames.set(clubNames);
+        this.selectedAgegroupIds.set(agegroupIds);
+        this.selectedDivisionIds.set(divisionIds);
+        this.selectedTeamIds.set(teamIds);
     }
 
     // ── Filter toggles ──

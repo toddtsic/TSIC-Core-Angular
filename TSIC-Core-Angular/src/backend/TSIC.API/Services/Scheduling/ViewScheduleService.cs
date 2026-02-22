@@ -12,16 +12,13 @@ public sealed class ViewScheduleService : IViewScheduleService
 {
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamRepository _teamRepo;
-    private readonly ILogger<ViewScheduleService> _logger;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
-        ITeamRepository teamRepo,
-        ILogger<ViewScheduleService> logger)
+        ITeamRepository teamRepo)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
-        _logger = logger;
     }
 
     public async Task<ScheduleFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default)

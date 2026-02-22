@@ -132,7 +132,16 @@ public record BatchEmailResponse
     public required int TotalRecipients { get; init; }
     public required int Sent { get; init; }
     public required int Failed { get; init; }
+    public required int OptedOut { get; init; }
     public required List<string> FailedAddresses { get; init; }
+}
+
+/// <summary>
+/// Request to set or clear the email opt-out flag on a registration.
+/// </summary>
+public record SetEmailOptOutRequest
+{
+    public required bool OptOut { get; init; }
 }
 
 /// <summary>

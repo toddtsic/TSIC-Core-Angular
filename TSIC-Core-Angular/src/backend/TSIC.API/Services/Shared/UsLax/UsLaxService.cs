@@ -22,17 +22,20 @@ public sealed class UsLaxService : IUsLaxService
 
     public async Task<string?> GetMemberRawJsonAsync(string membershipId, CancellationToken ct = default)
     {
+        // USALax API requires 12-digit zero-padded membership IDs
+        var padded = membershipId.PadLeft(12, '0');
+
         var client = _httpClientFactory.CreateClient("uslax");
         var token = await GetValidAccessTokenAsync(client, ct);
         if (string.IsNullOrWhiteSpace(token)) return null;
 
-        var content = await SendMemberPingAsync(client, token, membershipId, ct);
+        var content = await SendMemberPingAsync(client, token, padded, ct);
         if (content is null || IsBearerTokenInvalid(content))
         {
             // Try one refresh by forcing new token
             token = await FetchAccessTokenAsync(client, ct);
             if (string.IsNullOrWhiteSpace(token)) return content; // return whatever we had
-            content = await SendMemberPingAsync(client, token, membershipId, ct);
+            content = await SendMemberPingAsync(client, token, padded, ct);
         }
         return content;
     }
@@ -63,7 +66,7 @@ public sealed class UsLaxService : IUsLaxService
                 new("grant_type", "password")
             })
         };
-        request.Headers.UserAgent.ParseAdd("TSIC.API/1.0");
+        request.Headers.UserAgent.ParseAdd("PostmanRuntime/7.29.0");
 
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         var json = await response.Content.ReadAsStringAsync(ct);
@@ -90,7 +93,7 @@ public sealed class UsLaxService : IUsLaxService
     {
         var req = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/MemberPing?membership_id={Uri.EscapeDataString(membershipId)}");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        req.Headers.UserAgent.ParseAdd("TSIC.API/1.0");
+        req.Headers.UserAgent.ParseAdd("PostmanRuntime/7.29.0");
         using var response = await client.SendAsync(req, ct);
         return await response.Content.ReadAsStringAsync(ct);
     }

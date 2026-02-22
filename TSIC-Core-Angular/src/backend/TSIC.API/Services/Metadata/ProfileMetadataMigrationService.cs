@@ -1324,7 +1324,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                     SourceProfileType = sourceProfileType,
                     Success = false,
                     ErrorMessage = $"Source profile '{sourceProfileType}' not found",
-                    NewProfileType = null,
+                    NewProfileType = string.Empty,
                     FieldCount = 0
                 };
             }
@@ -1339,7 +1339,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                     SourceProfileType = sourceProfileType,
                     Success = false,
                     ErrorMessage = $"Registration with ID '{regId}' not found or has no job",
-                    NewProfileType = null,
+                    NewProfileType = string.Empty,
                     FieldCount = 0
                 };
             }
@@ -1376,7 +1376,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 SourceProfileType = sourceProfileType,
                 Success = false,
                 ErrorMessage = ex.Message,
-                NewProfileType = null,
+                NewProfileType = string.Empty,
                 FieldCount = 0
             };
         }

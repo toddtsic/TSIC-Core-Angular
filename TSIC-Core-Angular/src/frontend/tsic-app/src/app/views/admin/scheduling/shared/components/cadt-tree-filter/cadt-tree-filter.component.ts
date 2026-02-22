@@ -66,7 +66,7 @@ export interface CadtSelectionEvent {
             <!-- Checkbox -->
             <input type="checkbox"
                    class="tree-checkbox"
-                   [checked]="checkedIds.has(node.id)"
+                   [checked]="checkedIdsSignal().has(node.id)"
                    [indeterminate]="checkState().get(node.id) === 'some'"
                    (change)="onCheck(node, $event)" />
 
@@ -215,8 +215,14 @@ export interface CadtSelectionEvent {
 })
 export class CadtTreeFilterComponent implements OnChanges {
   @Input() treeData: CadtClubNode[] = [];
-  @Input() checkedIds = new Set<string>();
-  @Output() checkedIdsChange = new EventEmitter<CadtSelectionEvent>();
+  @Output() checkedIdsChange = new EventEmitter<Set<string>>();
+
+  /** Internal signal for checked state — synced from parent @Input, updated on user interaction. */
+  readonly checkedIdsSignal = signal(new Set<string>());
+
+  @Input() set checkedIds(value: Set<string>) {
+    this.checkedIdsSignal.set(value);
+  }
 
   // Internal state
   flatNodes = signal<CadtFlatNode[]>([]);
@@ -263,7 +269,7 @@ export class CadtTreeFilterComponent implements OnChanges {
 
   /** Check state per node: 'all' | 'some' | 'none' */
   checkState = computed(() => {
-    const checked = this.checkedIds;
+    const checked = this.checkedIdsSignal();
     const nodes = this.flatNodes();
     const stateMap = new Map<string, 'all' | 'some' | 'none'>();
 
@@ -424,7 +430,7 @@ export class CadtTreeFilterComponent implements OnChanges {
 
   onCheck(node: CadtFlatNode, event: Event): void {
     const isChecked = (event.target as HTMLInputElement).checked;
-    const next = new Set(this.checkedIds);
+    const next = new Set(this.checkedIdsSignal());
 
     if (isChecked) {
       next.add(node.id);
@@ -436,7 +442,8 @@ export class CadtTreeFilterComponent implements OnChanges {
       this.bubbleUncheckUp(node.id, next);
     }
 
-    this.emitSelection(next);
+    this.checkedIdsSignal.set(next);
+    this.checkedIdsChange.emit(next);
   }
 
   /** After checking children, check parent if ALL its children are now checked */
@@ -463,20 +470,4 @@ export class CadtTreeFilterComponent implements OnChanges {
     }
   }
 
-  /** Resolve the flat set of IDs into the structured selection output */
-  private emitSelection(checked: Set<string>): void {
-    const clubNames: string[] = [];
-    const agegroupIds: string[] = [];
-    const divisionIds: string[] = [];
-    const teamIds: string[] = [];
-
-    for (const id of checked) {
-      if (id.startsWith('club:')) clubNames.push(id.substring(5));
-      else if (id.startsWith('ag:')) agegroupIds.push(id.substring(3));
-      else if (id.startsWith('div:')) divisionIds.push(id.substring(4));
-      else if (id.startsWith('team:')) teamIds.push(id.substring(5));
-    }
-
-    this.checkedIdsChange.emit({ clubNames, agegroupIds, divisionIds, teamIds });
-  }
 }

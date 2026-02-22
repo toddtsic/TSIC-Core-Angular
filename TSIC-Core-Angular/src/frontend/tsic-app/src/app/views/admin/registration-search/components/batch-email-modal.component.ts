@@ -17,7 +17,8 @@ const AVAILABLE_TOKENS = [
   { token: '!CUSTOMERNAME', description: 'Customer name' },
   { token: '!F-ACCOUNTING', description: 'Formatted accounting table' },
   { token: '!F-PLAYERS', description: 'Formatted player roster table' },
-  { token: '!J-CONTACTBLOCK', description: 'JSON contact information block' }
+  { token: '!J-CONTACTBLOCK', description: 'JSON contact information block' },
+  { token: '!UNSUBSCRIBE', description: 'Unsubscribe link' }
 ];
 
 @Component({
@@ -76,7 +77,8 @@ export class BatchEmailModalComponent {
       next: (response) => {
         this.isSending.set(false);
         this.sendResult.set(response);
-        const msg = `Emails sent: ${response.sent} of ${response.totalRecipients}`;
+        const optedOutNote = response.optedOut > 0 ? `, ${response.optedOut} opted out` : '';
+        const msg = `Emails sent: ${response.sent} of ${response.totalRecipients}${optedOutNote}`;
         if (response.failedAddresses.length > 0) { this.toast.show(`${msg}. ${response.failedAddresses.length} failed.`, 'warning', 5000); }
         else { this.toast.show(msg, 'success', 3000); }
         this.sent.emit(response);

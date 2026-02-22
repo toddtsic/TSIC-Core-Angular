@@ -295,11 +295,11 @@ public class TeamRegistrationService : ITeamRegistrationService
         int currentYear = DateTime.Now.Year;
 
         // Resolve club to get ClubId
-        var club = await _clubs.GetByNameAsync(clubName);
+        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
         var effectiveClubId = club?.ClubId ?? 0;
 
         var registeredTeams = await GetRegisteredTeamsForJobAsync(jobId, userId);
-        var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName, currentYear);
+        var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
 
         // Fetch available ClubTeams for this club, excluding those already registered for this event
@@ -350,7 +350,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         return new TeamsMetadataResponse
         {
             ClubId = effectiveClubId,
-            ClubName = clubName,
+            ClubName = clubName ?? string.Empty,
             ClubTeams = availableClubTeams,
             SuggestedTeamNames = suggestions,
             RegisteredTeams = registeredTeams,
@@ -468,7 +468,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var processingFeePercent = await _jobs.GetProcessingFeePercentAsync(jobId);
 
         // Get club ID from ClubName
-        var club = await _clubs.GetByNameAsync(clubName);
+        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
         if (club == null)
         {
             _logger.LogWarning("Club not found: {ClubName}", clubName);
@@ -668,7 +668,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         // Check if exact match exists (90%+ similarity)
         var exactMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 90);
 
-        Domain.Entities.Clubs club;
+        Domain.Entities.Clubs? club;
         if (exactMatch != null)
         {
             // Use existing club
@@ -1005,7 +1005,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 jobId: jobInfo.JobId,
                 paymentMethodCreditCardId: ccPaymentMethodId,
                 registrationId: registrationId,
-                familyUserId: null,
+                familyUserId: string.Empty,
                 template: jobInfo.AdultRegConfirmationOnScreen);
 
             return substitutedHtml;
@@ -1067,7 +1067,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 jobId: jobInfo.JobId,
                 paymentMethodCreditCardId: ccPaymentMethodId,
                 registrationId: registrationId,
-                familyUserId: null,
+                familyUserId: string.Empty,
                 template: jobInfo.AdultRegConfirmationEmail);
 
             var emailMessage = new EmailMessageDto

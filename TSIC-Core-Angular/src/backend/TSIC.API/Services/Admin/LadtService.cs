@@ -329,7 +329,7 @@ public sealed class LadtService : ILadtService
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
 
         // Sync denormalized agegroup name in Schedule records
-        await _scheduleRepo.SynchronizeScheduleAgegroupNameAsync(agegroupId, jobId, request.AgegroupName, cancellationToken);
+        await _scheduleRepo.SynchronizeScheduleAgegroupNameAsync(agegroupId, jobId, request.AgegroupName ?? string.Empty, cancellationToken);
 
         return MapAgegroup(ag);
     }
@@ -456,7 +456,7 @@ public sealed class LadtService : ILadtService
         await _divisionRepo.SaveChangesAsync(cancellationToken);
 
         // Sync denormalized division name in Schedule records (DivName + Div2Name)
-        await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(divId, jobId, request.DivName, cancellationToken);
+        await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(divId, jobId, request.DivName ?? string.Empty, cancellationToken);
 
         return MapDivision(div);
     }
@@ -1268,18 +1268,6 @@ public sealed class LadtService : ILadtService
     // ═══════════════════════════════════════════
     // DTO Mapping
     // ═══════════════════════════════════════════
-
-    private static LeagueDetailDto MapLeague(Leagues l) => new()
-    {
-        LeagueId = l.LeagueId,
-        LeagueName = l.LeagueName ?? string.Empty,
-        SportId = l.SportId,
-        SportName = l.Sport?.SportName,
-        BHideContacts = l.BHideContacts,
-        BHideStandings = l.BHideStandings,
-        RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
-        PlayerFeeOverride = l.PlayerFeeOverride
-    };
 
     private static AgegroupDetailDto MapAgegroup(Agegroups a) => new()
     {

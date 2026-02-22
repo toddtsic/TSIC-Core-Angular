@@ -1,46 +1,23 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { JobService } from '@infrastructure/services/job.service';
-import { environment } from '@environments/environment';
-
-interface UsLaxOutput {
-	membership_id: string;
-	mem_status: string;
-	exp_date: string;
-	firstname: string;
-	lastname: string;
-	birthdate: string;
-	gender: string;
-	age_verified: string;
-	email: string;
-	postalcode: string;
-	state: string;
-	involvement: string[];
-}
-
-interface UsLaxResponse {
-	status_code: number;
-	output: UsLaxOutput | null;
-}
+import { UsLaxValidationService, type UsLaxMember } from '@infrastructure/services/uslax-validation.service';
 
 @Component({
 	selector: 'app-uslax-test',
 	standalone: true,
-	imports: [CommonModule, FormsModule],
+	imports: [FormsModule],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-test.component.html',
 	styleUrl: './uslax-test.component.scss'
 })
 export class UsLaxTestComponent {
-	private readonly http = inject(HttpClient);
+	private readonly usLaxService = inject(UsLaxValidationService);
 	private readonly jobService = inject(JobService);
-	private readonly apiUrl = environment.apiUrl;
 
 	readonly membershipNumber = signal('');
 	readonly isLoading = signal(false);
-	readonly result = signal<UsLaxOutput | null>(null);
+	readonly result = signal<UsLaxMember | null>(null);
 	readonly errorMessage = signal<string | null>(null);
 	readonly hasSearched = signal(false);
 
@@ -82,12 +59,10 @@ export class UsLaxTestComponent {
 		this.result.set(null);
 		this.hasSearched.set(true);
 
-		this.http.get<UsLaxResponse>(`${this.apiUrl}/validation/uslax`, {
-			params: { number: num }
-		}).subscribe({
-			next: res => {
-				if (res?.output) {
-					this.result.set(res.output);
+		this.usLaxService.verify(num).subscribe({
+			next: member => {
+				if (member) {
+					this.result.set(member);
 				} else {
 					this.errorMessage.set('No member data returned. Check the number and try again.');
 				}

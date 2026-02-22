@@ -348,8 +348,7 @@ public sealed class ScheduleRepository : IScheduleRepository
     public async Task<ScheduleFilterOptionsDto> GetScheduleFilterOptionsAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        // 1. Get all team IDs that appear in scheduled games for this job
-        // EF Core can't translate SelectMany with array initializer — use Union instead
+        // 1. Get all distinct team IDs from the schedule
         var baseQuery = _context.Schedule
             .AsNoTracking()
             .Where(s => s.JobId == jobId && s.GDate.HasValue);
@@ -367,87 +366,82 @@ public sealed class ScheduleRepository : IScheduleRepository
             };
         }
 
-        // 2. Get teams with their club rep registration for club name resolution
-        var teams = await _context.Teams
-            .AsNoTracking()
-            .Where(t => scheduledTeamIds.Contains(t.TeamId) && t.Active == true)
-            .Select(t => new
+        // 2. Explicit joins — project flat rows with full CADT path
+        var teamRows = await (
+            from t in _context.Teams.AsNoTracking()
+            where scheduledTeamIds.Contains(t.TeamId) && t.Active == true
+            join ag in _context.Agegroups.AsNoTracking()
+                on t.AgegroupId equals ag.AgegroupId
+            join div in _context.Divisions.AsNoTracking()
+                on t.DivId equals (Guid?)div.DivId into divJoin
+            from div in divJoin.DefaultIfEmpty()
+            join reg in _context.Registrations.AsNoTracking()
+                on t.ClubrepRegistrationid equals (Guid?)reg.RegistrationId into regJoin
+            from reg in regJoin.DefaultIfEmpty()
+            select new
             {
                 t.TeamId,
                 t.TeamName,
                 t.AgegroupId,
-                AgegroupName = t.Agegroup.AgegroupName,
-                AgegroupColor = t.Agegroup.Color,
-                t.DivId,
-                DivName = t.Div != null ? t.Div.DivName : null,
-                t.ClubrepRegistrationid
-            })
-            .ToListAsync(ct);
+                AgegroupName = ag.AgegroupName,
+                AgegroupColor = ag.Color,
+                DivId = div != null ? (Guid?)div.DivId : null,
+                DivName = div != null ? div.DivName : null,
+                ClubName = reg != null ? reg.ClubName : null
+            }
+        ).ToListAsync(ct);
 
-        // 3. Resolve club names from club rep registrations
-        var clubRepIds = teams
-            .Where(t => t.ClubrepRegistrationid.HasValue)
-            .Select(t => t.ClubrepRegistrationid!.Value)
-            .Distinct()
-            .ToList();
-
-        var clubNameMap = clubRepIds.Count > 0
-            ? await _context.Registrations
-                .AsNoTracking()
-                .Where(r => clubRepIds.Contains(r.RegistrationId))
-                .ToDictionaryAsync(r => r.RegistrationId, r => r.ClubName ?? "Unknown", ct)
-            : new Dictionary<Guid, string>();
-
-        // 4. Build CADT tree: Club → Agegroup → Division → Team
-        var cadtTree = teams
-            .Select(t => new
-            {
-                ClubName = t.ClubrepRegistrationid.HasValue
-                    && clubNameMap.TryGetValue(t.ClubrepRegistrationid.Value, out var cn)
-                    ? cn : "Unaffiliated",
-                t.AgegroupId,
-                t.AgegroupName,
-                t.AgegroupColor,
-                t.DivId,
-                t.DivName,
-                t.TeamId,
-                t.TeamName
-            })
-            .GroupBy(t => t.ClubName)
-            .OrderBy(c => c.Key)
-            .Select(clubGroup => new CadtClubNode
-            {
-                ClubName = clubGroup.Key,
-                Agegroups = clubGroup
-                    .GroupBy(t => new { t.AgegroupId, t.AgegroupName, t.AgegroupColor })
-                    .OrderBy(a => a.Key.AgegroupName)
-                    .Select(agGroup => new CadtAgegroupNode
-                    {
-                        AgegroupId = agGroup.Key.AgegroupId,
-                        AgegroupName = agGroup.Key.AgegroupName ?? "",
-                        Color = agGroup.Key.AgegroupColor,
-                        Divisions = agGroup
-                            .Where(t => t.DivId.HasValue)
-                            .GroupBy(t => new { DivId = t.DivId!.Value, t.DivName })
-                            .OrderBy(d => d.Key.DivName)
-                            .Select(divGroup => new CadtDivisionNode
-                            {
-                                DivId = divGroup.Key.DivId,
-                                DivName = divGroup.Key.DivName ?? "",
-                                Teams = divGroup
-                                    .OrderBy(t => t.TeamName)
-                                    .Select(t => new CadtTeamNode
-                                    {
-                                        TeamId = t.TeamId,
-                                        TeamName = t.TeamName ?? ""
-                                    })
-                                    .ToList()
-                            })
-                            .ToList()
-                    })
-                    .ToList()
-            })
-            .ToList();
+        // 3. If no teams have club associations, hide CADT filter entirely
+        var hasClubs = teamRows.Any(t => t.ClubName != null);
+        var cadtTree = !hasClubs
+            ? new List<CadtClubNode>()
+            : teamRows
+                .Select(t => new
+                {
+                    ClubName = t.ClubName ?? "Unaffiliated",
+                    t.AgegroupId,
+                    t.AgegroupName,
+                    t.AgegroupColor,
+                    t.DivId,
+                    t.DivName,
+                    t.TeamId,
+                    t.TeamName
+                })
+                .GroupBy(t => t.ClubName)
+                .OrderBy(c => c.Key)
+                .Select(clubGroup => new CadtClubNode
+                {
+                    ClubName = clubGroup.Key,
+                    Agegroups = clubGroup
+                        .GroupBy(t => new { t.AgegroupId, t.AgegroupName, t.AgegroupColor })
+                        .OrderBy(a => a.Key.AgegroupName)
+                        .Select(agGroup => new CadtAgegroupNode
+                        {
+                            AgegroupId = agGroup.Key.AgegroupId,
+                            AgegroupName = agGroup.Key.AgegroupName ?? "",
+                            Color = agGroup.Key.AgegroupColor,
+                            Divisions = agGroup
+                                .Where(t => t.DivId.HasValue)
+                                .GroupBy(t => new { DivId = t.DivId!.Value, t.DivName })
+                                .OrderBy(d => d.Key.DivName)
+                                .Select(divGroup => new CadtDivisionNode
+                                {
+                                    DivId = divGroup.Key.DivId,
+                                    DivName = divGroup.Key.DivName ?? "",
+                                    Teams = divGroup
+                                        .OrderBy(t => t.TeamName)
+                                        .Select(t => new CadtTeamNode
+                                        {
+                                            TeamId = t.TeamId,
+                                            TeamName = t.TeamName ?? ""
+                                        })
+                                        .ToList()
+                                })
+                                .ToList()
+                        })
+                        .ToList()
+                })
+                .ToList();
 
         // 5. Get distinct game days
         var gameDays = await _context.Schedule

@@ -382,7 +382,7 @@ public sealed class FamilyService : IFamilyService
         else
         {
             // Use existing validated user
-            user = existingUser;
+            user = existingUser!;
         }
 
         var fam = new TSIC.Domain.Entities.Families

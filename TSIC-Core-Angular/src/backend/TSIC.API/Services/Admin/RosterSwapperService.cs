@@ -161,7 +161,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
             {
                 // FLOW 1: Player → Team (fee recalc)
                 var newFeeBase = CoalescePlayerFee(targetTeam, targetAgegroup);
-                var (newProcessing, newTotal) = _feeCalc.ComputeTotals(newFeeBase, reg.FeeDiscount, reg.FeeDonation);
+                var (_, newTotal) = _feeCalc.ComputeTotals(newFeeBase, reg.FeeDiscount, reg.FeeDonation);
 
                 previews.Add(new RosterTransferFeePreviewDto
                 {

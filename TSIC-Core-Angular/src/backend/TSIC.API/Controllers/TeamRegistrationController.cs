@@ -478,7 +478,7 @@ public class TeamRegistrationController : ControllerBase
         {
             return NotFound(new { Message = ex.Message });
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             return Forbid();
         }
@@ -517,7 +517,7 @@ public class TeamRegistrationController : ControllerBase
         {
             return NotFound(new { Message = ex.Message });
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             return Forbid();
         }

@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class PairingsController : ControllerBase
 {
-    private readonly ILogger<PairingsController> _logger;
     private readonly IPairingsService _pairingsService;
     private readonly IJobLookupService _jobLookupService;
 
     public PairingsController(
-        ILogger<PairingsController> logger,
         IPairingsService pairingsService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _pairingsService = pairingsService;
         _jobLookupService = jobLookupService;
     }

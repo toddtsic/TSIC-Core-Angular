@@ -154,4 +154,8 @@ export class RegistrationSearchService {
 	cancelSubscription(registrationId: string): Observable<void> {
 		return this.http.post<void>(`${this.apiUrl}/${registrationId}/cancel-subscription`, {});
 	}
+
+	setEmailOptOut(registrationId: string, optOut: boolean): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/${registrationId}/email-opt-out`, { optOut });
+	}
 }

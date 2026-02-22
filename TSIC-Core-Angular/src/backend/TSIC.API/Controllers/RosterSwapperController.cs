@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class RosterSwapperController : ControllerBase
 {
-    private readonly ILogger<RosterSwapperController> _logger;
     private readonly IRosterSwapperService _swapperService;
     private readonly IJobLookupService _jobLookupService;
 
     public RosterSwapperController(
-        ILogger<RosterSwapperController> logger,
         IRosterSwapperService swapperService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _swapperService = swapperService;
         _jobLookupService = jobLookupService;
     }

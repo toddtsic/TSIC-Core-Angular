@@ -126,7 +126,7 @@ public class TeamRepository : ITeamRepository
                 TeamId = t.TeamId,
                 Name = t.TeamName ?? t.DisplayName ?? "(Unnamed Team)",
                 AgegroupId = t.AgegroupId,
-                AgegroupName = t.Agegroup.AgegroupName,
+                AgegroupName = t.Agegroup.AgegroupName ?? string.Empty,
                 DivisionId = t.DivId,
                 DivisionName = t.Div != null ? t.Div.DivName : null,
                 MaxCount = t.MaxCount,
@@ -217,7 +217,7 @@ public class TeamRepository : ITeamRepository
                 // AdditionalDue: TeamFee (0 if already fully paid or if full payment required upfront)
                 AdditionalDue = (t.OwedTotal == 0 && (t.Job.BTeamsFullPaymentRequired ?? false)) ? 0 : (t.Agegroup.TeamFee ?? 0),
                 RegistrationTs = t.Createdate,
-                BWaiverSigned3 = t.ClubrepRegistration.BWaiverSigned3
+                BWaiverSigned3 = t.ClubrepRegistration != null && t.ClubrepRegistration.BWaiverSigned3
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -640,7 +640,7 @@ public class TeamRepository : ITeamRepository
             {
                 t.TeamId,
                 TeamName = t.TeamName ?? "Unnamed Team",
-                AgegroupName = t.Agegroup.AgegroupName,
+                AgegroupName = t.Agegroup.AgegroupName ?? string.Empty,
                 DivName = t.Div != null ? t.Div.DivName : null,
                 t.AgegroupId,
                 t.DivId,

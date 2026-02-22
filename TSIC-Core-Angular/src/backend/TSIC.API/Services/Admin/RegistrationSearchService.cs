@@ -588,10 +588,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         var sent = 0;
         var failed = 0;
+        var optedOut = 0;
         var failedAddresses = new List<string>();
 
         foreach (var reg in registrations)
         {
+            if (reg.BemailOptOut)
+            {
+                optedOut++;
+                continue;
+            }
+
             try
             {
                 // Get email
@@ -638,6 +645,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             TotalRecipients = registrations.Count,
             Sent = sent,
             Failed = failed,
+            OptedOut = optedOut,
             FailedAddresses = failedAddresses
         };
     }
@@ -788,5 +796,18 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             registrationId, regRoleName, jobId, userId);
 
         return new DeleteRegistrationResponse { Success = true, Message = "Registration deleted successfully." };
+    }
+
+    public async Task SetEmailOptOutAsync(Guid jobId, Guid registrationId, bool optOut, CancellationToken ct = default)
+    {
+        // Validate registration belongs to this job
+        var regs = await _registrationRepo.GetByIdsAsync(new List<Guid> { registrationId }, ct);
+        var reg = regs.FirstOrDefault();
+        if (reg == null)
+            throw new KeyNotFoundException($"Registration {registrationId} not found.");
+        if (reg.JobId != jobId)
+            throw new InvalidOperationException("Registration does not belong to this job.");
+
+        await _registrationRepo.SetEmailOptOutAsync(registrationId, optOut, ct);
     }
 }

@@ -452,9 +452,9 @@ public class WidgetRepository : IWidgetRepository
             .OrderBy(r => r.RegistrationTs)
             .Select(r => new EventContactDto
             {
-                FirstName = r.User.FirstName ?? "",
-                LastName = r.User.LastName ?? "",
-                Email = r.User.Email ?? "",
+                FirstName = r.User != null ? r.User.FirstName ?? "" : "",
+                LastName = r.User != null ? r.User.LastName ?? "" : "",
+                Email = r.User != null ? r.User.Email ?? "" : "",
             })
             .FirstOrDefaultAsync(ct);
     }

@@ -22,5 +22,6 @@ export type RegistrationSearchResultDto = {
     owedTotal: number;
     registrationTs: string;
     modified?: string | null;
+    emailOptOut: boolean;
 };
 

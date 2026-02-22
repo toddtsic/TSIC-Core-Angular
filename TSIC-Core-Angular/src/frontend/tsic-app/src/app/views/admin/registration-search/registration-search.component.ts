@@ -473,6 +473,18 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.toast.show('Batch email sent successfully', 'success', 4000);
   }
 
+  toggleEmailOptOut(data: RegistrationSearchResultDto): void {
+    const newValue = !data.emailOptOut;
+    this.searchService.setEmailOptOut(data.registrationId, newValue).subscribe({
+      next: () => {
+        (data as Record<string, unknown>)['emailOptOut'] = newValue;
+        this.grid.refresh();
+        this.toast.show(newValue ? 'Opted out of emails' : 'Opted back in to emails', 'success', 3000);
+      },
+      error: () => this.toast.show('Failed to update opt-out status', 'danger', 4000)
+    });
+  }
+
   // ── LADT tree selection handler ──
 
   onLadtCheckedChange(checkedIds: Set<string>): void {

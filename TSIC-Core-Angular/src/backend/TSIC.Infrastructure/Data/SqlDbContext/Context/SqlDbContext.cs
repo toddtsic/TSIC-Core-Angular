@@ -5332,6 +5332,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValue(false)
                 .HasColumnName("bWaiverSignedCV19");
             entity.Property(e => e.BackcheckExplain).HasColumnName("backcheck_explain");
+            entity.Property(e => e.BemailOptOut).HasColumnName("BEmailOptOut");
             entity.Property(e => e.BgCheckDate).HasColumnName("bgCheckDate");
             entity.Property(e => e.CertDate).HasColumnName("certDate");
             entity.Property(e => e.CertNo).HasColumnName("certNo");

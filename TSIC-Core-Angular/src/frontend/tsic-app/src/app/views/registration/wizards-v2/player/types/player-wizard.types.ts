@@ -81,13 +81,8 @@ export interface NormalizedFamilyUser {
     };
 }
 
-// ── US Lacrosse validation status ─────────────────────────────────────
-export interface UsLaxStatusEntry {
-    value: string;
-    status: 'idle' | 'validating' | 'valid' | 'invalid';
-    message?: string;
-    membership?: Record<string, unknown>;
-}
+// ── US Lacrosse validation status (single source: uslax-validation.service) ──
+export type { UsLaxStatusEntry } from '@infrastructure/services/uslax-validation.service';
 
 // ── Last payment summary (for confirmation step) ──────────────────────
 export interface PaymentSummary {

@@ -13,16 +13,13 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class PoolAssignmentController : ControllerBase
 {
-    private readonly ILogger<PoolAssignmentController> _logger;
     private readonly IPoolAssignmentService _poolService;
     private readonly IJobLookupService _jobLookupService;
 
     public PoolAssignmentController(
-        ILogger<PoolAssignmentController> logger,
         IPoolAssignmentService poolService,
         IJobLookupService jobLookupService)
     {
-        _logger = logger;
         _poolService = poolService;
         _jobLookupService = jobLookupService;
     }

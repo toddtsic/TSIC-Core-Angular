@@ -14,20 +14,17 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class ScheduleDivisionController : ControllerBase
 {
-    private readonly ILogger<ScheduleDivisionController> _logger;
     private readonly IScheduleDivisionService _service;
     private readonly IPairingsService _pairingsService;
     private readonly IJobLookupService _jobLookupService;
     private readonly IFieldRepository _fieldRepo;
 
     public ScheduleDivisionController(
-        ILogger<ScheduleDivisionController> logger,
         IScheduleDivisionService service,
         IPairingsService pairingsService,
         IJobLookupService jobLookupService,
         IFieldRepository fieldRepo)
     {
-        _logger = logger;
         _service = service;
         _pairingsService = pairingsService;
         _jobLookupService = jobLookupService;

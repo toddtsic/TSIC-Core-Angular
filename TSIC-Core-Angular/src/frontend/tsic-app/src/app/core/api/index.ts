@@ -311,6 +311,7 @@ export type { SchedulingDashboardStatusDto } from './models/SchedulingDashboardS
 export type { SchedulingMetrics } from './models/SchedulingMetrics';
 export type { SeedScriptSyncResult } from './models/SeedScriptSyncResult';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
+export type { SetEmailOptOutRequest } from './models/SetEmailOptOutRequest';
 export type { SetWizardContextRequest } from './models/SetWizardContextRequest';
 export type { SizeMismatchResolution } from './models/SizeMismatchResolution';
 export type { SportOptionDto } from './models/SportOptionDto';

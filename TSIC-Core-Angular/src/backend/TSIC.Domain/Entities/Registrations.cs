@@ -275,6 +275,8 @@ public partial class Registrations
 
     public DateTime? RegsaverPolicyIdCreateDate { get; set; }
 
+    public bool BemailOptOut { get; set; }
+
     public virtual AccountingApplyToSummaries? AccountingApplyToSummaries { get; set; }
 
     public virtual ICollection<ApiRosterPlayersAccessed> ApiRosterPlayersAccessed { get; set; } = new List<ApiRosterPlayersAccessed>();
