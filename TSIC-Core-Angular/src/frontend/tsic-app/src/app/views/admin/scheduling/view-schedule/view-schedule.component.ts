@@ -778,14 +778,23 @@ interface FilterChip {
         .filter-check input { accent-color: var(--bs-primary); }
 
         /* ── Responsive ── */
-        @media (max-width: 575px) {
+        @media (max-width: 767px) {
             .view-schedule-page {
                 padding: var(--space-2);
                 gap: var(--space-2);
             }
 
+            .page-header {
+                padding: var(--space-1) 0 0;
+            }
+
             .page-title {
-                font-size: var(--font-size-2xl);
+                font-size: var(--font-size-lg);
+            }
+
+            .page-subtitle {
+                margin-top: 0;
+                font-size: var(--font-size-xs);
             }
 
             .toolbar {

@@ -196,50 +196,39 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </div>
 
-                        <!-- Matchup: Home  score  Away -->
-                        <div class="card-matchup">
-                            <span class="card-team card-team-home">
+                        <!-- Team 1 (Home): full-width row, score right-aligned -->
+                        <div class="card-team-row">
+                            <span class="card-team-name">
                                 @if (game.t1Id) {
                                     <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                 } @else {
                                     {{ game.t1Name }}
                                 }
                                 @if (game.t1Record) { <span class="record"> ({{ game.t1Record }})</span> }
+                                @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
-
-                            <span class="card-score"
-                                  [class.editable]="canScore()"
-                                  (click)="onScoreCellClick(game)">
-                                @if (editingGid() === game.gid) {
-                                    <span class="score-edit" (click)="$event.stopPropagation()">
-                                        <input type="number" class="score-input" [min]="0" [max]="99"
-                                               [ngModel]="editT1Score()"
-                                               (ngModelChange)="editT1Score.set($event)"
-                                               (keydown.enter)="saveScore(game.gid)"
-                                               (keydown.escape)="cancelEdit()">
-                                        <span class="score-dash">&ndash;</span>
-                                        <input type="number" class="score-input" [min]="0" [max]="99"
-                                               [ngModel]="editT2Score()"
-                                               (ngModelChange)="editT2Score.set($event)"
-                                               (keydown.enter)="saveScore(game.gid)"
-                                               (keydown.escape)="cancelEdit()">
-                                    </span>
-                                } @else if (hasScore(game)) {
-                                    <span class="score-val" [class.winner]="isT1Winner(game)" [class.loser]="isT2Winner(game)">{{ game.t1Score }}</span>
-                                    <span class="score-dash">&ndash;</span>
-                                    <span class="score-val" [class.winner]="isT2Winner(game)" [class.loser]="isT1Winner(game)">{{ game.t2Score }}</span>
-                                } @else {
-                                    <span class="score-val no-score">&ndash;</span>
-                                }
+                            <span class="card-team-score"
+                                  [class.winner]="isT1Winner(game)"
+                                  [class.loser]="isT2Winner(game)">
+                                {{ hasScore(game) ? game.t1Score : '' }}
                             </span>
+                        </div>
 
-                            <span class="card-team card-team-away">
+                        <!-- Team 2 (Away): full-width row, score right-aligned -->
+                        <div class="card-team-row">
+                            <span class="card-team-name">
                                 @if (game.t2Id) {
                                     <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                                 } @else {
                                     {{ game.t2Name }}
                                 }
                                 @if (game.t2Record) { <span class="record"> ({{ game.t2Record }})</span> }
+                                @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
+                            </span>
+                            <span class="card-team-score"
+                                  [class.winner]="isT2Winner(game)"
+                                  [class.loser]="isT1Winner(game)">
+                                {{ hasScore(game) ? game.t2Score : '' }}
                             </span>
                         </div>
 
@@ -582,37 +571,28 @@ import type { ViewGameDto } from '@core/api';
 
         .ms-auto { margin-left: auto; }
 
-        /* Card matchup row */
-        .card-matchup {
+        /* Card team row — one team per line, score right-aligned */
+        .card-team-row {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             gap: var(--space-2);
-        }
-
-        .card-team {
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
             font-size: var(--font-size-sm);
         }
 
-        .card-team-home { text-align: right; }
-        .card-team-away { text-align: left; }
-
-        .card-score {
-            flex-shrink: 0;
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-            font-family: var(--bs-font-monospace);
-            padding: 0 var(--space-1);
+        .card-team-name {
+            flex: 1;
+            min-width: 0;
         }
 
-        .card-score.editable { cursor: pointer; }
-
-        .card-score .score-val { font-size: var(--font-size-base); }
-        .card-score .score-dash { margin: 0 2px; }
+        .card-team-score {
+            flex-shrink: 0;
+            font-size: var(--font-size-base);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-family: var(--bs-font-monospace);
+            min-width: 2ch;
+            text-align: right;
+        }
 
         /* Card location row */
         .card-location {

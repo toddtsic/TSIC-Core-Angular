@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, EventEmitter, input, Output, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, computed, effect, ElementRef, EventEmitter, input, Output, signal, ViewChild } from '@angular/core';
 import type { StandingsByDivisionResponse } from '@core/api';
 
 type StandingsMode = 'all' | 'rr';
@@ -19,14 +19,18 @@ type StandingsMode = 'all' | 'rr';
             <div class="standings-wrapper">
                 <!-- Toolbar: age group tabs (left) + mode toggle (right) -->
                 <div class="toolbar-row">
-                    <div class="ag-tabs">
-                        @for (tab of ageGroupTabs(); track tab; let i = $index) {
-                            <button class="ag-tab"
-                                    [class.active]="activeAgTabIndex() === i"
-                                    (click)="activeAgTabIndex.set(i)">
-                                {{ tab }}
-                            </button>
-                        }
+                    <div class="ag-tabs-wrapper"
+                         [class.has-overflow]="agTabsOverflow()">
+                        <div class="ag-tabs" #agTabsEl
+                             (scroll)="checkTabsOverflow()">
+                            @for (tab of ageGroupTabs(); track tab; let i = $index) {
+                                <button class="ag-tab"
+                                        [class.active]="activeAgTabIndex() === i"
+                                        (click)="activeAgTabIndex.set(i)">
+                                    {{ tab }}
+                                </button>
+                            }
+                        </div>
                     </div>
                     <div class="mode-toggle" role="group" aria-label="Standings mode">
                         <button class="toggle-option"
@@ -125,13 +129,26 @@ type StandingsMode = 'all' | 'rr';
 
         .toolbar-row {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: var(--space-3);
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        @media (min-width: 768px) {
+            .toolbar-row {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: var(--space-3);
+            }
         }
 
         /* ── Age Group Tabs ── */
+
+        .ag-tabs-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
 
         .ag-tabs {
             display: flex;
@@ -140,6 +157,19 @@ type StandingsMode = 'all' | 'rr';
             scrollbar-width: thin;
             flex: 1;
             min-width: 0;
+        }
+
+        /* Fade-out gradient on right edge to hint at scrollable overflow */
+        .ag-tabs-wrapper.has-overflow::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 40px;
+            background: linear-gradient(to right, transparent, var(--bs-body-bg));
+            pointer-events: none;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
         }
 
         .ag-tab {
@@ -173,18 +203,19 @@ type StandingsMode = 'all' | 'rr';
 
         .mode-toggle {
             display: inline-flex;
+            align-self: center;
             border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius-full);
             overflow: hidden;
             flex-shrink: 0;
         }
 
         .toggle-option {
-            padding: var(--space-1) var(--space-3);
+            padding: 2px var(--space-2);
             border: none;
             background: var(--bs-body-bg);
             color: var(--bs-secondary-color);
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-xs);
             font-weight: 500;
             cursor: pointer;
             white-space: nowrap;
@@ -201,8 +232,9 @@ type StandingsMode = 'all' | 'rr';
         }
 
         .toggle-option.active {
-            background: var(--bs-primary);
-            color: white;
+            background: var(--bs-warning);
+            color: var(--bs-dark);
+            font-weight: 600;
         }
 
         /* ── Division Cards ── */
@@ -280,15 +312,17 @@ type StandingsMode = 'all' | 'rr';
         }
     `]
 })
-export class StandingsTabComponent {
+export class StandingsTabComponent implements AfterViewInit {
     standings = input<StandingsByDivisionResponse | null>(null);
     records = input<StandingsByDivisionResponse | null>(null);
     isLoading = input<boolean>(false);
 
     @Output() viewTeamResults = new EventEmitter<string>();
+    @ViewChild('agTabsEl') agTabsEl?: ElementRef<HTMLDivElement>;
 
     readonly standingsMode = signal<StandingsMode>('all');
     readonly activeAgTabIndex = signal(0);
+    readonly agTabsOverflow = signal(false);
 
     readonly activeData = computed(() =>
         this.standingsMode() === 'rr' ? this.standings() : this.records()
@@ -340,7 +374,21 @@ export class StandingsTabComponent {
             if (idx >= tabs.length && tabs.length > 0) {
                 this.activeAgTabIndex.set(0);
             }
+            // Re-check overflow after tabs re-render
+            setTimeout(() => this.checkTabsOverflow(), 0);
         });
+    }
+
+    ngAfterViewInit(): void {
+        this.checkTabsOverflow();
+    }
+
+    checkTabsOverflow(): void {
+        const el = this.agTabsEl?.nativeElement;
+        if (!el) return;
+        // Has overflow if scroll width exceeds visible width and not scrolled to end
+        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+        this.agTabsOverflow.set(el.scrollWidth > el.clientWidth + 2 && !atEnd);
     }
 
     formatGoalDiff(gd: number): string {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -48,5 +49,13 @@ public class EmailLogRepository : IEmailLogRepository
                 Msg = e.Msg
             })
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task LogAsync(
+        EmailLogs entry,
+        CancellationToken cancellationToken = default)
+    {
+        _context.EmailLogs.Add(entry);
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }
