@@ -270,7 +270,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    background: transparent;
+    background: var(--neutral-0);
     color: var(--neutral-700);
     padding: var(--space-3) var(--space-6);
     border-radius: var(--radius-full);
@@ -457,6 +457,12 @@
 
     @media (min-width: 768px) {
       grid-template-columns: 1fr 1fr;
+
+      .feat-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+        max-width: calc(50% - var(--space-3));
+        margin: 0 auto;
+      }
     }
   }
 }
