@@ -48,6 +48,12 @@ public interface INavEditorService
     /// </summary>
     Task<int> CloneBranchAsync(CloneBranchRequest request, string userId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Move a Level 2 nav item to a different parent group within the same nav.
+    /// Appends to end of target group and reindexes source group.
+    /// </summary>
+    Task MoveNavItemAsync(int navItemId, MoveNavItemRequest request, string userId, CancellationToken ct = default);
+
     /// <summary>Toggle the Active state of a nav.</summary>
     Task ToggleNavActiveAsync(int navId, bool active, CancellationToken ct = default);
 

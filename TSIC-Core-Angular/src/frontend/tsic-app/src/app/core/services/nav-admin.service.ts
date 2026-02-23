@@ -119,6 +119,13 @@ export class NavAdminService {
     }
 
     /**
+     * Move a child nav item to a different parent group within the same nav.
+     */
+    moveItem(navItemId: number, targetParentNavItemId: number): Observable<void> {
+        return this.http.put<void>(`${this.apiUrl}/items/${navItemId}/move`, { targetParentNavItemId });
+    }
+
+    /**
      * Clone a Level 1 nav item and its active children to another role's nav.
      * Returns the count of items cloned (parent + children).
      */

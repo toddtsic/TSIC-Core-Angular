@@ -143,6 +143,29 @@
                                     title="Move Down">
                                     <i class="bi bi-arrow-down"></i>
                                 </button>
+                                <div class="move-dropdown-wrapper">
+                                    <button class="icon-btn icon-btn-sm"
+                                        (click)="toggleMoveDropdown(childItem.navItemId, $event)"
+                                        title="Move to group"
+                                        [class.active]="moveDropdownItemId() === childItem.navItemId">
+                                        <i class="bi bi-box-arrow-right"></i>
+                                    </button>
+                                    @if (moveDropdownItemId() === childItem.navItemId) {
+                                    <div class="move-dropdown" (click)="$event.stopPropagation()">
+                                        <div class="move-dropdown-header">Move to...</div>
+                                        @for (target of getOtherParentItems(childItem); track target.navItemId) {
+                                        <button class="move-dropdown-item" (click)="moveItemToGroup(childItem, target)">
+                                            @if (target.iconName) {
+                                            <i class="bi bi-{{ target.iconName }}"></i>
+                                            } @else {
+                                            <i class="bi bi-folder"></i>
+                                            }
+                                            {{ target.text }}
+                                        </button>
+                                        }
+                                    </div>
+                                    }
+                                </div>
                                 <button class="icon-btn icon-btn-sm icon-btn-danger" (click)="deleteItem(childItem)" title="Delete">
                                     <i class="bi bi-trash"></i>
                                 </button>

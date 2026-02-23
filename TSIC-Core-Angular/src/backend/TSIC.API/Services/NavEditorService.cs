@@ -288,6 +288,57 @@ public class NavEditorService : INavEditorService
         await _navEditorRepo.SaveChangesAsync(ct);
     }
 
+    public async Task MoveNavItemAsync(
+        int navItemId, MoveNavItemRequest request, string userId, CancellationToken ct = default)
+    {
+        // 1. Load and validate source item — must be Level 2
+        var item = await _navEditorRepo.GetNavItemByIdAsync(navItemId, ct);
+        if (item == null)
+            throw new InvalidOperationException($"Nav item {navItemId} not found");
+        if (item.ParentNavItemId == null)
+            throw new InvalidOperationException("Only child (Level 2) items can be moved between groups");
+
+        // 2. Load and validate target parent — must be Level 1
+        var targetParent = await _navEditorRepo.GetNavItemByIdAsync(request.TargetParentNavItemId, ct);
+        if (targetParent == null)
+            throw new InvalidOperationException($"Target parent {request.TargetParentNavItemId} not found");
+        if (targetParent.ParentNavItemId != null)
+            throw new InvalidOperationException("Target must be a Level 1 (root) item");
+
+        // 3. Must belong to same nav
+        if (item.NavId != targetParent.NavId)
+            throw new InvalidOperationException("Source and target must belong to the same nav");
+
+        // 4. Must be a different parent
+        if (item.ParentNavItemId == targetParent.NavItemId)
+            throw new InvalidOperationException("Item is already under this parent");
+
+        var oldParentId = item.ParentNavItemId.Value;
+        var now = DateTime.UtcNow;
+
+        // 5. Append to end of target group
+        var targetSiblingCount = await _navEditorRepo.GetSiblingCountAsync(item.NavId, targetParent.NavItemId, ct);
+        item.ParentNavItemId = targetParent.NavItemId;
+        item.SortOrder = targetSiblingCount + 1;
+        item.Modified = now;
+        item.ModifiedBy = userId;
+
+        // 6. Reindex source group to fill the gap
+        var sourceSiblings = await _navEditorRepo.GetSiblingItemsAsync(item.NavId, oldParentId, ct);
+        var sorted = sourceSiblings
+            .Where(s => s.NavItemId != navItemId)
+            .OrderBy(s => s.SortOrder)
+            .ToList();
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            sorted[i].SortOrder = i + 1;
+            sorted[i].Modified = now;
+            sorted[i].ModifiedBy = userId;
+        }
+
+        await _navEditorRepo.SaveChangesAsync(ct);
+    }
+
     public async Task<NavEditorNavDto> ImportLegacyMenuAsync(
         ImportLegacyMenuRequest request, string userId, CancellationToken ct = default)
     {

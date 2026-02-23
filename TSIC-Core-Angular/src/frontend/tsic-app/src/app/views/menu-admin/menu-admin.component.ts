@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
@@ -45,6 +45,9 @@ export class MenuAdminComponent implements OnInit {
     cloneTargetNavId = signal<number | null>(null);
     cloneLoading = signal(false);
 
+    // Move dropdown state — tracks which child item's dropdown is open
+    moveDropdownItemId = signal<number | null>(null);
+
     // Computed values
     navs = computed(() => this.navAdminService.navs());
     isLoading = computed(() => this.navAdminService.isLoading());
@@ -61,6 +64,11 @@ export class MenuAdminComponent implements OnInit {
         if (!current) return [];
         return this.navs().filter(n => n.navId !== current.navId);
     });
+
+    @HostListener('document:click')
+    onDocumentClick(): void {
+        this.closeMoveDropdown();
+    }
 
     ngOnInit(): void {
         this.navAdminService.ensureAndLoad().subscribe({
@@ -382,6 +390,41 @@ export class MenuAdminComponent implements OnInit {
             orderedItemIds: siblings.map(s => s.navItemId)
         }).subscribe({
             next: () => this.loadNavs()
+        });
+    }
+
+    // ── Move to group ──
+
+    /** Returns Level 1 items from the current nav excluding the child's current parent. */
+    getOtherParentItems(childItem: NavEditorNavItemDto): NavEditorNavItemDto[] {
+        const nav = this.selectedNav();
+        if (!nav) return [];
+        return nav.items.filter(p => p.navItemId !== childItem.parentNavItemId);
+    }
+
+    toggleMoveDropdown(childItemId: number, event: MouseEvent): void {
+        event.stopPropagation();
+        this.moveDropdownItemId.set(
+            this.moveDropdownItemId() === childItemId ? null : childItemId
+        );
+    }
+
+    closeMoveDropdown(): void {
+        this.moveDropdownItemId.set(null);
+    }
+
+    moveItemToGroup(childItem: NavEditorNavItemDto, targetParent: NavEditorNavItemDto): void {
+        this.moveDropdownItemId.set(null);
+
+        this.navAdminService.moveItem(childItem.navItemId, targetParent.navItemId).subscribe({
+            next: () => {
+                this.toast.show(`Moved "${childItem.text}" to "${targetParent.text}".`, 'success');
+                this.loadNavs();
+            },
+            error: (err) => {
+                console.error('Move item failed:', err);
+                this.toast.show(`Move failed: ${err.error?.message || err.statusText}`, 'danger');
+            }
         });
     }
 

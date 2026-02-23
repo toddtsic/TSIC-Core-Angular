@@ -170,6 +170,19 @@ public class NavController : ControllerBase
         return Ok(count);
     }
 
+    /// <summary>Move a child nav item to a different parent group.</summary>
+    [HttpPut("editor/items/{navItemId:int}/move")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<IActionResult> MoveNavItem(int navItemId, [FromBody] MoveNavItemRequest request, CancellationToken ct)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token");
+
+        await _navEditorService.MoveNavItemAsync(navItemId, request, userId, ct);
+        return NoContent();
+    }
+
     /// <summary>Delete a nav item.</summary>
     [HttpDelete("editor/items/{navItemId:int}")]
     [Authorize(Policy = "SuperUserOnly")]

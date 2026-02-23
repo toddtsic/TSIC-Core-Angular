@@ -185,6 +185,15 @@ public record ToggleNavActiveRequest
 }
 
 /// <summary>
+/// Move a Level 2 nav item to a different parent group within the same nav.
+/// </summary>
+public record MoveNavItemRequest
+{
+    /// <summary>The NavItemId of the target Level 1 parent to move the item under.</summary>
+    public required int TargetParentNavItemId { get; init; }
+}
+
+/// <summary>
 /// Clone a Level 1 nav item and its active children to another role's nav.
 /// </summary>
 public record CloneBranchRequest
