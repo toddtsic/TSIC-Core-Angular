@@ -49,7 +49,7 @@
     background: var(--bs-card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .menu-controls {
@@ -125,7 +125,7 @@
         background: var(--bs-light);
 
         .item-controls {
-            opacity: 1;
+            visibility: visible;
         }
     }
 
@@ -191,18 +191,78 @@
     display: flex;
     gap: var(--space-1);
     align-items: center;
-    opacity: 0;
-    transition: opacity 0.2s;
+    visibility: hidden;
+    transition: visibility 0s;
 }
 
 .child-items {
     margin-top: 0.25rem;
 }
 
+// Move-to-group dropdown
+.move-dropdown-wrapper {
+    position: relative;
+
+    .icon-btn.active {
+        background: rgba(var(--bs-primary-rgb), 0.15);
+        color: var(--bs-primary);
+    }
+}
+
+.move-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 100;
+    min-width: 200px;
+    background: var(--bs-card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-1) 0;
+    margin-top: var(--space-1);
+}
+
+.move-dropdown-header {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--bs-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.move-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: none;
+    font-size: var(--font-size-sm);
+    color: var(--brand-text);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        color: var(--bs-primary);
+    }
+
+    i {
+        font-size: var(--font-size-base);
+        color: var(--bs-primary);
+        width: 1.25rem;
+        text-align: center;
+    }
+}
+
 // Ensure controls are visible on touch devices
 @media (hover: none) {
     .item-controls {
-        opacity: 1;
+        visibility: visible;
     }
 }
 
