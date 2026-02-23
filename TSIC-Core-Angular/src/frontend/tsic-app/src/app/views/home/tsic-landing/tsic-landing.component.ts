@@ -140,6 +140,7 @@ export class TsicLandingComponent implements OnDestroy {
     afterNextRender(() => {
       this.initScrollAnimations();
       this.startTestimonialRotation();
+      this.loadCalendlyWidget();
     });
   }
 
@@ -186,6 +187,22 @@ export class TsicLandingComponent implements OnDestroy {
       this.testimonialInterval = null;
     }
     this.startTestimonialRotation();
+  }
+
+  private loadCalendlyWidget(): void {
+    const id = 'calendly-widget-script';
+    if (document.getElementById(id)) return;
+
+    const link = document.createElement('link');
+    link.href = 'https://assets.calendly.com/assets/external/widget.css';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+
+    const script = document.createElement('script');
+    script.id = id;
+    script.src = 'https://assets.calendly.com/assets/external/widget.js';
+    script.async = true;
+    document.head.appendChild(script);
   }
 
   private initScrollAnimations(): void {

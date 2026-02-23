@@ -961,34 +961,10 @@
 
   &__calendar {
     min-height: 320px;
-  }
 
-  &__calendar-placeholder {
-    width: 100%;
-    height: 320px;
-    border: 2px dashed var(--neutral-300);
-    border-radius: var(--radius-lg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    color: var(--neutral-400);
-    background: var(--neutral-0);
-
-    i {
-      font-size: 2.5rem;
-      color: var(--bs-primary);
-      opacity: 0.4;
-    }
-
-    span {
-      font-weight: var(--font-weight-semibold);
-      font-size: var(--font-size-base);
-    }
-
-    small {
-      font-size: var(--font-size-xs);
+    .calendly-inline-widget {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
     }
   }
 }
