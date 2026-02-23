@@ -854,13 +854,13 @@ export class ViewScheduleComponent implements OnInit {
                 continue; // skip descendants — parent covers them
             }
             for (const ag of club.agegroups ?? []) {
-                if (this.checkedIds.has(`ag:${ag.agegroupId}`)) {
-                    chips.push({ category: 'Agegroup', label: ag.agegroupName, type: 'cadt', nodeId: `ag:${ag.agegroupId}` });
+                if (this.checkedIds.has(`ag:${club.clubName}|${ag.agegroupId}`)) {
+                    chips.push({ category: 'Agegroup', label: ag.agegroupName, type: 'cadt', nodeId: `ag:${club.clubName}|${ag.agegroupId}` });
                     continue;
                 }
                 for (const div of ag.divisions ?? []) {
-                    if (this.checkedIds.has(`div:${div.divId}`)) {
-                        chips.push({ category: 'Division', label: div.divName, type: 'cadt', nodeId: `div:${div.divId}` });
+                    if (this.checkedIds.has(`div:${club.clubName}|${div.divId}`)) {
+                        chips.push({ category: 'Division', label: div.divName, type: 'cadt', nodeId: `div:${club.clubName}|${div.divId}` });
                         continue;
                     }
                     for (const team of div.teams ?? []) {
@@ -882,25 +882,25 @@ export class ViewScheduleComponent implements OnInit {
             const clubId = `club:${club.clubName}`;
             if (clubId === nodeId) {
                 for (const ag of club.agegroups ?? []) {
-                    checked.delete(`ag:${ag.agegroupId}`);
+                    checked.delete(`ag:${club.clubName}|${ag.agegroupId}`);
                     for (const div of ag.divisions ?? []) {
-                        checked.delete(`div:${div.divId}`);
+                        checked.delete(`div:${club.clubName}|${div.divId}`);
                         for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
                     }
                 }
                 return;
             }
             for (const ag of club.agegroups ?? []) {
-                const agId = `ag:${ag.agegroupId}`;
+                const agId = `ag:${club.clubName}|${ag.agegroupId}`;
                 if (agId === nodeId) {
                     for (const div of ag.divisions ?? []) {
-                        checked.delete(`div:${div.divId}`);
+                        checked.delete(`div:${club.clubName}|${div.divId}`);
                         for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
                     }
                     return;
                 }
                 for (const div of ag.divisions ?? []) {
-                    if (`div:${div.divId}` === nodeId) {
+                    if (`div:${club.clubName}|${div.divId}` === nodeId) {
                         for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
                         return;
                     }
@@ -917,10 +917,10 @@ export class ViewScheduleComponent implements OnInit {
         for (const club of clubs) {
             const clubId = `club:${club.clubName}`;
             for (const ag of club.agegroups ?? []) {
-                const agId = `ag:${ag.agegroupId}`;
+                const agId = `ag:${club.clubName}|${ag.agegroupId}`;
                 if (agId === nodeId) { checked.delete(clubId); return; }
                 for (const div of ag.divisions ?? []) {
-                    const divId = `div:${div.divId}`;
+                    const divId = `div:${club.clubName}|${div.divId}`;
                     if (divId === nodeId) { checked.delete(agId); checked.delete(clubId); return; }
                     for (const team of div.teams ?? []) {
                         if (`team:${team.teamId}` === nodeId) {
@@ -936,55 +936,40 @@ export class ViewScheduleComponent implements OnInit {
     /**
      * Rebuild cadtSelectionSignal from current checkedIds.
      *
-     * Key design constraints:
-     * - Agegroups and divisions are JOB-level (shared across all clubs)
-     * - The CADT tree duplicates them under each club for display
-     * - The backend uses OR-union logic across filter arrays
-     *
-     * Strategy:
-     * 1. First pass: find checked clubs, collect ALL their descendant
-     *    division/team IDs into a "covered" set so we don't double-count
-     *    them when iterating other clubs (since IDs are shared job-level).
-     * 2. Second pass: for unchecked clubs, collect division/team IDs
-     *    that aren't already covered by a checked club.
+     * Always resolves to team IDs for maximum precision — the tree
+     * contains the full hierarchy, so checking a club/agegroup/division
+     * just means collecting all teams beneath it. This avoids the
+     * bubble-up problem where checking a single team auto-checks its
+     * parent division, which would then filter by division (too broad).
      */
     private deriveCadtSelection(): void {
-        const clubNameSet = new Set<string>();
-        const divisionIdSet = new Set<string>();
         const teamIdSet = new Set<string>();
-        const coveredDivIds = new Set<string>();
-        const coveredTeamIds = new Set<string>();
-
         const clubs = this.filterOptions()?.clubs ?? [];
 
-        // Pass 1: checked clubs — collect their names and mark descendant IDs as covered
         for (const club of clubs) {
+            // Club checked → all its teams
             if (this.checkedIds.has(`club:${club.clubName}`)) {
-                clubNameSet.add(club.clubName);
                 for (const ag of club.agegroups ?? []) {
                     for (const div of ag.divisions ?? []) {
-                        coveredDivIds.add(div.divId);
                         for (const team of div.teams ?? []) {
-                            coveredTeamIds.add(team.teamId);
+                            teamIdSet.add(team.teamId);
                         }
                     }
                 }
+                continue;
             }
-        }
-
-        // Pass 2: unchecked clubs — collect divisions/teams not covered by a checked club
-        for (const club of clubs) {
-            if (this.checkedIds.has(`club:${club.clubName}`)) continue; // already handled
 
             for (const ag of club.agegroups ?? []) {
                 for (const div of ag.divisions ?? []) {
-                    if (coveredDivIds.has(div.divId)) continue; // covered by a checked club
-                    if (this.checkedIds.has(`div:${div.divId}`)) {
-                        divisionIdSet.add(div.divId);
-                        continue; // division covers child teams
+                    // Division checked → all its teams
+                    if (this.checkedIds.has(`div:${club.clubName}|${div.divId}`)) {
+                        for (const team of div.teams ?? []) {
+                            teamIdSet.add(team.teamId);
+                        }
+                        continue;
                     }
+                    // Individual teams
                     for (const team of div.teams ?? []) {
-                        if (coveredTeamIds.has(team.teamId)) continue;
                         if (this.checkedIds.has(`team:${team.teamId}`)) {
                             teamIdSet.add(team.teamId);
                         }
@@ -993,17 +978,12 @@ export class ViewScheduleComponent implements OnInit {
             }
         }
 
-        console.log('[CADT] deriveCadtSelection →',
-            'clubs:', [...clubNameSet],
-            'divs:', [...divisionIdSet],
-            'teams:', [...teamIdSet],
-            'coveredDivs:', coveredDivIds.size,
-            'coveredTeams:', coveredTeamIds.size);
+        console.log('[CADT] deriveCadtSelection → teams:', teamIdSet.size);
 
         this.cadtSelectionSignal.set({
-            clubNames: [...clubNameSet],
-            agegroupIds: [],  // intentionally empty — too broad for cross-club filtering
-            divisionIds: [...divisionIdSet],
+            clubNames: [],
+            agegroupIds: [],
+            divisionIds: [],
             teamIds: [...teamIdSet]
         });
     }

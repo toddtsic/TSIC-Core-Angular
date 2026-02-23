@@ -308,11 +308,13 @@ export class CadtTreeFilterComponent implements OnChanges {
       const clubDescendants: string[] = [];
 
       // Pre-collect all descendant IDs for the club
+      // Agegroup/division IDs are scoped by club name to avoid duplicates
+      // (same ag/div can appear under multiple clubs)
       for (const ag of club.agegroups ?? []) {
-        const agId = `ag:${ag.agegroupId}`;
+        const agId = `ag:${club.clubName}|${ag.agegroupId}`;
         clubDescendants.push(agId);
         for (const div of ag.divisions ?? []) {
-          const divId = `div:${div.divId}`;
+          const divId = `div:${club.clubName}|${div.divId}`;
           clubDescendants.push(divId);
           for (const team of div.teams ?? []) {
             clubDescendants.push(`team:${team.teamId}`);
@@ -332,12 +334,12 @@ export class CadtTreeFilterComponent implements OnChanges {
       });
 
       for (const ag of club.agegroups ?? []) {
-        const agId = `ag:${ag.agegroupId}`;
+        const agId = `ag:${club.clubName}|${ag.agegroupId}`;
         this.parentMap.set(agId, clubId);
 
         const agDescendants: string[] = [];
         for (const div of ag.divisions ?? []) {
-          const divId = `div:${div.divId}`;
+          const divId = `div:${club.clubName}|${div.divId}`;
           agDescendants.push(divId);
           for (const team of div.teams ?? []) {
             agDescendants.push(`team:${team.teamId}`);
@@ -356,7 +358,7 @@ export class CadtTreeFilterComponent implements OnChanges {
         });
 
         for (const div of ag.divisions ?? []) {
-          const divId = `div:${div.divId}`;
+          const divId = `div:${club.clubName}|${div.divId}`;
           this.parentMap.set(divId, agId);
 
           const divDescendants: string[] = [];
