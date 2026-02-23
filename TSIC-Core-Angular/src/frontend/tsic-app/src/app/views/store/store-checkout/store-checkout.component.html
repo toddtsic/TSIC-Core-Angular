@@ -1,0 +1,168 @@
+<div class="p-4">
+	<!-- Confirmation view (after successful checkout) -->
+	@if (confirmation(); as conf) {
+		<div class="text-center py-5">
+			<div class="mb-4">
+				<i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+			</div>
+			<h3 class="mb-2">Order Confirmed!</h3>
+			<p class="text-body-secondary mb-4">Your order has been placed successfully.</p>
+
+			<div class="card d-inline-block text-start" style="min-width: 300px;">
+				<div class="card-body">
+					<div class="d-flex justify-content-between mb-2">
+						<span class="text-body-secondary">Batch ID</span>
+						<span class="fw-semibold font-monospace">{{ conf.storeCartBatchId }}</span>
+					</div>
+					<div class="d-flex justify-content-between mb-2">
+						<span class="text-body-secondary">Total Paid</span>
+						<span class="fw-semibold text-primary">{{ formatCurrency(conf.totalPaid) }}</span>
+					</div>
+					@if (conf.invoiceNo) {
+						<div class="d-flex justify-content-between">
+							<span class="text-body-secondary">Invoice #</span>
+							<span class="fw-semibold font-monospace">{{ conf.invoiceNo }}</span>
+						</div>
+					}
+				</div>
+			</div>
+
+			<div class="mt-4">
+				<a routerLink="../../store" class="btn btn-primary">
+					<i class="bi bi-shop me-1"></i>Back to Store
+				</a>
+			</div>
+		</div>
+	} @else {
+		<!-- Checkout form -->
+		<div class="d-flex justify-content-between align-items-center mb-4">
+			<h4 class="mb-0">
+				<i class="bi bi-credit-card me-2"></i>Checkout
+			</h4>
+			<a routerLink="../../store/cart" class="btn btn-outline-secondary btn-sm">
+				<i class="bi bi-arrow-left me-1"></i>Back to Cart
+			</a>
+		</div>
+
+		<!-- Loading -->
+		@if (isLoading()) {
+			<div class="text-center py-5">
+				<div class="spinner-border text-primary"></div>
+			</div>
+		}
+
+		<!-- Error -->
+		@if (errorMessage()) {
+			<div class="alert alert-danger">
+				<i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+			</div>
+		}
+
+		@if (!isLoading() && lineItems().length > 0) {
+			<div class="row g-4">
+				<!-- Left: order summary -->
+				<div class="col-md-7">
+					<div class="card mb-4">
+						<div class="card-header bg-transparent">
+							<h6 class="mb-0">Order Summary</h6>
+						</div>
+						<div class="card-body p-0">
+							<table class="table table-sm align-middle mb-0">
+								<tbody>
+									@for (item of lineItems(); track item.storeCartBatchSkuId) {
+										<tr>
+											<td class="ps-3">
+												<div class="fw-medium">{{ item.itemName }}</div>
+												@if (item.colorName || item.sizeName) {
+													<small class="text-body-secondary">
+														{{ item.colorName }}{{ item.colorName && item.sizeName ? ' / ' : '' }}{{ item.sizeName }}
+													</small>
+												}
+											</td>
+											<td class="text-center">&times; {{ item.quantity }}</td>
+											<td class="text-end pe-3 fw-medium">{{ formatCurrency(item.lineTotal) }}</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+						<div class="card-footer bg-transparent">
+							<div class="d-flex justify-content-between small mb-1">
+								<span>Subtotal</span>
+								<span>{{ formatCurrency(subtotal()) }}</span>
+							</div>
+							<div class="d-flex justify-content-between small mb-1">
+								<span>Fees</span>
+								<span>{{ formatCurrency(totalFees()) }}</span>
+							</div>
+							<div class="d-flex justify-content-between small mb-2">
+								<span>Tax</span>
+								<span>{{ formatCurrency(totalTax()) }}</span>
+							</div>
+							<hr class="my-1">
+							<div class="d-flex justify-content-between fw-semibold fs-5">
+								<span>Total</span>
+								<span class="text-primary">{{ formatCurrency(grandTotal()) }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Right: payment form -->
+				<div class="col-md-5">
+					<div class="card">
+						<div class="card-header bg-transparent">
+							<h6 class="mb-0">Payment Details</h6>
+						</div>
+						<div class="card-body">
+							<div class="mb-3">
+								<label class="form-label fw-medium">Payment Method <span class="text-danger">*</span></label>
+								<select class="form-select" [ngModel]="selectedPaymentMethodId()"
+										(ngModelChange)="selectedPaymentMethodId.set($event)">
+									<option value="">Select payment method...</option>
+									@for (pm of paymentMethods(); track pm.paymentMethodId) {
+										<option [value]="pm.paymentMethodId">{{ pm.paymentMethod }}</option>
+									}
+								</select>
+							</div>
+
+							<div class="mb-3">
+								<label class="form-label fw-medium">CC Last 4 Digits</label>
+								<input type="text" class="form-control" maxlength="4" placeholder="1234"
+									   [ngModel]="ccLast4()" (ngModelChange)="ccLast4.set($event)">
+							</div>
+
+							<div class="mb-3">
+								<label class="form-label fw-medium">CC Exp Date</label>
+								<input type="text" class="form-control" placeholder="MM/YY"
+									   [ngModel]="ccExpDate()" (ngModelChange)="ccExpDate.set($event)">
+							</div>
+
+							<div class="mb-3">
+								<label class="form-label fw-medium">Comment</label>
+								<textarea class="form-control" rows="2" placeholder="Optional note..."
+										  [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+							</div>
+
+							<button class="btn btn-primary w-100" [disabled]="!canSubmit() || isSubmitting()"
+									(click)="submitCheckout()">
+								@if (isSubmitting()) {
+									<span class="spinner-border spinner-border-sm me-1"></span>Processing...
+								} @else {
+									<i class="bi bi-lock me-1"></i>Place Order — {{ formatCurrency(grandTotal()) }}
+								}
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		}
+
+		@if (!isLoading() && lineItems().length === 0 && !errorMessage()) {
+			<div class="text-center py-5">
+				<p class="text-body-secondary">Your cart is empty. Add items before checking out.</p>
+				<a routerLink="../../store" class="btn btn-primary">Browse Store</a>
+			</div>
+		}
+	}
+</div>

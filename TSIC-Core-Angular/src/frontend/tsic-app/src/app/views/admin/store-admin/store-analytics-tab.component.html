@@ -1,0 +1,328 @@
+<!-- Section navigation -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'sales-by-item'"
+			[class.btn-outline-secondary]="activeSection() !== 'sales-by-item'"
+			(click)="selectSection('sales-by-item')">Sales by Item</button>
+	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'sales-pivot'"
+			[class.btn-outline-secondary]="activeSection() !== 'sales-pivot'"
+			(click)="selectSection('sales-pivot')">Sales Pivot</button>
+	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'payments'"
+			[class.btn-outline-secondary]="activeSection() !== 'payments'"
+			(click)="selectSection('payments')">Payments</button>
+	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'family-purchases'"
+			[class.btn-outline-secondary]="activeSection() !== 'family-purchases'"
+			(click)="selectSection('family-purchases')">Family Purchases</button>
+	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'refunded'"
+			[class.btn-outline-secondary]="activeSection() !== 'refunded'"
+			(click)="selectSection('refunded')">Refunded</button>
+	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'restocked'"
+			[class.btn-outline-secondary]="activeSection() !== 'restocked'"
+			(click)="selectSection('restocked')">Restocked</button>
+</div>
+
+<!-- Loading -->
+@if (isLoading()) {
+	<div class="text-center py-4">
+		<div class="spinner-border spinner-border-sm text-primary"></div>
+	</div>
+}
+
+<!-- ── Sales by Item ── -->
+@if (!isLoading() && activeSection() === 'sales-by-item') {
+	@if (salesByItem().length === 0) {
+		<p class="text-body-secondary">No sales data yet.</p>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-sm table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Item</th>
+						<th class="text-end">Units Sold</th>
+						<th class="text-end">Revenue</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (row of salesByItem(); track row.itemName) {
+						<tr>
+							<td>{{ row.itemName }}</td>
+							<td class="text-end">{{ row.totalUnitsSold }}</td>
+							<td class="text-end fw-semibold">{{ formatCurrency(row.totalRevenue) }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ── Sales Pivot ── -->
+@if (!isLoading() && activeSection() === 'sales-pivot') {
+	@if (salesPivot().length === 0) {
+		<p class="text-body-secondary">No sales data yet.</p>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-sm table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Item</th>
+						<th class="text-center">Month/Year</th>
+						<th class="text-end">Units Sold</th>
+						<th class="text-end">Revenue</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (row of salesPivot(); track row.itemName + row.month + row.year) {
+						<tr>
+							<td>{{ row.itemName }}</td>
+							<td class="text-center">{{ row.month }}/{{ row.year }}</td>
+							<td class="text-end">{{ row.unitsSold }}</td>
+							<td class="text-end">{{ formatCurrency(row.revenue) }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ── Payments ── -->
+@if (!isLoading() && activeSection() === 'payments') {
+	<div class="d-flex align-items-center gap-3 mb-3">
+		<div class="form-check">
+			<input class="form-check-input" type="checkbox" id="walkUpOnly"
+				   [checked]="walkUpOnly()" (change)="toggleWalkUpOnly()">
+			<label class="form-check-label" for="walkUpOnly">Walk-up only</label>
+		</div>
+		<div class="d-flex gap-2 ms-auto">
+			<button class="btn btn-sm btn-outline-primary" (click)="openPickupModal()">
+				<i class="bi bi-pen me-1"></i>Sign for Pickup
+			</button>
+		</div>
+	</div>
+
+	@if (payments().length === 0) {
+		<p class="text-body-secondary">No payment records.</p>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-sm table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Customer</th>
+						<th>Method</th>
+						<th class="text-end">Paid</th>
+						<th class="text-center">Date</th>
+						<th class="text-center">CC Last 4</th>
+						<th class="text-center">Walk-up</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (p of payments(); track p.storeCartBatchAccountingId) {
+						<tr>
+							<td>{{ p.familyUserName }}</td>
+							<td>{{ p.paymentMethodName }}</td>
+							<td class="text-end fw-semibold">{{ formatCurrency(p.paid) }}</td>
+							<td class="text-center">{{ formatDate(p.createDate) }}</td>
+							<td class="text-center font-monospace">{{ p.cclast4 || '—' }}</td>
+							<td class="text-center">
+								<i class="bi" [class.bi-check-circle-fill]="p.isWalkUp" [class.text-success]="p.isWalkUp"
+								   [class.bi-dash]="!p.isWalkUp" [class.text-secondary]="!p.isWalkUp"></i>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ── Family Purchases ── -->
+@if (!isLoading() && activeSection() === 'family-purchases') {
+	@if (familyPurchases().length === 0) {
+		<p class="text-body-secondary">No family purchases yet.</p>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-sm table-hover align-middle">
+				<thead>
+					<tr>
+						<th></th>
+						<th>Family</th>
+						<th class="text-end">Total Spent</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (fp of familyPurchases(); track fp.familyUserId) {
+						<tr class="cursor-pointer" (click)="expandFamily(fp.familyUserId)">
+							<td style="width: 32px;">
+								<i class="bi" [class.bi-chevron-right]="expandedFamilyUserId() !== fp.familyUserId"
+								   [class.bi-chevron-down]="expandedFamilyUserId() === fp.familyUserId"></i>
+							</td>
+							<td>{{ fp.familyUserName }}</td>
+							<td class="text-end fw-semibold">{{ formatCurrency(fp.totalSpent) }}</td>
+						</tr>
+
+						@if (expandedFamilyUserId() === fp.familyUserId && expandedFamilyDetail()) {
+							<tr>
+								<td colspan="3" class="p-0">
+									<div class="ps-5 py-2 bg-body-tertiary">
+										@for (txn of expandedFamilyDetail()!.transactions; track txn.storeCartBatchId) {
+											<div class="mb-2 p-2 border rounded bg-body">
+												<div class="d-flex justify-content-between small fw-semibold mb-1">
+													<span>{{ formatDate(txn.purchaseDate) }}</span>
+													<span>{{ formatCurrency(txn.totalPaid) }} ({{ txn.itemCount }} items)</span>
+												</div>
+												@for (item of txn.items; track item.storeCartBatchSkuId) {
+													<div class="d-flex justify-content-between small text-body-secondary">
+														<span>{{ item.itemName }}
+															@if (item.colorName) { / {{ item.colorName }} }
+															@if (item.sizeName) { / {{ item.sizeName }} }
+															&times; {{ item.quantity }}
+														</span>
+														<span>{{ formatCurrency(item.lineTotal) }}</span>
+													</div>
+												}
+											</div>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ── Refunded ── -->
+@if (!isLoading() && activeSection() === 'refunded') {
+	@if (refundedItems().length === 0) {
+		<p class="text-body-secondary">No refunded items.</p>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-sm table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Item</th>
+						<th>Variant</th>
+						<th class="text-center">Qty</th>
+						<th class="text-end">Paid</th>
+						<th class="text-end">Refunded</th>
+						<th>Customer</th>
+						<th class="text-center">Date</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (r of refundedItems(); track r.storeCartBatchSkuId) {
+						<tr>
+							<td>{{ r.itemName }}</td>
+							<td>{{ r.colorName || '' }} {{ r.sizeName || '' }}</td>
+							<td class="text-center">{{ r.quantity }}</td>
+							<td class="text-end">{{ formatCurrency(r.paidTotal) }}</td>
+							<td class="text-end text-danger fw-semibold">{{ formatCurrency(r.refundedTotal) }}</td>
+							<td>{{ r.familyUserName }}</td>
+							<td class="text-center">{{ formatDate(r.modifiedDate) }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ── Restocked ── -->
+@if (!isLoading() && activeSection() === 'restocked') {
+	<div class="d-flex justify-content-end mb-3">
+		<button class="btn btn-sm btn-outline-primary" (click)="openRestockModal()">
+			<i class="bi bi-plus-lg me-1"></i>Log Restock
+		</button>
+	</div>
+
+	@if (restockedItems().length === 0) {
+		<p class="text-body-secondary">No restocked items.</p>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-sm table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Item</th>
+						<th>Variant</th>
+						<th class="text-center">Restock Count</th>
+						<th class="text-center">Date</th>
+						<th>Modified By</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (r of restockedItems(); track r.storeCartBatchSkuRestockId) {
+						<tr>
+							<td>{{ r.itemName }}</td>
+							<td>{{ r.colorName || '' }} {{ r.sizeName || '' }}</td>
+							<td class="text-center">{{ r.restockCount }}</td>
+							<td class="text-center">{{ formatDate(r.modifiedDate) }}</td>
+							<td>{{ r.modifiedBy }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ── Restock Modal ── -->
+@if (showRestockModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="showRestockModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Log Restock</h5>
+				<button type="button" class="btn-close" (click)="showRestockModal.set(false)" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Line Item ID (StoreCartBatchSkuId)</label>
+					<input type="number" class="form-control" [ngModel]="restockBatchSkuId()"
+						   (ngModelChange)="restockBatchSkuId.set($event)" min="1">
+				</div>
+				<div class="mb-3">
+					<label class="form-label fw-medium">Restock Count</label>
+					<input type="number" class="form-control" [ngModel]="restockCount()"
+						   (ngModelChange)="restockCount.set($event)" min="1">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline-secondary" (click)="showRestockModal.set(false)">Cancel</button>
+				<button class="btn btn-primary" [disabled]="isSaving()" (click)="submitRestock()">
+					{{ isSaving() ? 'Saving...' : 'Log Restock' }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- ── Pickup Modal ── -->
+@if (showPickupModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="showPickupModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Sign for Pickup</h5>
+				<button type="button" class="btn-close" (click)="showPickupModal.set(false)" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Batch ID (StoreCartBatchId)</label>
+					<input type="number" class="form-control" [ngModel]="pickupBatchId()"
+						   (ngModelChange)="pickupBatchId.set($event)" min="1">
+				</div>
+				<div class="mb-3">
+					<label class="form-label fw-medium">Signed For By</label>
+					<input type="text" class="form-control" [ngModel]="pickupSignedForBy()"
+						   (ngModelChange)="pickupSignedForBy.set($event)" placeholder="Name of person picking up">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline-secondary" (click)="showPickupModal.set(false)">Cancel</button>
+				<button class="btn btn-primary" [disabled]="isSaving()" (click)="submitPickup()">
+					{{ isSaving() ? 'Saving...' : 'Sign Off' }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}

@@ -1,0 +1,136 @@
+<!-- Top bar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+	<a routerLink="../../" class="btn btn-outline-secondary btn-sm">
+		<i class="bi bi-arrow-left me-1"></i>Back to Store
+	</a>
+	@if (cartCount() > 0) {
+		<a routerLink="../../../store/cart" class="btn btn-outline-primary btn-sm position-relative">
+			<i class="bi bi-cart3 me-1"></i>Cart
+			<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+				{{ cartCount() }}
+			</span>
+		</a>
+	}
+</div>
+
+<!-- Loading -->
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary"></div>
+	</div>
+}
+
+<!-- Error -->
+@if (errorMessage()) {
+	<div class="alert alert-danger">
+		<i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+	</div>
+}
+
+<!-- Item detail -->
+@if (!isLoading() && item(); as item) {
+	<div class="row g-4">
+		<!-- Left: item icon -->
+		<div class="col-md-4">
+			<div class="item-hero">
+				<i class="bi bi-bag"></i>
+			</div>
+		</div>
+
+		<!-- Right: info + variant picker -->
+		<div class="col-md-8">
+			<h3 class="mb-2">{{ item.storeItemName }}</h3>
+			<p class="fs-4 fw-semibold text-primary mb-3">{{ formatCurrency(item.storeItemPrice) }}</p>
+
+			@if (item.storeItemComments) {
+				<p class="text-body-secondary mb-4">{{ item.storeItemComments }}</p>
+			}
+
+			<!-- Color picker -->
+			@if (hasColors()) {
+				<div class="mb-3">
+					<label class="form-label fw-medium">Color</label>
+					<div class="d-flex flex-wrap gap-2">
+						@for (color of availableColors(); track color.id) {
+							<button class="variant-chip"
+									[class.selected]="selectedColorId() === color.id"
+									(click)="selectColor(color.id)">
+								{{ color.name }}
+							</button>
+						}
+					</div>
+				</div>
+			}
+
+			<!-- Size picker -->
+			@if (hasSizes()) {
+				<div class="mb-3">
+					<label class="form-label fw-medium">Size</label>
+					<div class="d-flex flex-wrap gap-2">
+						@for (size of availableSizes(); track size.id) {
+							<button class="variant-chip"
+									[class.selected]="selectedSizeId() === size.id"
+									(click)="selectSize(size.id)">
+								{{ size.name }}
+							</button>
+						}
+					</div>
+				</div>
+			}
+
+			<!-- Availability -->
+			@if (selectedSku()) {
+				<div class="mb-3">
+					@if (isCheckingAvailability()) {
+						<span class="text-body-secondary">
+							<span class="spinner-border spinner-border-sm me-1"></span>Checking availability...
+						</span>
+					} @else if (availability()) {
+						@if (availability()!.availableCount > 0) {
+							<span class="text-success fw-medium">
+								<i class="bi bi-check-circle me-1"></i>{{ availability()!.availableCount }} available
+							</span>
+						} @else {
+							<span class="text-danger fw-medium">
+								<i class="bi bi-x-circle me-1"></i>Out of stock
+							</span>
+						}
+					}
+				</div>
+			}
+
+			<!-- Quantity + Add to cart -->
+			@if (selectedSku()) {
+				<div class="d-flex align-items-center gap-3 mb-4">
+					<div class="d-flex align-items-center">
+						<button class="btn btn-outline-secondary btn-sm" (click)="setQuantity(quantity() - 1)"
+								[disabled]="quantity() <= 1">
+							<i class="bi bi-dash"></i>
+						</button>
+						<input type="number" class="form-control form-control-sm text-center mx-1 qty-input"
+							   [ngModel]="quantity()" (ngModelChange)="setQuantity($event)" min="1"
+							   [max]="availability()?.availableCount ?? 99">
+						<button class="btn btn-outline-secondary btn-sm" (click)="setQuantity(quantity() + 1)"
+								[disabled]="availability() && quantity() >= availability()!.availableCount">
+							<i class="bi bi-plus"></i>
+						</button>
+					</div>
+
+					<button class="btn btn-primary" [disabled]="!canAddToCart() || isAdding()" (click)="addToCart()">
+						@if (isAdding()) {
+							<span class="spinner-border spinner-border-sm me-1"></span>Adding...
+						} @else {
+							<i class="bi bi-cart-plus me-1"></i>Add to Cart
+						}
+					</button>
+				</div>
+			} @else if (!isLoading()) {
+				@if (hasColors() || hasSizes()) {
+					<p class="text-body-secondary fst-italic mt-3">
+						<i class="bi bi-info-circle me-1"></i>Select {{ hasColors() && hasSizes() ? 'a color and size' : hasColors() ? 'a color' : 'a size' }} to continue.
+					</p>
+				}
+			}
+		</div>
+	</div>
+}

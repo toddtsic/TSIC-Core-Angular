@@ -42,6 +42,7 @@ using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services;
+using TSIC.API.Services.Store;
 using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
@@ -113,6 +114,11 @@ builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
+// Store
+builder.Services.AddScoped<IStoreAnalyticsRepository, StoreAnalyticsRepository>();
+builder.Services.AddScoped<IStoreCartRepository, StoreCartRepository>();
+builder.Services.AddScoped<IStoreItemRepository, StoreItemRepository>();
+builder.Services.AddScoped<IStoreRepository, StoreRepository>();
 
 // FileStorage configuration + Image service
 builder.Services.Configure<FileStorageOptions>(
@@ -196,6 +202,10 @@ builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
 builder.Services.AddScoped<IJobConfigService, JobConfigService>();
+// Store
+builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
+builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
+builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

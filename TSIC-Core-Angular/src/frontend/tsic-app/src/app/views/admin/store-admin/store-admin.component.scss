@@ -1,0 +1,86 @@
+:host {
+	display: block;
+	padding: var(--space-4);
+}
+
+// ── Tab navigation (reuses widget-editor pattern) ──
+
+.editor-tabs {
+	display: flex;
+	gap: var(--space-1);
+	border-bottom: 2px solid var(--bs-border-color);
+	margin-bottom: var(--space-4);
+	overflow-x: auto;
+}
+
+.editor-tab {
+	padding: var(--space-2) var(--space-4);
+	border: none;
+	background: transparent;
+	color: var(--bs-secondary-color);
+	font-weight: 500;
+	cursor: pointer;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -2px;
+	transition: color 0.15s, border-color 0.15s;
+	white-space: nowrap;
+
+	&:hover {
+		color: var(--brand-text);
+	}
+
+	&.active {
+		color: var(--bs-primary);
+		border-bottom-color: var(--bs-primary);
+	}
+}
+
+// ── SKU expansion ──
+
+.sku-expansion {
+	background: rgba(var(--bs-primary-rgb), 0.03);
+	border-top: 1px solid var(--bs-border-color);
+	padding: var(--space-2) var(--space-4) var(--space-2) var(--space-8);
+}
+
+.sku-table {
+	th {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: var(--bs-secondary-color);
+		border-bottom-width: 1px;
+	}
+
+	td {
+		font-size: var(--font-size-sm);
+	}
+}
+
+// ── Variant selection chips (item modal) ──
+
+.variant-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: var(--space-1) var(--space-3);
+	border-radius: 999px;
+	border: 1px solid var(--bs-border-color);
+	background: transparent;
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	cursor: pointer;
+	transition: all 0.12s ease;
+	user-select: none;
+
+	&:hover {
+		border-color: var(--bs-primary);
+		color: var(--bs-primary);
+	}
+
+	&.selected {
+		background: var(--bs-primary);
+		border-color: var(--bs-primary);
+		color: var(--bs-light);
+	}
+}

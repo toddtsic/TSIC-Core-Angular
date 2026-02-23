@@ -1,0 +1,27 @@
+:host {
+	display: block;
+	padding: var(--space-4);
+}
+
+.item-card {
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+	border: 1px solid var(--bs-border-color);
+
+	&:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-md);
+	}
+}
+
+.item-icon {
+	width: 56px;
+	height: 56px;
+	border-radius: var(--radius-md);
+	background: rgba(var(--bs-primary-rgb), 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: var(--font-size-2xl);
+	color: var(--bs-primary);
+}

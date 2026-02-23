@@ -1,0 +1,459 @@
+<!-- Page header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+	<h2 class="mb-0"><i class="bi bi-shop me-2"></i>Store Manager</h2>
+	<button class="btn btn-outline-secondary btn-sm" (click)="refresh()" [disabled]="isLoading()">
+		<i class="bi bi-arrow-clockwise me-1"></i>Refresh
+	</button>
+</div>
+
+<!-- Tab navigation -->
+<div class="editor-tabs">
+	<button class="editor-tab" [class.active]="activeTab() === 'items'" (click)="activeTab.set('items')">
+		<i class="bi bi-box-seam me-1"></i>Items
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'colors'" (click)="activeTab.set('colors')">
+		<i class="bi bi-palette me-1"></i>Colors
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'sizes'" (click)="activeTab.set('sizes')">
+		<i class="bi bi-rulers me-1"></i>Sizes
+	</button>
+	<button class="editor-tab" [class.active]="activeTab() === 'analytics'" (click)="activeTab.set('analytics')">
+		<i class="bi bi-graph-up me-1"></i>Analytics
+	</button>
+</div>
+
+<!-- Error alert -->
+@if (errorMessage()) {
+	<div class="alert alert-danger d-flex align-items-center" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		{{ errorMessage() }}
+	</div>
+}
+
+<!-- Loading state -->
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="mt-2 text-body-secondary">Loading store data...</p>
+	</div>
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 1: ITEMS                          -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'items') {
+	<div class="d-flex justify-content-between align-items-center mb-3">
+		<span class="text-body-secondary">{{ items().length }} item(s)</span>
+		<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
+			<i class="bi bi-plus-lg me-1"></i>New Item
+		</button>
+	</div>
+
+	@if (items().length === 0) {
+		<div class="text-center py-5 text-body-secondary">
+			<i class="bi bi-box-seam" style="font-size: 2rem;"></i>
+			<p class="mt-2">No items yet. Create your first store item.</p>
+		</div>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th></th>
+						<th>Name</th>
+						<th class="text-end">Price</th>
+						<th class="text-center">SKUs</th>
+						<th class="text-center">Active</th>
+						<th class="text-end">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (item of items(); track item.storeItemId) {
+						<tr>
+							<td style="width: 32px;">
+								<button class="btn btn-sm btn-link p-0" (click)="toggleSkuExpansion(item.storeItemId)"
+									[attr.aria-label]="expandedItemId() === item.storeItemId ? 'Collapse SKUs' : 'Expand SKUs'">
+									<i class="bi" [class.bi-chevron-right]="expandedItemId() !== item.storeItemId"
+						 			   [class.bi-chevron-down]="expandedItemId() === item.storeItemId"></i>
+								</button>
+							</td>
+							<td class="fw-medium">{{ item.storeItemName }}</td>
+							<td class="text-end">{{ formatCurrency(item.storeItemPrice) }}</td>
+							<td class="text-center">
+								<span class="badge bg-secondary-subtle text-secondary-emphasis">
+									{{ item.activeSkuCount }}/{{ item.skuCount }}
+								</span>
+							</td>
+							<td class="text-center">
+								<span class="badge" [class.bg-success-subtle]="item.active"
+									  [class.text-success-emphasis]="item.active"
+									  [class.bg-secondary-subtle]="!item.active"
+									  [class.text-secondary-emphasis]="!item.active">
+									{{ item.active ? 'Active' : 'Inactive' }}
+								</span>
+							</td>
+							<td class="text-end">
+								<button class="btn btn-sm btn-outline-primary me-1" (click)="editItem(item)"
+										aria-label="Edit item">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<button class="btn btn-sm" (click)="toggleItemActive(item)"
+										[class.btn-outline-warning]="item.active"
+										[class.btn-outline-success]="!item.active"
+										[attr.aria-label]="item.active ? 'Deactivate' : 'Activate'">
+									<i class="bi" [class.bi-pause-circle]="item.active" [class.bi-play-circle]="!item.active"></i>
+								</button>
+							</td>
+						</tr>
+
+						<!-- Expanded SKU rows -->
+						@if (expandedItemId() === item.storeItemId) {
+							<tr>
+								<td colspan="6" class="p-0">
+									<div class="sku-expansion">
+										@if (isLoadingSkus()) {
+											<div class="text-center py-3">
+												<div class="spinner-border spinner-border-sm text-primary"></div>
+											</div>
+										} @else if (expandedSkus().length === 0) {
+											<div class="text-center py-3 text-body-secondary">No SKUs</div>
+										} @else {
+											<table class="table table-sm mb-0 sku-table">
+												<thead>
+													<tr>
+														<th>Variant</th>
+														<th class="text-center">Max</th>
+														<th class="text-center">Sold</th>
+														<th class="text-center">In Cart</th>
+														<th class="text-center">Available</th>
+														<th class="text-center">Active</th>
+														<th class="text-end">Edit</th>
+													</tr>
+												</thead>
+												<tbody>
+													@for (sku of expandedSkus(); track sku.storeSkuId) {
+														<tr [class.table-warning]="!sku.active">
+															<td>{{ skuLabel(sku) }}</td>
+															<td class="text-center">{{ sku.maxCanSell }}</td>
+															<td class="text-center">{{ sku.soldCount }}</td>
+															<td class="text-center">{{ sku.inCartCount }}</td>
+															<td class="text-center fw-semibold"
+																[class.text-danger]="sku.availableCount <= 0"
+																[class.text-warning]="sku.availableCount > 0 && sku.availableCount <= 5">
+																{{ sku.availableCount }}
+															</td>
+															<td class="text-center">
+																<i class="bi" [class.bi-check-circle-fill]="sku.active"
+																   [class.text-success]="sku.active"
+																   [class.bi-x-circle]="!sku.active"
+																   [class.text-secondary]="!sku.active"></i>
+															</td>
+															<td class="text-end">
+																<button class="btn btn-sm btn-outline-secondary"
+																		(click)="openSkuEditModal(sku)">
+																	<i class="bi bi-pencil"></i>
+																</button>
+															</td>
+														</tr>
+													}
+												</tbody>
+											</table>
+										}
+									</div>
+								</td>
+							</tr>
+						}
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 2: COLORS                         -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'colors') {
+	<div class="d-flex justify-content-between align-items-center mb-3">
+		<span class="text-body-secondary">{{ colors().length }} color(s)</span>
+		<button class="btn btn-primary btn-sm" (click)="openNewColorModal()">
+			<i class="bi bi-plus-lg me-1"></i>New Color
+		</button>
+	</div>
+
+	@if (colors().length === 0) {
+		<div class="text-center py-5 text-body-secondary">
+			<i class="bi bi-palette" style="font-size: 2rem;"></i>
+			<p class="mt-2">No colors defined. Add colors before creating items with color variants.</p>
+		</div>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Color Name</th>
+						<th class="text-end" style="width: 120px;">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (color of colors(); track color.storeColorId) {
+						<tr>
+							<td>{{ color.storeColorName }}</td>
+							<td class="text-end">
+								<button class="btn btn-sm btn-outline-primary me-1" (click)="editColor(color)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<button class="btn btn-sm btn-outline-danger" (click)="confirmDeleteColor(color)">
+									<i class="bi bi-trash"></i>
+								</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 3: SIZES                          -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'sizes') {
+	<div class="d-flex justify-content-between align-items-center mb-3">
+		<span class="text-body-secondary">{{ sizes().length }} size(s)</span>
+		<button class="btn btn-primary btn-sm" (click)="openNewSizeModal()">
+			<i class="bi bi-plus-lg me-1"></i>New Size
+		</button>
+	</div>
+
+	@if (sizes().length === 0) {
+		<div class="text-center py-5 text-body-secondary">
+			<i class="bi bi-rulers" style="font-size: 2rem;"></i>
+			<p class="mt-2">No sizes defined. Add sizes before creating items with size variants.</p>
+		</div>
+	} @else {
+		<div class="table-responsive">
+			<table class="table table-hover align-middle">
+				<thead>
+					<tr>
+						<th>Size Name</th>
+						<th class="text-end" style="width: 120px;">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					@for (size of sizes(); track size.storeSizeId) {
+						<tr>
+							<td>{{ size.storeSizeName }}</td>
+							<td class="text-end">
+								<button class="btn btn-sm btn-outline-primary me-1" (click)="editSize(size)">
+									<i class="bi bi-pencil"></i>
+								</button>
+								<button class="btn btn-sm btn-outline-danger" (click)="confirmDeleteSize(size)">
+									<i class="bi bi-trash"></i>
+								</button>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- TAB 4: ANALYTICS                      -->
+<!-- ══════════════════════════════════════ -->
+@if (!isLoading() && activeTab() === 'analytics') {
+	<app-store-analytics-tab />
+}
+
+<!-- ══════════════════════════════════════ -->
+<!-- MODALS                                -->
+<!-- ══════════════════════════════════════ -->
+
+<!-- Item Create/Edit Modal -->
+@if (showItemModal()) {
+	<tsic-dialog [open]="true" size="lg" (requestClose)="showItemModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">{{ isEditingItem() ? 'Edit Item' : 'New Item' }}</h5>
+				<button type="button" class="btn-close" (click)="showItemModal.set(false)" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Item Name</label>
+					<input type="text" class="form-control" [ngModel]="formItemName()"
+						   (ngModelChange)="formItemName.set($event)" placeholder="e.g. Tournament T-Shirt">
+				</div>
+				<div class="row mb-3">
+					<div class="col-md-6">
+						<label class="form-label fw-medium">Price</label>
+						<div class="input-group">
+							<span class="input-group-text">$</span>
+							<input type="number" class="form-control" [ngModel]="formItemPrice()"
+								   (ngModelChange)="formItemPrice.set($event)" min="0" step="0.01">
+						</div>
+					</div>
+					@if (!isEditingItem()) {
+						<div class="col-md-6">
+							<label class="form-label fw-medium">Max Can Sell (per SKU)</label>
+							<input type="number" class="form-control" [ngModel]="formMaxCanSell()"
+								   (ngModelChange)="formMaxCanSell.set($event)" min="1">
+						</div>
+					}
+				</div>
+				<div class="mb-3">
+					<label class="form-label fw-medium">Comments</label>
+					<textarea class="form-control" rows="2" [ngModel]="formItemComments()"
+							  (ngModelChange)="formItemComments.set($event)"
+							  placeholder="Optional description or notes"></textarea>
+				</div>
+
+				<!-- Color/Size selection (only for new items) -->
+				@if (!isEditingItem()) {
+					<div class="row">
+						<div class="col-md-6 mb-3">
+							<label class="form-label fw-medium">Colors</label>
+							@if (colors().length === 0) {
+								<p class="text-body-secondary small">No colors defined. Go to Colors tab first.</p>
+							} @else {
+								<div class="d-flex flex-wrap gap-2">
+									@for (color of colors(); track color.storeColorId) {
+										<button class="variant-chip"
+												[class.selected]="formSelectedColorIds().includes(color.storeColorId)"
+												(click)="toggleColorSelection(color.storeColorId)">
+											{{ color.storeColorName }}
+										</button>
+									}
+								</div>
+							}
+						</div>
+						<div class="col-md-6 mb-3">
+							<label class="form-label fw-medium">Sizes</label>
+							@if (sizes().length === 0) {
+								<p class="text-body-secondary small">No sizes defined. Go to Sizes tab first.</p>
+							} @else {
+								<div class="d-flex flex-wrap gap-2">
+									@for (size of sizes(); track size.storeSizeId) {
+										<button class="variant-chip"
+												[class.selected]="formSelectedSizeIds().includes(size.storeSizeId)"
+												(click)="toggleSizeSelection(size.storeSizeId)">
+											{{ size.storeSizeName }}
+										</button>
+									}
+								</div>
+							}
+						</div>
+					</div>
+					<div class="alert alert-info small mb-0">
+						<i class="bi bi-info-circle me-1"></i>
+						SKU matrix is auto-generated: {{ formSelectedColorIds().length || 1 }} color(s)
+						&times; {{ formSelectedSizeIds().length || 1 }} size(s)
+						= {{ (formSelectedColorIds().length || 1) * (formSelectedSizeIds().length || 1) }} SKU(s)
+					</div>
+				}
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline-secondary" (click)="showItemModal.set(false)">Cancel</button>
+				<button class="btn btn-primary" [disabled]="isSaving() || !formItemName().trim()" (click)="saveItem()">
+					{{ isSaving() ? 'Saving...' : (isEditingItem() ? 'Update' : 'Create') }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- SKU Edit Modal -->
+@if (showSkuModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="showSkuModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Edit SKU: {{ skuLabel(editingSku()!) }}</h5>
+				<button type="button" class="btn-close" (click)="showSkuModal.set(false)" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Max Can Sell</label>
+					<input type="number" class="form-control" [ngModel]="formSkuMaxCanSell()"
+						   (ngModelChange)="formSkuMaxCanSell.set($event)" min="0">
+				</div>
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" id="skuActive"
+						   [ngModel]="formSkuActive()" (ngModelChange)="formSkuActive.set($event)">
+					<label class="form-check-label" for="skuActive">Active</label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline-secondary" (click)="showSkuModal.set(false)">Cancel</button>
+				<button class="btn btn-primary" [disabled]="isSaving()" (click)="saveSku()">
+					{{ isSaving() ? 'Saving...' : 'Update' }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- Color Create/Edit Modal -->
+@if (showColorModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="showColorModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">{{ editingColor() ? 'Edit Color' : 'New Color' }}</h5>
+				<button type="button" class="btn-close" (click)="showColorModal.set(false)" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Color Name</label>
+					<input type="text" class="form-control" [ngModel]="formColorName()"
+						   (ngModelChange)="formColorName.set($event)" placeholder="e.g. Navy Blue">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline-secondary" (click)="showColorModal.set(false)">Cancel</button>
+				<button class="btn btn-primary" [disabled]="isSaving() || !formColorName().trim()" (click)="saveColor()">
+					{{ isSaving() ? 'Saving...' : (editingColor() ? 'Update' : 'Create') }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- Size Create/Edit Modal -->
+@if (showSizeModal()) {
+	<tsic-dialog [open]="true" size="sm" (requestClose)="showSizeModal.set(false)">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">{{ editingSize() ? 'Edit Size' : 'New Size' }}</h5>
+				<button type="button" class="btn-close" (click)="showSizeModal.set(false)" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<label class="form-label fw-medium">Size Name</label>
+					<input type="text" class="form-control" [ngModel]="formSizeName()"
+						   (ngModelChange)="formSizeName.set($event)" placeholder="e.g. Medium">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline-secondary" (click)="showSizeModal.set(false)">Cancel</button>
+				<button class="btn btn-primary" [disabled]="isSaving() || !formSizeName().trim()" (click)="saveSize()">
+					{{ isSaving() ? 'Saving...' : (editingSize() ? 'Update' : 'Create') }}
+				</button>
+			</div>
+		</div>
+	</tsic-dialog>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+	<confirm-dialog
+		[title]="'Delete ' + (deleteTarget()?.type === 'color' ? 'Color' : 'Size') + '?'"
+		[message]="'Are you sure you want to delete &quot;' + deleteTarget()?.name + '&quot;? This cannot be undone.'"
+		confirmLabel="Delete"
+		cancelLabel="Cancel"
+		confirmVariant="danger"
+		(confirmed)="onDeleteConfirmed()"
+		(cancelled)="showDeleteConfirm.set(false)">
+	</confirm-dialog>
+}

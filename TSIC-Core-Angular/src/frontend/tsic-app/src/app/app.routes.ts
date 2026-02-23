@@ -167,8 +167,33 @@ export const routes: Routes = [
 					{
 						path: 'email-log',
 						loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
+					},
+					{
+						path: 'store',
+						loadComponent: () => import('./views/admin/store-admin/store-admin.component').then(m => m.StoreAdminComponent)
 					}
 				]
+			},
+			// Store — walk-up storefront (authenticated users)
+			{
+				path: 'store',
+				canActivate: [authGuard],
+				loadComponent: () => import('./views/store/store-catalog/store-catalog.component').then(m => m.StoreCatalogComponent)
+			},
+			{
+				path: 'store/item/:storeItemId',
+				canActivate: [authGuard],
+				loadComponent: () => import('./views/store/store-item-detail/store-item-detail.component').then(m => m.StoreItemDetailComponent)
+			},
+			{
+				path: 'store/cart',
+				canActivate: [authGuard],
+				loadComponent: () => import('./views/store/store-cart/store-cart.component').then(m => m.StoreCartComponent)
+			},
+			{
+				path: 'store/checkout',
+				canActivate: [authGuard],
+				loadComponent: () => import('./views/store/store-checkout/store-checkout.component').then(m => m.StoreCheckoutComponent)
 			},
 			// Report launcher — handles all menu items with Controller=Reporting
 			{
