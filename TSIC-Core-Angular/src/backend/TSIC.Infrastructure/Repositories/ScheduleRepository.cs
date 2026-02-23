@@ -339,6 +339,18 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (request.FieldIds is { Count: > 0 })
             query = query.Where(s => s.FieldId.HasValue && request.FieldIds.Contains(s.FieldId.Value));
 
+        if (request.Times is { Count: > 0 })
+        {
+            // Convert "HH:mm" strings to minutes-since-midnight for EF-translatable IN clause
+            var minutesList = request.Times.Select(t =>
+            {
+                var parts = t.Split(':');
+                return int.Parse(parts[0]) * 60 + int.Parse(parts[1]);
+            }).ToList();
+            query = query.Where(s => s.GDate.HasValue
+                && minutesList.Contains(s.GDate!.Value.Hour * 60 + s.GDate!.Value.Minute));
+        }
+
         if (request.UnscoredOnly == true)
             query = query.Where(s => s.T1Score == null && s.T2Score == null);
 
@@ -361,7 +373,9 @@ public sealed class ScheduleRepository : IScheduleRepository
             return new ScheduleFilterOptionsDto
             {
                 Clubs = [],
+                Agegroups = [],
                 GameDays = [],
+                Times = [],
                 Fields = []
             };
         }
@@ -469,10 +483,57 @@ public sealed class ScheduleRepository : IScheduleRepository
             .OrderBy(f => f.FName)
             .ToListAsync(ct);
 
+        // 7. Build LADT tree (Agegroup → Division → Team) from same data, ignoring club
+        var ladtTree = teamRows
+            .GroupBy(t => new { t.AgegroupId, t.AgegroupName, t.AgegroupColor })
+            .OrderBy(a => a.Key.AgegroupName)
+            .Select(agGroup => new LadtAgegroupNode
+            {
+                AgegroupId = agGroup.Key.AgegroupId,
+                AgegroupName = agGroup.Key.AgegroupName ?? "",
+                Color = agGroup.Key.AgegroupColor,
+                Divisions = agGroup
+                    .Where(t => t.DivId.HasValue)
+                    .GroupBy(t => new { DivId = t.DivId!.Value, t.DivName })
+                    .OrderBy(d => d.Key.DivName)
+                    .Select(divGroup => new LadtDivisionNode
+                    {
+                        DivId = divGroup.Key.DivId,
+                        DivName = divGroup.Key.DivName ?? "",
+                        Teams = divGroup
+                            .Select(t => new { t.TeamId, t.TeamName })
+                            .Distinct()
+                            .OrderBy(t => t.TeamName)
+                            .Select(t => new LadtTeamNode
+                            {
+                                TeamId = t.TeamId,
+                                TeamName = t.TeamName ?? ""
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        // 8. Extract distinct game times as "HH:mm" strings
+        var times = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue)
+            .Select(s => s.GDate!.Value.Hour * 60 + s.GDate!.Value.Minute)
+            .Distinct()
+            .OrderBy(m => m)
+            .ToListAsync(ct);
+
+        var timeStrings = times
+            .Select(m => $"{m / 60:D2}:{m % 60:D2}")
+            .ToList();
+
         return new ScheduleFilterOptionsDto
         {
             Clubs = cadtTree,
+            Agegroups = ladtTree,
             GameDays = gameDays,
+            Times = timeStrings,
             Fields = fields
         };
     }

@@ -36,7 +36,7 @@ export interface CadtSelectionEvent {
       <div class="tree-search">
         <input type="text"
                class="tree-search-input"
-               placeholder="Filter clubs..."
+               [placeholder]="searchPlaceholder"
                [ngModel]="searchTerm()"
                (ngModelChange)="searchTerm.set($event)" />
         @if (searchTerm()) {
@@ -48,7 +48,7 @@ export interface CadtSelectionEvent {
       <div class="tree-container">
         @for (node of visibleNodes(); track node.id) {
           <div class="tree-node"
-               [style.padding-left.rem]="node.level * 1.25">
+               [style.padding-left.rem]="(hideRootLevel ? node.level - 1 : node.level) * 1.25">
             <!-- Expand/collapse arrow -->
             @if (node.expandable) {
               <span class="tree-expand"
@@ -82,7 +82,7 @@ export interface CadtSelectionEvent {
         }
 
         @if (visibleNodes().length === 0 && searchTerm()) {
-          <div class="tree-empty">No clubs match "{{ searchTerm() }}"</div>
+          <div class="tree-empty">No matches for "{{ searchTerm() }}"</div>
         }
       </div>
     </div>
@@ -215,6 +215,8 @@ export interface CadtSelectionEvent {
 })
 export class CadtTreeFilterComponent implements OnChanges {
   @Input() treeData: CadtClubNode[] = [];
+  @Input() hideRootLevel = false;
+  @Input() searchPlaceholder = 'Filter clubs...';
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
   /** Internal signal for checked state — synced from parent @Input, updated on user interaction. */
@@ -260,6 +262,8 @@ export class CadtTreeFilterComponent implements OnChanges {
     // Then apply expansion visibility
     const visible: CadtFlatNode[] = [];
     for (const node of filteredNodes) {
+      // When hideRootLevel, skip rendering root-level nodes (they stay expanded but invisible)
+      if (this.hideRootLevel && node.level === 0) continue;
       if (this.isNodeVisible(node, expanded, filteredNodes)) {
         visible.push(node);
       }
@@ -397,8 +401,13 @@ export class CadtTreeFilterComponent implements OnChanges {
     }
 
     this.flatNodes.set(result);
-    // Start fully collapsed
-    this.expandedIds.set(new Set());
+    // Start fully collapsed, but auto-expand root nodes when hideRootLevel
+    if (this.hideRootLevel) {
+      const roots = new Set(result.filter(n => n.level === 0).map(n => n.id));
+      this.expandedIds.set(roots);
+    } else {
+      this.expandedIds.set(new Set());
+    }
   }
 
   private isNodeVisible(

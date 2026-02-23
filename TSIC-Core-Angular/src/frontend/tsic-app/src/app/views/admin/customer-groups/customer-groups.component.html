@@ -1,0 +1,195 @@
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Customer Groups</h2>
+        <p class="page-subtitle">Organize customers into named groups for reporting</p>
+    </div>
+    <button class="btn btn-primary btn-sm" (click)="openCreateInput()" [disabled]="isSaving()">
+        <i class="bi bi-plus-lg me-1"></i>Add Group
+    </button>
+</div>
+
+<!-- Loading -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
+<!-- Empty state -->
+@if (!isLoading() && groups().length === 0 && !showCreateInput()) {
+    <div class="empty-state">
+        <i class="bi bi-collection"></i>
+        <h5>No customer groups yet</h5>
+        <p class="text-muted">Create a group to start organizing customers</p>
+        <button class="btn btn-primary" (click)="openCreateInput()">
+            <i class="bi bi-plus-lg me-1"></i>Create First Group
+        </button>
+    </div>
+}
+
+<!-- Master-detail layout -->
+@if (!isLoading() && (groups().length > 0 || showCreateInput())) {
+    <div class="master-detail">
+        <!-- Left panel: Group list -->
+        <div class="group-list-panel">
+            <div class="panel-header">
+                <span class="panel-title">Groups</span>
+                <span class="badge bg-secondary">{{ groups().length }}</span>
+            </div>
+
+            <!-- Create inline input -->
+            @if (showCreateInput()) {
+                <div class="create-input-row">
+                    <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="Group name..."
+                        [ngModel]="newGroupName()"
+                        (ngModelChange)="newGroupName.set($event)"
+                        (keydown.enter)="submitCreate()"
+                        (keydown.escape)="cancelCreate()"
+                        autofocus>
+                    <div class="create-actions">
+                        <button class="btn btn-sm btn-primary" (click)="submitCreate()"
+                                [disabled]="isSaving() || !newGroupName().trim()">
+                            @if (isSaving()) {
+                                <span class="spinner-border spinner-border-sm"></span>
+                            } @else {
+                                <i class="bi bi-check-lg"></i>
+                            }
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" (click)="cancelCreate()">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Group items -->
+            <div class="group-list">
+                @for (group of groups(); track group.id) {
+                    <div class="group-item"
+                         [class.active]="selectedGroup()?.id === group.id"
+                         (click)="selectGroup(group)">
+                        <span class="group-name">{{ group.customerGroupName }}</span>
+                        <span class="member-badge">{{ group.memberCount }}</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Group actions -->
+            @if (selectedGroup()) {
+                <div class="group-actions">
+                    @if (showRenameInput()) {
+                        <div class="rename-input-row">
+                            <input
+                                type="text"
+                                class="form-control form-control-sm"
+                                [ngModel]="renameValue()"
+                                (ngModelChange)="renameValue.set($event)"
+                                (keydown.enter)="submitRename()"
+                                (keydown.escape)="cancelRename()"
+                                autofocus>
+                            <button class="btn btn-sm btn-primary" (click)="submitRename()"
+                                    [disabled]="isSaving() || !renameValue().trim()">
+                                @if (isSaving()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    Save
+                                }
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelRename()">Cancel</button>
+                        </div>
+                    } @else {
+                        <button class="btn btn-sm btn-outline-primary me-2" (click)="openRename()">
+                            <i class="bi bi-pencil me-1"></i>Rename
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger"
+                                (click)="confirmDelete()"
+                                [disabled]="!canDelete()"
+                                [title]="canDelete() ? 'Delete group' : 'Remove all members before deleting'">
+                            <i class="bi bi-trash me-1"></i>Delete
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Right panel: Members -->
+        <div class="member-panel">
+            @if (!selectedGroup()) {
+                <div class="empty-state-inline">
+                    <i class="bi bi-arrow-left-circle"></i>
+                    <p>Select a group to manage its members</p>
+                </div>
+            }
+
+            @if (selectedGroup()) {
+                <div class="panel-header">
+                    <span class="panel-title">Members of "{{ selectedGroup()!.customerGroupName }}"</span>
+                    <span class="badge bg-secondary">{{ members().length }}</span>
+                </div>
+
+                <!-- Add member dropdown -->
+                <div class="add-member-row">
+                    <select class="form-select form-select-sm"
+                            [ngModel]="selectedCustomerId()"
+                            (ngModelChange)="selectedCustomerId.set($event)">
+                        <option value="">— Select a customer to add —</option>
+                        @for (customer of availableCustomers(); track customer.customerId) {
+                            <option [value]="customer.customerId">{{ customer.customerName }}</option>
+                        }
+                    </select>
+                    <button class="btn btn-sm btn-primary"
+                            (click)="addMember()"
+                            [disabled]="isSaving() || !selectedCustomerId()">
+                        @if (isSaving()) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                            <i class="bi bi-plus-lg me-1"></i>Add
+                        }
+                    </button>
+                </div>
+
+                <!-- Member list -->
+                @if (members().length === 0) {
+                    <div class="empty-members">
+                        <p class="text-muted mb-0">No members in this group. Use the dropdown above to add customers.</p>
+                    </div>
+                }
+
+                @if (members().length > 0) {
+                    <div class="member-list">
+                        @for (member of members(); track member.id) {
+                            <div class="member-item">
+                                <span class="member-name">{{ member.customerName }}</span>
+                                <button class="btn btn-sm btn-outline-danger btn-icon"
+                                        (click)="removeMember(member)"
+                                        [disabled]="isSaving()"
+                                        title="Remove from group"
+                                        aria-label="Remove {{ member.customerName }} from group">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<!-- Delete confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Group?"
+        [message]="'Are you sure you want to delete the group \'' + selectedGroup()!.customerGroupName + '\'? This action cannot be undone.'"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false)">
+    </confirm-dialog>
+}

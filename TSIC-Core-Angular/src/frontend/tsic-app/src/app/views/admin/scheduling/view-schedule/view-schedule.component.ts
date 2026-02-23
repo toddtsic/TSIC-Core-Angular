@@ -19,10 +19,10 @@ import type {
     FieldDisplayDto,
     EditScoreRequest,
     EditGameRequest,
-    TeamResultsResponse
+    LadtAgegroupNode
 } from '@core/api';
 import { ViewScheduleService } from './services/view-schedule.service';
-import { CadtTreeFilterComponent, type CadtSelectionEvent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { GamesTabComponent } from './components/games-tab.component';
 import { StandingsTabComponent } from './components/standings-tab.component';
 import { BracketsTabComponent } from './components/brackets-tab.component';
@@ -32,11 +32,12 @@ import { EditGameModalComponent } from './components/edit-game-modal.component';
 import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
+type PanelId = 'cadt' | 'ladt';
 
 interface FilterChip {
     category: string;
     label: string;
-    type: 'cadt' | 'gameDay' | 'unscored';
+    type: 'cadt' | 'ladt' | 'gameDay' | 'time' | 'field' | 'unscored';
     nodeId?: string;
 }
 
@@ -65,9 +66,115 @@ interface FilterChip {
                 }
             </div>
 
-            <!-- Toolbar: filter trigger + segment tabs -->
+            <!-- ═══ Desktop Filter Bar (≥992px) ═══ -->
+            <div class="desktop-filter-bar">
+                <!-- CADT dropdown -->
+                @if (hasCadtData()) {
+                    <div class="filter-dropdown">
+                        <button class="filter-dd-btn"
+                                [class.active]="openPanel() === 'cadt' || cadtFilterCount() > 0"
+                                (click)="togglePanel('cadt')">
+                            <i class="bi bi-building"></i> By Club
+                            @if (cadtFilterCount() > 0) {
+                                <span class="dd-badge">{{ cadtFilterCount() }}</span>
+                            }
+                        </button>
+                        @if (openPanel() === 'cadt') {
+                            <div class="filter-panel" (click)="$event.stopPropagation()">
+                                <app-cadt-tree-filter
+                                    [treeData]="filterOptions()?.clubs ?? []"
+                                    [checkedIds]="checkedIds"
+                                    searchPlaceholder="Filter clubs..."
+                                    (checkedIdsChange)="onCadtSelectionChange($event)" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- LADT dropdown -->
+                @if (hasLadtData()) {
+                    <div class="filter-dropdown">
+                        <button class="filter-dd-btn"
+                                [class.active]="openPanel() === 'ladt' || ladtFilterCount() > 0"
+                                (click)="togglePanel('ladt')">
+                            <i class="bi bi-people"></i> By Age
+                            @if (ladtFilterCount() > 0) {
+                                <span class="dd-badge">{{ ladtFilterCount() }}</span>
+                            }
+                        </button>
+                        @if (openPanel() === 'ladt') {
+                            <div class="filter-panel" (click)="$event.stopPropagation()">
+                                <app-cadt-tree-filter
+                                    [treeData]="ladtAsCadtNodes()"
+                                    [checkedIds]="ladtCheckedIds"
+                                    [hideRootLevel]="true"
+                                    searchPlaceholder="Filter age groups..."
+                                    (checkedIdsChange)="onLadtSelectionChange($event)" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Date select -->
+                @if (filterOptions()?.gameDays?.length) {
+                    <select class="filter-select"
+                            [ngModel]="selectedGameDay()"
+                            (ngModelChange)="selectedGameDay.set($event); refreshTab()">
+                        <option value="">Date</option>
+                        @for (day of filterOptions()!.gameDays; track day) {
+                            <option [value]="day">{{ formatGameDay(day) }}</option>
+                        }
+                    </select>
+                }
+
+                <!-- Time select -->
+                @if (filterOptions()?.times?.length) {
+                    <select class="filter-select"
+                            [ngModel]="selectedTime()"
+                            (ngModelChange)="selectedTime.set($event); refreshTab()">
+                        <option value="">Time</option>
+                        @for (time of filterOptions()!.times; track time) {
+                            <option [value]="time">{{ formatTime(time) }}</option>
+                        }
+                    </select>
+                }
+
+                <!-- Location select -->
+                @if (filterOptions()?.fields?.length) {
+                    <select class="filter-select"
+                            [ngModel]="selectedFieldId()"
+                            (ngModelChange)="selectedFieldId.set($event); refreshTab()">
+                        <option value="">Location</option>
+                        @for (field of filterOptions()!.fields; track field.fieldId) {
+                            <option [value]="field.fieldId">{{ field.fName }}</option>
+                        }
+                    </select>
+                }
+
+                <!-- Unscored checkbox -->
+                <label class="filter-check-inline">
+                    <input type="checkbox"
+                           [ngModel]="unscoredOnly()"
+                           (ngModelChange)="unscoredOnly.set($event); refreshTab()" />
+                    Unscored
+                </label>
+
+                <!-- Reset -->
+                @if (hasActiveFilters()) {
+                    <button class="filter-reset-btn" (click)="clearFilters()">
+                        <i class="bi bi-x-circle"></i> Reset
+                    </button>
+                }
+            </div>
+
+            <!-- Backdrop for closing desktop dropdown panels -->
+            @if (openPanel()) {
+                <div class="panel-backdrop" (click)="openPanel.set(null)"></div>
+            }
+
+            <!-- ═══ Toolbar: mobile funnel + segment tabs ═══ -->
             <div class="toolbar">
-                <button class="filter-trigger"
+                <button class="filter-trigger mobile-only"
                         (click)="filterModalVisible.set(true)"
                         aria-label="Open filters">
                     <i class="bi bi-funnel"></i>
@@ -97,7 +204,7 @@ interface FilterChip {
             <!-- Filter chips -->
             @if (activeFilterChips().length > 0) {
                 <div class="filter-chips-strip">
-                    @for (chip of activeFilterChips(); track chip.nodeId ?? chip.type) {
+                    @for (chip of activeFilterChips(); track chip.nodeId ?? chip.type + chip.label) {
                         <span class="filter-chip">
                             <span class="chip-category">{{ chip.category }}:</span>
                             <span class="chip-label">{{ chip.label }}</span>
@@ -110,7 +217,7 @@ interface FilterChip {
                 </div>
             }
 
-            <!-- Tab content (full width) -->
+            <!-- Tab content -->
             <div class="tab-content">
                 @switch (activeTab()) {
                     @case ('games') {
@@ -120,8 +227,7 @@ interface FilterChip {
                             [isLoading]="tabLoading()"
                             (quickScore)="onQuickScore($event)"
                             (editGame)="onEditGameOpen($event)"
-                            (viewTeamResults)="onViewTeamResults($event)"
-                            (viewFieldInfo)="onViewFieldInfo($event)" />
+                            (viewTeamResults)="onViewTeamResults($event)" />
                     }
                     @case ('standings') {
                         <app-standings-tab
@@ -148,7 +254,7 @@ interface FilterChip {
             </div>
         </div>
 
-        <!-- Filter Modal -->
+        <!-- ═══ Mobile Filter Modal (<992px) ═══ -->
         @if (filterModalVisible()) {
             <tsic-dialog size="sm" (requestClose)="closeFilterModal()">
                 <div class="modal-content filter-modal-content">
@@ -162,13 +268,43 @@ interface FilterChip {
                         <!-- Game Days -->
                         @if (filterOptions()?.gameDays?.length) {
                             <div class="filter-group">
-                                <label class="filter-group-label">Game Day</label>
+                                <label class="filter-group-label">Date</label>
                                 <select class="form-select form-select-sm"
                                         [ngModel]="selectedGameDay()"
                                         (ngModelChange)="selectedGameDay.set($event); refreshTab()">
-                                    <option value="">All Game Days</option>
+                                    <option value="">All Dates</option>
                                     @for (day of filterOptions()!.gameDays; track day) {
                                         <option [value]="day">{{ formatGameDay(day) }}</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+
+                        <!-- Time -->
+                        @if (filterOptions()?.times?.length) {
+                            <div class="filter-group">
+                                <label class="filter-group-label">Time</label>
+                                <select class="form-select form-select-sm"
+                                        [ngModel]="selectedTime()"
+                                        (ngModelChange)="selectedTime.set($event); refreshTab()">
+                                    <option value="">All Times</option>
+                                    @for (time of filterOptions()!.times; track time) {
+                                        <option [value]="time">{{ formatTime(time) }}</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+
+                        <!-- Location -->
+                        @if (filterOptions()?.fields?.length) {
+                            <div class="filter-group">
+                                <label class="filter-group-label">Location</label>
+                                <select class="form-select form-select-sm"
+                                        [ngModel]="selectedFieldId()"
+                                        (ngModelChange)="selectedFieldId.set($event); refreshTab()">
+                                    <option value="">All Locations</option>
+                                    @for (field of filterOptions()!.fields; track field.fieldId) {
+                                        <option [value]="field.fieldId">{{ field.fName }}</option>
                                     }
                                 </select>
                             </div>
@@ -187,11 +323,25 @@ interface FilterChip {
                         <!-- CADT Tree -->
                         @if (hasCadtData()) {
                             <div class="filter-group filter-group-tree">
-                                <label class="filter-group-label">Teams</label>
+                                <label class="filter-group-label">By Club</label>
                                 <app-cadt-tree-filter
                                     [treeData]="filterOptions()?.clubs ?? []"
                                     [checkedIds]="checkedIds"
+                                    searchPlaceholder="Filter clubs..."
                                     (checkedIdsChange)="onCadtSelectionChange($event)" />
+                            </div>
+                        }
+
+                        <!-- LADT Tree -->
+                        @if (hasLadtData()) {
+                            <div class="filter-group filter-group-tree">
+                                <label class="filter-group-label">By Age Group</label>
+                                <app-cadt-tree-filter
+                                    [treeData]="ladtAsCadtNodes()"
+                                    [checkedIds]="ladtCheckedIds"
+                                    [hideRootLevel]="true"
+                                    searchPlaceholder="Filter age groups..."
+                                    (checkedIdsChange)="onLadtSelectionChange($event)" />
                             </div>
                         }
                     </div>
@@ -223,7 +373,7 @@ interface FilterChip {
             (close)="editGameVisible.set(false)"
             (save)="onEditGameSave($event)" />
 
-        <!-- Field Info Modal -->
+        <!-- Field Info Modal (used by brackets tab) -->
         @if (fieldInfoVisible()) {
             <tsic-dialog size="sm" (requestClose)="fieldInfoVisible.set(false)">
                 <div class="modal-content">
@@ -286,15 +436,161 @@ interface FilterChip {
             font-weight: 400;
         }
 
-        /* ── Toolbar ── */
+        /* ═══ Desktop Filter Bar ═══ */
+        .desktop-filter-bar {
+            display: none; /* hidden by default (mobile) */
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            background: var(--bs-card-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-md);
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 992px) {
+            .desktop-filter-bar { display: flex; }
+        }
+
+        /* Dropdown trigger button */
+        .filter-dd-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-3);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+
+        .filter-dd-btn:hover {
+            border-color: var(--bs-primary);
+            color: var(--bs-primary);
+        }
+
+        .filter-dd-btn.active {
+            border-color: var(--bs-primary);
+            background: rgba(var(--bs-primary-rgb), 0.08);
+            color: var(--bs-primary);
+        }
+
+        .dd-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            background: var(--bs-primary);
+            color: white;
+            border-radius: var(--radius-full);
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* Dropdown container (relative anchor for panel) */
+        .filter-dropdown {
+            position: relative;
+        }
+
+        /* Dropdown panel (tree inside) */
+        .filter-panel {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 1010;
+            width: 320px;
+            max-height: 420px;
+            overflow-y: auto;
+            background: var(--bs-card-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            padding: var(--space-2);
+        }
+
+        /* Invisible backdrop to close panels on outside click */
+        .panel-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1005;
+        }
+
+        /* Filter select (desktop bar) */
+        .filter-select {
+            padding: var(--space-1) var(--space-3);
+            padding-right: var(--space-6);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            appearance: auto;
+        }
+
+        .filter-select:focus {
+            border-color: var(--bs-primary);
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        /* Inline checkbox (desktop bar) */
+        .filter-check-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            font-size: var(--font-size-sm);
+            color: var(--bs-body-color);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-check-inline input { accent-color: var(--bs-primary); }
+
+        /* Reset button */
+        .filter-reset-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-3);
+            border: 1px solid var(--bs-danger);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--bs-danger);
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-reset-btn:hover {
+            background: var(--bs-danger);
+            color: white;
+        }
+
+        /* ═══ Toolbar ═══ */
         .toolbar {
             display: flex;
             align-items: center;
             gap: var(--space-3);
         }
 
+        /* Mobile-only filter trigger */
+        .mobile-only { display: inline-flex; }
+
+        @media (min-width: 992px) {
+            .mobile-only { display: none !important; }
+        }
+
         .filter-trigger {
-            display: inline-flex;
             align-items: center;
             justify-content: center;
             position: relative;
@@ -433,7 +729,7 @@ interface FilterChip {
             color: var(--bs-body-color);
         }
 
-        /* ── Filter Modal ── */
+        /* ── Filter Modal (mobile) ── */
         .filter-modal-content {
             display: flex;
             flex-direction: column;
@@ -475,9 +771,7 @@ interface FilterChip {
             cursor: pointer;
         }
 
-        .filter-check input {
-            accent-color: var(--bs-primary);
-        }
+        .filter-check input { accent-color: var(--bs-primary); }
 
         /* ── Responsive ── */
         @media (max-width: 575px) {
@@ -521,17 +815,26 @@ export class ViewScheduleComponent implements OnInit {
     // ── Route state ──
     private jobPath: string | undefined;
 
-    // ── Filter state ──
+    // ── Filter options + capabilities ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
     readonly capabilities = signal<ScheduleCapabilitiesDto | null>(null);
     readonly filterModalVisible = signal(false);
 
-    // CADT selection (mutable Set shared with child)
+    // ── Desktop dropdown panel ──
+    readonly openPanel = signal<PanelId | null>(null);
+
+    // ── CADT selection ──
     checkedIds = new Set<string>();
-    readonly cadtSelectionSignal = signal<CadtSelectionEvent>({
-        clubNames: [], agegroupIds: [], divisionIds: [], teamIds: []
-    });
+    readonly cadtTeamIds = signal<string[]>([]);
+
+    // ── LADT selection ──
+    ladtCheckedIds = new Set<string>();
+    readonly ladtTeamIds = signal<string[]>([]);
+
+    // ── Simple filters ──
     readonly selectedGameDay = signal('');
+    readonly selectedTime = signal('');
+    readonly selectedFieldId = signal('');
     readonly unscoredOnly = signal(false);
 
     // ── Tab state ──
@@ -547,6 +850,7 @@ export class ViewScheduleComponent implements OnInit {
 
     // Track which tabs have been loaded with current filters
     private loadedTabs = new Set<TabId>();
+    private requestId = 0; // race-condition guard for tab loading
 
     // ── Modal state ──
     readonly teamResults = signal<TeamResultDto[]>([]);
@@ -559,27 +863,56 @@ export class ViewScheduleComponent implements OnInit {
     readonly fieldInfo = signal<FieldDisplayDto | null>(null);
     readonly fieldInfoVisible = signal(false);
 
-    // ── Computed helpers ──
+    // ══════════════════════════════════════════════════════════════════
+    // Computed helpers
+    // ══════════════════════════════════════════════════════════════════
 
     readonly eventName = computed(() => this.jobService.currentJob()?.jobName ?? '');
 
     readonly hasCadtData = computed(() => (this.filterOptions()?.clubs?.length ?? 0) > 0);
+    readonly hasLadtData = computed(() => (this.filterOptions()?.agegroups?.length ?? 0) > 0);
 
-    readonly cadtFilterCount = computed(() => {
-        const s = this.cadtSelectionSignal();
-        return s.clubNames.length + s.agegroupIds.length
-            + s.divisionIds.length + s.teamIds.length;
+    /** LADT data wrapped as CadtClubNode[] for tree component reuse (single virtual club) */
+    readonly ladtAsCadtNodes = computed<CadtClubNode[]>(() => {
+        const agegroups = this.filterOptions()?.agegroups ?? [];
+        if (agegroups.length === 0) return [];
+        return [{
+            clubName: '__ladt__',
+            agegroups: agegroups.map(ag => ({
+                agegroupId: ag.agegroupId,
+                agegroupName: ag.agegroupName,
+                color: ag.color,
+                divisions: (ag.divisions ?? []).map(div => ({
+                    divId: div.divId,
+                    divName: div.divName,
+                    teams: (div.teams ?? []).map(t => ({
+                        teamId: t.teamId,
+                        teamName: t.teamName
+                    }))
+                }))
+            }))
+        }];
     });
 
+    readonly cadtFilterCount = computed(() => this.cadtTeamIds().length > 0 ? this.checkedIds.size : 0);
+    readonly ladtFilterCount = computed(() => this.ladtTeamIds().length > 0 ? this.ladtCheckedIds.size : 0);
+
     readonly hasActiveFilters = computed(() => {
-        return this.cadtFilterCount() > 0
+        return this.cadtTeamIds().length > 0
+            || this.ladtTeamIds().length > 0
             || this.selectedGameDay() !== ''
+            || this.selectedTime() !== ''
+            || this.selectedFieldId() !== ''
             || this.unscoredOnly();
     });
 
     readonly activeFilterCount = computed(() => {
-        let count = this.cadtFilterCount();
+        let count = 0;
+        if (this.cadtTeamIds().length > 0) count++;
+        if (this.ladtTeamIds().length > 0) count++;
         if (this.selectedGameDay()) count++;
+        if (this.selectedTime()) count++;
+        if (this.selectedFieldId()) count++;
         if (this.unscoredOnly()) count++;
         return count;
     });
@@ -588,18 +921,30 @@ export class ViewScheduleComponent implements OnInit {
         const chips: FilterChip[] = [];
         const opts = this.filterOptions();
 
-        // CADT chips — show only the highest-level checked nodes
-        if (opts?.clubs) {
-            this.buildCadtChips(opts.clubs, chips);
+        // CADT chips
+        if (opts?.clubs && this.cadtTeamIds().length > 0) {
+            this.buildTreeChips(opts.clubs, this.checkedIds, 'cadt', chips);
+        }
+
+        // LADT chips
+        if (opts?.agegroups && this.ladtTeamIds().length > 0) {
+            this.buildLadtChips(opts.agegroups, chips);
         }
 
         // Game Day chip
         if (this.selectedGameDay()) {
-            chips.push({
-                category: 'Day',
-                label: this.formatGameDay(this.selectedGameDay()),
-                type: 'gameDay'
-            });
+            chips.push({ category: 'Day', label: this.formatGameDay(this.selectedGameDay()), type: 'gameDay' });
+        }
+
+        // Time chip
+        if (this.selectedTime()) {
+            chips.push({ category: 'Time', label: this.formatTime(this.selectedTime()), type: 'time' });
+        }
+
+        // Field chip
+        if (this.selectedFieldId()) {
+            const field = opts?.fields?.find(f => f.fieldId === this.selectedFieldId());
+            chips.push({ category: 'Location', label: field?.fName ?? this.selectedFieldId(), type: 'field' });
         }
 
         // Unscored chip
@@ -610,55 +955,69 @@ export class ViewScheduleComponent implements OnInit {
         return chips;
     });
 
+    // ══════════════════════════════════════════════════════════════════
+    // Lifecycle
+    // ══════════════════════════════════════════════════════════════════
+
     ngOnInit(): void {
-        // Determine if this is public mode (route data) and extract jobPath
         const data = this.route.snapshot.data;
         if (data['publicMode']) {
             this.jobPath = this.route.snapshot.params['jobPath'];
         }
 
-        // Load filter options and capabilities in parallel
         this.svc.getFilterOptions(this.jobPath).subscribe(opts => {
             this.filterOptions.set(opts);
-            // Debug: check if tree contains teams
-            const totalTeams = (opts.clubs ?? []).reduce((sum, club) =>
-                sum + (club.agegroups ?? []).reduce((s2, ag) =>
-                    s2 + (ag.divisions ?? []).reduce((s3, div) =>
-                        s3 + (div.teams?.length ?? 0), 0), 0), 0);
-            console.log('[CADT] filter options loaded:',
-                'clubs:', opts.clubs?.length ?? 0,
-                'totalTeams in tree:', totalTeams);
         });
 
         this.svc.getCapabilities(this.jobPath).subscribe(caps => {
             this.capabilities.set(caps);
         });
 
-        // Load initial tab
         this.loadTabData('games');
     }
 
-    // ── Filter handling ──
+    // ══════════════════════════════════════════════════════════════════
+    // Desktop panel toggle
+    // ══════════════════════════════════════════════════════════════════
+
+    togglePanel(panel: PanelId): void {
+        this.openPanel.set(this.openPanel() === panel ? null : panel);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // CADT / LADT selection handlers
+    // ══════════════════════════════════════════════════════════════════
 
     onCadtSelectionChange(checked: Set<string>): void {
         this.checkedIds = checked;
-        this.deriveCadtSelection();
-        console.log('[CADT] checkedIds:', [...checked]);
-        console.log('[CADT] derived signal:', this.cadtSelectionSignal());
+        this.deriveCadtTeamIds();
+        this.refreshTab();
     }
+
+    onLadtSelectionChange(checked: Set<string>): void {
+        this.ladtCheckedIds = checked;
+        this.deriveLadtTeamIds();
+        this.refreshTab();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Filter actions
+    // ══════════════════════════════════════════════════════════════════
 
     closeFilterModal(): void {
         this.filterModalVisible.set(false);
-        const req = this.buildFilterRequest();
-        console.log('[FILTER] closeFilterModal → request:', JSON.stringify(req));
-        this.refreshTab();
     }
 
     clearFilters(): void {
         this.checkedIds = new Set<string>();
-        this.cadtSelectionSignal.set({ clubNames: [], agegroupIds: [], divisionIds: [], teamIds: [] });
+        this.cadtTeamIds.set([]);
+        this.ladtCheckedIds = new Set<string>();
+        this.ladtTeamIds.set([]);
         this.selectedGameDay.set('');
+        this.selectedTime.set('');
+        this.selectedFieldId.set('');
         this.unscoredOnly.set(false);
+        this.openPanel.set(null);
         this.refreshTab();
     }
 
@@ -668,15 +1027,34 @@ export class ViewScheduleComponent implements OnInit {
                 if (chip.nodeId) {
                     const next = new Set(this.checkedIds);
                     next.delete(chip.nodeId);
-                    this.removeCadtDescendants(chip.nodeId, next);
-                    this.removeCadtAncestors(chip.nodeId, next);
+                    this.removeTreeDescendants(chip.nodeId, next, this.filterOptions()?.clubs ?? []);
+                    this.removeTreeAncestors(chip.nodeId, next, this.filterOptions()?.clubs ?? []);
                     this.checkedIds = next;
-                    this.deriveCadtSelection();
+                    this.deriveCadtTeamIds();
+                    this.refreshTab();
+                }
+                break;
+            case 'ladt':
+                if (chip.nodeId) {
+                    const next = new Set(this.ladtCheckedIds);
+                    next.delete(chip.nodeId);
+                    this.removeTreeDescendants(chip.nodeId, next, this.ladtAsCadtNodes());
+                    this.removeTreeAncestors(chip.nodeId, next, this.ladtAsCadtNodes());
+                    this.ladtCheckedIds = next;
+                    this.deriveLadtTeamIds();
                     this.refreshTab();
                 }
                 break;
             case 'gameDay':
                 this.selectedGameDay.set('');
+                this.refreshTab();
+                break;
+            case 'time':
+                this.selectedTime.set('');
+                this.refreshTab();
+                break;
+            case 'field':
+                this.selectedFieldId.set('');
                 this.refreshTab();
                 break;
             case 'unscored':
@@ -691,7 +1069,9 @@ export class ViewScheduleComponent implements OnInit {
         this.loadTabData(this.activeTab());
     }
 
-    // ── Tab switching ──
+    // ══════════════════════════════════════════════════════════════════
+    // Tab switching & data loading
+    // ══════════════════════════════════════════════════════════════════
 
     switchTab(tab: TabId): void {
         this.activeTab.set(tab);
@@ -702,12 +1082,27 @@ export class ViewScheduleComponent implements OnInit {
 
     private buildFilterRequest(): ScheduleFilterRequest {
         const req: ScheduleFilterRequest = {};
-        const s = this.cadtSelectionSignal();
-        if (s.clubNames.length > 0) req.clubNames = s.clubNames;
-        if (s.agegroupIds.length > 0) req.agegroupIds = s.agegroupIds;
-        if (s.divisionIds.length > 0) req.divisionIds = s.divisionIds;
-        if (s.teamIds.length > 0) req.teamIds = s.teamIds;
+
+        // CADT + LADT → merged teamIds
+        const cadtTeams = this.cadtTeamIds();
+        const ladtTeams = this.ladtTeamIds();
+
+        if (cadtTeams.length > 0 && ladtTeams.length > 0) {
+            // Both active → intersection
+            const ladtSet = new Set(ladtTeams);
+            const intersection = cadtTeams.filter(id => ladtSet.has(id));
+            req.teamIds = intersection.length > 0
+                ? intersection
+                : ['00000000-0000-0000-0000-000000000000']; // sentinel — no real team matches
+        } else if (cadtTeams.length > 0) {
+            req.teamIds = cadtTeams;
+        } else if (ladtTeams.length > 0) {
+            req.teamIds = ladtTeams;
+        }
+
         if (this.selectedGameDay()) req.gameDays = [this.selectedGameDay()];
+        if (this.selectedTime()) req.times = [this.selectedTime()];
+        if (this.selectedFieldId()) req.fieldIds = [this.selectedFieldId()];
         if (this.unscoredOnly()) req.unscoredOnly = true;
         return req;
     }
@@ -715,18 +1110,18 @@ export class ViewScheduleComponent implements OnInit {
     private loadTabData(tab: TabId): void {
         this.tabLoading.set(true);
         const request = this.buildFilterRequest();
+        const rid = ++this.requestId;
 
         switch (tab) {
             case 'games':
-                console.log('[FILTER] POST games with:', JSON.stringify(request));
                 this.svc.getGames(request, this.jobPath).subscribe({
                     next: data => {
-                        console.log('[FILTER] games response:', data.length, 'games');
+                        if (rid !== this.requestId) return;
                         this.games.set(data);
                         this.loadedTabs.add('games');
                     },
-                    error: err => console.error('[FILTER] games ERROR:', err),
-                    complete: () => this.tabLoading.set(false)
+                    error: err => console.error('[FILTER] games error:', err),
+                    complete: () => { if (rid === this.requestId) this.tabLoading.set(false); }
                 });
                 break;
             case 'standings':
@@ -735,43 +1130,54 @@ export class ViewScheduleComponent implements OnInit {
                     records: this.svc.getTeamRecords(request, this.jobPath)
                 }).subscribe({
                     next: ({ standings, records }) => {
+                        if (rid !== this.requestId) return;
                         this.standings.set(standings);
                         this.records.set(records);
                         this.loadedTabs.add('standings');
                     },
-                    complete: () => this.tabLoading.set(false)
+                    complete: () => { if (rid === this.requestId) this.tabLoading.set(false); }
                 });
                 break;
             case 'brackets':
                 this.svc.getBrackets(request, this.jobPath).subscribe({
-                    next: data => { this.brackets.set(data); this.loadedTabs.add('brackets'); },
-                    complete: () => this.tabLoading.set(false)
+                    next: data => {
+                        if (rid !== this.requestId) return;
+                        this.brackets.set(data);
+                        this.loadedTabs.add('brackets');
+                    },
+                    complete: () => { if (rid === this.requestId) this.tabLoading.set(false); }
                 });
                 break;
             case 'contacts':
                 this.svc.getContacts(request).subscribe({
-                    next: data => { this.contacts.set(data); this.loadedTabs.add('contacts'); },
-                    complete: () => this.tabLoading.set(false)
+                    next: data => {
+                        if (rid !== this.requestId) return;
+                        this.contacts.set(data);
+                        this.loadedTabs.add('contacts');
+                    },
+                    complete: () => { if (rid === this.requestId) this.tabLoading.set(false); }
                 });
                 break;
         }
     }
 
-    // ── Team Results Modal ──
+    // ══════════════════════════════════════════════════════════════════
+    // Team Results Modal
+    // ══════════════════════════════════════════════════════════════════
 
     onViewTeamResults(teamId: string): void {
         this.teamResultsVisible.set(true);
         this.teamResultsName.set('');
         this.svc.getTeamResults(teamId, this.jobPath).subscribe(response => {
             this.teamResults.set(response.games);
-            // Build team label: "Agegroup — Club — Team" (club may be absent)
-            const parts = [response.agegroupName, response.clubName, response.teamName]
-                .filter(Boolean);
+            const parts = [response.agegroupName, response.clubName, response.teamName].filter(Boolean);
             this.teamResultsName.set(parts.join(' — '));
         });
     }
 
-    // ── Score Editing ──
+    // ══════════════════════════════════════════════════════════════════
+    // Score Editing
+    // ══════════════════════════════════════════════════════════════════
 
     onQuickScore(event: { gid: number; t1Score: number; t2Score: number }): void {
         const request: EditScoreRequest = {
@@ -823,7 +1229,9 @@ export class ViewScheduleComponent implements OnInit {
         });
     }
 
-    // ── Field Info ──
+    // ══════════════════════════════════════════════════════════════════
+    // Field Info (used by brackets tab)
+    // ══════════════════════════════════════════════════════════════════
 
     onViewFieldInfo(fieldId: string): void {
         this.svc.getFieldInfo(fieldId).subscribe(info => {
@@ -834,7 +1242,9 @@ export class ViewScheduleComponent implements OnInit {
         });
     }
 
-    // ── Formatting ──
+    // ══════════════════════════════════════════════════════════════════
+    // Formatting helpers
+    // ══════════════════════════════════════════════════════════════════
 
     formatGameDay(isoDate: string): string {
         const d = new Date(isoDate);
@@ -844,28 +1254,105 @@ export class ViewScheduleComponent implements OnInit {
         return `${days[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
     }
 
-    // ── CADT chip helpers (private) ──
+    formatTime(time: string): string {
+        const [h, m] = time.split(':').map(Number);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
 
-    /** Build chips for highest-level checked nodes only (don't show children if parent is checked) */
-    private buildCadtChips(clubs: CadtClubNode[], chips: FilterChip[]): void {
+    // ══════════════════════════════════════════════════════════════════
+    // CADT/LADT team-ID derivation
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Resolve all checked CADT nodes down to team IDs.
+     * Always resolves to the leaf (team) level for precision.
+     */
+    private deriveCadtTeamIds(): void {
+        const teamIdSet = new Set<string>();
+        const clubs = this.filterOptions()?.clubs ?? [];
+
         for (const club of clubs) {
             if (this.checkedIds.has(`club:${club.clubName}`)) {
-                chips.push({ category: 'Club', label: club.clubName, type: 'cadt', nodeId: `club:${club.clubName}` });
-                continue; // skip descendants — parent covers them
+                for (const ag of club.agegroups ?? []) {
+                    for (const div of ag.divisions ?? []) {
+                        for (const team of div.teams ?? []) teamIdSet.add(team.teamId);
+                    }
+                }
+                continue;
             }
             for (const ag of club.agegroups ?? []) {
-                if (this.checkedIds.has(`ag:${club.clubName}|${ag.agegroupId}`)) {
-                    chips.push({ category: 'Agegroup', label: ag.agegroupName, type: 'cadt', nodeId: `ag:${club.clubName}|${ag.agegroupId}` });
-                    continue;
-                }
                 for (const div of ag.divisions ?? []) {
                     if (this.checkedIds.has(`div:${club.clubName}|${div.divId}`)) {
-                        chips.push({ category: 'Division', label: div.divName, type: 'cadt', nodeId: `div:${club.clubName}|${div.divId}` });
+                        for (const team of div.teams ?? []) teamIdSet.add(team.teamId);
                         continue;
                     }
                     for (const team of div.teams ?? []) {
-                        if (this.checkedIds.has(`team:${team.teamId}`)) {
-                            chips.push({ category: 'Team', label: team.teamName, type: 'cadt', nodeId: `team:${team.teamId}` });
+                        if (this.checkedIds.has(`team:${team.teamId}`)) teamIdSet.add(team.teamId);
+                    }
+                }
+            }
+        }
+
+        this.cadtTeamIds.set([...teamIdSet]);
+    }
+
+    /**
+     * Resolve all checked LADT nodes down to team IDs.
+     * The LADT tree is Agegroup → Division → Team (no club level).
+     * Node IDs use __ladt__ as the virtual club name.
+     */
+    private deriveLadtTeamIds(): void {
+        const teamIdSet = new Set<string>();
+        const agegroups = this.filterOptions()?.agegroups ?? [];
+        const clubName = '__ladt__';
+
+        for (const ag of agegroups) {
+            if (this.ladtCheckedIds.has(`ag:${clubName}|${ag.agegroupId}`)) {
+                for (const div of ag.divisions ?? []) {
+                    for (const team of div.teams ?? []) teamIdSet.add(team.teamId);
+                }
+                continue;
+            }
+            for (const div of ag.divisions ?? []) {
+                if (this.ladtCheckedIds.has(`div:${clubName}|${div.divId}`)) {
+                    for (const team of div.teams ?? []) teamIdSet.add(team.teamId);
+                    continue;
+                }
+                for (const team of div.teams ?? []) {
+                    if (this.ladtCheckedIds.has(`team:${team.teamId}`)) teamIdSet.add(team.teamId);
+                }
+            }
+        }
+
+        this.ladtTeamIds.set([...teamIdSet]);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Filter chip builders
+    // ══════════════════════════════════════════════════════════════════
+
+    /** Build chips for highest-level checked nodes in a CADT tree */
+    private buildTreeChips(clubs: CadtClubNode[], checked: Set<string>, chipType: 'cadt' | 'ladt', chips: FilterChip[]): void {
+        for (const club of clubs) {
+            if (checked.has(`club:${club.clubName}`)) {
+                chips.push({ category: 'Club', label: club.clubName, type: chipType, nodeId: `club:${club.clubName}` });
+                continue;
+            }
+            for (const ag of club.agegroups ?? []) {
+                if (checked.has(`ag:${club.clubName}|${ag.agegroupId}`)) {
+                    chips.push({ category: 'Agegroup', label: ag.agegroupName, type: chipType, nodeId: `ag:${club.clubName}|${ag.agegroupId}` });
+                    continue;
+                }
+                for (const div of ag.divisions ?? []) {
+                    if (checked.has(`div:${club.clubName}|${div.divId}`)) {
+                        chips.push({ category: 'Division', label: div.divName, type: chipType, nodeId: `div:${club.clubName}|${div.divId}` });
+                        continue;
+                    }
+                    for (const team of div.teams ?? []) {
+                        if (checked.has(`team:${team.teamId}`)) {
+                            chips.push({ category: 'Team', label: team.teamName, type: chipType, nodeId: `team:${team.teamId}` });
                         }
                     }
                 }
@@ -873,11 +1360,34 @@ export class ViewScheduleComponent implements OnInit {
         }
     }
 
-    /** Remove a CADT node's descendants from the checked set */
-    private removeCadtDescendants(nodeId: string, checked: Set<string>): void {
-        const clubs = this.filterOptions()?.clubs;
-        if (!clubs) return;
+    /** Build chips for LADT — uses the LADT tree directly (not wrapped) */
+    private buildLadtChips(agegroups: LadtAgegroupNode[], chips: FilterChip[]): void {
+        const clubName = '__ladt__';
+        for (const ag of agegroups) {
+            if (this.ladtCheckedIds.has(`ag:${clubName}|${ag.agegroupId}`)) {
+                chips.push({ category: 'Age', label: ag.agegroupName, type: 'ladt', nodeId: `ag:${clubName}|${ag.agegroupId}` });
+                continue;
+            }
+            for (const div of ag.divisions ?? []) {
+                if (this.ladtCheckedIds.has(`div:${clubName}|${div.divId}`)) {
+                    chips.push({ category: 'Division', label: div.divName, type: 'ladt', nodeId: `div:${clubName}|${div.divId}` });
+                    continue;
+                }
+                for (const team of div.teams ?? []) {
+                    if (this.ladtCheckedIds.has(`team:${team.teamId}`)) {
+                        chips.push({ category: 'Team', label: team.teamName, type: 'ladt', nodeId: `team:${team.teamId}` });
+                    }
+                }
+            }
+        }
+    }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Tree node removal helpers (shared for CADT and LADT)
+    // ══════════════════════════════════════════════════════════════════
+
+    /** Remove a node's descendants from the checked set */
+    private removeTreeDescendants(nodeId: string, checked: Set<string>, clubs: CadtClubNode[]): void {
         for (const club of clubs) {
             const clubId = `club:${club.clubName}`;
             if (clubId === nodeId) {
@@ -910,10 +1420,7 @@ export class ViewScheduleComponent implements OnInit {
     }
 
     /** Remove all ancestors of a node from the checked set */
-    private removeCadtAncestors(nodeId: string, checked: Set<string>): void {
-        const clubs = this.filterOptions()?.clubs;
-        if (!clubs) return;
-
+    private removeTreeAncestors(nodeId: string, checked: Set<string>, clubs: CadtClubNode[]): void {
         for (const club of clubs) {
             const clubId = `club:${club.clubName}`;
             for (const ag of club.agegroups ?? []) {
@@ -931,60 +1438,5 @@ export class ViewScheduleComponent implements OnInit {
                 }
             }
         }
-    }
-
-    /**
-     * Rebuild cadtSelectionSignal from current checkedIds.
-     *
-     * Always resolves to team IDs for maximum precision — the tree
-     * contains the full hierarchy, so checking a club/agegroup/division
-     * just means collecting all teams beneath it. This avoids the
-     * bubble-up problem where checking a single team auto-checks its
-     * parent division, which would then filter by division (too broad).
-     */
-    private deriveCadtSelection(): void {
-        const teamIdSet = new Set<string>();
-        const clubs = this.filterOptions()?.clubs ?? [];
-
-        for (const club of clubs) {
-            // Club checked → all its teams
-            if (this.checkedIds.has(`club:${club.clubName}`)) {
-                for (const ag of club.agegroups ?? []) {
-                    for (const div of ag.divisions ?? []) {
-                        for (const team of div.teams ?? []) {
-                            teamIdSet.add(team.teamId);
-                        }
-                    }
-                }
-                continue;
-            }
-
-            for (const ag of club.agegroups ?? []) {
-                for (const div of ag.divisions ?? []) {
-                    // Division checked → all its teams
-                    if (this.checkedIds.has(`div:${club.clubName}|${div.divId}`)) {
-                        for (const team of div.teams ?? []) {
-                            teamIdSet.add(team.teamId);
-                        }
-                        continue;
-                    }
-                    // Individual teams
-                    for (const team of div.teams ?? []) {
-                        if (this.checkedIds.has(`team:${team.teamId}`)) {
-                            teamIdSet.add(team.teamId);
-                        }
-                    }
-                }
-            }
-        }
-
-        console.log('[CADT] deriveCadtSelection → teams:', teamIdSet.size);
-
-        this.cadtSelectionSignal.set({
-            clubNames: [],
-            agegroupIds: [],
-            divisionIds: [],
-            teamIds: [...teamIdSet]
-        });
     }
 }

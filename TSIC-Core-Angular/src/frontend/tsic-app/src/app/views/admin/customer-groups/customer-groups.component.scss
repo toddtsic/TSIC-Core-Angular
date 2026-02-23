@@ -1,0 +1,240 @@
+:host {
+    display: block;
+    padding: var(--space-4);
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-6);
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--brand-text);
+    margin-bottom: var(--space-1);
+}
+
+.page-subtitle {
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-sm);
+    margin-bottom: 0;
+}
+
+// ── Master-detail layout ────────────────────────
+
+.master-detail {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+
+    @media (min-width: 768px) {
+        grid-template-columns: 1fr 2fr;
+    }
+}
+
+// ── Shared panel styles ─────────────────────────
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-title {
+    font-weight: 600;
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
+}
+
+// ── Left panel: Group list ──────────────────────
+
+.group-list-panel {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.group-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.15s ease;
+    border-left: 3px solid transparent;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.05);
+    }
+
+    &.active {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-left-color: var(--bs-primary);
+    }
+}
+
+.group-name {
+    font-weight: 500;
+    color: var(--brand-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.member-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.group-actions {
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+// ── Create / Rename inline inputs ───────────────
+
+.create-input-row,
+.rename-input-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bs-primary-bg-subtle);
+}
+
+.create-actions {
+    display: flex;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+// ── Right panel: Members ────────────────────────
+
+.member-panel {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.add-member-row {
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.member-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-danger-rgb), 0.03);
+    }
+}
+
+.member-name {
+    font-weight: 500;
+    color: var(--brand-text);
+}
+
+.btn-icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.empty-members {
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+}
+
+// ── Empty states ────────────────────────────────
+
+.empty-state {
+    text-align: center;
+    padding: var(--space-12) var(--space-4);
+
+    i {
+        font-size: 3rem;
+        color: var(--bs-secondary-color);
+        margin-bottom: var(--space-4);
+        display: block;
+    }
+
+    h5 {
+        color: var(--brand-text);
+        margin-bottom: var(--space-2);
+    }
+}
+
+.empty-state-inline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12) var(--space-4);
+    text-align: center;
+    color: var(--bs-secondary-color);
+
+    i {
+        font-size: 2rem;
+        margin-bottom: var(--space-3);
+    }
+
+    p {
+        margin-bottom: 0;
+    }
+}

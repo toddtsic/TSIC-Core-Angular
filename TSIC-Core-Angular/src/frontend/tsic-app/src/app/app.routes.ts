@@ -171,6 +171,12 @@ export const routes: Routes = [
 					{
 						path: 'store',
 						loadComponent: () => import('./views/admin/store-admin/store-admin.component').then(m => m.StoreAdminComponent)
+					},
+					{
+						path: 'customer-configure',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/admin/customer-configure/customer-configure.component').then(m => m.CustomerConfigureComponent)
 					}
 				]
 			},
@@ -272,6 +278,12 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
+			},
+			{
+				path: 'configure/customer-groups',
+				canActivate: [authGuard],
+				data: { requireSuperUser: true },
+				loadComponent: () => import('./views/admin/customer-groups/customer-groups.component').then(m => m.CustomerGroupsComponent)
 			},
 			// Legacy-compatible: JobEmails/Index
 			{

@@ -92,6 +92,7 @@ builder.Services.AddScoped<IFamilyMemberRepository, FamilyMemberRepository>();
 builder.Services.AddScoped<IRegistrationAccountingRepository, RegistrationAccountingRepository>();
 builder.Services.AddScoped<IBulletinRepository, BulletinRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<ICustomerGroupRepository, CustomerGroupRepository>();
 builder.Services.AddScoped<ITextSubstitutionRepository, TextSubstitutionRepository>();
 builder.Services.AddScoped<IProfileMetadataRepository, ProfileMetadataRepository>();
 builder.Services.AddScoped<IAdministratorRepository, AdministratorRepository>();
@@ -124,6 +125,10 @@ builder.Services.AddScoped<IStoreRepository, StoreRepository>();
 builder.Services.Configure<FileStorageOptions>(
     builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.AddScoped<IJobImageService, JobImageService>();
+
+// TsicSettings (default customer for ADN credential defaults)
+builder.Services.Configure<TsicSettings>(
+    builder.Configuration.GetSection(TsicSettings.SectionName));
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
@@ -177,6 +182,7 @@ builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>(
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdministratorService, AdministratorService>();
+builder.Services.AddScoped<ICustomerGroupService, CustomerGroupService>();
 builder.Services.AddScoped<IDiscountCodeService, DiscountCodeService>();
 builder.Services.AddScoped<ILadtService, LadtService>();
 builder.Services.AddScoped<IRosterSwapperService, RosterSwapperService>();
@@ -202,6 +208,8 @@ builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
 builder.Services.AddScoped<IJobConfigService, JobConfigService>();
+// Customer Configure
+builder.Services.AddScoped<ICustomerConfigureService, CustomerConfigureService>();
 // Store
 builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();

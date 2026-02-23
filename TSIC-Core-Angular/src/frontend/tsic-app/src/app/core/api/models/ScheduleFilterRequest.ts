@@ -10,5 +10,6 @@ export type ScheduleFilterRequest = {
     gameDays?: any[] | null;
     fieldIds?: any[] | null;
     unscoredOnly?: boolean | null;
+    times?: any[] | null;
 };
 

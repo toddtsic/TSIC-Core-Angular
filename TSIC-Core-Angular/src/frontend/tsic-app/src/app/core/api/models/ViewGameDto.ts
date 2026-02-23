@@ -9,6 +9,7 @@ export type ViewGameDto = {
     fieldId: string;
     latitude?: number;
     longitude?: number;
+    fAddress?: string | null;
     agDiv: string;
     t1Name: string;
     t2Name: string;

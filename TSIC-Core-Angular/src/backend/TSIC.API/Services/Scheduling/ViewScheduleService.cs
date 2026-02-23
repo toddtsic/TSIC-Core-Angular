@@ -59,6 +59,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                 FieldId = g.FieldId ?? Guid.Empty,
                 Latitude = g.Field?.Latitude,
                 Longitude = g.Field?.Longitude,
+                FAddress = BuildFieldAddress(g.Field),
                 AgDiv = $"{g.AgegroupName}:{g.DivName}",
                 T1Name = g.T1Name ?? "",
                 T2Name = g.T2Name ?? "",
@@ -498,6 +499,20 @@ public sealed class ViewScheduleService : IViewScheduleService
         "F" => 6,
         _ => 0
     };
+
+    /// <summary>Concatenates field address parts into a Google Maps-friendly string.</summary>
+    private static string? BuildFieldAddress(Domain.Entities.Fields? field)
+    {
+        if (field == null) return null;
+        var parts = new List<string>(4);
+        if (!string.IsNullOrWhiteSpace(field.Address)) parts.Add(field.Address.Trim());
+        if (!string.IsNullOrWhiteSpace(field.City)) parts.Add(field.City.Trim());
+        var stateZip = string.Join(" ",
+            new[] { field.State?.Trim(), field.Zip?.Trim() }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (stateZip.Length > 0) parts.Add(stateZip);
+        return parts.Count > 0 ? string.Join(", ", parts) : null;
+    }
 
     /// <summary>Internal accumulator for building standings.</summary>
     private sealed class TeamStatsAccumulator

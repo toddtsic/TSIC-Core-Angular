@@ -1,0 +1,128 @@
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+    <h2 class="mb-0">Customer Configure</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadData()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Customer
+        </button>
+    </div>
+</div>
+
+<!-- Error Alert -->
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+<!-- Loading State -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-body-secondary">Loading customers...</p>
+    </div>
+}
+
+<!-- Empty State -->
+@if (!isLoading() && !errorMessage() && customers().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-people fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No customers found.</p>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Customer
+        </button>
+    </div>
+}
+
+<!-- Data Table -->
+@if (!isLoading() && customers().length > 0) {
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="col-row-num">#</th>
+                    <th class="sortable" (click)="toggleSort('customerAi')">
+                        ID <i class="bi" [ngClass]="getSortIcon('customerAi')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('customerName')">
+                        Name <i class="bi" [ngClass]="getSortIcon('customerName')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('timezoneName')">
+                        Timezone <i class="bi" [ngClass]="getSortIcon('timezoneName')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('jobCount')">
+                        Jobs <i class="bi" [ngClass]="getSortIcon('jobCount')"></i>
+                    </th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (customer of sortedCustomers(); track customer.customerId; let i = $index) {
+                    <tr>
+                        <td class="row-num text-body-secondary">{{ i + 1 }}</td>
+                        <td class="text-body-secondary">{{ customer.customerAi }}</td>
+                        <td class="fw-semibold">{{ customer.customerName }}</td>
+                        <td>{{ customer.timezoneName }}</td>
+                        <td>
+                            <span class="badge rounded-pill"
+                                  [ngClass]="customer.jobCount > 0 ? 'bg-primary-subtle text-primary-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'">
+                                {{ customer.jobCount }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="icon-btn" (click)="openEdit(customer)" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                @if (customer.jobCount === 0) {
+                                    <button class="icon-btn icon-btn-danger" (click)="confirmDelete(customer)" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Add Modal -->
+@if (showAddModal()) {
+    <customer-dialog
+        mode="add"
+        [timezones]="timezones()"
+        (close)="showAddModal.set(false)"
+        (saved)="onFormSaved()">
+    </customer-dialog>
+}
+
+<!-- Edit Modal -->
+@if (showEditModal()) {
+    <customer-dialog
+        mode="edit"
+        [customerId]="editTarget()?.customerId ?? null"
+        [timezones]="timezones()"
+        (close)="showEditModal.set(false); editTarget.set(null)"
+        (saved)="onFormSaved()">
+    </customer-dialog>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Customer"
+        [message]="'Delete customer \'' + deleteTarget()?.customerName + '\'? This cannot be undone.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+    </confirm-dialog>
+}

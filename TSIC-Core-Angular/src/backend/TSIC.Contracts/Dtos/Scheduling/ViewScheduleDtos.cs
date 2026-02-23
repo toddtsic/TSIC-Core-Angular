@@ -18,6 +18,8 @@ public record ScheduleFilterRequest
     public List<DateTime>? GameDays { get; init; }
     public List<Guid>? FieldIds { get; init; }
     public bool? UnscoredOnly { get; init; }
+    /// <summary>Filter by game time-of-day (e.g. ["08:00","14:30"]). Null = no time filter.</summary>
+    public List<string>? Times { get; init; }
 }
 
 /// <summary>
@@ -60,7 +62,11 @@ public record EditGameRequest
 public record ScheduleFilterOptionsDto
 {
     public required List<CadtClubNode> Clubs { get; init; }
+    /// <summary>LADT tree (Agegroup → Division → Team) without club level — for age-group-first filtering.</summary>
+    public required List<LadtAgegroupNode> Agegroups { get; init; }
     public required List<DateTime> GameDays { get; init; }
+    /// <summary>Distinct game times as "HH:mm" strings, sorted ascending.</summary>
+    public required List<string> Times { get; init; }
     public required List<FieldSummaryDto> Fields { get; init; }
 }
 
@@ -95,6 +101,32 @@ public record CadtTeamNode
     public required string TeamName { get; init; }
 }
 
+// ── LADT tree nodes (Agegroup → Division → Team — no club level) ────
+
+/// <summary>Top-level agegroup node in the LADT filter tree.</summary>
+public record LadtAgegroupNode
+{
+    public required Guid AgegroupId { get; init; }
+    public required string AgegroupName { get; init; }
+    public string? Color { get; init; }
+    public required List<LadtDivisionNode> Divisions { get; init; }
+}
+
+/// <summary>Division node within an agegroup in the LADT tree.</summary>
+public record LadtDivisionNode
+{
+    public required Guid DivId { get; init; }
+    public required string DivName { get; init; }
+    public required List<LadtTeamNode> Teams { get; init; }
+}
+
+/// <summary>Leaf-level team node in the LADT tree.</summary>
+public record LadtTeamNode
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+}
+
 /// <summary>Field summary for the field filter dropdown.</summary>
 public record FieldSummaryDto
 {
@@ -117,6 +149,8 @@ public record ViewGameDto
     public required Guid FieldId { get; init; }
     public double? Latitude { get; init; }
     public double? Longitude { get; init; }
+    /// <summary>Pre-formatted address for Google Maps link (e.g. "123 Main St, Allentown, PA 18101"). Null if no address.</summary>
+    public string? FAddress { get; init; }
     /// <summary>"U10:Gold" — agegroup:division display label.</summary>
     public required string AgDiv { get; init; }
     public required string T1Name { get; init; }
