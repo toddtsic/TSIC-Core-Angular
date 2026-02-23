@@ -50,22 +50,27 @@ export class TsicLandingComponent implements OnDestroy {
     {
       icon: 'bi-people-fill',
       title: 'Simple Registration Tools',
-      description: 'Custom online registration forms for players, teams, and families. Collect the information you need, manage waitlists, and give participants a smooth sign-up experience from any device.'
+      description: 'Custom registration forms for players, coaches and teams, with family and club rep information brought forward to streamline the process. Multi-select options per player available for camps & clinics. Collect the information you need, manage waitlists, and give participants a smooth sign-up experience from any device.'
     },
     {
       icon: 'bi-credit-card-fill',
       title: 'Reliable Payment Systems',
-      description: 'Secure online payment processing with support for installment plans, discount codes, and automated invoicing. Track balances, send reminders, and reconcile accounts with ease.'
+      description: 'Secure online payment processing with flexible payment configurations. Support for installment plans, discount codes, flexible payment methods and registration protection insurance. Track balances, send reminders, and reconcile accounts with ease.'
     },
     {
       icon: 'bi-calendar2-check-fill',
       title: 'Smart Scheduling',
-      description: 'Resolve field conflicts and balance team schedules automatically. Our engine handles round-robin, pool play, and bracket generation \u2014 what used to take days now takes seconds.'
+      description: 'Resolve field conflicts and balance team schedules automatically. With the rescheduler, directors can make changes or ask for support, invaluable during rain delays or cancellations. Our engine handles round-robin, pool play, and bracket generation \u2014 what used to take days now takes seconds.'
     },
     {
       icon: 'bi-phone-vibrate-fill',
       title: 'Automated Communications',
-      description: 'Targeted text and email blasts triggered by events \u2014 not manual effort. Schedule reminders, weather alerts, and payment notices that reach the right people at the right time.'
+      description: 'Targeted text and email blasts with filters for all registrants. Mobile app has automated rostering for any TeamSportsInfo club team. Push notifications for game results, schedule reminders, weather alerts that reach the right people at the right time.'
+    },
+    {
+      icon: 'bi-clipboard-data-fill',
+      title: 'Comprehensive Reports',
+      description: 'Real-time exportable reports covering registration data, payments, rosters, check-in forms, uniform numbers, college recruiting profiles, field utilization, game score boards and more. Track balances, summarized per job accounting and season-end summaries — giving directors the data they need to plan smarter and communicate with confidence.'
     }
   ];
 
