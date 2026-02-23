@@ -5,6 +5,12 @@ import {
 import { FormsModule } from '@angular/forms';
 import type { ViewGameDto, EditGameRequest } from '@core/api';
 
+export interface TeamOption {
+    teamId: string;
+    teamName: string;
+    divName: string;
+}
+
 @Component({
     selector: 'app-edit-game-modal',
     standalone: true,
@@ -42,16 +48,26 @@ import type { ViewGameDto, EditGameRequest } from '@core/api';
                                            (keydown.enter)="onSave()" />
                                 </div>
                             } @else {
-                                <!-- Full edit: names, scores, annotations, status -->
+                                <!-- Full edit: team picker, scores, annotations, status -->
+
                                 <!-- Team 1 -->
                                 <div class="form-section">
                                     <div class="section-label">Team 1</div>
 
                                     <div class="form-group">
-                                        <label class="form-label">Name</label>
-                                        <input type="text" class="form-input"
-                                               [ngModel]="t1Name()"
-                                               (ngModelChange)="t1Name.set($event)" />
+                                        <label class="form-label">Team</label>
+                                        <select class="form-input"
+                                                [ngModel]="t1Id()"
+                                                (ngModelChange)="onTeamChange(1, $event)">
+                                            <option [ngValue]="null">(no team)</option>
+                                            @for (group of groupedTeams(); track group.divName) {
+                                                <optgroup [label]="group.divName">
+                                                    @for (t of group.teams; track t.teamId) {
+                                                        <option [ngValue]="t.teamId">{{ t.teamName }}</option>
+                                                    }
+                                                </optgroup>
+                                            }
+                                        </select>
                                     </div>
 
                                     <div class="form-row">
@@ -76,10 +92,19 @@ import type { ViewGameDto, EditGameRequest } from '@core/api';
                                     <div class="section-label">Team 2</div>
 
                                     <div class="form-group">
-                                        <label class="form-label">Name</label>
-                                        <input type="text" class="form-input"
-                                               [ngModel]="t2Name()"
-                                               (ngModelChange)="t2Name.set($event)" />
+                                        <label class="form-label">Team</label>
+                                        <select class="form-input"
+                                                [ngModel]="t2Id()"
+                                                (ngModelChange)="onTeamChange(2, $event)">
+                                            <option [ngValue]="null">(no team)</option>
+                                            @for (group of groupedTeams(); track group.divName) {
+                                                <optgroup [label]="group.divName">
+                                                    @for (t of group.teams; track t.teamId) {
+                                                        <option [ngValue]="t.teamId">{{ t.teamName }}</option>
+                                                    }
+                                                </optgroup>
+                                            }
+                                        </select>
                                     </div>
 
                                     <div class="form-row">
@@ -318,6 +343,7 @@ import type { ViewGameDto, EditGameRequest } from '@core/api';
 export class EditGameModalComponent {
     game = input<ViewGameDto | null>(null);
     visible = input<boolean>(false);
+    teams = input<TeamOption[]>([]);
 
     @Output() close = new EventEmitter<void>();
     @Output() save = new EventEmitter<EditGameRequest>();
@@ -325,7 +351,21 @@ export class EditGameModalComponent {
     /** Bracket mode: mock game from brackets has empty gDate */
     readonly isBracketMode = computed(() => !this.game()?.gDate);
 
+    /** Teams grouped by division for <optgroup> rendering */
+    readonly groupedTeams = computed(() => {
+        const flat = this.teams();
+        const map = new Map<string, TeamOption[]>();
+        for (const t of flat) {
+            let arr = map.get(t.divName);
+            if (!arr) { arr = []; map.set(t.divName, arr); }
+            arr.push(t);
+        }
+        return [...map.entries()].map(([divName, teams]) => ({ divName, teams }));
+    });
+
     // Local form state signals
+    readonly t1Id = signal<string | null>(null);
+    readonly t2Id = signal<string | null>(null);
     readonly t1Name = signal('');
     readonly t2Name = signal('');
     readonly t1Score = signal<number | undefined>(undefined);
@@ -340,6 +380,8 @@ export class EditGameModalComponent {
             const isVisible = this.visible();
             const g = this.game();
             if (isVisible && g) {
+                this.t1Id.set(g.t1Id ?? null);
+                this.t2Id.set(g.t2Id ?? null);
                 this.t1Name.set(g.t1Name ?? '');
                 this.t2Name.set(g.t2Name ?? '');
                 this.t1Score.set(g.t1Score);
@@ -351,18 +393,32 @@ export class EditGameModalComponent {
         });
     }
 
+    /** When a team is selected from dropdown, update both ID and name */
+    onTeamChange(slot: 1 | 2, teamId: string | null): void {
+        const name = teamId
+            ? this.teams().find(t => t.teamId === teamId)?.teamName ?? ''
+            : '';
+        if (slot === 1) {
+            this.t1Id.set(teamId);
+            this.t1Name.set(name);
+        } else {
+            this.t2Id.set(teamId);
+            this.t2Name.set(name);
+        }
+    }
+
     onSave(): void {
         const g = this.game();
         if (!g) return;
 
         const request: EditGameRequest = {
             gid: g.gid,
-            t1Name: this.t1Name(),
-            t2Name: this.t2Name(),
+            t1Id: this.t1Id(),
+            t2Id: this.t2Id(),
+            t1Name: this.t1Name() || null,
+            t2Name: this.t2Name() || null,
             t1Score: this.t1Score(),
             t2Score: this.t2Score(),
-            t1Id: g.t1Id,
-            t2Id: g.t2Id,
             t1Ann: this.t1Ann() || null,
             t2Ann: this.t2Ann() || null,
             gStatusCode: this.gStatusCode()

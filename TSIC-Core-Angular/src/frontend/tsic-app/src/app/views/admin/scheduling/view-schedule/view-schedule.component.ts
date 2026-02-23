@@ -370,6 +370,7 @@ interface FilterChip {
         <app-edit-game-modal
             [game]="editingGame()"
             [visible]="editGameVisible()"
+            [teams]="flatTeamList()"
             (close)="editGameVisible.set(false)"
             (save)="onEditGameSave($event)" />
 
@@ -733,7 +734,9 @@ interface FilterChip {
         .filter-modal-content {
             display: flex;
             flex-direction: column;
-            max-height: 80vh;
+            /* Override TsicDialog's overflow:auto on .modal-content —
+               without this the header/footer scroll away with the body */
+            overflow: hidden;
         }
 
         .filter-modal-body {
@@ -743,17 +746,18 @@ interface FilterChip {
             overflow-y: auto;
             flex: 1;
             min-height: 0;
+            max-height: calc(90vh - 120px); /* room for header + footer */
         }
 
         .filter-group-tree {
-            min-height: 0;
-            flex-shrink: 1;
+            flex-shrink: 0;
         }
 
         .filter-group {
             display: flex;
             flex-direction: column;
             gap: var(--space-2);
+            flex-shrink: 0;
         }
 
         .filter-group-label {
@@ -871,6 +875,22 @@ export class ViewScheduleComponent implements OnInit {
 
     readonly hasCadtData = computed(() => (this.filterOptions()?.clubs?.length ?? 0) > 0);
     readonly hasLadtData = computed(() => (this.filterOptions()?.agegroups?.length ?? 0) > 0);
+
+    /** Flat team list for edit-game modal team picker (grouped by division) */
+    readonly flatTeamList = computed(() => {
+        const clubs = this.filterOptions()?.clubs ?? [];
+        const teams: { teamId: string; teamName: string; divName: string }[] = [];
+        for (const club of clubs) {
+            for (const ag of club.agegroups ?? []) {
+                for (const div of ag.divisions ?? []) {
+                    for (const t of div.teams ?? []) {
+                        teams.push({ teamId: t.teamId, teamName: t.teamName, divName: `${ag.agegroupName} ${div.divName}` });
+                    }
+                }
+            }
+        }
+        return teams;
+    });
 
     /** LADT data wrapped as CadtClubNode[] for tree component reuse (single virtual club) */
     readonly ladtAsCadtNodes = computed<CadtClubNode[]>(() => {

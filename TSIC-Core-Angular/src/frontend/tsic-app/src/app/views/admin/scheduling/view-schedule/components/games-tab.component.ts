@@ -304,29 +304,31 @@ import type { ViewGameDto } from '@core/api';
 
         /* ═══ DESKTOP GRID ═══ */
 
-        .desktop-view { display: none; }
-        .mobile-view  { display: block; }
-
-        @media (min-width: 768px) {
-            .desktop-view { display: block; }
-            .mobile-view  { display: none; }
+        /* Container grid — columns sized across ALL rows (table-like alignment).
+           subgrid on each row inherits these tracks so every cell in a column
+           shares the exact same left/right edges, just like a <table>. */
+        .games-grid {
+            display: none;
+            grid-template-columns:
+                2rem                    /* #          */
+                5.5rem                  /* date/time  */
+                auto                    /* location   */
+                auto                    /* pool       */
+                auto                    /* home →     */
+                auto                    /* score      */
+                auto                    /* ← away     */
+                2rem;                   /* edit       */
+            column-gap: var(--space-2);
+            margin: 0 var(--space-2);
         }
 
+        /* Each row inherits parent column sizing via subgrid */
         .grid-header,
         .game-row {
+            grid-column: 1 / -1;
             display: grid;
-            grid-template-columns:
-                36px              /* #         */
-                100px             /* date/time */
-                minmax(70px, 1.2fr) /* location  */
-                auto              /* pool      */
-                1fr               /* home      */
-                auto              /* score     */
-                1fr               /* away      */
-                36px;             /* edit      */
+            grid-template-columns: subgrid;
             align-items: center;
-            column-gap: var(--space-2);
-            padding: 0 var(--space-2);
         }
 
         /* ── Header ── */
@@ -349,10 +351,10 @@ import type { ViewGameDto } from '@core/api';
         .hdr-num,   .cell-num   { order: 1; }
         .hdr-dt,    .cell-dt    { order: 2; }
         .hdr-loc,   .cell-loc   { order: 3; }
-        .hdr-pool,  .cell-pool  { order: 4; }
+        .hdr-pool,  .cell-pool  { order: 4; text-align: left; }
         .hdr-home,  .cell-home  { order: 5; text-align: right; }
-        .hdr-score, .cell-score { order: 6; }
-        .hdr-away,  .cell-away  { order: 7; }
+        .hdr-score, .cell-score { order: 6; text-align: center; }
+        .hdr-away,  .cell-away  { order: 7; text-align: left; }
         .hdr-edit,  .cell-edit  { order: 8; }
 
         /* ── Game row ── */
@@ -428,9 +430,6 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        /* Team names */
-        .cell-home { text-align: right; }
-
         .clickable {
             color: var(--bs-primary);
             cursor: pointer;
@@ -453,11 +452,10 @@ import type { ViewGameDto } from '@core/api';
 
         /* ── Score column ── */
         .cell-score {
-            text-align: center;
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
             white-space: nowrap;
-            padding: 0 var(--space-2);
+            /* text-align: center inherited from order rule — centres the inline-block group */
         }
 
         .cell-score.editable { cursor: pointer; }
@@ -470,7 +468,7 @@ import type { ViewGameDto } from '@core/api';
         }
 
         .score-dash {
-            margin: 0 var(--space-1);
+            margin: 0 2px;
             color: var(--bs-secondary-color);
             font-size: var(--font-size-sm);
         }
@@ -520,7 +518,7 @@ import type { ViewGameDto } from '@core/api';
         .score-input { -moz-appearance: textfield; }
 
         /* Edit button */
-        .cell-edit { text-align: center; }
+        .cell-edit { text-align: center; justify-self: center; }
 
         .btn-edit-game {
             display: inline-flex;
@@ -627,11 +625,16 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-xs);
         }
 
-        /* ═══ Responsive: large desktop grid tweaks ═══ */
+        /* ═══ Responsive — must be AFTER all base rules for correct cascade ═══ */
+        @media (min-width: 768px) {
+            .games-grid  { display: grid; }
+            .games-cards { display: none; }
+        }
+
         @media (min-width: 1200px) {
-            .game-row, .grid-header {
+            .games-grid {
                 grid-template-columns:
-                    36px 110px minmax(90px, 1.2fr) auto 1fr auto 1fr 36px;
+                    2rem 6rem auto auto auto auto auto 2rem;
             }
         }
     `]
