@@ -111,6 +111,8 @@ builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
 builder.Services.AddScoped<IJobCloneRepository, JobCloneRepository>();
 builder.Services.AddScoped<IDdlOptionsRepository, DdlOptionsRepository>();
 builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
+builder.Services.AddScoped<IMobileScorerRepository, MobileScorerRepository>();
+builder.Services.AddScoped<IArbSubscriptionRepository, ArbSubscriptionRepository>();
 
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
@@ -208,8 +210,12 @@ builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
 builder.Services.AddScoped<IJobConfigService, JobConfigService>();
+// ARB Defensive
+builder.Services.AddScoped<IArbDefensiveService, ArbDefensiveService>();
 // Customer Configure
 builder.Services.AddScoped<ICustomerConfigureService, CustomerConfigureService>();
+// Mobile Scorers
+builder.Services.AddScoped<IMobileScorerService, MobileScorerService>();
 // Store
 builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();

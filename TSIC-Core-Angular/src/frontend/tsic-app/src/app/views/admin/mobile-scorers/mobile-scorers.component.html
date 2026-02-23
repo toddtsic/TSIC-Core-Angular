@@ -1,0 +1,112 @@
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Mobile Scorers</h2>
+        <p class="page-subtitle">Manage scorer accounts for the mobile scoring app</p>
+    </div>
+    <button class="btn btn-primary btn-sm" (click)="openAdd()" [disabled]="isLoading()">
+        <i class="bi bi-plus-lg me-1"></i>Add Scorer
+    </button>
+</div>
+
+<!-- Info banner -->
+<div class="info-banner">
+    <i class="bi bi-info-circle me-2"></i>
+    Scorers log in to the mobile app with their username. The password is the same as the username.
+</div>
+
+<!-- Loading -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
+<!-- Empty state -->
+@if (!isLoading() && scorers().length === 0) {
+    <div class="empty-state">
+        <i class="bi bi-person-video3"></i>
+        <h5>No scorers yet</h5>
+        <p class="text-muted">Add a scorer to get started</p>
+        <button class="btn btn-primary" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add First Scorer
+        </button>
+    </div>
+}
+
+<!-- Scorer table -->
+@if (!isLoading() && scorers().length > 0) {
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Active</th>
+                        <th>Username</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Email</th>
+                        <th>Cellphone</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (scorer of scorers(); track scorer.registrationId) {
+                        <tr>
+                            <td>
+                                @if (scorer.bActive) {
+                                    <span class="badge bg-success-subtle text-success-emphasis">Yes</span>
+                                } @else {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">No</span>
+                                }
+                            </td>
+                            <td class="fw-medium">{{ scorer.username }}</td>
+                            <td>{{ scorer.firstName }}</td>
+                            <td>{{ scorer.lastName }}</td>
+                            <td>{{ scorer.email }}</td>
+                            <td>{{ scorer.cellphone }}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary btn-icon me-1"
+                                        (click)="openEdit(scorer)"
+                                        title="Edit scorer"
+                                        aria-label="Edit {{ scorer.firstName }} {{ scorer.lastName }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger btn-icon"
+                                        (click)="confirmDelete(scorer)"
+                                        title="Delete scorer"
+                                        aria-label="Delete {{ scorer.firstName }} {{ scorer.lastName }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- Add/Edit dialog -->
+@if (dialogOpen()) {
+    <scorer-dialog
+        [mode]="dialogMode()"
+        [scorer]="editingScorer()"
+        (close)="onDialogClose()"
+        (saved)="onDialogSaved($event)">
+    </scorer-dialog>
+}
+
+<!-- Delete confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Scorer?"
+        [message]="'Remove scorer \'' + deletingScorer()!.firstName + ' ' + deletingScorer()!.lastName + '\' (' + deletingScorer()!.username + ')? This will delete their scorer access for this job.'"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false)">
+    </confirm-dialog>
+}

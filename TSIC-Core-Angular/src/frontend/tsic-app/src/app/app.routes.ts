@@ -177,8 +177,23 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/customer-configure/customer-configure.component').then(m => m.CustomerConfigureComponent)
+					},
+					{
+						path: 'arb-health',
+						loadComponent: () => import('./views/admin/arb-health/arb-health.component').then(m => m.ArbHealthComponent)
+					},
+					{
+						path: 'mobile-scorers',
+						loadComponent: () => import('./views/admin/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent),
+						data: { title: 'Mobile Scorers' }
 					}
 				]
+			},
+			// ARB self-service: update credit card on subscription
+			{
+				path: 'arb/update-cc/:registrationId',
+				canActivate: [authGuard],
+				loadComponent: () => import('./views/arb/arb-update-cc.component').then(m => m.ArbUpdateCcComponent)
 			},
 			// Store — walk-up storefront (authenticated users)
 			{

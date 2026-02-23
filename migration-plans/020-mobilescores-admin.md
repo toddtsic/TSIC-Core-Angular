@@ -181,27 +181,32 @@ public interface IMobileScorerService
 {
     Task<List<MobileScorerDto>> GetScorersAsync(Guid jobId, CancellationToken ct);
     Task<MobileScorerDto> CreateScorerAsync(Guid jobId, CreateMobileScorerRequest request, string currentUserId, CancellationToken ct);
-    Task<MobileScorerDto> UpdateScorerAsync(Guid registrationId, UpdateMobileScorerRequest request, string currentUserId, CancellationToken ct);
+    Task UpdateScorerAsync(Guid registrationId, UpdateMobileScorerRequest request, string currentUserId, CancellationToken ct);
     Task DeleteScorerAsync(Guid registrationId, CancellationToken ct);
 }
 ```
 
+The **controller** resolves `jobId` and `userId` from JWT claims via `User.GetJobIdFromRegistrationAsync()` and `ClaimTypes.NameIdentifier`, then passes them as parameters. Services never touch `IHttpContextAccessor`.
+
 ### 5d. Service Implementation
 
 **File**: `TSIC.API/Services/Admin/MobileScorerService.cs`
+
+**Dependencies**: `IMobileScorerRepository`, `UserManager<ApplicationUser>`
 
 Key logic:
 
 - **Create**:
   1. Create `ApplicationUser` via `UserManager.CreateAsync(user, password: request.Username)`
   2. If Identity fails (e.g., duplicate username), throw `InvalidOperationException` with Identity error message
-  3. Create `Registrations` record with `RoleId = RoleConstants.Scorer`, `JobId`, `BActive = true`
+  3. Create `Registrations` record with `RoleId = RoleConstants.Scorer`, `JobId` (passed from controller), `BActive = true`
   4. Placeholder fields: `Gender = "U"`, `Dob = new DateTime(1980, 1, 1)`
-  5. Return mapped `MobileScorerDto`
+  5. Set `LebUserId` (passed from controller) and `Modified = DateTime.UtcNow`
+  6. Return mapped `MobileScorerDto`
 
 - **Update**: Load registration (tracked), load user (tracked), update `BActive`, `Email`, `Cellphone`, set `LebUserId` and `Modified`
 
-- **Delete**: Load registration. Remove registration. Check if user has other registrations — if zero remaining, optionally delete the user account too via `UserManager.DeleteAsync`.
+- **Delete**: Load registration. Remove registration. Check if user has other registrations — if zero remaining, delete the user account too via `UserManager.DeleteAsync`.
 
 ### 5e. Controller
 
@@ -209,7 +214,7 @@ Key logic:
 
 ```
 [ApiController]
-[Route("api/jobs/{jobId:guid}/mobile-scorers")]
+[Route("api/mobile-scorers")]
 [Authorize(Policy = "AdminOnly")]
 ```
 
@@ -220,7 +225,7 @@ Key logic:
 | `PUT` | `/{registrationId:guid}` | Update scorer (active, email, cellphone) |
 | `DELETE` | `/{registrationId:guid}` | Delete scorer registration (+ user if orphaned) |
 
-**4 endpoints total.** Job ID comes from the route, validated against the caller's auth context.
+**4 endpoints total.** No `{jobId}` in routes. Controller resolves `jobId` via `User.GetJobIdFromRegistrationAsync(_jobLookupService)` and `userId` via `User.FindFirst(ClaimTypes.NameIdentifier)`, then passes both to the service as parameters.
 
 ---
 

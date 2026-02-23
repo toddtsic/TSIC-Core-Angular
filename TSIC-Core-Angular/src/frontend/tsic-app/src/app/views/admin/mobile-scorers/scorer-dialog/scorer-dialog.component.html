@@ -1,0 +1,126 @@
+<tsic-dialog [open]="true" size="md" (requestClose)="close.emit()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">{{ mode === 'add' ? 'Add Scorer' : 'Edit Scorer' }}</h5>
+            <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Username -->
+            <div class="mb-3">
+                <label for="username" class="form-label fw-semibold">Username</label>
+                @if (mode === 'add') {
+                    <input
+                        id="username"
+                        type="text"
+                        class="form-control"
+                        placeholder="Minimum 6 characters"
+                        [value]="username()"
+                        (input)="onInput('username', $event)"
+                        [class.is-invalid]="username().length > 0 && username().trim().length < 6"
+                        maxlength="100" />
+                    <small class="form-text text-body-secondary">This will also be the scorer's password.</small>
+                    @if (username().length > 0 && username().trim().length < 6) {
+                        <div class="invalid-feedback">Username must be at least 6 characters.</div>
+                    }
+                } @else {
+                    <div class="form-control-plaintext fw-medium">{{ username() }}</div>
+                }
+            </div>
+
+            <!-- First Name -->
+            <div class="mb-3">
+                <label for="firstName" class="form-label fw-semibold">First Name</label>
+                @if (mode === 'add') {
+                    <input
+                        id="firstName"
+                        type="text"
+                        class="form-control"
+                        placeholder="First name"
+                        [value]="firstName()"
+                        (input)="onInput('firstName', $event)"
+                        [class.is-invalid]="firstName().length > 0 && firstName().trim().length === 0"
+                        maxlength="100" />
+                    @if (firstName().length > 0 && firstName().trim().length === 0) {
+                        <div class="invalid-feedback">First name is required.</div>
+                    }
+                } @else {
+                    <div class="form-control-plaintext fw-medium">{{ firstName() }}</div>
+                }
+            </div>
+
+            <!-- Last Name -->
+            <div class="mb-3">
+                <label for="lastName" class="form-label fw-semibold">Last Name</label>
+                @if (mode === 'add') {
+                    <input
+                        id="lastName"
+                        type="text"
+                        class="form-control"
+                        placeholder="Last name"
+                        [value]="lastName()"
+                        (input)="onInput('lastName', $event)"
+                        [class.is-invalid]="lastName().length > 0 && lastName().trim().length === 0"
+                        maxlength="100" />
+                    @if (lastName().length > 0 && lastName().trim().length === 0) {
+                        <div class="invalid-feedback">Last name is required.</div>
+                    }
+                } @else {
+                    <div class="form-control-plaintext fw-medium">{{ lastName() }}</div>
+                }
+            </div>
+
+            <!-- Email -->
+            <div class="mb-3">
+                <label for="email" class="form-label fw-semibold">Email</label>
+                <input
+                    id="email"
+                    type="email"
+                    class="form-control"
+                    placeholder="Optional"
+                    [value]="email()"
+                    (input)="onInput('email', $event)"
+                    maxlength="200" />
+            </div>
+
+            <!-- Cellphone -->
+            <div class="mb-3">
+                <label for="cellphone" class="form-label fw-semibold">Cellphone</label>
+                <input
+                    id="cellphone"
+                    type="tel"
+                    class="form-control"
+                    placeholder="Optional"
+                    [value]="cellphone()"
+                    (input)="onInput('cellphone', $event)"
+                    maxlength="20" />
+            </div>
+
+            <!-- Active (edit only) -->
+            @if (mode === 'edit') {
+                <div class="form-check form-switch">
+                    <input
+                        id="bActive"
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        [checked]="bActive()"
+                        (change)="onActiveChange($event)" />
+                    <label class="form-check-label fw-semibold" for="bActive">Active</label>
+                </div>
+            }
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="close.emit()">Cancel</button>
+            <button type="button" class="btn btn-primary"
+                    (click)="onSubmit()"
+                    [disabled]="!isValid() || isSaving()">
+                @if (isSaving()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                {{ mode === 'add' ? 'Add Scorer' : 'Save Changes' }}
+            </button>
+        </div>
+    </div>
+</tsic-dialog>
