@@ -1,0 +1,40 @@
+.arb-health-page {
+    padding: var(--space-4);
+}
+
+.page-header {
+    margin-bottom: var(--space-6);
+
+    h2 {
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        margin-bottom: var(--space-1);
+    }
+}
+
+.check-col {
+    width: 40px;
+}
+
+.contact-info {
+    max-width: 200px;
+}
+
+.action-bar {
+    padding: var(--space-2) 0;
+}
+
+.table {
+    th {
+        white-space: nowrap;
+        font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+    }
+
+    td {
+        font-size: var(--font-size-sm);
+        vertical-align: middle;
+    }
+}

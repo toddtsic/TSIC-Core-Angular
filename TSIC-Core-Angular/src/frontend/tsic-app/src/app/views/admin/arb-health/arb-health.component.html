@@ -1,0 +1,312 @@
+<div class="arb-health-page">
+    <header class="page-header">
+        <h2>ARB Subscription Health</h2>
+        <p class="text-muted">Identify and contact registrants with ARB payment issues.</p>
+    </header>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link"
+                    [class.active]="activeTab() === FLAG_TYPE.ExpiringCard"
+                    (click)="switchTab(FLAG_TYPE.ExpiringCard)">
+                <i class="bi bi-credit-card-2-front me-1"></i>
+                Expiring Cards
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link"
+                    [class.active]="activeTab() === FLAG_TYPE.BehindInPayment"
+                    (click)="switchTab(FLAG_TYPE.BehindInPayment)">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Behind in Payment
+            </button>
+        </li>
+    </ul>
+
+    <!-- Error -->
+    @if (errorMessage()) {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-circle me-1"></i>
+            {{ errorMessage() }}
+        </div>
+    }
+
+    <!-- Send result (shown inline for one-click sends) -->
+    @if (sendResult() && !showEmailDialog()) {
+        <div class="alert mb-3"
+             [class.alert-success]="sendResult()!.failed === 0"
+             [class.alert-warning]="sendResult()!.failed > 0">
+            <strong>{{ sendResult()!.sent }}</strong> emails sent.
+            @if (sendResult()!.failed > 0) {
+                <strong>{{ sendResult()!.failed }}</strong> failed.
+                @if (sendResult()!.failedAddresses.length > 0) {
+                    <div class="mt-1">
+                        <small>Failed: {{ sendResult()!.failedAddresses.join(', ') }}</small>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    <!-- Loading -->
+    @if (isLoading()) {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading {{ tabLabel(activeTab()) }}...</p>
+        </div>
+    }
+
+    <!-- Action bar — always visible when data loaded -->
+    @if (!isLoading() && registrants().length > 0) {
+        <div class="action-bar d-flex align-items-center gap-3 mb-3">
+            <span class="badge bg-primary">{{ registrants().length }} flagged</span>
+
+            @if (activeTab() === FLAG_TYPE.ExpiringCard) {
+                <!-- Expiring Cards: one-click send to ALL (like legacy) -->
+                <button class="btn btn-sm btn-primary"
+                        [disabled]="isSending()"
+                        (click)="sendExpiringCardWarnings()">
+                    @if (isSending()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        Sending...
+                    } @else {
+                        <i class="bi bi-send me-1"></i>
+                        Send Warning to All Registrants &amp; Directors
+                    }
+                </button>
+            }
+
+            @if (activeTab() === FLAG_TYPE.BehindInPayment) {
+                <!-- Behind in Payment: select + compose (custom email) -->
+                @if (selectedCount() > 0) {
+                    <span class="badge bg-secondary">{{ selectedCount() }} selected</span>
+                }
+                <button class="btn btn-sm btn-outline-primary"
+                        [disabled]="selectedCount() === 0"
+                        (click)="openEmailDialog()">
+                    <i class="bi bi-envelope me-1"></i>
+                    Compose Email
+                </button>
+            }
+        </div>
+    }
+
+    <!-- Data table -->
+    @if (!isLoading() && registrants().length > 0) {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        @if (activeTab() === FLAG_TYPE.BehindInPayment) {
+                            <th class="check-col">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       [checked]="allSelected()"
+                                       (change)="toggleSelectAll()">
+                            </th>
+                        }
+                        <th>Registrant</th>
+                        <th>Subscription</th>
+                        <th>Status</th>
+                        <th class="text-end">Fee Total</th>
+                        <th class="text-end">Paid</th>
+                        <th class="text-end">Owes Now</th>
+                        <th>Next Payment</th>
+                        <th>Progress</th>
+                        <th>Contact</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (r of registrants(); track r.registrationId) {
+                        <tr [class.table-warning]="isSelected(r.registrationId)"
+                            (click)="activeTab() === FLAG_TYPE.BehindInPayment ? toggleSelect(r.registrationId) : null"
+                            [style.cursor]="activeTab() === FLAG_TYPE.BehindInPayment ? 'pointer' : 'default'">
+                            @if (activeTab() === FLAG_TYPE.BehindInPayment) {
+                                <td class="check-col" (click)="$event.stopPropagation()">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           [checked]="isSelected(r.registrationId)"
+                                           (change)="toggleSelect(r.registrationId)">
+                                </td>
+                            }
+                            <td>
+                                <div class="fw-medium">{{ r.registrantName }}</div>
+                                @if (r.assignment) {
+                                    <small class="text-muted">{{ r.assignment }}</small>
+                                }
+                            </td>
+                            <td>
+                                <code class="small">{{ r.subscriptionId }}</code>
+                            </td>
+                            <td>
+                                <span class="badge"
+                                      [class.bg-success]="r.subscriptionStatus === 'active'"
+                                      [class.bg-warning]="r.subscriptionStatus === 'suspended'"
+                                      [class.bg-danger]="r.subscriptionStatus !== 'active' && r.subscriptionStatus !== 'suspended'">
+                                    {{ r.subscriptionStatus }}
+                                </span>
+                            </td>
+                            <td class="text-end">{{ r.feeTotal | number:'1.2-2' }}</td>
+                            <td class="text-end">{{ r.paidTotal | number:'1.2-2' }}</td>
+                            <td class="text-end fw-semibold"
+                                [class.text-danger]="(r.currentlyOwes ?? 0) > 0">
+                                {{ r.currentlyOwes | number:'1.2-2' }}
+                            </td>
+                            <td>
+                                @if (r.nextPaymentDate) {
+                                    {{ r.nextPaymentDate | date:'shortDate' }}
+                                } @else {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (r.paymentProgress) {
+                                    <small>{{ r.paymentProgress }}</small>
+                                }
+                            </td>
+                            <td>
+                                <div class="contact-info">
+                                    @if (r.registrantEmail) {
+                                        <small>{{ r.registrantEmail }}</small>
+                                    }
+                                    @if (r.momName) {
+                                        <small class="d-block text-muted">Mom: {{ r.momName }}</small>
+                                    }
+                                    @if (r.dadName) {
+                                        <small class="d-block text-muted">Dad: {{ r.dadName }}</small>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <!-- Empty state -->
+    @if (!isLoading() && registrants().length === 0 && !errorMessage()) {
+        <div class="text-center py-5">
+            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+            <p class="text-muted mt-2">No flagged registrants for {{ tabLabel(activeTab()) }}.</p>
+        </div>
+    }
+</div>
+
+<!-- Email Compose Modal -->
+@if (showEmailDialog()) {
+<tsic-dialog [open]="true" size="lg" (requestClose)="closeEmailDialog()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">
+                <i class="bi bi-envelope me-2"></i>
+                Compose Defensive Email
+            </h5>
+            <button type="button" class="btn-close" (click)="closeEmailDialog()"></button>
+        </div>
+        <div class="modal-body">
+            <!-- Send result inside modal -->
+            @if (sendResult()) {
+                <div class="alert mb-3"
+                     [class.alert-success]="sendResult()!.failed === 0"
+                     [class.alert-warning]="sendResult()!.failed > 0">
+                    <strong>{{ sendResult()!.sent }}</strong> emails sent.
+                    @if (sendResult()!.failed > 0) {
+                        <strong>{{ sendResult()!.failed }}</strong> failed.
+                        @if (sendResult()!.failedAddresses.length > 0) {
+                            <div class="mt-1">
+                                <small>Failed: {{ sendResult()!.failedAddresses.join(', ') }}</small>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+
+            <!-- Template selector -->
+            <div class="mb-3">
+                <label class="form-label fw-medium">Email Template</label>
+                <div class="d-flex flex-wrap gap-2">
+                    @for (t of availableTemplates(); track t.label) {
+                        <button class="btn btn-sm btn-outline-primary"
+                                type="button"
+                                (click)="applyTemplate(t)">
+                            <i class="bi bi-file-earmark-text me-1"></i>
+                            {{ t.label }}
+                        </button>
+                    }
+                </div>
+                <small class="form-text text-muted">Click a template to pre-fill subject and body.</small>
+            </div>
+
+            <!-- Subject -->
+            <div class="mb-3">
+                <label for="emailSubject" class="form-label fw-medium">Subject</label>
+                <input id="emailSubject"
+                       type="text"
+                       class="form-control"
+                       [ngModel]="emailSubject()"
+                       (ngModelChange)="onSubjectChange($event)"
+                       placeholder="Email subject line...">
+            </div>
+
+            <!-- Body -->
+            <div class="mb-3">
+                <label for="emailBody" class="form-label fw-medium">Body (HTML)</label>
+                <textarea id="emailBody"
+                          class="form-control font-monospace"
+                          rows="10"
+                          [ngModel]="emailBody()"
+                          (ngModelChange)="onBodyChange($event)"
+                          placeholder="Compose your email body... Use substitution tokens below."></textarea>
+            </div>
+
+            <!-- Substitution tokens -->
+            @if (substitutionVars().length > 0) {
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Substitution Tokens</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        @for (v of substitutionVars(); track v.token) {
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    type="button"
+                                    [title]="v.label"
+                                    (click)="insertToken(v.token)">
+                                {{ v.token }}
+                            </button>
+                        }
+                    </div>
+                    <small class="form-text text-muted">Click a token to append it to the body.</small>
+                </div>
+            }
+
+            <!-- Notify directors -->
+            <div class="form-check mb-3">
+                <input id="notifyDirectors"
+                       type="checkbox"
+                       class="form-check-input"
+                       [ngModel]="notifyDirectors()"
+                       (ngModelChange)="onNotifyDirectorsChange($event)">
+                <label for="notifyDirectors" class="form-check-label">
+                    Notify job directors after sending
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" (click)="closeEmailDialog()">Cancel</button>
+            <button class="btn btn-primary"
+                    [disabled]="isSending() || !emailSubject() || !emailBody() || selectedCount() === 0"
+                    (click)="sendEmails()">
+                @if (isSending()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Sending...
+                } @else {
+                    <i class="bi bi-send me-1"></i>
+                    Send to {{ selectedCount() }} recipient(s)
+                }
+            </button>
+        </div>
+    </div>
+</tsic-dialog>
+}

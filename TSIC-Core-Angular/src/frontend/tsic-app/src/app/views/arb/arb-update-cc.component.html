@@ -1,0 +1,185 @@
+<div class="update-cc-page">
+    <!-- Loading -->
+    @if (isLoadingInfo()) {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading subscription information...</p>
+        </div>
+    }
+
+    <!-- Load error -->
+    @if (loadError()) {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-circle me-1"></i>
+            {{ loadError() }}
+        </div>
+    }
+
+    <!-- Success result -->
+    @if (result()) {
+        <div class="card result-card">
+            <div class="card-body text-center">
+                @if (result()!.subscriptionUpdated) {
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h3 class="mt-3">Credit Card Updated</h3>
+                    <p class="text-muted">{{ result()!.message }}</p>
+                    @if (result()!.balanceCharged) {
+                        <p>
+                            <strong>{{ result()!.amountCharged | number:'1.2-2' }}</strong> charged.
+                            @if (result()!.transactionId) {
+                                <br><small class="text-muted">Transaction: {{ result()!.transactionId }}</small>
+                            }
+                        </p>
+                    }
+                } @else {
+                    <i class="bi bi-x-circle-fill text-danger" style="font-size: 3rem;"></i>
+                    <h3 class="mt-3">Update Failed</h3>
+                    <p class="text-muted">{{ result()!.message }}</p>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Form -->
+    @if (info() && !result()) {
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Update Payment Method</h4>
+            </div>
+            <div class="card-body">
+                <!-- Subscription summary -->
+                <div class="alert alert-info mb-4">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <strong>{{ info()!.registrantName }}</strong>
+                            <div class="text-muted">{{ info()!.jobName }}</div>
+                        </div>
+                        <div class="col-sm-3">
+                            <small class="text-muted">Subscription</small>
+                            <div>{{ info()!.subscriptionId }}</div>
+                        </div>
+                        <div class="col-sm-3">
+                            <small class="text-muted">Balance Due</small>
+                            <div class="fw-bold">{{ info()!.balanceDue | number:'1.2-2' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit error -->
+                @if (submitError()) {
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        {{ submitError() }}
+                    </div>
+                }
+
+                <form (ngSubmit)="submit()">
+                    <h5 class="mb-3">Cardholder Information</h5>
+                    <div class="row mb-3">
+                        <div class="col-sm-6">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input id="firstName" type="text" class="form-control"
+                                   [ngModel]="firstName()"
+                                   (ngModelChange)="onFieldChange('firstName', $event)"
+                                   name="firstName" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input id="lastName" type="text" class="form-control"
+                                   [ngModel]="lastName()"
+                                   (ngModelChange)="onFieldChange('lastName', $event)"
+                                   name="lastName" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-8">
+                            <label for="address" class="form-label">Billing Address</label>
+                            <input id="address" type="text" class="form-control"
+                                   [ngModel]="address()"
+                                   (ngModelChange)="onFieldChange('address', $event)"
+                                   name="address" required>
+                        </div>
+                        <div class="col-sm-4">
+                            <label for="zip" class="form-label">ZIP Code</label>
+                            <input id="zip" type="text" class="form-control"
+                                   [ngModel]="zip()"
+                                   (ngModelChange)="onFieldChange('zip', $event)"
+                                   name="zip" required maxlength="10">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input id="email" type="email" class="form-control"
+                               [ngModel]="email()"
+                               (ngModelChange)="onFieldChange('email', $event)"
+                               name="email" required>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Card Details</h5>
+                    <div class="row mb-3">
+                        <div class="col-sm-6">
+                            <label for="cardNumber" class="form-label">Card Number</label>
+                            <input id="cardNumber" type="text" class="form-control"
+                                   [ngModel]="cardNumber()"
+                                   (ngModelChange)="onFieldChange('cardNumber', $event)"
+                                   name="cardNumber" required
+                                   maxlength="19" placeholder="XXXX XXXX XXXX XXXX"
+                                   autocomplete="cc-number">
+                        </div>
+                        <div class="col-sm-2">
+                            <label for="cardCode" class="form-label">CVV</label>
+                            <input id="cardCode" type="text" class="form-control"
+                                   [ngModel]="cardCode()"
+                                   (ngModelChange)="onFieldChange('cardCode', $event)"
+                                   name="cardCode" required
+                                   maxlength="4" placeholder="CVV"
+                                   autocomplete="cc-csc">
+                        </div>
+                        <div class="col-sm-2">
+                            <label for="expMonth" class="form-label">Month</label>
+                            <select id="expMonth" class="form-select"
+                                    [ngModel]="expirationMonth()"
+                                    (ngModelChange)="onFieldChange('expirationMonth', $event)"
+                                    name="expMonth" required>
+                                <option value="">MM</option>
+                                @for (m of months; track m) {
+                                    <option [value]="m">{{ m }}</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-sm-2">
+                            <label for="expYear" class="form-label">Year</label>
+                            <select id="expYear" class="form-select"
+                                    [ngModel]="expirationYear()"
+                                    (ngModelChange)="onFieldChange('expirationYear', $event)"
+                                    name="expYear" required>
+                                <option value="">YYYY</option>
+                                @for (y of years; track y) {
+                                    <option [value]="y">{{ y }}</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit"
+                                class="btn btn-primary btn-lg"
+                                [disabled]="!canSubmit()">
+                            @if (isSubmitting()) {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                Processing...
+                            } @else {
+                                <i class="bi bi-credit-card me-1"></i>
+                                Update Card &amp; Pay Balance
+                            }
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+</div>
