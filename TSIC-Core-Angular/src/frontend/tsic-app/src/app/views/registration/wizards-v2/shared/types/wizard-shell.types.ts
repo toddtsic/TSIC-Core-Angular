@@ -20,7 +20,7 @@ export interface WizardShellConfig {
     /** Title displayed in the wizard header (e.g. "Player Registration"). */
     title: string;
     /** Theme key applied as CSS class: wizard-theme-{theme}. */
-    theme: 'player' | 'team' | 'family';
+    theme: 'player' | 'team' | 'family' | 'adult';
     /** Optional badge text next to the title (e.g. family last name). */
     badge?: string | null;
 }

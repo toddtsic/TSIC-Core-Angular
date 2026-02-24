@@ -29,8 +29,11 @@ public class JobMetadataResponse
     public int? AdnArbBillingOccurences { get; set; }
     public int? AdnArbIntervalLength { get; set; }
     public DateTime? AdnArbStartDate { get; set; }
-    // Team registration
+    // Registration & availability flags
+    public bool BRegistrationAllowPlayer { get; set; }
     public bool BRegistrationAllowTeam { get; set; }
+    public bool BEnableStore { get; set; }
+    public bool BScheduleAllowPublicAccess { get; set; }
     public bool BBannerIsCustom { get; set; }
     // Job type (e.g. "Players", "League", "Tournament")
     public string? JobTypeName { get; set; }

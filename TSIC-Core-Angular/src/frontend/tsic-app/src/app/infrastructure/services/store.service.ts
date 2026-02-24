@@ -32,6 +32,8 @@ import type {
 	LogRestockRequest,
 	SignForPickupRequest,
 	PaymentMethodOptionDto,
+	StoreWalkUpRegisterRequest,
+	StoreWalkUpRegisterResponse,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -156,6 +158,11 @@ export class StoreService {
 		return this.http.get<SkuAvailabilityDto>(`${this.base}/skus/${storeSkuId}/availability`);
 	}
 
+	checkAvailabilityBatch(storeSkuIds: number[]): Observable<SkuAvailabilityDto[]> {
+		const ids = storeSkuIds.join(',');
+		return this.http.get<SkuAvailabilityDto[]>(`${this.base}/skus/availability?skuIds=${ids}`);
+	}
+
 	checkout(request: StoreCheckoutRequest): Observable<StoreCheckoutResultDto> {
 		return this.http.post<StoreCheckoutResultDto>(`${this.base}/checkout`, request).pipe(
 			tap(() => this.cart.set(null))
@@ -163,7 +170,7 @@ export class StoreService {
 	}
 
 	getPaymentMethods(): Observable<PaymentMethodOptionDto[]> {
-		return this.http.get<PaymentMethodOptionDto[]>(`${environment.apiUrl}/payment-methods`);
+		return this.http.get<PaymentMethodOptionDto[]>(`${this.base}/payment-methods`);
 	}
 
 	// ═══════════════════════════════════════
@@ -207,5 +214,13 @@ export class StoreService {
 
 	signForPickup(request: SignForPickupRequest): Observable<void> {
 		return this.http.post<void>(`${this.base}/admin/sign-for-pickup`, request);
+	}
+
+	// ═══════════════════════════════════════
+	//  WALK-UP — Anonymous Registration
+	// ═══════════════════════════════════════
+
+	walkUpRegister(request: StoreWalkUpRegisterRequest): Observable<StoreWalkUpRegisterResponse> {
+		return this.http.post<StoreWalkUpRegisterResponse>(`${this.base}/walk-up-register`, request);
 	}
 }

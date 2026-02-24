@@ -925,5 +925,19 @@ public class TeamRepository : ITeamRepository
             .GroupBy(t => t.DivId!.Value)
             .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
     }
+
+    // ── Store Walk-Up methods ──
+
+    public async Task<Guid?> GetStoreMerchTeamIdAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await (
+            from t in _context.Teams.AsNoTracking()
+            join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+            where t.JobId == jobId
+                  && t.TeamName == "Store Merch"
+                  && ag.AgegroupName == "Dropped Teams"
+            select (Guid?)t.TeamId
+        ).FirstOrDefaultAsync(cancellationToken);
+    }
 }
 

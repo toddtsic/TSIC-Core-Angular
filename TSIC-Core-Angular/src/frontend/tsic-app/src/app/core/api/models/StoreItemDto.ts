@@ -5,6 +5,7 @@
 import type { StoreSkuDto } from './StoreSkuDto';
 export type StoreItemDto = {
     storeItemId: number;
+    storeId: number;
     storeItemName: string;
     storeItemComments?: string | null;
     storeItemPrice: number;

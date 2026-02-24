@@ -1,0 +1,33 @@
+<app-wizard-shell
+  [steps]="steps()"
+  [currentIndex]="currentIndex()"
+  [config]="shellConfig()"
+  [canContinue]="canContinue()"
+  [showContinue]="showContinue()"
+  (back)="back()"
+  (continue)="next()">
+
+  @switch (currentStepId()) {
+    @case ('account') {
+      <app-adult-account-step />
+    }
+    @case ('role') {
+      <app-adult-role-step [jobPath]="jobPath" />
+    }
+    @case ('profile') {
+      <app-adult-profile-step />
+    }
+    @case ('waivers') {
+      <app-adult-waivers-step />
+    }
+    @case ('review') {
+      <app-adult-review-step (completed)="onSubmitOrFinish()" />
+    }
+    @default {
+      <div class="alert alert-warning" role="note">
+        Unknown step "{{ currentStepId() }}". Please go back and try again.
+      </div>
+    }
+  }
+
+</app-wizard-shell>

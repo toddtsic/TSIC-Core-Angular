@@ -96,8 +96,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
         }
 
         // Return the created item with its SKUs
-        var result = await _itemRepo.GetItemWithSkusAsync(item.StoreItemId, storeDto.StoreId);
-        return result!;
+        return (await _itemRepo.GetItemWithSkusAsync(item.StoreItemId, storeDto.StoreId))!;
     }
 
     public async Task<StoreItemDto> UpdateItemAsync(
@@ -119,8 +118,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
 
         await _itemRepo.SaveChangesAsync();
 
-        var result = await _itemRepo.GetItemWithSkusAsync(storeItemId, store.StoreId);
-        return result!;
+        return (await _itemRepo.GetItemWithSkusAsync(storeItemId, store.StoreId))!;
     }
 
     // ── SKUs ──

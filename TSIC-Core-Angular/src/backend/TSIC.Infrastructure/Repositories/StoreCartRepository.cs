@@ -191,6 +191,32 @@ public class StoreCartRepository : IStoreCartRepository
         return overCommitted;
     }
 
+    public async Task<Dictionary<int, int>> GetSoldCountsForSkusAsync(
+        List<int> storeSkuIds, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreCartBatchSkus
+            .Where(cbs => storeSkuIds.Contains(cbs.StoreSkuId)
+                && cbs.Active
+                && cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
+            .GroupBy(cbs => cbs.StoreSkuId)
+            .Select(g => new { SkuId = g.Key, Total = g.Sum(x => x.Quantity) })
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.SkuId, x => x.Total, cancellationToken);
+    }
+
+    public async Task<Dictionary<int, int>> GetInCartCountsForSkusAsync(
+        List<int> storeSkuIds, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreCartBatchSkus
+            .Where(cbs => storeSkuIds.Contains(cbs.StoreSkuId)
+                && cbs.Active
+                && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
+            .GroupBy(cbs => cbs.StoreSkuId)
+            .Select(g => new { SkuId = g.Key, Total = g.Sum(x => x.Quantity) })
+            .AsNoTracking()
+            .ToDictionaryAsync(x => x.SkuId, x => x.Total, cancellationToken);
+    }
+
     public async Task<List<StoreCartBatchSkus>> GetBatchLineItemEntitiesAsync(
         int storeCartBatchId, CancellationToken cancellationToken = default)
     {

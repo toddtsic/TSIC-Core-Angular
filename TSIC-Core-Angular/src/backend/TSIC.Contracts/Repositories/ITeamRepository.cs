@@ -291,6 +291,14 @@ public interface ITeamRepository
     /// </summary>
     Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
 
+    // ── Store Walk-Up methods ──
+
+    /// <summary>
+    /// Find the "Store Merch" team for a job (under "Dropped Teams" agegroup).
+    /// Returns the TeamId if found, null if no such team exists.
+    /// </summary>
+    Task<Guid?> GetStoreMerchTeamIdAsync(Guid jobId, CancellationToken cancellationToken = default);
+
     // ── Pool Assignment methods ──
 
     /// <summary>

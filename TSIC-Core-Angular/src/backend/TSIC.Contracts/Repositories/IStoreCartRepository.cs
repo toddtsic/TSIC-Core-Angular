@@ -100,6 +100,18 @@ public interface IStoreCartRepository
     Task<List<StoreCartBatchSkus>> GetBatchLineItemEntitiesAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get sold counts for multiple SKUs in a single query.
+    /// Returns dictionary of storeSkuId → soldCount.
+    /// </summary>
+    Task<Dictionary<int, int>> GetSoldCountsForSkusAsync(List<int> storeSkuIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get in-cart counts for multiple SKUs in a single query.
+    /// Returns dictionary of storeSkuId → inCartCount.
+    /// </summary>
+    Task<Dictionary<int, int>> GetInCartCountsForSkusAsync(List<int> storeSkuIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Persist all pending changes.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

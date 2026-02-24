@@ -114,7 +114,10 @@ public class JobRepository : IJobRepository
                 AdnArbBillingOccurences = jdo.Job.AdnArbbillingOccurences,
                 AdnArbIntervalLength = jdo.Job.AdnArbintervalLength,
                 AdnArbStartDate = jdo.Job.AdnArbstartDate,
+                BRegistrationAllowPlayer = jdo.Job.BRegistrationAllowPlayer ?? false,
                 BRegistrationAllowTeam = jdo.Job.BRegistrationAllowTeam ?? false,
+                BEnableStore = jdo.Job.BEnableStore ?? false,
+                BScheduleAllowPublicAccess = jdo.Job.BScheduleAllowPublicAccess ?? false,
                 BBannerIsCustom = jdo.ParallaxSlideCount > 0,
                 JobTypeName = jdo.Job.JobType.JobTypeName
             })
@@ -348,6 +351,29 @@ public class JobRepository : IJobRepository
             .Where(j => j.CustomerId == customerId)
             .Select(j => j.JobId)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Contracts.Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobPath == jobPath)
+            .Select(j => new Contracts.Dtos.JobPulseDto
+            {
+                PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                TeamRegistrationOpen = j.BRegistrationAllowTeam == true,
+                StoreEnabled = j.BEnableStore == true,
+                StoreHasActiveItems = j.BEnableStore == true
+                    && _context.Stores.Any(s => s.JobId == j.JobId
+                        && _context.StoreItems.Any(si => si.StoreId == s.StoreId && si.Active)),
+                SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
+                    && j.BRegistrationAllowPlayer != true,
+                AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
+                PublicSuspended = j.BSuspendPublic,
+                RegistrationExpiry = j.ExpiryUsers
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
 }

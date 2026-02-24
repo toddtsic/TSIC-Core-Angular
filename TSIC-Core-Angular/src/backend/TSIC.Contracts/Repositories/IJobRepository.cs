@@ -51,7 +51,10 @@ public record JobMetadataDto
     public int? AdnArbBillingOccurences { get; init; }
     public int? AdnArbIntervalLength { get; init; }
     public DateTime? AdnArbStartDate { get; init; }
+    public required bool BRegistrationAllowPlayer { get; init; }
     public required bool BRegistrationAllowTeam { get; init; }
+    public required bool BEnableStore { get; init; }
+    public required bool BScheduleAllowPublicAccess { get; init; }
     public required bool BBannerIsCustom { get; init; }
     public string? JobTypeName { get; init; }
 }
@@ -175,6 +178,12 @@ public interface IJobRepository
     /// Used for Director field scoping — Directors see fields historically used by any of their customer's jobs.
     /// </summary>
     Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get real-time availability pulse for a job (player/team reg, store, schedule, coming-soon).
+    /// Public endpoint — no authentication required.
+    /// </summary>
+    Task<Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default);
 
 }
 

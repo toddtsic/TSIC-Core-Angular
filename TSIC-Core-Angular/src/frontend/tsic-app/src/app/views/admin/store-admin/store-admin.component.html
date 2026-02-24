@@ -79,7 +79,19 @@
 						 			   [class.bi-chevron-down]="expandedItemId() === item.storeItemId"></i>
 								</button>
 							</td>
-							<td class="fw-medium">{{ item.storeItemName }}</td>
+							<td class="fw-medium">
+								<div class="d-flex align-items-center gap-2">
+									@if (item.imageUrls.length) {
+										<img [src]="item.imageUrls[0]" [alt]="item.storeItemName"
+											 class="item-thumb rounded">
+									} @else {
+										<span class="item-thumb-placeholder rounded">
+											<i class="bi bi-image"></i>
+										</span>
+									}
+									{{ item.storeItemName }}
+								</div>
+							</td>
 							<td class="text-end">{{ formatCurrency(item.storeItemPrice) }}</td>
 							<td class="text-center">
 								<span class="badge bg-secondary-subtle text-secondary-emphasis">

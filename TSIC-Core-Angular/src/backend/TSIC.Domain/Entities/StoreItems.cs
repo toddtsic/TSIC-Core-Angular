@@ -23,9 +23,13 @@ public partial class StoreItems
 
     public int SortOrder { get; set; }
 
+    public int ImageCount { get; set; }
+
     public virtual AspNetUsers LebUser { get; set; } = null!;
 
     public virtual Stores Store { get; set; } = null!;
+
+    public virtual ICollection<StoreItemImage> StoreItemImage { get; set; } = new List<StoreItemImage>();
 
     public virtual ICollection<StoreItemSkus> StoreItemSkus { get; set; } = new List<StoreItemSkus>();
 }

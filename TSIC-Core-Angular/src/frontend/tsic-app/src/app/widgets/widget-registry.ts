@@ -7,6 +7,7 @@ import { PlayerTrendWidgetComponent } from '@widgets/registration/player-trend-w
 import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widget/team-trend-widget.component';
 import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
 import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
+import { JobPulseWidgetComponent } from '@widgets/registration/job-pulse-widget/job-pulse-widget.component';
 
 // ════════════════════════════════════════════════════════════
 // Widget Manifest — Single Source of Truth
@@ -71,6 +72,15 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		workspace:    'public',
 		description:  'Contact name and email for event inquiries',
 		displayStyle: 'block',
+	},
+	'job-pulse': {
+		component:    JobPulseWidgetComponent,
+		label:        'Job Pulse',
+		icon:         'bi-activity',
+		widgetType:   'content',
+		workspace:    'public',
+		description:  'Smart registration availability cards',
+		displayStyle: 'pulse',
 	},
 
 	// ── Chart-tile widgets (have Angular components) ──

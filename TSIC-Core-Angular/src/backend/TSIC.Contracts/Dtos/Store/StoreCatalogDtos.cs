@@ -61,12 +61,18 @@ public record UpdateStoreSizeRequest
 public record StoreItemSummaryDto
 {
     public required int StoreItemId { get; init; }
+    public required int StoreId { get; init; }
     public required string StoreItemName { get; init; }
     public required decimal StoreItemPrice { get; init; }
     public required bool Active { get; init; }
     public required int SortOrder { get; init; }
     public required int SkuCount { get; init; }
     public required int ActiveSkuCount { get; init; }
+    public required List<string> ImageUrls { get; init; }
+    /// <summary>
+    /// Set when ActiveSkuCount == 1, enabling quick-add without expanding the picker.
+    /// </summary>
+    public int? SingleSkuId { get; init; }
 }
 
 /// <summary>
@@ -75,6 +81,7 @@ public record StoreItemSummaryDto
 public record StoreItemDto
 {
     public required int StoreItemId { get; init; }
+    public required int StoreId { get; init; }
     public required string StoreItemName { get; init; }
     public string? StoreItemComments { get; init; }
     public required decimal StoreItemPrice { get; init; }

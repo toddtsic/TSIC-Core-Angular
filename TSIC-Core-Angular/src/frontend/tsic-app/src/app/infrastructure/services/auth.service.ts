@@ -276,6 +276,17 @@ export class AuthService {
     this.startTokenRefreshTimer();
   }
 
+  /**
+   * Apply both access and refresh tokens (for walk-up registration).
+   * Same pattern as selectRegistration() but callable from outside.
+   */
+  public applyTokenPair(accessToken: string, refreshToken?: string): void {
+    this.setToken(accessToken);
+    if (refreshToken) this.setRefreshToken(refreshToken);
+    this.initializeFromToken();
+    this.startTokenRefreshTimer();
+  }
+
   private setToken(token: string): void {
     localStorage.setItem(LocalStorageKey.AuthToken, token);
   }

@@ -30,11 +30,27 @@
 <!-- Item detail -->
 @if (!isLoading() && item(); as item) {
 	<div class="row g-4">
-		<!-- Left: item icon -->
+		<!-- Left: product image -->
 		<div class="col-md-4">
-			<div class="item-hero">
-				<i class="bi bi-bag"></i>
-			</div>
+			@if (item.imageUrls.length) {
+				<img [src]="item.imageUrls[selectedImageIndex()]"
+					 [alt]="item.storeItemName"
+					 class="item-hero-img rounded">
+				@if (item.imageUrls.length > 1) {
+					<div class="d-flex gap-2 mt-2 justify-content-center">
+						@for (url of item.imageUrls; track url; let i = $index) {
+							<img [src]="url" [alt]="item.storeItemName + ' ' + (i + 1)"
+								 class="item-thumb rounded"
+								 [class.active]="selectedImageIndex() === i"
+								 (click)="selectedImageIndex.set(i)">
+						}
+					</div>
+				}
+			} @else {
+				<div class="item-hero-placeholder">
+					<i class="bi bi-bag"></i>
+				</div>
+			}
 		</div>
 
 		<!-- Right: info + variant picker -->

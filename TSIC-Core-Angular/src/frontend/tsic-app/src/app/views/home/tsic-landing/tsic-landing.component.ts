@@ -136,7 +136,7 @@ export class TsicLandingComponent implements OnDestroy {
   constructor() {
     afterNextRender(() => {
       this.previewedPaletteIndex = 0;
-      this.paletteService.previewPalette(4);
+      this.paletteService.selectPalette(4);
       this.initScrollAnimations();
       this.startTestimonialRotation();
       this.loadCalendlyWidget();
@@ -147,7 +147,7 @@ export class TsicLandingComponent implements OnDestroy {
     // If the user unchecked a palette (reset to 0), snap back to Forest Green
     // as the default for this page rather than going colorless.
     if (this.paletteService.selectedIndex() === 0) {
-      this.paletteService.previewPalette(4);
+      this.paletteService.selectPalette(4);
     }
   }
 
@@ -169,7 +169,7 @@ export class TsicLandingComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     if (this.previewedPaletteIndex !== -1) {
-      this.paletteService.previewPalette(this.previewedPaletteIndex);
+      this.paletteService.selectPalette(this.previewedPaletteIndex);
       this.previewedPaletteIndex = -1;
     }
     this.observer?.disconnect();

@@ -1,20 +1,28 @@
-<!-- Cart badge -->
+<!-- ═══ Sticky Cart Bar ═══ -->
 @if (cartCount() > 0) {
-	<div class="d-flex justify-content-end mb-3">
-		<a routerLink="../store/cart" class="btn btn-outline-primary btn-sm position-relative">
-			<i class="bi bi-cart3 me-1"></i>Cart
-			<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-				{{ cartCount() }}
-			</span>
+	<div class="cart-bar">
+		<a routerLink="../store/cart" class="cart-bar-inner" [class.pulse]="cartPulse()">
+			<div class="cart-bar-left">
+				<i class="bi bi-cart3"></i>
+				<span class="cart-badge">{{ cartCount() }}</span>
+			</div>
+			<span class="cart-bar-label">View Cart</span>
+			<span class="cart-bar-total">{{ formatCurrency(cartTotal()) }}</span>
 		</a>
 	</div>
 }
 
-<h4 class="mb-4">
-	<i class="bi bi-shop me-2"></i>Store
-</h4>
+<!-- ═══ Header ═══ -->
+<div class="store-header">
+	<h4 class="mb-0">
+		<i class="bi bi-shop me-2 text-primary"></i>Store Items Available
+	</h4>
+	@if (!isLoading() && items().length > 0) {
+		<span class="text-body-secondary">{{ items().length }} item{{ items().length !== 1 ? 's' : '' }}</span>
+	}
+</div>
 
-<!-- Loading -->
+<!-- ═══ Loading ═══ -->
 @if (isLoading()) {
 	<div class="text-center py-5">
 		<div class="spinner-border text-primary"></div>
@@ -22,14 +30,14 @@
 	</div>
 }
 
-<!-- Error -->
+<!-- ═══ Error ═══ -->
 @if (errorMessage()) {
 	<div class="alert alert-danger">
 		<i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
 	</div>
 }
 
-<!-- Empty -->
+<!-- ═══ Empty ═══ -->
 @if (!isLoading() && !errorMessage() && items().length === 0) {
 	<div class="text-center py-5">
 		<i class="bi bi-box-seam display-4 text-body-tertiary"></i>
@@ -37,33 +45,185 @@
 	</div>
 }
 
-<!-- Item grid -->
+<!-- ═══ Item List ═══ -->
 @if (!isLoading() && items().length > 0) {
-	<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+	<div class="item-list">
 		@for (item of items(); track item.storeItemId) {
-			<div class="col">
-				<div class="card h-100 item-card" (click)="viewItem(item)">
-					<div class="card-body d-flex flex-column">
-						<div class="item-icon mb-3">
+			<div class="item-card" [class.expanded]="expandedId() === item.storeItemId">
+				<!-- Tap row: image + name + price + chevron -->
+				<div class="item-row" (click)="toggleItem(item)">
+					@if (item.imageUrls.length) {
+						<img [src]="item.imageUrls[0]" [alt]="item.storeItemName" class="item-thumb">
+					} @else {
+						<div class="item-thumb-placeholder">
 							<i class="bi bi-bag"></i>
 						</div>
-						<h5 class="card-title mb-2">{{ item.storeItemName }}</h5>
-						<div class="mt-auto">
-							<div class="d-flex justify-content-between align-items-center">
-								<span class="fs-5 fw-semibold text-primary">{{ formatCurrency(item.storeItemPrice) }}</span>
-								<span class="badge bg-body-secondary text-body-secondary">
-									{{ item.activeSkuCount }} variant{{ item.activeSkuCount !== 1 ? 's' : '' }}
-								</span>
-							</div>
-						</div>
-					</div>
-					<div class="card-footer border-0 bg-transparent text-center">
-						<span class="btn btn-primary btn-sm w-100">
-							<i class="bi bi-eye me-1"></i>View Details
+					}
+					<div class="item-info">
+						<span class="item-name">{{ item.storeItemName }}</span>
+						<span class="item-meta">
+							<span class="item-price">{{ formatCurrency(item.storeItemPrice) }}</span>
+							<span class="item-variants">{{ item.activeSkuCount }} option{{ item.activeSkuCount !== 1 ? 's' : '' }}</span>
 						</span>
 					</div>
+					@if (item.singleSkuId) {
+						<button class="btn-quick-add"
+								[disabled]="quickAddingItemId() === item.storeItemId"
+								(click)="quickAdd(item, $event)"
+								aria-label="Add to cart">
+							@if (quickAddingItemId() === item.storeItemId) {
+								<span class="spinner-border spinner-border-sm"></span>
+							} @else {
+								<i class="bi bi-cart-plus"></i>
+							}
+						</button>
+					} @else {
+						<i class="bi expand-chevron"
+						   [class.bi-chevron-down]="expandedId() !== item.storeItemId"
+						   [class.bi-chevron-up]="expandedId() === item.storeItemId"></i>
+					}
 				</div>
+
+				<!-- Expanded: picker panel -->
+				@if (expandedId() === item.storeItemId) {
+					<div class="picker-panel">
+						@if (isExpandLoading()) {
+							<div class="text-center py-3">
+								<span class="spinner-border spinner-border-sm text-primary"></span>
+							</div>
+						} @else if (expandedState(); as s) {
+
+							<!-- Already in cart reminder -->
+							@if (cartItemsForExpanded.length > 0) {
+								<div class="in-cart-summary">
+									<div class="in-cart-header">
+										<i class="bi bi-cart-check me-1"></i>In your cart
+									</div>
+									@for (ci of cartItemsForExpanded; track ci.storeCartBatchSkuId) {
+										<div class="in-cart-line">
+											<span>{{ ci.quantity }}&times; {{ variantLabel(ci) || 'Standard' }}</span>
+											<span class="in-cart-price">{{ formatCurrency(ci.lineTotal) }}</span>
+										</div>
+									}
+								</div>
+							}
+
+							<!-- Step 1: Color picker (if item has colors) -->
+							@if (s.availableColors.length > 0) {
+								<div class="picker-group">
+									<label class="picker-label">
+										@if (s.selectedColorId === null) {
+											<i class="bi bi-1-circle-fill me-1 text-primary"></i>Pick a Color
+										} @else {
+											<i class="bi bi-check-circle-fill me-1 text-success"></i>Color
+										}
+									</label>
+									<div class="chip-row">
+										@for (color of s.availableColors; track color.id) {
+											<button class="variant-chip"
+													[class.selected]="s.selectedColorId === color.id"
+													(click)="selectColor(color.id)">
+												{{ color.name }}
+											</button>
+										}
+									</div>
+								</div>
+							}
+
+							<!-- Hint: waiting for color selection -->
+							@if (s.availableColors.length > 0 && s.selectedColorId === null && s.availableSizes.length > 0) {
+								<p class="select-hint">Pick a color to see available sizes</p>
+							}
+
+							<!-- Step 2: Size picker — appears after color selected (or immediately if no colors) -->
+							@if (filteredSizes.length > 0) {
+								<div class="picker-group picker-animate">
+									<label class="picker-label">
+										@if (s.selectedSizeId === null) {
+											<i class="bi {{ s.availableColors.length > 0 ? 'bi-2-circle-fill' : 'bi-1-circle-fill' }} me-1 text-primary"></i>Pick a Size
+										} @else {
+											<i class="bi bi-check-circle-fill me-1 text-success"></i>Size
+										}
+									</label>
+									<div class="chip-row">
+										@for (size of filteredSizes; track size.id) {
+											<button class="variant-chip"
+													[class.selected]="s.selectedSizeId === size.id"
+													[class.out-of-stock]="isSizeOutOfStock(size.id)"
+													[disabled]="isSizeOutOfStock(size.id)"
+													(click)="selectSize(size.id)">
+												{{ size.name }}
+												@if (isSizeOutOfStock(size.id)) {
+													<span class="oos-label">Sold out</span>
+												}
+											</button>
+										}
+									</div>
+								</div>
+							}
+
+							<!-- Availability status -->
+							@if (selectedSku) {
+								<div class="availability-row picker-animate">
+									@if (s.isCheckingAvailability) {
+										<span class="avail-checking">
+											<span class="spinner-border spinner-border-sm me-1"></span>Checking...
+										</span>
+									} @else if (s.availability) {
+										@if (s.availability.availableCount === 0) {
+											<span class="avail-out-of-stock">
+												<i class="bi bi-x-circle-fill me-1"></i>Out of stock
+											</span>
+										} @else if (s.availability.availableCount <= 5) {
+											<span class="avail-low-stock">
+												<i class="bi bi-exclamation-circle-fill me-1"></i>Only {{ s.availability.availableCount }} left
+											</span>
+										} @else {
+											<span class="avail-in-stock">
+												<i class="bi bi-check-circle-fill me-1"></i>Available
+											</span>
+										}
+									}
+								</div>
+							}
+
+							<!-- Quantity + Add to Cart -->
+							@if (selectedSku) {
+								<div class="action-row picker-animate">
+									<div class="qty-stepper">
+										<button class="qty-btn" (click)="setQuantity(s.quantity - 1)"
+												[disabled]="s.quantity <= 1"
+												aria-label="Decrease quantity">
+											<i class="bi bi-dash-lg"></i>
+										</button>
+										<span class="qty-value">{{ s.quantity }}</span>
+										<button class="qty-btn" (click)="setQuantity(s.quantity + 1)"
+												[disabled]="s.availability && s.quantity >= s.availability.availableCount"
+												aria-label="Increase quantity">
+											<i class="bi bi-plus-lg"></i>
+										</button>
+									</div>
+
+									<button class="btn-add-to-cart"
+											[disabled]="!canAddToCart || s.isAdding"
+											(click)="addToCart()">
+										@if (s.isAdding) {
+											<span class="spinner-border spinner-border-sm me-1"></span>Adding...
+										} @else {
+											<i class="bi bi-cart-plus me-1"></i>Add to Cart
+										}
+									</button>
+								</div>
+							}
+						}
+					</div>
+				}
 			</div>
 		}
 	</div>
+}
+
+<!-- Spacer for sticky cart bar -->
+@if (cartCount() > 0) {
+	<div class="cart-bar-spacer"></div>
 }

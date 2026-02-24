@@ -28,6 +28,9 @@ export class StoreItemDetailComponent {
 	// Cart badge
 	readonly cartCount = this.store.cartCount;
 
+	// Image gallery
+	readonly selectedImageIndex = signal(0);
+
 	// Variant selection
 	readonly selectedColorId = signal<number | null>(null);
 	readonly selectedSizeId = signal<number | null>(null);

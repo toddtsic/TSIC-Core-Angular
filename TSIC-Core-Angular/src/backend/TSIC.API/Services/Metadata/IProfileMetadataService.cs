@@ -6,6 +6,7 @@ namespace TSIC.API.Services.Metadata;
 public interface IProfileMetadataService
 {
     ParsedProfileMetadata Parse(string? metadataJson, string? jsonOptions);
+    ParsedProfileMetadata ParseForRole(string? roleKeyedMetadataJson, string roleKey, string? jsonOptions);
     string? ResolveConstraintType(string? coreRegformPlayer);
     JobRegFormDto BuildJobRegForm(Guid jobId, ParsedProfileMetadata parsed, string? coreRegformPlayer, string? metadataJson, string? jsonOptions);
 }

@@ -32,19 +32,22 @@ public class JobsController : ControllerBase
     private readonly ITeamLookupService _teamLookupService;
     private readonly IMenuRepository _menuRepository;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IJobRepository _jobRepository;
 
     public JobsController(
         ILogger<JobsController> logger,
         IJobLookupService jobLookupService,
         ITeamLookupService teamLookupService,
         IMenuRepository menuRepository,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IJobRepository jobRepository)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
         _teamLookupService = teamLookupService;
         _menuRepository = menuRepository;
         _httpContextAccessor = httpContextAccessor;
+        _jobRepository = jobRepository;
     }
 
     [AllowAnonymous]
@@ -88,7 +91,10 @@ public class JobsController : ControllerBase
             AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,
             AdnArbStartDate = jobMetadata.AdnArbStartDate,
+            BRegistrationAllowPlayer = jobMetadata.BRegistrationAllowPlayer,
             BRegistrationAllowTeam = jobMetadata.BRegistrationAllowTeam,
+            BEnableStore = jobMetadata.BEnableStore,
+            BScheduleAllowPublicAccess = jobMetadata.BScheduleAllowPublicAccess,
             BBannerIsCustom = jobMetadata.BBannerIsCustom,
             JobTypeName = jobMetadata.JobTypeName
         };
@@ -225,5 +231,21 @@ public class JobsController : ControllerBase
         Response.Headers.Append("Vary", "Authorization");
 
         return Ok(menu);
+    }
+
+    /// <summary>
+    /// Real-time availability pulse for a job.
+    /// Returns boolean flags for player/team reg, store, schedule, and coming-soon signals.
+    /// Drives the "Job Pulse" public widget.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("{jobPath}/pulse")]
+    public async Task<ActionResult<JobPulseDto>> GetJobPulse(string jobPath)
+    {
+        var pulse = await _jobRepository.GetJobPulseAsync(jobPath);
+        if (pulse == null)
+            return NotFound(new { message = $"Job not found: {jobPath}" });
+
+        return Ok(pulse);
     }
 }

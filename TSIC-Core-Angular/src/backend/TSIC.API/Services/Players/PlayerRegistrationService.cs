@@ -5,6 +5,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Players;
 using TSIC.Domain.Entities;
+using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Repositories;
@@ -121,8 +122,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var metadataJson = jobEntity?.PlayerProfileMetadataJson;
         var registrationMode = GetRegistrationMode(jobEntity?.CoreRegformPlayer, jobEntity?.JsonOptions);
 
-        var nameToProperty = BuildFieldNameToPropertyMap(metadataJson);
-        var writableProps = BuildWritablePropertyMap();
+        var nameToProperty = FormValueMapper.BuildFieldNameToPropertyMap(metadataJson);
+        var writableProps = FormValueMapper.BuildWritablePropertyMap();
 
         var playerIds = request.TeamSelections.Select(ts => ts.PlayerId).Distinct().ToList();
         var existingRegs = await _registrations.GetFamilyRegistrationsForPlayersAsync(jobId, familyUserId, playerIds);
@@ -248,7 +249,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 existing.Modified = DateTime.UtcNow;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
-                ApplyFormValues(existing, sel, ctx.NameToProperty, ctx.WritableProps);
+                FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
                 await ApplyInitialFeesAsync(existing, team.TeamId, team.FeeBase, team.PerRegistrantFee);
                 AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             }
@@ -278,7 +279,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            ApplyFormValues(regToUpdate, sel, ctx.NameToProperty, ctx.WritableProps);
+            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
@@ -291,7 +292,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
         var newTeamBase = team.FeeBase ?? team.PerRegistrantFee ?? await ResolveTeamBaseFeeAsync(team.TeamId);
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
-        ApplyFormValues(regToUpdate, sel, ctx.NameToProperty, ctx.WritableProps);
+        FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         if (sameBase)
         {
             regToUpdate.AssignedTeamId = team.TeamId;
@@ -315,7 +316,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     {
         if (regToUpdate.AssignedTeamId == team.TeamId)
         {
-            ApplyFormValues(regToUpdate, sel, ctx.NameToProperty, ctx.WritableProps);
+            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
@@ -338,7 +339,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 RoleId = RoleConstants.Player,
                 Assignment = $"Player: {team.TeamName}"
             };
-            ApplyFormValues(newReg, sel, ctx.NameToProperty, ctx.WritableProps);
+            FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             await ApplyInitialFeesAsync(newReg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
@@ -347,7 +348,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         regToUpdate.AssignedTeamId = team.TeamId;
         regToUpdate.Assignment = $"Player: {team.TeamName}";
-        ApplyFormValues(regToUpdate, sel, ctx.NameToProperty, ctx.WritableProps);
+        FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
     }
@@ -367,7 +368,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             RoleId = RoleConstants.Player,
             Assignment = $"Player: {team.TeamName}"
         };
-        ApplyFormValues(reg, sel, ctx.NameToProperty, ctx.WritableProps);
+        FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         await ApplyInitialFeesAsync(reg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
@@ -487,300 +488,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         return null;
     }
 
-    private static Dictionary<string, string> BuildFieldNameToPropertyMap(string? metadataJson)
-    {
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(metadataJson)) return map;
-        try
-        {
-            using var doc = JsonDocument.Parse(metadataJson);
-            if (doc.RootElement.TryGetProperty("fields", out var fieldsEl) && fieldsEl.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var f in fieldsEl.EnumerateArray())
-                {
-                    if (TryExtractFieldMapping(f, out var name, out var dbCol))
-                    {
-                        map[name!] = dbCol!;
-                    }
-                }
-            }
-        }
-        catch (Exception)
-        {
-            // Ignore malformed metadata and return empty map
-        }
-        return map;
-    }
-
-    private static bool TryExtractFieldMapping(JsonElement f, out string? name, out string? dbCol)
-    {
-        name = f.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
-        dbCol = f.TryGetProperty("dbColumn", out var dEl) ? dEl.GetString() : null;
-
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
-
-        // Exclude fields marked hidden or adminOnly via visibility
-        if (IsFieldExcludedByVisibility(f))
-            return false;
-
-        // Do not include admin-only fields in the writable map
-        if (IsAdminOnlyField(f))
-            return false;
-
-        dbCol = !string.IsNullOrWhiteSpace(dbCol) ? dbCol : name;
-        return true;
-    }
-
-    private static bool IsFieldExcludedByVisibility(JsonElement f)
-    {
-        if (f.TryGetProperty("visibility", out var visEl) && visEl.ValueKind == JsonValueKind.String)
-        {
-            var vis = visEl.GetString();
-            if (string.Equals(vis, "hidden", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(vis, "adminOnly", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static bool IsAdminOnlyField(JsonElement f)
-    {
-        if (TryGetPropertyCI(f, "adminOnly", out var adminEl))
-        {
-            var adminFlag = adminEl.ValueKind == JsonValueKind.True ||
-                             (adminEl.ValueKind == JsonValueKind.String && bool.TryParse(adminEl.GetString(), out var b) && b);
-            return adminFlag;
-        }
-        return false;
-    }
-
-    // Helper: case-insensitive property lookup on JsonElement objects
-    private static bool TryGetPropertyCI(JsonElement obj, string name, out JsonElement value)
-    {
-        value = default;
-        if (obj.ValueKind != JsonValueKind.Object) return false;
-        foreach (var p in obj.EnumerateObject())
-        {
-            if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = p.Value;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Dictionary<string, System.Reflection.PropertyInfo> BuildWritablePropertyMap()
-    {
-        var props = typeof(Registrations).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-        var dict = new Dictionary<string, System.Reflection.PropertyInfo>(StringComparer.OrdinalIgnoreCase);
-        foreach (var p in props)
-        {
-            if (!p.CanWrite) continue;
-            if (!ShouldIncludeProperty(p)) continue;
-            if (string.Equals(p.Name, nameof(Registrations.AssignedTeamId), StringComparison.OrdinalIgnoreCase)) continue;
-            dict[p.Name] = p;
-        }
-        return dict;
-    }
-
-    private static bool ShouldIncludeProperty(System.Reflection.PropertyInfo p)
-    {
-        if (!p.CanRead || p.GetIndexParameters().Length > 0) return false;
-        var name = p.Name;
-        var type = p.PropertyType;
-
-        if (typeof(System.Collections.IEnumerable).IsAssignableFrom(type) && type != typeof(string))
-        {
-            return false;
-        }
-
-        static bool IsSimple(Type t)
-        {
-            var u = Nullable.GetUnderlyingType(t) ?? t;
-            return u.IsPrimitive || u.IsEnum || u == typeof(string) || u == typeof(decimal) || u == typeof(DateTime) || u == typeof(Guid);
-        }
-        if (!IsSimple(type)) return false;
-        if (name is nameof(Registrations.RegistrationAi)
-            or nameof(Registrations.RegistrationId)
-            or nameof(Registrations.RegistrationTs)
-            or nameof(Registrations.RoleId)
-            or nameof(Registrations.UserId)
-            or nameof(Registrations.FamilyUserId)
-            or nameof(Registrations.BActive)
-            or nameof(Registrations.BConfirmationSent)
-            or nameof(Registrations.JobId)
-            or nameof(Registrations.LebUserId)
-            or nameof(Registrations.Modified)
-            or nameof(Registrations.RegistrationFormName)
-            or nameof(Registrations.PaymentMethodChosen)
-            or nameof(Registrations.FeeProcessing)
-            or nameof(Registrations.FeeBase)
-            or nameof(Registrations.FeeDiscount)
-            or nameof(Registrations.FeeDiscountMp)
-            or nameof(Registrations.FeeDonation)
-            or nameof(Registrations.FeeLatefee)
-            or nameof(Registrations.FeeTotal)
-            or nameof(Registrations.OwedTotal)
-            or nameof(Registrations.PaidTotal)
-            or nameof(Registrations.CustomerId)
-            or nameof(Registrations.DiscountCodeId)
-            or nameof(Registrations.AssignedTeamId)
-            or nameof(Registrations.AssignedAgegroupId)
-            or nameof(Registrations.AssignedCustomerId)
-            or nameof(Registrations.AssignedDivId)
-            or nameof(Registrations.AssignedLeagueId)
-            or nameof(Registrations.RegformId)
-            or nameof(Registrations.AccountingApplyToSummaries))
-        {
-            return false;
-        }
-        if (!string.Equals(name, nameof(Registrations.SportAssnId), StringComparison.Ordinal) &&
-            (name.EndsWith("Id", StringComparison.Ordinal) || name.EndsWith("ID", StringComparison.Ordinal)))
-        {
-            return false;
-        }
-        // Allow waiver acceptance booleans to be written (client injects them). Still exclude uploaded flags.
-        if (name.StartsWith("BUploaded", StringComparison.Ordinal))
-        {
-            return false;
-        }
-        if (name.StartsWith("Adn", StringComparison.Ordinal) || name.StartsWith("Regsaver", StringComparison.Ordinal))
-        {
-            return false;
-        }
-        return true;
-    }
-
-    private static void ApplyFormValues(Registrations reg, PreSubmitTeamSelectionDto sel,
-        Dictionary<string, string> nameToProperty,
-        Dictionary<string, System.Reflection.PropertyInfo> writableProps)
-    {
-        if (sel.FormValues == null || sel.FormValues.Count == 0) return;
-        foreach (var kvp in sel.FormValues)
-        {
-            var incomingName = kvp.Key;
-            var jsonVal = kvp.Value;
-            var targetName = ResolveTargetPropertyName(incomingName, nameToProperty, writableProps);
-            if (targetName == null) continue;
-            if (!writableProps.TryGetValue(targetName, out var prop)) continue;
-            if (TryConvertAndAssign(jsonVal, prop.PropertyType, out var converted))
-            {
-                prop.SetValue(reg, converted);
-            }
-        }
-    }
-
-    private static string? ResolveTargetPropertyName(string incoming,
-        Dictionary<string, string> nameToProperty,
-        Dictionary<string, System.Reflection.PropertyInfo> writable)
-    {
-        if (nameToProperty.TryGetValue(incoming, out var target) && writable.ContainsKey(target))
-        {
-            return target;
-        }
-        if (writable.ContainsKey(incoming)) return incoming;
-        return null;
-    }
-
-    private static bool TryConvertAndAssign(JsonElement json, Type targetType, out object? boxed)
-    {
-        boxed = null;
-        var t = Nullable.GetUnderlyingType(targetType) ?? targetType;
-        try
-        {
-            if (t == typeof(string))
-                return TryConvertToString(json, out boxed);
-            if (t == typeof(int))
-                return TryConvertToInt(json, out boxed);
-            if (t == typeof(long))
-                return TryConvertToLong(json, out boxed);
-            if (t == typeof(decimal))
-                return TryConvertToDecimal(json, out boxed);
-            if (t == typeof(double))
-                return TryConvertToDouble(json, out boxed);
-            if (t == typeof(bool))
-                return TryConvertToBool(json, out boxed);
-            if (t == typeof(DateTime))
-                return TryConvertToDateTime(json, out boxed);
-            if (t == typeof(Guid))
-                return TryConvertToGuid(json, out boxed);
-        }
-        catch { return false; }
-        return false;
-    }
-
-    private static bool TryConvertToString(JsonElement json, out object? boxed)
-    {
-        boxed = json.ValueKind == JsonValueKind.Null ? null : json.ToString();
-        return true;
-    }
-
-    private static bool TryConvertToInt(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && int.TryParse(json.GetString(), out var iv)) { boxed = iv; return true; }
-        if (json.TryGetInt32(out var i)) { boxed = i; return true; }
-        return false;
-    }
-
-    private static bool TryConvertToLong(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && long.TryParse(json.GetString(), out var lv)) { boxed = lv; return true; }
-        if (json.TryGetInt64(out var l)) { boxed = l; return true; }
-        return false;
-    }
-
-    private static bool TryConvertToDecimal(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && decimal.TryParse(json.GetString(), out var dv)) { boxed = dv; return true; }
-        if (json.TryGetDecimal(out var d)) { boxed = d; return true; }
-        return false;
-    }
-
-    private static bool TryConvertToDouble(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && double.TryParse(json.GetString(), out var xv)) { boxed = xv; return true; }
-        if (json.TryGetDouble(out var x)) { boxed = x; return true; }
-        return false;
-    }
-
-    private static bool TryConvertToBool(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && bool.TryParse(json.GetString(), out var bv)) { boxed = bv; return true; }
-        if (json.ValueKind == JsonValueKind.Number) { boxed = json.GetInt32() != 0; return true; }
-        if (json.ValueKind == JsonValueKind.True || json.ValueKind == JsonValueKind.False) { boxed = json.GetBoolean(); return true; }
-        return false;
-    }
-
-    private static bool TryConvertToDateTime(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && DateTime.TryParse(json.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-        {
-            boxed = dt;
-            return true;
-        }
-        return false;
-    }
-
-    private static bool TryConvertToGuid(JsonElement json, out object? boxed)
-    {
-        boxed = null;
-        if (json.ValueKind == JsonValueKind.String && Guid.TryParse(json.GetString(), out var g))
-        {
-            boxed = g;
-            return true;
-        }
-        return false;
-    }
 }
 
 

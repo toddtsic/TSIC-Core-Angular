@@ -312,6 +312,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<StoreColors> StoreColors { get; set; }
 
+    public virtual DbSet<StoreItemImage> StoreItemImage { get; set; }
+
     public virtual DbSet<StoreItemSkus> StoreItemSkus { get; set; }
 
     public virtual DbSet<StoreItems> StoreItems { get; set; }
@@ -6068,6 +6070,25 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.LebUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__StoreColo__lebUs__0EC58E7F");
+        });
+
+        modelBuilder.Entity<StoreItemImage>(entity =>
+        {
+            entity.HasKey(e => e.StoreItemImageId).HasName("PK__StoreIte__316AE544CB8CCEFF");
+
+            entity.ToTable("StoreItemImage", "stores");
+
+            entity.Property(e => e.AltText).HasMaxLength(200);
+            entity.Property(e => e.ImageUrl).HasMaxLength(500);
+            entity.Property(e => e.LebUserId).HasMaxLength(128);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.StoreItem).WithMany(p => p.StoreItemImage)
+                .HasForeignKey(d => d.StoreItemId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StoreItemImage_StoreItem");
         });
 
         modelBuilder.Entity<StoreItemSkus>(entity =>

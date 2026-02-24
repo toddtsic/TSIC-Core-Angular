@@ -1,0 +1,94 @@
+<div class="walk-up-container">
+	<div class="card shadow-sm walk-up-card">
+		<div class="card-body">
+			<div class="text-center mb-4">
+				<i class="bi bi-shop fs-1 text-primary"></i>
+				<h3 class="mt-2 mb-1">Welcome to the Store</h3>
+				<p class="text-body-secondary mb-0">Just a few quick details and you're in — shopping takes less than a minute.</p>
+			</div>
+
+			@if (errorMessage()) {
+				<div class="alert alert-danger py-2">
+					<i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage() }}
+				</div>
+			}
+
+			<form (ngSubmit)="submit()" #walkUpForm="ngForm">
+				<!-- Name row -->
+				<div class="row g-3 mb-3">
+					<div class="col-6">
+						<label for="firstName" class="form-label fw-medium">First Name</label>
+						<input id="firstName" type="text" class="form-control form-control-lg"
+							   [ngModel]="firstName()" (ngModelChange)="firstName.set($event)"
+							   name="firstName" required autocomplete="given-name">
+					</div>
+					<div class="col-6">
+						<label for="lastName" class="form-label fw-medium">Last Name</label>
+						<input id="lastName" type="text" class="form-control form-control-lg"
+							   [ngModel]="lastName()" (ngModelChange)="lastName.set($event)"
+							   name="lastName" required autocomplete="family-name">
+					</div>
+				</div>
+
+				<!-- Email -->
+				<div class="mb-3">
+					<label for="email" class="form-label fw-medium">Email</label>
+					<input id="email" type="email" class="form-control form-control-lg"
+						   [ngModel]="email()" (ngModelChange)="email.set($event)"
+						   name="email" required autocomplete="email"
+						   placeholder="you@example.com">
+				</div>
+
+				<!-- Phone -->
+				<div class="mb-3">
+					<label for="phone" class="form-label fw-medium">Phone</label>
+					<input id="phone" type="tel" class="form-control form-control-lg"
+						   [ngModel]="phone()" (ngModelChange)="phone.set($event)"
+						   name="phone" required autocomplete="tel">
+				</div>
+
+				<!-- Street Address -->
+				<div class="mb-3">
+					<label for="streetAddress" class="form-label fw-medium">Street Address</label>
+					<input id="streetAddress" type="text" class="form-control form-control-lg"
+						   [ngModel]="streetAddress()" (ngModelChange)="streetAddress.set($event)"
+						   name="streetAddress" required autocomplete="street-address">
+				</div>
+
+				<!-- City / State / ZIP row -->
+				<div class="row g-3 mb-4">
+					<div class="col-5">
+						<label for="city" class="form-label fw-medium">City</label>
+						<input id="city" type="text" class="form-control form-control-lg"
+							   [ngModel]="city()" (ngModelChange)="city.set($event)"
+							   name="city" required autocomplete="address-level2">
+					</div>
+					<div class="col-3">
+						<label for="state" class="form-label fw-medium">State</label>
+						<input id="state" type="text" class="form-control form-control-lg"
+							   [ngModel]="state()" (ngModelChange)="state.set($event)"
+							   name="state" required autocomplete="address-level1"
+							   maxlength="2" style="text-transform: uppercase">
+					</div>
+					<div class="col-4">
+						<label for="zip" class="form-label fw-medium">ZIP</label>
+						<input id="zip" type="text" class="form-control form-control-lg"
+							   [ngModel]="zip()" (ngModelChange)="zip.set($event)"
+							   name="zip" required autocomplete="postal-code"
+							   maxlength="10">
+					</div>
+				</div>
+
+				<!-- Submit -->
+				<button type="submit" class="btn btn-primary btn-lg w-100"
+						[disabled]="!isValid || isLoading()">
+					@if (isLoading()) {
+						<span class="spinner-border spinner-border-sm me-2"></span>Registering...
+					} @else {
+						<i class="bi bi-arrow-right-circle me-2"></i>Let's Go
+					}
+				</button>
+			</form>
+		</div>
+	</div>
+</div>

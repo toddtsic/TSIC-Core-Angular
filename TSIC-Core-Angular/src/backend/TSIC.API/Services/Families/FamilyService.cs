@@ -4,6 +4,7 @@ using System.Transactions;
 using System.Text.Json;
 using TSIC.Contracts.Dtos;
 using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Users;
 using TSIC.Application.Services.Shared.Mapping;
@@ -53,50 +54,6 @@ public sealed class FamilyService : IFamilyService
         _userRepo = userRepo;
         _jobDiscountRepo = jobDiscountRepo;
         _familyMemberRepo = familyMemberRepo;
-    }
-
-    // Generic mapper ported from controller: include ANY dbColumn-backed metadata field present on Registrations.
-    private static IReadOnlyDictionary<string, JsonElement> BuildFormValuesDictionary(TSIC.Domain.Entities.Registrations reg, List<(string Name, string DbColumn)> mapped)
-    {
-        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        if (mapped.Count == 0) return dict;
-
-        var regType = typeof(TSIC.Domain.Entities.Registrations);
-        var excluded = new HashSet<string>(new[]
-        {
-            nameof(TSIC.Domain.Entities.Registrations.RegistrationId), nameof(TSIC.Domain.Entities.Registrations.FamilyUserId), nameof(TSIC.Domain.Entities.Registrations.UserId), nameof(TSIC.Domain.Entities.Registrations.AssignedTeamId), nameof(TSIC.Domain.Entities.Registrations.LebUserId),
-            nameof(TSIC.Domain.Entities.Registrations.FeeBase), nameof(TSIC.Domain.Entities.Registrations.FeeProcessing), nameof(TSIC.Domain.Entities.Registrations.FeeDiscount), nameof(TSIC.Domain.Entities.Registrations.FeeDonation), nameof(TSIC.Domain.Entities.Registrations.FeeLatefee), nameof(TSIC.Domain.Entities.Registrations.FeeTotal), nameof(TSIC.Domain.Entities.Registrations.OwedTotal), nameof(TSIC.Domain.Entities.Registrations.PaidTotal),
-            nameof(TSIC.Domain.Entities.Registrations.Modified),
-            "JsonOptions", "JsonFormValues"
-        }, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (name, dbCol) in mapped)
-        {
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(dbCol)) continue;
-            var prop = regType.GetProperty(dbCol, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
-            if (prop == null) continue;
-            if (excluded.Contains(prop.Name)) continue;
-
-            object? value = prop.GetValue(reg);
-            if (value == null) continue;
-
-            JsonElement cloned;
-            switch (value)
-            {
-                case DateTime dt:
-                    var normalized = dt.TimeOfDay == TimeSpan.Zero ? dt.ToString("yyyy-MM-dd") : dt.ToString("O");
-                    cloned = JsonDocument.Parse(JsonSerializer.Serialize(normalized)).RootElement.Clone();
-                    break;
-                case DateTimeOffset dto:
-                    cloned = JsonDocument.Parse(JsonSerializer.Serialize(dto.ToString("O"))).RootElement.Clone();
-                    break;
-                default:
-                    cloned = JsonDocument.Parse(JsonSerializer.Serialize(value)).RootElement.Clone();
-                    break;
-            }
-            dict[name] = cloned;
-        }
-        return dict;
     }
 
     public async Task<FamilyPlayersResponseDto> GetFamilyPlayersAsync(string familyUserId, string jobPath)
@@ -588,7 +545,7 @@ public sealed class FamilyService : IFamilyService
         HashSet<string> visibleFieldNames,
         Dictionary<Guid, string> teamNameMap)
     {
-        var fv = BuildFormValuesDictionary(r, mappedFields);
+        var fv = FormValueMapper.BuildFormValuesDictionary(r, mappedFields);
         var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
 
         return new FamilyPlayerRegistrationDto

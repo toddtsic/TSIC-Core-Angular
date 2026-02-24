@@ -1,0 +1,14 @@
+:host {
+    display: block;
+}
+
+.step-content {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.step-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-4);
+}

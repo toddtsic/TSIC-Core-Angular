@@ -225,6 +225,8 @@ public partial class Jobs
 
     public Guid? PrimaryContactRegistrationId { get; set; }
 
+    public string? AdultProfileMetadataJson { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

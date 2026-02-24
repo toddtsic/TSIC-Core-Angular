@@ -42,8 +42,8 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
                 JobName = j.JobName,
                 CustomerName = string.Empty,
                 CoreRegformPlayer = j.RegformNamePlayer ?? string.Empty,
-                PlayerProfileMetadataJson = string.Empty,
-                AdultProfileMetadataJson = string.Empty
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson ?? string.Empty,
+                AdultProfileMetadataJson = j.AdultProfileMetadataJson ?? string.Empty
             })
             .SingleOrDefaultAsync();
     }

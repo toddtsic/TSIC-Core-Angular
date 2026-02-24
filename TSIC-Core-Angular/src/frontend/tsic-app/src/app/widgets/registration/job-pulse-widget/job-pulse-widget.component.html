@@ -1,0 +1,19 @@
+@if (hasContent()) {
+	<div class="pulse-grid">
+		@for (card of cards(); track card.title) {
+			<div class="pulse-card" [class.coming-soon]="card.style === 'coming-soon'">
+				<div class="pulse-icon">
+					<i class="bi" [class]="card.icon"></i>
+				</div>
+				<div class="pulse-body">
+					<h6 class="pulse-title">{{ card.title }}</h6>
+					@if (card.cta && card.link) {
+						<a [routerLink]="card.link" class="btn btn-sm btn-primary pulse-cta">
+							{{ card.cta }}
+						</a>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}

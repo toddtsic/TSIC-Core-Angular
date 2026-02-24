@@ -30,12 +30,20 @@ public class StoreItemRepository : IStoreItemRepository
             .Select(i => new StoreItemSummaryDto
             {
                 StoreItemId = i.StoreItemId,
+                StoreId = i.StoreId,
                 StoreItemName = i.StoreItemName,
                 StoreItemPrice = i.StoreItemPrice,
                 Active = i.Active,
                 SortOrder = i.SortOrder,
                 SkuCount = i.StoreItemSkus.Count,
-                ActiveSkuCount = i.StoreItemSkus.Count(s => s.Active)
+                ActiveSkuCount = i.StoreItemSkus.Count(s => s.Active),
+                ImageUrls = i.StoreItemImage
+                    .OrderBy(img => img.DisplayOrder)
+                    .Select(img => img.ImageUrl)
+                    .ToList(),
+                SingleSkuId = i.StoreItemSkus.Count(s => s.Active) == 1
+                    ? i.StoreItemSkus.First(s => s.Active).StoreSkuId
+                    : (int?)null
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -49,6 +57,7 @@ public class StoreItemRepository : IStoreItemRepository
             .Select(i => new StoreItemDto
             {
                 StoreItemId = i.StoreItemId,
+                StoreId = i.StoreId,
                 StoreItemName = i.StoreItemName,
                 StoreItemComments = i.StoreItemComments,
                 StoreItemPrice = i.StoreItemPrice,
@@ -79,8 +88,10 @@ public class StoreItemRepository : IStoreItemRepository
                             .Where(cbs => cbs.Active && !cbs.StoreCartBatch.StoreCartBatchAccounting.Any())
                             .Sum(cbs => cbs.Quantity)
                 }).ToList(),
-                // ImageUrls populated by the service layer (file-system convention-based)
-                ImageUrls = new List<string>()
+                ImageUrls = i.StoreItemImage
+                    .OrderBy(img => img.DisplayOrder)
+                    .Select(img => img.ImageUrl)
+                    .ToList()
             })
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);

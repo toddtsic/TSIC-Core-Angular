@@ -35,6 +35,11 @@ public interface IStoreCartService
     Task<SkuAvailabilityDto> CheckAvailabilityAsync(int storeSkuId);
 
     /// <summary>
+    /// Check availability for multiple SKUs in a batch (2 DB queries instead of 2N).
+    /// </summary>
+    Task<List<SkuAvailabilityDto>> CheckAvailabilityBatchAsync(List<int> storeSkuIds);
+
+    /// <summary>
     /// Validate cart, recalculate totals, record payment, mark items paid.
     /// </summary>
     Task<StoreCheckoutResultDto> CheckoutAsync(Guid jobId, string familyUserId, string userId,

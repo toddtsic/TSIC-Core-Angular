@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Store;
+using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
@@ -17,17 +19,23 @@ public class StoreController : ControllerBase
     private readonly IStoreCartService _cartService;
     private readonly IStoreAdminService _adminService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IStoreWalkUpService _walkUpService;
+    private readonly IRegistrationAccountingRepository _accountingRepo;
 
     public StoreController(
         IStoreCatalogService catalogService,
         IStoreCartService cartService,
         IStoreAdminService adminService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IStoreWalkUpService walkUpService,
+        IRegistrationAccountingRepository accountingRepo)
     {
         _catalogService = catalogService;
         _cartService = cartService;
         _adminService = adminService;
         _jobLookupService = jobLookupService;
+        _walkUpService = walkUpService;
+        _accountingRepo = accountingRepo;
     }
 
     // ═══════════════════════════════════════════
@@ -309,6 +317,27 @@ public class StoreController : ControllerBase
         }
     }
 
+    [HttpGet("skus/availability")]
+    [ProducesResponseType(typeof(List<SkuAvailabilityDto>), 200)]
+    public async Task<IActionResult> CheckAvailabilityBatch([FromQuery] string skuIds)
+    {
+        if (string.IsNullOrWhiteSpace(skuIds))
+            return BadRequest(new { message = "skuIds query parameter is required." });
+
+        var ids = skuIds.Split(',')
+            .Select(s => int.TryParse(s.Trim(), out var id) ? id : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (ids.Count == 0)
+            return BadRequest(new { message = "No valid SKU IDs provided." });
+
+        var availability = await _cartService.CheckAvailabilityBatchAsync(ids);
+        return Ok(availability);
+    }
+
     [HttpPost("checkout")]
     [ProducesResponseType(typeof(StoreCheckoutResultDto), 200)]
     public async Task<IActionResult> Checkout([FromBody] StoreCheckoutRequest request)
@@ -323,6 +352,14 @@ public class StoreController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpGet("payment-methods")]
+    [ProducesResponseType(typeof(List<PaymentMethodOptionDto>), 200)]
+    public async Task<IActionResult> GetPaymentMethods(CancellationToken ct)
+    {
+        var methods = await _accountingRepo.GetPaymentMethodOptionsAsync(ct);
+        return Ok(methods);
     }
 
     // ═══════════════════════════════════════════
@@ -428,6 +465,26 @@ public class StoreController : ControllerBase
         {
             await _adminService.SignForPickupAsync(jobId, userId, request);
             return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  WALK-UP — Anonymous Registration
+    // ═══════════════════════════════════════════
+
+    [HttpPost("walk-up-register")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(StoreWalkUpRegisterResponse), 200)]
+    public async Task<IActionResult> WalkUpRegister([FromBody] StoreWalkUpRegisterRequest request)
+    {
+        try
+        {
+            var result = await _walkUpService.RegisterAsync(request);
+            return Ok(result);
         }
         catch (InvalidOperationException ex)
         {

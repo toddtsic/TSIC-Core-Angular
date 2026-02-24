@@ -35,6 +35,27 @@
 	}
 }
 
+// ── Item thumbnails ──
+
+.item-thumb {
+	width: 36px;
+	height: 36px;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.item-thumb-placeholder {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	background: rgba(var(--bs-secondary-rgb), 0.1);
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	flex-shrink: 0;
+}
+
 // ── SKU expansion ──
 
 .sku-expansion {

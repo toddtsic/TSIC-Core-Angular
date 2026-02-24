@@ -182,6 +182,39 @@ public sealed class StoreCartService : IStoreCartService
         };
     }
 
+    public async Task<List<SkuAvailabilityDto>> CheckAvailabilityBatchAsync(List<int> storeSkuIds)
+    {
+        if (storeSkuIds.Count == 0) return [];
+
+        // Fetch all SKUs to get MaxCanSell
+        var skus = new List<(int SkuId, int MaxCanSell)>();
+        foreach (var skuId in storeSkuIds)
+        {
+            var sku = await _itemRepo.GetSkuByIdAsync(skuId);
+            if (sku != null) skus.Add((skuId, sku.MaxCanSell));
+        }
+
+        var validIds = skus.Select(s => s.SkuId).ToList();
+
+        // 2 queries for all SKUs (instead of 2N)
+        var soldCounts = await _cartRepo.GetSoldCountsForSkusAsync(validIds);
+        var inCartCounts = await _cartRepo.GetInCartCountsForSkusAsync(validIds);
+
+        return skus.Select(s =>
+        {
+            var sold = soldCounts.GetValueOrDefault(s.SkuId, 0);
+            var inCart = inCartCounts.GetValueOrDefault(s.SkuId, 0);
+            return new SkuAvailabilityDto
+            {
+                StoreSkuId = s.SkuId,
+                MaxCanSell = s.MaxCanSell,
+                SoldCount = sold,
+                InCartCount = inCart,
+                AvailableCount = s.MaxCanSell - sold - inCart
+            };
+        }).ToList();
+    }
+
     public async Task<StoreCheckoutResultDto> CheckoutAsync(
         Guid jobId, string familyUserId, string userId, StoreCheckoutRequest request)
     {

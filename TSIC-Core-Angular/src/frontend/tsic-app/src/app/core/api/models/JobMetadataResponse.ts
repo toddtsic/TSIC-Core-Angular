@@ -28,7 +28,10 @@ export type JobMetadataResponse = {
     adnArbBillingOccurences?: number;
     adnArbIntervalLength?: number;
     adnArbStartDate?: string | null;
+    bRegistrationAllowPlayer?: boolean;
     bRegistrationAllowTeam?: boolean;
+    bEnableStore?: boolean;
+    bScheduleAllowPublicAccess?: boolean;
     bBannerIsCustom?: boolean;
     jobTypeName?: string | null;
 };

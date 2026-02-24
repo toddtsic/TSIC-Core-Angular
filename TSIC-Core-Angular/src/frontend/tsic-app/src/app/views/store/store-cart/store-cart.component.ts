@@ -12,6 +12,7 @@ import type { StoreCartLineItemDto } from '@core/api';
 	imports: [CommonModule, FormsModule, RouterLink],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-cart.component.html',
+	styleUrl: './store-cart.component.scss',
 })
 export class StoreCartComponent {
 	private readonly store = inject(StoreService);

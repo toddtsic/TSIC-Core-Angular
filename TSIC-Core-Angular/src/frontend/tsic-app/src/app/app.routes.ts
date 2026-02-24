@@ -93,6 +93,11 @@ export const routes: Routes = [
 				path: 'register-team',
 				loadComponent: () => import('./views/registration/wizards-v2/team/team-wizard.component').then(m => m.TeamWizardV2Component)
 			},
+			// Adult registration wizard (v2)
+			{
+				path: 'register-adult',
+				loadComponent: () => import('./views/registration/wizards-v2/adult/adult-wizard.component').then(m => m.AdultWizardV2Component)
+			},
 			{
 				path: 'home',
 				loadComponent: () => import('./views/home/job-home/job-home.component').then(m => m.JobHomeComponent)
@@ -195,7 +200,14 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				loadComponent: () => import('./views/arb/arb-update-cc.component').then(m => m.ArbUpdateCcComponent)
 			},
-			// Store — walk-up storefront (authenticated users)
+			// Store — walk-up anonymous registration
+			{
+				path: 'store/walk-up',
+				canActivate: [authGuard],
+				data: { allowAnonymous: true },
+				loadComponent: () => import('./views/store/store-walk-up/store-walk-up.component').then(m => m.StoreWalkUpComponent)
+			},
+			// Store — authenticated storefront
 			{
 				path: 'store',
 				canActivate: [authGuard],

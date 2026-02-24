@@ -35,6 +35,38 @@ public sealed class ProfileMetadataService : IProfileMetadataService
         return result;
     }
 
+    public ParsedProfileMetadata ParseForRole(string? roleKeyedMetadataJson, string roleKey, string? jsonOptions)
+    {
+        var result = new ParsedProfileMetadata();
+        if (string.IsNullOrWhiteSpace(roleKeyedMetadataJson) || string.IsNullOrWhiteSpace(roleKey))
+            return result;
+
+        using var doc = JsonDocument.Parse(roleKeyedMetadataJson);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            return result;
+
+        if (!doc.RootElement.TryGetProperty(roleKey, out var roleEl) || roleEl.ValueKind != JsonValueKind.Object)
+            return result;
+
+        if (!roleEl.TryGetProperty("fields", out var fieldsEl) || fieldsEl.ValueKind != JsonValueKind.Array)
+            return result;
+
+        var (typed, mapped, waiver) = ParseFields(fieldsEl);
+
+        if (!string.IsNullOrWhiteSpace(jsonOptions) && typed.Count > 0)
+        {
+            EnrichOptionsFromJson(jsonOptions!, typed);
+        }
+
+        var visible = ComputeVisible(typed);
+
+        result.MappedFields = mapped;
+        result.TypedFields = typed;
+        result.WaiverFieldNames = waiver.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        result.VisibleFieldNames = visible;
+        return result;
+    }
+
     public string? ResolveConstraintType(string? coreRegformPlayer)
     {
         if (string.IsNullOrWhiteSpace(coreRegformPlayer)) return null;
