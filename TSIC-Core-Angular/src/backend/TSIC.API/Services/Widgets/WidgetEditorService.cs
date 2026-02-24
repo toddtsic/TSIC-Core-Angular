@@ -389,6 +389,25 @@ public sealed class WidgetEditorService : IWidgetEditorService
         sb.AppendLine("END");
         sb.AppendLine();
 
+        // UserWidget (per-user dashboard customization)
+        sb.AppendLine("IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'widgets' AND t.name = 'UserWidget')");
+        sb.AppendLine("BEGIN");
+        sb.AppendLine("    CREATE TABLE [widgets].[UserWidget] (");
+        sb.AppendLine("        [UserWidgetId]   INT IDENTITY(1,1)    NOT NULL,");
+        sb.AppendLine("        [RegistrationId] UNIQUEIDENTIFIER     NOT NULL,");
+        sb.AppendLine("        [WidgetId]       INT                  NOT NULL,");
+        sb.AppendLine("        [CategoryId]     INT                  NOT NULL,");
+        sb.AppendLine("        [DisplayOrder]   INT                  NOT NULL DEFAULT 0,");
+        sb.AppendLine("        [IsHidden]       BIT                  NOT NULL DEFAULT 0,");
+        sb.AppendLine("        [Config]         NVARCHAR(MAX)        NULL,");
+        sb.AppendLine("        CONSTRAINT [PK_widgets_UserWidget] PRIMARY KEY CLUSTERED ([UserWidgetId]),");
+        sb.AppendLine("        CONSTRAINT [FK_widgets_UserWidget_Widget] FOREIGN KEY ([WidgetId]) REFERENCES [widgets].[Widget] ([WidgetId]),");
+        sb.AppendLine("        CONSTRAINT [FK_widgets_UserWidget_Category] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),");
+        sb.AppendLine("        CONSTRAINT [UQ_widgets_UserWidget_Reg_Widget] UNIQUE ([RegistrationId], [WidgetId])");
+        sb.AppendLine("    );");
+        sb.AppendLine("END");
+        sb.AppendLine();
+
         // Schema migration (Section → Workspace)
         sb.AppendLine("-- Schema migration: Section -> Workspace (prod backup compatibility)");
         sb.AppendLine("IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_widgets_WidgetCategory_Section')");
