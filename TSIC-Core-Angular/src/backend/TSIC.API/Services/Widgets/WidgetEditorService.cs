@@ -433,6 +433,15 @@ public sealed class WidgetEditorService : IWidgetEditorService
         sb.AppendLine("    EXEC sp_rename 'widgets.WidgetCategory.Section', 'Workspace', 'COLUMN';");
         sb.AppendLine();
 
+        // Widget table migration: add DefaultConfig column (prod backups won't have it)
+        sb.AppendLine("-- Widget table migration: add DefaultConfig column (prod backups won't have it)");
+        sb.AppendLine("IF COL_LENGTH('widgets.Widget', 'DefaultConfig') IS NULL");
+        sb.AppendLine("BEGIN");
+        sb.AppendLine("    ALTER TABLE [widgets].[Widget] ADD [DefaultConfig] NVARCHAR(MAX) NULL;");
+        sb.AppendLine("    PRINT 'Added column: widgets.Widget.DefaultConfig';");
+        sb.AppendLine("END");
+        sb.AppendLine();
+
         // Constraint refresh
         sb.AppendLine("-- Refresh constraints");
         sb.AppendLine("IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_widgets_WidgetDefault_JobType_Role_Widget' AND object_id = OBJECT_ID('widgets.WidgetDefault'))");

@@ -163,7 +163,7 @@ $sb.AppendLine("        [Description]   NVARCHAR(500)     NULL,") | Out-Null
 $sb.AppendLine("        [DefaultConfig] NVARCHAR(MAX)     NULL,") | Out-Null
 $sb.AppendLine("        CONSTRAINT [PK_widgets_Widget] PRIMARY KEY CLUSTERED ([WidgetId]),") | Out-Null
 $sb.AppendLine("        CONSTRAINT [FK_widgets_Widget_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),") | Out-Null
-$sb.AppendLine("        CONSTRAINT [CK_widgets_Widget_WidgetType] CHECK ([WidgetType] IN ('content','chart-tile','status-tile','link-tile'))") | Out-Null
+$sb.AppendLine("        CONSTRAINT [CK_widgets_Widget_WidgetType] CHECK ([WidgetType] IN ('content','chart-tile','status-tile'))") | Out-Null
 $sb.AppendLine("    );") | Out-Null
 $sb.AppendLine("END") | Out-Null
 $sb.AppendLine("") | Out-Null
@@ -221,6 +221,15 @@ $sb.AppendLine("IF COL_LENGTH('widgets.WidgetCategory', 'Section') IS NOT NULL A
 $sb.AppendLine("    EXEC sp_rename 'widgets.WidgetCategory.Section', 'Workspace', 'COLUMN';") | Out-Null
 $sb.AppendLine("") | Out-Null
 
+# Widget table migration: add DefaultConfig column (prod backups won't have it)
+$sb.AppendLine("-- Widget table migration: add DefaultConfig column (prod backups won't have it)") | Out-Null
+$sb.AppendLine("IF COL_LENGTH('widgets.Widget', 'DefaultConfig') IS NULL") | Out-Null
+$sb.AppendLine("BEGIN") | Out-Null
+$sb.AppendLine("    ALTER TABLE [widgets].[Widget] ADD [DefaultConfig] NVARCHAR(MAX) NULL;") | Out-Null
+$sb.AppendLine("    PRINT 'Added column: widgets.Widget.DefaultConfig';") | Out-Null
+$sb.AppendLine("END") | Out-Null
+$sb.AppendLine("") | Out-Null
+
 # Constraint refresh
 $sb.AppendLine("-- Refresh constraints") | Out-Null
 $sb.AppendLine("IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_widgets_WidgetDefault_JobType_Role_Widget' AND object_id = OBJECT_ID('widgets.WidgetDefault'))") | Out-Null
@@ -231,7 +240,7 @@ $sb.AppendLine("") | Out-Null
 $sb.AppendLine("IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_widgets_Widget_WidgetType')") | Out-Null
 $sb.AppendLine("    ALTER TABLE [widgets].[Widget] DROP CONSTRAINT [CK_widgets_Widget_WidgetType];") | Out-Null
 $sb.AppendLine("ALTER TABLE [widgets].[Widget] ADD CONSTRAINT [CK_widgets_Widget_WidgetType]") | Out-Null
-$sb.AppendLine("    CHECK ([WidgetType] IN ('content','chart-tile','status-tile','link-tile'));") | Out-Null
+$sb.AppendLine("    CHECK ([WidgetType] IN ('content','chart-tile','status-tile'));") | Out-Null
 $sb.AppendLine("") | Out-Null
 $sb.AppendLine("PRINT 'Batch 1 complete: schema + tables + migration';") | Out-Null
 $sb.AppendLine("GO") | Out-Null

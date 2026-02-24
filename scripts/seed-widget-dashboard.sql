@@ -99,6 +99,13 @@ IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_widgets_WidgetCa
 IF COL_LENGTH('widgets.WidgetCategory', 'Section') IS NOT NULL AND COL_LENGTH('widgets.WidgetCategory', 'Workspace') IS NULL
     EXEC sp_rename 'widgets.WidgetCategory.Section', 'Workspace', 'COLUMN';
 
+-- Widget table migration: add DefaultConfig column (prod backups won't have it)
+IF COL_LENGTH('widgets.Widget', 'DefaultConfig') IS NULL
+BEGIN
+    ALTER TABLE [widgets].[Widget] ADD [DefaultConfig] NVARCHAR(MAX) NULL;
+    PRINT 'Added column: widgets.Widget.DefaultConfig';
+END
+
 -- Refresh constraints
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_widgets_WidgetDefault_JobType_Role_Widget' AND object_id = OBJECT_ID('widgets.WidgetDefault'))
     ALTER TABLE [widgets].[WidgetDefault] DROP CONSTRAINT [UQ_widgets_WidgetDefault_JobType_Role_Widget];

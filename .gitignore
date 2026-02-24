@@ -43,6 +43,7 @@ tmp_backup_files.txt
 # Documentation with real secrets (keep local only)
 docs/iis-env-secrets-setup.md
 docs/Security/iis-env-secrets-setup.local.ps1
+docs/Demos/SCHEDULE-A-DEMO.local.md
 
 # Temp swagger exports
 *temp-swagger*
