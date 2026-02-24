@@ -17,6 +17,10 @@ Value mapping (user-secrets ➜ IIS env var):
 - VerticalInsure:ProdSecret ➜ VI_PROD_SECRET
 - AuthorizeNet:SandboxLoginId ➜ ADN_SANDBOX_LOGINID
 - AuthorizeNet:SandboxTransactionKey ➜ ADN_SANDBOX_TRANSACTIONKEY
+- UsLax:ClientId ➜ USLAX_CLIENT_ID
+- UsLax:Secret ➜ USLAX_SECRET
+- UsLax:Username ➜ USLAX_USERNAME
+- UsLax:Password ➜ USLAX_PASSWORD
 
 ### Server apply (no user-secrets needed)
 Run this on the IIS server (fill the values first). This does **not** read user-secrets.
@@ -45,6 +49,10 @@ $envVars = @{
   "ADN_SANDBOX_LOGINID"   = "XXXXXXXXXXXX"
   "ADN_SANDBOX_TRANSACTIONKEY" = "XXXXXXXXXXXX"
   "USLAX_API_BASE"        = "https://api.usalacrosse.com/"
+  "USLAX_CLIENT_ID"       = "XXXXXXXXXXXX"
+  "USLAX_SECRET"          = "XXXXXXXXXXXX"
+  "USLAX_USERNAME"        = "XXXXXXXXXXXX"
+  "USLAX_PASSWORD"        = "XXXXXXXXXXXX"
 }
 
 # =============================================================================
@@ -184,7 +192,8 @@ To test that the API actually reads them (requires app to be running):
   app.MapGet("/api/debug/env", () => new {
       HasAWS = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID")),
       HasVI = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VI_PROD_CLIENT_ID")),
-      HasADN = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID"))
+      HasADN = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID")),
+      HasUSLax = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("USLAX_CLIENT_ID"))
   }).RequireAuthorization("SuperUserOnly");
   ```
   **Remove this endpoint after verification!**

@@ -2,12 +2,14 @@
 # Setup-IIS-Server.ps1 — Comprehensive IIS Setup for TSIC Application
 # ============================================================================
 # Creates app pools, IIS sites with HTTPS bindings (wildcard cert),
-# SQL Server login for app pool identity, directory permissions, and firewall.
+# SQL Server login for app pool identity, directory permissions, firewall,
+# and app pool environment variables for secrets.
 #
 # Usage:
 #   .\Setup-IIS-Server.ps1 -Environment Dev
 #   .\Setup-IIS-Server.ps1 -Environment Prod
 #   .\Setup-IIS-Server.ps1 -Environment Prod -BasePath "E:\" -SkipSql
+#   .\Setup-IIS-Server.ps1 -Environment Prod -SecretsFile ".\iis-env-secrets-setup.local.ps1"
 #
 # Prerequisites:
 #   - Run as Administrator
@@ -27,8 +29,10 @@ param(
     [string]$SqlInstance = '.\SS2016',
     [string]$DatabaseName = 'TSICV5',
     [string]$StaticsPath,
+    [string]$SecretsFile,
     [switch]$SkipSql,
-    [switch]$SkipFirewall
+    [switch]$SkipFirewall,
+    [switch]$SkipSecrets
 )
 
 # ---------------------------------------------------------------------------
@@ -96,7 +100,7 @@ Write-Host ""
 # ---------------------------------------------------------------------------
 # 1. Install IIS Features
 # ---------------------------------------------------------------------------
-Write-Host "[1/7] Installing IIS features..." -ForegroundColor Green
+Write-Host "[1/8] Installing IIS features..." -ForegroundColor Green
 
 $features = @(
     'IIS-WebServerRole',
@@ -146,7 +150,7 @@ else {
 # 2. Find Wildcard Certificate
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[2/7] Locating wildcard certificate..." -ForegroundColor Green
+Write-Host "[2/8] Locating wildcard certificate..." -ForegroundColor Green
 
 $cert = Get-ChildItem Cert:\LocalMachine\My |
     Where-Object { $_.Subject -like '*teamsportsinfo.com*' -and $_.NotAfter -gt (Get-Date) } |
@@ -168,7 +172,7 @@ else {
 # 3. Create Application Pools
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[3/7] Creating application pools..." -ForegroundColor Green
+Write-Host "[3/8] Creating application pools..." -ForegroundColor Green
 
 Import-Module WebAdministration -ErrorAction Stop
 
@@ -193,7 +197,7 @@ foreach ($poolName in @($ApiPoolName, $AngularPoolName)) {
 # 4. Create Directories
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[4/7] Creating directories..." -ForegroundColor Green
+Write-Host "[4/8] Creating directories..." -ForegroundColor Green
 
 foreach ($dir in @($ApiPath, $AngularPath, $StaticsPath)) {
     if (Test-Path $dir) {
@@ -247,7 +251,7 @@ Write-Host "  Granted '$ApiPoolName' Modify on $StaticsPath" -ForegroundColor Wh
 # 5. Create IIS Sites with HTTPS Bindings
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[5/7] Creating IIS sites with HTTPS bindings..." -ForegroundColor Green
+Write-Host "[5/8] Creating IIS sites with HTTPS bindings..." -ForegroundColor Green
 
 $certHash = $cert.Thumbprint
 $certStore = "My"
@@ -337,10 +341,10 @@ Write-Host "  Sites started." -ForegroundColor Green
 # ---------------------------------------------------------------------------
 Write-Host ""
 if ($SkipSql) {
-    Write-Host "[6/7] SQL Server login creation — SKIPPED (-SkipSql)" -ForegroundColor Yellow
+    Write-Host "[6/8] SQL Server login creation — SKIPPED (-SkipSql)" -ForegroundColor Yellow
 }
 else {
-    Write-Host "[6/7] Creating SQL Server login for app pool identity..." -ForegroundColor Green
+    Write-Host "[6/8] Creating SQL Server login for app pool identity..." -ForegroundColor Green
 
     $loginName = "IIS AppPool\$ApiPoolName"
 
@@ -413,10 +417,10 @@ PRINT 'Granted db_datareader and db_datawriter roles.';
 # ---------------------------------------------------------------------------
 Write-Host ""
 if ($SkipFirewall) {
-    Write-Host "[7/7] Firewall rules — SKIPPED (-SkipFirewall)" -ForegroundColor Yellow
+    Write-Host "[7/8] Firewall rules — SKIPPED (-SkipFirewall)" -ForegroundColor Yellow
 }
 else {
-    Write-Host "[7/7] Configuring firewall rules..." -ForegroundColor Green
+    Write-Host "[7/8] Configuring firewall rules..." -ForegroundColor Green
 
     $rules = @(
         @{ Name = 'TSIC HTTP Inbound';  Port = 80  },
@@ -436,6 +440,49 @@ else {
                 -Action Allow | Out-Null
             Write-Host "  Created firewall rule: $($rule.Name) (TCP $($rule.Port))" -ForegroundColor Green
         }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 8. App Pool Environment Variables (Secrets)
+# ---------------------------------------------------------------------------
+Write-Host ""
+if ($SkipSecrets) {
+    Write-Host "[8/8] App pool secrets — SKIPPED (-SkipSecrets)" -ForegroundColor Yellow
+}
+else {
+    Write-Host "[8/8] Applying app pool environment variables (secrets)..." -ForegroundColor Green
+
+    # Resolve secrets file path
+    if (-not $SecretsFile) {
+        # Default: look next to this script, then in docs/Security
+        $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+        $candidates = @(
+            (Join-Path $scriptDir "iis-env-secrets-setup.local.ps1"),
+            (Join-Path $scriptDir "..\docs\Security\iis-env-secrets-setup.local.ps1")
+        )
+        foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+                $SecretsFile = (Resolve-Path $candidate).Path
+                break
+            }
+        }
+    }
+
+    if ($SecretsFile -and (Test-Path $SecretsFile)) {
+        Write-Host "  Secrets file: $SecretsFile" -ForegroundColor White
+
+        # Override the $appPool variable so the secrets script targets the correct pool
+        $appPool = $ApiPoolName
+        . $SecretsFile
+
+        Write-Host "  App pool secrets applied to '$ApiPoolName'." -ForegroundColor Green
+    }
+    else {
+        Write-Host "  WARNING: No secrets file found." -ForegroundColor Yellow
+        Write-Host "  Looked for: iis-env-secrets-setup.local.ps1" -ForegroundColor Yellow
+        Write-Host "  Provide via -SecretsFile parameter or place in docs/Security/" -ForegroundColor Yellow
+        Write-Host "  Without secrets, features like US Lax validation will not work." -ForegroundColor Yellow
     }
 }
 
@@ -465,7 +512,20 @@ Write-Host "    API:     $ApiPath" -ForegroundColor White
 Write-Host "    Angular: $AngularPath" -ForegroundColor White
 Write-Host "    Statics: $StaticsPath" -ForegroundColor White
 Write-Host ""
+if ($SecretsFile -and (Test-Path $SecretsFile)) {
+    Write-Host "  Secrets: Applied from $SecretsFile" -ForegroundColor Green
+}
+elseif ($SkipSecrets) {
+    Write-Host "  Secrets: SKIPPED (-SkipSecrets)" -ForegroundColor Yellow
+}
+else {
+    Write-Host "  Secrets: NOT APPLIED (file not found)" -ForegroundColor Yellow
+}
+Write-Host ""
 Write-Host "  Next Steps:" -ForegroundColor Yellow
+if (-not $SecretsFile -and -not $SkipSecrets) {
+    Write-Host "    0. Apply secrets: .\Setup-IIS-Server.ps1 -SecretsFile path\to\iis-env-secrets-setup.local.ps1" -ForegroundColor Red
+}
 Write-Host "    1. Deploy application files (use 1-Build-And-Deploy-Local.ps1 or deploy-to-server-template.ps1)" -ForegroundColor White
 Write-Host "    2. Verify: https://$AngularHostname" -ForegroundColor White
 Write-Host "    3. Verify: https://$ApiHostname/swagger" -ForegroundColor White
