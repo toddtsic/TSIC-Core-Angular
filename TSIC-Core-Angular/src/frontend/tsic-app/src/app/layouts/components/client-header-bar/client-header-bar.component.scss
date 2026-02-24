@@ -18,12 +18,6 @@
 // Logo containers use global glass utilities
 .tsic-brand-box {
     flex-shrink: 0;
-    padding: var(--space-2) var(--space-3);
-
-    :host-context([data-bs-theme="dark"]) & {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: var(--radius-sm);
-    }
 }
 
 .tsic-logo {
@@ -36,6 +30,22 @@
     :host-context([data-bs-theme="dark"]) & {
         filter: brightness(0.65) contrast(0.8) drop-shadow(var(--shadow-sm));
         opacity: 0.85;
+    }
+}
+
+.tsic-wordmark {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--neutral-900);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+
+    &__accent {
+        color: var(--bs-primary);
+    }
+
+    :host-context([data-bs-theme="dark"]) & {
+        color: var(--neutral-100);
     }
 }
 

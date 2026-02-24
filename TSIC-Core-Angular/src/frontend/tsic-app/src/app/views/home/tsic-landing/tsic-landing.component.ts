@@ -11,11 +11,12 @@ import {
 import { RouterLink } from '@angular/router';
 import { PalettePickerComponent } from '../../../layouts/components/palette-picker/palette-picker.component';
 import { PaletteService } from '../../../infrastructure/services/palette.service';
+import { ScrollToTopComponent } from '../../../shared-ui/scroll-to-top/scroll-to-top.component';
 
 @Component({
   selector: 'app-tsic-landing',
   standalone: true,
-  imports: [RouterLink, PalettePickerComponent],
+  imports: [RouterLink, PalettePickerComponent, ScrollToTopComponent],
   templateUrl: './tsic-landing.component.html',
   styleUrl: './tsic-landing.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -26,6 +27,7 @@ export class TsicLandingComponent implements OnDestroy {
   readonly paletteService = inject(PaletteService);
   private observer: IntersectionObserver | null = null;
   private navObserver: IntersectionObserver | null = null;
+  private previewedPaletteIndex = -1;
   private readonly navScrollHandler = () => {
     const solid = window.scrollY > 10;
     if (solid !== this.navSolid()) {
@@ -43,7 +45,8 @@ export class TsicLandingComponent implements OnDestroy {
   readonly pillars = [
     { icon: 'bi-lightning-charge-fill', title: 'Built for Speed', description: 'Set up registration, scheduling, and reporting in minutes — not days.' },
     { icon: 'bi-phone-fill', title: 'Mobile-First Comms', description: 'Targeted text and email blasts keep everyone connected — anytime, anywhere.' },
-    { icon: 'bi-people-fill', title: 'Real Human Support', description: 'Not a chatbot. Our team works alongside yours to grow your organization.' }
+    { icon: 'bi-people-fill', title: 'Real Human Support', description: 'Our team works alongside yours to grow your organization.' },
+    { icon: 'bi-tag-fill', title: 'Predictable Pricing', description: 'True fixed-rate pricing \u2014 not percentage-based fees.' }
   ];
 
   readonly aiFeatures = [
@@ -70,15 +73,15 @@ export class TsicLandingComponent implements OnDestroy {
     {
       icon: 'bi-clipboard-data-fill',
       title: 'Comprehensive Reports',
-      description: 'Real-time exportable reports covering registration data, payments, rosters, check-in forms, uniform numbers, college recruiting profiles, field utilization, game score boards and more. Track balances, summarized per job accounting and season-end summaries — giving directors the data they need to plan smarter and communicate with confidence.'
+      description: 'Real-time exportable reports and dashboards covering registration data, payments, rosters, check-in forms, uniform numbers, college recruiting profiles, field utilization, game score boards and more. Track balances, per job accounting and season-end summaries — giving directors the data they need to plan smarter and communicate with confidence.'
     }
   ];
 
   readonly services = [
-    { icon: 'bi-trophy-fill', title: 'Tournaments', description: 'Bracket management, team registration, and recruiting tools for any event.', image: 'images/svc-camps.jpg' },
+    { icon: 'bi-trophy-fill', title: 'Tournaments', description: 'Intuitive registration, scheduling & recruiting tools with push notifications for any event.', image: 'images/svc-camps.jpg' },
     { icon: 'bi-flag-fill', title: 'Leagues', description: 'Standings, schedules, and championship brackets \u2014 fully automated.', image: 'images/svc-basketball.jpg' },
     { icon: 'bi-shield-fill', title: 'Clubs', description: 'Registration, payments, rosters, and reporting \u2014 everything your rec or travel club needs.', image: 'images/svc-softball.jpg' },
-    { icon: 'bi-sun-fill', title: 'Camps & Clinics', description: 'Scheduling, roommate rostering, and skills tracking for camps of every size.', image: 'images/svc-soccer.jpg' }
+    { icon: 'bi-sun-fill', title: 'Camps & Clinics', description: 'Multi-select registration, rostering and check-in reports for camps & clinics of every size.', image: 'images/svc-soccer.jpg' }
   ];
 
   readonly serviceRows = [
@@ -103,8 +106,8 @@ export class TsicLandingComponent implements OnDestroy {
 
   readonly howItWorks = [
     { title: 'Contact Us', description: 'Tell us about your organization and your season goals.' },
-    { title: 'Configure', description: 'We set up your season together \u2014 registration, fields, divisions, and fees.' },
-    { title: 'Review', description: 'We walk you through everything before going live \u2014 your approval, your confidence.' },
+    { title: 'Configure', description: 'We set up your season together \u2014 registration, fees, agegroups and divisions.' },
+    { title: 'Review', description: 'We walk you through everything \u2014 your approval, your confidence.' },
     { title: 'Launch', description: 'Go live and start registering. We\'re with you every step of the way.' }
   ];
 
@@ -120,12 +123,6 @@ export class TsicLandingComponent implements OnDestroy {
       name: '',
       title: 'Parent',
       org: ''
-    },
-    {
-      quote: 'We believe every athlete \u2014 youth or adult \u2014 deserves an organization that runs smoothly, communicates clearly, and puts the game first. That\'s why we built TeamSportsInfo: to give organizers the tools so every participant stays connected on and off the field.',
-      name: 'The TeamSportsInfo Team',
-      title: 'est. 2000',
-      org: ''
     }
   ];
 
@@ -138,10 +135,20 @@ export class TsicLandingComponent implements OnDestroy {
 
   constructor() {
     afterNextRender(() => {
+      this.previewedPaletteIndex = 0;
+      this.paletteService.previewPalette(4);
       this.initScrollAnimations();
       this.startTestimonialRotation();
       this.loadCalendlyWidget();
     });
+  }
+
+  onPaletteSelected(): void {
+    // If the user unchecked a palette (reset to 0), snap back to Forest Green
+    // as the default for this page rather than going colorless.
+    if (this.paletteService.selectedIndex() === 0) {
+      this.paletteService.previewPalette(4);
+    }
   }
 
   scrollToTop(event: Event): void {
@@ -161,6 +168,10 @@ export class TsicLandingComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.previewedPaletteIndex !== -1) {
+      this.paletteService.previewPalette(this.previewedPaletteIndex);
+      this.previewedPaletteIndex = -1;
+    }
     this.observer?.disconnect();
     this.observer = null;
     window.removeEventListener('scroll', this.navScrollHandler);

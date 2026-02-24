@@ -797,7 +797,7 @@
 
   &__pillars-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--space-6);
 
     @media (max-width: 767px) {
@@ -893,6 +893,37 @@
     line-height: var(--line-height-relaxed);
     color: var(--neutral-500);
     margin: 0;
+  }
+
+  &__quote {
+    margin: var(--space-8) 0 0;
+    padding: var(--space-6);
+    border-left: 3px solid var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    border-radius: var(--radius-md);
+    text-align: left;
+
+    .bi-quote {
+      font-size: 2rem;
+      color: var(--bs-primary);
+      line-height: 1;
+      display: block;
+      margin-bottom: var(--space-2);
+    }
+
+    blockquote {
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-relaxed);
+      color: var(--neutral-600);
+      margin: 0 0 var(--space-3);
+      font-style: italic;
+    }
+
+    figcaption {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--bs-primary);
+    }
   }
 }
 

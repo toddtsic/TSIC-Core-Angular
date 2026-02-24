@@ -13,12 +13,15 @@
             <!-- Logos -->
             <div class="d-flex align-items-center gap-2">
                 <!-- TSIC Logo — click logs out and goes to TSIC landing -->
-                <div class="tsic-brand-box logo-box logo-box-primary d-none d-md-block"
+                <div class="tsic-brand-box d-none d-md-flex align-items-center gap-2"
                     role="button" tabindex="0"
                     (click)="goToTsicHome()" (keydown.enter)="goToTsicHome()"
                     [title]="tsicLogoTitle()"
                     style="cursor: pointer;">
-                    <img src="images/tsic-logo.png" alt="TSIC" class="tsic-logo" />
+                    <div class="logo-box logo-box-primary">
+                        <img src="images/blackTLogo.jpg" alt="TSIC" class="tsic-logo" />
+                    </div>
+                    <span class="tsic-wordmark">Team<span class="tsic-wordmark__accent">Sports</span>Info</span>
                 </div>
 
                 <!-- Mobile TSIC Logo -->

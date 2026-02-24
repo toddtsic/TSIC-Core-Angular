@@ -19,7 +19,7 @@
 
       <div class="lp-nav__right">
         <div class="lp-nav__palette">
-          <app-palette-picker size="sm"></app-palette-picker>
+          <app-palette-picker size="sm" (selected)="onPaletteSelected()"></app-palette-picker>
         </div>
         <a class="lp-nav__cta" [routerLink]="['/tsic', 'login']">
           <span>Login</span>
@@ -211,10 +211,18 @@
           tournament organizers, club directors, as well as recreational team and college coaches.
         </p>
         <p class="mission__body">
-          We believe every athlete &mdash; youth or adult &mdash; deserves an organization
-          that runs smoothly, communicates clearly, and puts the game first.
-          <strong><em>Real people. Real support.</em></strong>
+          With years of assisting sports directors, we have enhanced and refined our software to meet your needs.
+          We understand the impact of unpredictable weather or the unforeseen change in a player's or coach's circumstances,
+          and are committed to offering outstanding support so you can focus on what's happening on the playing field.
+          <br><strong><em>Real people. Real support.</em></strong>
         </p>
+        <figure class="mission__quote">
+          <i class="bi bi-quote" aria-hidden="true"></i>
+          <blockquote>
+            &ldquo;We believe every athlete and their family &mdash; youth or adult &mdash; deserves an organization that runs smoothly, communicates clearly, and puts the game first. That&rsquo;s why we built TeamSportsInfo: to give organizers the tools so every participant stays connected on and off the field.&rdquo;
+          </blockquote>
+          <figcaption>&mdash; The TeamSportsInfo Team</figcaption>
+        </figure>
       </div>
     </div>
   </section>
@@ -257,16 +265,7 @@
       <div class="site-footer__grid">
         <div class="site-footer__brand">
           <div class="footer-logo">
-            <svg class="footer-logo__icon" viewBox="0 0 48 46" fill="none" aria-hidden="true">
-              <circle cx="41" cy="9" r="5" fill="#F4D03F" stroke="#D4B020" stroke-width="0.4"/>
-              <path d="M 37 7 Q 41 5 45 7" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
-              <path d="M 37 11 Q 41 13 45 11" stroke="#C9A020" stroke-width="0.3" opacity="0.25" fill="none"/>
-              <rect x="0" y="12" width="17" height="34" rx="2" fill="#16a34a"/>
-              <path d="M 0 14 H 16 V 20 H 11 V 44 H 5 V 20 H 0 Z" fill="#ffffff"/>
-              <path d="M 30 20 C 30 13 20 13 20 20 C 20 27 30 29 30 36 C 30 43 20 43 20 36"
-                    stroke="#292524" stroke-width="6" fill="none" stroke-linecap="square"/>
-              <rect x="38" y="14" width="6" height="30" fill="#292524"/>
-            </svg>
+            <img class="footer-logo__icon" src="images/blackTLogo.jpg" alt="TSIC">
             <div class="footer-logo__text">
               <span class="footer-logo__name">Team<span class="footer-logo__accent">Sports</span>Info</span>
               <span class="footer-logo__tagline">Your season, supported every step of the way</span>
@@ -292,4 +291,5 @@
     </div>
   </footer>
 
+  <app-scroll-to-top></app-scroll-to-top>
 </div>
