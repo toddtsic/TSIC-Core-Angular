@@ -28,9 +28,6 @@ public interface IWidgetEditorService
     Task<JobOverridesResponse> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default);
     Task SaveJobOverridesAsync(SaveJobOverridesRequest request, CancellationToken ct = default);
 
-    // ── Seed script sync ──
-    Task<SeedScriptSyncResult> GenerateSeedScriptAsync(string outputPath, CancellationToken ct = default);
-
     // ── Export SQL ──
     Task<string> ExportWidgetSqlAsync(CancellationToken ct = default);
 }

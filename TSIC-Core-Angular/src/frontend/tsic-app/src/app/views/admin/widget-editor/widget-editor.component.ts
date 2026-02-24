@@ -73,7 +73,6 @@ export class WidgetEditorComponent {
 	readonly activeTab = signal<'definitions' | 'overrides' | 'matrix'>('definitions');
 	readonly isLoading = signal(false);
 	readonly isSaving = signal(false);
-	readonly isSyncing = signal(false);
 	readonly errorMessage = signal<string | null>(null);
 	readonly isDevMode = isDevMode();
 
@@ -580,23 +579,6 @@ export class WidgetEditorComponent {
 		return WIDGET_MANIFEST[key]?.icon || 'bi-puzzle';
 	}
 
-	/** Dev-only: regenerate seed-widget-dashboard.sql from current DB state */
-	syncSeedScript(): void {
-		this.isSyncing.set(true);
-		this.editorService.syncSeedScript().subscribe({
-			next: (r) => {
-				this.toast.show(
-					`Seed script synced: ${r.widgetsCount} widgets, ${r.defaultsCount} defaults, ${r.jobWidgetsCount} job overrides`,
-					'success', 6000,
-				);
-				this.isSyncing.set(false);
-			},
-			error: (err) => {
-				this.toast.show(err.error?.message || 'Seed script sync failed', 'danger');
-				this.isSyncing.set(false);
-			},
-		});
-	}
 
 	// ═══════════════════════════════════
 	// Export SQL

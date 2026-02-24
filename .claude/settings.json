@@ -9,7 +9,8 @@
       "Bash(done)",
       "Read(//c/Users/Administrator/source/**)",
       "Read(//c/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-source-TSIC-Core-Angular/tasks/**)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx openapi-typescript-codegen:*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

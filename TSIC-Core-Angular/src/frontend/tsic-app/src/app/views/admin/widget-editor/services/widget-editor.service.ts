@@ -97,18 +97,4 @@ export class WidgetEditorService {
 		);
 	}
 
-	// ── Seed script sync ──
-
-	syncSeedScript(): Observable<SeedScriptSyncResult> {
-		return this.http.post<SeedScriptSyncResult>(`${this.apiUrl}/sync-seed-script`, {});
-	}
-}
-
-export interface SeedScriptSyncResult {
-	message: string;
-	filePath: string;
-	categoriesCount: number;
-	widgetsCount: number;
-	defaultsCount: number;
-	jobWidgetsCount: number;
 }

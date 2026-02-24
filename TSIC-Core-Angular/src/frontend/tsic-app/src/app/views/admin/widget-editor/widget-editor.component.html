@@ -7,13 +7,6 @@
 				<i class="bi bi-download me-1"></i>Export SQL
 			</button>
 		}
-		@if (isDevMode) {
-			<button class="btn btn-sm btn-outline-warning" (click)="syncSeedScript()"
-					[disabled]="isSyncing()" title="Regenerate seed-widget-dashboard.sql from current DB state">
-				<i class="bi" [class.bi-database-down]="!isSyncing()" [class.bi-hourglass-split]="isSyncing()"></i>
-				{{ isSyncing() ? 'Syncing...' : 'Sync Seed Script' }}
-			</button>
-		}
 		<button class="btn btn-outline-secondary btn-sm" (click)="refresh()" [disabled]="isLoading()">
 			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
 		</button>
