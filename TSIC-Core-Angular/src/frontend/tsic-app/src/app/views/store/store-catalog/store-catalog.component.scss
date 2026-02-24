@@ -471,7 +471,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.picker-animate {
+	.picker-animate,
+	.cart-bar-inner.pulse {
 		animation: none;
 	}
 }
