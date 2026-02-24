@@ -60,7 +60,12 @@ interface FilterChip {
         <div class="view-schedule-page">
             <!-- Header -->
             <div class="page-header">
-                <h1 class="page-title">Schedule</h1>
+                <h1 class="page-title">
+                    Schedule
+                    @if (activeTab() === 'games' && games().length > 0) {
+                        <span class="title-badge">{{ games().length }}</span>
+                    }
+                </h1>
                 @if (eventName()) {
                     <p class="page-subtitle">{{ eventName() }}</p>
                 }
@@ -430,6 +435,22 @@ interface FilterChip {
             color: var(--bs-body-color);
         }
 
+        .title-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            min-width: 28px;
+            padding: 2px 8px;
+            margin-left: var(--space-2);
+            background: var(--bs-primary);
+            color: white;
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
         .page-subtitle {
             margin: var(--space-1) 0 0;
             font-size: var(--font-size-sm);
@@ -780,21 +801,28 @@ interface FilterChip {
         /* ── Responsive ── */
         @media (max-width: 767px) {
             .view-schedule-page {
-                padding: var(--space-2);
-                gap: var(--space-2);
+                padding: var(--space-1) var(--space-2);
+                gap: var(--space-1);
             }
 
             .page-header {
-                padding: var(--space-1) 0 0;
+                padding: 0;
             }
 
             .page-title {
-                font-size: var(--font-size-lg);
+                font-size: var(--font-size-sm);
+                font-weight: 600;
+            }
+
+            .title-badge {
+                padding: 1px 6px;
+                font-size: 10px;
+                min-width: 22px;
+                margin-left: var(--space-1);
             }
 
             .page-subtitle {
-                margin-top: 0;
-                font-size: var(--font-size-xs);
+                display: none;
             }
 
             .toolbar {
@@ -806,6 +834,7 @@ interface FilterChip {
                 min-width: 0;
                 overflow-x: auto;
                 scrollbar-width: none;
+                padding: 2px;
             }
 
             .segment-tabs::-webkit-scrollbar {
@@ -813,7 +842,7 @@ interface FilterChip {
             }
 
             .segment-btn {
-                padding: var(--space-1) var(--space-3);
+                padding: var(--space-1) var(--space-2);
                 font-size: var(--font-size-xs);
             }
         }

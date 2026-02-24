@@ -48,63 +48,108 @@
                 </div>
                 }
             </div>
+
+            <!-- Mobile Job Name — inline two-line, truncates -->
+            @if (jobName()) {
+            <span class="mobile-job-name-inline d-md-none">
+                <span class="mobile-jn-line1">{{ jobNameLines()[0] }}</span>
+                @if (jobNameLines().length > 1) {
+                <span class="mobile-jn-line2">{{ jobNameLines()[1] }}</span>
+                }
+            </span>
+            }
         </div>
 
         <!-- Right: User Actions (never shrinks) -->
         <div class="d-flex align-items-center gap-2 flex-shrink-0">
 
-            <!-- Mobile: compact icon buttons -->
-            <div class="header-actions d-md-none">
-                <button type="button" class="header-action-btn" (click)="goHome()" aria-label="Home" title="Home">
-                    <i class="bi bi-house-door-fill"></i>
-                </button>
-                @if (user()?.regId) {
-                <button type="button" class="header-action-btn"
-                    (click)="switchRole()" aria-label="Switch Role" title="Switch Role">
-                    <i class="bi bi-people-fill"></i>
-                </button>
-                }
-                <button type="button" class="header-action-btn" (click)="toggleTheme()"
-                    [attr.aria-label]="themeService.theme() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
-                    [title]="themeService.theme() === 'light' ? 'Dark mode' : 'Light mode'">
-                    @if (themeService.theme() === 'light') {
-                    <i class="bi bi-moon-stars-fill"></i>
-                    } @else {
-                    <i class="bi bi-brightness-high-fill"></i>
+            <!-- Mobile: single dropdown trigger -->
+            <div class="d-md-none">
+                <div class="user-menu-wrapper">
+                    <button type="button" class="mobile-menu-trigger" (click)="toggleMobileMenu($event)"
+                        [attr.aria-expanded]="mobileMenuOpen()" aria-label="User menu">
+                        <i class="bi bi-person-circle"></i>
+                        <i class="bi bi-chevron-down mobile-menu-chevron" [class.open]="mobileMenuOpen()"></i>
+                    </button>
+
+                    @if (mobileMenuOpen()) {
+                    <div class="user-menu-backdrop" (click)="closeMobileMenu()"></div>
+                    <div class="user-menu-dropdown" role="menu"
+                        [style.top.px]="mobileMenuTop()" [style.right.px]="mobileMenuRight()">
+                        @if (user()?.role) {
+                        <div class="user-menu-header">
+                            Signed in as <strong>{{ user()?.role }}</strong>
+                        </div>
+                        <div class="user-menu-divider"></div>
+                        }
+
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="goHome(); closeMobileMenu()">
+                            <i class="bi bi-house-door-fill"></i>
+                            <span>Home</span>
+                        </button>
+
+                        @if (user()?.regId) {
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="switchRole(); closeMobileMenu()">
+                            <i class="bi bi-people-fill"></i>
+                            <span>Switch Role</span>
+                        </button>
+                        }
+
+                        @if (isAdmin()) {
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="openDashboardCustomize(); closeMobileMenu()">
+                            <i class="bi bi-sliders"></i>
+                            <span>Customize Dashboard</span>
+                        </button>
+                        }
+
+                        <div class="user-menu-divider"></div>
+
+                        <!-- Theme toggle -->
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="toggleTheme(); $event.stopPropagation()">
+                            @if (themeService.theme() === 'light') {
+                            <i class="bi bi-moon-stars-fill"></i>
+                            <span>Dark Mode</span>
+                            } @else {
+                            <i class="bi bi-brightness-high-fill"></i>
+                            <span>Light Mode</span>
+                            }
+                        </button>
+
+                        <!-- Palette picker — inline expandable -->
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="mobilePaletteExpanded.set(!mobilePaletteExpanded()); $event.stopPropagation()">
+                            <i class="bi bi-palette"></i>
+                            <span>Palette</span>
+                            <i class="bi bi-chevron-down palette-chevron"
+                               [class.open]="mobilePaletteExpanded()"></i>
+                        </button>
+
+                        @if (mobilePaletteExpanded()) {
+                        <app-palette-picker (selected)="closeMobileMenu()"></app-palette-picker>
+                        }
+
+                        <div class="user-menu-divider"></div>
+
+                        @if (user()) {
+                        <button type="button" class="user-menu-item user-menu-item--danger" role="menuitem"
+                            (click)="logout()">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
+                        } @else {
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="login()">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Login</span>
+                        </button>
+                        }
+                    </div>
                     }
-                </button>
-                <button type="button" class="header-action-btn"
-                    (click)="toggleMobilePalette($event)"
-                    aria-label="Change palette" title="Change palette">
-                    <i class="bi bi-palette"></i>
-                </button>
-                @if (isAdmin()) {
-                <button type="button" class="header-action-btn"
-                    (click)="openDashboardCustomize()"
-                    aria-label="Customize dashboard" title="Customize dashboard">
-                    <i class="bi bi-sliders"></i>
-                </button>
-                }
-
-                @if (mobilePaletteOpen()) {
-                <div class="user-menu-backdrop" (click)="closeMobilePalette()"></div>
-                <div class="mobile-palette-panel"
-                    [style.top.px]="mobilePaletteTop()" [style.right.px]="mobilePaletteRight()">
-                    <app-palette-picker (selected)="closeMobilePalette()"></app-palette-picker>
                 </div>
-                }
-
-                @if (user()) {
-                <button type="button" class="header-action-btn header-action-btn--danger" (click)="logout()"
-                    aria-label="Logout" title="Logout">
-                    <i class="bi bi-box-arrow-right"></i>
-                </button>
-                } @else {
-                <button type="button" class="header-action-btn" (click)="login()"
-                    aria-label="Login" title="Login">
-                    <i class="bi bi-box-arrow-in-right"></i>
-                </button>
-                }
             </div>
 
             <!-- Desktop: theme toggle + user dropdown -->
@@ -200,10 +245,4 @@
         </div>
     </div>
 
-    <!-- Mobile Job Name Row - Centered -->
-    @if (jobName()) {
-    <div class="text-center py-1 d-md-none">
-        <div class="job-name-display">{{ jobName() }}</div>
-    </div>
-    }
 </div>

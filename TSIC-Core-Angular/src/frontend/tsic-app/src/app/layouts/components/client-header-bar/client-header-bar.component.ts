@@ -46,6 +46,14 @@ export class ClientHeaderBarComponent {
 
     jobName = computed(() => this.jobService.currentJob()?.jobName || '');
 
+    /** Split job name on ':' for compact two-line mobile display */
+    jobNameLines = computed(() => {
+        const name = this.jobName();
+        const idx = name.indexOf(':');
+        if (idx === -1) return [name];
+        return [name.substring(0, idx).trim(), name.substring(idx + 1).trim()];
+    });
+
     // Single computed `user` derived from AuthService; derive UI values from it.
     user = computed(() => this.auth.currentUser());
 
@@ -59,10 +67,11 @@ export class ClientHeaderBarComponent {
     menuTop = signal(0);
     menuRight = signal(0);
 
-    // Mobile palette panel state
-    mobilePaletteOpen = signal(false);
-    mobilePaletteTop = signal(0);
-    mobilePaletteRight = signal(0);
+    // Mobile dropdown menu state
+    mobileMenuOpen = signal(false);
+    mobileMenuTop = signal(0);
+    mobileMenuRight = signal(0);
+    mobilePaletteExpanded = signal(false);
 
     // Mobile menu toggle
     toggleOffcanvas() {
@@ -87,21 +96,22 @@ export class ClientHeaderBarComponent {
         this.paletteExpanded.set(false);
     }
 
-    toggleMobilePalette(event: Event) {
+    toggleMobileMenu(event: Event) {
         event.stopPropagation();
-        const wasOpen = this.mobilePaletteOpen();
-        this.mobilePaletteOpen.set(!wasOpen);
+        const wasOpen = this.mobileMenuOpen();
+        this.mobileMenuOpen.set(!wasOpen);
 
         if (!wasOpen) {
             const btn = event.currentTarget as HTMLElement;
             const rect = btn.getBoundingClientRect();
-            this.mobilePaletteTop.set(rect.bottom + 8);
-            this.mobilePaletteRight.set(window.innerWidth - rect.right);
+            this.mobileMenuTop.set(rect.bottom + 8);
+            this.mobileMenuRight.set(window.innerWidth - rect.right);
         }
     }
 
-    closeMobilePalette() {
-        this.mobilePaletteOpen.set(false);
+    closeMobileMenu() {
+        this.mobileMenuOpen.set(false);
+        this.mobilePaletteExpanded.set(false);
     }
 
     switchRole() {

@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, effect, ElementRef, EventEmitter, input, Output, signal, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, EventEmitter, input, Output, signal } from '@angular/core';
 import type { StandingsByDivisionResponse } from '@core/api';
 
 type StandingsMode = 'all' | 'rr';
@@ -19,18 +19,14 @@ type StandingsMode = 'all' | 'rr';
             <div class="standings-wrapper">
                 <!-- Toolbar: age group tabs (left) + mode toggle (right) -->
                 <div class="toolbar-row">
-                    <div class="ag-tabs-wrapper"
-                         [class.has-overflow]="agTabsOverflow()">
-                        <div class="ag-tabs" #agTabsEl
-                             (scroll)="checkTabsOverflow()">
-                            @for (tab of ageGroupTabs(); track tab; let i = $index) {
-                                <button class="ag-tab"
-                                        [class.active]="activeAgTabIndex() === i"
-                                        (click)="activeAgTabIndex.set(i)">
-                                    {{ tab }}
-                                </button>
-                            }
-                        </div>
+                    <div class="ag-tabs">
+                        @for (tab of ageGroupTabs(); track tab; let i = $index) {
+                            <button class="ag-tab"
+                                    [class.active]="activeAgTabIndex() === i"
+                                    (click)="activeAgTabIndex.set(i)">
+                                {{ tab }}
+                            </button>
+                        }
                     </div>
                     <div class="mode-toggle" role="group" aria-label="Standings mode">
                         <button class="toggle-option"
@@ -50,7 +46,7 @@ type StandingsMode = 'all' | 'rr';
                 @for (div of activeDivisions(); track div.divId) {
                     <div class="division-block">
                         <div class="division-header">
-                            {{ div.divName }} &mdash; {{ headerSuffix() }}
+                            {{ div.divName }}
                         </div>
 
                         <table class="standings-table">
@@ -62,15 +58,9 @@ type StandingsMode = 'all' | 'rr';
                                     <th class="col-num">W</th>
                                     <th class="col-num">L</th>
                                     <th class="col-num">T</th>
-                                    @if (!hidePointsCols()) {
-                                        <th class="col-num">Pts</th>
-                                    }
                                     <th class="col-num">GF</th>
                                     <th class="col-num">GA</th>
                                     <th class="col-num">GD</th>
-                                    @if (!hidePointsCols()) {
-                                        <th class="col-num">PPG</th>
-                                    }
                                 </tr>
                             </thead>
                             <tbody>
@@ -86,15 +76,9 @@ type StandingsMode = 'all' | 'rr';
                                         <td class="col-num">{{ team.wins }}</td>
                                         <td class="col-num">{{ team.losses }}</td>
                                         <td class="col-num">{{ team.ties }}</td>
-                                        @if (!hidePointsCols()) {
-                                            <td class="col-num">{{ team.points }}</td>
-                                        }
                                         <td class="col-num">{{ team.goalsFor }}</td>
                                         <td class="col-num">{{ team.goalsAgainst }}</td>
                                         <td class="col-num">{{ formatGoalDiff(team.goalDiffMax9) }}</td>
-                                        @if (!hidePointsCols()) {
-                                            <td class="col-num">{{ team.pointsPerGame.toFixed(2) }}</td>
-                                        }
                                     </tr>
                                 }
                             </tbody>
@@ -144,12 +128,6 @@ type StandingsMode = 'all' | 'rr';
 
         /* ── Age Group Tabs ── */
 
-        .ag-tabs-wrapper {
-            position: relative;
-            flex: 1;
-            min-width: 0;
-        }
-
         .ag-tabs {
             display: flex;
             gap: var(--space-1);
@@ -157,19 +135,6 @@ type StandingsMode = 'all' | 'rr';
             scrollbar-width: thin;
             flex: 1;
             min-width: 0;
-        }
-
-        /* Fade-out gradient on right edge to hint at scrollable overflow */
-        .ag-tabs-wrapper.has-overflow::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 40px;
-            background: linear-gradient(to right, transparent, var(--bs-body-bg));
-            pointer-events: none;
-            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
         }
 
         .ag-tab {
@@ -310,26 +275,65 @@ type StandingsMode = 'all' | 'rr';
         .top-rank td {
             font-weight: 600;
         }
+
+        /* ── Mobile compaction ── */
+        @media (max-width: 767px) {
+            .standings-wrapper {
+                gap: var(--space-3);
+            }
+
+            .ag-tab {
+                padding: 2px var(--space-2);
+                font-size: var(--font-size-xs);
+            }
+
+            .division-header {
+                padding: var(--space-1) var(--space-2);
+                font-size: var(--font-size-sm);
+            }
+
+            .standings-table {
+                font-size: 11px;
+                table-layout: auto;
+            }
+
+            .standings-table thead th,
+            .standings-table tbody td {
+                padding: 2px 2px;
+            }
+
+            /* Numeric cols: tight, no wrap, tabular digits for 3-digit stats */
+            .col-rank,
+            .col-num {
+                width: auto;
+                white-space: nowrap;
+                font-variant-numeric: tabular-nums;
+                font-size: 10px;
+            }
+
+            /* Team name: allow wrap to yield space to num cols */
+            .col-team {
+                white-space: normal;
+                word-break: break-word;
+                overflow: visible;
+                text-overflow: clip;
+            }
+
+        }
     `]
 })
-export class StandingsTabComponent implements AfterViewInit {
+export class StandingsTabComponent {
     standings = input<StandingsByDivisionResponse | null>(null);
     records = input<StandingsByDivisionResponse | null>(null);
     isLoading = input<boolean>(false);
 
     @Output() viewTeamResults = new EventEmitter<string>();
-    @ViewChild('agTabsEl') agTabsEl?: ElementRef<HTMLDivElement>;
 
     readonly standingsMode = signal<StandingsMode>('all');
     readonly activeAgTabIndex = signal(0);
-    readonly agTabsOverflow = signal(false);
 
     readonly activeData = computed(() =>
         this.standingsMode() === 'rr' ? this.standings() : this.records()
-    );
-
-    readonly headerSuffix = computed(() =>
-        this.standingsMode() === 'rr' ? 'Pool Play Standings' : 'Full Season Records'
     );
 
     /** Unique age group names from the active dataset, preserving backend sort order. */
@@ -357,15 +361,6 @@ export class StandingsTabComponent implements AfterViewInit {
         return data.divisions.filter(d => d.agegroupName === agName);
     });
 
-    private readonly isLacrosse = computed(() => {
-        const sport = this.activeData()?.sportName ?? '';
-        return sport.toLowerCase().includes('lacrosse');
-    });
-
-    readonly hidePointsCols = computed(() =>
-        this.standingsMode() === 'rr' && this.isLacrosse()
-    );
-
     constructor() {
         // Clamp tab index when available tabs change (e.g. mode switch)
         effect(() => {
@@ -374,21 +369,7 @@ export class StandingsTabComponent implements AfterViewInit {
             if (idx >= tabs.length && tabs.length > 0) {
                 this.activeAgTabIndex.set(0);
             }
-            // Re-check overflow after tabs re-render
-            setTimeout(() => this.checkTabsOverflow(), 0);
         });
-    }
-
-    ngAfterViewInit(): void {
-        this.checkTabsOverflow();
-    }
-
-    checkTabsOverflow(): void {
-        const el = this.agTabsEl?.nativeElement;
-        if (!el) return;
-        // Has overflow if scroll width exceeds visible width and not scrolled to end
-        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
-        this.agTabsOverflow.set(el.scrollWidth > el.clientWidth + 2 && !atEnd);
     }
 
     formatGoalDiff(gd: number): string {

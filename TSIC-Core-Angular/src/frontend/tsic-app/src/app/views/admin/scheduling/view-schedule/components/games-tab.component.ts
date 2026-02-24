@@ -606,6 +606,10 @@ import type { ViewGameDto } from '@core/api';
         }
 
         /* ═══ Responsive — must be AFTER all base rules for correct cascade ═══ */
+        @media (max-width: 767px) {
+            .games-summary { display: none; }
+        }
+
         @media (min-width: 768px) {
             .games-grid  { display: grid; }
             .games-cards { display: none; }
