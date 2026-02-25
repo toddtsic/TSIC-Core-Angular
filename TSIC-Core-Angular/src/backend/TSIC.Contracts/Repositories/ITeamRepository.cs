@@ -373,6 +373,29 @@ public interface ITeamRepository
     /// Only includes teams with a non-null DivId.
     /// </summary>
     Task<Dictionary<Guid, int>> GetTeamCountsByDivisionAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── US Lacrosse Rankings methods ──
+
+    /// <summary>
+    /// Get active teams for a job + agegroup projected as RankingsTeamDto.
+    /// Joins Teams → Agegroups → ClubrepRegistration for club name + grad year range.
+    /// Excludes DROPPED/WAITLIST agegroups. AsNoTracking.
+    /// </summary>
+    Task<List<Dtos.Rankings.RankingsTeamDto>> GetTeamsForRankingsAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk update TeamComments for multiple teams. Returns count of rows affected.
+    /// </summary>
+    Task<int> BulkUpdateTeamCommentsAsync(
+        Dictionary<Guid, string?> teamComments, CancellationToken ct = default);
+
+    /// <summary>
+    /// Clear (null) TeamComments for all active teams in a specific agegroup.
+    /// Returns count of teams whose comments were non-null and got cleared.
+    /// </summary>
+    Task<int> ClearTeamCommentsForAgegroupAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

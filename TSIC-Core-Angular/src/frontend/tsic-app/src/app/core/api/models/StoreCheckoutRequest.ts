@@ -2,12 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { CreditCardInfo } from './CreditCardInfo';
 export type StoreCheckoutRequest = {
     paymentMethodId: string;
-    cclast4?: string | null;
-    ccexpDate?: string | null;
-    adnInvoiceNo?: string | null;
-    adnTransactionId?: string | null;
+    creditCard?: (null | CreditCardInfo);
     comment?: string | null;
     discountCodeAi?: number;
 };

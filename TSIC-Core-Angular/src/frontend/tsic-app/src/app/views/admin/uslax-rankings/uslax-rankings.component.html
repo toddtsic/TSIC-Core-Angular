@@ -1,0 +1,379 @@
+<!-- Page Header -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+	<h2 class="mb-0">
+		<i class="bi bi-trophy me-2"></i>US Lacrosse National Rankings
+	</h2>
+	@if (hasResults()) {
+		<button class="btn btn-outline-secondary btn-sm" (click)="exportCsv()">
+			<i class="bi bi-download me-1"></i>Export CSV
+		</button>
+	}
+</div>
+
+<!-- Tab Nav -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+	<li class="nav-item" role="presentation">
+		<button class="nav-link" [class.active]="activeTab() === 'align'"
+			(click)="selectTab('align')" role="tab">
+			<i class="bi bi-bullseye me-1"></i>Scrape &amp; Align
+		</button>
+	</li>
+	<li class="nav-item" role="presentation">
+		<button class="nav-link" [class.active]="activeTab() === 'import'"
+			(click)="selectTab('import')" role="tab"
+			[disabled]="!hasResults()">
+			<i class="bi bi-box-arrow-in-down me-1"></i>Import
+		</button>
+	</li>
+	<li class="nav-item" role="presentation">
+		<button class="nav-link" [class.active]="activeTab() === 'manage'"
+			(click)="selectTab('manage')" role="tab">
+			<i class="bi bi-pencil-square me-1"></i>Manage
+		</button>
+	</li>
+</ul>
+
+<!-- Messages -->
+@if (errorMessage()) {
+	<div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+		<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		{{ errorMessage() }}
+	</div>
+}
+@if (successMessage()) {
+	<div class="alert alert-success d-flex align-items-center mb-3" role="alert">
+		<i class="bi bi-check-circle-fill me-2"></i>
+		{{ successMessage() }}
+	</div>
+}
+
+<!-- ═══════════════════ TAB 1: Scrape & Align ═══════════════════ -->
+@if (activeTab() === 'align') {
+	<div class="card shadow-sm">
+		<div class="card-body">
+			<div class="row g-3 mb-4">
+				<!-- Scraped age group (from usclublax.com) -->
+				<div class="col-md-5">
+					<label class="form-label fw-medium">Ranked Age Group (usclublax.com)</label>
+					<select class="form-select"
+						[ngModel]="selectedScrapedAg()"
+						(ngModelChange)="selectedScrapedAg.set($event)">
+						<option value="">Select...</option>
+						@for (ag of scrapedAgeGroups(); track ag.value) {
+							<option [value]="ag.value">{{ ag.text }}</option>
+						}
+					</select>
+				</div>
+				<!-- Registered age group (local job) -->
+				<div class="col-md-5">
+					<label class="form-label fw-medium">Registered Age Group (your event)</label>
+					<select class="form-select"
+						[ngModel]="selectedRegisteredAg()"
+						(ngModelChange)="selectedRegisteredAg.set($event)">
+						<option value="">Select...</option>
+						@for (ag of registeredAgeGroups(); track ag.value) {
+							<option [value]="ag.value">{{ ag.text }}</option>
+						}
+					</select>
+				</div>
+				<!-- Align button -->
+				<div class="col-md-2 d-flex align-items-end">
+					<button class="btn btn-primary w-100"
+						(click)="align()"
+						[disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
+						@if (isLoading()) {
+							<span class="spinner-border spinner-border-sm me-1"></span>
+							Aligning...
+						} @else {
+							<i class="bi bi-arrow-left-right me-1"></i>
+							Align
+						}
+					</button>
+				</div>
+			</div>
+
+			<!-- Results Summary -->
+			@if (alignment(); as result) {
+				@if (result.success) {
+					<div class="summary-bar mb-3">
+						<div class="summary-item">
+							<span class="summary-value text-success">{{ result.totalMatches }}</span>
+							<span class="summary-label">Matched</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-value text-warning">{{ result.unmatchedRankings.length }}</span>
+							<span class="summary-label">Unmatched Rankings</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-value text-danger">{{ result.unmatchedTeams.length }}</span>
+							<span class="summary-label">Unmatched Teams</span>
+						</div>
+						<div class="summary-item">
+							<span class="summary-value text-primary">{{ formatPercent(result.matchPercentage / 100) }}</span>
+							<span class="summary-label">Match Rate</span>
+						</div>
+					</div>
+
+					<!-- Matched Teams Table -->
+					@if (result.alignedTeams.length > 0) {
+						<h6 class="mb-2">Matched Teams</h6>
+						<div class="table-responsive mb-4">
+							<table class="table table-sm table-hover align-middle">
+								<thead>
+									<tr>
+										<th style="width: 60px">Rank</th>
+										<th>Ranked Team</th>
+										<th>State</th>
+										<th>Rating</th>
+										<th>Registered Team</th>
+										<th>Club</th>
+										<th style="width: 90px">Confidence</th>
+									</tr>
+								</thead>
+								<tbody>
+									@for (match of result.alignedTeams; track match.registeredTeam.teamId) {
+										<tr>
+											<td class="fw-medium">{{ match.ranking.rank }}</td>
+											<td>{{ match.ranking.team }}</td>
+											<td>{{ match.ranking.state }}</td>
+											<td>{{ match.ranking.rating | number:'1.2-2' }}</td>
+											<td>{{ match.registeredTeam.teamName }}</td>
+											<td>{{ match.registeredTeam.clubName }}</td>
+											<td>
+												<span class="badge" [class]="confidenceClass(match.matchScore)">
+													{{ formatPercent(match.matchScore) }}
+												</span>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+
+					<!-- Unmatched Rankings -->
+					@if (result.unmatchedRankings.length > 0) {
+						<h6 class="mb-2 text-warning">Unmatched Rankings</h6>
+						<div class="table-responsive mb-4">
+							<table class="table table-sm table-hover align-middle">
+								<thead>
+									<tr>
+										<th style="width: 60px">Rank</th>
+										<th>Team</th>
+										<th>State</th>
+										<th>Rating</th>
+									</tr>
+								</thead>
+								<tbody>
+									@for (r of result.unmatchedRankings; track r.rank) {
+										<tr class="text-body-secondary">
+											<td>{{ r.rank }}</td>
+											<td>{{ r.team }}</td>
+											<td>{{ r.state }}</td>
+											<td>{{ r.rating | number:'1.2-2' }}</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+
+					<!-- Unmatched Registered Teams -->
+					@if (result.unmatchedTeams.length > 0) {
+						<h6 class="mb-2 text-danger">Unmatched Registered Teams</h6>
+						<div class="table-responsive">
+							<table class="table table-sm table-hover align-middle">
+								<thead>
+									<tr>
+										<th>Team</th>
+										<th>Club</th>
+										<th>Age Group</th>
+									</tr>
+								</thead>
+								<tbody>
+									@for (t of result.unmatchedTeams; track t.teamId) {
+										<tr class="text-body-secondary">
+											<td>{{ t.teamName }}</td>
+											<td>{{ t.clubName }}</td>
+											<td>{{ t.agegroupName }}</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				}
+			}
+		</div>
+	</div>
+}
+
+<!-- ═══════════════════ TAB 2: Import ═══════════════════ -->
+@if (activeTab() === 'import') {
+	<div class="card shadow-sm">
+		<div class="card-body">
+			@if (alignment(); as result) {
+				<p class="text-body-secondary mb-3">
+					Import matched rankings into <strong>TeamComments</strong> for use in Pool Assignment.
+					Format written: <code>001:Team Name</code> (rank padded to 3 digits).
+				</p>
+
+				<!-- Confidence selector -->
+				<div class="mb-4">
+					<label class="form-label fw-medium">Confidence Threshold</label>
+					<div class="d-flex gap-3">
+						<div class="form-check">
+							<input class="form-check-input" type="radio" name="confidence"
+								id="conf-high" value="high"
+								[checked]="confidenceCategory() === 'high'"
+								(change)="confidenceCategory.set('high')">
+							<label class="form-check-label" for="conf-high">
+								High only (75%+)
+								<span class="badge bg-success-subtle text-success ms-1">{{ highConfMatches().length }}</span>
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="radio" name="confidence"
+								id="conf-medium" value="medium"
+								[checked]="confidenceCategory() === 'medium'"
+								(change)="confidenceCategory.set('medium')">
+							<label class="form-check-label" for="conf-medium">
+								Medium+ (50%+)
+								<span class="badge bg-warning-subtle text-warning ms-1">{{ highConfMatches().length + mediumConfMatches().length }}</span>
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<!-- Preview table -->
+				@if (filteredMatches().length > 0) {
+					<h6 class="mb-2">Teams to import ({{ filteredMatches().length }})</h6>
+					<div class="table-responsive mb-4">
+						<table class="table table-sm table-hover align-middle">
+							<thead>
+								<tr>
+									<th style="width: 60px">Rank</th>
+									<th>Ranked Team</th>
+									<th>Registered Team</th>
+									<th style="width: 90px">Confidence</th>
+									<th>Comment Preview</th>
+								</tr>
+							</thead>
+							<tbody>
+								@for (match of filteredMatches(); track match.registeredTeam.teamId) {
+									<tr>
+										<td class="fw-medium">{{ match.ranking.rank }}</td>
+										<td>{{ match.ranking.team }}</td>
+										<td>{{ match.registeredTeam.teamName }}</td>
+										<td>
+											<span class="badge" [class]="confidenceClass(match.matchScore)">
+												{{ formatPercent(match.matchScore) }}
+											</span>
+										</td>
+										<td>
+											<code>{{ match.ranking.rank.toString().padStart(3, '0') }}:{{ match.ranking.team }}</code>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+
+					<button class="btn btn-success"
+						(click)="importComments()"
+						[disabled]="isLoading()">
+						@if (isLoading()) {
+							<span class="spinner-border spinner-border-sm me-1"></span>
+							Importing...
+						} @else {
+							<i class="bi bi-box-arrow-in-down me-1"></i>
+							Import {{ filteredMatches().length }} Comments
+						}
+					</button>
+				} @else {
+					<div class="text-body-secondary">No matches meet the selected threshold.</div>
+				}
+			} @else {
+				<div class="text-body-secondary">
+					<i class="bi bi-info-circle me-1"></i>
+					Run alignment on the "Scrape &amp; Align" tab first.
+				</div>
+			}
+		</div>
+	</div>
+}
+
+<!-- ═══════════════════ TAB 3: Manage ═══════════════════ -->
+@if (activeTab() === 'manage') {
+	<div class="card shadow-sm">
+		<div class="card-body">
+			<p class="text-body-secondary mb-3">
+				Edit individual team comments or clear all comments for an age group.
+			</p>
+
+			@if (alignment(); as result) {
+				@if (result.alignedTeams.length > 0) {
+					<div class="table-responsive mb-4">
+						<table class="table table-sm table-hover align-middle">
+							<thead>
+								<tr>
+									<th>Registered Team</th>
+									<th>Club</th>
+									<th>Comment</th>
+									<th style="width: 120px">Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								@for (match of result.alignedTeams; track match.registeredTeam.teamId) {
+									<tr>
+										<td>{{ match.registeredTeam.teamName }}</td>
+										<td>{{ match.registeredTeam.clubName }}</td>
+										<td>
+											@if (editingTeamId() === match.registeredTeam.teamId) {
+												<input class="form-control form-control-sm"
+													[ngModel]="editComment()"
+													(ngModelChange)="editComment.set($event)">
+											} @else {
+												<code>{{ match.ranking.rank.toString().padStart(3, '0') }}:{{ match.ranking.team }}</code>
+											}
+										</td>
+										<td>
+											@if (editingTeamId() === match.registeredTeam.teamId) {
+												<button class="btn btn-sm btn-success me-1"
+													(click)="saveEdit(match.registeredTeam.teamId)">
+													<i class="bi bi-check"></i>
+												</button>
+												<button class="btn btn-sm btn-outline-secondary"
+													(click)="cancelEdit()">
+													<i class="bi bi-x"></i>
+												</button>
+											} @else {
+												<button class="btn btn-sm btn-outline-primary"
+													(click)="startEdit(match)">
+													<i class="bi bi-pencil"></i>
+												</button>
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			}
+
+			<!-- Clear all -->
+			<div class="border-top pt-3 mt-3">
+				<h6 class="text-danger mb-2">Clear All Comments</h6>
+				<p class="text-body-secondary small mb-2">
+					Remove ranking comments from all teams in the selected registered age group.
+				</p>
+				<button class="btn btn-outline-danger btn-sm"
+					(click)="clearComments()"
+					[disabled]="isLoading() || !selectedRegisteredAg()">
+					<i class="bi bi-trash me-1"></i>Clear Comments
+				</button>
+			</div>
+		</div>
+	</div>
+}

@@ -1,0 +1,87 @@
+:host {
+	display: block;
+	padding: var(--space-4);
+}
+
+// ── Summary bar ──
+
+.summary-bar {
+	display: flex;
+	gap: var(--space-4);
+	padding: var(--space-3) var(--space-4);
+	background: var(--bg-elevated);
+	border-radius: var(--radius-md);
+}
+
+.summary-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	min-width: 80px;
+}
+
+.summary-value {
+	font-size: var(--font-size-2xl);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--line-height-tight);
+}
+
+.summary-label {
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+	margin-top: var(--space-1);
+}
+
+// ── Confidence badges ──
+
+.confidence-high {
+	background-color: rgba(var(--bs-success-rgb), 0.15);
+	color: var(--bs-success);
+}
+
+.confidence-medium {
+	background-color: rgba(var(--bs-warning-rgb), 0.15);
+	color: var(--bs-warning);
+}
+
+.confidence-low {
+	background-color: rgba(var(--bs-danger-rgb), 0.15);
+	color: var(--bs-danger);
+}
+
+// ── Table refinements ──
+
+.table {
+	th {
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--bs-secondary-color);
+		border-bottom-width: 2px;
+	}
+
+	td {
+		font-size: var(--font-size-sm);
+	}
+
+	code {
+		font-size: var(--font-size-xs);
+		padding: var(--space-1);
+		background: var(--bg-elevated);
+		border-radius: var(--radius-sm);
+	}
+}
+
+// ── Responsive ──
+
+@media (max-width: 768px) {
+	.summary-bar {
+		flex-wrap: wrap;
+		gap: var(--space-3);
+	}
+
+	.summary-item {
+		min-width: 60px;
+	}
+}

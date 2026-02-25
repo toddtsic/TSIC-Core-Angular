@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -98,6 +99,28 @@ public class AgeGroupRepository : IAgeGroupRepository
             .Join(_context.JobLeagues.Where(jl => jl.JobId == jobId),
                 a => a.LeagueId, jl => jl.LeagueId, (a, jl) => true)
             .AnyAsync(cancellationToken);
+    }
+
+    // ── US Lacrosse Rankings ──
+
+    public async Task<List<AgeGroupOptionDto>> GetActiveAgeGroupsForJobAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && !t.Agegroup.AgegroupName.Contains("DROPPED")
+                        && !t.Agegroup.AgegroupName.Contains("WAITLIST"))
+            .Select(t => new { t.Agegroup.AgegroupId, t.Agegroup.AgegroupName })
+            .Distinct()
+            .OrderBy(x => x.AgegroupName)
+            .Select(x => new AgeGroupOptionDto
+            {
+                Value = x.AgegroupId.ToString(),
+                Text = x.AgegroupName ?? string.Empty
+            })
+            .ToListAsync(ct);
     }
 
     public void Add(Agegroups agegroup) => _context.Agegroups.Add(agegroup);

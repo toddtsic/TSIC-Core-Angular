@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using TSIC.Domain.Constants;
 using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Players;
 using TSIC.Application.Services.Shared.Html;
@@ -217,7 +218,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private static void AddSimpleTokens(Dictionary<string, string> tokens, FixedFields f, string jobSegment)
     {
-        string Img(string? logo) => string.IsNullOrEmpty(logo) ? string.Empty : $"<img src='https://statics.teamsportsinfo.com/BannerFiles/{logo}' alt='Job Logo'>";
+        string Img(string? logo) => string.IsNullOrEmpty(logo) ? string.Empty : $"<img src='{TsicConstants.BaseUrlStatics}BannerFiles/{logo}' alt='Job Logo'>";
         tokens["!JSEG"] = jobSegment;
         tokens["!JOBNAME"] = f.JobName ?? string.Empty;
         tokens["!JOBCODE"] = f.JobCode ?? string.Empty;

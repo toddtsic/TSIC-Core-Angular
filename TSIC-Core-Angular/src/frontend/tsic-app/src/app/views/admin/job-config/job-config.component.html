@@ -6,6 +6,8 @@
   </div>
 } @else if (svc.config()) {
   <div class="job-config-shell">
+    <h2 class="page-title">Job Configuration</h2>
+
     <!-- Tab bar -->
     <nav class="tab-bar" role="tablist" (keydown)="onTabKeydown($event)">
       @for (tab of tabs; track tab.key) {

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.TeamSearch;
@@ -938,6 +939,69 @@ public class TeamRepository : ITeamRepository
                   && ag.AgegroupName == "Dropped Teams"
             select (Guid?)t.TeamId
         ).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    // ── US Lacrosse Rankings ──
+
+    public async Task<List<RankingsTeamDto>> GetTeamsForRankingsAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && t.AgegroupId == agegroupId)
+            .Select(t => new RankingsTeamDto
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName,
+                AgeGroup = t.Agegroup.AgegroupName,
+                ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName ?? "" : "",
+                Color = t.Color ?? "",
+                AgegroupName = t.Agegroup.AgegroupName ?? "",
+                GradYearMin = t.Agegroup.GradYearMin,
+                GradYearMax = t.Agegroup.GradYearMax,
+                TeamComments = t.TeamComments
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<int> BulkUpdateTeamCommentsAsync(
+        Dictionary<Guid, string?> teamComments, CancellationToken ct = default)
+    {
+        if (teamComments.Count == 0) return 0;
+
+        var teamIds = teamComments.Keys.ToList();
+        var teams = await _context.Teams
+            .Where(t => teamIds.Contains(t.TeamId))
+            .ToListAsync(ct);
+
+        foreach (var team in teams)
+        {
+            if (teamComments.TryGetValue(team.TeamId, out var comment))
+                team.TeamComments = comment;
+        }
+
+        return await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> ClearTeamCommentsForAgegroupAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default)
+    {
+        var teams = await _context.Teams
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && t.AgegroupId == agegroupId
+                        && t.TeamComments != null)
+            .ToListAsync(ct);
+
+        foreach (var team in teams)
+            team.TeamComments = null;
+
+        if (teams.Count > 0)
+            await _context.SaveChangesAsync(ct);
+
+        return teams.Count;
     }
 }
 

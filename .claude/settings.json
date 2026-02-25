@@ -10,11 +10,19 @@
       "Read(//c/Users/Administrator/source/**)",
       "Read(//c/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-source-TSIC-Core-Angular/tasks/**)",
       "Bash(grep:*)",
-      "Bash(npx openapi-typescript-codegen:*)"
+      "Bash(npx openapi-typescript-codegen:*)",
+      "Bash(nuget list Syncfusion.Pdf.Net.Core -AllVersions -Source https://api.nuget.org/v3/index.json)",
+      "Bash(dotnet package search Syncfusion.Pdf.Net.Core --take 3)",
+      "Bash(dotnet add TSIC.API/TSIC.API.csproj package Syncfusion.Pdf.Net.Core)",
+      "Bash(node -e \"const pkg = require\\(''./package.json''\\); console.log\\(''@angular/core:'', pkg.dependencies[''@angular/core'']\\)\")",
+      "Read(//c/Users/Administrator/.claude/projects/c--Users-Administrator-source-TSIC-Core-Angular/memory/**)",
+      "Bash(xxd /c/Users/Administrator/source/TSIC-Core-Angular/scripts/1-Build-And-Deploy-Local.ps1)",
+      "Bash(git pull)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",
-      "\\tmp"
+      "\\tmp",
+      "C:\\Users\\Administrator\\.claude\\plans"
     ]
   }
 }

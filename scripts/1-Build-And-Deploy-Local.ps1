@@ -180,14 +180,14 @@ if (Test-Path $fixLoginSql) {
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  DB login verified for IIS APPPOOL\$ApiSiteName" -ForegroundColor Green
         } else {
-            Write-Host "  sqlcmd returned exit code $LASTEXITCODE — check SQL output above" -ForegroundColor Yellow
+            Write-Host "  sqlcmd returned exit code $LASTEXITCODE - check SQL output above" -ForegroundColor Yellow
         }
     } catch {
         Write-Host "  Could not run Fix-IIS-DbLogin.sql: $_" -ForegroundColor Yellow
         Write-Host "  If login fails after deploy, run scripts\Fix-IIS-DbLogin.sql manually in SSMS" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  Fix-IIS-DbLogin.sql not found — skipping DB login check" -ForegroundColor Yellow
+    Write-Host "  Fix-IIS-DbLogin.sql not found - skipping DB login check" -ForegroundColor Yellow
 }
 Write-Host ""
 

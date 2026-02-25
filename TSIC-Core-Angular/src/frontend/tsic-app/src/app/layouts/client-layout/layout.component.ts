@@ -13,6 +13,7 @@ import { ClientFooterBarComponent } from '../components/client-footer-bar/client
 import { ScrollToTopComponent } from '../../shared-ui/scroll-to-top/scroll-to-top.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
+import { environment } from '@environments/environment';
 
 @Component({
   selector: 'app-layout',
@@ -31,7 +32,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   private readonly jobContext = inject(JobContextService);
   readonly themeService = inject(ThemeService);
 
-  private readonly STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
+  private readonly STATIC_BASE_URL = `${environment.staticsUrl}/BannerFiles`;
 
   // Observable for auth state changes (must be field initializer for injection context)
   private readonly currentUser$ = toObservable(this.auth.currentUser);

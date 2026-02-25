@@ -51,6 +51,13 @@ public interface IAgeGroupRepository
     /// </summary>
     Task<bool> BelongsToJobAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get distinct active agegroups for a job (via Teams → Agegroups).
+    /// Excludes DROPPED/WAITLIST. Ordered by name. For rankings age-group dropdown.
+    /// </summary>
+    Task<List<Dtos.Rankings.AgeGroupOptionDto>> GetActiveAgeGroupsForJobAsync(
+        Guid jobId, CancellationToken ct = default);
+
     void Add(Agegroups agegroup);
     void Remove(Agegroups agegroup);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

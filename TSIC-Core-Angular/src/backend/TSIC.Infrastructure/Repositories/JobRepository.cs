@@ -361,7 +361,9 @@ public class JobRepository : IJobRepository
             .Select(j => new Contracts.Dtos.JobPulseDto
             {
                 PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
-                TeamRegistrationOpen = j.BRegistrationAllowTeam == true,
+                // Team reg only meaningful for Tournament (2) and League (3) job types
+                TeamRegistrationOpen = j.BRegistrationAllowTeam == true
+                    && (j.JobTypeId == 2 || j.JobTypeId == 3),
                 StoreEnabled = j.BEnableStore == true,
                 StoreHasActiveItems = j.BEnableStore == true
                     && _context.Stores.Any(s => s.JobId == j.JobId

@@ -30,6 +30,7 @@
     <PackageReference Include="MimeKit" />
     <PackageReference Include="AWSSDK.SimpleEmail" />
     <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Syncfusion.Pdf.Net.Core" />
   </ItemGroup>
 
   <ItemGroup>

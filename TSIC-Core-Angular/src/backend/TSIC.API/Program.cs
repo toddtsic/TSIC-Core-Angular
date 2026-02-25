@@ -43,6 +43,7 @@ using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services;
+using TSIC.API.Services.Referees;
 using TSIC.API.Services.Store;
 using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
@@ -56,6 +57,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -107,6 +109,7 @@ builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();
 builder.Services.AddScoped<IFieldRepository, FieldRepository>();
 builder.Services.AddScoped<IPairingsRepository, PairingsRepository>();
 builder.Services.AddScoped<ITimeslotRepository, TimeslotRepository>();
+builder.Services.AddScoped<ITournamentParkingRepository, TournamentParkingRepository>();
 builder.Services.AddScoped<IUserWidgetRepository, UserWidgetRepository>();
 builder.Services.AddScoped<IWidgetRepository, WidgetRepository>();
 builder.Services.AddScoped<IWidgetEditorRepository, WidgetEditorRepository>();
@@ -119,6 +122,8 @@ builder.Services.AddScoped<IArbSubscriptionRepository, ArbSubscriptionRepository
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
+// Referee Assignment
+builder.Services.AddScoped<IRefAssignmentRepository, RefAssignmentRepository>();
 // Store
 builder.Services.AddScoped<IStoreAnalyticsRepository, StoreAnalyticsRepository>();
 builder.Services.AddScoped<IStoreCartRepository, StoreCartRepository>();
@@ -205,6 +210,7 @@ builder.Services.AddScoped<IScheduleQaService, ScheduleQaService>();
 builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
+builder.Services.AddScoped<ITournamentParkingService, TournamentParkingService>();
 builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Widget Dashboard
 builder.Services.AddScoped<IUserWidgetService, UserWidgetService>();
@@ -219,11 +225,17 @@ builder.Services.AddScoped<IArbDefensiveService, ArbDefensiveService>();
 builder.Services.AddScoped<ICustomerConfigureService, CustomerConfigureService>();
 // Mobile Scorers
 builder.Services.AddScoped<IMobileScorerService, MobileScorerService>();
+// Referee Assignment
+builder.Services.AddScoped<IRefAssignmentService, RefAssignmentService>();
+// US Lacrosse Rankings
+builder.Services.AddHttpClient<IUSLaxScrapingService, TSIC.Infrastructure.Services.USLaxScrapingService>();
+builder.Services.AddScoped<IUSLaxMatchingService, TSIC.API.Services.Rankings.USLaxMatchingService>();
 // Store
 builder.Services.AddScoped<IStoreAdminService, StoreAdminService>();
 builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
 builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 builder.Services.AddScoped<IStoreWalkUpService, StoreWalkUpService>();
+builder.Services.AddScoped<IStoreReceiptService, StoreReceiptService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();
@@ -502,6 +514,22 @@ if (app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnor
 
 // Response compression (before routing so all responses are compressed)
 app.UseResponseCompression();
+
+// Serve uploaded images from the BannerFiles directory.
+// In dev this enables end-to-end image upload testing; in prod the CDN is primary
+// but this acts as a fallback.
+var bannerFilesPath = app.Configuration.GetSection("FileStorage")["BannerFilesPath"];
+if (!string.IsNullOrEmpty(bannerFilesPath))
+{
+    if (!Directory.Exists(bannerFilesPath))
+        Directory.CreateDirectory(bannerFilesPath);
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(bannerFilesPath),
+        RequestPath = "/static/BannerFiles"
+    });
+}
 
 // Ensure proper middleware order for CORS
 app.UseRouting();

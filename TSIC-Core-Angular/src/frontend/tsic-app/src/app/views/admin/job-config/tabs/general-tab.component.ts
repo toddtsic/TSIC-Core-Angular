@@ -19,14 +19,10 @@ export class GeneralTabComponent implements OnInit {
 
   jobName = linkedSignal(() => this.svc.general()?.jobName ?? null);
   jobDescription = linkedSignal(() => this.svc.general()?.jobDescription ?? null);
-  jobTagline = linkedSignal(() => this.svc.general()?.jobTagline ?? null);
   season = linkedSignal(() => this.svc.general()?.season ?? null);
   year = linkedSignal(() => this.svc.general()?.year ?? null);
   expiryUsers = linkedSignal(() => toDateOnly(this.svc.general()?.expiryUsers) ?? '');
   displayName = linkedSignal(() => this.svc.general()?.displayName ?? null);
-  searchenginKeywords = linkedSignal(() => this.svc.general()?.searchenginKeywords ?? null);
-  searchengineDescription = linkedSignal(() => this.svc.general()?.searchengineDescription ?? null);
-
   // SuperUser-only fields
   jobNameQbp = linkedSignal(() => this.svc.general()?.jobNameQbp ?? null);
   expiryAdmin = linkedSignal(() => toDateOnly(this.svc.general()?.expiryAdmin) ?? null);
@@ -43,11 +39,11 @@ export class GeneralTabComponent implements OnInit {
     const req: UpdateJobConfigGeneralRequest = {
       jobName: g.jobName,
       jobDescription: g.jobDescription,
-      jobTagline: g.jobTagline,
       season: g.season,
       year: g.year,
       expiryUsers: toDateOnly(g.expiryUsers) ?? '',
       displayName: g.displayName,
+      jobTagline: g.jobTagline,
       searchenginKeywords: g.searchenginKeywords,
       searchengineDescription: g.searchengineDescription,
     };
@@ -84,13 +80,13 @@ export class GeneralTabComponent implements OnInit {
     const req: UpdateJobConfigGeneralRequest = {
       jobName: this.jobName(),
       jobDescription: this.jobDescription(),
-      jobTagline: this.jobTagline(),
       season: this.season(),
       year: this.year(),
       expiryUsers: this.expiryUsers(),
       displayName: this.displayName(),
-      searchenginKeywords: this.searchenginKeywords(),
-      searchengineDescription: this.searchengineDescription(),
+      jobTagline: this.svc.general()?.jobTagline ?? null,
+      searchenginKeywords: this.svc.general()?.searchenginKeywords ?? null,
+      searchengineDescription: this.svc.general()?.searchengineDescription ?? null,
     };
     if (this.svc.isSuperUser()) {
       req.jobNameQbp = this.jobNameQbp();

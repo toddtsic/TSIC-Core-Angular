@@ -51,14 +51,6 @@
             [ngModel]="jobDescription()"
             (ngModelChange)="jobDescription.set($event); onFieldChange()"></textarea>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Tagline</label>
-          <input
-            type="text"
-            class="form-control"
-            [ngModel]="jobTagline()"
-            (ngModelChange)="jobTagline.set($event); onFieldChange()" />
-        </div>
         @if (svc.isSuperUser()) {
           <div class="col-md-6">
             <label class="form-label">QBP Name</label>
@@ -120,28 +112,6 @@
       </div>
     </div>
 
-    <!-- SEO -->
-    <div class="form-section">
-      <h6 class="section-title">Search Engine</h6>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Keywords</label>
-          <input
-            type="text"
-            class="form-control"
-            [ngModel]="searchenginKeywords()"
-            (ngModelChange)="searchenginKeywords.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Description</label>
-          <input
-            type="text"
-            class="form-control"
-            [ngModel]="searchengineDescription()"
-            (ngModelChange)="searchengineDescription.set($event); onFieldChange()" />
-        </div>
-      </div>
-    </div>
 
     <!-- SuperUser: Classification -->
     @if (svc.isSuperUser()) {

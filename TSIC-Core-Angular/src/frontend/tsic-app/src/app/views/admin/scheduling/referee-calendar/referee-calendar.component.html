@@ -1,0 +1,270 @@
+<div class="calendar-container">
+
+    <!-- ── Header ── -->
+    <div class="calendar-header">
+        <div>
+            <h5>Referee Calendar</h5>
+            <p class="text-muted">
+                View and export all referee assignments
+            </p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-sm btn-outline-secondary"
+                    (click)="loadData()"
+                    [disabled]="isLoading()"
+                    aria-label="Refresh data">
+                <i class="bi bi-arrow-clockwise" [class.spin]="isLoading()"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Loading State ── -->
+    @if (isLoading()) {
+        <div class="calendar-loading" role="status">
+            <span class="spinner-border spinner-border-sm"></span>
+            <span>Loading referee assignments...</span>
+        </div>
+    }
+
+    <!-- ── Error State ── -->
+    @if (errorMessage()) {
+        <div class="calendar-error" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>{{ errorMessage() }}</span>
+            <button class="btn btn-sm btn-outline-danger ms-auto" (click)="loadData()">
+                Retry
+            </button>
+        </div>
+    }
+
+    <!-- ── Main Content ── -->
+    @if (!isLoading() && !errorMessage()) {
+
+        <!-- ── Stats Bar ── -->
+        @if (events().length > 0) {
+            <div class="stats-bar">
+                <div class="stat-chip">
+                    <i class="bi bi-calendar-event"></i>
+                    <span class="stat-value">{{ totalAssignments() }}</span>
+                    <span class="stat-label">Assignments</span>
+                </div>
+                <div class="stat-chip">
+                    <i class="bi bi-people"></i>
+                    <span class="stat-value">{{ uniqueRefereeCount() }}</span>
+                    <span class="stat-label">Referees</span>
+                </div>
+                @if (soloAssignments() > 0) {
+                    <div class="stat-chip stat-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span class="stat-value">{{ soloAssignments() }}</span>
+                        <span class="stat-label">Solo</span>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- ── Toolbar: Filter + Tabs + Export ── -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <!-- Referee Filter -->
+                <div class="filter-group">
+                    <label for="refFilter" class="filter-label">Referee</label>
+                    <select id="refFilter"
+                            class="form-select form-select-sm"
+                            [ngModel]="selectedRefereeId()"
+                            (ngModelChange)="onRefereeChange($event)">
+                        <option value="">All Referees</option>
+                        @for (ref of referees(); track ref.registrationId) {
+                            <option [value]="ref.registrationId">
+                                {{ ref.lastName }}, {{ ref.firstName }}
+                            </option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="toolbar-center">
+                <!-- Tabs -->
+                <div class="tab-bar" role="tablist" aria-label="Calendar view">
+                    <button class="tab-btn"
+                            [class.active]="activeTab() === 'agenda'"
+                            (click)="setTab('agenda')"
+                            role="tab"
+                            [attr.aria-selected]="activeTab() === 'agenda'"
+                            aria-controls="panel-agenda">
+                        <i class="bi bi-list-ul"></i>
+                        Agenda
+                    </button>
+                    <button class="tab-btn"
+                            [class.active]="activeTab() === 'grid'"
+                            (click)="setTab('grid')"
+                            role="tab"
+                            [attr.aria-selected]="activeTab() === 'grid'"
+                            aria-controls="panel-grid">
+                        <i class="bi bi-grid-3x3"></i>
+                        Grid
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-right">
+                <button class="btn btn-sm btn-outline-secondary"
+                        (click)="exportCsv()"
+                        [disabled]="filteredEvents().length === 0"
+                        aria-label="Export as CSV">
+                    <i class="bi bi-filetype-csv"></i>
+                    <span class="btn-text">CSV</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary"
+                        (click)="exportPrint()"
+                        [disabled]="filteredEvents().length === 0"
+                        aria-label="Print or save as PDF">
+                    <i class="bi bi-printer"></i>
+                    <span class="btn-text">Print</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Empty State ── -->
+        @if (events().length === 0) {
+            <div class="empty-state">
+                <i class="bi bi-calendar-x"></i>
+                <h6>No Referee Assignments</h6>
+                <p>Referee assignments will appear here once games have been scheduled and referees assigned.</p>
+            </div>
+        }
+
+        @if (filteredEvents().length === 0 && events().length > 0) {
+            <div class="empty-state">
+                <i class="bi bi-funnel"></i>
+                <h6>No Matching Assignments</h6>
+                <p>No assignments match the selected referee filter. Try selecting a different referee or "All Referees."</p>
+            </div>
+        }
+
+        <!-- ════════════════════════════════════ -->
+        <!--           TAB 1: AGENDA VIEW         -->
+        <!-- ════════════════════════════════════ -->
+        @if (activeTab() === 'agenda' && filteredEvents().length > 0) {
+            <div id="panel-agenda" role="tabpanel" class="agenda-panel">
+                @for (group of eventsByDate(); track group.dateKey) {
+                    <div class="date-group">
+                        <div class="date-header">
+                            <span class="date-day">{{ group.dayOfWeek }}</span>
+                            <span class="date-full">{{ group.dateLabel }}</span>
+                            <span class="date-count">{{ group.events.length }} game{{ group.events.length !== 1 ? 's' : '' }}</span>
+                        </div>
+                        <div class="event-list">
+                            @for (event of group.events; track event.id) {
+                                <div class="event-card"
+                                     [style.--accent-color]="event.color || 'var(--bs-primary)'">
+
+                                    <div class="event-accent" [attr.aria-hidden]="true"></div>
+
+                                    <div class="event-body">
+                                        <div class="event-top-row">
+                                            <span class="event-time">
+                                                <i class="bi bi-clock"></i>
+                                                {{ formatTimeRange(event.startTime, event.endTime) }}
+                                            </span>
+                                            @if (event.fieldName) {
+                                                <span class="event-field">
+                                                    <i class="bi bi-geo-alt"></i>
+                                                    {{ event.fieldName }}
+                                                </span>
+                                            }
+                                            @if (event.agegroupName || event.divName) {
+                                                <span class="event-division">
+                                                    {{ event.agegroupName }}{{ event.divName ? ' / ' + event.divName : '' }}
+                                                </span>
+                                            }
+                                        </div>
+
+                                        <div class="event-referee">
+                                            <i class="bi bi-person-badge"></i>
+                                            {{ event.refereeFirstName }} {{ event.refereeLastName }}
+                                        </div>
+
+                                        @if (event.team1 || event.team2) {
+                                            <div class="event-matchup">
+                                                <span class="team-name">{{ event.team1 ?? 'TBD' }}</span>
+                                                <span class="versus">vs</span>
+                                                <span class="team-name">{{ event.team2 ?? 'TBD' }}</span>
+                                            </div>
+                                        }
+
+                                        <div class="event-crew">
+                                            @if (event.refsWith && event.refsWith.trim()) {
+                                                <span class="crew-list">
+                                                    <i class="bi bi-people-fill"></i>
+                                                    Working with: {{ event.refsWith }}
+                                                </span>
+                                            } @else {
+                                                <span class="crew-solo">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    Solo Assignment
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- ════════════════════════════════════ -->
+        <!--        TAB 2: MASTER GRID VIEW       -->
+        <!-- ════════════════════════════════════ -->
+        @if (activeTab() === 'grid' && filteredEvents().length > 0) {
+            <div id="panel-grid" role="tabpanel" class="grid-panel">
+                @if (distinctFields().length === 0) {
+                    <div class="empty-state">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                        <h6>No Field Data</h6>
+                        <p>The grid view requires field assignments. Assign fields to games to use this view.</p>
+                    </div>
+                } @else {
+                    <div class="grid-scroll-wrapper">
+                        <table class="master-grid" role="grid">
+                            <thead>
+                                <tr>
+                                    <th class="time-header" scope="col">Time</th>
+                                    @for (field of distinctFields(); track field.id) {
+                                        <th class="field-header" scope="col">{{ field.name }}</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (time of distinctTimes(); track time) {
+                                    <tr>
+                                        <td class="time-cell">{{ time }}</td>
+                                        @for (field of distinctFields(); track field.id) {
+                                            <td class="grid-cell">
+                                                @for (ev of getGridCell(time, field.id).events; track ev.id) {
+                                                    <div class="grid-event"
+                                                         [style.--accent-color]="ev.color || 'var(--bs-primary)'">
+                                                        <div class="grid-matchup">
+                                                            {{ ev.team1 ?? 'TBD' }}
+                                                            <span class="grid-vs">v</span>
+                                                            {{ ev.team2 ?? 'TBD' }}
+                                                        </div>
+                                                        <span class="grid-ref-badge">
+                                                            {{ ev.refereeFirstName.charAt(0) }}. {{ ev.refereeLastName }}
+                                                        </span>
+                                                    </div>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>

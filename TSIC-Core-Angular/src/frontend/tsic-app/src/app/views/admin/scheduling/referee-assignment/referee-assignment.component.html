@@ -1,0 +1,580 @@
+<div class="ref-assignment-container" (click)="onDocumentClick($event)">
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- Page Header                                                    -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="ref-header">
+        <h5 class="mb-0">Referee Assignment</h5>
+        <div class="d-flex gap-1 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary" (click)="openImportModal()"
+                    aria-label="Import referees from CSV file">
+                <i class="bi bi-upload me-1"></i>Import CSV
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" (click)="openSeedModal()"
+                    aria-label="Generate test referees">
+                <i class="bi bi-people me-1"></i>Seed Test Refs
+            </button>
+            <button class="btn btn-sm btn-outline-danger" (click)="openDeleteModal()"
+                    aria-label="Delete all referees and assignments">
+                <i class="bi bi-trash me-1"></i>Delete All
+            </button>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- Error Banner                                                   -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    @if (errorMessage()) {
+        <div class="alert alert-danger alert-dismissible py-2 mb-2" role="alert">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ errorMessage() }}
+            <button type="button" class="btn-close btn-close-sm" (click)="errorMessage.set('')"
+                    aria-label="Dismiss error"></button>
+        </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- Filter Bar                                                     -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="filter-bar">
+        <div class="filter-bar-selects">
+            <!-- Game Days -->
+            <div class="filter-group">
+                <label class="filter-label" for="filterDays">Game Days</label>
+                <select id="filterDays"
+                        class="form-select form-select-sm"
+                        multiple
+                        [size]="3"
+                        (change)="onMultiSelectChange($event, 'days')"
+                        aria-label="Filter by game days">
+                    @for (day of gameDays(); track day.value) {
+                        <option [value]="day.value"
+                                [selected]="selectedDays().includes(day.value)">
+                            {{ day.text }}
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <!-- Game Times -->
+            <div class="filter-group">
+                <label class="filter-label" for="filterTimes">Game Times</label>
+                <select id="filterTimes"
+                        class="form-select form-select-sm"
+                        multiple
+                        [size]="3"
+                        (change)="onMultiSelectChange($event, 'times')"
+                        aria-label="Filter by game times">
+                    @for (time of gameTimes(); track time.value) {
+                        <option [value]="time.value"
+                                [selected]="selectedTimes().includes(time.value)">
+                            {{ time.text }}
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <!-- Age Groups -->
+            <div class="filter-group">
+                <label class="filter-label" for="filterAgegroups">Age Groups</label>
+                <select id="filterAgegroups"
+                        class="form-select form-select-sm"
+                        multiple
+                        [size]="3"
+                        (change)="onMultiSelectChange($event, 'agegroups')"
+                        aria-label="Filter by age groups">
+                    @for (ag of agegroups(); track ag.value) {
+                        <option [value]="ag.value"
+                                [selected]="selectedAgegroups().includes(ag.value)">
+                            {{ ag.text }}
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <!-- Fields -->
+            <div class="filter-group">
+                <label class="filter-label" for="filterFields">Fields</label>
+                <select id="filterFields"
+                        class="form-select form-select-sm"
+                        multiple
+                        [size]="3"
+                        (change)="onMultiSelectChange($event, 'fields')"
+                        aria-label="Filter by fields">
+                    @for (field of fields(); track field.value) {
+                        <option [value]="field.value"
+                                [selected]="selectedFields().includes(field.value)">
+                            {{ field.text }}
+                        </option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="filter-bar-actions">
+            <button class="btn btn-sm btn-primary" (click)="searchGames()" [disabled]="isLoading()">
+                @if (isLoading()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                <i class="bi bi-search me-1"></i>Search
+            </button>
+            @if (hasActiveFilters()) {
+                <button class="btn btn-sm btn-outline-secondary" (click)="resetFilters()">
+                    <i class="bi bi-x-circle me-1"></i>Reset
+                </button>
+            }
+            @if (games().length > 0) {
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                    {{ games().length }} games
+                </span>
+            }
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- Assignment Grid                                                -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    @if (games().length === 0 && !isLoading()) {
+        <div class="empty-state">
+            <i class="bi bi-calendar3 icon-lg text-secondary"></i>
+            <p class="text-secondary mt-2 mb-0">
+                Use the filters above and click "Search" to load games for referee assignment.
+            </p>
+        </div>
+    }
+
+    @if (isLoading() && games().length === 0) {
+        <div class="empty-state">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading games...</span>
+            </div>
+            <p class="text-secondary mt-2 mb-0">Loading schedule...</p>
+        </div>
+    }
+
+    @if (games().length > 0) {
+        <div class="grid-wrapper" #gridScrollContainer>
+            <div class="grid-scroll">
+                <table class="assignment-grid" role="grid" aria-label="Referee assignment grid">
+                    <thead>
+                        <tr>
+                            <th class="time-header" scope="col">Time</th>
+                            @for (col of gridColumns(); track col.id) {
+                                <th class="field-header" scope="col">{{ col.name }}</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (row of gridRows(); track row.time) {
+                            <tr>
+                                <td class="time-cell">
+                                    <span class="time-label">{{ row.timeLabel }}</span>
+                                </td>
+                                @for (col of gridColumns(); track col.id) {
+                                    <td class="game-cell">
+                                        @for (cell of getCellGames(row, col.id); track cell.game.gid) {
+                                            <div class="ref-game-card"
+                                                 [class.ref-game-card--assigned]="cell.game.assignedRefIds.length > 0"
+                                                 [class.ref-game-card--unassigned]="cell.game.assignedRefIds.length === 0"
+                                                 [style.--ag-color]="cell.game.agegroupColor ?? 'var(--bs-primary)'">
+
+                                                <!-- Color bar + header row -->
+                                                <div class="ref-card-header">
+                                                    <span class="ref-card-ag" [title]="(cell.game.agegroupName ?? '') + ' / ' + (cell.game.divName ?? '')">
+                                                        {{ cell.game.agegroupName ?? '' }}
+                                                        @if (cell.game.divName) {
+                                                            <span class="ref-card-div">/ {{ cell.game.divName }}</span>
+                                                        }
+                                                    </span>
+                                                    <span class="ref-card-gid" [title]="'Game ID ' + cell.game.gid">
+                                                        #{{ cell.game.gid }}
+                                                    </span>
+                                                </div>
+
+                                                <!-- Teams -->
+                                                <div class="ref-card-teams">
+                                                    <span class="ref-card-team">{{ cell.game.t1Name ?? 'TBD' }}</span>
+                                                    <span class="ref-card-vs">vs</span>
+                                                    <span class="ref-card-team">{{ cell.game.t2Name ?? 'TBD' }}</span>
+                                                </div>
+
+                                                <!-- Ref selector + actions -->
+                                                <div class="ref-card-footer">
+                                                    <div class="ref-dropdown-container">
+                                                        <button class="ref-dropdown-trigger"
+                                                                (click)="toggleRefDropdown(cell.game.gid); $event.stopPropagation()"
+                                                                [attr.aria-expanded]="openDropdownGid() === cell.game.gid"
+                                                                aria-haspopup="listbox"
+                                                                [attr.aria-label]="'Assign referees to game ' + cell.game.gid">
+                                                            @if (cell.game.assignedRefIds.length === 0) {
+                                                                <i class="bi bi-person-plus"></i>
+                                                                <span>Assign</span>
+                                                            } @else {
+                                                                <span class="ref-count-badge">{{ cell.game.assignedRefIds.length }}</span>
+                                                                <span class="ref-assigned-names" [title]="getAssignedRefNames(cell.game)">
+                                                                    {{ getAssignedRefNames(cell.game) }}
+                                                                </span>
+                                                            }
+                                                            <i class="bi bi-chevron-down ref-dropdown-caret"></i>
+                                                        </button>
+
+                                                        @if (openDropdownGid() === cell.game.gid) {
+                                                            <div class="ref-dropdown-menu" role="listbox"
+                                                                 [attr.aria-label]="'Available referees for game ' + cell.game.gid">
+                                                                @if (activeReferees().length === 0) {
+                                                                    <div class="ref-dropdown-empty">
+                                                                        No active referees available
+                                                                    </div>
+                                                                } @else {
+                                                                    @for (ref of activeReferees(); track ref.registrationId) {
+                                                                        <label class="ref-dropdown-item"
+                                                                               role="option"
+                                                                               [attr.aria-selected]="isRefAssigned(cell.game, ref.registrationId)"
+                                                                               (click)="$event.stopPropagation()">
+                                                                            <input type="checkbox"
+                                                                                   class="form-check-input"
+                                                                                   [checked]="isRefAssigned(cell.game, ref.registrationId)"
+                                                                                   (change)="toggleRefAssignment(cell.game, ref.registrationId)">
+                                                                            <span class="ref-dropdown-name">
+                                                                                {{ ref.firstName }} {{ ref.lastName }}
+                                                                            </span>
+                                                                            @if (ref.certificationNumber) {
+                                                                                <span class="ref-dropdown-cert" title="Certification number">
+                                                                                    {{ ref.certificationNumber }}
+                                                                                </span>
+                                                                            }
+                                                                        </label>
+                                                                    }
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+
+                                                    <!-- Action icons -->
+                                                    <div class="ref-card-actions">
+                                                        <button class="ref-action-btn"
+                                                                title="Copy refs down"
+                                                                aria-label="Copy referee assignments to games below"
+                                                                (click)="openCopyModal(cell.game.gid, 'down'); $event.stopPropagation()">
+                                                            <i class="bi bi-arrow-down-circle"></i>
+                                                        </button>
+                                                        <button class="ref-action-btn"
+                                                                title="Copy refs up"
+                                                                aria-label="Copy referee assignments to games above"
+                                                                (click)="openCopyModal(cell.game.gid, 'up'); $event.stopPropagation()">
+                                                            <i class="bi bi-arrow-up-circle"></i>
+                                                        </button>
+                                                        <button class="ref-action-btn"
+                                                                title="Game details"
+                                                                aria-label="View referee details for this game"
+                                                                (click)="openInfoModal(cell.game.gid); $event.stopPropagation()">
+                                                            <i class="bi bi-info-circle"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                        @if (getCellGames(row, col.id).length === 0) {
+                                            <div class="empty-cell" aria-label="No game scheduled">
+                                                <span class="empty-cell-dash">&mdash;</span>
+                                            </div>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Copy Refs Modal                                                -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showCopyModal()) {
+    <tsic-dialog size="sm" (requestClose)="closeCopyModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-copy me-1"></i>Copy Referee Assignments
+                </h6>
+                <button class="btn-close" (click)="closeCopyModal()" aria-label="Close dialog"></button>
+            </div>
+            <div class="modal-body">
+                @if (copyResult()) {
+                    <div class="alert alert-success py-2">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Copied refs to <strong>{{ copyResult()!.length }}</strong> game(s).
+                    </div>
+                } @else {
+                    <p class="text-secondary mb-3">
+                        Copy the referee assignments from game <strong>#{{ copyGid() }}</strong>
+                        to {{ copyDirection() === 'down' ? 'later' : 'earlier' }} timeslots on the same field.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Direction</label>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm"
+                                    [class.btn-primary]="copyDirection() === 'down'"
+                                    [class.btn-outline-secondary]="copyDirection() !== 'down'"
+                                    (click)="copyDirection.set('down')">
+                                <i class="bi bi-arrow-down me-1"></i>Down (later)
+                            </button>
+                            <button class="btn btn-sm"
+                                    [class.btn-primary]="copyDirection() === 'up'"
+                                    [class.btn-outline-secondary]="copyDirection() !== 'up'"
+                                    (click)="copyDirection.set('up')">
+                                <i class="bi bi-arrow-up me-1"></i>Up (earlier)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="copyTimeslots">Number of Timeslots</label>
+                        <input id="copyTimeslots" type="number" class="form-control form-control-sm"
+                               min="1" max="50"
+                               [ngModel]="copyTimeslots()"
+                               (ngModelChange)="copyTimeslots.set($event)">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="copySkip">Skip Interval</label>
+                        <input id="copySkip" type="number" class="form-control form-control-sm"
+                               min="0" max="10"
+                               [ngModel]="copySkip()"
+                               (ngModelChange)="copySkip.set($event)">
+                        <small class="form-text text-secondary">
+                            0 = copy to every consecutive slot; 1 = skip one, copy one; etc.
+                        </small>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeCopyModal()">Close</button>
+                @if (!copyResult()) {
+                    <button class="btn btn-sm btn-primary" (click)="executeCopy()"
+                            [disabled]="isCopyLoading() || copyTimeslots() < 1">
+                        @if (isCopyLoading()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Copy Refs
+                    </button>
+                }
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Game Info Modal                                                -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showInfoModal()) {
+    <tsic-dialog (requestClose)="closeInfoModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-info-circle me-1"></i>Referee Details &mdash; Game #{{ infoGid() }}
+                </h6>
+                <button class="btn-close" (click)="closeInfoModal()" aria-label="Close dialog"></button>
+            </div>
+            <div class="modal-body">
+                @if (isInfoLoading()) {
+                    <div class="text-center p-3">
+                        <div class="spinner-border spinner-border-sm text-secondary"></div>
+                        <p class="text-secondary mt-2 mb-0">Loading details...</p>
+                    </div>
+                } @else if (infoDetails().length === 0) {
+                    <p class="text-secondary mb-0">No referees assigned to this game.</p>
+                } @else {
+                    @for (detail of infoDetails(); track detail.registrationId) {
+                        <div class="info-ref-block">
+                            <h6 class="mb-2">{{ detail.refName }}</h6>
+                            @if (detail.games.length > 0) {
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>GID</th>
+                                                <th>Date</th>
+                                                <th>Field</th>
+                                                <th>Agegroup</th>
+                                                <th>Division</th>
+                                                <th>Teams</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (g of detail.games; track g.gid) {
+                                                <tr [class.table-primary]="g.gid === infoGid()">
+                                                    <td>{{ g.gid }}</td>
+                                                    <td>{{ g.gameDate }}</td>
+                                                    <td>{{ g.fieldName }}</td>
+                                                    <td>{{ g.agegroupName }}</td>
+                                                    <td>{{ g.divName }}</td>
+                                                    <td>{{ g.t1Name }} vs {{ g.t2Name }}</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            } @else {
+                                <p class="text-secondary">No other games assigned today.</p>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeInfoModal()">Close</button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Import Referees Modal                                          -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showImportModal()) {
+    <tsic-dialog size="sm" (requestClose)="closeImportModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-upload me-1"></i>Import Referees
+                </h6>
+                <button class="btn-close" (click)="closeImportModal()" aria-label="Close dialog"></button>
+            </div>
+            <div class="modal-body">
+                @if (importResult()) {
+                    <div class="alert py-2 mb-2"
+                         [class.alert-success]="importResult()!.errors.length === 0"
+                         [class.alert-warning]="importResult()!.errors.length > 0">
+                        <div><strong>{{ importResult()!.imported }}</strong> imported</div>
+                        <div><strong>{{ importResult()!.skipped }}</strong> skipped (duplicates)</div>
+                        @if (importResult()!.errors.length > 0) {
+                            <div class="mt-2">
+                                <strong>Errors:</strong>
+                                <ul class="mb-0 ps-3">
+                                    @for (err of importResult()!.errors; track err) {
+                                        <li class="text-danger">{{ err }}</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </div>
+                } @else {
+                    <p class="text-secondary mb-3">
+                        Upload a CSV file with referee data. Expected columns: FirstName, LastName, Email, Cellphone, CertificationNumber.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="importFileInput">CSV File</label>
+                        <input id="importFileInput" type="file" class="form-control form-control-sm"
+                               accept=".csv"
+                               (change)="onFileSelected($event)">
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeImportModal()">Close</button>
+                @if (!importResult()) {
+                    <button class="btn btn-sm btn-primary" (click)="executeImport()"
+                            [disabled]="isImportLoading() || !importFile()">
+                        @if (isImportLoading()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Import
+                    </button>
+                }
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Seed Test Refs Modal                                           -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showSeedModal()) {
+    <tsic-dialog size="sm" (requestClose)="closeSeedModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-people me-1"></i>Seed Test Referees
+                </h6>
+                <button class="btn-close" (click)="closeSeedModal()" aria-label="Close dialog"></button>
+            </div>
+            <div class="modal-body">
+                @if (seedResult() !== null) {
+                    <div class="alert alert-success py-2">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Created <strong>{{ seedResult() }}</strong> test referee(s).
+                    </div>
+                } @else {
+                    <p class="text-secondary mb-3">
+                        Generate fake referee records for development/testing purposes.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="seedCountInput">Number of Referees</label>
+                        <input id="seedCountInput" type="number" class="form-control form-control-sm"
+                               min="1" max="100"
+                               [ngModel]="seedCount()"
+                               (ngModelChange)="seedCount.set($event)">
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeSeedModal()">Close</button>
+                @if (seedResult() === null) {
+                    <button class="btn btn-sm btn-primary" (click)="executeSeed()"
+                            [disabled]="isSeedLoading() || seedCount() < 1">
+                        @if (isSeedLoading()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Generate
+                    </button>
+                }
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- Delete All Confirmation Modal                                  -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+@if (showDeleteModal()) {
+    <tsic-dialog size="sm" (requestClose)="closeDeleteModal()">
+        <div class="modal-content">
+            <div class="modal-header bg-danger-subtle">
+                <h6 class="modal-title mb-0 text-danger">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Delete All Referees &amp; Assignments
+                </h6>
+                <button class="btn-close" (click)="closeDeleteModal()" aria-label="Close dialog"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    This will <strong class="text-danger">permanently delete</strong> all referee records
+                    and all game referee assignments. This action cannot be undone.
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="deleteConfirmInput">
+                        Type <code>DELETE</code> to confirm
+                    </label>
+                    <input id="deleteConfirmInput" type="text" class="form-control form-control-sm"
+                           autocomplete="off"
+                           placeholder="DELETE"
+                           [ngModel]="deleteConfirmText()"
+                           (ngModelChange)="deleteConfirmText.set($event)">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+                <button class="btn btn-sm btn-danger" (click)="executeDelete()"
+                        [disabled]="isDeleteLoading() || deleteConfirmText() !== 'DELETE'">
+                    @if (isDeleteLoading()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Delete Everything
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}

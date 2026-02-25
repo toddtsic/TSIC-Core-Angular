@@ -5,7 +5,9 @@
  * Handles relative paths, absolute URLs, BannerFiles prefix dedup, and junk filtering.
  */
 
-const STATIC_BASE_URL = 'https://statics.teamsportsinfo.com/BannerFiles';
+import { environment } from '@environments/environment';
+
+const STATIC_BASE_URL = `${environment.staticsUrl}/BannerFiles`;
 
 /**
  * Build a fully-qualified asset URL from a job's banner/logo path.

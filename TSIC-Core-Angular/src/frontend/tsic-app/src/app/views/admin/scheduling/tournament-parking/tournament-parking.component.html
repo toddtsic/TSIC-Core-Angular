@@ -1,0 +1,294 @@
+<div class="page-container">
+
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<!-- Zone 1 — Header + KPI Cards                                -->
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<div class="page-header">
+		<h5 class="page-title">Tournament Parking Analysis</h5>
+		<p class="page-subtitle">Estimate vehicle load per field complex over tournament days</p>
+	</div>
+
+	@if (summary(); as s) {
+		<div class="kpi-grid">
+			<div class="kpi-card">
+				<div class="kpi-icon kpi-icon--teams">
+					<i class="bi bi-people-fill"></i>
+				</div>
+				<div class="kpi-body">
+					<div class="kpi-label">Peak Teams On-Site</div>
+					<div class="kpi-value">{{ formatNumber(s.peakTeamsOnSite) }}</div>
+					@if (s.peakTeamsComplex) {
+						<div class="kpi-detail">at {{ s.peakTeamsComplex }}</div>
+					}
+				</div>
+			</div>
+
+			<div class="kpi-card">
+				<div class="kpi-icon kpi-icon--cars">
+					<i class="bi bi-car-front-fill"></i>
+				</div>
+				<div class="kpi-body">
+					<div class="kpi-label">Peak Cars On-Site</div>
+					<div class="kpi-value">{{ formatNumber(s.peakCarsOnSite) }}</div>
+					@if (s.peakCarsComplex) {
+						<div class="kpi-detail">at {{ s.peakCarsComplex }}</div>
+					}
+				</div>
+			</div>
+
+			<div class="kpi-card">
+				<div class="kpi-icon kpi-icon--scope">
+					<i class="bi bi-geo-alt-fill"></i>
+				</div>
+				<div class="kpi-body">
+					<div class="kpi-label">Analysis Scope</div>
+					<div class="kpi-value">{{ s.totalComplexes }} &times; {{ s.totalDays }}</div>
+					<div class="kpi-detail">complexes &times; days</div>
+				</div>
+			</div>
+		</div>
+	}
+
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<!-- Zone 2 — Parameter Bar                                     -->
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<div class="param-bar">
+		<div class="param-group">
+			<label class="param-label" for="arrBuf">Arrival Buffer</label>
+			<select id="arrBuf" class="param-select"
+				[ngModel]="arrivalBuffer()"
+				(ngModelChange)="arrivalBuffer.set($event); onParameterChange()">
+				@for (opt of bufferOptions; track opt) {
+					<option [ngValue]="opt">{{ opt }} min</option>
+				}
+			</select>
+		</div>
+
+		<div class="param-group">
+			<label class="param-label" for="depBuf">Departure Buffer</label>
+			<select id="depBuf" class="param-select"
+				[ngModel]="departureBuffer()"
+				(ngModelChange)="departureBuffer.set($event); onParameterChange()">
+				@for (opt of bufferOptions; track opt) {
+					<option [ngValue]="opt">{{ opt }} min</option>
+				}
+			</select>
+		</div>
+
+		<div class="param-group">
+			<label class="param-label" for="carMul">Cars / Team</label>
+			<select id="carMul" class="param-select"
+				[ngModel]="carMultiplier()"
+				(ngModelChange)="carMultiplier.set($event); onParameterChange()">
+				@for (opt of multiplierOptions; track opt) {
+					<option [ngValue]="opt">{{ opt }}</option>
+				}
+			</select>
+		</div>
+
+		@if (isLoading()) {
+			<div class="param-spinner">
+				<span class="spinner-border spinner-border-sm"></span>
+			</div>
+		}
+	</div>
+
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<!-- Error state                                                -->
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	@if (errorMessage(); as err) {
+		<div class="alert-banner alert-banner--danger">
+			<i class="bi bi-exclamation-triangle-fill"></i>
+			{{ err }}
+		</div>
+	}
+
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<!-- Empty state                                                -->
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	@if (!isLoading() && !errorMessage() && rollup().length === 0) {
+		<div class="empty-state">
+			<i class="bi bi-calendar-x"></i>
+			<p>No scheduled games found for this event.</p>
+			<p class="empty-hint">Schedule games first, then return here for parking analysis.</p>
+		</div>
+	}
+
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	<!-- Zone 3 — Tabbed Content                                    -->
+	<!-- ═══════════════════════════════════════════════════════════ -->
+	@if (rollup().length > 0) {
+		<div class="tab-bar" role="tablist">
+			<button class="tab-btn"
+				[class.active]="activeTab() === 0"
+				(click)="setActiveTab(0)"
+				role="tab"
+				[attr.aria-selected]="activeTab() === 0">
+				All Complexes
+			</button>
+			@for (cd of complexDays(); track cd.label; let i = $index) {
+				<button class="tab-btn"
+					[class.active]="activeTab() === i + 1"
+					(click)="setActiveTab(i + 1)"
+					role="tab"
+					[attr.aria-selected]="activeTab() === i + 1">
+					{{ cd.label }}
+				</button>
+			}
+		</div>
+
+		<!-- ── All Complexes Rollup Grid ── -->
+		@if (activeTab() === 0) {
+			<div class="grid-section">
+				<ejs-grid #rollupGrid
+					[dataSource]="rollup()"
+					[allowExcelExport]="true"
+					[toolbar]="['ExcelExport']"
+					(toolbarClick)="onGridToolbarClick($event, rollupGrid)"
+					[height]="420"
+					[allowSorting]="true"
+					[allowResizing]="true">
+					<e-columns>
+						<e-column field="fieldComplex" headerText="Complex" width="100"></e-column>
+						<e-column field="day" headerText="Day" width="90" type="date" format="MM/dd/yyyy"></e-column>
+						<e-column field="time" headerText="Time" width="80" type="date" format="h:mm a"></e-column>
+						<e-column field="teamsArriving" headerText="Teams+" textAlign="Right" width="70" format="N0"></e-column>
+						<e-column field="teamsDeparting" headerText="Teams−" textAlign="Right" width="70" format="N0"></e-column>
+						<e-column field="teamsNet" headerText="Net" textAlign="Right" width="60" format="N0"></e-column>
+						<e-column field="teamsOnSite" headerText="On-Site" textAlign="Right" width="75" format="N0">
+						</e-column>
+						<e-column field="carsArriving" headerText="Cars+" textAlign="Right" width="65" format="N0"></e-column>
+						<e-column field="carsDeparting" headerText="Cars−" textAlign="Right" width="65" format="N0"></e-column>
+						<e-column field="carsNet" headerText="Net" textAlign="Right" width="60" format="N0"></e-column>
+						<e-column field="carsOnSite" headerText="On-Site" textAlign="Right" width="75" format="N0">
+						</e-column>
+					</e-columns>
+				</ejs-grid>
+			</div>
+		}
+
+		<!-- ── Per-Complex/Day Charts + Grid ── -->
+		@if (activeComplexDay(); as cd) {
+			<!-- Cars Chart -->
+			<div class="chart-section">
+				<div class="chart-header">
+					<h6 class="chart-title">
+						<i class="bi bi-car-front-fill"></i>
+						Estimated Cars — {{ cd.label }}
+					</h6>
+					<div class="chart-actions">
+						<button class="btn-icon" (click)="exportChart(carsChart, 'CarsChart')"
+							aria-label="Export cars chart">
+							<i class="bi bi-download"></i>
+						</button>
+						<button class="btn-icon" (click)="printChart(carsChart)"
+							aria-label="Print cars chart">
+							<i class="bi bi-printer"></i>
+						</button>
+					</div>
+				</div>
+				<ejs-chart #carsChart
+					[primaryXAxis]="carsChartPrimaryXAxis()"
+					[primaryYAxis]="chartPrimaryYAxis()"
+					[tooltip]="chartTooltip"
+					[legendSettings]="chartLegend"
+					[chartArea]="chartArea"
+					[margin]="chartMargin"
+					[width]="'100%'"
+					[height]="'320px'"
+					[background]="'transparent'">
+					<e-series-collection>
+						<e-series [dataSource]="chartData()" name="Arriving" xName="time" yName="carsArriving"
+							type="Column" [fill]="primaryColor()" opacity="0.7"
+							columnWidth="0.6">
+						</e-series>
+						<e-series [dataSource]="chartData()" name="Departing" xName="time" yName="carsDeparting"
+							type="Column" [fill]="dangerColor()" opacity="0.7"
+							columnWidth="0.6">
+						</e-series>
+						<e-series [dataSource]="chartData()" name="On-Site" xName="time" yName="carsOnSite"
+							type="Line" [fill]="successColor()" width="2.5"
+							[marker]="{ visible: true, height: 7, width: 7, shape: 'Circle', isFilled: true }">
+						</e-series>
+					</e-series-collection>
+				</ejs-chart>
+			</div>
+
+			<!-- Teams Chart -->
+			<div class="chart-section">
+				<div class="chart-header">
+					<h6 class="chart-title">
+						<i class="bi bi-people-fill"></i>
+						Teams On-Site — {{ cd.label }}
+					</h6>
+					<div class="chart-actions">
+						<button class="btn-icon" (click)="exportChart(teamsChart, 'TeamsChart')"
+							aria-label="Export teams chart">
+							<i class="bi bi-download"></i>
+						</button>
+						<button class="btn-icon" (click)="printChart(teamsChart)"
+							aria-label="Print teams chart">
+							<i class="bi bi-printer"></i>
+						</button>
+					</div>
+				</div>
+				<ejs-chart #teamsChart
+					[primaryXAxis]="carsChartPrimaryXAxis()"
+					[primaryYAxis]="chartPrimaryYAxis()"
+					[tooltip]="chartTooltip"
+					[legendSettings]="chartLegend"
+					[chartArea]="chartArea"
+					[margin]="chartMargin"
+					[width]="'100%'"
+					[height]="'280px'"
+					[background]="'transparent'">
+					<e-series-collection>
+						<e-series [dataSource]="chartData()" name="Arriving" xName="time" yName="teamsArriving"
+							type="Column" [fill]="primaryColor()" opacity="0.7"
+							columnWidth="0.6">
+						</e-series>
+						<e-series [dataSource]="chartData()" name="Departing" xName="time" yName="teamsDeparting"
+							type="Column" [fill]="dangerColor()" opacity="0.7"
+							columnWidth="0.6">
+						</e-series>
+						<e-series [dataSource]="chartData()" name="On-Site" xName="time" yName="teamsOnSite"
+							type="Line" [fill]="successColor()" width="2.5"
+							[marker]="{ visible: true, height: 7, width: 7, shape: 'Circle', isFilled: true }">
+						</e-series>
+					</e-series-collection>
+				</ejs-chart>
+			</div>
+
+			<!-- Per-Complex Grid -->
+			<div class="grid-section">
+				<div class="chart-header">
+					<h6 class="chart-title">
+						<i class="bi bi-table"></i>
+						Data — {{ cd.label }}
+					</h6>
+				</div>
+				<ejs-grid #complexGrid
+					[dataSource]="cd.timeslots"
+					[allowExcelExport]="true"
+					[toolbar]="['ExcelExport']"
+					(toolbarClick)="onGridToolbarClick($event, complexGrid)"
+					[height]="320"
+					[allowSorting]="true">
+					<e-columns>
+						<e-column field="time" headerText="Time" width="90" type="date" format="h:mm a"></e-column>
+						<e-column field="teamsArriving" headerText="Teams+" textAlign="Right" width="70" format="N0"></e-column>
+						<e-column field="teamsDeparting" headerText="Teams−" textAlign="Right" width="70" format="N0"></e-column>
+						<e-column field="teamsNet" headerText="Net" textAlign="Right" width="60" format="N0"></e-column>
+						<e-column field="teamsOnSite" headerText="On-Site" textAlign="Right" width="75" format="N0">
+						</e-column>
+						<e-column field="carsArriving" headerText="Cars+" textAlign="Right" width="65" format="N0"></e-column>
+						<e-column field="carsDeparting" headerText="Cars−" textAlign="Right" width="65" format="N0"></e-column>
+						<e-column field="carsNet" headerText="Net" textAlign="Right" width="60" format="N0"></e-column>
+						<e-column field="carsOnSite" headerText="On-Site" textAlign="Right" width="75" format="N0">
+						</e-column>
+					</e-columns>
+				</ejs-grid>
+			</div>
+		}
+	}
+</div>
