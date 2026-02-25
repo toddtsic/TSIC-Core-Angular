@@ -39,6 +39,12 @@ export const routes: Routes = [
 		loadComponent: () => import('./views/home/tsic-landing-v4/tsic-landing-v4.component').then(m => m.TsicLandingV4Component)
 	},
 
+	// Privacy Policy — public, no auth required, no layout chrome
+	{
+		path: 'privacy-policy',
+		loadComponent: () => import('./views/home/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
+	},
+
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)
 	{
 		path: 'not-found',

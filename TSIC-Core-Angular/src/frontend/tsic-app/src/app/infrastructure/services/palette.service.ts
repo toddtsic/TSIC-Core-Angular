@@ -176,6 +176,11 @@ export class PaletteService {
         this.selectPalette(this.selectedIndex() === index ? 0 : index);
     }
 
+    /** Apply a palette visually without persisting to storage (e.g. page-specific defaults). */
+    previewPalette(index: number): void {
+        this.applyPalette(index);
+    }
+
     private applyPalette(index: number): void {
         this.selectedIndex.set(index);
 

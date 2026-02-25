@@ -78,7 +78,7 @@ export class TsicLandingComponent implements OnDestroy {
   ];
 
   readonly services = [
-    { icon: 'bi-trophy-fill', title: 'Tournaments', description: 'Intuitive registration, scheduling & recruiting tools with push notifications for any event.', image: 'images/svc-camps.jpg' },
+    { icon: 'bi-trophy-fill', title: 'Tournaments', description: 'Intuitive registration, scheduling & recruiting tools with push notifications for any event.', image: 'images/svc-girls-lax.jpg' },
     { icon: 'bi-flag-fill', title: 'Leagues', description: 'Standings, schedules, and championship brackets \u2014 fully automated.', image: 'images/svc-basketball.jpg' },
     { icon: 'bi-shield-fill', title: 'Clubs', description: 'Registration, payments, rosters, and reporting \u2014 everything your rec or travel club needs.', image: 'images/svc-softball.jpg' },
     { icon: 'bi-sun-fill', title: 'Camps & Clinics', description: 'Multi-select registration, rostering and check-in reports for camps & clinics of every size.', image: 'images/svc-soccer.jpg' }

@@ -35,7 +35,7 @@ export class LastLocationService {
 
     private isSafeJobPath(s: string): boolean {
         // Exclude error/system routes
-        const excludedRoutes = ['not-found', 'error', 'unauthorized', 'login', 'register'];
+        const excludedRoutes = ['not-found', 'error', 'unauthorized', 'login', 'register', 'privacy-policy'];
         if (excludedRoutes.includes(s.toLowerCase())) {
             return false;
         }

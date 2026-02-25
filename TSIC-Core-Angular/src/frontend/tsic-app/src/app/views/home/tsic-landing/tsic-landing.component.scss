@@ -181,10 +181,10 @@
   &__content {
     position: relative;
     z-index: 1;
-    padding: calc(200px + var(--space-4)) var(--space-6) var(--space-12);
+    padding: calc(150px + var(--space-4)) var(--space-6) var(--space-12);
 
     @media (min-width: 768px) {
-      padding: calc(200px + var(--space-6)) var(--space-8) var(--space-12);
+      padding: calc(150px + var(--space-6)) var(--space-8) var(--space-12);
     }
 
     @media (min-width: 992px) {
@@ -333,7 +333,7 @@
   opacity: 0;
   animation: heroSlide 36s ease-in-out infinite;
 
-  &--1 { background-image: url('/images/hero-sports.jpg');      animation-name: heroSlideFirst; opacity: 1; }
+  &--1 { background-image: url('/images/hero-girls-lax-3.jpg');  animation-name: heroSlideFirst; opacity: 1; }
   &--2 { background-image: url('/images/hero-boys-lax.jpg');    animation-delay: 6s; }
   &--3 { background-image: url('/images/hero-basketball.jpg');  animation-delay: 12s; }
   &--4 { background-image: url('/images/hero-soccer.jpg');      animation-delay: 18s; }
