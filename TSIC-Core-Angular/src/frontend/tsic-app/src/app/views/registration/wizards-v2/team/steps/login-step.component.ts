@@ -44,18 +44,19 @@ export interface LoginStepResult {
           @if (error()) {
             <div class="alert alert-danger">{{ error() }}</div>
           }
-          <div class="row g-3">
-            <div class="col-12 col-md-6">
-              <app-login
+          <div class="row g-3 align-items-stretch">
+            <div class="col-12 col-md-6 d-flex">
+              <app-login class="flex-fill"
                 [theme]="''"
+                [embedded]="true"
                 [headerText]="'Club Rep Sign In'"
                 [subHeaderText]="'Sign in with your club rep account'"
                 [returnUrl]="returnUrl()" />
             </div>
-            <div class="col-12 col-md-6">
-              <div class="card border rounded h-100" style="border-color: var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); background: var(--brand-surface);">
+            <div class="col-12 col-md-6 d-flex">
+              <div class="card border rounded flex-fill" style="border-color: var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); background: var(--brand-surface);">
                 <div class="card-body d-flex flex-column justify-content-center align-items-center text-center"
-                     style="padding: var(--space-10) var(--space-6);">
+                     style="padding: var(--space-6);">
                   <i class="bi bi-shield-fill-plus" style="font-size: 2.5rem; color: var(--bs-primary); margin-bottom: var(--space-4);"></i>
                   <h5 class="fw-bold mb-2" style="color: var(--brand-text);">New Club Rep?</h5>
                   <p class="mb-4" style="color: var(--brand-text-muted); font-size: var(--font-size-sm);">

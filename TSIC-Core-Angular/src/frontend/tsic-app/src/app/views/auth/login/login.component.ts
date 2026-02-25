@@ -33,6 +33,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() theme: 'login' | 'player' | 'family' | '' = '';
   // Optional client-provided return URL to prefer over query param
   @Input() returnUrl: string | null | undefined = undefined;
+  // When true, strips wrapper padding and card max-width for side-by-side layouts
+  @Input() embedded = false;
 
   // Escape route query params (switching themes while preserving context)
   public escapeQueryParams: Record<string, any> = {};
@@ -41,6 +43,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   // Apply per-wizard theme class when embedded in wizard flows (player/family)
   @HostBinding('class.wizard-theme-player') get isPlayerTheme() { return this.theme === 'player'; }
   @HostBinding('class.wizard-theme-family') get isFamilyTheme() { return this.theme === 'family'; }
+  @HostBinding('class.login-embedded') get isEmbedded() { return this.embedded; }
 
   constructor() {
     // Pre-fill username from JWT token if available

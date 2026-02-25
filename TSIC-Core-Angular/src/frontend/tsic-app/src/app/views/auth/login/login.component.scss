@@ -98,3 +98,18 @@
 .login-escape {
     margin-top: var(--space-4);
 }
+
+// ─── Embedded mode (side-by-side in wizard steps) ─
+:host(.login-embedded) {
+    height: 100%;
+
+    .login-wrapper {
+        padding: 0;
+        height: 100%;
+    }
+
+    .login-card {
+        max-width: none;
+        height: 100%;
+    }
+}
