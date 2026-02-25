@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { Roles } from '@infrastructure/constants/roles.constants';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/wizards/team-registration-wizard/services/team-registration.service';
 import { LoginComponent } from '@views/auth/login/login.component';
@@ -68,7 +69,10 @@ export interface LoginStepResult {
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TeamLoginStepComponent {
+export class TeamLoginStepComponent implements OnInit {
+    /** Roles that are valid for team registration */
+    private static readonly ALLOWED_ROLES: ReadonlySet<string> = new Set([Roles.ClubRep]);
+
     readonly loginSuccess = output<LoginStepResult>();
     readonly registrationSuccess = output<LoginStepResult>();
 
@@ -77,6 +81,15 @@ export class TeamLoginStepComponent {
     private readonly teamReg = inject(TeamRegistrationService);
     private readonly destroyRef = inject(DestroyRef);
     readonly error = signal<string | null>(null);
+
+    ngOnInit(): void {
+        if (this.auth.isAuthenticated()) {
+            const role = this.auth.currentUser()?.role;
+            if (role && !TeamLoginStepComponent.ALLOWED_ROLES.has(role)) {
+                this.auth.logoutLocal();
+            }
+        }
+    }
 
     returnUrl(): string {
         const jobPath = this.state.jobPath();

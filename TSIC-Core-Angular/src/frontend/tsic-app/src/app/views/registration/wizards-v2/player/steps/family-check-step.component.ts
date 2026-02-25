@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { Roles } from '@infrastructure/constants/roles.constants';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { LoginComponent } from '../../../../auth/login/login.component';
 
@@ -62,7 +63,10 @@ import { LoginComponent } from '../../../../auth/login/login.component';
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class FamilyCheckStepComponent {
+export class FamilyCheckStepComponent implements OnInit {
+    /** Roles that are valid for player registration */
+    private static readonly ALLOWED_ROLES: ReadonlySet<string> = new Set([Roles.Family, Roles.Player]);
+
     readonly advance = output<void>();
     readonly auth = inject(AuthService);
     private readonly router = inject(Router);
@@ -70,6 +74,15 @@ export class FamilyCheckStepComponent {
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly state = inject(PlayerWizardStateService);
+
+    ngOnInit(): void {
+        if (this.auth.isAuthenticated()) {
+            const role = this.auth.currentUser()?.role;
+            if (role && !FamilyCheckStepComponent.ALLOWED_ROLES.has(role)) {
+                this.auth.logoutLocal();
+            }
+        }
+    }
 
     returnUrl(): string {
         const jobPath = this.jobService.getCurrentJob()?.jobPath;
