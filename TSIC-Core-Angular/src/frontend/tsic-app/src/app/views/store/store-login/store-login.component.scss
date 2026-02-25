@@ -1,0 +1,59 @@
+:host {
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	min-height: 100dvh;
+	padding: var(--space-4);
+	padding-top: var(--space-8);
+}
+
+.store-login-container {
+	width: 100%;
+	max-width: 880px;
+}
+
+.store-login-hero {
+	margin-bottom: var(--space-6);
+}
+
+.store-login-icon {
+	font-size: 3rem;
+	color: var(--bs-primary);
+}
+
+.store-login-title {
+	font-size: var(--font-size-3xl);
+	font-weight: var(--font-weight-bold);
+	color: var(--brand-text);
+	margin-top: var(--space-2);
+	margin-bottom: var(--space-1);
+}
+
+.store-login-subtitle {
+	font-size: var(--font-size-base);
+	color: var(--brand-text-muted);
+	margin-bottom: 0;
+}
+
+.store-card-col {
+	max-width: 420px;
+}
+
+.guest-card {
+	border-color: var(--border-color);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-lg);
+	background: var(--brand-surface);
+}
+
+.guest-card-icon {
+	font-size: 2.5rem;
+	color: var(--bs-primary);
+	margin-bottom: var(--space-4);
+}
+
+.guest-card-text {
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-sm);
+	margin-bottom: var(--space-4);
+}

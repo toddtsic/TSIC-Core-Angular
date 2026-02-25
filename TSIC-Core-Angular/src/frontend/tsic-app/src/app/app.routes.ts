@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './infrastructure/guards/auth.guard';
+import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 
@@ -176,6 +177,10 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/admin/uslax-test/uslax-test.component').then(m => m.UsLaxTestComponent)
 					},
 					{
+						path: 'uslax-rankings',
+						loadComponent: () => import('./views/admin/uslax-rankings/uslax-rankings.component').then(m => m.UsLaxRankingsComponent)
+					},
+					{
 						path: 'email-log',
 						loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
 					},
@@ -206,32 +211,39 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				loadComponent: () => import('./views/arb/arb-update-cc.component').then(m => m.ArbUpdateCcComponent)
 			},
-			// Store — walk-up anonymous registration
+			// Store — walk-up kiosk (always forces clean slate)
 			{
 				path: 'store/walk-up',
-				canActivate: [authGuard],
-				data: { allowAnonymous: true },
+				canActivate: [storeGuard],
+				data: { storeMode: 'walk-up' },
 				loadComponent: () => import('./views/store/store-walk-up/store-walk-up.component').then(m => m.StoreWalkUpComponent)
 			},
-			// Store — authenticated storefront
+			// Store — focused login page (family sign-in + guest option)
+			{
+				path: 'store/login',
+				canActivate: [storeGuard],
+				data: { storeMode: 'login' },
+				loadComponent: () => import('./views/store/store-login/store-login.component').then(m => m.StoreLoginComponent)
+			},
+			// Store — authenticated storefront (requires Player/Family role)
 			{
 				path: 'store',
-				canActivate: [authGuard],
+				canActivate: [storeGuard],
 				loadComponent: () => import('./views/store/store-catalog/store-catalog.component').then(m => m.StoreCatalogComponent)
 			},
 			{
 				path: 'store/item/:storeItemId',
-				canActivate: [authGuard],
+				canActivate: [storeGuard],
 				loadComponent: () => import('./views/store/store-item-detail/store-item-detail.component').then(m => m.StoreItemDetailComponent)
 			},
 			{
 				path: 'store/cart',
-				canActivate: [authGuard],
+				canActivate: [storeGuard],
 				loadComponent: () => import('./views/store/store-cart/store-cart.component').then(m => m.StoreCartComponent)
 			},
 			{
 				path: 'store/checkout',
-				canActivate: [authGuard],
+				canActivate: [storeGuard],
 				loadComponent: () => import('./views/store/store-checkout/store-checkout.component').then(m => m.StoreCheckoutComponent)
 			},
 			// Report launcher — handles all menu items with Controller=Reporting
@@ -363,6 +375,24 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
+			{
+				path: 'scheduling/tournament-parking',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/tournament-parking/tournament-parking.component').then(m => m.TournamentParkingComponent)
+			},
+			{
+				path: 'scheduling/referee-assignment',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
+			},
+			{
+				path: 'scheduling/referee-calendar',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
+			},
 			// Scheduling — Pipeline shell (dashboard + steps 1–4)
 			{
 				path: 'scheduling',
@@ -437,8 +467,21 @@ export const routes: Routes = [
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
-			// Legacy-compatible: ValidationRemoteTest/Index
+			{
+				path: 'scheduling/referee-assignment',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
+			},
+			{
+				path: 'scheduling/referee-calendar',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
+			},
+			// Legacy-compatible: ValidationRemoteTest/Index + USLaxRankings/Index
 			{ path: 'validationremotetest/index', redirectTo: 'admin/uslax-test', pathMatch: 'full' },
+			{ path: 'uslaxrankings/index', redirectTo: 'admin/uslax-rankings', pathMatch: 'full' },
 			// Public schedule view (anonymous access)
 			{
 				path: 'schedule',

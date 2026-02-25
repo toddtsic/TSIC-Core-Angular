@@ -165,7 +165,16 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           return; // TOS navigation happened
         }
 
-        // TOS not required, proceed with normal flow
+        // Phase 1 only (no regId) — route through role-selection, preserving returnUrl
+        if (!user.regId) {
+          const jp = user.jobPath || this.jobPathQuery || 'tsic';
+          this.router.navigate([`/${jp}/role-selection`], {
+            queryParams: { returnUrl: intendedDestination },
+          });
+          return;
+        }
+
+        // Phase 2 complete — go directly to intended destination
         this.router.navigateByUrl(intendedDestination);
       },
       error: (error) => {

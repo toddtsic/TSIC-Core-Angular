@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, computed, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
@@ -16,6 +16,7 @@ import { Query } from '@syncfusion/ej2-data';
 export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly registrations = computed(() => this.authService.registrations());
   readonly isLoading = computed(() => this.authService.registrationsLoading());
@@ -24,7 +25,11 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
 
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
+  /** Optional returnUrl from query params — honored after role selection (e.g. store flow) */
+  private _returnUrl: string | null = null;
+
   ngOnInit(): void {
+    this._returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
   }
@@ -79,9 +84,13 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     }
 
     if (!loading && this._wasSelecting && user?.jobPath) {
-      const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
       this._wasSelecting = false;
-      this.router.navigate([routePath]);
+      if (this._returnUrl) {
+        this.router.navigateByUrl(this._returnUrl);
+      } else {
+        const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
+        this.router.navigate([routePath]);
+      }
     }
   });
 
