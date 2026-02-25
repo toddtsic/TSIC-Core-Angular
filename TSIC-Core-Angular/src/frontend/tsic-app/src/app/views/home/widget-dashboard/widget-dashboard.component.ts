@@ -140,6 +140,14 @@ export class WidgetDashboardComponent {
 		return db.workspaces.find(ws => ws.workspace === 'dashboard') ?? null;
 	});
 
+	/** The 'public' workspace from the API response (shown to authenticated users too) */
+	readonly publicCategories = computed(() => {
+		const db = this.dashboard();
+		if (!db) return [];
+		const ws = db.workspaces.find(w => w.workspace === 'public');
+		return ws?.categories ?? [];
+	});
+
 	/** Dashboard categories, excluding bulletins for admin roles */
 	readonly hubCategories = computed(() => {
 		const ws = this.dashboardWorkspace();

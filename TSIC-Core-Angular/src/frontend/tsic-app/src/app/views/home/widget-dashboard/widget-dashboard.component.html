@@ -58,6 +58,20 @@
                 </div>
             </div>
 
+            <!-- Public workspace widgets visible to authenticated users -->
+            @for (category of publicCategories(); track category.categoryId) {
+                <div class="content-widgets">
+                    @for (widget of category.widgets; track widget.widgetId) {
+                        <!-- Skip client-banner (hero already renders it) and bulletins (dashboard has its own) -->
+                        @if (widget.componentKey !== 'client-banner' && widget.componentKey !== 'bulletins') {
+                            @if (resolveWidget(widget.componentKey); as cmp) {
+                                <ng-container *ngComponentOutlet="cmp" />
+                            }
+                        }
+                    }
+                </div>
+            }
+
             <!-- Dashboard workspace content (charts, bulletins) -->
             @for (category of hubCategories(); track category.categoryId) {
                 @if (isChartCategory(category)) {
