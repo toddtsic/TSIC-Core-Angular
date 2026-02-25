@@ -33,7 +33,7 @@ export class JobPulseWidgetComponent implements OnInit {
 
 	readonly cards = computed<PulseCard[]>(() => {
 		const p = this.pulse();
-		if (!p || p.publicSuspended) return [];
+		if (!p) return [];
 
 		const result: PulseCard[] = [];
 		const jobPath = this.resolveJobPath();
