@@ -427,6 +427,18 @@
 	}
 }
 
+.assign-legend {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	cursor: pointer;
+	transition: color 0.15s ease;
+
+	&:hover {
+		color: var(--bs-primary);
+	}
+}
+
 // ── Job Override indicators ──
 
 .matrix-checkbox.override-enabled {

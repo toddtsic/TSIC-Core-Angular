@@ -109,13 +109,11 @@ export class WidgetEditorComponent {
 	readonly showDeleteConfirm = signal(false);
 	readonly deleteTarget = signal<WidgetDefinitionDto | null>(null);
 
-	// ── Assign Roles modal state ──
-	readonly showAssignModal = signal(false);
-	readonly assignTarget = signal<WidgetDefinitionDto | null>(null);
+	// ── Role assignment state (embedded in Edit Widget modal) ──
 	readonly assignSelectedRoles = signal<Set<string>>(new Set());
 	readonly assignSelectedJobTypes = signal<Set<number>>(new Set());
-	readonly assignOriginalPairs = signal<Set<string>>(new Set());
-	readonly isAssignSaving = signal(false);
+	readonly assignSectionExpanded = signal(true);
+	readonly isLoadingAssignments = signal(false);
 
 	// ── Job Override state ──
 	readonly overrideSelectedJobTypeId = signal<number>(0);
@@ -530,6 +528,11 @@ export class WidgetEditorComponent {
 		this.formConfigIcon.set('');
 		this.formDisplayStyle.set('');
 		this.useCustomKey.set(false);
+		// Reset assignment state for new widget
+		this.assignSelectedRoles.set(new Set());
+		this.assignSelectedJobTypes.set(new Set());
+		this.assignSectionExpanded.set(true);
+		this.isLoadingAssignments.set(false);
 		this.showWidgetModal.set(true);
 	}
 
@@ -542,7 +545,30 @@ export class WidgetEditorComponent {
 		this.formDescription.set(widget.description || '');
 		this.parseConfigToFields(widget.defaultConfig);
 		this.useCustomKey.set(!WIDGET_MANIFEST[widget.componentKey]);
+		// Load existing assignments
+		this.assignSelectedRoles.set(new Set());
+		this.assignSelectedJobTypes.set(new Set());
+		this.assignSectionExpanded.set(true);
+		this.isLoadingAssignments.set(true);
 		this.showWidgetModal.set(true);
+
+		this.editorService.getWidgetAssignments(widget.widgetId).subscribe({
+			next: response => {
+				const roles = new Set<string>();
+				const jobTypeIds = new Set<number>();
+				for (const a of response.assignments) {
+					roles.add(a.roleId);
+					jobTypeIds.add(a.jobTypeId);
+				}
+				this.assignSelectedRoles.set(roles);
+				this.assignSelectedJobTypes.set(jobTypeIds);
+				this.isLoadingAssignments.set(false);
+			},
+			error: () => {
+				this.isLoadingAssignments.set(false);
+				this.toast.show('Failed to load role assignments.', 'warning', 3000);
+			},
+		});
 	}
 
 	/** Handle Component Key dropdown selection — auto-fills form from manifest */
@@ -627,23 +653,65 @@ export class WidgetEditorComponent {
 		const editing = this.editingWidget();
 		if (editing) {
 			this.editorService.updateWidget(editing.widgetId, request as any).subscribe({
-				next: () => {
-					this.toast.show('Widget updated successfully.', 'success');
-					this.closeWidgetModal();
-					this.reloadWidgets();
-				},
+				next: () => this.saveAssignmentsForWidget(editing.widgetId, editing.categoryId),
 				error: err => this.toast.show(err?.error?.message || 'Failed to update widget.', 'danger', 4000),
 			});
 		} else {
 			this.editorService.createWidget(request as any).subscribe({
-				next: () => {
-					this.toast.show('Widget created successfully.', 'success');
-					this.closeWidgetModal();
-					this.reloadWidgets();
-				},
+				next: (created: WidgetDefinitionDto) => this.saveAssignmentsForWidget(created.widgetId, created.categoryId),
 				error: err => this.toast.show(err?.error?.message || 'Failed to create widget.', 'danger', 4000),
 			});
 		}
+	}
+
+	/** Saves role assignments after widget create/update succeeds. */
+	private saveAssignmentsForWidget(widgetId: number, categoryId: number): void {
+		const roles = this.assignSelectedRoles();
+		const jobTypeIds = this.assignSelectedJobTypes();
+		const verb = this.editingWidget() ? 'updated' : 'created';
+
+		// If no assignments selected, just close and reload
+		if (roles.size === 0 || jobTypeIds.size === 0) {
+			this.toast.show(`Widget ${verb} successfully.`, 'success');
+			this.closeWidgetModal();
+			this.reloadWidgets();
+			return;
+		}
+
+		// Build cross-product assignments
+		const assignments: WidgetAssignmentDto[] = [];
+		for (const jobTypeId of jobTypeIds) {
+			for (const roleId of roles) {
+				assignments.push({ jobTypeId, roleId } as WidgetAssignmentDto);
+			}
+		}
+
+		this.editorService.saveWidgetAssignments({
+			widgetId,
+			categoryId,
+			assignments,
+		} as any).subscribe({
+			next: () => {
+				this.toast.show(
+					`Widget ${verb} and assigned to ${roles.size} role(s) across ${jobTypeIds.size} job type(s).`,
+					'success',
+				);
+				this.closeWidgetModal();
+				this.reloadWidgets();
+				// Refresh matrix if viewing an affected job type
+				if (this.selectedJobTypeId() && jobTypeIds.has(this.selectedJobTypeId())) {
+					this.loadMatrix(this.selectedJobTypeId());
+				}
+			},
+			error: () => {
+				this.toast.show(
+					`Widget ${verb}, but role assignments failed. Edit the widget to retry.`,
+					'warning', 5000,
+				);
+				this.closeWidgetModal();
+				this.reloadWidgets();
+			},
+		});
 	}
 
 	confirmDeleteWidget(widget: WidgetDefinitionDto): void {
@@ -671,42 +739,6 @@ export class WidgetEditorComponent {
 			next: data => this.widgets.set(data),
 			error: err => this.handleError('Failed to reload widgets', err),
 		});
-	}
-
-	// ═══════════════════════════════════
-	// Assign Roles modal
-	// ═══════════════════════════════════
-
-	openAssignRoles(widget: WidgetDefinitionDto): void {
-		this.assignTarget.set(widget);
-		this.assignSelectedRoles.set(new Set());
-		this.assignSelectedJobTypes.set(new Set());
-		this.assignOriginalPairs.set(new Set());
-		this.showAssignModal.set(true);
-
-		// Load current assignments for this widget
-		this.editorService.getWidgetAssignments(widget.widgetId).subscribe({
-			next: response => {
-				// Pre-populate: derive selected roles and job types from assignments
-				const roles = new Set<string>();
-				const jobTypeIds = new Set<number>();
-				const pairs = new Set<string>();
-				for (const a of response.assignments) {
-					roles.add(a.roleId);
-					jobTypeIds.add(a.jobTypeId);
-					pairs.add(`${a.jobTypeId}|${a.roleId}`);
-				}
-				this.assignSelectedRoles.set(roles);
-				this.assignSelectedJobTypes.set(jobTypeIds);
-				this.assignOriginalPairs.set(pairs);
-			},
-			error: err => this.toast.show(err?.error?.message || 'Failed to load assignments.', 'danger', 4000),
-		});
-	}
-
-	closeAssignModal(): void {
-		this.showAssignModal.set(false);
-		this.assignTarget.set(null);
 	}
 
 	toggleAssignRole(roleId: string): void {
@@ -745,46 +777,6 @@ export class WidgetEditorComponent {
 
 	assignmentCount(): number {
 		return this.assignSelectedRoles().size * this.assignSelectedJobTypes().size;
-	}
-
-	saveAssignments(): void {
-		const widget = this.assignTarget();
-		if (!widget) return;
-
-		const roles = this.assignSelectedRoles();
-		const jobTypeIds = this.assignSelectedJobTypes();
-
-		// Build the cross-product: every selected role × every selected job type
-		const assignments: WidgetAssignmentDto[] = [];
-		for (const jobTypeId of jobTypeIds) {
-			for (const roleId of roles) {
-				assignments.push({ jobTypeId, roleId } as WidgetAssignmentDto);
-			}
-		}
-
-		this.isAssignSaving.set(true);
-		this.editorService.saveWidgetAssignments({
-			widgetId: widget.widgetId,
-			categoryId: widget.categoryId,
-			assignments,
-		} as any).subscribe({
-			next: () => {
-				this.isAssignSaving.set(false);
-				this.toast.show(
-					`Assigned ${widget.name} to ${roles.size} role(s) across ${jobTypeIds.size} job type(s).`,
-					'success',
-				);
-				this.closeAssignModal();
-				// Refresh matrix if viewing one of the affected job types
-				if (this.selectedJobTypeId() && jobTypeIds.has(this.selectedJobTypeId())) {
-					this.loadMatrix(this.selectedJobTypeId());
-				}
-			},
-			error: err => {
-				this.isAssignSaving.set(false);
-				this.toast.show(err?.error?.message || 'Failed to save assignments.', 'danger', 4000);
-			},
-		});
 	}
 
 	// ═══════════════════════════════════
