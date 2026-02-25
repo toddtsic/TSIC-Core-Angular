@@ -43,6 +43,8 @@ export class JobPulseWidgetComponent implements OnInit {
 				icon: 'bi-person-plus-fill',
 				title: 'Player Registration',
 				subtitle: 'Now accepting players',
+				cta: 'Register a Player',
+				link: `/${jobPath}/register-player`,
 				style: 'active',
 				accent: 'success',
 			});
