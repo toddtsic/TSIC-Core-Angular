@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, computed, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, computed, signal, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -19,9 +19,12 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly route = inject(ActivatedRoute);
 
   readonly registrations = computed(() => this.authService.registrations());
-  readonly isLoading = computed(() => this.authService.registrationsLoading());
+  readonly isLoading = computed(() => this.authService.registrationsLoading() || this.selectingRole());
   readonly errorMessage = computed(() => this.authService.registrationsError() ?? this.authService.selectError());
   readonly username = computed(() => this.authService.currentUser()?.username ?? '');
+
+  /** Local UI signal for selection in progress */
+  readonly selectingRole = signal(false);
 
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
 
@@ -70,29 +73,23 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    this.authService.selectRegistrationCommand(registration.regId);
-  }
-
-  private _wasSelecting = false;
-  private readonly _navEffect = effect(() => {
-    const loading = this.authService.selectLoading();
-    const user = this.authService.getCurrentUser();
-
-    if (loading) {
-      this._wasSelecting = true;
-      return;
-    }
-
-    if (!loading && this._wasSelecting && user?.jobPath) {
-      this._wasSelecting = false;
-      if (this._returnUrl) {
-        this.router.navigateByUrl(this._returnUrl);
-      } else {
-        const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
-        this.router.navigate([routePath]);
+    this.selectingRole.set(true);
+    this.authService.selectRegistration(registration.regId).subscribe({
+      next: () => {
+        this.selectingRole.set(false);
+        const user = this.authService.getCurrentUser();
+        if (this._returnUrl) {
+          this.router.navigateByUrl(this._returnUrl);
+        } else if (user?.jobPath) {
+          const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
+          this.router.navigate([routePath]);
+        }
+      },
+      error: () => {
+        this.selectingRole.set(false);
       }
-    }
-  });
+    });
+  }
 
   logout(): void {
     this.authService.logout();
