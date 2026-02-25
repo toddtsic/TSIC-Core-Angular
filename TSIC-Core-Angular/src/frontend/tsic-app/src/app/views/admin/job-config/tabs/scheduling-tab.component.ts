@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -12,50 +12,51 @@ import type { UpdateJobConfigSchedulingRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './scheduling-tab.component.html',
 })
-export class SchedulingTabComponent {
+export class SchedulingTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  eventStartDate = signal<string | null>(null);
-  eventEndDate = signal<string | null>(null);
-  bScheduleAllowPublicAccess = signal<boolean | null>(null);
+  eventStartDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventStartDate) ?? null);
+  eventEndDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventEndDate) ?? null);
+  bScheduleAllowPublicAccess = linkedSignal(() => this.svc.scheduling()?.bScheduleAllowPublicAccess ?? null);
 
-  halfMinutes = signal(0);
-  halfTimeMinutes = signal(0);
-  transitionMinutes = signal(0);
-  playoffMinutes = signal(0);
-  playoffHalfMinutes = signal<number | undefined>(undefined);
-  playoffHalfTimeMinutes = signal<number | undefined>(undefined);
-  quarterMinutes = signal<number | undefined>(undefined);
-  quarterTimeMinutes = signal<number | undefined>(undefined);
-  utcOffsetHours = signal<number | undefined>(undefined);
+  halfMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.halfMinutes ?? 0);
+  halfTimeMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.halfTimeMinutes ?? 0);
+  transitionMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.transitionMinutes ?? 0);
+  playoffMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.playoffMinutes ?? 0);
+  playoffHalfMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.playoffHalfMinutes);
+  playoffHalfTimeMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.playoffHalfTimeMinutes);
+  quarterMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.quarterMinutes);
+  quarterTimeMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.quarterTimeMinutes);
+  utcOffsetHours = linkedSignal(() => this.svc.scheduling()?.gameClock?.utcOffsetHours);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const s = this.svc.scheduling();
+    if (!s) return '';
+    return JSON.stringify({
+      eventStartDate: toDateOnly(s.eventStartDate) ?? null,
+      eventEndDate: toDateOnly(s.eventEndDate) ?? null,
+      bScheduleAllowPublicAccess: s.bScheduleAllowPublicAccess,
+      gameClock: {
+        id: s.gameClock?.id ?? 0,
+        halfMinutes: s.gameClock?.halfMinutes ?? 0,
+        halfTimeMinutes: s.gameClock?.halfTimeMinutes ?? 0,
+        transitionMinutes: s.gameClock?.transitionMinutes ?? 0,
+        playoffMinutes: s.gameClock?.playoffMinutes ?? 0,
+        playoffHalfMinutes: s.gameClock?.playoffHalfMinutes,
+        playoffHalfTimeMinutes: s.gameClock?.playoffHalfTimeMinutes,
+        quarterMinutes: s.gameClock?.quarterMinutes,
+        quarterTimeMinutes: s.gameClock?.quarterTimeMinutes,
+        utcOffsetHours: s.gameClock?.utcOffsetHours,
+      },
+    } satisfies UpdateJobConfigSchedulingRequest);
+  });
 
-  constructor() {
-    effect(() => {
-      const s = this.svc.scheduling();
-      if (!s) return;
-      this.eventStartDate.set(toDateOnly(s.eventStartDate));
-      this.eventEndDate.set(toDateOnly(s.eventEndDate));
-      this.bScheduleAllowPublicAccess.set(s.bScheduleAllowPublicAccess);
-      if (s.gameClock) {
-        this.halfMinutes.set(s.gameClock.halfMinutes);
-        this.halfTimeMinutes.set(s.gameClock.halfTimeMinutes);
-        this.transitionMinutes.set(s.gameClock.transitionMinutes);
-        this.playoffMinutes.set(s.gameClock.playoffMinutes);
-        this.playoffHalfMinutes.set(s.gameClock.playoffHalfMinutes);
-        this.playoffHalfTimeMinutes.set(s.gameClock.playoffHalfTimeMinutes);
-        this.quarterMinutes.set(s.gameClock.quarterMinutes);
-        this.quarterTimeMinutes.set(s.gameClock.quarterTimeMinutes);
-        this.utcOffsetHours.set(s.gameClock.utcOffsetHours);
-      }
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('scheduling');
     } else {
       this.svc.markDirty('scheduling');

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, input, output, inject, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, input, output, inject, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { RegistrationDetailDto, CreditCardInfo } from '@core/api';
@@ -25,44 +25,35 @@ export class AddPaymentModalComponent {
   closed = output<void>();
   paymentRecorded = output<void>();
 
-  paymentType = signal<PaymentType>('check');
-  amount = signal<number>(0);
-  comment = signal<string>('');
-  checkNo = signal<string>('');
+  paymentType = linkedSignal({ source: () => this.detail(), computation: () => 'check' as PaymentType });
+  amount = linkedSignal(() => this.detail()?.owedTotal ?? 0);
+  comment = linkedSignal({ source: () => this.detail(), computation: () => '' });
+  checkNo = linkedSignal({ source: () => this.detail(), computation: () => '' });
   isProcessing = signal<boolean>(false);
   showConfirm = signal<boolean>(false);
 
-  // CC fields
-  ccNumber = signal<string>('');
-  ccExpiry = signal<string>('');
-  ccCvv = signal<string>('');
-  ccFirstName = signal<string>('');
-  ccLastName = signal<string>('');
-  ccAddress = signal<string>('');
-  ccZip = signal<string>('');
-  ccEmail = signal<string>('');
-  ccPhone = signal<string>('');
-
-  constructor() {
-    effect(() => {
-      const d = this.detail();
-      if (d && this.isOpen()) {
-        this.amount.set(d.owedTotal ?? 0);
-        // Pre-fill CC name from registration, contact from family or demographics
-        this.ccFirstName.set(d.firstName || '');
-        this.ccLastName.set(d.lastName || '');
-        if (d.familyContact) {
-          this.ccEmail.set(d.familyContact.momEmail || d.familyContact.dadEmail || d.email || '');
-          this.ccPhone.set(d.familyContact.momCellphone || d.familyContact.dadCellphone || '');
-        } else if (d.userDemographics) {
-          this.ccEmail.set(d.userDemographics.email || d.email || '');
-          this.ccPhone.set(d.userDemographics.cellphone || '');
-          this.ccAddress.set(d.userDemographics.streetAddress || '');
-          this.ccZip.set(d.userDemographics.postalCode || '');
-        }
-      }
-    });
-  }
+  // CC fields — pre-fill from detail, reset on new detail
+  ccNumber = linkedSignal({ source: () => this.detail(), computation: () => '' });
+  ccExpiry = linkedSignal({ source: () => this.detail(), computation: () => '' });
+  ccCvv = linkedSignal({ source: () => this.detail(), computation: () => '' });
+  ccFirstName = linkedSignal(() => this.detail()?.firstName || '');
+  ccLastName = linkedSignal(() => this.detail()?.lastName || '');
+  ccAddress = linkedSignal(() => this.detail()?.userDemographics?.streetAddress || '');
+  ccZip = linkedSignal(() => this.detail()?.userDemographics?.postalCode || '');
+  ccEmail = linkedSignal(() => {
+    const d = this.detail();
+    if (!d) return '';
+    if (d.familyContact) return d.familyContact.momEmail || d.familyContact.dadEmail || d.email || '';
+    if (d.userDemographics) return d.userDemographics.email || d.email || '';
+    return '';
+  });
+  ccPhone = linkedSignal(() => {
+    const d = this.detail();
+    if (!d) return '';
+    if (d.familyContact) return d.familyContact.momCellphone || d.familyContact.dadCellphone || '';
+    if (d.userDemographics) return d.userDemographics.cellphone || '';
+    return '';
+  });
 
   get owedTotal(): number {
     return this.detail()?.owedTotal ?? 0;

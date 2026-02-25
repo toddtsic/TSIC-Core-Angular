@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, effect, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, inject, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo } from '@core/api';
@@ -28,34 +28,20 @@ export class TeamDetailPanelComponent {
 	private readonly searchService = inject(TeamSearchService);
 	private readonly toast = inject(ToastService);
 
-	activeTab = signal<TabType>('info');
-	scope = signal<Scope>('team');
+	activeTab = linkedSignal({ source: () => this.detail(), computation: () => 'info' as TabType });
+	scope = linkedSignal({ source: () => this.detail(), computation: () => 'team' as Scope });
 
-	// Edit state
-	editTeamName = signal('');
-	editActive = signal(true);
-	editLevelOfPlay = signal('');
-	editComments = signal('');
+	// Edit state — reset from detail when it changes
+	editTeamName = linkedSignal(() => this.detail()?.teamName ?? '');
+	editActive = linkedSignal(() => this.detail()?.active ?? true);
+	editLevelOfPlay = linkedSignal(() => this.detail()?.levelOfPlay ?? '');
+	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
 
 	// Modals
 	showCcChargeModal = signal(false);
 	showCheckModal = signal(false);
 	checkModalType = signal<'Check' | 'Correction'>('Check');
-
-	constructor() {
-		effect(() => {
-			const d = this.detail();
-			if (d) {
-				this.editTeamName.set(d.teamName ?? '');
-				this.editActive.set(d.active);
-				this.editLevelOfPlay.set(d.levelOfPlay ?? '');
-				this.editComments.set(d.teamComments ?? '');
-				this.scope.set('team');
-				this.activeTab.set('info');
-			}
-		});
-	}
 
 	close(): void {
 		this.closed.emit();

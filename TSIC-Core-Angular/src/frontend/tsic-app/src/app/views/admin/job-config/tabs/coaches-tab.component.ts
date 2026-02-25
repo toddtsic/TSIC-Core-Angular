@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
@@ -13,50 +13,50 @@ import type { UpdateJobConfigCoachesRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './coaches-tab.component.html',
 })
-export class CoachesTabComponent {
+export class CoachesTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
   readonly rteTools = JOB_CONFIG_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
-  regformNameCoach = signal('');
-  adultRegConfirmationEmail = signal<string | null>(null);
-  adultRegConfirmationOnScreen = signal<string | null>(null);
-  adultRegRefundPolicy = signal<string | null>(null);
-  adultRegReleaseOfLiability = signal<string | null>(null);
-  adultRegCodeOfConduct = signal<string | null>(null);
-  refereeRegConfirmationEmail = signal<string | null>(null);
-  refereeRegConfirmationOnScreen = signal<string | null>(null);
-  recruiterRegConfirmationEmail = signal<string | null>(null);
-  recruiterRegConfirmationOnScreen = signal<string | null>(null);
-  bAllowRosterViewAdult = signal(false);
-  bAllowRosterViewPlayer = signal(false);
+  regformNameCoach = linkedSignal(() => this.svc.coaches()?.regformNameCoach ?? '');
+  adultRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationEmail ?? null);
+  adultRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationOnScreen ?? null);
+  adultRegRefundPolicy = linkedSignal(() => this.svc.coaches()?.adultRegRefundPolicy ?? null);
+  adultRegReleaseOfLiability = linkedSignal(() => this.svc.coaches()?.adultRegReleaseOfLiability ?? null);
+  adultRegCodeOfConduct = linkedSignal(() => this.svc.coaches()?.adultRegCodeOfConduct ?? null);
+  refereeRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.refereeRegConfirmationEmail ?? null);
+  refereeRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.refereeRegConfirmationOnScreen ?? null);
+  recruiterRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationEmail ?? null);
+  recruiterRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationOnScreen ?? null);
+  bAllowRosterViewAdult = linkedSignal(() => this.svc.coaches()?.bAllowRosterViewAdult ?? false);
+  bAllowRosterViewPlayer = linkedSignal(() => this.svc.coaches()?.bAllowRosterViewPlayer ?? false);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const c = this.svc.coaches();
+    if (!c) return '';
+    return JSON.stringify({
+      regformNameCoach: c.regformNameCoach,
+      adultRegConfirmationEmail: c.adultRegConfirmationEmail,
+      adultRegConfirmationOnScreen: c.adultRegConfirmationOnScreen,
+      adultRegRefundPolicy: c.adultRegRefundPolicy,
+      adultRegReleaseOfLiability: c.adultRegReleaseOfLiability,
+      adultRegCodeOfConduct: c.adultRegCodeOfConduct,
+      refereeRegConfirmationEmail: c.refereeRegConfirmationEmail,
+      refereeRegConfirmationOnScreen: c.refereeRegConfirmationOnScreen,
+      recruiterRegConfirmationEmail: c.recruiterRegConfirmationEmail,
+      recruiterRegConfirmationOnScreen: c.recruiterRegConfirmationOnScreen,
+      bAllowRosterViewAdult: c.bAllowRosterViewAdult,
+      bAllowRosterViewPlayer: c.bAllowRosterViewPlayer,
+    } satisfies UpdateJobConfigCoachesRequest);
+  });
 
-  constructor() {
-    effect(() => {
-      const c = this.svc.coaches();
-      if (!c) return;
-      this.regformNameCoach.set(c.regformNameCoach);
-      this.adultRegConfirmationEmail.set(c.adultRegConfirmationEmail);
-      this.adultRegConfirmationOnScreen.set(c.adultRegConfirmationOnScreen);
-      this.adultRegRefundPolicy.set(c.adultRegRefundPolicy);
-      this.adultRegReleaseOfLiability.set(c.adultRegReleaseOfLiability);
-      this.adultRegCodeOfConduct.set(c.adultRegCodeOfConduct);
-      this.refereeRegConfirmationEmail.set(c.refereeRegConfirmationEmail);
-      this.refereeRegConfirmationOnScreen.set(c.refereeRegConfirmationOnScreen);
-      this.recruiterRegConfirmationEmail.set(c.recruiterRegConfirmationEmail);
-      this.recruiterRegConfirmationOnScreen.set(c.recruiterRegConfirmationOnScreen);
-      this.bAllowRosterViewAdult.set(c.bAllowRosterViewAdult);
-      this.bAllowRosterViewPlayer.set(c.bAllowRosterViewPlayer);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('coaches');
     } else {
       this.svc.markDirty('coaches');

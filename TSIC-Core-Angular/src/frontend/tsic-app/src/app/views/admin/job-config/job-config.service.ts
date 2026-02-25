@@ -192,15 +192,17 @@ export class JobConfigService {
 
   private saveTab(tab: TabKey, body: unknown): void {
     const slug = tab === 'mobileStore' ? 'mobile-store' : tab;
+    const url = `${this.baseUrl}/${slug}`;
     this.isSaving.set(true);
-    this.http.put(`${this.baseUrl}/${slug}`, body).subscribe({
+    this.http.put(url, body).subscribe({
       next: () => {
         this.toast.show(`${this.tabLabel(tab)} saved.`, 'success');
         this.markClean(tab);
         this.isSaving.set(false);
         this.loadConfig(); // refresh to pick up latest
       },
-      error: () => {
+      error: (err) => {
+        console.error(`[JOB-CONFIG] PUT ${url} → ERROR`, err.status, err.error);
         this.toast.show(`Failed to save ${this.tabLabel(tab)}.`, 'danger');
         this.isSaving.set(false);
       },

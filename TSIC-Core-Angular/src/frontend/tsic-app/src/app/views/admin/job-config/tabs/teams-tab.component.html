@@ -2,27 +2,11 @@
   <div class="tab-panel">
     <div class="form-section">
       <h6 class="section-title">Team Registration</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bAllowTeam"
-              [ngModel]="bRegistrationAllowTeam()"
-              (ngModelChange)="bRegistrationAllowTeam.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bAllowTeam">Allow Team Registration</label>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Team Form Name</label>
-          <input type="text" class="form-control"
-            [ngModel]="regformNameTeam()"
-            (ngModelChange)="regformNameTeam.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Club Rep Form Name</label>
-          <input type="text" class="form-control"
-            [ngModel]="regformNameClubRep()"
-            (ngModelChange)="regformNameClubRep.set($event); onFieldChange()" />
-        </div>
+      <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="bAllowTeam"
+          [ngModel]="bRegistrationAllowTeam()"
+          (ngModelChange)="bRegistrationAllowTeam.set($event); onFieldChange()" />
+        <label class="form-check-label" for="bAllowTeam">Allow Team Registration</label>
       </div>
     </div>
 

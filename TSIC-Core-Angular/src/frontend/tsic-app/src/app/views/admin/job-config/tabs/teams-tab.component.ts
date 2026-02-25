@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -11,47 +11,48 @@ import type { UpdateJobConfigTeamsRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './teams-tab.component.html',
 })
-export class TeamsTabComponent {
+export class TeamsTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  bRegistrationAllowTeam = signal<boolean | null>(null);
-  regformNameTeam = signal('');
-  regformNameClubRep = signal('');
-  bClubRepAllowEdit = signal<boolean | null>(null);
-  bClubRepAllowDelete = signal<boolean | null>(null);
-  bClubRepAllowAdd = signal<boolean | null>(null);
-  bRestrictPlayerTeamsToAgerange = signal<boolean | null>(null);
-  bTeamPushDirectors = signal<boolean | null>(null);
-  bUseWaitlists = signal(false);
-  bShowTeamNameOnlyInSchedules = signal(false);
+  bRegistrationAllowTeam = linkedSignal(() => this.svc.teams()?.bRegistrationAllowTeam ?? null);
+  bClubRepAllowEdit = linkedSignal(() => this.svc.teams()?.bClubRepAllowEdit ?? null);
+  bClubRepAllowDelete = linkedSignal(() => this.svc.teams()?.bClubRepAllowDelete ?? null);
+  bClubRepAllowAdd = linkedSignal(() => this.svc.teams()?.bClubRepAllowAdd ?? null);
+  bRestrictPlayerTeamsToAgerange = linkedSignal(() => this.svc.teams()?.bRestrictPlayerTeamsToAgerange ?? null);
+  bTeamPushDirectors = linkedSignal(() => this.svc.teams()?.bTeamPushDirectors ?? null);
+  bUseWaitlists = linkedSignal(() => this.svc.teams()?.bUseWaitlists ?? false);
+  bShowTeamNameOnlyInSchedules = linkedSignal(() => this.svc.teams()?.bShowTeamNameOnlyInSchedules ?? false);
 
   // SuperUser-only
-  bOfferTeamRegsaverInsurance = signal<boolean | null>(null);
+  bOfferTeamRegsaverInsurance = linkedSignal(() => this.svc.teams()?.bOfferTeamRegsaverInsurance ?? null);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const t = this.svc.teams();
+    if (!t) return '';
+    const req: UpdateJobConfigTeamsRequest = {
+      bRegistrationAllowTeam: t.bRegistrationAllowTeam,
+      regformNameTeam: t.regformNameTeam ?? '',
+      regformNameClubRep: t.regformNameClubRep ?? '',
+      bClubRepAllowEdit: t.bClubRepAllowEdit,
+      bClubRepAllowDelete: t.bClubRepAllowDelete,
+      bClubRepAllowAdd: t.bClubRepAllowAdd,
+      bRestrictPlayerTeamsToAgerange: t.bRestrictPlayerTeamsToAgerange,
+      bTeamPushDirectors: t.bTeamPushDirectors,
+      bUseWaitlists: t.bUseWaitlists,
+      bShowTeamNameOnlyInSchedules: t.bShowTeamNameOnlyInSchedules,
+    };
+    if (this.svc.isSuperUser()) {
+      req.bOfferTeamRegsaverInsurance = t.bOfferTeamRegsaverInsurance ?? null;
+    }
+    return JSON.stringify(req);
+  });
 
-  constructor() {
-    effect(() => {
-      const t = this.svc.teams();
-      if (!t) return;
-      this.bRegistrationAllowTeam.set(t.bRegistrationAllowTeam);
-      this.regformNameTeam.set(t.regformNameTeam);
-      this.regformNameClubRep.set(t.regformNameClubRep);
-      this.bClubRepAllowEdit.set(t.bClubRepAllowEdit);
-      this.bClubRepAllowDelete.set(t.bClubRepAllowDelete);
-      this.bClubRepAllowAdd.set(t.bClubRepAllowAdd);
-      this.bRestrictPlayerTeamsToAgerange.set(t.bRestrictPlayerTeamsToAgerange);
-      this.bTeamPushDirectors.set(t.bTeamPushDirectors);
-      this.bUseWaitlists.set(t.bUseWaitlists);
-      this.bShowTeamNameOnlyInSchedules.set(t.bShowTeamNameOnlyInSchedules);
-      this.bOfferTeamRegsaverInsurance.set(t.bOfferTeamRegsaverInsurance ?? null);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('teams');
     } else {
       this.svc.markDirty('teams');
@@ -63,10 +64,11 @@ export class TeamsTabComponent {
   }
 
   private buildPayload(): UpdateJobConfigTeamsRequest {
+    const t = this.svc.teams();
     const req: UpdateJobConfigTeamsRequest = {
       bRegistrationAllowTeam: this.bRegistrationAllowTeam(),
-      regformNameTeam: this.regformNameTeam(),
-      regformNameClubRep: this.regformNameClubRep(),
+      regformNameTeam: t?.regformNameTeam ?? '',
+      regformNameClubRep: t?.regformNameClubRep ?? '',
       bClubRepAllowEdit: this.bClubRepAllowEdit(),
       bClubRepAllowDelete: this.bClubRepAllowDelete(),
       bClubRepAllowAdd: this.bClubRepAllowAdd(),

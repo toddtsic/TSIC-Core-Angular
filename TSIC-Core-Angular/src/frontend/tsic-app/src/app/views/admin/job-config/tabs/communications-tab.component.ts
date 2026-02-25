@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -11,37 +11,37 @@ import type { UpdateJobConfigCommunicationsRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './communications-tab.component.html',
 })
-export class CommunicationsTabComponent {
+export class CommunicationsTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  displayName = signal<string | null>(null);
-  regFormFrom = signal<string | null>(null);
-  regFormCcs = signal<string | null>(null);
-  regFormBccs = signal<string | null>(null);
-  rescheduleemaillist = signal<string | null>(null);
-  alwayscopyemaillist = signal<string | null>(null);
-  bDisallowCcplayerConfirmations = signal<boolean | null>(null);
+  displayName = linkedSignal(() => this.svc.communications()?.displayName ?? null);
+  regFormFrom = linkedSignal(() => this.svc.communications()?.regFormFrom ?? null);
+  regFormCcs = linkedSignal(() => this.svc.communications()?.regFormCcs ?? null);
+  regFormBccs = linkedSignal(() => this.svc.communications()?.regFormBccs ?? null);
+  rescheduleemaillist = linkedSignal(() => this.svc.communications()?.rescheduleemaillist ?? null);
+  alwayscopyemaillist = linkedSignal(() => this.svc.communications()?.alwayscopyemaillist ?? null);
+  bDisallowCcplayerConfirmations = linkedSignal(() => this.svc.communications()?.bDisallowCcplayerConfirmations ?? null);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const c = this.svc.communications();
+    if (!c) return '';
+    return JSON.stringify({
+      displayName: c.displayName,
+      regFormFrom: c.regFormFrom,
+      regFormCcs: c.regFormCcs,
+      regFormBccs: c.regFormBccs,
+      rescheduleemaillist: c.rescheduleemaillist,
+      alwayscopyemaillist: c.alwayscopyemaillist,
+      bDisallowCcplayerConfirmations: c.bDisallowCcplayerConfirmations,
+    } satisfies UpdateJobConfigCommunicationsRequest);
+  });
 
-  constructor() {
-    effect(() => {
-      const c = this.svc.communications();
-      if (!c) return;
-      this.displayName.set(c.displayName);
-      this.regFormFrom.set(c.regFormFrom);
-      this.regFormCcs.set(c.regFormCcs);
-      this.regFormBccs.set(c.regFormBccs);
-      this.rescheduleemaillist.set(c.rescheduleemaillist);
-      this.alwayscopyemaillist.set(c.alwayscopyemaillist);
-      this.bDisallowCcplayerConfirmations.set(c.bDisallowCcplayerConfirmations);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('communications');
     } else {
       this.svc.markDirty('communications');

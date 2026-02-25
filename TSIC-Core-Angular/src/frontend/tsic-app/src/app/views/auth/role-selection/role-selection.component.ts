@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, computed, effect, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -17,18 +17,12 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  registrations = signal<any[]>([]);
-  isLoading = signal(false);
-  errorMessage = signal<string | null>(null);
+  readonly registrations = computed(() => this.authService.registrations());
+  readonly isLoading = computed(() => this.authService.registrationsLoading());
+  readonly errorMessage = computed(() => this.authService.registrationsError() ?? this.authService.selectError());
   readonly username = computed(() => this.authService.currentUser()?.username ?? '');
 
   public fields: FieldSettingsModel = { text: 'displayText', value: 'regId' };
-
-  private readonly _mirrorServiceState = effect(() => {
-    this.registrations.set(this.authService.registrations());
-    this.isLoading.set(this.authService.registrationsLoading());
-    this.errorMessage.set(this.authService.registrationsError());
-  });
 
   ngOnInit(): void {
     // Trigger fetch
@@ -71,7 +65,6 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    this.errorMessage.set(null);
     this.authService.selectRegistrationCommand(registration.regId);
   }
 

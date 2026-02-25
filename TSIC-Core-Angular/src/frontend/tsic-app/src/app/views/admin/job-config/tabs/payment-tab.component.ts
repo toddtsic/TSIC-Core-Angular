@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -12,65 +12,68 @@ import type { UpdateJobConfigPaymentRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './payment-tab.component.html',
 })
-export class PaymentTabComponent {
+export class PaymentTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
   // ── Local form model ──
 
-  paymentMethodsAllowedCode = signal(1);
-  bAddProcessingFees = signal(false);
-  processingFeePercent = signal(0);
-  bApplyProcessingFeesToTeamDeposit = signal<boolean | null>(null);
-  perPlayerCharge = signal(0);
-  perTeamCharge = signal(0);
-  perMonthCharge = signal(0);
-  payTo = signal<string | null>(null);
-  mailTo = signal<string | null>(null);
-  mailinPaymentWarning = signal<string | null>(null);
-  balancedueaspercent = signal<string | null>(null);
-  bTeamsFullPaymentRequired = signal<boolean | null>(null);
-  bAllowRefundsInPriorMonths = signal<boolean | null>(null);
-  bAllowCreditAll = signal<boolean | null>(null);
+  paymentMethodsAllowedCode = linkedSignal(() => this.svc.payment()?.paymentMethodsAllowedCode ?? 1);
+  bAddProcessingFees = linkedSignal(() => this.svc.payment()?.bAddProcessingFees ?? false);
+  processingFeePercent = linkedSignal(() => this.svc.payment()?.processingFeePercent ?? 0);
+  bApplyProcessingFeesToTeamDeposit = linkedSignal(() => this.svc.payment()?.bApplyProcessingFeesToTeamDeposit ?? null);
+  perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? 0);
+  perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? 0);
+  perMonthCharge = linkedSignal(() => this.svc.payment()?.perMonthCharge ?? 0);
+  payTo = linkedSignal(() => this.svc.payment()?.payTo ?? null);
+  mailTo = linkedSignal(() => this.svc.payment()?.mailTo ?? null);
+  mailinPaymentWarning = linkedSignal(() => this.svc.payment()?.mailinPaymentWarning ?? null);
+  balancedueaspercent = linkedSignal(() => this.svc.payment()?.balancedueaspercent ?? null);
+  bTeamsFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bTeamsFullPaymentRequired ?? null);
+  bAllowRefundsInPriorMonths = linkedSignal(() => this.svc.payment()?.bAllowRefundsInPriorMonths ?? null);
+  bAllowCreditAll = linkedSignal(() => this.svc.payment()?.bAllowCreditAll ?? null);
 
   // SuperUser-only
-  adnArb = signal<boolean | null>(null);
-  adnArbBillingOccurrences = signal<number | undefined>(undefined);
-  adnArbIntervalLength = signal<number | undefined>(undefined);
-  adnArbStartDate = signal<string | null>(null);
-  adnArbMinimumTotalCharge = signal<number | undefined>(undefined);
+  adnArb = linkedSignal(() => this.svc.payment()?.adnArb ?? null);
+  adnArbBillingOccurrences = linkedSignal(() => this.svc.payment()?.adnArbBillingOccurrences);
+  adnArbIntervalLength = linkedSignal(() => this.svc.payment()?.adnArbIntervalLength);
+  adnArbStartDate = linkedSignal(() => toDateOnly(this.svc.payment()?.adnArbStartDate) ?? null);
+  adnArbMinimumTotalCharge = linkedSignal(() => this.svc.payment()?.adnArbMinimumTotalCharge);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const p = this.svc.payment();
+    if (!p) return '';
+    const req: UpdateJobConfigPaymentRequest = {
+      paymentMethodsAllowedCode: p.paymentMethodsAllowedCode,
+      bAddProcessingFees: p.bAddProcessingFees,
+      processingFeePercent: p.processingFeePercent,
+      bApplyProcessingFeesToTeamDeposit: p.bApplyProcessingFeesToTeamDeposit,
+      perPlayerCharge: p.perPlayerCharge,
+      perTeamCharge: p.perTeamCharge,
+      perMonthCharge: p.perMonthCharge,
+      payTo: p.payTo,
+      mailTo: p.mailTo,
+      mailinPaymentWarning: p.mailinPaymentWarning,
+      balancedueaspercent: p.balancedueaspercent,
+      bTeamsFullPaymentRequired: p.bTeamsFullPaymentRequired,
+      bAllowRefundsInPriorMonths: p.bAllowRefundsInPriorMonths,
+      bAllowCreditAll: p.bAllowCreditAll,
+    };
+    if (this.svc.isSuperUser()) {
+      req.adnArb = p.adnArb ?? null;
+      req.adnArbBillingOccurrences = p.adnArbBillingOccurrences;
+      req.adnArbIntervalLength = p.adnArbIntervalLength;
+      req.adnArbStartDate = toDateOnly(p.adnArbStartDate) ?? null;
+      req.adnArbMinimumTotalCharge = p.adnArbMinimumTotalCharge;
+    }
+    return JSON.stringify(req);
+  });
 
-  constructor() {
-    effect(() => {
-      const p = this.svc.payment();
-      if (!p) return;
-      this.paymentMethodsAllowedCode.set(p.paymentMethodsAllowedCode);
-      this.bAddProcessingFees.set(p.bAddProcessingFees);
-      this.processingFeePercent.set(p.processingFeePercent);
-      this.bApplyProcessingFeesToTeamDeposit.set(p.bApplyProcessingFeesToTeamDeposit);
-      this.perPlayerCharge.set(p.perPlayerCharge);
-      this.perTeamCharge.set(p.perTeamCharge);
-      this.perMonthCharge.set(p.perMonthCharge);
-      this.payTo.set(p.payTo);
-      this.mailTo.set(p.mailTo);
-      this.mailinPaymentWarning.set(p.mailinPaymentWarning);
-      this.balancedueaspercent.set(p.balancedueaspercent);
-      this.bTeamsFullPaymentRequired.set(p.bTeamsFullPaymentRequired);
-      this.bAllowRefundsInPriorMonths.set(p.bAllowRefundsInPriorMonths);
-      this.bAllowCreditAll.set(p.bAllowCreditAll);
-      this.adnArb.set(p.adnArb ?? null);
-      this.adnArbBillingOccurrences.set(p.adnArbBillingOccurrences);
-      this.adnArbIntervalLength.set(p.adnArbIntervalLength);
-      this.adnArbStartDate.set(toDateOnly(p.adnArbStartDate));
-      this.adnArbMinimumTotalCharge.set(p.adnArbMinimumTotalCharge);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('payment');
     } else {
       this.svc.markDirty('payment');

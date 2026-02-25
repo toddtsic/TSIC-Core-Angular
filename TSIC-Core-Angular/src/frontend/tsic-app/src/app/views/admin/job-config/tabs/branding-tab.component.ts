@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -102,38 +102,35 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
     }
   `,
 })
-export class BrandingTabComponent {
+export class BrandingTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
   // ── Local form model (text/toggle only — images are immediate) ──
-  bBannerIsCustom = signal(false);
-  overlayText1 = signal<string | null>(null);
-  overlayText2 = signal<string | null>(null);
+  bBannerIsCustom = linkedSignal(() => this.svc.branding()?.bBannerIsCustom ?? false);
+  overlayText1 = linkedSignal(() => this.svc.branding()?.bannerOverlayText1 ?? null);
+  overlayText2 = linkedSignal(() => this.svc.branding()?.bannerOverlayText2 ?? null);
 
-  // ── Image preview URLs ──
-  bannerBgUrl = signal<string | null>(null);
-  bannerOverlayUrl = signal<string | null>(null);
-  logoHeaderUrl = signal<string | null>(null);
+  // ── Image preview URLs (read-only, derived from server data) ──
+  bannerBgUrl = computed(() => buildAssetUrl(this.svc.branding()?.bannerBackgroundImage));
+  bannerOverlayUrl = computed(() => buildAssetUrl(this.svc.branding()?.bannerOverlayImage));
+  logoHeaderUrl = computed(() => buildAssetUrl(this.svc.branding()?.logoHeader));
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const b = this.svc.branding();
+    if (!b) return '';
+    return JSON.stringify({
+      bBannerIsCustom: b.bBannerIsCustom,
+      bannerOverlayText1: b.bannerOverlayText1 ?? null,
+      bannerOverlayText2: b.bannerOverlayText2 ?? null,
+    } satisfies UpdateJobConfigBrandingRequest);
+  });
 
-  constructor() {
-    effect(() => {
-      const b = this.svc.branding();
-      if (!b) return;
-      this.bBannerIsCustom.set(b.bBannerIsCustom);
-      this.overlayText1.set(b.bannerOverlayText1 ?? null);
-      this.overlayText2.set(b.bannerOverlayText2 ?? null);
-      this.bannerBgUrl.set(buildAssetUrl(b.bannerBackgroundImage));
-      this.bannerOverlayUrl.set(buildAssetUrl(b.bannerOverlayImage));
-      this.logoHeaderUrl.set(buildAssetUrl(b.logoHeader));
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('branding');
     } else {
       this.svc.markDirty('branding');

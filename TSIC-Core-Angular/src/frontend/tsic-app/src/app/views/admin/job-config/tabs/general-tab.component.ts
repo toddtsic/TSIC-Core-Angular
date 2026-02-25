@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, OnInit, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, OnInit, computed, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -17,60 +17,59 @@ export class GeneralTabComponent implements OnInit {
 
   // ── Local form model ──────────────────────────────────
 
-  jobName = signal<string | null>(null);
-  jobDescription = signal<string | null>(null);
-  jobTagline = signal<string | null>(null);
-  season = signal<string | null>(null);
-  year = signal<string | null>(null);
-  expiryUsers = signal('');
-  displayName = signal<string | null>(null);
-  searchenginKeywords = signal<string | null>(null);
-  searchengineDescription = signal<string | null>(null);
+  jobName = linkedSignal(() => this.svc.general()?.jobName ?? null);
+  jobDescription = linkedSignal(() => this.svc.general()?.jobDescription ?? null);
+  jobTagline = linkedSignal(() => this.svc.general()?.jobTagline ?? null);
+  season = linkedSignal(() => this.svc.general()?.season ?? null);
+  year = linkedSignal(() => this.svc.general()?.year ?? null);
+  expiryUsers = linkedSignal(() => toDateOnly(this.svc.general()?.expiryUsers) ?? '');
+  displayName = linkedSignal(() => this.svc.general()?.displayName ?? null);
+  searchenginKeywords = linkedSignal(() => this.svc.general()?.searchenginKeywords ?? null);
+  searchengineDescription = linkedSignal(() => this.svc.general()?.searchengineDescription ?? null);
 
   // SuperUser-only fields
-  jobNameQbp = signal<string | null>(null);
-  expiryAdmin = signal<string | null>(null);
-  jobTypeId = signal<number | undefined>(undefined);
-  sportId = signal<string | null>(null);
-  customerId = signal<string | null>(null);
-  billingTypeId = signal<number | undefined>(undefined);
-  bSuspendPublic = signal<boolean | null>(null);
-  jobCode = signal<string | null>(null);
+  jobNameQbp = linkedSignal(() => this.svc.general()?.jobNameQbp ?? null);
+  expiryAdmin = linkedSignal(() => toDateOnly(this.svc.general()?.expiryAdmin) ?? null);
+  jobTypeId = linkedSignal(() => this.svc.general()?.jobTypeId);
+  sportId = linkedSignal(() => this.svc.general()?.sportId ?? null);
+  customerId = linkedSignal(() => this.svc.general()?.customerId ?? null);
+  billingTypeId = linkedSignal(() => this.svc.general()?.billingTypeId);
+  bSuspendPublic = linkedSignal(() => this.svc.general()?.bSuspendPublic ?? null);
+  jobCode = linkedSignal(() => this.svc.general()?.jobCode ?? null);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const g = this.svc.general();
+    if (!g) return '';
+    const req: UpdateJobConfigGeneralRequest = {
+      jobName: g.jobName,
+      jobDescription: g.jobDescription,
+      jobTagline: g.jobTagline,
+      season: g.season,
+      year: g.year,
+      expiryUsers: toDateOnly(g.expiryUsers) ?? '',
+      displayName: g.displayName,
+      searchenginKeywords: g.searchenginKeywords,
+      searchengineDescription: g.searchengineDescription,
+    };
+    if (this.svc.isSuperUser()) {
+      req.jobNameQbp = g.jobNameQbp ?? null;
+      req.expiryAdmin = toDateOnly(g.expiryAdmin) ?? null;
+      req.jobTypeId = g.jobTypeId;
+      req.sportId = g.sportId ?? null;
+      req.customerId = g.customerId ?? null;
+      req.billingTypeId = g.billingTypeId;
+      req.bSuspendPublic = g.bSuspendPublic ?? null;
+      req.jobCode = g.jobCode ?? null;
+    }
+    return JSON.stringify(req);
+  });
 
-  constructor() {
-    // Sync from service data to local form signals
-    effect(() => {
-      const g = this.svc.general();
-      if (!g) return;
-      this.jobName.set(g.jobName);
-      this.jobDescription.set(g.jobDescription);
-      this.jobTagline.set(g.jobTagline);
-      this.season.set(g.season);
-      this.year.set(g.year);
-      this.expiryUsers.set(toDateOnly(g.expiryUsers) ?? '');
-      this.displayName.set(g.displayName);
-      this.searchenginKeywords.set(g.searchenginKeywords);
-      this.searchengineDescription.set(g.searchengineDescription);
-      // SuperUser-only (may be undefined for non-super)
-      this.jobNameQbp.set(g.jobNameQbp ?? null);
-      this.expiryAdmin.set(toDateOnly(g.expiryAdmin));
-      this.jobTypeId.set(g.jobTypeId);
-      this.sportId.set(g.sportId ?? null);
-      this.customerId.set(g.customerId ?? null);
-      this.billingTypeId.set(g.billingTypeId);
-      this.bSuspendPublic.set(g.bSuspendPublic ?? null);
-      this.jobCode.set(g.jobCode ?? null);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
-  ngOnInit(): void {}
-
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('general');
     } else {
       this.svc.markDirty('general');
@@ -93,8 +92,6 @@ export class GeneralTabComponent implements OnInit {
       searchenginKeywords: this.searchenginKeywords(),
       searchengineDescription: this.searchengineDescription(),
     };
-
-    // Include super-only fields (service ignores them for non-super)
     if (this.svc.isSuperUser()) {
       req.jobNameQbp = this.jobNameQbp();
       req.expiryAdmin = this.expiryAdmin();
@@ -105,7 +102,6 @@ export class GeneralTabComponent implements OnInit {
       req.bSuspendPublic = this.bSuspendPublic();
       req.jobCode = this.jobCode();
     }
-
     return req;
   }
 }

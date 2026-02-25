@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
@@ -13,55 +13,59 @@ import type { UpdateJobConfigPlayerRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './player-tab.component.html',
 })
-export class PlayerTabComponent {
+export class PlayerTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
   readonly rteTools = JOB_CONFIG_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
-  bRegistrationAllowPlayer = signal<boolean | null>(null);
-  regformNamePlayer = signal('');
-  coreRegformPlayer = signal<string | null>(null);
-  playerRegConfirmationEmail = signal<string | null>(null);
-  playerRegConfirmationOnScreen = signal<string | null>(null);
-  playerRegRefundPolicy = signal<string | null>(null);
-  playerRegReleaseOfLiability = signal<string | null>(null);
-  playerRegCodeOfConduct = signal<string | null>(null);
-  playerRegCovid19Waiver = signal<string | null>(null);
-  playerRegMultiPlayerDiscountMin = signal(0);
-  playerRegMultiPlayerDiscountPercent = signal(0);
+  bRegistrationAllowPlayer = linkedSignal(() => this.svc.player()?.bRegistrationAllowPlayer ?? null);
+  regformNamePlayer = linkedSignal(() => this.svc.player()?.regformNamePlayer ?? '');
+  coreRegformPlayer = linkedSignal(() => this.svc.player()?.coreRegformPlayer ?? null);
+  playerRegConfirmationEmail = linkedSignal(() => this.svc.player()?.playerRegConfirmationEmail ?? null);
+  playerRegConfirmationOnScreen = linkedSignal(() => this.svc.player()?.playerRegConfirmationOnScreen ?? null);
+  playerRegRefundPolicy = linkedSignal(() => this.svc.player()?.playerRegRefundPolicy ?? null);
+  playerRegReleaseOfLiability = linkedSignal(() => this.svc.player()?.playerRegReleaseOfLiability ?? null);
+  playerRegCodeOfConduct = linkedSignal(() => this.svc.player()?.playerRegCodeOfConduct ?? null);
+  playerRegCovid19Waiver = linkedSignal(() => this.svc.player()?.playerRegCovid19Waiver ?? null);
+  playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? 0);
+  playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? 0);
 
   // SuperUser-only
-  bOfferPlayerRegsaverInsurance = signal<boolean | null>(null);
-  momLabel = signal<string | null>(null);
-  dadLabel = signal<string | null>(null);
-  private cleanSnapshot = '';
+  bOfferPlayerRegsaverInsurance = linkedSignal(() => this.svc.player()?.bOfferPlayerRegsaverInsurance ?? null);
+  momLabel = linkedSignal(() => this.svc.player()?.momLabel ?? null);
+  dadLabel = linkedSignal(() => this.svc.player()?.dadLabel ?? null);
 
-  constructor() {
-    effect(() => {
-      const p = this.svc.player();
-      if (!p) return;
-      this.bRegistrationAllowPlayer.set(p.bRegistrationAllowPlayer);
-      this.regformNamePlayer.set(p.regformNamePlayer);
-      this.coreRegformPlayer.set(p.coreRegformPlayer);
-      this.playerRegConfirmationEmail.set(p.playerRegConfirmationEmail);
-      this.playerRegConfirmationOnScreen.set(p.playerRegConfirmationOnScreen);
-      this.playerRegRefundPolicy.set(p.playerRegRefundPolicy);
-      this.playerRegReleaseOfLiability.set(p.playerRegReleaseOfLiability);
-      this.playerRegCodeOfConduct.set(p.playerRegCodeOfConduct);
-      this.playerRegCovid19Waiver.set(p.playerRegCovid19Waiver);
-      this.playerRegMultiPlayerDiscountMin.set(p.playerRegMultiPlayerDiscountMin);
-      this.playerRegMultiPlayerDiscountPercent.set(p.playerRegMultiPlayerDiscountPercent);
-      this.bOfferPlayerRegsaverInsurance.set(p.bOfferPlayerRegsaverInsurance ?? null);
-      this.momLabel.set(p.momLabel ?? null);
-      this.dadLabel.set(p.dadLabel ?? null);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  private readonly cleanSnapshot = computed(() => {
+    const p = this.svc.player();
+    if (!p) return '';
+    const req: UpdateJobConfigPlayerRequest = {
+      bRegistrationAllowPlayer: p.bRegistrationAllowPlayer,
+      regformNamePlayer: p.regformNamePlayer,
+      coreRegformPlayer: p.coreRegformPlayer,
+      playerRegConfirmationEmail: p.playerRegConfirmationEmail,
+      playerRegConfirmationOnScreen: p.playerRegConfirmationOnScreen,
+      playerRegRefundPolicy: p.playerRegRefundPolicy,
+      playerRegReleaseOfLiability: p.playerRegReleaseOfLiability,
+      playerRegCodeOfConduct: p.playerRegCodeOfConduct,
+      playerRegCovid19Waiver: p.playerRegCovid19Waiver,
+      playerRegMultiPlayerDiscountMin: p.playerRegMultiPlayerDiscountMin,
+      playerRegMultiPlayerDiscountPercent: p.playerRegMultiPlayerDiscountPercent,
+    };
+    if (this.svc.isSuperUser()) {
+      req.bOfferPlayerRegsaverInsurance = p.bOfferPlayerRegsaverInsurance ?? null;
+      req.momLabel = p.momLabel ?? null;
+      req.dadLabel = p.dadLabel ?? null;
+    }
+    return JSON.stringify(req);
+  });
+
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('player');
     } else {
       this.svc.markDirty('player');

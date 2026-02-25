@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, linkedSignal } from '@angular/core';
 import type { ContactDto } from '@core/api';
 
 /** Formats a 10-digit phone string as xxx-xxx-xxxx. */
@@ -358,8 +358,8 @@ export class ContactsTabComponent {
     contacts = input<ContactDto[]>([]);
     isLoading = input<boolean>(false);
 
-    private readonly openSections = signal<Set<string>>(new Set());
-    readonly activeAgTabIndex = signal(0);
+    private readonly openSections = linkedSignal({ source: () => this.contacts(), computation: () => new Set<string>() });
+    readonly activeAgTabIndex = linkedSignal({ source: () => this.contacts(), computation: () => 0 });
 
     /** Group flat contacts by AgegroupName -> DivName -> ClubName+TeamName */
     readonly grouped = computed<AgContactGroup[]>(() => {
@@ -421,14 +421,6 @@ export class ContactsTabComponent {
         if (!ag) return false;
         return this.isAgFullyExpanded(ag);
     });
-
-    constructor() {
-        // Reset tab index when data changes
-        effect(() => {
-            this.grouped(); // track
-            this.activeAgTabIndex.set(0);
-        });
-    }
 
     toggleSection(key: string): void {
         this.openSections.update(s => {

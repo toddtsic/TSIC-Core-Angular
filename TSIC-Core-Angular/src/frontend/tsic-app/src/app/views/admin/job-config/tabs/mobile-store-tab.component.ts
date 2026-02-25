@@ -1,4 +1,4 @@
-import { Component, inject, ChangeDetectionStrategy, signal, effect } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy, computed, linkedSignal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobConfigService } from '../job-config.service';
@@ -11,53 +11,56 @@ import type { UpdateJobConfigMobileStoreRequest } from '@core/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './mobile-store-tab.component.html',
 })
-export class MobileStoreTabComponent {
+export class MobileStoreTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  bEnableTsicteams = signal<boolean | null>(null);
-  bEnableMobileRsvp = signal<boolean | null>(null);
-  bEnableMobileTeamChat = signal<boolean | null>(null);
-  bAllowMobileLogin = signal(false);
-  bAllowMobileRegn = signal<boolean | null>(null);
-  mobileScoreHoursPastGameEligible = signal(0);
+  bEnableTsicteams = linkedSignal(() => this.svc.mobileStore()?.bEnableTsicteams ?? null);
+  bEnableMobileRsvp = linkedSignal(() => this.svc.mobileStore()?.bEnableMobileRsvp ?? null);
+  bEnableMobileTeamChat = linkedSignal(() => this.svc.mobileStore()?.bEnableMobileTeamChat ?? null);
+  bAllowMobileLogin = linkedSignal(() => this.svc.mobileStore()?.bAllowMobileLogin ?? false);
+  bAllowMobileRegn = linkedSignal(() => this.svc.mobileStore()?.bAllowMobileRegn ?? null);
+  mobileScoreHoursPastGameEligible = linkedSignal(() => this.svc.mobileStore()?.mobileScoreHoursPastGameEligible ?? 0);
 
   // SuperUser-only
-  mobileJobName = signal<string | null>(null);
-  bEnableStore = signal<boolean | null>(null);
-  benableStp = signal<boolean | null>(null);
-  storeContactEmail = signal<string | null>(null);
-  storeRefundPolicy = signal<string | null>(null);
-  storePickupDetails = signal<string | null>(null);
-  storeSalesTax = signal<number | undefined>(undefined);
-  storeTsicrate = signal<number | undefined>(undefined);
+  mobileJobName = linkedSignal(() => this.svc.mobileStore()?.mobileJobName ?? null);
+  bEnableStore = linkedSignal(() => this.svc.mobileStore()?.bEnableStore ?? null);
+  benableStp = linkedSignal(() => this.svc.mobileStore()?.benableStp ?? null);
+  storeContactEmail = linkedSignal(() => this.svc.mobileStore()?.storeContactEmail ?? null);
+  storeRefundPolicy = linkedSignal(() => this.svc.mobileStore()?.storeRefundPolicy ?? null);
+  storePickupDetails = linkedSignal(() => this.svc.mobileStore()?.storePickupDetails ?? null);
+  storeSalesTax = linkedSignal(() => this.svc.mobileStore()?.storeSalesTax);
+  storeTsicrate = linkedSignal(() => this.svc.mobileStore()?.storeTsicrate);
 
-  private cleanSnapshot = '';
+  private readonly cleanSnapshot = computed(() => {
+    const m = this.svc.mobileStore();
+    if (!m) return '';
+    const req: UpdateJobConfigMobileStoreRequest = {
+      bEnableTsicteams: m.bEnableTsicteams,
+      bEnableMobileRsvp: m.bEnableMobileRsvp,
+      bEnableMobileTeamChat: m.bEnableMobileTeamChat,
+      bAllowMobileLogin: m.bAllowMobileLogin,
+      bAllowMobileRegn: m.bAllowMobileRegn,
+      mobileScoreHoursPastGameEligible: m.mobileScoreHoursPastGameEligible,
+    };
+    if (this.svc.isSuperUser()) {
+      req.mobileJobName = m.mobileJobName ?? null;
+      req.bEnableStore = m.bEnableStore ?? null;
+      req.benableStp = m.benableStp ?? null;
+      req.storeContactEmail = m.storeContactEmail ?? null;
+      req.storeRefundPolicy = m.storeRefundPolicy ?? null;
+      req.storePickupDetails = m.storePickupDetails ?? null;
+      req.storeSalesTax = m.storeSalesTax;
+      req.storeTsicrate = m.storeTsicrate;
+    }
+    return JSON.stringify(req);
+  });
 
-  constructor() {
-    effect(() => {
-      const m = this.svc.mobileStore();
-      if (!m) return;
-      this.bEnableTsicteams.set(m.bEnableTsicteams);
-      this.bEnableMobileRsvp.set(m.bEnableMobileRsvp);
-      this.bEnableMobileTeamChat.set(m.bEnableMobileTeamChat);
-      this.bAllowMobileLogin.set(m.bAllowMobileLogin);
-      this.bAllowMobileRegn.set(m.bAllowMobileRegn);
-      this.mobileScoreHoursPastGameEligible.set(m.mobileScoreHoursPastGameEligible);
-      this.mobileJobName.set(m.mobileJobName ?? null);
-      this.bEnableStore.set(m.bEnableStore ?? null);
-      this.benableStp.set(m.benableStp ?? null);
-      this.storeContactEmail.set(m.storeContactEmail ?? null);
-      this.storeRefundPolicy.set(m.storeRefundPolicy ?? null);
-      this.storePickupDetails.set(m.storePickupDetails ?? null);
-      this.storeSalesTax.set(m.storeSalesTax);
-      this.storeTsicrate.set(m.storeTsicrate);
-      this.cleanSnapshot = JSON.stringify(this.buildPayload());
-      this.svc.saveHandler.set(() => this.save());
-    });
+  ngOnInit(): void {
+    this.svc.saveHandler.set(() => this.save());
   }
 
   onFieldChange(): void {
-    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot) {
+    if (JSON.stringify(this.buildPayload()) === this.cleanSnapshot()) {
       this.svc.markClean('mobileStore');
     } else {
       this.svc.markDirty('mobileStore');
