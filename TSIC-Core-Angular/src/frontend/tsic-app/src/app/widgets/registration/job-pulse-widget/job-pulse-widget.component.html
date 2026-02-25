@@ -1,12 +1,31 @@
 @if (hasContent()) {
 	<div class="pulse-grid">
 		@for (card of cards(); track card.title) {
-			<div class="pulse-card" [class.coming-soon]="card.style === 'coming-soon'">
+			<div class="pulse-card"
+				 [class.coming-soon]="card.style === 'coming-soon'"
+				 [class.accent-success]="card.accent === 'success'"
+				 [class.accent-primary]="card.accent === 'primary'"
+				 [class.accent-warning]="card.accent === 'warning'"
+				 [class.accent-info]="card.accent === 'info'"
+				 [class.accent-muted]="card.accent === 'muted'">
 				<div class="pulse-icon">
 					<i class="bi" [class]="card.icon"></i>
 				</div>
 				<div class="pulse-body">
-					<h6 class="pulse-title">{{ card.title }}</h6>
+					<div class="pulse-title-row">
+						@if (card.style === 'active') {
+							<span class="pulse-status-dot"></span>
+						}
+						<h6 class="pulse-title">{{ card.title }}</h6>
+					</div>
+					@if (card.subtitle) {
+						<p class="pulse-subtitle">{{ card.subtitle }}</p>
+					}
+					@if (card.style === 'coming-soon') {
+						<span class="pulse-badge">
+							<i class="bi bi-clock"></i> Coming Soon
+						</span>
+					}
 					@if (card.cta && card.link) {
 						<a [routerLink]="card.link" class="btn btn-sm btn-primary pulse-cta">
 							{{ card.cta }}

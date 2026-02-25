@@ -8,9 +8,11 @@ import type { JobPulseDto } from '@core/api';
 interface PulseCard {
 	icon: string;
 	title: string;
+	subtitle?: string;
 	cta?: string;
 	link?: string;
 	style: 'active' | 'coming-soon';
+	accent: 'primary' | 'success' | 'warning' | 'info' | 'muted';
 }
 
 @Component({
@@ -38,57 +40,67 @@ export class JobPulseWidgetComponent implements OnInit {
 
 		if (p.playerRegistrationOpen) {
 			result.push({
-				icon: 'bi-person-plus',
-				title: 'Player Registration is Open',
-				cta: 'Register Now',
-				link: `/${jobPath}/family-account`,
+				icon: 'bi-person-plus-fill',
+				title: 'Player Registration',
+				subtitle: 'Now accepting players',
 				style: 'active',
+				accent: 'success',
 			});
 		}
 
 		if (p.teamRegistrationOpen) {
 			result.push({
-				icon: 'bi-shield-plus',
-				title: 'Team Registration is Open',
+				icon: 'bi-shield-fill-plus',
+				title: 'Team Registration',
+				subtitle: 'Now accepting teams',
 				cta: 'Register Your Team',
 				link: `/${jobPath}/register-team`,
 				style: 'active',
+				accent: 'primary',
 			});
 		}
 
 		if (p.storeEnabled && p.storeHasActiveItems) {
 			result.push({
-				icon: 'bi-bag',
-				title: 'Merch Store is Open',
+				icon: 'bi-bag-fill',
+				title: 'Merch Store',
+				subtitle: 'Gear & apparel available',
 				cta: 'Browse Store',
 				link: `/${jobPath}/store`,
 				style: 'active',
+				accent: 'warning',
 			});
 		}
 
 		if (p.schedulePublished) {
 			result.push({
-				icon: 'bi-calendar-check',
-				title: 'Schedules Are Live',
+				icon: 'bi-calendar2-check-fill',
+				title: 'Game Schedules',
+				subtitle: 'Schedules are live',
 				cta: 'View Schedule',
 				link: `/${jobPath}/scheduling/view-schedule`,
 				style: 'active',
+				accent: 'info',
 			});
 		}
 
 		if (p.playerRegistrationPlanned) {
 			result.push({
-				icon: 'bi-clock',
-				title: 'Player Registration Coming Soon',
+				icon: 'bi-person-plus',
+				title: 'Player Registration',
+				subtitle: 'Coming soon — stay tuned!',
 				style: 'coming-soon',
+				accent: 'muted',
 			});
 		}
 
 		if (p.adultRegistrationPlanned) {
 			result.push({
-				icon: 'bi-clock',
-				title: 'Adult Registration Coming Soon',
+				icon: 'bi-person-badge',
+				title: 'Adult Registration',
+				subtitle: 'Coming soon — stay tuned!',
 				style: 'coming-soon',
+				accent: 'muted',
 			});
 		}
 

@@ -1,3 +1,4 @@
+// ─── Grid ────────────────────────────────────────────────────
 .pulse-grid {
 	display: grid;
 	grid-template-columns: 1fr;
@@ -13,49 +14,132 @@
 	}
 }
 
+// ─── Card ────────────────────────────────────────────────────
 .pulse-card {
+	position: relative;
 	display: flex;
 	align-items: flex-start;
 	gap: var(--space-3);
 	padding: var(--space-4);
 	background: var(--brand-surface);
 	border-radius: var(--radius-md);
+	border-left: 4px solid transparent;
 	box-shadow: var(--shadow-sm);
-	transition: box-shadow 0.2s ease, transform 0.2s ease;
+	overflow: hidden;
+	transition: box-shadow 0.3s ease, transform 0.3s ease;
 
 	&:hover {
 		box-shadow: var(--shadow-md);
-		transform: translateY(-1px);
+		transform: translateY(-2px);
 	}
 
-	&.coming-soon {
-		opacity: 0.75;
+	// ── Accent variants (border-left + icon tinting) ──
+	&.accent-success {
+		border-left-color: var(--bs-success);
 
 		.pulse-icon {
-			color: var(--neutral-400);
-			background: rgba(var(--neutral-400-rgb, 168, 162, 158), 0.1);
+			background: rgba(var(--bs-success-rgb), 0.12);
+			color: var(--bs-success);
 		}
+
+		.pulse-status-dot { background: var(--bs-success); }
+	}
+
+	&.accent-primary {
+		border-left-color: var(--bs-primary);
+
+		.pulse-icon {
+			background: rgba(var(--bs-primary-rgb), 0.12);
+			color: var(--bs-primary);
+		}
+
+		.pulse-status-dot { background: var(--bs-primary); }
+	}
+
+	&.accent-warning {
+		border-left-color: var(--bs-warning);
+
+		.pulse-icon {
+			background: rgba(var(--bs-warning-rgb), 0.15);
+			color: var(--bs-warning);
+		}
+
+		.pulse-status-dot { background: var(--bs-warning); }
+	}
+
+	&.accent-info {
+		border-left-color: var(--bs-info);
+
+		.pulse-icon {
+			background: rgba(var(--bs-info-rgb), 0.12);
+			color: var(--bs-info);
+		}
+
+		.pulse-status-dot { background: var(--bs-info); }
+	}
+
+	&.accent-muted {
+		border-left-color: var(--neutral-300);
+		opacity: 0.8;
+
+		.pulse-icon {
+			background: rgba(var(--neutral-400-rgb, 168 162 158), 0.1);
+			color: var(--neutral-400);
+		}
+	}
+
+	// ── Coming-soon dimming ──
+	&.coming-soon {
+		background: linear-gradient(135deg,
+			var(--brand-surface) 0%,
+			rgba(var(--neutral-400-rgb, 168 162 158), 0.04) 100%);
 	}
 }
 
+// ─── Icon circle ─────────────────────────────────────────────
 .pulse-icon {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 40px;
-	height: 40px;
+	width: 44px;
+	height: 44px;
 	border-radius: var(--radius-full);
-	background: rgba(var(--bs-primary-rgb), 0.1);
-	color: var(--bs-primary);
-	font-size: var(--font-size-lg);
+	font-size: var(--font-size-xl);
+	transition: transform 0.2s ease;
+
+	.pulse-card:hover & {
+		transform: scale(1.08);
+	}
 }
 
+// ─── Body ────────────────────────────────────────────────────
 .pulse-body {
 	display: flex;
 	flex-direction: column;
-	gap: var(--space-2);
+	gap: var(--space-1);
 	min-width: 0;
+	flex: 1;
+}
+
+// ─── Title row with status dot ───────────────────────────────
+.pulse-title-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.pulse-status-dot {
+	flex-shrink: 0;
+	width: 8px;
+	height: 8px;
+	border-radius: var(--radius-full);
+	animation: status-blink 2s ease-in-out infinite;
+}
+
+@keyframes status-blink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
 }
 
 .pulse-title {
@@ -66,12 +150,44 @@
 	line-height: var(--line-height-tight);
 }
 
-.pulse-cta {
-	align-self: flex-start;
+// ─── Subtitle ────────────────────────────────────────────────
+.pulse-subtitle {
+	margin: 0;
 	font-size: var(--font-size-xs);
-	padding: var(--space-1) var(--space-3);
+	color: var(--brand-text-muted);
+	line-height: var(--line-height-normal);
 }
 
+// ─── Badge (for coming-soon) ─────────────────────────────────
+.pulse-badge {
+	display: inline-flex;
+	align-items: center;
+	align-self: flex-start;
+	gap: var(--space-1);
+	margin-top: var(--space-1);
+	padding: 2px var(--space-2);
+	font-size: 0.65rem;
+	font-weight: var(--font-weight-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	border-radius: var(--radius-full);
+	background: rgba(var(--neutral-400-rgb, 168 162 158), 0.12);
+	color: var(--neutral-500);
+}
+
+// ─── CTA button ──────────────────────────────────────────────
+.pulse-cta {
+	align-self: flex-start;
+	margin-top: var(--space-2);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-sm);
+	animation: pulse-glow 2.5s ease-out infinite;
+	will-change: transform, box-shadow;
+}
+
+// ─── Reduced motion ──────────────────────────────────────────
 @media (prefers-reduced-motion: reduce) {
 	.pulse-card {
 		transition: none;
@@ -79,5 +195,17 @@
 		&:hover {
 			transform: none;
 		}
+	}
+
+	.pulse-icon {
+		transition: none;
+	}
+
+	.pulse-status-dot {
+		animation: none;
+	}
+
+	.pulse-cta {
+		animation: none;
 	}
 }
