@@ -12,6 +12,7 @@ interface ExpandedItemState {
 	availableSizes: { id: number; name: string }[];
 	selectedColorId: number | null;
 	selectedSizeId: number | null;
+	selectedDirectToRegId: string | null;
 	quantity: number;
 	availability: SkuAvailabilityDto | null;
 	skuAvailabilityMap: Map<number, SkuAvailabilityDto>;
@@ -39,6 +40,9 @@ export class StoreCatalogComponent {
 	readonly cartCount = this.store.cartCount;
 	readonly cartTotal = this.store.cartTotal;
 
+	// Family players (for DirectTo dropdown)
+	readonly familyPlayers = this.store.familyPlayers;
+
 	// Expanded item state — one item at a time
 	readonly expandedId = signal<number | null>(null);
 	readonly expandedState = signal<ExpandedItemState | null>(null);
@@ -53,6 +57,7 @@ export class StoreCatalogComponent {
 	constructor() {
 		this.loadItems();
 		this.store.loadCart().subscribe();
+		this.store.loadFamilyPlayers().subscribe();
 	}
 
 	private loadItems(): void {
@@ -111,12 +116,17 @@ export class StoreCatalogComponent {
 					autoSize = sizesForColor.length === 1 ? sizesForColor[0].id : null;
 				}
 
+				// Auto-select DirectTo if only one family player
+				const players = this.familyPlayers();
+				const autoDirectTo = players.length === 1 ? players[0].registrationId : null;
+
 				const state: ExpandedItemState = {
 					item,
 					availableColors: colors,
 					availableSizes: sizes,
 					selectedColorId: autoColor,
 					selectedSizeId: autoSize,
+					selectedDirectToRegId: autoDirectTo,
 					quantity: 1,
 					availability: null,
 					skuAvailabilityMap: new Map(),
@@ -174,6 +184,12 @@ export class StoreCatalogComponent {
 		this.expandedState.set({ ...updatedState, availability: avail });
 	}
 
+	selectDirectTo(regId: string): void {
+		const s = this.expandedState();
+		if (!s) return;
+		this.expandedState.set({ ...s, selectedDirectToRegId: regId });
+	}
+
 	/** Returns only sizes that exist as active SKUs for the given color */
 	getSizesForColor(state: ExpandedItemState, colorId: number): { id: number; name: string }[] {
 		if (state.availableSizes.length === 0) return [];
@@ -226,6 +242,8 @@ export class StoreCatalogComponent {
 		if (s.isCheckingAvailability) return false;
 		if (!s.availability) return false;
 		if (s.availability.availableCount < s.quantity) return false;
+		// If family players exist, require DirectTo selection
+		if (this.familyPlayers().length > 0 && !s.selectedDirectToRegId) return false;
 		return s.quantity >= 1;
 	}
 
@@ -286,18 +304,24 @@ export class StoreCatalogComponent {
 
 		this.expandedState.set({ ...s, isAdding: true });
 
-		this.store.addToCart({ storeSkuId: sku.storeSkuId, quantity: s.quantity }).subscribe({
+		this.store.addToCart({
+			storeSkuId: sku.storeSkuId,
+			quantity: s.quantity,
+			directToRegId: s.selectedDirectToRegId,
+		}).subscribe({
 			next: () => {
 				this.toast.show('Added to cart!', 'success');
 				this.triggerCartPulse();
 				const cur = this.expandedState();
 				if (!cur) return;
 				const resetColor = cur.availableColors.length === 1 ? cur.availableColors[0].id : null;
+				const players = this.familyPlayers();
 				const updated: ExpandedItemState = {
 					...cur,
 					isAdding: false,
 					selectedColorId: resetColor,
 					selectedSizeId: null,
+					selectedDirectToRegId: players.length === 1 ? players[0].registrationId : null,
 					availability: null,
 					skuAvailabilityMap: new Map(),
 					quantity: 1,
@@ -322,6 +346,11 @@ export class StoreCatalogComponent {
 	quickAdd(item: StoreItemSummaryDto, event: Event): void {
 		event.stopPropagation(); // Prevent row toggle
 		if (!item.singleSkuId || this.quickAddingItemId()) return;
+		// When family players exist, force expansion to select DirectTo
+		if (this.familyPlayers().length > 0) {
+			this.toggleItem(item);
+			return;
+		}
 
 		this.quickAddingItemId.set(item.storeItemId);
 		this.store.addToCart({ storeSkuId: item.singleSkuId, quantity: 1 }).subscribe({

@@ -274,6 +274,11 @@
 	line-height: var(--line-height-normal);
 }
 
+.in-cart-player {
+	color: var(--bs-primary);
+	font-weight: var(--font-weight-medium);
+}
+
 .in-cart-price {
 	font-weight: var(--font-weight-semibold);
 	color: var(--brand-text, var(--neutral-900));

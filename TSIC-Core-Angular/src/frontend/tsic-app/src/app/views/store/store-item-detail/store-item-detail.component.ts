@@ -28,12 +28,16 @@ export class StoreItemDetailComponent {
 	// Cart badge
 	readonly cartCount = this.store.cartCount;
 
+	// Family players (for DirectTo dropdown)
+	readonly familyPlayers = this.store.familyPlayers;
+
 	// Image gallery
 	readonly selectedImageIndex = signal(0);
 
 	// Variant selection
 	readonly selectedColorId = signal<number | null>(null);
 	readonly selectedSizeId = signal<number | null>(null);
+	readonly selectedDirectToRegId = signal<string | null>(null);
 	readonly quantity = signal(1);
 
 	// Availability
@@ -87,6 +91,8 @@ export class StoreItemDetailComponent {
 		const avail = this.availability();
 		if (!sku) return false;
 		if (avail && avail.availableCount < this.quantity()) return false;
+		// If family players exist, require DirectTo selection
+		if (this.familyPlayers().length > 0 && !this.selectedDirectToRegId()) return false;
 		return this.quantity() >= 1;
 	});
 
@@ -98,6 +104,7 @@ export class StoreItemDetailComponent {
 			this.errorMessage.set('Invalid item ID');
 			this.isLoading.set(false);
 		}
+		this.store.loadFamilyPlayers().subscribe();
 	}
 
 	private loadItem(storeItemId: number): void {
@@ -117,6 +124,12 @@ export class StoreItemDetailComponent {
 				}
 				if (sizes.size === 1) {
 					this.selectedSizeId.set([...sizes][0]!);
+				}
+
+				// Auto-select DirectTo if only one family player
+				const players = this.familyPlayers();
+				if (players.length === 1) {
+					this.selectedDirectToRegId.set(players[0].registrationId);
 				}
 
 				// If default SKU (no color, no size), check availability right away
@@ -141,6 +154,10 @@ export class StoreItemDetailComponent {
 		this.selectedSizeId.set(sizeId);
 		this.availability.set(null);
 		this.checkSelectedSkuAvailability();
+	}
+
+	selectDirectTo(regId: string): void {
+		this.selectedDirectToRegId.set(regId);
 	}
 
 	private checkSelectedSkuAvailability(): void {
@@ -171,7 +188,11 @@ export class StoreItemDetailComponent {
 		if (!sku || this.isAdding()) return;
 
 		this.isAdding.set(true);
-		this.store.addToCart({ storeSkuId: sku.storeSkuId, quantity: this.quantity() }).subscribe({
+		this.store.addToCart({
+			storeSkuId: sku.storeSkuId,
+			quantity: this.quantity(),
+			directToRegId: this.selectedDirectToRegId(),
+		}).subscribe({
 			next: () => {
 				this.toast.show('Added to cart!', 'success');
 				this.isAdding.set(false);

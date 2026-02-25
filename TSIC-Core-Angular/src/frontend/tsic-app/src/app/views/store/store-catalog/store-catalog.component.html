@@ -101,7 +101,12 @@
 									</div>
 									@for (ci of cartItemsForExpanded; track ci.storeCartBatchSkuId) {
 										<div class="in-cart-line">
-											<span>{{ ci.quantity }}&times; {{ variantLabel(ci) || 'Standard' }}</span>
+											<span>
+												{{ ci.quantity }}&times; {{ variantLabel(ci) || 'Standard' }}
+												@if (ci.directToPlayerName) {
+													<span class="in-cart-player"> &mdash; For {{ ci.directToPlayerName }}</span>
+												}
+											</span>
 											<span class="in-cart-price">{{ formatCurrency(ci.lineTotal) }}</span>
 										</div>
 									}
@@ -156,6 +161,28 @@
 												@if (isSizeOutOfStock(size.id)) {
 													<span class="oos-label">Sold out</span>
 												}
+											</button>
+										}
+									</div>
+								</div>
+							}
+
+							<!-- DirectTo player picker (family registration only) -->
+							@if (familyPlayers().length > 0) {
+								<div class="picker-group picker-animate">
+									<label class="picker-label">
+										@if (s.selectedDirectToRegId === null) {
+											<i class="bi bi-person-fill me-1 text-primary"></i>For Player
+										} @else {
+											<i class="bi bi-check-circle-fill me-1 text-success"></i>For Player
+										}
+									</label>
+									<div class="chip-row">
+										@for (player of familyPlayers(); track player.registrationId) {
+											<button class="variant-chip"
+													[class.selected]="s.selectedDirectToRegId === player.registrationId"
+													(click)="selectDirectTo(player.registrationId)">
+												{{ player.firstName }}
 											</button>
 										}
 									</div>

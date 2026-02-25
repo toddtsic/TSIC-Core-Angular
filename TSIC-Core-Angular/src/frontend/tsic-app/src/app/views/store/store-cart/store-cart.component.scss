@@ -66,6 +66,12 @@
 	color: var(--bs-secondary-color);
 }
 
+.cart-item-player {
+	font-size: var(--font-size-xs);
+	color: var(--bs-primary);
+	font-weight: var(--font-weight-medium);
+}
+
 .cart-item-remove {
 	flex-shrink: 0;
 	background: none;

@@ -94,6 +94,24 @@
 				</div>
 			}
 
+			<!-- DirectTo player picker (family registration only) -->
+			@if (familyPlayers().length > 0) {
+				<div class="mb-3">
+					<label class="form-label fw-medium">
+						<i class="bi bi-person-fill me-1 text-primary"></i>For Player
+					</label>
+					<div class="d-flex flex-wrap gap-2">
+						@for (player of familyPlayers(); track player.registrationId) {
+							<button class="variant-chip"
+									[class.selected]="selectedDirectToRegId() === player.registrationId"
+									(click)="selectDirectTo(player.registrationId)">
+								{{ player.firstName }}
+							</button>
+						}
+					</div>
+				</div>
+			}
+
 			<!-- Availability -->
 			@if (selectedSku()) {
 				<div class="mb-3">

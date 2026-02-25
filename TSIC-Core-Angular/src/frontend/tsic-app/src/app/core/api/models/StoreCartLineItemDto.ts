@@ -16,6 +16,7 @@ export type StoreCartLineItemDto = {
     feeTotal: number;
     lineTotal: number;
     directToRegId?: string | null;
+    directToPlayerName?: string | null;
     active: boolean;
 };
 

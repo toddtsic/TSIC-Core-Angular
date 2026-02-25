@@ -1,5 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject, computed, signal, output, OnInit, OnDestroy } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
+import { environment } from '@environments/environment';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
+import type { JobPulseDto } from '@core/api';
 
 /**
  * Confirmation step — displays the server-rendered confirmation HTML,
@@ -8,10 +12,21 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 @Component({
     selector: 'app-prw-confirmation-step',
     standalone: true,
-    imports: [],
+    imports: [RouterLink],
     styles: [`
     .confirmation-content { overflow-x: auto; }
     .confirmation-content ::ng-deep table { width: 100%; min-width: 600px; }
+    .store-cta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+    }
   `],
     template: `
     <div class="card shadow border-0 card-rounded">
@@ -50,6 +65,12 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
           <div class="confirmation-content mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
 
           <button type="button" class="btn btn-primary mt-3" (click)="finished.emit()">Finish</button>
+
+          @if (showStoreCta()) {
+            <a [routerLink]="storeLink()" class="store-cta btn btn-outline-primary">
+              <i class="bi bi-bag-fill me-1"></i>Browse the Store
+            </a>
+          }
         }
       </div>
     </div>
@@ -59,6 +80,7 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 export class ConfirmationStepComponent implements OnInit, OnDestroy {
     readonly finished = output<void>();
     private readonly state = inject(PlayerWizardStateService);
+    private readonly http = inject(HttpClient);
 
     private pollTimer: ReturnType<typeof setInterval> | null = null;
     private safetyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -69,8 +91,16 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
     readonly resending = signal(false);
     readonly resendMessage = signal('');
 
+    // Store CTA
+    readonly showStoreCta = signal(false);
+    readonly storeLink = computed(() => {
+        const jobPath = this.state.jobCtx.jobPath();
+        return `/${jobPath}/store`;
+    });
+
     ngOnInit(): void {
         this.startLoading();
+        this.checkStoreAvailability();
     }
 
     ngOnDestroy(): void {
@@ -102,6 +132,19 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
     private clearTimers(): void {
         if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
         if (this.safetyTimer) { clearTimeout(this.safetyTimer); this.safetyTimer = null; }
+    }
+
+    private checkStoreAvailability(): void {
+        const jobPath = this.state.jobCtx.jobPath();
+        if (!jobPath) return;
+
+        this.http.get<JobPulseDto>(`${environment.apiUrl}/jobs/${jobPath}/pulse`).subscribe({
+            next: pulse => {
+                if (pulse.storeEnabled && pulse.storeHasActiveItems) {
+                    this.showStoreCta.set(true);
+                }
+            },
+        });
     }
 
     retry(): void {

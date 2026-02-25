@@ -1,46 +1,51 @@
-<div class="p-4">
-	<!-- Confirmation view (after successful checkout) -->
+<div class="checkout-container">
+	<!-- ═══ Confirmation view ═══ -->
 	@if (confirmation(); as conf) {
-		<div class="text-center py-5">
-			<div class="mb-4">
-				<i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+		<div class="confirmation-view">
+			<div class="confirmation-icon">
+				<i class="bi bi-check-circle-fill"></i>
 			</div>
-			<h3 class="mb-2">Order Confirmed!</h3>
-			<p class="text-body-secondary mb-4">Your order has been placed successfully.</p>
+			<h3 class="confirmation-title">Order Confirmed!</h3>
+			<p class="confirmation-subtitle">Your order has been placed successfully.</p>
 
-			<div class="card d-inline-block text-start" style="min-width: 300px;">
-				<div class="card-body">
-					<div class="d-flex justify-content-between mb-2">
-						<span class="text-body-secondary">Batch ID</span>
-						<span class="fw-semibold font-monospace">{{ conf.storeCartBatchId }}</span>
-					</div>
-					<div class="d-flex justify-content-between mb-2">
-						<span class="text-body-secondary">Total Paid</span>
-						<span class="fw-semibold text-primary">{{ formatCurrency(conf.totalPaid) }}</span>
-					</div>
-					@if (conf.invoiceNo) {
-						<div class="d-flex justify-content-between">
-							<span class="text-body-secondary">Invoice #</span>
-							<span class="fw-semibold font-monospace">{{ conf.invoiceNo }}</span>
-						</div>
-					}
+			<div class="confirmation-card">
+				<div class="confirmation-row">
+					<span>Order #</span>
+					<span class="fw-semibold font-monospace">{{ conf.storeCartBatchId }}</span>
 				</div>
+				<div class="confirmation-row">
+					<span>Total Paid</span>
+					<span class="confirmation-total">{{ formatCurrency(conf.totalPaid) }}</span>
+				</div>
+				@if (conf.transactionId) {
+					<div class="confirmation-row">
+						<span>Transaction ID</span>
+						<span class="fw-semibold font-monospace">{{ conf.transactionId }}</span>
+					</div>
+				}
+				@if (conf.invoiceNo) {
+					<div class="confirmation-row">
+						<span>Invoice #</span>
+						<span class="fw-semibold font-monospace">{{ conf.invoiceNo }}</span>
+					</div>
+				}
 			</div>
 
-			<div class="mt-4">
-				<a routerLink="../../store" class="btn btn-primary">
+			<div class="confirmation-actions">
+				<button class="btn-download-receipt" (click)="downloadReceipt()">
+					<i class="bi bi-file-earmark-pdf me-1"></i>Download Receipt
+				</button>
+				<a routerLink="../../store" class="btn-back-to-store">
 					<i class="bi bi-shop me-1"></i>Back to Store
 				</a>
 			</div>
 		</div>
 	} @else {
-		<!-- Checkout form -->
-		<div class="d-flex justify-content-between align-items-center mb-4">
-			<h4 class="mb-0">
-				<i class="bi bi-credit-card me-2"></i>Checkout
-			</h4>
-			<a routerLink="../../store/cart" class="btn btn-outline-secondary btn-sm">
-				<i class="bi bi-arrow-left me-1"></i>Back to Cart
+		<!-- ═══ Checkout form ═══ -->
+		<div class="checkout-header">
+			<h4 class="mb-0"><i class="bi bi-credit-card me-2 text-primary"></i>Checkout</h4>
+			<a routerLink="../../store/cart" class="back-link">
+				<i class="bi bi-arrow-left"></i>Back to Cart
 			</a>
 		</div>
 
@@ -59,109 +64,78 @@
 		}
 
 		@if (!isLoading() && lineItems().length > 0) {
-			<div class="row g-4">
-				<!-- Left: order summary -->
-				<div class="col-md-7">
-					<div class="card mb-4">
-						<div class="card-header bg-transparent">
-							<h6 class="mb-0">Order Summary</h6>
+			<!-- ── Order Summary ── -->
+			<div class="section-card">
+				<h6 class="section-title">Order Summary</h6>
+				@for (item of lineItems(); track item.storeCartBatchSkuId) {
+					<div class="order-item">
+						<div class="order-item-info">
+							<div class="order-item-name">{{ item.itemName }}</div>
+							@if (variantLabel(item)) {
+								<div class="order-item-variant">{{ variantLabel(item) }}</div>
+							}
+							@if (item.directToPlayerName) {
+								<div class="order-item-player">
+									<i class="bi bi-person-fill me-1"></i>For {{ item.directToPlayerName }}
+								</div>
+							}
 						</div>
-						<div class="card-body p-0">
-							<table class="table table-sm align-middle mb-0">
-								<tbody>
-									@for (item of lineItems(); track item.storeCartBatchSkuId) {
-										<tr>
-											<td class="ps-3">
-												<div class="fw-medium">{{ item.itemName }}</div>
-												@if (item.colorName || item.sizeName) {
-													<small class="text-body-secondary">
-														{{ item.colorName }}{{ item.colorName && item.sizeName ? ' / ' : '' }}{{ item.sizeName }}
-													</small>
-												}
-											</td>
-											<td class="text-center">&times; {{ item.quantity }}</td>
-											<td class="text-end pe-3 fw-medium">{{ formatCurrency(item.lineTotal) }}</td>
-										</tr>
-									}
-								</tbody>
-							</table>
-						</div>
-						<div class="card-footer bg-transparent">
-							<div class="d-flex justify-content-between small mb-1">
-								<span>Subtotal</span>
-								<span>{{ formatCurrency(subtotal()) }}</span>
-							</div>
-							<div class="d-flex justify-content-between small mb-1">
-								<span>Fees</span>
-								<span>{{ formatCurrency(totalFees()) }}</span>
-							</div>
-							<div class="d-flex justify-content-between small mb-2">
-								<span>Tax</span>
-								<span>{{ formatCurrency(totalTax()) }}</span>
-							</div>
-							<hr class="my-1">
-							<div class="d-flex justify-content-between fw-semibold fs-5">
-								<span>Total</span>
-								<span class="text-primary">{{ formatCurrency(grandTotal()) }}</span>
-							</div>
-						</div>
+						<div class="order-item-qty">&times; {{ item.quantity }}</div>
+						<div class="order-item-price">{{ formatCurrency(item.lineTotal) }}</div>
 					</div>
-				</div>
-
-				<!-- Right: payment form -->
-				<div class="col-md-5">
-					<div class="card">
-						<div class="card-header bg-transparent">
-							<h6 class="mb-0">Payment Details</h6>
+				}
+				<div class="order-totals">
+					<div class="totals-row">
+						<span>Subtotal</span>
+						<span>{{ formatCurrency(subtotal()) }}</span>
+					</div>
+					@if (totalFees() > 0) {
+						<div class="totals-row">
+							<span>Fees</span>
+							<span>{{ formatCurrency(totalFees()) }}</span>
 						</div>
-						<div class="card-body">
-							<div class="mb-3">
-								<label class="form-label fw-medium">Payment Method <span class="text-danger">*</span></label>
-								<select class="form-select" [ngModel]="selectedPaymentMethodId()"
-										(ngModelChange)="selectedPaymentMethodId.set($event)">
-									<option value="">Select payment method...</option>
-									@for (pm of paymentMethods(); track pm.paymentMethodId) {
-										<option [value]="pm.paymentMethodId">{{ pm.paymentMethod }}</option>
-									}
-								</select>
-							</div>
-
-							<div class="mb-3">
-								<label class="form-label fw-medium">CC Last 4 Digits</label>
-								<input type="text" class="form-control" maxlength="4" placeholder="1234"
-									   [ngModel]="ccLast4()" (ngModelChange)="ccLast4.set($event)">
-							</div>
-
-							<div class="mb-3">
-								<label class="form-label fw-medium">CC Exp Date</label>
-								<input type="text" class="form-control" placeholder="MM/YY"
-									   [ngModel]="ccExpDate()" (ngModelChange)="ccExpDate.set($event)">
-							</div>
-
-							<div class="mb-3">
-								<label class="form-label fw-medium">Comment</label>
-								<textarea class="form-control" rows="2" placeholder="Optional note..."
-										  [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
-							</div>
-
-							<button class="btn btn-primary w-100" [disabled]="!canSubmit() || isSubmitting()"
-									(click)="submitCheckout()">
-								@if (isSubmitting()) {
-									<span class="spinner-border spinner-border-sm me-1"></span>Processing...
-								} @else {
-									<i class="bi bi-lock me-1"></i>Place Order — {{ formatCurrency(grandTotal()) }}
-								}
-							</button>
+					}
+					@if (totalTax() > 0) {
+						<div class="totals-row">
+							<span>Tax</span>
+							<span>{{ formatCurrency(totalTax()) }}</span>
 						</div>
+					}
+					<hr class="totals-divider">
+					<div class="totals-grand">
+						<span>Total</span>
+						<span class="totals-grand-amount">{{ formatCurrency(grandTotal()) }}</span>
 					</div>
 				</div>
 			</div>
+
+			<!-- ── Payment ── -->
+			<div class="section-card">
+				<h6 class="section-title"><i class="bi bi-credit-card-fill me-1"></i>Payment</h6>
+				<app-credit-card-form
+					[defaultEmail]="defaultEmail()"
+					(validChange)="onCcValidChange($event)"
+					(valueChange)="onCcValueChange($event)">
+				</app-credit-card-form>
+			</div>
+
+			<!-- ── Place Order ── -->
+			<button class="btn-checkout"
+					[disabled]="!canSubmit() || isSubmitting()"
+					(click)="submitCheckout()">
+				@if (isSubmitting()) {
+					<span class="spinner-border spinner-border-sm me-1"></span>Processing...
+				} @else {
+					<i class="bi bi-lock-fill me-1"></i>Place Order — {{ formatCurrency(grandTotal()) }}
+				}
+			</button>
 		}
 
 		@if (!isLoading() && lineItems().length === 0 && !errorMessage()) {
 			<div class="text-center py-5">
-				<p class="text-body-secondary">Your cart is empty. Add items before checking out.</p>
-				<a routerLink="../../store" class="btn btn-primary">Browse Store</a>
+				<i class="bi bi-cart-x display-4 text-body-tertiary"></i>
+				<p class="text-body-secondary mt-3">Your cart is empty. Add items before checking out.</p>
+				<a routerLink="../../store" class="btn btn-primary mt-2">Browse Store</a>
 			</div>
 		}
 	}

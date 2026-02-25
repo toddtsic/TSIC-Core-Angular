@@ -74,6 +74,9 @@ public class StoreCartRepository : IStoreCartRepository
                 FeeTotal = cbs.FeeTotal,
                 LineTotal = cbs.UnitPrice * cbs.Quantity + cbs.FeeTotal,
                 DirectToRegId = cbs.DirectToRegId,
+                DirectToPlayerName = cbs.DirectToReg != null
+                    ? cbs.DirectToReg.User.FirstName + " " + cbs.DirectToReg.User.LastName
+                    : null,
                 Active = cbs.Active
             })
             .AsNoTracking()
@@ -88,11 +91,12 @@ public class StoreCartRepository : IStoreCartRepository
     }
 
     public async Task<StoreCartBatchSkus?> GetLineItemBySkuAsync(
-        int storeCartBatchId, int storeSkuId, CancellationToken cancellationToken = default)
+        int storeCartBatchId, int storeSkuId, Guid? directToRegId = null, CancellationToken cancellationToken = default)
     {
         return await _context.StoreCartBatchSkus
             .FirstOrDefaultAsync(cbs => cbs.StoreCartBatchId == storeCartBatchId
                 && cbs.StoreSkuId == storeSkuId
+                && cbs.DirectToRegId == directToRegId
                 && cbs.Active, cancellationToken);
     }
 
@@ -119,6 +123,14 @@ public class StoreCartRepository : IStoreCartRepository
         return await _context.StoreCartBatchAccounting
             .AsNoTracking()
             .AnyAsync(a => a.StoreCartBatchId == storeCartBatchId, cancellationToken);
+    }
+
+    public async Task<StoreCartBatchAccounting?> GetBatchAccountingAsync(
+        int storeCartBatchId, CancellationToken cancellationToken = default)
+    {
+        return await _context.StoreCartBatchAccounting
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.StoreCartBatchId == storeCartBatchId, cancellationToken);
     }
 
     // ── Availability queries ──
@@ -223,6 +235,29 @@ public class StoreCartRepository : IStoreCartRepository
         return await _context.StoreCartBatchSkus
             .Where(cbs => cbs.StoreCartBatchId == storeCartBatchId && cbs.Active)
             .ToListAsync(cancellationToken);
+    }
+
+    // ── Family players (for DirectTo dropdown) ──
+
+    public async Task<List<StoreFamilyPlayerDto>> GetFamilyPlayersForJobAsync(
+        string familyUserId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await (
+            from fm in _context.FamilyMembers
+            join r in _context.Registrations
+                on fm.FamilyMemberUserId equals r.UserId
+            join u in _context.AspNetUsers
+                on r.UserId equals u.Id
+            where fm.FamilyUserId == familyUserId
+                && r.JobId == jobId
+                && r.BActive == true
+            select new StoreFamilyPlayerDto
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName ?? "",
+                LastName = u.LastName ?? ""
+            }
+        ).AsNoTracking().ToListAsync(cancellationToken);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

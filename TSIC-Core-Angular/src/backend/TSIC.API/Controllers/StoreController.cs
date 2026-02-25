@@ -20,7 +20,9 @@ public class StoreController : ControllerBase
     private readonly IStoreAdminService _adminService;
     private readonly IJobLookupService _jobLookupService;
     private readonly IStoreWalkUpService _walkUpService;
+    private readonly IStoreReceiptService _receiptService;
     private readonly IRegistrationAccountingRepository _accountingRepo;
+    private readonly IStoreCartRepository _cartRepo;
 
     public StoreController(
         IStoreCatalogService catalogService,
@@ -28,14 +30,18 @@ public class StoreController : ControllerBase
         IStoreAdminService adminService,
         IJobLookupService jobLookupService,
         IStoreWalkUpService walkUpService,
-        IRegistrationAccountingRepository accountingRepo)
+        IStoreReceiptService receiptService,
+        IRegistrationAccountingRepository accountingRepo,
+        IStoreCartRepository cartRepo)
     {
         _catalogService = catalogService;
         _cartService = cartService;
         _adminService = adminService;
         _jobLookupService = jobLookupService;
         _walkUpService = walkUpService;
+        _receiptService = receiptService;
         _accountingRepo = accountingRepo;
+        _cartRepo = cartRepo;
     }
 
     // ═══════════════════════════════════════════
@@ -352,6 +358,26 @@ public class StoreController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpGet("receipt/{storeCartBatchId:int}")]
+    [ProducesResponseType(typeof(FileContentResult), 200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetReceipt(int storeCartBatchId, CancellationToken ct)
+    {
+        var (jobId, _) = await ResolveContext();
+        var pdf = await _receiptService.GenerateReceiptPdfAsync(jobId, storeCartBatchId, ct);
+        if (pdf == null) return NotFound();
+        return File(pdf, "application/pdf", $"receipt-{storeCartBatchId}.pdf");
+    }
+
+    [HttpGet("family-players")]
+    [ProducesResponseType(typeof(List<StoreFamilyPlayerDto>), 200)]
+    public async Task<IActionResult> GetFamilyPlayers(CancellationToken ct)
+    {
+        var (jobId, userId) = await ResolveContext();
+        var players = await _cartRepo.GetFamilyPlayersForJobAsync(userId, jobId, ct);
+        return Ok(players);
     }
 
     [HttpGet("payment-methods")]

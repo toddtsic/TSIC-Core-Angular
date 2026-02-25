@@ -40,6 +40,11 @@
 						@if (variantLabel(item)) {
 							<div class="cart-item-variant">{{ variantLabel(item) }}</div>
 						}
+						@if (item.directToPlayerName) {
+							<div class="cart-item-player">
+								<i class="bi bi-person-fill me-1"></i>For {{ item.directToPlayerName }}
+							</div>
+						}
 					</div>
 					<button class="cart-item-remove"
 							(click)="removeItem(item)"

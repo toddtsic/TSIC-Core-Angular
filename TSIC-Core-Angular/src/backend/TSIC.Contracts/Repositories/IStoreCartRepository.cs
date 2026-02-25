@@ -49,8 +49,9 @@ public interface IStoreCartRepository
 
     /// <summary>
     /// Get existing line item for a SKU within a batch (to increment quantity instead of duplicating).
+    /// Matches on DirectToRegId so same SKU for different players creates separate lines.
     /// </summary>
-    Task<StoreCartBatchSkus?> GetLineItemBySkuAsync(int storeCartBatchId, int storeSkuId, CancellationToken cancellationToken = default);
+    Task<StoreCartBatchSkus?> GetLineItemBySkuAsync(int storeCartBatchId, int storeSkuId, Guid? directToRegId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add a new line item.
@@ -73,6 +74,11 @@ public interface IStoreCartRepository
     /// Check if a batch has any accounting (payment) records.
     /// </summary>
     Task<bool> BatchHasPaymentAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the first accounting (payment) record for a batch.
+    /// </summary>
+    Task<StoreCartBatchAccounting?> GetBatchAccountingAsync(int storeCartBatchId, CancellationToken cancellationToken = default);
 
     // ── Availability queries ──
 
@@ -110,6 +116,14 @@ public interface IStoreCartRepository
     /// Returns dictionary of storeSkuId → inCartCount.
     /// </summary>
     Task<Dictionary<int, int>> GetInCartCountsForSkusAsync(List<int> storeSkuIds, CancellationToken cancellationToken = default);
+
+    // ── Family players (for DirectTo dropdown) ──
+
+    /// <summary>
+    /// Get registered players in a family for a specific job (for the DirectTo picker).
+    /// Returns registrationId + first/last name for each active registration.
+    /// </summary>
+    Task<List<StoreFamilyPlayerDto>> GetFamilyPlayersForJobAsync(string familyUserId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Persist all pending changes.

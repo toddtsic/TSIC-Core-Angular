@@ -1,3 +1,5 @@
+using TSIC.Contracts.Dtos;
+
 namespace TSIC.Contracts.Dtos.Store;
 
 // ── Cart Batch (the current unpaid order) ──
@@ -33,7 +35,20 @@ public record StoreCartLineItemDto
     public required decimal FeeTotal { get; init; }
     public required decimal LineTotal { get; init; }
     public Guid? DirectToRegId { get; init; }
+    public string? DirectToPlayerName { get; init; }
     public required bool Active { get; init; }
+}
+
+// ── Family Players (for DirectTo dropdown) ──
+
+/// <summary>
+/// A registered player in the family, used for the DirectTo picker in the store.
+/// </summary>
+public record StoreFamilyPlayerDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
 }
 
 // ── Cart Requests ──
@@ -70,26 +85,27 @@ public record SkuAvailabilityDto
 // ── Checkout ──
 
 /// <summary>
-/// Checkout request with payment processor details.
-/// The actual card charge happens client-side via ADN; this records the result.
+/// Checkout request. For credit card payments, CreditCard must be populated;
+/// the backend charges via Authorize.Net. For Cash/Check, CreditCard is null.
 /// </summary>
 public record StoreCheckoutRequest
 {
     public required Guid PaymentMethodId { get; init; }
-    public string? Cclast4 { get; init; }
-    public string? CcexpDate { get; init; }
-    public string? AdnInvoiceNo { get; init; }
-    public string? AdnTransactionId { get; init; }
+    public CreditCardInfo? CreditCard { get; init; }
     public string? Comment { get; init; }
     public int? DiscountCodeAi { get; init; }
 }
 
 /// <summary>
-/// Checkout result returned after successful payment recording.
+/// Checkout result. Always check Success before displaying confirmation.
 /// </summary>
 public record StoreCheckoutResultDto
 {
+    public required bool Success { get; init; }
     public required int StoreCartBatchId { get; init; }
     public required decimal TotalPaid { get; init; }
+    public string? TransactionId { get; init; }
     public string? InvoiceNo { get; init; }
+    public string? Message { get; init; }
+    public string? ErrorCode { get; init; }
 }

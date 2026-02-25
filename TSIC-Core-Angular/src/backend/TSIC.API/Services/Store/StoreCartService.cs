@@ -1,3 +1,6 @@
+using AuthorizeNet.Api.Contracts.V1;
+using TSIC.API.Services.Shared.Adn;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Store;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -13,15 +16,18 @@ public sealed class StoreCartService : IStoreCartService
     private readonly IStoreRepository _storeRepo;
     private readonly IStoreCartRepository _cartRepo;
     private readonly IStoreItemRepository _itemRepo;
+    private readonly IAdnApiService _adnApiService;
 
     public StoreCartService(
         IStoreRepository storeRepo,
         IStoreCartRepository cartRepo,
-        IStoreItemRepository itemRepo)
+        IStoreItemRepository itemRepo,
+        IAdnApiService adnApiService)
     {
         _storeRepo = storeRepo;
         _cartRepo = cartRepo;
         _itemRepo = itemRepo;
+        _adnApiService = adnApiService;
     }
 
     public async Task<StoreCartBatchDto> GetCurrentCartAsync(Guid jobId, string familyUserId)
@@ -69,8 +75,8 @@ public sealed class StoreCartService : IStoreCartService
         var config = await _storeRepo.GetJobStoreConfigAsync(jobId)
             ?? throw new InvalidOperationException("Job store config not found.");
 
-        // Check if this SKU is already in the batch (increment instead of duplicating)
-        var existingLineItem = await _cartRepo.GetLineItemBySkuAsync(batch.StoreCartBatchId, request.StoreSkuId);
+        // Check if this SKU+player combo is already in the batch (increment instead of duplicating)
+        var existingLineItem = await _cartRepo.GetLineItemBySkuAsync(batch.StoreCartBatchId, request.StoreSkuId, request.DirectToRegId);
 
         if (existingLineItem != null)
         {
@@ -255,17 +261,93 @@ public sealed class StoreCartService : IStoreCartService
             totalPaid += lineTotal;
         }
 
-        // Record the payment
+        // ── CC payment: charge via Authorize.Net ──
+        string? adnTransactionId = null;
+        string? adnInvoiceNo = null;
+        string? ccLast4 = null;
+        string? ccExpDate = null;
+
+        if (request.CreditCard is { } cc)
+        {
+            var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
+            if (credentials == null
+                || string.IsNullOrWhiteSpace(credentials.AdnLoginId)
+                || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+            {
+                return new StoreCheckoutResultDto
+                {
+                    Success = false,
+                    StoreCartBatchId = batch.StoreCartBatchId,
+                    TotalPaid = 0m,
+                    Message = "Missing payment gateway credentials (Authorize.Net).",
+                    ErrorCode = "MISSING_GATEWAY_CREDS"
+                };
+            }
+
+            var env = _adnApiService.GetADNEnvironment();
+            adnInvoiceNo = $"STORE-{batch.StoreCartBatchId}";
+
+            var response = _adnApiService.ADN_Charge(new AdnChargeRequest
+            {
+                Env = env,
+                LoginId = credentials.AdnLoginId!,
+                TransactionKey = credentials.AdnTransactionKey!,
+                CardNumber = cc.Number!,
+                CardCode = cc.Code!,
+                Expiry = FormatExpiry(cc.Expiry!),
+                FirstName = cc.FirstName!,
+                LastName = cc.LastName!,
+                Address = cc.Address!,
+                Zip = cc.Zip!,
+                Email = cc.Email!,
+                Phone = cc.Phone!,
+                Amount = totalPaid,
+                InvoiceNumber = adnInvoiceNo,
+                Description = "Store Purchase"
+            });
+
+            if (response?.messages == null)
+            {
+                return new StoreCheckoutResultDto
+                {
+                    Success = false,
+                    StoreCartBatchId = batch.StoreCartBatchId,
+                    TotalPaid = 0m,
+                    Message = "Payment gateway returned no response.",
+                    ErrorCode = "CHARGE_NULL_RESPONSE"
+                };
+            }
+
+            if (response.messages.resultCode != messageTypeEnum.Ok)
+            {
+                var errorText = response.transactionResponse?.errors?[0].errorText
+                    ?? "Payment declined.";
+                return new StoreCheckoutResultDto
+                {
+                    Success = false,
+                    StoreCartBatchId = batch.StoreCartBatchId,
+                    TotalPaid = 0m,
+                    Message = errorText,
+                    ErrorCode = "CHARGE_GATEWAY_ERROR"
+                };
+            }
+
+            adnTransactionId = response.transactionResponse.transId;
+            ccLast4 = cc.Number?.Length >= 4 ? cc.Number[^4..] : null;
+            ccExpDate = cc.Expiry;
+        }
+
+        // Record the payment in stores.StoreCartBatchAccounting
         var accounting = new StoreCartBatchAccounting
         {
             StoreCartBatchId = batch.StoreCartBatchId,
             PaymentMethodId = request.PaymentMethodId,
             Paid = totalPaid,
             CreateDate = DateTime.UtcNow,
-            Cclast4 = request.Cclast4,
-            CcexpDate = request.CcexpDate,
-            AdnInvoiceNo = request.AdnInvoiceNo,
-            AdnTransactionId = request.AdnTransactionId,
+            Cclast4 = ccLast4,
+            CcexpDate = ccExpDate,
+            AdnInvoiceNo = adnInvoiceNo,
+            AdnTransactionId = adnTransactionId,
             Comment = request.Comment,
             DiscountCodeAi = request.DiscountCodeAi,
             Modified = DateTime.UtcNow,
@@ -279,9 +361,11 @@ public sealed class StoreCartService : IStoreCartService
 
         return new StoreCheckoutResultDto
         {
+            Success = true,
             StoreCartBatchId = batch.StoreCartBatchId,
             TotalPaid = totalPaid,
-            InvoiceNo = request.AdnInvoiceNo
+            TransactionId = adnTransactionId,
+            InvoiceNo = adnInvoiceNo
         };
     }
 
@@ -320,6 +404,23 @@ public sealed class StoreCartService : IStoreCartService
         }
 
         return (cart, batch);
+    }
+
+    private static string FormatExpiry(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return raw;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (digits.Length == 4)
+        {
+            var mm = digits[..2];
+            var yy = digits[2..];
+            return $"{2000 + int.Parse(yy)}-{mm}";
+        }
+        if (digits.Length == 6)
+        {
+            return $"{digits[..4]}-{digits[4..]}";
+        }
+        return raw;
     }
 
     private static void RecalculateLineItemFees(StoreCartBatchSkus lineItem, JobStoreConfig config)

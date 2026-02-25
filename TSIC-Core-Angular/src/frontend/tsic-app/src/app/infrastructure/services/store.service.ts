@@ -34,6 +34,7 @@ import type {
 	PaymentMethodOptionDto,
 	StoreWalkUpRegisterRequest,
 	StoreWalkUpRegisterResponse,
+	StoreFamilyPlayerDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -46,6 +47,9 @@ export class StoreService {
 	public readonly isCartLoading = signal(false);
 	public readonly cartCount = computed(() => this.cart()?.lineItems?.length ?? 0);
 	public readonly cartTotal = computed(() => this.cart()?.grandTotal ?? 0);
+
+	// ── Family players (for DirectTo dropdown) ──
+	public readonly familyPlayers = signal<StoreFamilyPlayerDto[]>([]);
 
 	// ═══════════════════════════════════════
 	//  CATALOG — Admin
@@ -165,12 +169,33 @@ export class StoreService {
 
 	checkout(request: StoreCheckoutRequest): Observable<StoreCheckoutResultDto> {
 		return this.http.post<StoreCheckoutResultDto>(`${this.base}/checkout`, request).pipe(
-			tap(() => this.cart.set(null))
+			tap(result => {
+				if (result.success) this.cart.set(null);
+			})
+		);
+	}
+
+	loadFamilyPlayers(): Observable<StoreFamilyPlayerDto[]> {
+		return this.http.get<StoreFamilyPlayerDto[]>(`${this.base}/family-players`).pipe(
+			tap(players => this.familyPlayers.set(players))
 		);
 	}
 
 	getPaymentMethods(): Observable<PaymentMethodOptionDto[]> {
 		return this.http.get<PaymentMethodOptionDto[]>(`${this.base}/payment-methods`);
+	}
+
+	downloadReceipt(storeCartBatchId: number): void {
+		this.http.get(`${this.base}/receipt/${storeCartBatchId}`, { responseType: 'blob' }).subscribe({
+			next: blob => {
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `receipt-${storeCartBatchId}.pdf`;
+				a.click();
+				URL.revokeObjectURL(url);
+			}
+		});
 	}
 
 	// ═══════════════════════════════════════
