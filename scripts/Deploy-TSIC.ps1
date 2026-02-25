@@ -212,6 +212,26 @@ if (Get-Module WebAdministration) {
         Write-Host "⚠ Could not restart IIS sites (may not exist yet)" -ForegroundColor Yellow
     }
 }
+
+# Ensure IIS app pool has DB access (fixes orphaned users after restore)
+Write-Host "Ensuring IIS app pool DB login..." -ForegroundColor Cyan
+try {
+    sqlcmd -S ".\SS2016" -E -Q "
+        USE [TSICV5];
+        IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
+            CREATE LOGIN [IIS APPPOOL\TSIC.Api] FROM WINDOWS;
+        IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
+            CREATE USER [IIS APPPOOL\TSIC.Api] FOR LOGIN [IIS APPPOOL\TSIC.Api];
+        ELSE
+            ALTER USER [IIS APPPOOL\TSIC.Api] WITH LOGIN = [IIS APPPOOL\TSIC.Api];
+        ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\TSIC.Api];
+        ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\TSIC.Api];
+        PRINT 'IIS APPPOOL\TSIC.Api login ensured.';
+    " -b
+    Write-Host "✓ DB login verified" -ForegroundColor Green
+} catch {
+    Write-Host "⚠ Could not verify DB login. Run Fix-IIS-DbLogin.sql in SSMS if login fails." -ForegroundColor Yellow
+}
 '@
 
     $serverScript | Out-File -FilePath (Join-Path $DeployPackage "deploy-to-server.ps1") -Encoding UTF8

@@ -169,8 +169,30 @@ if (Get-Module WebAdministration) {
 }
 Write-Host ""
 
-# ── Step 6: Warmup request ────────────────────────────────────────────
-Write-Host "Step 6: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
+# ── Step 6: Ensure IIS app pool has DB access ─────────────────────────
+# After a database restore, the IIS app pool login gets orphaned.
+# This idempotently ensures the login + user mapping exists.
+Write-Host "Step 6: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
+$fixLoginSql = Join-Path $PSScriptRoot "Fix-IIS-DbLogin.sql"
+if (Test-Path $fixLoginSql) {
+    try {
+        sqlcmd -S ".\SS2016" -E -i $fixLoginSql -b
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  DB login verified for IIS APPPOOL\$ApiSiteName" -ForegroundColor Green
+        } else {
+            Write-Host "  sqlcmd returned exit code $LASTEXITCODE — check SQL output above" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  Could not run Fix-IIS-DbLogin.sql: $_" -ForegroundColor Yellow
+        Write-Host "  If login fails after deploy, run scripts\Fix-IIS-DbLogin.sql manually in SSMS" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  Fix-IIS-DbLogin.sql not found — skipping DB login check" -ForegroundColor Yellow
+}
+Write-Host ""
+
+# ── Step 7: Warmup request ────────────────────────────────────────────
+Write-Host "Step 7: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3  # Give IIS a moment to spin up the worker process
 try {
     # -SkipCertificateCheck handles self-signed/dev certs
