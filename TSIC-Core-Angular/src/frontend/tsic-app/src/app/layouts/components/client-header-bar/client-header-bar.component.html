@@ -157,13 +157,11 @@
 
             <!-- Desktop: home + theme toggle + user dropdown -->
             <div class="d-none d-md-flex align-items-center gap-2">
-                <!-- Home — top-level for logged-in users -->
-                @if (user()) {
+                <!-- Home — always visible on desktop -->
                 <button type="button" class="theme-toggle-btn" (click)="goHome()"
                     aria-label="Job home page" title="Job home page">
                     <i class="bi bi-house-door-fill"></i>
                 </button>
-                }
 
                 <!-- Theme toggle — top-level for instant access -->
                 <button type="button" class="theme-toggle-btn" (click)="toggleTheme()"
@@ -197,12 +195,6 @@
                         </div>
                         <div class="user-menu-divider"></div>
                         }
-
-                        <button type="button" class="user-menu-item" role="menuitem"
-                            (click)="goHome(); closeUserMenu()">
-                            <i class="bi bi-house-door-fill"></i>
-                            <span>Home</span>
-                        </button>
 
                         @if (user()?.regId) {
                         <button type="button" class="user-menu-item" role="menuitem"
