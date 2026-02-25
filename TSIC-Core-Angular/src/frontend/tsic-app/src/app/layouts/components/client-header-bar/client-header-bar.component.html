@@ -155,8 +155,16 @@
                 </div>
             </div>
 
-            <!-- Desktop: theme toggle + user dropdown -->
+            <!-- Desktop: home + theme toggle + user dropdown -->
             <div class="d-none d-md-flex align-items-center gap-2">
+                <!-- Home — top-level for logged-in users -->
+                @if (user()) {
+                <button type="button" class="theme-toggle-btn" (click)="goHome()"
+                    aria-label="Job home page" title="Job home page">
+                    <i class="bi bi-house-door-fill"></i>
+                </button>
+                }
+
                 <!-- Theme toggle — top-level for instant access -->
                 <button type="button" class="theme-toggle-btn" (click)="toggleTheme()"
                     [attr.aria-label]="themeService.theme() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
@@ -249,3 +257,15 @@
     </div>
 
 </div>
+
+<!-- TSIC logo logout confirmation -->
+@if (showTsicConfirm()) {
+<confirm-dialog
+    title="Leave This Job?"
+    message="You'll be logged out and taken to the TeamSportsInfo home page."
+    confirmLabel="Leave"
+    confirmVariant="warning"
+    (confirmed)="confirmTsicHome()"
+    (cancelled)="showTsicConfirm.set(false)">
+</confirm-dialog>
+}

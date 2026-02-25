@@ -8,6 +8,7 @@ import { ThemeService } from '@infrastructure/services/theme.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { MenuStateService } from '../../services/menu-state.service';
 import { PalettePickerComponent } from '../palette-picker/palette-picker.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 /** Admin roles that can customize dashboards */
 const ADMIN_ROLES = ['Superuser', 'Director', 'SuperDirector'];
@@ -15,7 +16,7 @@ const ADMIN_ROLES = ['Superuser', 'Director', 'SuperDirector'];
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
-    imports: [PalettePickerComponent],
+    imports: [PalettePickerComponent, ConfirmDialogComponent],
     templateUrl: './client-header-bar.component.html',
     styleUrls: ['./client-header-bar.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -125,7 +126,18 @@ export class ClientHeaderBarComponent {
         this.router.navigate([`/${jobPath}`]);
     }
 
+    readonly showTsicConfirm = signal(false);
+
     goToTsicHome() {
+        if (this.auth.isAuthenticated()) {
+            this.showTsicConfirm.set(true);
+        } else {
+            this.router.navigate(['/tsic']);
+        }
+    }
+
+    confirmTsicHome() {
+        this.showTsicConfirm.set(false);
         this.auth.logout({ redirectTo: '/tsic' });
     }
 
