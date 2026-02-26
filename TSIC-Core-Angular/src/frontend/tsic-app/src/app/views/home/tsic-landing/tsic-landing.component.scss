@@ -333,9 +333,9 @@
   opacity: 0;
   animation: heroSlide 36s ease-in-out infinite;
 
-  &--1 { background-image: url('/images/hero-girls-lax-3.jpg');  animation-name: heroSlideFirst; opacity: 1; }
+  &--1 { background-image: url('/images/hero-youth-lax.jpg');       animation-name: heroSlideFirst; opacity: 1; }
   &--2 { background-image: url('/images/hero-boys-lax.jpg');    animation-delay: 6s; }
-  &--3 { background-image: url('/images/hero-basketball.jpg');  animation-delay: 12s; }
+  &--3 { background-image: url('/images/hero-youth-basketball.png'); animation-delay: 12s; }
   &--4 { background-image: url('/images/hero-soccer.jpg');      animation-delay: 18s; }
   &--5 { background-image: url('/images/hero-baseball.jpg');    animation-delay: 24s; }
 }
