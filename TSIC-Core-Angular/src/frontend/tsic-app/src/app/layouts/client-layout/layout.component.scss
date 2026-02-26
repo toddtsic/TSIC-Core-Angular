@@ -6,10 +6,12 @@
 }
 
 // Combined header + menu chrome — single sticky block
+// NOTE: Do NOT add position:sticky, z-index, transform, filter, or backdrop-filter here.
+// The header doesn't need sticky — it's a flex sibling above <main> which is the scroll
+// container (overflow-y:auto). Content scrolls inside <main>, not past the header.
+// Any of those properties create a stacking context in Safari (WebKit bug with sticky)
+// which traps position:fixed dropdowns inside the header's paint layer.
 .tsic-header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
     background-color: var(--brand-bg);
     width: 100%;
 }
@@ -20,7 +22,10 @@ main {
     flex: 1; // Take remaining space, pushing footer down
     overflow-y: auto; // Main is the scroll container (header stays above as a flex sibling)
     overflow-x: hidden; // Prevent horizontal overflow
-    position: relative; // Establish stacking context
+    position: relative;
+    z-index: 0; // Explicit stacking context — traps all children (Bootstrap modals, tooltips,
+    // positioned elements) so nothing inside page content can escape to compete with the
+    // header's fixed-position dropdowns (z-index: 10001) at the root stacking context.
     background-color: var(--neutral-50); // Ensure subtle off-white background in light mode
 
     // Top spacing lives on the scrolling content (not the scroll container)

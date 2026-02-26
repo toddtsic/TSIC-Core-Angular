@@ -240,7 +240,9 @@
         linear-gradient(45deg,
             var(--brand-bg) 0%,
             var(--brand-bg-secondary) 100%);
-    backdrop-filter: blur(20px) saturate(180%);
+    // NOTE: Do NOT add backdrop-filter here — it creates a stacking context that traps
+    // the position:fixed user-menu dropdown inside .header-surface's paint layer.
+    // The gradient backgrounds provide sufficient visual depth without it.
     position: relative;
     overflow: hidden;
 
