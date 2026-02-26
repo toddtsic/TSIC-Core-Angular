@@ -34,7 +34,9 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private _returnUrl: string | null = null;
 
   ngOnInit(): void {
-    this._returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    const raw = this.route.snapshot.queryParamMap.get('returnUrl');
+    // Reject circular returnUrl that points back to role-selection
+    this._returnUrl = raw && !raw.includes('role-selection') ? raw : null;
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
   }
@@ -89,8 +91,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
         if (this._returnUrl) {
           this.router.navigateByUrl(this._returnUrl);
         } else if (user?.jobPath) {
-          const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
-          this.router.navigate([routePath]);
+          const routePath = user.jobPath.startsWith('/') ? user.jobPath : '/' + user.jobPath;
+          this.router.navigateByUrl(routePath);
         } else {
           // No jobPath in token (shouldn't happen) — re-enable UI as fallback
           this.selectingRole.set(false);
