@@ -521,14 +521,21 @@ app.UseResponseCompression();
 var bannerFilesPath = app.Configuration.GetSection("FileStorage")["BannerFilesPath"];
 if (!string.IsNullOrEmpty(bannerFilesPath))
 {
-    if (!Directory.Exists(bannerFilesPath))
-        Directory.CreateDirectory(bannerFilesPath);
-
-    app.UseStaticFiles(new StaticFileOptions
+    try
     {
-        FileProvider = new PhysicalFileProvider(bannerFilesPath),
-        RequestPath = "/static/BannerFiles"
-    });
+        if (!Directory.Exists(bannerFilesPath))
+            Directory.CreateDirectory(bannerFilesPath);
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(bannerFilesPath),
+            RequestPath = "/static/BannerFiles"
+        });
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "BannerFiles path '{Path}' is not accessible — static file serving disabled", bannerFilesPath);
+    }
 }
 
 // Ensure proper middleware order for CORS
