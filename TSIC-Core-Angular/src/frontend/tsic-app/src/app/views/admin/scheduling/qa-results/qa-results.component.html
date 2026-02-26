@@ -256,7 +256,7 @@
                     </div>
                     <div class="check-info">
                         <div class="check-title">Back-to-Back Games</div>
-                        <div class="check-subtitle">Teams appearing in consecutive timeslot rows (no rest slot between games)</div>
+                        <div class="check-subtitle">Teams with next game starting within one game-slot interval (no rest period)</div>
                     </div>
                     <div class="check-count">
                         <span class="badge" [class.bg-success]="qa.backToBackGames.length === 0"
@@ -269,7 +269,7 @@
                 @if (isSectionExpanded('backToBack') && qa.backToBackGames.length > 0) {
                     <div class="check-detail">
                         <table class="detail-table">
-                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Field</th><th>Game Time</th><th>Gap</th></tr></thead>
+                            <thead><tr><th>Age Group</th><th>Division</th><th>Team</th><th>Field</th><th>Game Time</th><th>Gap (min)</th></tr></thead>
                             <tbody>
                                 @for (item of qa.backToBackGames; track item.teamName + item.gameDate) {
                                     <tr>

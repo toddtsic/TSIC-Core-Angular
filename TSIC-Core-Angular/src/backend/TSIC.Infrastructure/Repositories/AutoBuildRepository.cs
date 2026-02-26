@@ -468,7 +468,40 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     private async Task<List<QaBackToBack>> GetBackToBackGamesAsync(
         Guid jobId, CancellationToken ct)
     {
-        // Get all RR games with actual datetimes
+        // ── Step 1: Determine the BTB threshold from timeslot config ──
+        // Legacy logic: MAX(gamestartInterval) per division, then MAX across all.
+        // gamestartInterval = minutes between game starts on a field (game length + transition).
+        // A BTB means the team's next game starts within that interval — no rest period.
+        var agegroupIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.AgegroupId != null)
+            .Select(s => s.AgegroupId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var maxGsi = 0;
+        if (agegroupIds.Count > 0)
+        {
+            var intervals = await _context.TimeslotsLeagueSeasonFields
+                .AsNoTracking()
+                .Where(t => agegroupIds.Contains(t.AgegroupId))
+                .Select(t => new { t.DivId, t.GamestartInterval })
+                .ToListAsync(ct);
+
+            if (intervals.Count > 0)
+            {
+                // Max interval per division, then overall max (matches legacy sproc)
+                maxGsi = intervals
+                    .GroupBy(x => x.DivId)
+                    .Select(g => g.Max(x => x.GamestartInterval))
+                    .Max();
+            }
+        }
+
+        if (maxGsi <= 0)
+            return []; // No timeslot config — can't determine BTB threshold
+
+        // ── Step 2: Get all RR games ──
         var games = await _context.Schedule
             .AsNoTracking()
             .Where(s => s.JobId == jobId && s.GDate != null
@@ -484,27 +517,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             })
             .ToListAsync(ct);
 
-        // Build the master timeslot grid: per calendar day, the distinct
-        // game-start times (across ALL fields) sorted chronologically.
-        // Each distinct time is one "row" in the master schedule.
-        var slotIndexByDayTime = new Dictionary<(DateTime date, DateTime gDate), int>();
-        var dayGroups = games
-            .Where(g => g.GDate != null)
-            .GroupBy(g => g.GDate!.Value.Date);
-
-        foreach (var dayGroup in dayGroups)
-        {
-            var distinctTimes = dayGroup
-                .Select(g => g.GDate!.Value)
-                .Distinct()
-                .OrderBy(t => t)
-                .ToList();
-
-            for (var idx = 0; idx < distinctTimes.Count; idx++)
-                slotIndexByDayTime[(dayGroup.Key, distinctTimes[idx])] = idx;
-        }
-
-        // Flatten to per-team records with slot index
+        // ── Step 3: Flatten to per-team records, sorted by team + time ──
         var teamGames = games
             .Where(g => g.GDate != null)
             .SelectMany(g => new[]
@@ -513,17 +526,11 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                 new { TeamId = g.T2Id, TeamName = g.T2Name, g.GDate, g.FieldName, g.AgegroupName, g.DivName }
             })
             .Where(tg => tg.TeamId != null)
-            .Select(tg => new
-            {
-                tg.TeamId, tg.TeamName, tg.GDate, tg.FieldName, tg.AgegroupName, tg.DivName,
-                SlotIndex = slotIndexByDayTime.GetValueOrDefault((tg.GDate!.Value.Date, tg.GDate!.Value))
-            })
             .OrderBy(tg => tg.TeamId)
-            .ThenBy(tg => tg.GDate!.Value.Date)
-            .ThenBy(tg => tg.SlotIndex)
+            .ThenBy(tg => tg.GDate)
             .ToList();
 
-        // Detect back-to-backs: same team, same day, consecutive slot indices
+        // ── Step 4: Detect BTBs — same team, next game within maxGSI minutes ──
         var backToBacks = new List<QaBackToBack>();
         for (var i = 1; i < teamGames.Count; i++)
         {
@@ -531,11 +538,10 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             var curr = teamGames[i];
 
             if (prev.TeamId != curr.TeamId) continue;
-            if (prev.GDate!.Value.Date != curr.GDate!.Value.Date) continue;
 
-            if (curr.SlotIndex == prev.SlotIndex + 1)
+            var minutes = (int)(curr.GDate!.Value - prev.GDate!.Value).TotalMinutes;
+            if (minutes <= maxGsi)
             {
-                var minutes = (int)(curr.GDate!.Value - prev.GDate!.Value).TotalMinutes;
                 backToBacks.Add(new QaBackToBack
                 {
                     AgegroupName = curr.AgegroupName,
@@ -544,7 +550,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                     FieldName = curr.FieldName,
                     GameDate = curr.GDate!.Value,
                     MinutesSincePrevious = minutes,
-                    SlotIndex = curr.SlotIndex
+                    SlotIndex = maxGsi // repurpose: report the threshold used
                 });
             }
         }

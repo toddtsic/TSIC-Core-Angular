@@ -110,8 +110,8 @@ public class ScheduleQaController : ControllerBase
                 qa.UnscheduledTeams.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.DivRank }));
 
         if (qa.BackToBackGames.Count > 0)
-            AddSheet(package, "Back-to-Back Games", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "Gap (min)", "Slot" },
-                qa.BackToBackGames.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.FieldName, i.GameDate, i.MinutesSincePrevious, i.SlotIndex }));
+            AddSheet(package, "Back-to-Back Games", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "Gap (min)" },
+                qa.BackToBackGames.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.FieldName, i.GameDate, i.MinutesSincePrevious }));
 
         if (qa.RepeatedMatchups.Count > 0)
             AddSheet(package, "Repeated Matchups", new[] { "AgeGroup", "Division", "Team1", "Team2", "TimesPlayed" },
