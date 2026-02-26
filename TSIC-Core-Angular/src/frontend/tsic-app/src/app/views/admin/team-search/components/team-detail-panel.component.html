@@ -246,3 +246,15 @@
     (completed)="onCheckPaymentComplete()"
   ></app-check-payment-modal>
 }
+
+<!-- Refund Confirm Dialog -->
+@if (showRefundConfirm()) {
+  <confirm-dialog
+    title="Confirm Refund"
+    [message]="'Refund $' + (refundTarget()?.paidAmount?.toFixed(2) ?? '0.00') + ' from transaction ' + (refundTarget()?.adnTransactionId ?? '') + '?'"
+    confirmLabel="Refund"
+    confirmVariant="danger"
+    (confirmed)="onRefundConfirmed()"
+    (cancelled)="onRefundCancelled()">
+  </confirm-dialog>
+}

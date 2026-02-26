@@ -2,4 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DivisionMatchType = number;
+export type PoolSizePattern = {
+    teamCount: number;
+    gameCount: number;
+    sourceDivisionCount: number;
+};
+

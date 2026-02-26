@@ -232,6 +232,18 @@
 </tsic-dialog>
 }
 
+<!-- Confirm Dialog (shared for delete, cascade, clone-replace) -->
+@if (confirmDialogOpen()) {
+<confirm-dialog
+    [title]="confirmDialogTitle()"
+    [message]="confirmDialogMessage()"
+    [confirmLabel]="confirmDialogLabel()"
+    [confirmVariant]="confirmDialogVariant()"
+    (confirmed)="onConfirmDialogConfirmed()"
+    (cancelled)="onConfirmDialogCancelled()">
+</confirm-dialog>
+}
+
 <!-- Clone Branch Dialog -->
 @if (cloneDialogOpen()) {
 <tsic-dialog [open]="true" size="sm" (requestClose)="cloneDialogOpen.set(false)">

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { NavAdminService } from '../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
@@ -11,7 +12,7 @@ import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, Update
 @Component({
     selector: 'app-menu-admin',
     standalone: true,
-    imports: [FormsModule, NavItemFormDialogComponent, TsicDialogComponent],
+    imports: [FormsModule, NavItemFormDialogComponent, TsicDialogComponent, ConfirmDialogComponent],
     templateUrl: './menu-admin.component.html',
     styleUrl: './menu-admin.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -47,6 +48,22 @@ export class MenuAdminComponent implements OnInit {
 
     // Move dropdown state — tracks which child item's dropdown is open
     moveDropdownItemId = signal<number | null>(null);
+
+    // Confirm dialog state
+    confirmDialogOpen = signal(false);
+    confirmDialogTitle = signal('');
+    confirmDialogMessage = signal('');
+    confirmDialogVariant = signal<'danger' | 'warning' | 'primary'>('primary');
+    confirmDialogLabel = signal('Confirm');
+    private confirmDialogAction = signal<(() => void) | null>(null);
+
+    // Pending data for cascade confirm
+    private pendingCascadeItemId = signal<number | null>(null);
+    private pendingCascadeData = signal<UpdateNavItemRequest | null>(null);
+    private pendingCascadeMatchCount = signal(0);
+
+    // Pending data for delete confirm
+    private pendingDeleteItem = signal<NavEditorNavItemDto | null>(null);
 
     // Computed values
     navs = computed(() => this.navAdminService.navs());
@@ -187,14 +204,22 @@ export class MenuAdminComponent implements OnInit {
                 const matches = this.findMatchingItemsAcrossRoles(oldItem);
                 if (matches.length > 0) {
                     const roleNames = matches.map(m => m.roleName).join(', ');
-                    const updateAll = confirm(
-                        `"${oldItem.text}" also exists in: ${roleNames}\n\n` +
-                        `Update route to "${newData.routerLink}" for all roles?`
+                    this.pendingCascadeItemId.set(result.navItemId!);
+                    this.pendingCascadeData.set(newData);
+                    this.pendingCascadeMatchCount.set(matches.length);
+                    this.showConfirm(
+                        'Cascade Route Update',
+                        `"${oldItem.text}" also exists in: <strong>${roleNames}</strong>.<br><br>Update route to "${newData.routerLink}" for all roles?`,
+                        'primary',
+                        'Update All',
+                        () => {
+                            const id = this.pendingCascadeItemId();
+                            const data = this.pendingCascadeData();
+                            const count = this.pendingCascadeMatchCount();
+                            if (id && data) this.updateWithCascade(id, data, count);
+                        }
                     );
-                    if (updateAll) {
-                        this.updateWithCascade(result.navItemId!, newData, matches.length);
-                        return;
-                    }
+                    return;
                 }
             }
 
@@ -292,13 +317,22 @@ export class MenuAdminComponent implements OnInit {
     }
 
     deleteItem(item: NavEditorNavItemDto): void {
-        const confirmDelete = confirm(`Delete "${item.text}"?`);
-        if (!confirmDelete) return;
-
-        this.navAdminService.deleteItem(item.navItemId).subscribe({
-            next: () => { this.toast.show('Nav item deleted.', 'success'); this.loadNavs(); },
-            error: () => this.toast.show('Failed to delete nav item.', 'danger')
-        });
+        this.pendingDeleteItem.set(item);
+        this.showConfirm(
+            'Delete Nav Item',
+            `Delete "<strong>${item.text}</strong>"?`,
+            'danger',
+            'Delete',
+            () => {
+                const target = this.pendingDeleteItem();
+                if (!target) return;
+                this.pendingDeleteItem.set(null);
+                this.navAdminService.deleteItem(target.navItemId).subscribe({
+                    next: () => { this.toast.show('Nav item deleted.', 'success'); this.loadNavs(); },
+                    error: () => this.toast.show('Failed to delete nav item.', 'danger')
+                });
+            }
+        );
     }
 
     // ── Clone branch ──
@@ -322,16 +356,26 @@ export class MenuAdminComponent implements OnInit {
             i => i.text.toLowerCase() === source.text.toLowerCase()
         );
 
-        let replaceExisting = false;
         if (duplicate) {
-            const confirmed = confirm(
-                `"${targetNav.roleName}" already has a "${source.text}" section.\n\n` +
-                `Replace it and its children with the cloned version?`
+            this.showConfirm(
+                'Replace Existing Section',
+                `"<strong>${targetNav.roleName}</strong>" already has a "<strong>${source.text}</strong>" section.<br><br>Replace it and its children with the cloned version?`,
+                'warning',
+                'Replace',
+                () => this.executeClone(source, targetNavId, targetNav, true)
             );
-            if (!confirmed) return;
-            replaceExisting = true;
+            return;
         }
 
+        this.executeClone(source, targetNavId, targetNav, false);
+    }
+
+    private executeClone(
+        source: NavEditorNavItemDto,
+        targetNavId: number,
+        targetNav: NavEditorNavDto,
+        replaceExisting: boolean
+    ): void {
         this.cloneLoading.set(true);
 
         this.navAdminService.cloneBranch({
@@ -453,5 +497,52 @@ export class MenuAdminComponent implements OnInit {
             this.copySuccess.set(true);
             setTimeout(() => this.copySuccess.set(false), 2000);
         });
+    }
+
+    // ── Confirm dialog helpers ──
+
+    private showConfirm(
+        title: string,
+        message: string,
+        variant: 'danger' | 'warning' | 'primary',
+        label: string,
+        action: () => void
+    ): void {
+        this.confirmDialogTitle.set(title);
+        this.confirmDialogMessage.set(message);
+        this.confirmDialogVariant.set(variant);
+        this.confirmDialogLabel.set(label);
+        this.confirmDialogAction.set(action);
+        this.confirmDialogOpen.set(true);
+    }
+
+    onConfirmDialogConfirmed(): void {
+        const action = this.confirmDialogAction();
+        this.confirmDialogOpen.set(false);
+        this.confirmDialogAction.set(null);
+        action?.();
+    }
+
+    onConfirmDialogCancelled(): void {
+        this.confirmDialogOpen.set(false);
+        this.confirmDialogAction.set(null);
+
+        // For cascade decline — still update the single item (matches original behavior)
+        const cascadeId = this.pendingCascadeItemId();
+        const cascadeData = this.pendingCascadeData();
+        if (cascadeId && cascadeData) {
+            this.pendingCascadeItemId.set(null);
+            this.pendingCascadeData.set(null);
+            this.navAdminService.updateItem(cascadeId, cascadeData).subscribe({
+                next: () => { this.toast.show('Nav item updated.', 'success'); this.loadNavs(); },
+                error: (err) => {
+                    console.error('Update nav item failed:', err);
+                    this.toast.show(`Failed to update: ${err.status} ${err.statusText}`, 'danger');
+                }
+            });
+            return;
+        }
+
+        this.pendingDeleteItem.set(null);
     }
 }

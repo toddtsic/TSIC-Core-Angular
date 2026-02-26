@@ -10,6 +10,13 @@ namespace TSIC.Contracts.Services;
 public interface IAutoBuildScheduleService
 {
     /// <summary>
+    /// Game Summary: Get per-division game counts for the current job.
+    /// Shows team count, scheduled game count, and expected round-robin game count.
+    /// </summary>
+    Task<GameSummaryResponse> GetGameSummaryAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Phase 1: Get available source jobs for the current job.
     /// Auto-detects candidates: same customer, prior years, with scheduled games.
     /// </summary>
@@ -17,11 +24,20 @@ public interface IAutoBuildScheduleService
         Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Phase 2-3: Analyze source pattern, match divisions, compute feasibility.
-    /// Returns the full analysis with division matches and confidence score.
+    /// Phase 1.5: Propose agegroup mappings for user confirmation.
+    /// Extracts distinct agegroups from source and current, proposes best-guess mapping.
+    /// </summary>
+    Task<AgegroupMappingResponse> ProposeAgegroupMappingsAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Phase 2-3: Analyze source pattern with confirmed agegroup mappings.
+    /// Name-first matching within mapped agegroups, pool-size fallback for unmatched.
     /// </summary>
     Task<AutoBuildAnalysisResponse> AnalyzeAsync(
-        Guid jobId, Guid sourceJobId, CancellationToken ct = default);
+        Guid jobId, Guid sourceJobId,
+        List<ConfirmedAgegroupMapping>? agegroupMappings = null,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Phase 6-7: Execute the auto-build with user-provided resolutions

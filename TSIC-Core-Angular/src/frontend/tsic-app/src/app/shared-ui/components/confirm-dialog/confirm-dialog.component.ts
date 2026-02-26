@@ -12,8 +12,7 @@ import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
                     <h5 class="modal-title">{{ title }}</h5>
                     <button type="button" class="btn-close" (click)="cancelled.emit()" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <p class="mb-0">{{ message }}</p>
+                <div class="modal-body" [innerHTML]="message">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelled.emit()">

@@ -5,7 +5,6 @@
 export type AutoBuildRequest = {
     sourceJobId: string;
     skipDivisionIds?: any[] | null;
-    mismatchResolutions?: any[] | null;
     includeBracketGames?: boolean;
     skipAlreadyScheduled?: boolean;
 };

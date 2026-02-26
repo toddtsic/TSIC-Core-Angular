@@ -6,6 +6,7 @@ import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { CcChargeModalComponent } from './cc-charge-modal.component';
 import { CheckPaymentModalComponent } from './check-payment-modal.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 type TabType = 'info' | 'accounting';
 type Scope = 'team' | 'club';
@@ -13,7 +14,7 @@ type Scope = 'team' | 'club';
 @Component({
 	selector: 'app-team-detail-panel',
 	standalone: true,
-	imports: [CommonModule, FormsModule, CcChargeModalComponent, CheckPaymentModalComponent],
+	imports: [CommonModule, FormsModule, CcChargeModalComponent, CheckPaymentModalComponent, ConfirmDialogComponent],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -42,6 +43,10 @@ export class TeamDetailPanelComponent {
 	showCcChargeModal = signal(false);
 	showCheckModal = signal(false);
 	checkModalType = signal<'Check' | 'Correction'>('Check');
+
+	// Refund confirm
+	showRefundConfirm = signal(false);
+	refundTarget = signal<AccountingRecordDto | null>(null);
 
 	close(): void {
 		this.closed.emit();
@@ -137,8 +142,15 @@ export class TeamDetailPanelComponent {
 
 	onRefundRequested(record: AccountingRecordDto): void {
 		if (!record.aId) return;
-		const confirmed = confirm(`Refund $${record.paidAmount?.toFixed(2)} from transaction ${record.adnTransactionId}?`);
-		if (!confirmed) return;
+		this.refundTarget.set(record);
+		this.showRefundConfirm.set(true);
+	}
+
+	onRefundConfirmed(): void {
+		const record = this.refundTarget();
+		this.showRefundConfirm.set(false);
+		this.refundTarget.set(null);
+		if (!record?.aId) return;
 
 		this.searchService.processRefund({
 			accountingRecordId: record.aId,
@@ -158,6 +170,11 @@ export class TeamDetailPanelComponent {
 				console.error('Refund error:', err);
 			}
 		});
+	}
+
+	onRefundCancelled(): void {
+		this.showRefundConfirm.set(false);
+		this.refundTarget.set(null);
 	}
 
 	onCcChargeComplete(): void {

@@ -303,21 +303,12 @@
     border: 1px solid var(--border-color);
     background: var(--brand-surface);
 
-    &.match-exact {
+    &.coverage-covered {
         border-left: 3px solid var(--bs-success);
     }
 
-    &.match-mismatch {
-        border-left: 3px solid var(--bs-warning);
-    }
-
-    &.match-new {
+    &.coverage-uncovered {
         border-left: 3px solid var(--bs-info);
-    }
-
-    &.match-removed {
-        border-left: 3px solid var(--neutral-400);
-        opacity: 0.6;
     }
 }
 
@@ -335,30 +326,20 @@
     color: var(--brand-text);
 }
 
-.match-badge {
+.coverage-badge {
     font-size: var(--font-size-xs);
     padding: 2px var(--space-2);
     border-radius: var(--radius-full);
     font-weight: var(--font-weight-medium);
 
-    &.match-exact {
+    &.covered {
         background: rgba(var(--bs-success-rgb), 0.12);
         color: var(--bs-success);
     }
 
-    &.match-mismatch {
-        background: rgba(var(--bs-warning-rgb), 0.12);
-        color: var(--bs-warning);
-    }
-
-    &.match-new {
+    &.uncovered {
         background: rgba(var(--bs-info-rgb), 0.12);
         color: var(--bs-info);
-    }
-
-    &.match-removed {
-        background: rgba(var(--neutral-400-rgb, 168, 162, 158), 0.12);
-        color: var(--neutral-500);
     }
 }
 
@@ -369,65 +350,27 @@
     color: var(--brand-text-muted);
 }
 
-// ── Question Cards (Mismatch Resolution) ──────────────
-.question-card {
-    padding: var(--space-3);
-    border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
-    border-radius: var(--radius-sm);
-    background: rgba(var(--bs-warning-rgb), 0.03);
-    margin-bottom: var(--space-3);
-}
-
-.question-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-2);
-
-    strong {
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-    }
-}
-
-.team-delta {
-    font-size: var(--font-size-xs);
-    color: var(--bs-warning);
-    font-weight: var(--font-weight-medium);
-}
-
-.strategy-options {
+// ── Pattern Pills ──────────────────────────────────────
+.pattern-pills {
     display: flex;
     gap: var(--space-2);
     flex-wrap: wrap;
 }
 
-.strategy-btn {
-    display: flex;
+.pattern-pill {
+    display: inline-flex;
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: transparent;
-    font-size: var(--font-size-xs);
-    color: var(--brand-text-muted);
-    cursor: pointer;
-    transition: all 0.15s ease;
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-success-rgb), 0.08);
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
 
-    &:hover {
-        border-color: var(--bs-primary);
-        color: var(--bs-primary);
+    strong {
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-success);
     }
-
-    &.active {
-        border-color: var(--bs-primary);
-        background: rgba(var(--bs-primary-rgb), 0.08);
-        color: var(--bs-primary);
-        font-weight: var(--font-weight-medium);
-    }
-
-    i { font-size: 0.75rem; }
 }
 
 // ── Approval Card ─────────────────────────────────────
@@ -480,6 +423,173 @@
     margin-top: var(--space-2);
 }
 
+// ── Game Summary Section (Step 1) ────────────────────
+.summary-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: 960px;
+    animation: msg-slide-up 0.2s ease-out;
+}
+
+.summary-header {
+    h3 {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        margin: 0 0 var(--space-2) 0;
+    }
+}
+
+.summary-stats {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
+
+    strong {
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-primary);
+    }
+}
+
+// ── Tree View ─────────────────────────────────────────
+.tree-wrapper {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.tree-node {
+    &:not(:last-child) {
+        border-bottom: 1px solid var(--border-color);
+    }
+}
+
+.tree-parent {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: rgba(var(--bs-primary-rgb), 0.03);
+    cursor: pointer;
+    text-align: left;
+    font-size: var(--font-size-sm);
+    color: var(--brand-text);
+    transition: background 0.15s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.07);
+    }
+
+    > i {
+        font-size: 0.75rem;
+        color: var(--brand-text-muted);
+        flex-shrink: 0;
+        transition: transform 0.15s ease;
+    }
+}
+
+.tree-parent-name {
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+}
+
+.tree-parent-meta {
+    flex: 1;
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    white-space: nowrap;
+}
+
+.tree-children {
+    animation: msg-slide-up 0.15s ease-out;
+}
+
+.tree-child {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-8);
+    font-size: var(--font-size-sm);
+    border-top: 1px solid var(--border-color);
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.02);
+    }
+}
+
+.tree-child-name {
+    font-weight: var(--font-weight-medium);
+    color: var(--brand-text);
+    min-width: 100px;
+}
+
+.tree-child-meta {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    flex: 1;
+}
+
+.tree-child-games {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.status-badge {
+    font-size: 1rem;
+
+    &.status-complete { color: var(--bs-success); }
+    &.status-partial { color: var(--bs-warning); }
+    &.status-empty { color: var(--neutral-400); }
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-8);
+    color: var(--brand-text-muted);
+
+    i {
+        font-size: 2rem;
+        opacity: 0.5;
+    }
+
+    p {
+        margin: 0;
+        font-size: var(--font-size-sm);
+    }
+}
+
+.summary-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+// ── Step Actions ─────────────────────────────────────
+.step-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
 // ── Results Actions ───────────────────────────────────
 .results-actions {
     display: flex;
@@ -493,7 +603,8 @@
     .agent-message { max-width: 100%; }
     .inline-card { max-width: 100%; }
     .division-grid { grid-template-columns: 1fr; }
-    .strategy-options { flex-direction: column; }
-    .approval-summary { flex-wrap: wrap; gap: var(--space-3); }
+    .summary-actions { flex-direction: column; }
+    .step-actions { flex-direction: column; }
     .results-actions { flex-direction: column; }
+    .summary-stats { flex-direction: column; }
 }

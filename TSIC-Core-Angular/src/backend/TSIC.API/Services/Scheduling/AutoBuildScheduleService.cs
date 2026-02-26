@@ -49,6 +49,57 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
+    // Game Summary (current schedule status)
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<GameSummaryResponse> GetGameSummaryAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var gameCounts = await _scheduleRepo.GetRoundRobinGameCountsByDivisionAsync(jobId, ct);
+
+        // Get actual pairing counts per pool size (team count) from PairingsLeagueSeason
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+        var pairingsByPoolSize = await _pairingsRepo.GetRoundRobinPairingCountsByPoolSizeAsync(
+            leagueId, season, ct);
+
+        // Filter out inactive agegroups (WAITLIST, DROPPED) and placeholder divisions (Unassigned)
+        var activeDivisions = divisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase));
+
+        var summaries = activeDivisions.Select(d =>
+        {
+            var gameCount = gameCounts.GetValueOrDefault(d.DivId);
+            // Use actual pairing count from PairingsLeagueSeason, fall back to formula
+            var expectedGames = pairingsByPoolSize.GetValueOrDefault(
+                d.TeamCount, d.TeamCount * (d.TeamCount - 1) / 2);
+            return new ScheduleGameSummaryDto
+            {
+                AgegroupName = d.AgegroupName,
+                AgegroupId = d.AgegroupId,
+                DivName = d.DivName,
+                DivId = d.DivId,
+                TeamCount = d.TeamCount,
+                GameCount = gameCount,
+                ExpectedRrGames = expectedGames
+            };
+        }).ToList();
+
+        var totalGames = summaries.Sum(s => s.GameCount);
+        var divsWithGames = summaries.Count(s => s.GameCount > 0);
+
+        return new GameSummaryResponse
+        {
+            TotalGames = totalGames,
+            TotalDivisions = summaries.Count,
+            DivisionsWithGames = divsWithGames,
+            Divisions = summaries
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
     // Phase 1: Source Job Discovery
     // ══════════════════════════════════════════════════════════
 
@@ -59,11 +110,124 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
+    // Phase 1.5: Agegroup Mapping Proposal
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<AgegroupMappingResponse> ProposeAgegroupMappingsAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default)
+    {
+        var sourceJobName = await _autoBuildRepo.GetJobNameAsync(sourceJobId, ct) ?? "";
+        var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct) ?? "";
+        var sourcePattern = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
+
+        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
+        var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+
+        // Filter inactive agegroups from current
+        var activeCurrentDivisions = currentDivisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Distinct agegroups with their division names
+        var sourceAgegroups = sourceDivisions
+            .GroupBy(d => d.AgegroupName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new { Name = g.Key, Divisions = g.Select(d => d.DivName).Distinct().OrderBy(n => n).ToList() })
+            .OrderBy(a => a.Name)
+            .ToList();
+
+        var currentAgNames = activeCurrentDivisions
+            .Select(d => d.AgegroupName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n)
+            .ToList();
+
+        var currentAgSet = new HashSet<string>(currentAgNames, StringComparer.OrdinalIgnoreCase);
+
+        var proposals = sourceAgegroups.Select(src =>
+        {
+            // Try exact match
+            if (currentAgSet.Contains(src.Name))
+            {
+                return new AgegroupMappingProposal
+                {
+                    SourceAgegroupName = src.Name,
+                    SourceDivisionNames = src.Divisions,
+                    SourceDivisionCount = src.Divisions.Count,
+                    ProposedCurrentAgegroupName = currentAgNames.First(n =>
+                        string.Equals(n, src.Name, StringComparison.OrdinalIgnoreCase)),
+                    MatchStrategy = "exact"
+                };
+            }
+
+            // Try year increment (+1)
+            if (TryIncrementYear(src.Name, out var incremented) && currentAgSet.Contains(incremented))
+            {
+                return new AgegroupMappingProposal
+                {
+                    SourceAgegroupName = src.Name,
+                    SourceDivisionNames = src.Divisions,
+                    SourceDivisionCount = src.Divisions.Count,
+                    ProposedCurrentAgegroupName = currentAgNames.First(n =>
+                        string.Equals(n, incremented, StringComparison.OrdinalIgnoreCase)),
+                    MatchStrategy = "year-increment"
+                };
+            }
+
+            // No match
+            return new AgegroupMappingProposal
+            {
+                SourceAgegroupName = src.Name,
+                SourceDivisionNames = src.Divisions,
+                SourceDivisionCount = src.Divisions.Count,
+                ProposedCurrentAgegroupName = null,
+                MatchStrategy = "none"
+            };
+        }).ToList();
+
+        return new AgegroupMappingResponse
+        {
+            SourceJobId = sourceJobId,
+            SourceJobName = sourceJobName,
+            SourceYear = sourceYear,
+            SourceTotalGames = sourcePattern.Count,
+            Proposals = proposals,
+            CurrentAgegroupNames = currentAgNames
+        };
+    }
+
+    /// <summary>
+    /// Try to increment a 4-digit year (2020-2039) in the agegroup name.
+    /// Handles: "2030" → "2031", "2028/2029" → "2029/2030", etc.
+    /// </summary>
+    private static bool TryIncrementYear(string name, out string incremented)
+    {
+        incremented = name;
+        var matches = Regex.Matches(name, @"\b(20[2-3]\d)\b");
+        if (matches.Count == 0) return false;
+
+        var result = name;
+        // Replace all year occurrences (for "2028/2029" → "2029/2030")
+        for (var i = matches.Count - 1; i >= 0; i--)
+        {
+            var m = matches[i];
+            if (int.TryParse(m.Value, out var yr))
+                result = result[..m.Index] + (yr + 1) + result[(m.Index + m.Length)..];
+        }
+
+        incremented = result;
+        return result != name;
+    }
+
+    // ══════════════════════════════════════════════════════════
     // Phase 2-3: Analysis + Feasibility
     // ══════════════════════════════════════════════════════════
 
     public async Task<AutoBuildAnalysisResponse> AnalyzeAsync(
-        Guid jobId, Guid sourceJobId, CancellationToken ct = default)
+        Guid jobId, Guid sourceJobId,
+        List<ConfirmedAgegroupMapping>? agegroupMappings = null,
+        CancellationToken ct = default)
     {
         var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
 
@@ -76,27 +240,174 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
         var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
 
-        // 3. Match divisions
-        var matches = MatchDivisions(sourceDivisions, currentDivisions);
+        // 3. Build source lookups
+        var sourceDivTeamCount = sourceDivisions
+            .ToDictionary(d => (d.AgegroupName, d.DivName), d => d.TeamCount);
 
-        // 4. Check field availability
+        // RR-only source patterns indexed by (AgegroupName, DivName)
+        var rrPatterns = sourcePattern
+            .Where(p => p.T1Type == "T" && p.T2Type == "T")
+            .ToList();
+
+        var patternByName = rrPatterns
+            .GroupBy(p => (p.AgegroupName, p.DivName))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Pool-size fallback: TeamCount → representative patterns (first alpha)
+        var patternByPoolSize = rrPatterns
+            .Where(p => sourceDivTeamCount.ContainsKey((p.AgegroupName, p.DivName)))
+            .GroupBy(p => sourceDivTeamCount[(p.AgegroupName, p.DivName)])
+            .ToDictionary(g => g.Key, g =>
+            {
+                var firstDiv = g
+                    .GroupBy(p => (p.AgegroupName, p.DivName))
+                    .OrderBy(sg => sg.Key.AgegroupName)
+                    .ThenBy(sg => sg.Key.DivName)
+                    .First();
+                return firstDiv.ToList();
+            });
+
+        var availablePatterns = patternByPoolSize
+            .Select(kvp => new PoolSizePattern
+            {
+                TeamCount = kvp.Key,
+                GameCount = kvp.Value.Count,
+                SourceDivisionCount = sourceDivisions.Count(d => d.TeamCount == kvp.Key)
+            })
+            .OrderBy(p => p.TeamCount)
+            .ToList();
+
+        // 4. Build reverse agegroup mapping: currentAgName → sourceAgName
+        var currentToSourceAg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (agegroupMappings != null)
+        {
+            foreach (var m in agegroupMappings.Where(m => m.CurrentAgegroupName != null))
+                currentToSourceAg.TryAdd(m.CurrentAgegroupName!, m.SourceAgegroupName);
+        }
+
+        // 5. Assess coverage with name-first matching
+        var activeDivisions = currentDivisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var divisionCoverage = activeDivisions.Select(d =>
+        {
+            // Try name-first: if this agegroup is mapped and source has same div name
+            if (currentToSourceAg.TryGetValue(d.AgegroupName, out var sourceAgName))
+            {
+                var nameKey = (sourceAgName, d.DivName);
+                if (patternByName.ContainsKey(nameKey))
+                {
+                    var sourceTeamCount = sourceDivTeamCount.GetValueOrDefault(nameKey);
+                    if (sourceTeamCount == d.TeamCount)
+                    {
+                        // Same name + same pool size → name-matched
+                        return new PoolSizeCoverage
+                        {
+                            DivId = d.DivId, AgegroupId = d.AgegroupId,
+                            AgegroupName = d.AgegroupName, DivName = d.DivName,
+                            TeamCount = d.TeamCount, HasPattern = true,
+                            PatternGameCount = patternByName[nameKey].Count,
+                            MatchStrategy = "name-matched",
+                            SourceAgegroupName = sourceAgName, SourceDivName = d.DivName
+                        };
+                    }
+                    // Name exists but pool size differs → fall through to pool-size
+                }
+            }
+
+            // Pool-size fallback
+            if (patternByPoolSize.ContainsKey(d.TeamCount))
+            {
+                return new PoolSizeCoverage
+                {
+                    DivId = d.DivId, AgegroupId = d.AgegroupId,
+                    AgegroupName = d.AgegroupName, DivName = d.DivName,
+                    TeamCount = d.TeamCount, HasPattern = true,
+                    PatternGameCount = patternByPoolSize[d.TeamCount].Count,
+                    MatchStrategy = "pool-size-fallback",
+                    SourceAgegroupName = null, SourceDivName = null
+                };
+            }
+
+            // No match
+            return new PoolSizeCoverage
+            {
+                DivId = d.DivId, AgegroupId = d.AgegroupId,
+                AgegroupName = d.AgegroupName, DivName = d.DivName,
+                TeamCount = d.TeamCount, HasPattern = false,
+                PatternGameCount = 0, MatchStrategy = "no-match",
+                SourceAgegroupName = null, SourceDivName = null
+            };
+        }).ToList();
+
+        // 5. Check field availability (name-based first, then address-based fallback)
         var sourceFieldNames = await _autoBuildRepo.GetSourceFieldNamesAsync(sourceJobId, ct);
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var currentFieldNames = currentFields.Select(f => f.FName).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var fieldMismatches = sourceFieldNames
+        var nameUnmatched = sourceFieldNames
             .Where(sf => !currentFieldNames.Contains(sf))
             .ToList();
 
-        // 5. Compute feasibility
-        var totalCurrent = matches.Count(m => m.MatchType != DivisionMatchType.RemovedDivision);
-        var exactMatches = matches.Count(m => m.MatchType == DivisionMatchType.ExactMatch);
-        var sizeMismatches = matches.Count(m => m.MatchType == DivisionMatchType.SizeMismatch);
-        var newDivisions = matches.Count(m => m.MatchType == DivisionMatchType.NewDivision);
-        var removedDivisions = matches.Count(m => m.MatchType == DivisionMatchType.RemovedDivision);
+        var addressMatched = new List<string>();
+        var fieldMismatches = new List<string>();
+
+        if (nameUnmatched.Count > 0)
+        {
+            var sourceFieldIds = sourcePattern
+                .Where(p => nameUnmatched.Contains(p.FieldName, StringComparer.OrdinalIgnoreCase))
+                .Select(p => p.FieldId)
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            var currentFieldIds = currentFields.Select(f => f.FieldId).ToList();
+
+            var sourceAddresses = sourceFieldIds.Count > 0
+                ? await _autoBuildRepo.GetFieldAddressesAsync(sourceFieldIds, ct)
+                : new Dictionary<Guid, string>();
+            var currentAddresses = currentFieldIds.Count > 0
+                ? await _autoBuildRepo.GetFieldAddressesAsync(currentFieldIds, ct)
+                : new Dictionary<Guid, string>();
+
+            var addressToCurrentName = new Dictionary<string, string>();
+            foreach (var cf in currentFields)
+            {
+                if (currentAddresses.TryGetValue(cf.FieldId, out var addr))
+                    addressToCurrentName.TryAdd(addr, cf.FName);
+            }
+
+            foreach (var unmatchedName in nameUnmatched)
+            {
+                var matchingSourceId = sourcePattern
+                    .FirstOrDefault(p => string.Equals(p.FieldName, unmatchedName, StringComparison.OrdinalIgnoreCase))
+                    ?.FieldId;
+
+                if (matchingSourceId.HasValue
+                    && matchingSourceId.Value != Guid.Empty
+                    && sourceAddresses.TryGetValue(matchingSourceId.Value, out var srcAddr)
+                    && addressToCurrentName.TryGetValue(srcAddr, out var currentName))
+                {
+                    addressMatched.Add($"{unmatchedName} → {currentName} (same address)");
+                }
+                else
+                {
+                    fieldMismatches.Add(unmatchedName);
+                }
+            }
+        }
+
+        // 7. Compute feasibility
+        var totalCurrent = divisionCoverage.Count;
+        var covered = divisionCoverage.Count(c => c.HasPattern);
+        var uncovered = divisionCoverage.Count(c => !c.HasPattern);
+        var nameMatched = divisionCoverage.Count(c => c.MatchStrategy == "name-matched");
 
         var confidencePercent = totalCurrent > 0
-            ? (int)Math.Round(100.0 * exactMatches / totalCurrent)
+            ? (int)Math.Round(100.0 * covered / totalCurrent)
             : 0;
 
         var confidenceLevel = confidencePercent switch
@@ -107,12 +418,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         };
 
         var warnings = new List<string>();
+        if (addressMatched.Count > 0)
+            warnings.Add($"Fields matched by address (renamed): {string.Join("; ", addressMatched)}");
         if (fieldMismatches.Count > 0)
-            warnings.Add($"{fieldMismatches.Count} field(s) from prior year not found in current setup: {string.Join(", ", fieldMismatches)}");
-        if (newDivisions > 0)
-            warnings.Add($"{newDivisions} new division(s) will use standard auto-schedule (no prior pattern).");
-        if (sizeMismatches > 0)
-            warnings.Add($"{sizeMismatches} division(s) have different team counts — you'll choose how to handle each.");
+            warnings.Add($"{fieldMismatches.Count} field(s) from prior year not found: {string.Join(", ", fieldMismatches)}");
+        if (uncovered > 0)
+            warnings.Add($"{uncovered} division(s) have no source pattern — will use auto-schedule.");
 
         return new AutoBuildAnalysisResponse
         {
@@ -120,18 +431,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             SourceJobName = sourceJobName,
             SourceYear = sourceYear,
             SourceTotalGames = sourcePattern.Count,
-            DivisionMatches = matches,
+            DivisionCoverage = divisionCoverage,
+            AgegroupMappings = agegroupMappings ?? [],
             Feasibility = new AutoBuildFeasibility
             {
                 TotalCurrentDivisions = totalCurrent,
-                ExactMatches = exactMatches,
-                SizeMismatches = sizeMismatches,
-                NewDivisions = newDivisions,
-                RemovedDivisions = removedDivisions,
+                CoveredDivisions = covered,
+                UncoveredDivisions = uncovered,
+                NameMatchedDivisions = nameMatched,
                 ConfidenceLevel = confidenceLevel,
                 ConfidencePercent = confidencePercent,
                 FieldMismatches = fieldMismatches,
-                Warnings = warnings
+                Warnings = warnings,
+                AvailablePatterns = availablePatterns
             }
         };
     }
@@ -145,33 +457,105 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     {
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
-        // 1. Extract the source pattern
+        // 1. Extract the source pattern and build lookups
         var pattern = await _autoBuildRepo.ExtractPatternAsync(request.SourceJobId, ct);
-        var patternByDiv = pattern
+        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(request.SourceJobId, ct);
+
+        var sourceDivTeamCount = sourceDivisions
+            .ToDictionary(d => (d.AgegroupName, d.DivName), d => d.TeamCount);
+
+        var rrPatterns = pattern
+            .Where(p => p.T1Type == "T" && p.T2Type == "T")
+            .ToList();
+
+        // Name-based: (sourceAg, divName) → patterns
+        var patternByName = rrPatterns
             .GroupBy(p => (p.AgegroupName, p.DivName))
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 2. Get current divisions and build the match list
-        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(request.SourceJobId, ct);
-        var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
-        var matches = MatchDivisions(sourceDivisions, currentDivisions);
+        // Pool-size fallback: TeamCount → representative patterns
+        var patternByPoolSize = rrPatterns
+            .Where(p => sourceDivTeamCount.ContainsKey((p.AgegroupName, p.DivName)))
+            .GroupBy(p => sourceDivTeamCount[(p.AgegroupName, p.DivName)])
+            .ToDictionary(g => g.Key, g =>
+            {
+                var firstDiv = g
+                    .GroupBy(p => (p.AgegroupName, p.DivName))
+                    .OrderBy(sg => sg.Key.AgegroupName)
+                    .ThenBy(sg => sg.Key.DivName)
+                    .First();
+                return firstDiv.ToList();
+            });
 
-        // 3. Get current timeslot dates (sorted for DayOrdinal mapping)
+        // Build reverse agegroup mapping: currentAgName → sourceAgName
+        var currentToSourceAg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (request.AgegroupMappings != null)
+        {
+            foreach (var m in request.AgegroupMappings.Where(m => m.CurrentAgegroupName != null))
+                currentToSourceAg.TryAdd(m.CurrentAgegroupName!, m.SourceAgegroupName);
+        }
+
+        // 2. Get current divisions
+        var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var activeDivisions = currentDivisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(d => d.AgegroupName)
+            .ThenBy(d => d.DivName)
+            .ToList();
+
+        // 3. Get current timeslot dates cache
         var currentDatesByAgegroup = new Dictionary<Guid, List<DateTime>>();
 
-        // 4. Get current fields for name matching
+        // 4. Get current fields for name matching + address-based fallback
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var fieldNameToId = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         foreach (var f in currentFields)
             fieldNameToId.TryAdd(f.FName, f.FieldId);
 
-        // Pre-load field name map (FieldId → FName) for Schedule record FName population
+        // Address-based fallback
+        var sourceFieldIds = pattern
+            .Select(p => p.FieldId)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+        var currentFieldIds = currentFields.Select(f => f.FieldId).ToList();
+
+        var sourceAddresses = sourceFieldIds.Count > 0
+            ? await _autoBuildRepo.GetFieldAddressesAsync(sourceFieldIds, ct)
+            : new Dictionary<Guid, string>();
+        var currentAddresses = currentFieldIds.Count > 0
+            ? await _autoBuildRepo.GetFieldAddressesAsync(currentFieldIds, ct)
+            : new Dictionary<Guid, string>();
+
+        var addressToCurrentField = new Dictionary<string, (Guid fieldId, string fName)>();
+        foreach (var cf in currentFields)
+        {
+            if (currentAddresses.TryGetValue(cf.FieldId, out var addr))
+                addressToCurrentField.TryAdd(addr, (cf.FieldId, cf.FName));
+        }
+
+        var sourceFieldIdToCurrentFieldId = new Dictionary<Guid, Guid>();
+        foreach (var (srcId, srcAddr) in sourceAddresses)
+        {
+            if (addressToCurrentField.TryGetValue(srcAddr, out var currentField))
+                sourceFieldIdToCurrentFieldId[srcId] = currentField.fieldId;
+        }
+
+        foreach (var p in pattern)
+        {
+            if (!fieldNameToId.ContainsKey(p.FieldName)
+                && sourceFieldIdToCurrentFieldId.TryGetValue(p.FieldId, out var currentFieldId))
+            {
+                fieldNameToId[p.FieldName] = currentFieldId;
+            }
+        }
+
         var fieldIdToName = currentFields.ToDictionary(f => f.FieldId, f => f.FName);
 
-        // 5. Get skip/resolution sets from user input
+        // 5. Get skip set from user input
         var skipIds = request.SkipDivisionIds?.ToHashSet() ?? [];
-        var resolutions = (request.MismatchResolutions ?? [])
-            .ToDictionary(r => r.DivId, r => r.Strategy);
 
         // 6. Get existing game counts for partial-schedule detection
         var existingCounts = await _autoBuildRepo.GetExistingGameCountsByDivisionAsync(jobId, ct);
@@ -186,26 +570,18 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         int totalPlaced = 0;
         int totalFailed = 0;
 
-        // 8. Process each matchable division
-        var actionableDivisions = matches
-            .Where(m => m.MatchType != DivisionMatchType.RemovedDivision
-                        && m.CurrentDivId.HasValue)
-            .OrderBy(m => m.AgegroupName)
-            .ThenBy(m => m.DivName)
-            .ToList();
-
-        foreach (var match in actionableDivisions)
+        // 8. Process each current division by pool size
+        foreach (var div in activeDivisions)
         {
-            var divId = match.CurrentDivId!.Value;
-            var agegroupId = match.CurrentAgegroupId!.Value;
+            var divId = div.DivId;
+            var agegroupId = div.AgegroupId;
 
-            // Skip if user chose to skip
             if (skipIds.Contains(divId))
             {
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = match.AgegroupName,
-                    DivName = match.DivName,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
                     DivId = divId,
                     GamesPlaced = 0,
                     GamesFailed = 0,
@@ -214,40 +590,16 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 continue;
             }
 
-            // Skip if already scheduled and user chose to preserve
             if (request.SkipAlreadyScheduled && existingCounts.GetValueOrDefault(divId) > 0)
             {
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = match.AgegroupName,
-                    DivName = match.DivName,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
                     DivId = divId,
                     GamesPlaced = 0,
                     GamesFailed = 0,
                     Status = "already-scheduled"
-                });
-                continue;
-            }
-
-            // Determine strategy
-            var strategy = match.MatchType switch
-            {
-                DivisionMatchType.ExactMatch => "pattern-replay",
-                DivisionMatchType.SizeMismatch => resolutions.GetValueOrDefault(divId, "auto-schedule"),
-                DivisionMatchType.NewDivision => "auto-schedule",
-                _ => "skip"
-            };
-
-            if (strategy == "skip")
-            {
-                divisionResults.Add(new AutoBuildDivisionResult
-                {
-                    AgegroupName = match.AgegroupName,
-                    DivName = match.DivName,
-                    DivId = divId,
-                    GamesPlaced = 0,
-                    GamesFailed = 0,
-                    Status = "skipped"
                 });
                 continue;
             }
@@ -259,12 +611,38 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 await _scheduleRepo.SaveChangesAsync(ct);
             }
 
-            if (strategy == "auto-schedule")
+            // Determine strategy: name-first → pool-size fallback → auto-schedule
+            List<GamePlacementPattern>? placements = null;
+            var status = "auto-schedule";
+
+            // Try name-matched pattern first
+            if (currentToSourceAg.TryGetValue(div.AgegroupName, out var sourceAgName))
             {
-                // Fallback: use existing per-division auto-schedule
+                var nameKey = (sourceAgName, div.DivName);
+                if (patternByName.TryGetValue(nameKey, out var namePatterns))
+                {
+                    var sourceTeamCount = sourceDivTeamCount.GetValueOrDefault(nameKey);
+                    if (sourceTeamCount == div.TeamCount)
+                    {
+                        placements = namePatterns;
+                        status = "pattern-replay-name";
+                    }
+                    // else: name exists but pool size changed → fall through
+                }
+            }
+
+            // Pool-size fallback
+            if (placements == null && patternByPoolSize.TryGetValue(div.TeamCount, out var poolPatterns))
+            {
+                placements = poolPatterns;
+                status = "pattern-replay";
+            }
+
+            if (placements == null)
+            {
+                // Auto-schedule fallback
                 var result = await _scheduleDivisionService.AutoScheduleDivAsync(jobId, userId, divId, ct);
 
-                // Update occupied slots with newly placed games
                 if (result.ScheduledCount > 0)
                 {
                     var newOccupied = await _scheduleRepo.GetOccupiedSlotsAsync(jobId, allFieldIds, ct);
@@ -273,8 +651,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = match.AgegroupName,
-                    DivName = match.DivName,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
                     DivId = divId,
                     GamesPlaced = result.ScheduledCount,
                     GamesFailed = result.FailedCount,
@@ -283,23 +661,24 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 totalPlaced += result.ScheduledCount;
                 totalFailed += result.FailedCount;
             }
-            else // pattern-replay (or use-current-pairings for size mismatch)
+            else
             {
+                // Pattern replay (name-matched or pool-size)
                 var (placed, failed) = await ReplayPatternForDivisionAsync(
                     jobId, userId, leagueId, season, year,
-                    agegroupId, divId, match,
-                    patternByDiv, fieldNameToId, fieldIdToName,
+                    agegroupId, divId, div.AgegroupName, div.DivName,
+                    placements, fieldNameToId, fieldIdToName,
                     currentDatesByAgegroup, occupiedSlots,
                     request.IncludeBracketGames, ct);
 
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
-                    AgegroupName = match.AgegroupName,
-                    DivName = match.DivName,
+                    AgegroupName = div.AgegroupName,
+                    DivName = div.DivName,
                     DivId = divId,
                     GamesPlaced = placed,
                     GamesFailed = failed,
-                    Status = "pattern-replay"
+                    Status = status
                 });
                 totalPlaced += placed;
                 totalFailed += failed;
@@ -312,11 +691,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         _logger.LogInformation(
             "AutoBuild: Job={JobId}, Divisions={Total}, Scheduled={Scheduled}, Skipped={Skipped}, " +
             "GamesPlaced={Placed}, GamesFailed={Failed}",
-            jobId, actionableDivisions.Count, scheduled, skipped, totalPlaced, totalFailed);
+            jobId, activeDivisions.Count, scheduled, skipped, totalPlaced, totalFailed);
 
         return new AutoBuildResult
         {
-            TotalDivisions = actionableDivisions.Count,
+            TotalDivisions = activeDivisions.Count,
             DivisionsScheduled = scheduled,
             DivisionsSkipped = skipped,
             TotalGamesPlaced = totalPlaced,
@@ -347,8 +726,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
     private async Task<(int placed, int failed)> ReplayPatternForDivisionAsync(
         Guid jobId, string userId, Guid leagueId, string season, string year,
-        Guid agegroupId, Guid divId, DivisionMatch match,
-        Dictionary<(string AgegroupName, string DivName), List<GamePlacementPattern>> patternByDiv,
+        Guid agegroupId, Guid divId, string agegroupName, string divName,
+        List<GamePlacementPattern> allPlacements,
         Dictionary<string, Guid> fieldNameToId,
         Dictionary<Guid, string> fieldIdToName,
         Dictionary<Guid, List<DateTime>> currentDatesByAgegroup,
@@ -356,19 +735,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         bool includeBracketGames,
         CancellationToken ct)
     {
-        // Find matching pattern using normalized agegroup name
-        var patternKey = FindPatternKey(match.AgegroupName, match.DivName, patternByDiv);
-        if (patternKey == null)
-        {
-            _logger.LogWarning("AutoBuild: No pattern found for {Agegroup}/{Div}", match.AgegroupName, match.DivName);
-            return (0, 0);
-        }
-
-        var placements = patternByDiv[patternKey.Value];
-
         // Filter to round-robin only unless bracket games requested
-        if (!includeBracketGames)
-            placements = placements.Where(p => p.T1Type == "T" && p.T2Type == "T").ToList();
+        var placements = includeBracketGames
+            ? allPlacements
+            : allPlacements.Where(p => p.T1Type == "T" && p.T2Type == "T").ToList();
 
         if (placements.Count == 0)
             return (0, 0);
@@ -531,106 +901,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
-    // Private: Division Matching
-    // ══════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Match source divisions to current divisions using normalized agegroup names.
-    /// </summary>
-    private static List<DivisionMatch> MatchDivisions(
-        List<SourceDivisionSummary> sourceDivisions,
-        List<CurrentDivisionSummary> currentDivisions)
-    {
-        var matches = new List<DivisionMatch>();
-        var matchedCurrentIds = new HashSet<Guid>();
-
-        // Build lookup: normalized source agegroup name → list of divisions
-        // Apply year-increment to source names to match current year names
-        var currentLookup = currentDivisions
-            .GroupBy(c => (c.AgegroupName, c.DivName))
-            .ToDictionary(g => g.Key, g => g.First());
-
-        foreach (var source in sourceDivisions)
-        {
-            var normalizedName = IncrementYearsInName(source.AgegroupName);
-
-            if (currentLookup.TryGetValue((normalizedName, source.DivName), out var current))
-            {
-                matchedCurrentIds.Add(current.DivId);
-                matches.Add(new DivisionMatch
-                {
-                    AgegroupName = normalizedName,
-                    DivName = source.DivName,
-                    CurrentDivId = current.DivId,
-                    CurrentAgegroupId = current.AgegroupId,
-                    SourceTeamCount = source.TeamCount,
-                    CurrentTeamCount = current.TeamCount,
-                    MatchType = source.TeamCount == current.TeamCount
-                        ? DivisionMatchType.ExactMatch
-                        : DivisionMatchType.SizeMismatch,
-                    SourceGameCount = source.GameCount
-                });
-            }
-            else
-            {
-                // Source division not found in current year
-                matches.Add(new DivisionMatch
-                {
-                    AgegroupName = normalizedName,
-                    DivName = source.DivName,
-                    CurrentDivId = null,
-                    CurrentAgegroupId = null,
-                    SourceTeamCount = source.TeamCount,
-                    CurrentTeamCount = null,
-                    MatchType = DivisionMatchType.RemovedDivision,
-                    SourceGameCount = source.GameCount
-                });
-            }
-        }
-
-        // Find new divisions (exist this year but not last year)
-        foreach (var current in currentDivisions)
-        {
-            if (!matchedCurrentIds.Contains(current.DivId))
-            {
-                matches.Add(new DivisionMatch
-                {
-                    AgegroupName = current.AgegroupName,
-                    DivName = current.DivName,
-                    CurrentDivId = current.DivId,
-                    CurrentAgegroupId = current.AgegroupId,
-                    SourceTeamCount = 0,
-                    CurrentTeamCount = current.TeamCount,
-                    MatchType = DivisionMatchType.NewDivision,
-                    SourceGameCount = 0
-                });
-            }
-        }
-
-        return matches;
-    }
-
-    /// <summary>
-    /// Find the pattern key for a division, trying both the exact name
-    /// and the year-decremented name (to match source pattern data).
-    /// </summary>
-    private static (string AgegroupName, string DivName)? FindPatternKey(
-        string agegroupName, string divName,
-        Dictionary<(string AgegroupName, string DivName), List<GamePlacementPattern>> patternByDiv)
-    {
-        // Try exact match first (normalized name = current year)
-        if (patternByDiv.ContainsKey((agegroupName, divName)))
-            return (agegroupName, divName);
-
-        // Try year-decremented name (to match source data)
-        var decremented = DecrementYearsInName(agegroupName);
-        if (patternByDiv.ContainsKey((decremented, divName)))
-            return (decremented, divName);
-
-        return null;
-    }
-
-    // ══════════════════════════════════════════════════════════
     // Private: FindNextAvailableTimeslot (same as ScheduleDivisionService)
     // ══════════════════════════════════════════════════════════
 
@@ -670,27 +940,4 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         return null;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // Private: Year Name Utilities
-    // ══════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Finds 4-digit year patterns (2020–2039) in a string and increments each by 1.
-    /// Replicates the logic from JobCloneService.IncrementYearsInName.
-    /// </summary>
-    private static string IncrementYearsInName(string name)
-    {
-        return Regex.Replace(name, @"\b(20[2-3]\d)\b", m =>
-            (int.Parse(m.Value) + 1).ToString());
-    }
-
-    /// <summary>
-    /// Reverse of IncrementYearsInName: decrements year patterns by 1.
-    /// Used to match current-year names back to source-year pattern data.
-    /// </summary>
-    private static string DecrementYearsInName(string name)
-    {
-        return Regex.Replace(name, @"\b(20[2-3]\d)\b", m =>
-            (int.Parse(m.Value) - 1).ToString());
-    }
 }

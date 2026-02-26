@@ -17,7 +17,8 @@
       "Bash(node -e \"const pkg = require\\(''./package.json''\\); console.log\\(''@angular/core:'', pkg.dependencies[''@angular/core'']\\)\")",
       "Read(//c/Users/Administrator/.claude/projects/c--Users-Administrator-source-TSIC-Core-Angular/memory/**)",
       "Bash(xxd /c/Users/Administrator/source/TSIC-Core-Angular/scripts/1-Build-And-Deploy-Local.ps1)",
-      "Bash(git pull)"
+      "Bash(git pull)",
+      "WebFetch(domain:www.usclublax.com)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

@@ -51,6 +51,14 @@ public interface IAutoBuildRepository
         Guid leagueId, string season, CancellationToken ct = default);
 
     /// <summary>
+    /// Get normalized addresses for a set of field IDs.
+    /// Returns FieldId → "address|city|zip" (lowercased, trimmed) for address-based matching.
+    /// Fields with no address data are excluded.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetFieldAddressesAsync(
+        IEnumerable<Guid> fieldIds, CancellationToken ct = default);
+
+    /// <summary>
     /// Get existing game count per division for the current job.
     /// Used to detect partially-scheduled divisions.
     /// </summary>

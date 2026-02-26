@@ -2,15 +2,15 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { PoolSizePattern } from './PoolSizePattern';
 export type AutoBuildFeasibility = {
     totalCurrentDivisions: number;
-    exactMatches: number;
-    sizeMismatches: number;
-    newDivisions: number;
-    removedDivisions: number;
+    coveredDivisions: number;
+    uncoveredDivisions: number;
     confidenceLevel: string;
     confidencePercent: number;
     fieldMismatches: Array<string>;
     warnings: Array<string>;
+    availablePatterns: Array<PoolSizePattern>;
 };
 

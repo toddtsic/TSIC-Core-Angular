@@ -3,13 +3,13 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AutoBuildFeasibility } from './AutoBuildFeasibility';
-import type { DivisionMatch } from './DivisionMatch';
+import type { PoolSizeCoverage } from './PoolSizeCoverage';
 export type AutoBuildAnalysisResponse = {
     sourceJobId: string;
     sourceJobName: string;
     sourceYear: string;
     sourceTotalGames: number;
-    divisionMatches: Array<DivisionMatch>;
+    divisionCoverage: Array<PoolSizeCoverage>;
     feasibility: AutoBuildFeasibility;
 };
 

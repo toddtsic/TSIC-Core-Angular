@@ -73,14 +73,14 @@ public class USLaxRankingsController : ControllerBase
     [HttpGet("scrape")]
     public async Task<ActionResult<ScrapeResultDto>> ScrapeRankings(
         [FromQuery] string v,
-        [FromQuery] string alpha,
         [FromQuery] string yr,
-        CancellationToken ct)
+        [FromQuery] string alpha = "",
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(v) || string.IsNullOrWhiteSpace(yr))
             return BadRequest(new { message = "Parameters v and yr are required." });
 
-        var result = await _scrapingService.ScrapeRankingsAsync(v, alpha ?? "", yr, ct);
+        var result = await _scrapingService.ScrapeRankingsAsync(v, alpha, yr, ct);
         return Ok(result);
     }
 
@@ -93,9 +93,9 @@ public class USLaxRankingsController : ControllerBase
     [HttpGet("align")]
     public async Task<ActionResult<AlignmentResultDto>> AlignRankings(
         [FromQuery] string v,
-        [FromQuery] string alpha,
         [FromQuery] string yr,
         [FromQuery] Guid agegroupId,
+        [FromQuery] string alpha = "",
         [FromQuery] int clubWeight = 75,
         [FromQuery] int teamWeight = 25,
         CancellationToken ct = default)
@@ -107,7 +107,7 @@ public class USLaxRankingsController : ControllerBase
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
 
         // Scrape rankings from usclublax.com
-        var scrapeResult = await _scrapingService.ScrapeRankingsAsync(v, alpha ?? "", yr, ct);
+        var scrapeResult = await _scrapingService.ScrapeRankingsAsync(v, alpha, yr, ct);
         if (!scrapeResult.Success)
             return Ok(new AlignmentResultDto
             {
@@ -253,9 +253,9 @@ public class USLaxRankingsController : ControllerBase
     [HttpGet("export-csv")]
     public async Task<IActionResult> ExportCsv(
         [FromQuery] string v,
-        [FromQuery] string alpha,
         [FromQuery] string yr,
         [FromQuery] Guid agegroupId,
+        [FromQuery] string alpha = "",
         [FromQuery] int clubWeight = 75,
         [FromQuery] int teamWeight = 25,
         CancellationToken ct = default)
@@ -266,7 +266,7 @@ public class USLaxRankingsController : ControllerBase
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
 
-        var scrapeResult = await _scrapingService.ScrapeRankingsAsync(v, alpha ?? "", yr, ct);
+        var scrapeResult = await _scrapingService.ScrapeRankingsAsync(v, alpha, yr, ct);
         if (!scrapeResult.Success)
             return BadRequest(new { message = scrapeResult.ErrorMessage ?? "Scrape failed." });
 

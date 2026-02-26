@@ -7,10 +7,32 @@ import type { AutoBuildAnalysisResponse } from '@core/api';
 import type { AutoBuildRequest } from '@core/api';
 import type { AutoBuildResult } from '@core/api';
 
+// Inline until API models regenerated with new endpoints
+export interface ScheduleGameSummaryDto {
+    agegroupName: string;
+    agegroupId: string;
+    divName: string;
+    divId: string;
+    teamCount: number;
+    gameCount: number;
+    expectedRrGames: number;
+}
+
+export interface GameSummaryResponse {
+    totalGames: number;
+    totalDivisions: number;
+    divisionsWithGames: number;
+    divisions: ScheduleGameSummaryDto[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AutoBuildService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environment.apiUrl}/auto-build`;
+
+    getGameSummary(): Observable<GameSummaryResponse> {
+        return this.http.get<GameSummaryResponse>(`${this.apiUrl}/game-summary`);
+    }
 
     getSourceJobs(): Observable<AutoBuildSourceJobDto[]> {
         return this.http.get<AutoBuildSourceJobDto[]>(`${this.apiUrl}/source-jobs`);

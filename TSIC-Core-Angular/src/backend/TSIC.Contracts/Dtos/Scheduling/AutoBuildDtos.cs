@@ -42,32 +42,96 @@ public record GamePlacementPattern
 }
 
 // ══════════════════════════════════════════════════════════
-// Division Matching
+// Agegroup Mapping (user-confirmed, before full analysis)
 // ══════════════════════════════════════════════════════════
 
-public enum DivisionMatchType
+/// <summary>
+/// A single proposed mapping from a source agegroup to a current agegroup.
+/// System proposes best-guess; user confirms/adjusts before full analysis.
+/// </summary>
+public record AgegroupMappingProposal
 {
-    ExactMatch,
-    SizeMismatch,
-    NewDivision,
-    RemovedDivision
+    public required string SourceAgegroupName { get; init; }
+    /// <summary>Division names in this source agegroup (for context).</summary>
+    public required List<string> SourceDivisionNames { get; init; }
+    public required int SourceDivisionCount { get; init; }
+    /// <summary>Proposed current agegroup name. Null if no match found.</summary>
+    public string? ProposedCurrentAgegroupName { get; init; }
+    /// <summary>"exact" | "year-increment" | "none"</summary>
+    public required string MatchStrategy { get; init; }
 }
 
 /// <summary>
-/// Result of matching a current-year division to a prior-year division.
+/// Response for the agegroup mapping proposal step.
 /// </summary>
-public record DivisionMatch
+public record AgegroupMappingResponse
 {
-    /// <summary>Normalized agegroup name (with year increment applied).</summary>
+    public required Guid SourceJobId { get; init; }
+    public required string SourceJobName { get; init; }
+    public required string SourceYear { get; init; }
+    public required int SourceTotalGames { get; init; }
+    public required List<AgegroupMappingProposal> Proposals { get; init; }
+    /// <summary>Distinct active agegroup names in the current job (for dropdown options).</summary>
+    public required List<string> CurrentAgegroupNames { get; init; }
+}
+
+/// <summary>
+/// User-confirmed mapping from source agegroup to current agegroup.
+/// </summary>
+public record ConfirmedAgegroupMapping
+{
+    public required string SourceAgegroupName { get; init; }
+    /// <summary>Current agegroup name. Null = skip/unmapped.</summary>
+    public string? CurrentAgegroupName { get; init; }
+}
+
+/// <summary>
+/// Request body for the analyze and propose-mappings endpoints.
+/// </summary>
+public record AutoBuildAnalyzeRequest
+{
+    public required Guid SourceJobId { get; init; }
+    /// <summary>User-confirmed agegroup mappings (null for propose-mappings call).</summary>
+    public List<ConfirmedAgegroupMapping>? AgegroupMappings { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Pool-Size Pattern Matching
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Describes an available source-year pattern for a given pool size (team count).
+/// </summary>
+public record PoolSizePattern
+{
+    /// <summary>Number of teams in the pool.</summary>
+    public required int TeamCount { get; init; }
+    /// <summary>Number of round-robin games in the pattern.</summary>
+    public required int GameCount { get; init; }
+    /// <summary>How many source divisions had this pool size.</summary>
+    public required int SourceDivisionCount { get; init; }
+}
+
+/// <summary>
+/// Per current-year division: how it will be scheduled (name-match, pool-size fallback, or auto-schedule).
+/// </summary>
+public record PoolSizeCoverage
+{
+    public required Guid DivId { get; init; }
+    public required Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
     public required string DivName { get; init; }
-    /// <summary>Current year's division ID, null for RemovedDivision.</summary>
-    public Guid? CurrentDivId { get; init; }
-    public Guid? CurrentAgegroupId { get; init; }
-    public required int SourceTeamCount { get; init; }
-    public int? CurrentTeamCount { get; init; }
-    public required DivisionMatchType MatchType { get; init; }
-    public required int SourceGameCount { get; init; }
+    public required int TeamCount { get; init; }
+    /// <summary>True if a pattern (name-matched or pool-size) is available.</summary>
+    public required bool HasPattern { get; init; }
+    /// <summary>Number of RR games the pattern will place (0 if no pattern).</summary>
+    public required int PatternGameCount { get; init; }
+    /// <summary>"name-matched" | "pool-size-fallback" | "no-match"</summary>
+    public required string MatchStrategy { get; init; }
+    /// <summary>Source agegroup used for name-match (null if pool-size fallback).</summary>
+    public string? SourceAgegroupName { get; init; }
+    /// <summary>Source division used for name-match (null if pool-size fallback).</summary>
+    public string? SourceDivName { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -80,15 +144,19 @@ public record DivisionMatch
 public record AutoBuildFeasibility
 {
     public required int TotalCurrentDivisions { get; init; }
-    public required int ExactMatches { get; init; }
-    public required int SizeMismatches { get; init; }
-    public required int NewDivisions { get; init; }
-    public required int RemovedDivisions { get; init; }
+    /// <summary>Divisions covered by any pattern (name-match or pool-size).</summary>
+    public required int CoveredDivisions { get; init; }
+    /// <summary>Divisions with no pattern at all (will use auto-schedule).</summary>
+    public required int UncoveredDivisions { get; init; }
+    /// <summary>Divisions matched by exact agegroup + division name from source.</summary>
+    public required int NameMatchedDivisions { get; init; }
     /// <summary>"green" (>80%), "yellow" (50-80%), "red" (&lt;50%).</summary>
     public required string ConfidenceLevel { get; init; }
     public required int ConfidencePercent { get; init; }
     public required List<string> FieldMismatches { get; init; }
     public required List<string> Warnings { get; init; }
+    /// <summary>Distinct pool sizes found in the source job.</summary>
+    public required List<PoolSizePattern> AvailablePatterns { get; init; }
 }
 
 /// <summary>
@@ -100,8 +168,11 @@ public record AutoBuildAnalysisResponse
     public required string SourceJobName { get; init; }
     public required string SourceYear { get; init; }
     public required int SourceTotalGames { get; init; }
-    public required List<DivisionMatch> DivisionMatches { get; init; }
+    /// <summary>Per-division coverage with match strategy (name-matched, pool-size, or no-match).</summary>
+    public required List<PoolSizeCoverage> DivisionCoverage { get; init; }
     public required AutoBuildFeasibility Feasibility { get; init; }
+    /// <summary>The confirmed agegroup mappings used for this analysis.</summary>
+    public required List<ConfirmedAgegroupMapping> AgegroupMappings { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -109,29 +180,19 @@ public record AutoBuildAnalysisResponse
 // ══════════════════════════════════════════════════════════
 
 /// <summary>
-/// Resolution strategy for a division with a team-count mismatch.
-/// </summary>
-public record SizeMismatchResolution
-{
-    public required Guid DivId { get; init; }
-    /// <summary>"use-current-pairings" | "auto-schedule" | "skip"</summary>
-    public required string Strategy { get; init; }
-}
-
-/// <summary>
 /// Request to execute the auto-build schedule generation.
 /// </summary>
 public record AutoBuildRequest
 {
     public required Guid SourceJobId { get; init; }
-    /// <summary>Divisions to skip (user chose "skip" in Q&amp;A).</summary>
+    /// <summary>Divisions to skip entirely.</summary>
     public List<Guid>? SkipDivisionIds { get; init; }
-    /// <summary>Resolutions for size-mismatch divisions.</summary>
-    public List<SizeMismatchResolution>? MismatchResolutions { get; init; }
     /// <summary>If true, include bracket games in the pattern replay.</summary>
     public bool IncludeBracketGames { get; init; }
     /// <summary>If true, skip divisions that already have games scheduled.</summary>
     public bool SkipAlreadyScheduled { get; init; }
+    /// <summary>User-confirmed agegroup mappings for name-first matching.</summary>
+    public List<ConfirmedAgegroupMapping>? AgegroupMappings { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -411,4 +472,34 @@ public record QaBracketGame
     public required int T1No { get; init; }
     public required string T2Type { get; init; }
     public required int T2No { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Game Summary (current schedule status)
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Per-division game count summary for the current job.
+/// </summary>
+public record ScheduleGameSummaryDto
+{
+    public required string AgegroupName { get; init; }
+    public required Guid AgegroupId { get; init; }
+    public required string DivName { get; init; }
+    public required Guid DivId { get; init; }
+    public required int TeamCount { get; init; }
+    public required int GameCount { get; init; }
+    /// <summary>Expected round-robin games: n*(n-1)/2 where n = TeamCount.</summary>
+    public required int ExpectedRrGames { get; init; }
+}
+
+/// <summary>
+/// Overall game summary response for the current job.
+/// </summary>
+public record GameSummaryResponse
+{
+    public required int TotalGames { get; init; }
+    public required int TotalDivisions { get; init; }
+    public required int DivisionsWithGames { get; init; }
+    public required List<ScheduleGameSummaryDto> Divisions { get; init; }
 }

@@ -194,6 +194,26 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             .ToListAsync(ct);
     }
 
+    public async Task<Dictionary<Guid, string>> GetFieldAddressesAsync(
+        IEnumerable<Guid> fieldIds, CancellationToken ct = default)
+    {
+        var idList = fieldIds.ToList();
+        if (idList.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        var fields = await _context.Fields
+            .AsNoTracking()
+            .Where(f => idList.Contains(f.FieldId) && f.Address != null)
+            .Select(f => new { f.FieldId, f.Address, f.City, f.Zip })
+            .ToListAsync(ct);
+
+        return fields
+            .Where(f => !string.IsNullOrWhiteSpace(f.Address))
+            .ToDictionary(
+                f => f.FieldId,
+                f => $"{f.Address?.Trim()}|{f.City?.Trim()}|{f.Zip?.Trim()}".ToLowerInvariant());
+    }
+
     public async Task<Dictionary<Guid, int>> GetExistingGameCountsByDivisionAsync(
         Guid jobId, CancellationToken ct = default)
     {
