@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationStart, Router } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { PaletteService } from '@infrastructure/services/palette.service';
@@ -73,6 +74,30 @@ export class ClientHeaderBarComponent {
     mobileMenuTop = signal(0);
     mobileMenuRight = signal(0);
     mobilePaletteExpanded = signal(false);
+
+    private readonly destroyRef = inject(DestroyRef);
+
+    constructor() {
+        // Close all menus when requested (e.g. after role selection navigates away)
+        effect(() => {
+            if (this.menuState.closeAllMenusRequested()) {
+                this.closeUserMenu();
+                this.closeMobileMenu();
+                this.menuState.closeOffcanvas();
+                this.menuState.ackCloseAllMenus();
+            }
+        });
+
+        // Close all dropdowns on ANY route navigation — standard dropdown behavior
+        this.router.events.pipe(
+            filter(e => e instanceof NavigationStart),
+            takeUntilDestroyed(this.destroyRef),
+        ).subscribe(() => {
+            this.closeUserMenu();
+            this.closeMobileMenu();
+            this.menuState.closeOffcanvas();
+        });
+    }
 
     // Mobile menu toggle
     toggleOffcanvas() {

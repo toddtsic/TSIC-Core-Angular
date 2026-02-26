@@ -42,6 +42,9 @@ public interface IWidgetEditorRepository
     Task<List<WidgetDefault>> GetAllDefaultsAsync(CancellationToken ct = default);
     Task<List<JobWidget>> GetAllJobWidgetsAsync(CancellationToken ct = default);
 
+    // ── Category ordering ──
+    Task UpdateCategoryOrderAsync(List<CategoryOrderEntry> entries, CancellationToken ct = default);
+
     // ── Config propagation ──
     Task<int> PropagateDefaultConfigAsync(int widgetId, string? defaultConfig, CancellationToken ct = default);
 

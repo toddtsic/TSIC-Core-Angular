@@ -83,6 +83,10 @@ export class WidgetEditorComponent {
 	readonly expandedWorkspaces = signal<Set<string>>(new Set());
 	readonly showCopyMenu = signal(false);
 
+	// ── Category order state ──
+	readonly categoryOrderDirty = signal(false);
+	readonly isSavingCategoryOrder = signal(false);
+
 	// ── Widget CRUD modal state ──
 	readonly showWidgetModal = signal(false);
 	readonly editingWidget = signal<WidgetDefinitionDto | null>(null);
@@ -512,6 +516,63 @@ export class WidgetEditorComponent {
 
 	isWorkspaceExpanded(workspace: string): boolean {
 		return this.expandedWorkspaces().has(workspace);
+	}
+
+	// ═══════════════════════════════════
+	// Category ordering
+	// ═══════════════════════════════════
+
+	onCategoryDrop(event: CdkDragDrop<CategoryGroup[]>, workspace: string): void {
+		if (event.previousIndex === event.currentIndex) return;
+
+		// Get this workspace's categories from the current categories signal
+		const allCats = this.categories().slice();
+		const wsCats = allCats
+			.filter(c => c.workspace === workspace)
+			.sort((a, b) => a.defaultOrder - b.defaultOrder);
+
+		// Reorder
+		moveItemInArray(wsCats, event.previousIndex, event.currentIndex);
+
+		// Reassign defaultOrder by position index
+		const updatedCats = allCats.map(c => {
+			if (c.workspace !== workspace) return c;
+			const newIdx = wsCats.findIndex(wc => wc.categoryId === c.categoryId);
+			return newIdx >= 0 ? { ...c, defaultOrder: newIdx } : c;
+		});
+
+		this.categories.set(updatedCats);
+		this.categoryOrderDirty.set(true);
+	}
+
+	saveCategoryOrder(): void {
+		const entries = this.categories().map(c => ({
+			categoryId: c.categoryId,
+			defaultOrder: c.defaultOrder,
+		}));
+
+		this.isSavingCategoryOrder.set(true);
+		this.editorService.saveCategoryOrder(entries).subscribe({
+			next: () => {
+				this.isSavingCategoryOrder.set(false);
+				this.categoryOrderDirty.set(false);
+				this.toast.show('Category order saved successfully.', 'success');
+			},
+			error: err => {
+				this.isSavingCategoryOrder.set(false);
+				this.toast.show(err?.error?.message || 'Failed to save category order.', 'danger', 4000);
+			},
+		});
+	}
+
+	resetCategoryOrder(): void {
+		this.editorService.getCategories().subscribe({
+			next: data => {
+				this.categories.set(data);
+				this.categoryOrderDirty.set(false);
+			},
+			error: err => this.handleError('Failed to reload categories', err),
+		});
 	}
 
 	// ═══════════════════════════════════

@@ -108,9 +108,18 @@
 
 				<!-- Matrix table (collapsible) -->
 				@if (isWorkspaceExpanded(group.workspace)) {
+					<div cdkDropList [cdkDropListData]="group.categories"
+						(cdkDropListDropped)="onCategoryDrop($event, group.workspace)">
 					@for (cat of group.categories; track cat.categoryId) {
+						<div cdkDrag class="category-drag-wrapper">
 						@if (group.categories.length > 1) {
-							<div class="category-subheader">{{ cat.name }}</div>
+							<div class="category-subheader">
+								<span cdkDragHandle class="category-drag-handle"
+									title="Drag to reorder category" aria-label="Drag to reorder category">
+									<i class="bi bi-grip-vertical"></i>
+								</span>
+								{{ cat.name }}
+							</div>
 						}
 						<table class="matrix-table">
 							<thead>
@@ -153,7 +162,16 @@
 								}
 							</tbody>
 						</table>
+						<ng-template cdkDragPreview>
+							<div class="drag-preview-row category-preview">
+								<i class="bi bi-grip-vertical me-2"></i>
+								<i class="bi bi-folder me-1"></i>
+								<span>{{ cat.name }}</span>
+							</div>
+						</ng-template>
+						</div>
 					}
+					</div>
 				}
 			</div>
 		}
@@ -173,6 +191,25 @@
 						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
 					}
 					<i class="bi bi-check-lg me-1"></i>Save Defaults
+				</button>
+			</div>
+		}
+
+		<!-- Category order save bar -->
+		@if (categoryOrderDirty()) {
+			<div class="save-bar">
+				<span class="unsaved-badge">
+					<i class="bi bi-exclamation-circle me-1"></i>
+					Category order changed
+				</span>
+				<button class="btn btn-outline-secondary btn-sm" (click)="resetCategoryOrder()">
+					<i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+				</button>
+				<button class="btn btn-primary btn-sm" (click)="saveCategoryOrder()" [disabled]="isSavingCategoryOrder()">
+					@if (isSavingCategoryOrder()) {
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+					}
+					<i class="bi bi-check-lg me-1"></i>Save Category Order
 				</button>
 			</div>
 		}

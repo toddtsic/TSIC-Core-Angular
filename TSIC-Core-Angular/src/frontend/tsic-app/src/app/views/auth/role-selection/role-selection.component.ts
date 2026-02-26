@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, computed, signal, V
 
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
 @Component({
@@ -17,6 +18,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly menuState = inject(MenuStateService);
 
   readonly registrations = computed(() => this.authService.registrations());
   readonly isLoading = computed(() => this.authService.registrationsLoading() || this.selectingRole());
@@ -77,6 +79,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this.authService.selectRegistration(registration.regId).subscribe({
       next: () => {
         this.selectingRole.set(false);
+        // Close all header/mobile menus before navigating — they persist across route changes
+        this.menuState.requestCloseAllMenus();
         const user = this.authService.getCurrentUser();
         if (this._returnUrl) {
           this.router.navigateByUrl(this._returnUrl);

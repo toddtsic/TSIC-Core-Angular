@@ -7,5 +7,6 @@ export type AutoBuildRequest = {
     skipDivisionIds?: any[] | null;
     includeBracketGames?: boolean;
     skipAlreadyScheduled?: boolean;
+    agegroupMappings?: any[] | null;
 };
 

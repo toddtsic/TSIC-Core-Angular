@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AutoBuildFeasibility } from './AutoBuildFeasibility';
+import type { ConfirmedAgegroupMapping } from './ConfirmedAgegroupMapping';
 import type { PoolSizeCoverage } from './PoolSizeCoverage';
 export type AutoBuildAnalysisResponse = {
     sourceJobId: string;
@@ -11,5 +12,6 @@ export type AutoBuildAnalysisResponse = {
     sourceTotalGames: number;
     divisionCoverage: Array<PoolSizeCoverage>;
     feasibility: AutoBuildFeasibility;
+    agegroupMappings: Array<ConfirmedAgegroupMapping>;
 };
 

@@ -89,6 +89,12 @@ export class WidgetEditorService {
 		return this.http.put<void>(`${this.apiUrl}/job-overrides/${request.jobId}`, request);
 	}
 
+	// ── Category ordering ──
+
+	saveCategoryOrder(entries: { categoryId: number; defaultOrder: number }[]): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/categories/order`, { entries });
+	}
+
 	// ── Export SQL ──
 
 	exportSql(): Observable<string> {

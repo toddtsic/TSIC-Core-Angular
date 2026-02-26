@@ -73,6 +73,8 @@ public record AgegroupMappingResponse
     public required List<AgegroupMappingProposal> Proposals { get; init; }
     /// <summary>Distinct active agegroup names in the current job (for dropdown options).</summary>
     public required List<string> CurrentAgegroupNames { get; init; }
+    /// <summary>Agegroup name → hex color for current-year agegroups (null entries omitted).</summary>
+    public required Dictionary<string, string> CurrentAgegroupColors { get; init; }
 }
 
 /// <summary>
@@ -120,6 +122,7 @@ public record PoolSizeCoverage
     public required Guid DivId { get; init; }
     public required Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
+    public string? AgegroupColor { get; init; }
     public required string DivName { get; init; }
     public required int TeamCount { get; init; }
     /// <summary>True if a pattern (name-matched or pool-size) is available.</summary>
@@ -274,6 +277,7 @@ public record CurrentDivisionSummary
 {
     public required Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
+    public string? AgegroupColor { get; init; }
     public required Guid DivId { get; init; }
     public required string DivName { get; init; }
     public required int TeamCount { get; init; }
@@ -485,6 +489,7 @@ public record ScheduleGameSummaryDto
 {
     public required string AgegroupName { get; init; }
     public required Guid AgegroupId { get; init; }
+    public string? AgegroupColor { get; init; }
     public required string DivName { get; init; }
     public required Guid DivId { get; init; }
     public required int TeamCount { get; init; }

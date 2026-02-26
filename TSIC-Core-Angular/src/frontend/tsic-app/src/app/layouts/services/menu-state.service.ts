@@ -24,6 +24,18 @@ export class MenuStateService {
         this.offcanvasOpen.set(false);
     }
 
+    /** Pulse: requests all open menus/dropdowns to close (header dropdown, mobile menu, offcanvas) */
+    closeAllMenusRequested = signal(false);
+
+    requestCloseAllMenus(): void {
+        this.closeAllMenusRequested.set(false); // reset first so re-trigger works
+        this.closeAllMenusRequested.set(true);
+    }
+
+    ackCloseAllMenus(): void {
+        this.closeAllMenusRequested.set(false);
+    }
+
     /** Request the dashboard to open its customize dialog */
     requestCustomizeDashboard(): void {
         // Pulse: set true, then reset so it can be triggered again

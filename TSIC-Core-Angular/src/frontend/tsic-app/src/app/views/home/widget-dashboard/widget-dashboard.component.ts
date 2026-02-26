@@ -148,14 +148,23 @@ export class WidgetDashboardComponent {
 		return ws?.categories ?? [];
 	});
 
-	/** Dashboard categories, excluding bulletins for admin roles */
+	/** Dashboard categories, excluding bulletins for admin roles.
+	 *  Sorted so chart-tile categories render before content/bulletin categories. */
 	readonly hubCategories = computed(() => {
 		const ws = this.dashboardWorkspace();
 		if (!ws) return [];
-		if (!this.auth.isAdmin()) return ws.categories;
-		return ws.categories.filter(cat =>
-			!cat.widgets.some(w => w.componentKey === 'bulletins')
-		);
+		const cats = this.auth.isAdmin()
+			? ws.categories.filter(cat => !cat.widgets.some(w => w.componentKey === 'bulletins'))
+			: [...ws.categories];
+		// Non-bulletin widgets first: chart-tile → status-tile → content (bulletins)
+		return cats.sort((a, b) => {
+			const typeOrder = (cat: WidgetCategoryGroupDto) => {
+				if (cat.widgets.length > 0 && cat.widgets.every(w => w.widgetType === 'chart-tile')) return 0;
+				if (cat.widgets.length > 0 && cat.widgets.every(w => w.widgetType === 'status-tile')) return 1;
+				return 2;
+			};
+			return typeOrder(a) - typeOrder(b);
+		});
 	});
 
 	private configCache = new Map<number, WidgetConfig>();

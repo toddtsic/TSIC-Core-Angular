@@ -28,6 +28,9 @@ public interface IWidgetEditorService
     Task<JobOverridesResponse> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default);
     Task SaveJobOverridesAsync(SaveJobOverridesRequest request, CancellationToken ct = default);
 
+    // ── Category ordering ──
+    Task SaveCategoryOrderAsync(SaveCategoryOrderRequest request, CancellationToken ct = default);
+
     // ── Export SQL ──
     Task<string> ExportWidgetSqlAsync(CancellationToken ct = default);
 }

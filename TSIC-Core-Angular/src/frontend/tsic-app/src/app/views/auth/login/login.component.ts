@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -19,6 +19,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   private readonly autofill = inject(AutofillMonitor);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   @ViewChild('usernameInput', { static: false }) usernameInput!: ElementRef<HTMLInputElement>;
   @ViewChild('passwordInput', { static: false }) passwordInput!: ElementRef<HTMLInputElement>;
@@ -58,6 +59,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   public get auth() { return this.authService; }
 
   ngOnInit() {
+    // Defensive reset: clear stale loading/error state from any previous login attempt
+    this.authService.loginLoading.set(false);
+    this.authService.loginError.set(null);
+
     // Allow theme and headers to be configured via query params when used as a reusable screen
     const qp = this.route.snapshot.queryParamMap;
     const theme = qp.get('theme');
@@ -134,14 +139,24 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     // Prevent default browser submission
     if (event) event.preventDefault();
 
-    // Force-sync autofilled values — browsers may not expose .value until user interaction
+    // Chrome autofill doesn't expose .value until AFTER user interaction (the click).
+    // Defer one frame so the browser exposes autofilled values before we read them.
+    requestAnimationFrame(() => this._processSubmit());
+  }
+
+  private _processSubmit() {
+    // Force-sync autofilled values from the DOM
     const u = this.usernameInput?.nativeElement.value;
     const p = this.passwordInput?.nativeElement.value;
     if (u) this.form.get('username')?.setValue(u);
     if (p) this.form.get('password')?.setValue(p);
+    this.form.updateValueAndValidity();
 
     this.submitted.set(true);
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.cdr.markForCheck();
+      return;
+    }
 
     const credentials: LoginRequest = {
       username: this.form.get('username')?.value ?? '',

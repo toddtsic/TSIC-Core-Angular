@@ -5,6 +5,7 @@
 export type ScheduleGameSummaryDto = {
     agegroupName: string;
     agegroupId: string;
+    agegroupColor?: string | null;
     divName: string;
     divId: string;
     teamCount: number;

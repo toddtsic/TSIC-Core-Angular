@@ -196,3 +196,24 @@ public record SaveJobOverridesRequest
     public required Guid JobId { get; init; }
     public required List<JobWidgetEntryDto> Entries { get; init; }
 }
+
+// ══════════════════════════════════════
+// Category Ordering
+// ══════════════════════════════════════
+
+/// <summary>
+/// Request to reorder widget categories by updating their DefaultOrder values.
+/// </summary>
+public record SaveCategoryOrderRequest
+{
+    public required List<CategoryOrderEntry> Entries { get; init; }
+}
+
+/// <summary>
+/// A single category's new default order position.
+/// </summary>
+public record CategoryOrderEntry
+{
+    public required int CategoryId { get; init; }
+    public required int DefaultOrder { get; init; }
+}

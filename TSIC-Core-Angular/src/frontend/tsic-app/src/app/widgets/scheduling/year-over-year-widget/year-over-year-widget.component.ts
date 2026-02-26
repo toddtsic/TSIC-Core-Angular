@@ -9,24 +9,25 @@ import type { YearOverYearComparisonDto, YearSeriesDto } from '@core/api';
 /** Palette colors for prior-year series (current year uses --bs-primary) */
 const PRIOR_COLORS = ['--brand-accent', '--bs-secondary', '--brand-text-muted'];
 
+/** Short month labels for X-axis */
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 /** Read a CSS custom property from :root, with fallback. */
 function cssVar(v: string, fallback: string): string {
 	return getComputedStyle(document.documentElement).getPropertyValue(v)?.trim() || fallback;
 }
 
-interface ChartPoint {
-	syntheticDate: Date;
-	cumulativeCount: number;
+interface MonthlyBarPoint {
+	month: string;
+	count: number;
 }
 
-interface SeriesConfig {
+interface BarSeriesConfig {
 	year: string;
 	jobName: string;
 	finalTotal: number;
-	data: ChartPoint[];
+	data: MonthlyBarPoint[];
 	color: string;
-	width: number;
-	dashArray: string;
 	isCurrent: boolean;
 }
 
@@ -49,29 +50,28 @@ export class YearOverYearWidgetComponent implements OnInit {
 	readonly hasError = signal(false);
 	readonly isCollapsed = signal(true);
 
-	readonly primaryColor = signal(cssVar('--bs-primary', '#0d6efd'));
 	readonly mutedColor = signal(cssVar('--brand-text-muted', '#6c757d'));
 	readonly borderColor = signal(cssVar('--brand-border', 'rgba(0,0,0,0.1)'));
 
-	/** Prepared series configs for the chart */
-	readonly seriesConfigs = computed((): SeriesConfig[] => {
+	/** Grouped bar series configs — one per year */
+	readonly barSeriesConfigs = computed((): BarSeriesConfig[] => {
 		const data = this.rawData();
 		if (!data || data.series.length === 0) return [];
+
+		// Collect all months across all series for consistent X-axis
+		const allMonths = this.getAllMonthLabels(data.series);
 
 		return data.series.map((s, idx) => {
 			const isCurrent = s.year === data.currentYear;
 			const colorVar = isCurrent ? '--bs-primary' : (PRIOR_COLORS[idx - 1] ?? '--brand-text-muted');
+			const monthlyData = this.toMonthlyNewCounts(s, allMonths);
+
 			return {
 				year: s.year,
 				jobName: s.jobName,
 				finalTotal: s.finalTotal,
-				data: s.dailyData.map(d => ({
-					syntheticDate: this.toSyntheticDate(new Date(d.date)),
-					cumulativeCount: d.cumulativeCount,
-				})),
+				data: monthlyData,
 				color: cssVar(colorVar, isCurrent ? '#0d6efd' : '#6c757d'),
-				width: isCurrent ? 3 : 1.5,
-				dashArray: isCurrent ? '' : '5,3',
 				isCurrent,
 			};
 		});
@@ -129,23 +129,18 @@ export class YearOverYearWidgetComponent implements OnInit {
 		return `${prior.year}: ${prior.finalTotal.toLocaleString()} final`;
 	});
 
-	readonly hasData = computed(() => {
-		const configs = this.seriesConfigs();
-		return configs.length > 0;
-	});
+	readonly hasData = computed(() => this.barSeriesConfigs().length > 0);
 
 	readonly primaryXAxis = computed(() => ({
-		valueType: 'DateTime' as const,
-		labelFormat: 'MMM d',
-		intervalType: 'Months' as const,
-		majorGridLines: { width: 0.5, color: this.borderColor(), dashArray: '3,3' },
+		valueType: 'Category' as const,
+		majorGridLines: { width: 0 },
 		majorTickLines: { width: 0 },
-		lineStyle: { width: 0 },
+		lineStyle: { width: 0.5, color: this.borderColor() },
 		labelStyle: { color: this.mutedColor(), size: '11px' },
 	}));
 
 	readonly primaryYAxis = computed(() => ({
-		title: 'Registrations',
+		title: 'New Registrations',
 		titleStyle: { color: this.mutedColor(), size: '11px' },
 		majorGridLines: { width: 0.5, color: this.borderColor(), dashArray: '3,3' },
 		majorTickLines: { width: 0 },
@@ -168,9 +163,8 @@ export class YearOverYearWidgetComponent implements OnInit {
 	readonly chartArea = { border: { width: 0 } };
 	readonly margin = { left: 8, right: 8, top: 4, bottom: 4 };
 
-	/** Format tooltip to show real year + count */
+	/** Format tooltip to show year + count */
 	onTooltipRender(args: ITooltipRenderEventArgs): void {
-		// The series name already contains the year — just format the value
 		if (args.text) {
 			args.text = args.text.replace(/<b>(\d+)<\/b>/, (_m: string, v: string) =>
 				`<b>${parseInt(v, 10).toLocaleString()}</b>`);
@@ -178,14 +172,65 @@ export class YearOverYearWidgetComponent implements OnInit {
 	}
 
 	/**
-	 * Normalize a real date to a synthetic shared year for X-axis alignment.
-	 * Jul-Dec → 2000, Jan-Jun → 2001 (handles Nov→May season spans).
+	 * Convert daily cumulative data to monthly net-new registration counts.
+	 * Uses the difference between the last cumulative value of each month
+	 * and the previous month's last cumulative value.
 	 */
-	private toSyntheticDate(realDate: Date): Date {
-		const month = realDate.getMonth();
-		const day = realDate.getDate();
-		const syntheticYear = month >= 6 ? 2000 : 2001;
-		return new Date(syntheticYear, month, day);
+	private toMonthlyNewCounts(series: YearSeriesDto, allMonths: string[]): MonthlyBarPoint[] {
+		// Group daily data by month index
+		const monthBuckets = new Map<number, number>();
+		for (const d of series.dailyData) {
+			const date = new Date(d.date);
+			const monthIdx = date.getMonth();
+			// Keep the max cumulative per month (last day of that month's data)
+			const existing = monthBuckets.get(monthIdx);
+			if (existing === undefined || d.cumulativeCount > existing) {
+				monthBuckets.set(monthIdx, d.cumulativeCount);
+			}
+		}
+
+		// Convert cumulative → net new per month
+		const sortedMonths = [...monthBuckets.entries()].sort((a, b) => {
+			// Sort by season order (Jul-Dec first, then Jan-Jun)
+			const orderA = a[0] >= 6 ? a[0] - 6 : a[0] + 6;
+			const orderB = b[0] >= 6 ? b[0] - 6 : b[0] + 6;
+			return orderA - orderB;
+		});
+
+		const netNewByMonth = new Map<string, number>();
+		let prevCumulative = 0;
+		for (const [monthIdx, cumulative] of sortedMonths) {
+			const label = MONTH_LABELS[monthIdx];
+			netNewByMonth.set(label, cumulative - prevCumulative);
+			prevCumulative = cumulative;
+		}
+
+		// Return data aligned to allMonths (0 for missing months)
+		return allMonths.map(month => ({
+			month,
+			count: netNewByMonth.get(month) ?? 0,
+		}));
+	}
+
+	/**
+	 * Collect all unique month labels across all series in season order.
+	 * (Jul-Dec first, then Jan-Jun to handle cross-year seasons)
+	 */
+	private getAllMonthLabels(series: YearSeriesDto[]): string[] {
+		const monthSet = new Set<number>();
+		for (const s of series) {
+			for (const d of s.dailyData) {
+				monthSet.add(new Date(d.date).getMonth());
+			}
+		}
+
+		return [...monthSet]
+			.sort((a, b) => {
+				const orderA = a >= 6 ? a - 6 : a + 6;
+				const orderB = b >= 6 ? b - 6 : b + 6;
+				return orderA - orderB;
+			})
+			.map(m => MONTH_LABELS[m]);
 	}
 
 	ngOnInit(): void {

@@ -364,6 +364,23 @@ public class WidgetEditorRepository : IWidgetEditorRepository
     }
 
     // ══════════════════════════════════════
+    // Category ordering
+    // ══════════════════════════════════════
+
+    public async Task UpdateCategoryOrderAsync(List<CategoryOrderEntry> entries, CancellationToken ct = default)
+    {
+        foreach (var entry in entries)
+        {
+            var category = await _context.WidgetCategory
+                .FirstOrDefaultAsync(c => c.CategoryId == entry.CategoryId, ct);
+            if (category is not null)
+            {
+                category.DefaultOrder = entry.DefaultOrder;
+            }
+        }
+    }
+
+    // ══════════════════════════════════════
     // Config propagation
     // ══════════════════════════════════════
 

@@ -79,6 +79,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             {
                 AgegroupName = d.AgegroupName,
                 AgegroupId = d.AgegroupId,
+                AgegroupColor = d.AgegroupColor,
                 DivName = d.DivName,
                 DivId = d.DivId,
                 TeamCount = d.TeamCount,
@@ -130,11 +131,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                      && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // Distinct agegroups with their division names
+        // Distinct agegroups with their division names — sort DESCENDING
+        // so highest year claims its exact match first, preventing +1 overlaps
         var sourceAgegroups = sourceDivisions
             .GroupBy(d => d.AgegroupName, StringComparer.OrdinalIgnoreCase)
             .Select(g => new { Name = g.Key, Divisions = g.Select(d => d.DivName).Distinct().OrderBy(n => n).ToList() })
-            .OrderBy(a => a.Name)
+            .OrderByDescending(a => a.Name)
             .ToList();
 
         var currentAgNames = activeCurrentDivisions
@@ -143,48 +145,70 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             .OrderBy(n => n)
             .ToList();
 
-        var currentAgSet = new HashSet<string>(currentAgNames, StringComparer.OrdinalIgnoreCase);
+        // Build agegroup name → color map from current divisions
+        var currentAgColors = activeCurrentDivisions
+            .Where(d => d.AgegroupColor != null)
+            .GroupBy(d => d.AgegroupName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().AgegroupColor!, StringComparer.OrdinalIgnoreCase);
 
-        var proposals = sourceAgegroups.Select(src =>
+        var claimedCurrent = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var proposals = new List<AgegroupMappingProposal>();
+        foreach (var src in sourceAgegroups)
         {
-            // Try exact match
-            if (currentAgSet.Contains(src.Name))
+            // Try year increment (+1) FIRST — grad-year agegroups (2029→2030, 2030→2031)
+            // must claim their +1 target before exact match can steal it.
+            // Descending sort ensures highest source claims first, preventing collisions.
+            if (TryIncrementYear(src.Name, out var incremented))
             {
-                return new AgegroupMappingProposal
+                var incrementMatch = currentAgNames.FirstOrDefault(n =>
+                    string.Equals(n, incremented, StringComparison.OrdinalIgnoreCase));
+                if (incrementMatch != null && !claimedCurrent.Contains(incrementMatch))
                 {
-                    SourceAgegroupName = src.Name,
-                    SourceDivisionNames = src.Divisions,
-                    SourceDivisionCount = src.Divisions.Count,
-                    ProposedCurrentAgegroupName = currentAgNames.First(n =>
-                        string.Equals(n, src.Name, StringComparison.OrdinalIgnoreCase)),
-                    MatchStrategy = "exact"
-                };
+                    claimedCurrent.Add(incrementMatch);
+                    proposals.Add(new AgegroupMappingProposal
+                    {
+                        SourceAgegroupName = src.Name,
+                        SourceDivisionNames = src.Divisions,
+                        SourceDivisionCount = src.Divisions.Count,
+                        ProposedCurrentAgegroupName = incrementMatch,
+                        MatchStrategy = "year-increment"
+                    });
+                    continue;
+                }
             }
 
-            // Try year increment (+1)
-            if (TryIncrementYear(src.Name, out var incremented) && currentAgSet.Contains(incremented))
+            // Fallback: exact match (for non-year names like "Sixth Graders",
+            // or when +1 target doesn't exist in current year)
+            var exactMatch = currentAgNames.FirstOrDefault(n =>
+                string.Equals(n, src.Name, StringComparison.OrdinalIgnoreCase));
+            if (exactMatch != null && !claimedCurrent.Contains(exactMatch))
             {
-                return new AgegroupMappingProposal
+                claimedCurrent.Add(exactMatch);
+                proposals.Add(new AgegroupMappingProposal
                 {
                     SourceAgegroupName = src.Name,
                     SourceDivisionNames = src.Divisions,
                     SourceDivisionCount = src.Divisions.Count,
-                    ProposedCurrentAgegroupName = currentAgNames.First(n =>
-                        string.Equals(n, incremented, StringComparison.OrdinalIgnoreCase)),
-                    MatchStrategy = "year-increment"
-                };
+                    ProposedCurrentAgegroupName = exactMatch,
+                    MatchStrategy = "exact"
+                });
+                continue;
             }
 
             // No match
-            return new AgegroupMappingProposal
+            proposals.Add(new AgegroupMappingProposal
             {
                 SourceAgegroupName = src.Name,
                 SourceDivisionNames = src.Divisions,
                 SourceDivisionCount = src.Divisions.Count,
                 ProposedCurrentAgegroupName = null,
                 MatchStrategy = "none"
-            };
-        }).ToList();
+            });
+        }
+
+        // Re-sort ascending for display
+        proposals = proposals.OrderBy(p => p.SourceAgegroupName).ToList();
 
         return new AgegroupMappingResponse
         {
@@ -193,7 +217,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             SourceYear = sourceYear,
             SourceTotalGames = sourcePattern.Count,
             Proposals = proposals,
-            CurrentAgegroupNames = currentAgNames
+            CurrentAgegroupNames = currentAgNames,
+            CurrentAgegroupColors = currentAgColors
         };
     }
 
@@ -285,6 +310,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 currentToSourceAg.TryAdd(m.CurrentAgegroupName!, m.SourceAgegroupName);
         }
 
+        // Build agegroup color lookup from current divisions
+        var agColorLookup = currentDivisions
+            .Where(d => d.AgegroupColor != null)
+            .GroupBy(d => d.AgegroupName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().AgegroupColor!, StringComparer.OrdinalIgnoreCase);
+
         // 5. Assess coverage with name-first matching
         var activeDivisions = currentDivisions
             .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
@@ -307,7 +338,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         return new PoolSizeCoverage
                         {
                             DivId = d.DivId, AgegroupId = d.AgegroupId,
-                            AgegroupName = d.AgegroupName, DivName = d.DivName,
+                            AgegroupName = d.AgegroupName,
+                            AgegroupColor = agColorLookup.GetValueOrDefault(d.AgegroupName),
+                            DivName = d.DivName,
                             TeamCount = d.TeamCount, HasPattern = true,
                             PatternGameCount = patternByName[nameKey].Count,
                             MatchStrategy = "name-matched",
@@ -324,7 +357,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 return new PoolSizeCoverage
                 {
                     DivId = d.DivId, AgegroupId = d.AgegroupId,
-                    AgegroupName = d.AgegroupName, DivName = d.DivName,
+                    AgegroupName = d.AgegroupName,
+                    AgegroupColor = agColorLookup.GetValueOrDefault(d.AgegroupName),
+                    DivName = d.DivName,
                     TeamCount = d.TeamCount, HasPattern = true,
                     PatternGameCount = patternByPoolSize[d.TeamCount].Count,
                     MatchStrategy = "pool-size-fallback",
@@ -336,7 +371,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             return new PoolSizeCoverage
             {
                 DivId = d.DivId, AgegroupId = d.AgegroupId,
-                AgegroupName = d.AgegroupName, DivName = d.DivName,
+                AgegroupName = d.AgegroupName,
+                AgegroupColor = agColorLookup.GetValueOrDefault(d.AgegroupName),
+                DivName = d.DivName,
                 TeamCount = d.TeamCount, HasPattern = false,
                 PatternGameCount = 0, MatchStrategy = "no-match",
                 SourceAgegroupName = null, SourceDivName = null

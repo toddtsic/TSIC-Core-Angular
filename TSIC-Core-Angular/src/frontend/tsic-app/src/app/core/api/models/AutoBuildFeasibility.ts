@@ -7,6 +7,7 @@ export type AutoBuildFeasibility = {
     totalCurrentDivisions: number;
     coveredDivisions: number;
     uncoveredDivisions: number;
+    nameMatchedDivisions: number;
     confidenceLevel: string;
     confidencePercent: number;
     fieldMismatches: Array<string>;

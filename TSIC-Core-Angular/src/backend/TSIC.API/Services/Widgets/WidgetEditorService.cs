@@ -249,6 +249,14 @@ public sealed class WidgetEditorService : IWidgetEditorService
         await _repo.SaveChangesAsync(ct);
     }
 
+    // ── Category ordering ──
+
+    public async Task SaveCategoryOrderAsync(SaveCategoryOrderRequest request, CancellationToken ct = default)
+    {
+        await _repo.UpdateCategoryOrderAsync(request.Entries, ct);
+        await _repo.SaveChangesAsync(ct);
+    }
+
     // ── Export SQL (in-memory) ──
 
     public async Task<string> ExportWidgetSqlAsync(CancellationToken ct = default)

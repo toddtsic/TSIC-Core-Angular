@@ -22,7 +22,7 @@
 		}
 	</div>
 
-	<!-- Chart: only rendered when expanded -->
+	<!-- Chart: grouped vertical bars, one bar per year per month -->
 	<div chart>
 		@if (hasData()) {
 			<ejs-chart
@@ -38,16 +38,15 @@
 				(tooltipRender)="onTooltipRender($event)">
 
 				<e-series-collection>
-					@for (s of seriesConfigs(); track s.year) {
+					@for (s of barSeriesConfigs(); track s.year) {
 						<e-series
 							[dataSource]="s.data"
-							type="Spline"
-							xName="syntheticDate"
-							yName="cumulativeCount"
+							type="Column"
+							xName="month"
+							yName="count"
 							[name]="s.isCurrent ? s.year + ' (current)' : s.year + ' (' + s.finalTotal.toLocaleString() + ' final)'"
 							[fill]="s.color"
-							[width]="s.width"
-							[dashArray]="s.dashArray"
+							[columnSpacing]="0.1"
 							opacity="1">
 						</e-series>
 					}

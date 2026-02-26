@@ -7,21 +7,28 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
 import { AutoBuildService } from './services/auto-build.service';
-import type { GameSummaryResponse, ScheduleGameSummaryDto } from './services/auto-build.service';
 import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { environment } from '@environments/environment';
 
-import type { AutoBuildSourceJobDto } from '@core/api';
-import type { AutoBuildAnalysisResponse } from '@core/api';
-import type { AutoBuildResult } from '@core/api';
-import type { AutoBuildRequest } from '@core/api';
-import type { AutoBuildQaResult } from '@core/api';
+import type {
+    AutoBuildSourceJobDto,
+    AutoBuildAnalysisResponse,
+    AutoBuildResult,
+    AutoBuildRequest,
+    AutoBuildQaResult,
+    GameSummaryResponse,
+    ScheduleGameSummaryDto,
+    AgegroupMappingResponse,
+    ConfirmedAgegroupMapping,
+    PoolSizeCoverage,
+} from '@core/api';
 
 // ── Step enum (sequential flow) ──────────────────────────
 type AutoBuildStep =
     | 'loading'      // Fetching game summary
     | 'summary'      // Step 1: Show current game status
+    | 'mapping'      // Step 1.5: Confirm agegroup mappings
     | 'analyzing'    // Step 2: Auto-analyzing prior year
     | 'analysis'     // Step 2b: Show analysis results
     | 'building'     // Step 3: Building schedule
@@ -29,7 +36,7 @@ type AutoBuildStep =
     | 'error';
 
 // ── Agent message model ───────────────────────────────────
-type AgentMessageType = 'thinking' | 'info' | 'success' | 'warning' | 'question' | 'error' | 'result';
+type AgentMessageType = 'thinking' | 'info' | 'success' | 'warning' | 'question' | 'error' | 'result' | 'pitch';
 
 interface AgentMessage {
     id: string;
@@ -68,9 +75,13 @@ export class AutoBuildComponent implements AfterViewChecked {
     confirmDialogMessage = signal('');
     confirmDialogAction = signal<(() => void) | null>(null);
 
-    // Step 2: Analysis
+    // Step 1.5: Agegroup mapping
     sourceJobs = signal<AutoBuildSourceJobDto[]>([]);
     selectedSourceJob = signal<AutoBuildSourceJobDto | null>(null);
+    mappingResponse = signal<AgegroupMappingResponse | null>(null);
+    confirmedMappings = signal<ConfirmedAgegroupMapping[]>([]);
+
+    // Step 2: Analysis
     analysis = signal<AutoBuildAnalysisResponse | null>(null);
 
     // Step 3: Build
@@ -81,15 +92,22 @@ export class AutoBuildComponent implements AfterViewChecked {
     readonly includeBracketGames = signal(false);
     readonly skipAlreadyScheduled = signal(true);
 
+    // ── Summary state helpers ─────────────────────────────
+    isFullyScheduled = computed(() => {
+        const gs = this.gameSummary();
+        if (!gs || gs.totalDivisions === 0) return false;
+        return gs.divisionsWithGames === gs.totalDivisions;
+    });
+
     // ── Tree: group divisions by agegroup ─────────────────
     agegroupTree = computed(() => {
         const gs = this.gameSummary();
         if (!gs) return [];
-        const map = new Map<string, { agegroupName: string; agegroupId: string; divisions: ScheduleGameSummaryDto[]; totalGames: number; totalExpected: number; totalTeams: number }>();
+        const map = new Map<string, { agegroupName: string; agegroupId: string; agegroupColor: string | null; divisions: ScheduleGameSummaryDto[]; totalGames: number; totalExpected: number; totalTeams: number }>();
         for (const div of gs.divisions) {
             let group = map.get(div.agegroupId);
             if (!group) {
-                group = { agegroupName: div.agegroupName, agegroupId: div.agegroupId, divisions: [], totalGames: 0, totalExpected: 0, totalTeams: 0 };
+                group = { agegroupName: div.agegroupName, agegroupId: div.agegroupId, agegroupColor: div.agegroupColor ?? null, divisions: [], totalGames: 0, totalExpected: 0, totalTeams: 0 };
                 map.set(div.agegroupId, group);
             }
             group.divisions.push(div);
@@ -121,18 +139,70 @@ export class AutoBuildComponent implements AfterViewChecked {
         return 'partial';
     }
 
-    // ── Pool-size coverage computed helpers ────────────────
-    coveredDivisions = computed(() =>
-        (this.analysis()?.divisionCoverage ?? []).filter(d => d.hasPattern)
+    // ── 3-state coverage computed helpers ─────────────────
+    nameMatchedDivisions = computed(() =>
+        (this.analysis()?.divisionCoverage ?? []).filter(d => d.matchStrategy === 'name-matched')
     );
 
-    uncoveredDivisions = computed(() =>
-        (this.analysis()?.divisionCoverage ?? []).filter(d => !d.hasPattern)
+    poolSizeFallbackDivisions = computed(() =>
+        (this.analysis()?.divisionCoverage ?? []).filter(d => d.matchStrategy === 'pool-size-fallback')
+    );
+
+    noMatchDivisions = computed(() =>
+        (this.analysis()?.divisionCoverage ?? []).filter(d => d.matchStrategy === 'no-match')
+    );
+
+    noMatchDivisionNames = computed(() =>
+        this.noMatchDivisions().map(d => d.divName).join(', ')
     );
 
     availablePatterns = computed(() =>
         this.analysis()?.feasibility?.availablePatterns ?? []
     );
+
+    /** Group coverage divisions by agegroup for sectioned display */
+    coverageByAgegroup = computed(() => {
+        const coverage = this.analysis()?.divisionCoverage ?? [];
+        const map = new Map<string, { agegroupName: string; divisions: PoolSizeCoverage[] }>();
+        for (const div of coverage) {
+            let group = map.get(div.agegroupName);
+            if (!group) {
+                group = { agegroupName: div.agegroupName, divisions: [] };
+                map.set(div.agegroupName, group);
+            }
+            group.divisions.push(div);
+        }
+        return Array.from(map.values());
+    });
+
+    // ── Agegroup color helpers ────────────────────────────
+    /** Build inline style for an agegroup badge using its entity color */
+    agBadgeStyle(hexColor: string | null | undefined): Record<string, string> {
+        if (!hexColor) return {};
+        const rgb = this.hexToRgb(hexColor);
+        if (!rgb) return {};
+        const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+        return {
+            background: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`,
+            color: hexColor,
+            // For very light colors, darken the text for readability
+            ...(luminance > 0.7 ? { color: `rgb(${Math.round(rgb.r * 0.55)}, ${Math.round(rgb.g * 0.55)}, ${Math.round(rgb.b * 0.55)})` } : {})
+        };
+    }
+
+    private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    /** Get color for a current agegroup name from the mapping response color map */
+    currentAgColor(agName: string): string | null {
+        return this.mappingResponse()?.currentAgegroupColors?.[agName] ?? null;
+    }
 
     // ── Lifecycle ─────────────────────────────────────────
     constructor() {
@@ -199,17 +269,17 @@ export class AutoBuildComponent implements AfterViewChecked {
         return 'partial';
     }
 
-    deleteAllGames(): void {
+    breakdownAndRebuild(): void {
         const total = this.gameSummary()?.totalGames ?? 0;
         this.showDestructiveConfirm(
-            'Delete All Games',
-            `<p>Delete ALL <strong>${total}</strong> scheduled round-robin games?</p>`,
+            'Breakdown Schedule & Re-Auto-Build',
+            `<p>This will delete ALL <strong>${total}</strong> scheduled games (round-robin, bracket, and any other game types) and start a fresh auto-build.</p>`,
             () => {
                 this.isDeleting.set(true);
                 this.svc.undo().subscribe({
                     next: () => {
                         this.isDeleting.set(false);
-                        this.loadGameSummary();
+                        this.continueToAnalysis();
                     },
                     error: (err) => {
                         this.isDeleting.set(false);
@@ -253,7 +323,7 @@ export class AutoBuildComponent implements AfterViewChecked {
     }
 
     // ══════════════════════════════════════════════════════
-    // Step 2: Continue to Analysis (auto-select prior year)
+    // Step 1.5: Source Job Selection → Propose Mappings
     // ══════════════════════════════════════════════════════
 
     continueToAnalysis(): void {
@@ -278,11 +348,11 @@ export class AutoBuildComponent implements AfterViewChecked {
                 const source = jobs[0];
                 this.selectedSourceJob.set(source);
                 this.addMessage('success',
-                    `Using **${source.jobName}** (${source.year ?? 'N/A'}) as template — ${source.scheduledGameCount} games.`
+                    `Using <span class="msg-badge">${source.jobName}</span> (${source.year ?? 'N/A'}) as template — <span class="db db-game">${source.scheduledGameCount}</span> games.`
                 );
 
-                // Auto-run analysis
-                this.runAnalysis(source.jobId);
+                // Propose agegroup mappings for user confirmation
+                this.loadMappings(source.jobId);
             },
             error: (err) => {
                 this.removeThinking();
@@ -292,10 +362,74 @@ export class AutoBuildComponent implements AfterViewChecked {
         });
     }
 
-    private runAnalysis(sourceJobId: string): void {
-        this.addMessage('thinking', 'Extracting patterns by pool size, checking fields...');
+    private loadMappings(sourceJobId: string): void {
+        this.addMessage('thinking', 'Proposing agegroup mappings...');
 
-        this.svc.analyze(sourceJobId).subscribe({
+        this.svc.proposeMappings(sourceJobId).subscribe({
+            next: (response) => {
+                this.removeThinking();
+                this.mappingResponse.set(response);
+
+                // Initialize confirmed mappings from proposals
+                const mappings: ConfirmedAgegroupMapping[] = response.proposals.map(p => ({
+                    sourceAgegroupName: p.sourceAgegroupName,
+                    currentAgegroupName: p.proposedCurrentAgegroupName ?? undefined,
+                }));
+                this.confirmedMappings.set(mappings);
+
+                const matched = response.proposals.filter(p => p.matchStrategy !== 'none').length;
+                this.addMessage('info',
+                    `Found <span class="db db-ag">${response.proposals.length}</span> source agegroups — ` +
+                    `<span class="db db-ag">${matched}</span> auto-matched. Please confirm the mappings below.`
+                );
+                this.step.set('mapping');
+            },
+            error: (err) => {
+                this.removeThinking();
+                this.addMessage('error', `Failed to propose mappings: ${err.error?.message ?? 'Unknown error'}`);
+                this.step.set('error');
+            }
+        });
+    }
+
+    /** Update a confirmed mapping when user changes a dropdown */
+    updateMapping(sourceAgegroupName: string, currentAgegroupName: string | null): void {
+        this.confirmedMappings.update(mappings =>
+            mappings.map(m =>
+                m.sourceAgegroupName === sourceAgegroupName
+                    ? { ...m, currentAgegroupName: currentAgegroupName || undefined }
+                    : m
+            )
+        );
+    }
+
+    /** Get current confirmed mapping value for a given source agegroup */
+    getMappedValue(sourceAgegroupName: string): string {
+        const mapping = this.confirmedMappings().find(m => m.sourceAgegroupName === sourceAgegroupName);
+        return mapping?.currentAgegroupName ?? '';
+    }
+
+    /** Confirm mappings and run analysis */
+    confirmMappingsAndAnalyze(): void {
+        const source = this.selectedSourceJob();
+        if (!source) return;
+
+        this.step.set('analyzing');
+        this.runAnalysis(source.jobId);
+    }
+
+    // ══════════════════════════════════════════════════════
+    // Step 2: Analysis (with confirmed mappings)
+    // ══════════════════════════════════════════════════════
+
+    private runAnalysis(sourceJobId: string): void {
+        this.addMessage('thinking', 'Extracting patterns by name and pool size, checking fields...');
+
+        const mappings = this.confirmedMappings().length > 0
+            ? this.confirmedMappings()
+            : undefined;
+
+        this.svc.analyze(sourceJobId, mappings).subscribe({
             next: (result) => {
                 this.removeThinking();
                 this.analysis.set(result);
@@ -313,21 +447,9 @@ export class AutoBuildComponent implements AfterViewChecked {
     private presentAnalysis(result: AutoBuildAnalysisResponse): void {
         const f = result.feasibility;
 
-        let label = '';
-        if (f.confidenceLevel === 'green') label = 'Excellent';
-        else if (f.confidenceLevel === 'yellow') label = 'Good';
-        else label = 'Limited';
-
-        // Pool-size patterns summary
-        const patternSummary = f.availablePatterns.length > 0
-            ? f.availablePatterns.map(p => `${p.teamCount}-team: ${p.gameCount} games`).join(' | ')
-            : 'No patterns found';
-
         this.addMessage('info',
-            `**Pattern Analysis Complete** — ${result.sourceTotalGames} games extracted from ${result.sourceYear}\n\n` +
-            `**Coverage: ${f.confidencePercent}% (${label})** — ` +
-            `${f.coveredDivisions} covered by pattern, ${f.uncoveredDivisions} will use auto-schedule\n\n` +
-            `**Source patterns:** ${patternSummary}`
+            `<strong>Pattern Analysis Complete</strong> — <span class="db db-game">${result.sourceTotalGames}</span> games extracted from <span class="msg-badge">${result.sourceYear}</span><br><br>` +
+            `<strong>Coverage: ${f.confidencePercent}%</strong> — proven patterns for <span class="db db-div">${f.coveredDivisions}</span> of <span class="db db-div">${f.coveredDivisions + f.uncoveredDivisions}</span> divisions`
         );
 
         if (f.warnings.length > 0) {
@@ -340,7 +462,45 @@ export class AutoBuildComponent implements AfterViewChecked {
             }
         }
 
-        this.addMessage('success', 'Ready to build. Click **Build Schedule** to proceed, or **Back** to return.');
+        // Build the pitch — explain what auto-build actually does
+        const totalDiv = f.coveredDivisions + f.uncoveredDivisions;
+        let pitch = `<strong>Ready to Build Your Schedule</strong><br><br>`;
+
+        pitch += `Last year's director spent hours placing <span class="db db-game">${result.sourceTotalGames}</span> games across <span class="db db-div">${totalDiv}</span> divisions — `;
+        pitch += `and none of it was random. Which pools play on which fields. What time of day. Which tournament day. `;
+        pitch += `Every single placement was a deliberate decision shaped by people who know your event:<br><br>`;
+
+        pitch += `<span class="pitch-stakeholders">`;
+        pitch += `<span class="pitch-point">College recruiters need top-ranked teams on showcase fields at peak viewing times</span>`;
+        pitch += `<span class="pitch-point">Parents need younger age groups finishing early so families can get home</span>`;
+        pitch += `<span class="pitch-point">Vendors need foot traffic spread across the full day, not front-loaded</span>`;
+        pitch += `<span class="pitch-point">Coaches need rest time between games — no back-to-back for the same pool</span>`;
+        pitch += `<span class="pitch-point">Parking and field proximity shaped which pools play where and when</span>`;
+        pitch += `</span><br>`;
+
+        pitch += `We captured <em>all</em> of that scheduling intelligence. `;
+
+        const covered = f.coveredDivisions;
+        if (covered === totalDiv) {
+            pitch += `We found proven patterns for <strong>all ${totalDiv}</strong> divisions.`;
+        } else {
+            const fresh = totalDiv - covered;
+            const freshDivs = (this.analysis()?.divisionCoverage ?? [])
+                .filter(d => d.matchStrategy === 'no-match')
+                .map(d => d.divName);
+            pitch += `We found proven patterns for <strong>${covered} of ${totalDiv}</strong> divisions. `;
+            if (freshDivs.length > 0) {
+                pitch += `The remaining <strong>${fresh}</strong> (${freshDivs.join(', ')}) will be built fresh — give those a quick look after.`;
+            } else {
+                pitch += `The remaining <strong>${fresh}</strong> will be built fresh — give those a quick look after.`;
+            }
+        }
+
+        pitch += `<br><br><span class="pitch-closer">`;
+        pitch += `This isn't generating a schedule from scratch — it's <strong>replaying a schedule that already worked</strong>, `;
+        pitch += `mapped onto your current fields and timeslots.</span>`;
+
+        this.addMessage('pitch', pitch);
     }
 
     // ══════════════════════════════════════════════════════
@@ -355,7 +515,10 @@ export class AutoBuildComponent implements AfterViewChecked {
             sourceJobId: source.jobId,
             skipDivisionIds: [],
             includeBracketGames: this.includeBracketGames(),
-            skipAlreadyScheduled: this.skipAlreadyScheduled()
+            skipAlreadyScheduled: this.skipAlreadyScheduled(),
+            agegroupMappings: this.confirmedMappings().length > 0
+                ? this.confirmedMappings()
+                : undefined,
         };
 
         this.step.set('building');
@@ -380,29 +543,45 @@ export class AutoBuildComponent implements AfterViewChecked {
     private presentResults(result: AutoBuildResult): void {
         const failedGames = result.gamesFailedToPlace;
 
-        let summary = `**Schedule Built Successfully**\n\n` +
-            `| Metric | Value |\n` +
-            `|---|---|\n` +
-            `| Divisions scheduled | ${result.divisionsScheduled} |\n` +
-            `| Divisions skipped | ${result.divisionsSkipped} |\n` +
-            `| Total games placed | ${result.totalGamesPlaced} |\n`;
+        let summary = `<strong>Schedule Built Successfully</strong><br><br>` +
+            `<table><tr><td>Divisions scheduled</td><td><span class="db db-div">${result.divisionsScheduled}</span></td></tr>` +
+            `<tr><td>Divisions skipped</td><td><span class="db db-div">${result.divisionsSkipped}</span></td></tr>` +
+            `<tr><td>Total games placed</td><td><span class="db db-game">${result.totalGamesPlaced}</span></td></tr>`;
 
         if (failedGames > 0) {
-            summary += `| Games failed to place | ${failedGames} |\n`;
+            summary += `<tr><td>Games failed to place</td><td><span class="db db-game">${failedGames}</span></td></tr>`;
         }
+        summary += `</table>`;
 
         this.addMessage(failedGames > 0 ? 'warning' : 'success', summary);
 
         if (result.divisionResults.length > 0) {
-            let breakdown = '**Division Breakdown:**\n\n';
+            // Group results by agegroup for readable breakdown
+            const groups = new Map<string, typeof result.divisionResults>();
             for (const div of result.divisionResults) {
-                const icon = div.status === 'skipped' || div.status === 'already-scheduled' ? '[skip]' :
-                    div.gamesFailed > 0 ? '[warn]' : '[ok]';
-                breakdown += `${icon} **${div.agegroupName} / ${div.divName}** — ${div.gamesPlaced} placed`;
-                if (div.gamesFailed > 0) breakdown += `, ${div.gamesFailed} failed`;
-                if (div.status === 'skipped') breakdown += ' (skipped)';
-                if (div.status === 'already-scheduled') breakdown += ' (already scheduled)';
-                breakdown += '\n';
+                let group = groups.get(div.agegroupName);
+                if (!group) {
+                    group = [];
+                    groups.set(div.agegroupName, group);
+                }
+                group.push(div);
+            }
+
+            let breakdown = '<strong>Division Breakdown:</strong><br>';
+            for (const [agName, divs] of groups) {
+                breakdown += `<br><span class="db db-ag">${agName}</span><br>`;
+                for (const div of divs) {
+                    const icon = div.status === 'skipped' || div.status === 'already-scheduled'
+                        ? '<i class="bi bi-skip-forward text-muted"></i>'
+                        : div.gamesFailed > 0
+                            ? '<i class="bi bi-exclamation-triangle text-warning"></i>'
+                            : '<i class="bi bi-check-circle text-success"></i>';
+                    breakdown += `&nbsp;&nbsp;${icon} <strong>${div.divName}</strong> — <span class="db db-game">${div.gamesPlaced}</span> placed`;
+                    if (div.gamesFailed > 0) breakdown += `, <span class="db db-game">${div.gamesFailed}</span> failed`;
+                    if (div.status === 'skipped') breakdown += ' <em>(skipped)</em>';
+                    if (div.status === 'already-scheduled') breakdown += ' <em>(already scheduled)</em>';
+                    breakdown += '<br>';
+                }
             }
             this.addMessage('info', breakdown);
         }
@@ -432,24 +611,24 @@ export class AutoBuildComponent implements AfterViewChecked {
         const info: string[] = [];
 
         if (qa.fieldDoubleBookings.length > 0)
-            critical.push(`**Field double-bookings: ${qa.fieldDoubleBookings.length}**`);
+            critical.push(`Field double-bookings: <span class="msg-badge">${qa.fieldDoubleBookings.length}</span>`);
         if (qa.teamDoubleBookings.length > 0)
-            critical.push(`**Team double-bookings: ${qa.teamDoubleBookings.length}**`);
+            critical.push(`Team double-bookings: <span class="msg-badge">${qa.teamDoubleBookings.length}</span>`);
         if (qa.rankMismatches.length > 0)
-            critical.push(`**Rank mismatches: ${qa.rankMismatches.length}**`);
+            critical.push(`Rank mismatches: <span class="msg-badge">${qa.rankMismatches.length}</span>`);
 
         if (qa.unscheduledTeams.length > 0)
-            warnings.push(`**Unscheduled teams: ${qa.unscheduledTeams.length}**`);
+            warnings.push(`Unscheduled teams: <span class="msg-badge">${qa.unscheduledTeams.length}</span>`);
         if (qa.backToBackGames.length > 0)
-            warnings.push(`**Back-to-back games: ${qa.backToBackGames.length}**`);
+            warnings.push(`Back-to-back games: <span class="msg-badge">${qa.backToBackGames.length}</span>`);
         if (qa.repeatedMatchups.length > 0)
-            warnings.push(`**Repeated matchups: ${qa.repeatedMatchups.length}**`);
+            warnings.push(`Repeated matchups: <span class="msg-badge">${qa.repeatedMatchups.length}</span>`);
         if (qa.inactiveTeamsInGames.length > 0)
-            warnings.push(`**Inactive teams in games: ${qa.inactiveTeamsInGames.length}**`);
+            warnings.push(`Inactive teams in games: <span class="msg-badge">${qa.inactiveTeamsInGames.length}</span>`);
 
         if (qa.gamesPerDate.length > 0) {
             const total = qa.gamesPerDate.reduce((sum, d) => sum + d.gameCount, 0);
-            info.push(`**Total games**: ${total} across ${qa.gamesPerDate.length} day(s)`);
+            info.push(`Total games: <span class="msg-badge">${total}</span> across <span class="msg-badge">${qa.gamesPerDate.length}</span> day(s)`);
         }
 
         if (qa.gamesPerTeam.length > 0) {
@@ -457,31 +636,31 @@ export class AutoBuildComponent implements AfterViewChecked {
             const min = Math.min(...counts);
             const max = Math.max(...counts);
             info.push(min !== max
-                ? `**Games per team**: ${min}–${max} (some imbalance)`
-                : `**Games per team**: ${min} each (balanced)`
+                ? `Games per team: <span class="msg-badge">${min}–${max}</span> (some imbalance)`
+                : `Games per team: <span class="msg-badge">${min}</span> each (balanced)`
             );
         }
 
         if (qa.rrGamesPerDivision.length > 0) {
             const shortDiv = qa.rrGamesPerDivision.find(d => d.gameCount < d.poolSize * (d.poolSize - 1) / 2);
             if (shortDiv)
-                warnings.push(`**Incomplete round-robin**: Some divisions have fewer games than a full round-robin`);
+                warnings.push(`Incomplete round-robin: Some divisions have fewer games than a full round-robin`);
         }
 
         const parts: string[] = [];
         if (critical.length > 0)
-            parts.push(`**Critical Issues**\n${critical.map(i => `- ${i}`).join('\n')}`);
+            parts.push(`<strong>Critical Issues</strong><br>${critical.map(i => `&bull; ${i}`).join('<br>')}`);
         if (warnings.length > 0)
-            parts.push(`**Warnings**\n${warnings.map(i => `- ${i}`).join('\n')}`);
+            parts.push(`<strong>Warnings</strong><br>${warnings.map(i => `&bull; ${i}`).join('<br>')}`);
         if (info.length > 0)
-            parts.push(`**Overview**\n${info.map(i => `- ${i}`).join('\n')}`);
+            parts.push(`<strong>Overview</strong><br>${info.map(i => `&bull; ${i}`).join('<br>')}`);
 
         if (critical.length === 0 && warnings.length === 0) {
-            this.addMessage('success', `**QA Validation: All Checks Passed**\n\n${parts.join('\n\n')}`);
+            this.addMessage('success', `<strong>QA Validation: All Checks Passed</strong><br><br>${parts.join('<br><br>')}`);
         } else if (critical.length > 0) {
-            this.addMessage('error', `**QA Validation: Issues Found**\n\n${parts.join('\n\n')}`);
+            this.addMessage('error', `<strong>QA Validation: Issues Found</strong><br><br>${parts.join('<br><br>')}`);
         } else {
-            this.addMessage('warning', `**QA Validation Report**\n\n${parts.join('\n\n')}`);
+            this.addMessage('warning', `<strong>QA Validation Report</strong><br><br>${parts.join('<br><br>')}`);
         }
     }
 
@@ -520,11 +699,19 @@ export class AutoBuildComponent implements AfterViewChecked {
         this.resetAndReload();
     }
 
+    backToMapping(): void {
+        this.analysis.set(null);
+        this.messages.set([]);
+        this.step.set('mapping');
+    }
+
     private resetAndReload(): void {
         this.messages.set([]);
         this.analysis.set(null);
         this.selectedSourceJob.set(null);
         this.sourceJobs.set([]);
+        this.mappingResponse.set(null);
+        this.confirmedMappings.set([]);
         this.buildResult.set(null);
         this.loadGameSummary();
     }

@@ -3,9 +3,6 @@
     <!-- ── Header ────────────────────────────────────────── -->
     <div class="agent-header">
         <div class="agent-header-left">
-            <a routerLink=".." class="back-link" aria-label="Back to scheduling">
-                <i class="bi bi-arrow-left"></i>
-            </a>
             <div class="agent-avatar">
                 <i class="bi bi-cpu"></i>
             </div>
@@ -34,6 +31,7 @@
                             @case ('question') { <i class="bi bi-question-circle"></i> }
                             @case ('error') { <i class="bi bi-x-circle"></i> }
                             @case ('result') { <i class="bi bi-bar-chart"></i> }
+                            @case ('pitch') { <i class="bi bi-stars"></i> }
                         }
                     </div>
                     <div class="msg-body" [innerHTML]="msg.content"></div>
@@ -62,14 +60,14 @@
                     <div class="summary-header">
                         <h3>Current Schedule Status</h3>
                         <div class="summary-stats">
-                            <span class="stat-pill">
-                                <strong>{{ gs.totalDivisions }}</strong> divisions
+                            <span class="stat-pill stat-pill-ag">
+                                <span class="db db-ag">{{ agegroupTree().length }}</span> agegroups
                             </span>
-                            <span class="stat-pill">
-                                <strong>{{ gs.totalGames }}</strong> games scheduled
+                            <span class="stat-pill stat-pill-div">
+                                <span class="db db-div">{{ gs.totalDivisions }}</span> divisions
                             </span>
-                            <span class="stat-pill">
-                                <strong>{{ gs.divisionsWithGames }}</strong> with games
+                            <span class="stat-pill stat-pill-game">
+                                <span class="db db-game">{{ gs.totalGames }}</span> games scheduled
                             </span>
                         </div>
                     </div>
@@ -82,11 +80,11 @@
                                     <button class="tree-parent" (click)="toggleAgegroup(ag.agegroupId)">
                                         <i class="bi" [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
                                                        [class.bi-chevron-down]="isExpanded(ag.agegroupId)"></i>
-                                        <span class="tree-parent-name">{{ ag.agegroupName }}</span>
+                                        <span class="tree-parent-name"><span class="db db-ag" [ngStyle]="agBadgeStyle(ag.agegroupColor)">{{ ag.agegroupName }}</span></span>
                                         <span class="tree-parent-meta">
-                                            {{ ag.divisions.length }} div &middot;
-                                            {{ ag.totalTeams }} teams &middot;
-                                            {{ ag.totalGames }}/{{ ag.totalExpected }} games
+                                            <span class="db db-div">{{ ag.divisions.length }}</span> div &middot;
+                                            <span class="db db-team">{{ ag.totalTeams }}</span> teams &middot;
+                                            <span class="db db-game">{{ ag.totalGames }}/{{ ag.totalExpected }}</span> games
                                         </span>
                                         @switch (getAgegroupStatus(ag)) {
                                             @case ('complete') {
@@ -96,7 +94,7 @@
                                                 <span class="status-badge status-partial"><i class="bi bi-exclamation-triangle-fill"></i></span>
                                             }
                                             @case ('empty') {
-                                                <span class="status-badge status-empty"><i class="bi bi-circle"></i></span>
+                                                <span class="status-badge status-empty"><i class="bi bi-hourglass"></i></span>
                                             }
                                         }
                                     </button>
@@ -108,10 +106,10 @@
                                                 <div class="tree-child">
                                                     <span class="tree-child-name">{{ div.divName }}</span>
                                                     <span class="tree-child-meta">
-                                                        {{ div.teamCount }} teams
+                                                        <span class="db db-team">{{ div.teamCount }}</span> teams
                                                     </span>
                                                     <span class="tree-child-games">
-                                                        {{ div.gameCount }}/{{ div.expectedRrGames }}
+                                                        <span class="db db-game">{{ div.gameCount }}/{{ div.expectedRrGames }}</span>
                                                     </span>
                                                     @switch (getDivStatus(div)) {
                                                         @case ('complete') {
@@ -121,7 +119,7 @@
                                                             <span class="status-badge status-partial"><i class="bi bi-exclamation-triangle-fill"></i></span>
                                                         }
                                                         @case ('empty') {
-                                                            <span class="status-badge status-empty"><i class="bi bi-circle"></i></span>
+                                                            <span class="status-badge status-empty"><i class="bi bi-hourglass"></i></span>
                                                         }
                                                     }
                                                 </div>
@@ -152,28 +150,120 @@
 
                     <!-- Action buttons -->
                     <div class="summary-actions">
-                        <button class="btn btn-primary btn-lg"
-                                [disabled]="gs.totalDivisions === 0"
-                                (click)="continueToAnalysis()">
-                            <i class="bi bi-play-fill"></i>
-                            Continue to Auto-Build
-                        </button>
-                        <a routerLink=".." class="btn btn-outline-secondary btn-lg">
-                            Exit
-                        </a>
-                        @if (gs.totalGames > 0) {
+                        @if (isFullyScheduled()) {
+                            <!-- All divisions have games — offer breakdown + rebuild -->
                             <button class="btn btn-outline-danger btn-lg"
                                     [disabled]="isDeleting()"
-                                    (click)="deleteAllGames()">
+                                    (click)="breakdownAndRebuild()">
                                 @if (isDeleting()) {
                                     <span class="spinner-border spinner-border-sm"></span>
                                     Deleting...
                                 } @else {
-                                    <i class="bi bi-trash3"></i>
-                                    Delete All Games
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    Breakdown Schedule &amp; Re-Auto-Build
                                 }
                             </button>
+                        } @else {
+                            <!-- Not fully scheduled — offer continue -->
+                            <button class="btn btn-primary btn-lg"
+                                    [disabled]="gs.totalDivisions === 0"
+                                    (click)="continueToAnalysis()">
+                                <i class="bi bi-play-fill"></i>
+                                Continue to Auto-Build
+                            </button>
                         }
+                        <a routerLink="../view-schedule" class="btn btn-outline-secondary btn-lg">
+                            Exit
+                        </a>
+                    </div>
+                </div>
+            }
+        }
+
+        <!-- ═══════════════════════════════════════════════ -->
+        <!-- Step 1.5: Agegroup Mapping Confirmation         -->
+        <!-- ═══════════════════════════════════════════════ -->
+        @if (step() === 'mapping') {
+
+            <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
+
+            @if (mappingResponse(); as mr) {
+                <div class="inline-card">
+                    <div class="card-label">Agegroup Mapping</div>
+                    <p class="mapping-instructions">
+                        Match each source agegroup to its current-year equivalent.
+                        Use the dropdown to adjust if the auto-detected mapping is wrong.
+                    </p>
+
+                    <div class="mapping-grid">
+                        <div class="mapping-row mapping-header">
+                            <div class="mapping-row-num">
+                                <span class="mapping-col-header">#</span>
+                            </div>
+                            <div class="mapping-source">
+                                <span class="mapping-col-header">Source ({{ mr.sourceYear }})</span>
+                            </div>
+                            <div class="mapping-arrow"></div>
+                            <div class="mapping-target">
+                                <span class="mapping-col-header">Current Year</span>
+                            </div>
+                            <div class="mapping-strategy">
+                                <span class="mapping-col-header">Match</span>
+                            </div>
+                        </div>
+                        @for (proposal of mr.proposals; track proposal.sourceAgegroupName; let idx = $index) {
+                            <div class="mapping-row"
+                                 [class.mapping-exact]="proposal.matchStrategy === 'exact'"
+                                 [class.mapping-year]="proposal.matchStrategy === 'year-increment'"
+                                 [class.mapping-none]="proposal.matchStrategy === 'none'">
+                                <div class="mapping-row-num">{{ idx + 1 }}</div>
+                                <div class="mapping-source">
+                                    <span class="mapping-source-name"><span class="db db-ag" [ngStyle]="agBadgeStyle(currentAgColor(getMappedValue(proposal.sourceAgegroupName)))">{{ proposal.sourceAgegroupName }}</span></span>
+                                    <span class="mapping-source-meta">
+                                        <span class="db db-div">{{ proposal.sourceDivisionCount }}</span> div
+                                    </span>
+                                </div>
+                                <div class="mapping-arrow">
+                                    <i class="bi bi-arrow-right"></i>
+                                </div>
+                                <div class="mapping-target">
+                                    <select class="form-select"
+                                            [ngModel]="getMappedValue(proposal.sourceAgegroupName)"
+                                            (ngModelChange)="updateMapping(proposal.sourceAgegroupName, $event)">
+                                        <option value="">-- Skip --</option>
+                                        @for (name of mr.currentAgegroupNames; track name) {
+                                            <option [value]="name">{{ name }}</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="mapping-strategy">
+                                    @switch (proposal.matchStrategy) {
+                                        @case ('exact') {
+                                            <span class="mapping-badge mapping-badge-exact">Exact</span>
+                                        }
+                                        @case ('year-increment') {
+                                            <span class="mapping-badge mapping-badge-year">Year +1</span>
+                                        }
+                                        @case ('none') {
+                                            <span class="mapping-badge mapping-badge-none">Manual</span>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mapping-actions">
+                        <button class="btn btn-primary btn-lg mapping-cta"
+                                (click)="confirmMappingsAndAnalyze()">
+                            <i class="bi bi-check2-all"></i>
+                            Confirm &amp; Analyze
+                        </button>
+                        <button class="btn btn-outline-secondary"
+                                (click)="backToSummary()">
+                            <i class="bi bi-arrow-left"></i>
+                            Back
+                        </button>
                     </div>
                 </div>
             }
@@ -186,48 +276,50 @@
 
             <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
 
-            <!-- Pool-Size Coverage (after analysis) -->
+            <!-- Division Coverage (after analysis) -->
             @if (step() === 'analysis' && analysis()) {
 
-                <!-- Available source patterns -->
-                @if (availablePatterns().length > 0) {
-                    <div class="inline-card">
-                        <div class="card-label">Source Patterns</div>
-                        <div class="pattern-pills">
-                            @for (p of availablePatterns(); track p.teamCount) {
-                                <span class="pattern-pill">
-                                    <strong>{{ p.teamCount }}-team</strong>
-                                    {{ p.gameCount }} games
-                                </span>
-                            }
+                <!-- Exceptions callout (only if there are fresh divisions) -->
+                @if (noMatchDivisions().length > 0) {
+                    <div class="agent-message msg-warning">
+                        <div class="msg-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div class="msg-body">
+                            <strong>{{ noMatchDivisions().length }} division{{ noMatchDivisions().length > 1 ? 's' : '' }} will be built fresh</strong> — review after building:
+                            {{ noMatchDivisionNames() }}
                         </div>
                     </div>
                 }
 
-                <!-- Division coverage grid -->
+                <!-- Compact division receipt — grouped by agegroup -->
                 <div class="inline-card">
-                    <div class="card-label">Division Coverage</div>
-                    <div class="division-grid">
-                        @for (div of analysis()!.divisionCoverage; track div.divId) {
-                            <div class="division-card" [class.coverage-covered]="div.hasPattern"
-                                                       [class.coverage-uncovered]="!div.hasPattern">
-                                <div class="div-header">
-                                    <span class="div-name">{{ div.agegroupName }} / {{ div.divName }}</span>
-                                    @if (div.hasPattern) {
-                                        <span class="coverage-badge covered">Pattern</span>
-                                    } @else {
-                                        <span class="coverage-badge uncovered">Auto-Schedule</span>
-                                    }
-                                </div>
-                                <div class="div-details">
-                                    <span>{{ div.teamCount }} teams</span>
-                                    @if (div.hasPattern) {
-                                        <span>{{ div.patternGameCount }} RR games from pattern</span>
-                                    }
-                                </div>
+                    <div class="card-label">Your Divisions</div>
+                    @for (group of coverageByAgegroup(); track group.agegroupName) {
+                        <div class="receipt-group">
+                            <div class="receipt-group-header">
+                                <span class="db db-ag" [ngStyle]="agBadgeStyle(group.divisions[0]?.agegroupColor)">{{ group.agegroupName }}</span>
+                                <span class="receipt-group-meta">{{ group.divisions.length }} div</span>
                             </div>
-                        }
-                    </div>
+                            <div class="receipt-list">
+                                @for (div of group.divisions; track div.divId) {
+                                    <div class="receipt-row"
+                                         [class.receipt-proven]="div.matchStrategy !== 'no-match'"
+                                         [class.receipt-fresh]="div.matchStrategy === 'no-match'">
+                                        <span class="receipt-dot"
+                                              [class.dot-green]="div.matchStrategy === 'name-matched'"
+                                              [class.dot-yellow]="div.matchStrategy === 'pool-size-fallback'"
+                                              [class.dot-gray]="div.matchStrategy === 'no-match'"></span>
+                                        <span class="receipt-name">{{ div.divName }}</span>
+                                        <span class="receipt-meta">
+                                            <span class="db db-team">{{ div.teamCount }}</span>
+                                            @if (div.hasPattern) {
+                                                <span class="db db-game">{{ div.patternGameCount }}</span> games
+                                            }
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
 
                 <!-- Build / Back buttons -->
@@ -238,9 +330,9 @@
                         Build Schedule
                     </button>
                     <button class="btn btn-outline-secondary btn-lg"
-                            (click)="backToSummary()">
+                            (click)="backToMapping()">
                         <i class="bi bi-arrow-left"></i>
-                        Back
+                        Back to Mapping
                     </button>
                 </div>
             }

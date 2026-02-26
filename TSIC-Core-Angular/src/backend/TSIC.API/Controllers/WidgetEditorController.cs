@@ -43,6 +43,15 @@ public class WidgetEditorController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("categories/order")]
+    public async Task<ActionResult> SaveCategoryOrder(
+        [FromBody] SaveCategoryOrderRequest request,
+        CancellationToken ct)
+    {
+        await _editorService.SaveCategoryOrderAsync(request, ct);
+        return NoContent();
+    }
+
     // ── Widget definitions ──
 
     [HttpGet("widgets")]

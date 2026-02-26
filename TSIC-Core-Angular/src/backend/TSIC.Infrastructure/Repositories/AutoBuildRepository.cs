@@ -149,6 +149,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             {
                 AgegroupId = t.AgegroupId,
                 AgegroupName = t.Agegroup!.AgegroupName,
+                AgegroupColor = t.Agegroup!.Color,
                 DivId = t.DivId!.Value,
                 DivName = t.Div!.DivName
             })
@@ -156,6 +157,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             {
                 AgegroupId = g.Key.AgegroupId,
                 AgegroupName = g.Key.AgegroupName ?? "",
+                AgegroupColor = g.Key.AgegroupColor,
                 DivId = g.Key.DivId,
                 DivName = g.Key.DivName ?? "",
                 TeamCount = g.Count()

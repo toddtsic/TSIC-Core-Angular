@@ -2,28 +2,15 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AutoBuildSourceJobDto } from '@core/api';
-import type { AutoBuildAnalysisResponse } from '@core/api';
-import type { AutoBuildRequest } from '@core/api';
-import type { AutoBuildResult } from '@core/api';
-
-// Inline until API models regenerated with new endpoints
-export interface ScheduleGameSummaryDto {
-    agegroupName: string;
-    agegroupId: string;
-    divName: string;
-    divId: string;
-    teamCount: number;
-    gameCount: number;
-    expectedRrGames: number;
-}
-
-export interface GameSummaryResponse {
-    totalGames: number;
-    totalDivisions: number;
-    divisionsWithGames: number;
-    divisions: ScheduleGameSummaryDto[];
-}
+import type {
+    AutoBuildSourceJobDto,
+    AutoBuildAnalysisResponse,
+    AutoBuildRequest,
+    AutoBuildResult,
+    GameSummaryResponse,
+    AgegroupMappingResponse,
+    ConfirmedAgegroupMapping,
+} from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class AutoBuildService {
@@ -38,10 +25,17 @@ export class AutoBuildService {
         return this.http.get<AutoBuildSourceJobDto[]>(`${this.apiUrl}/source-jobs`);
     }
 
-    analyze(sourceJobId: string): Observable<AutoBuildAnalysisResponse> {
+    proposeMappings(sourceJobId: string): Observable<AgegroupMappingResponse> {
+        return this.http.post<AgegroupMappingResponse>(
+            `${this.apiUrl}/propose-mappings`,
+            { sourceJobId }
+        );
+    }
+
+    analyze(sourceJobId: string, agegroupMappings?: ConfirmedAgegroupMapping[]): Observable<AutoBuildAnalysisResponse> {
         return this.http.post<AutoBuildAnalysisResponse>(
             `${this.apiUrl}/analyze`,
-            { sourceJobId }
+            { sourceJobId, agegroupMappings }
         );
     }
 

@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AutoBuildAnalyzeRequest = {
-    sourceJobId: string;
-    agegroupMappings?: any[] | null;
+export type CategoryOrderEntry = {
+    categoryId: number;
+    defaultOrder: number;
 };
 
