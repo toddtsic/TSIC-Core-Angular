@@ -85,4 +85,20 @@ public interface IAutoBuildRepository
 
     // ── Post-Build QA Validation ────────────────────────────
     Task<AutoBuildQaResult> RunQaValidationAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── Cross-Event Analysis ──────────────────────────────────
+
+    /// <summary>
+    /// Find jobs whose name contains any of the given patterns and that have
+    /// at least one scheduled RR game. Returns JobId + JobName pairs.
+    /// </summary>
+    Task<List<(Guid JobId, string JobName)>> FindJobsByNamePatternsAsync(
+        IEnumerable<string> namePatterns, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get all RR matchup records across multiple jobs for cross-event analysis.
+    /// Returns (Agegroup, TeamClub, TeamName, OpponentClub, OpponentName, JobId) tuples.
+    /// </summary>
+    Task<List<CrossEventMatchupRaw>> GetCrossEventMatchupsAsync(
+        IEnumerable<Guid> jobIds, CancellationToken ct = default);
 }

@@ -596,5 +596,111 @@
                 }
             </div>
         </div>
+
+        <!-- ═══════════════ CROSS-EVENT ANALYSIS ═══════════════ -->
+        @if (qa.crossEventAnalysis; as xEvt) {
+            <div class="section-label">Cross-Event Analysis — {{ xEvt.groupName }}</div>
+
+            <!-- Compared Events -->
+            <div class="cross-event-banner">
+                <i class="bi bi-link-45deg"></i>
+                <span>Comparing <strong>{{ xEvt.comparedEvents.length }}</strong> events:</span>
+                @for (evt of xEvt.comparedEvents; track evt.abbreviation) {
+                    <span class="event-chip">{{ evt.abbreviation }} <small>({{ evt.gameCount }}g)</small></span>
+                }
+            </div>
+
+            <div class="check-grid">
+
+                <!-- Club Overplay -->
+                <div class="check-card" [class.check-warn]="xEvt.clubOverplay.length > 0"
+                     [class.check-pass]="xEvt.clubOverplay.length === 0">
+                    <button class="check-header" (click)="toggleSection('xClubOverplay')"
+                            [disabled]="xEvt.clubOverplay.length === 0">
+                        <div class="check-status">
+                            @if (xEvt.clubOverplay.length === 0) {
+                                <i class="bi bi-check-circle text-success"></i>
+                            } @else {
+                                <i class="bi bi-exclamation-triangle text-warning"></i>
+                            }
+                        </div>
+                        <div class="check-info">
+                            <div class="check-title">Club Overplay</div>
+                            <div class="check-subtitle">Clubs whose teams play each other across multiple events</div>
+                        </div>
+                        <div class="check-count">
+                            <span class="badge" [class.bg-success]="xEvt.clubOverplay.length === 0"
+                                  [class.bg-warning]="xEvt.clubOverplay.length > 0">{{ xEvt.clubOverplay.length }}</span>
+                            @if (xEvt.clubOverplay.length > 0) {
+                                <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('xClubOverplay')"></i>
+                            }
+                        </div>
+                    </button>
+                    @if (isSectionExpanded('xClubOverplay') && xEvt.clubOverplay.length > 0) {
+                        <div class="check-detail">
+                            <table class="detail-table">
+                                <thead><tr><th>Age Group</th><th>Club</th><th>Opponent Club</th><th>Matches</th></tr></thead>
+                                <tbody>
+                                    @for (item of xEvt.clubOverplay; track item.teamClub + item.opponentClub + item.agegroup) {
+                                        <tr>
+                                            <td>{{ item.agegroup }}</td>
+                                            <td>{{ item.teamClub }}</td>
+                                            <td>{{ item.opponentClub }}</td>
+                                            <td class="text-warning fw-semibold">{{ item.matchCount }}</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <!-- Team Overplay -->
+                <div class="check-card" [class.check-warn]="xEvt.teamOverplay.length > 0"
+                     [class.check-pass]="xEvt.teamOverplay.length === 0">
+                    <button class="check-header" (click)="toggleSection('xTeamOverplay')"
+                            [disabled]="xEvt.teamOverplay.length === 0">
+                        <div class="check-status">
+                            @if (xEvt.teamOverplay.length === 0) {
+                                <i class="bi bi-check-circle text-success"></i>
+                            } @else {
+                                <i class="bi bi-exclamation-triangle text-warning"></i>
+                            }
+                        </div>
+                        <div class="check-info">
+                            <div class="check-title">Team Overplay</div>
+                            <div class="check-subtitle">Specific teams playing the same opponent across multiple events</div>
+                        </div>
+                        <div class="check-count">
+                            <span class="badge" [class.bg-success]="xEvt.teamOverplay.length === 0"
+                                  [class.bg-warning]="xEvt.teamOverplay.length > 0">{{ xEvt.teamOverplay.length }}</span>
+                            @if (xEvt.teamOverplay.length > 0) {
+                                <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('xTeamOverplay')"></i>
+                            }
+                        </div>
+                    </button>
+                    @if (isSectionExpanded('xTeamOverplay') && xEvt.teamOverplay.length > 0) {
+                        <div class="check-detail">
+                            <table class="detail-table">
+                                <thead><tr><th>Age Group</th><th>Club</th><th>Team</th><th>Opp Club</th><th>Opponent</th><th>Matches</th><th>Events</th></tr></thead>
+                                <tbody>
+                                    @for (item of xEvt.teamOverplay; track item.teamName + item.opponentName + item.agegroup) {
+                                        <tr>
+                                            <td>{{ item.agegroup }}</td>
+                                            <td>{{ item.teamClub }}</td>
+                                            <td>{{ item.teamName }}</td>
+                                            <td>{{ item.opponentClub }}</td>
+                                            <td>{{ item.opponentName }}</td>
+                                            <td class="text-warning fw-semibold">{{ item.matchCount }}</td>
+                                            <td><span class="events-list">{{ item.events }}</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
     }
 </div>

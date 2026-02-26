@@ -81,6 +81,15 @@ public class ScheduleQaController : ControllerBase
         WriteCheckRow(summary, ref sRow, "Back-to-Back Games", qa.BackToBackGames.Count, "Warning");
         WriteCheckRow(summary, ref sRow, "Repeated Matchups", qa.RepeatedMatchups.Count, "Warning");
         WriteCheckRow(summary, ref sRow, "Inactive Teams in Games", qa.InactiveTeamsInGames.Count, "Warning");
+        if (qa.CrossEventAnalysis != null)
+        {
+            sRow++;
+            summary.Cells[sRow, 1].Value = $"Cross-Event Analysis: {qa.CrossEventAnalysis.GroupName}";
+            summary.Cells[sRow, 1].Style.Font.Bold = true;
+            sRow++;
+            WriteCheckRow(summary, ref sRow, "Club Overplay (across events)", qa.CrossEventAnalysis.ClubOverplay.Count, "Info");
+            WriteCheckRow(summary, ref sRow, "Team Overplay (across events)", qa.CrossEventAnalysis.TeamOverplay.Count, "Warning");
+        }
         summary.Cells[summary.Dimension.Address].AutoFitColumns();
 
         // ── Detail sheets (only if data exists) ──
@@ -134,6 +143,21 @@ public class ScheduleQaController : ControllerBase
         if (qa.BracketGames.Count > 0)
             AddSheet(package, "Bracket Games", new[] { "AgeGroup", "Field", "GameTime", "Slot1", "Slot2" },
                 qa.BracketGames.Select(i => new object[] { i.AgegroupName, i.FieldName, i.GameDate, $"{i.T1Type}{i.T1No}", $"{i.T2Type}{i.T2No}" }));
+
+        // ── Cross-Event sheets (only when job is in a comparison group) ──
+        if (qa.CrossEventAnalysis is { } xEvt)
+        {
+            AddSheet(package, "XEvent Compared Events", new[] { "Event", "Abbreviation", "Games" },
+                xEvt.ComparedEvents.Select(e => new object[] { e.JobName, e.Abbreviation, e.GameCount }));
+
+            if (xEvt.ClubOverplay.Count > 0)
+                AddSheet(package, "XEvent Club Overplay", new[] { "AgeGroup", "Club", "Opponent Club", "Matches" },
+                    xEvt.ClubOverplay.Select(c => new object[] { c.Agegroup, c.TeamClub, c.OpponentClub, c.MatchCount }));
+
+            if (xEvt.TeamOverplay.Count > 0)
+                AddSheet(package, "XEvent Team Overplay", new[] { "AgeGroup", "Club", "Team", "Opp Club", "Opponent", "Matches", "Events" },
+                    xEvt.TeamOverplay.Select(t => new object[] { t.Agegroup, t.TeamClub, t.TeamName, t.OpponentClub, t.OpponentName, t.MatchCount, t.Events }));
+        }
 
         return package.GetAsByteArray();
     }

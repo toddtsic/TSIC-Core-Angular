@@ -251,6 +251,48 @@
     }
 }
 
+// Cross-Event Banner
+.cross-event-banner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: rgba(var(--bs-info-rgb), 0.08);
+    border: 1px solid rgba(var(--bs-info-rgb), 0.2);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-sm);
+    color: var(--brand-text);
+
+    > i {
+        font-size: var(--font-size-lg);
+        color: var(--bs-info);
+    }
+}
+
+.event-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-info-rgb), 0.15);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-xs);
+
+    small {
+        opacity: 0.7;
+        font-weight: var(--font-weight-normal);
+    }
+}
+
+.events-list {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    font-style: italic;
+}
+
 // Responsive
 @media (max-width: 576px) {
     .qa-container {

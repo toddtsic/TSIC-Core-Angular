@@ -984,4 +984,92 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             .ThenBy(b => b.GameDate)
             .ToListAsync(ct);
     }
+
+    // ── Cross-Event Analysis ──────────────────────────────────
+
+    public async Task<List<(Guid JobId, string JobName)>> FindJobsByNamePatternsAsync(
+        IEnumerable<string> namePatterns, CancellationToken ct = default)
+    {
+        var patterns = namePatterns.ToList();
+
+        // Get jobs that have at least one scheduled RR game
+        var jobsWithGames = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.GDate != null && s.T1Type == "T" && s.T2Type == "T")
+            .Select(s => s.JobId)
+            .Distinct();
+
+        var jobs = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => jobsWithGames.Contains(j.JobId))
+            .Select(j => new { j.JobId, j.JobName })
+            .ToListAsync(ct);
+
+        // Filter in-memory: job name contains any of the patterns (case-insensitive)
+        return jobs
+            .Where(j => j.JobName != null
+                        && patterns.Any(p => j.JobName.Contains(p, StringComparison.OrdinalIgnoreCase)))
+            .Select(j => (j.JobId, j.JobName!))
+            .ToList();
+    }
+
+    public async Task<List<CrossEventMatchupRaw>> GetCrossEventMatchupsAsync(
+        IEnumerable<Guid> jobIds, CancellationToken ct = default)
+    {
+        var jobIdList = jobIds.ToList();
+
+        // Get all RR games across compared jobs
+        var games = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => jobIdList.Contains(s.JobId)
+                        && s.GDate != null
+                        && s.T1Type == "T" && s.T2Type == "T"
+                        && s.T1Id != null && s.T2Id != null)
+            .Select(s => new
+            {
+                s.JobId,
+                s.T1Id, s.T2Id,
+                T1Name = s.T1Name ?? "",
+                T2Name = s.T2Name ?? "",
+                AgegroupName = s.AgegroupName ?? ""
+            })
+            .ToListAsync(ct);
+
+        // Get club names for all involved teams
+        var teamIds = games
+            .SelectMany(g => new[] { g.T1Id!.Value, g.T2Id!.Value })
+            .Distinct()
+            .ToList();
+
+        var teamClubs = await _context.Teams
+            .AsNoTracking()
+            .Where(t => teamIds.Contains(t.TeamId) && t.ClubrepRegistration != null)
+            .Select(t => new { t.TeamId, ClubName = t.ClubrepRegistration!.ClubName ?? "" })
+            .ToDictionaryAsync(t => t.TeamId, t => t.ClubName, ct);
+
+        // Flatten: each game produces TWO records (one per team perspective)
+        var matchups = new List<CrossEventMatchupRaw>();
+        foreach (var g in games)
+        {
+            var t1Club = teamClubs.GetValueOrDefault(g.T1Id!.Value, "");
+            var t2Club = teamClubs.GetValueOrDefault(g.T2Id!.Value, "");
+
+            matchups.Add(new CrossEventMatchupRaw
+            {
+                Agegroup = g.AgegroupName,
+                TeamClub = t1Club, TeamName = g.T1Name,
+                OpponentClub = t2Club, OpponentName = g.T2Name,
+                JobId = g.JobId
+            });
+            matchups.Add(new CrossEventMatchupRaw
+            {
+                Agegroup = g.AgegroupName,
+                TeamClub = t2Club, TeamName = g.T2Name,
+                OpponentClub = t1Club, OpponentName = g.T1Name,
+                JobId = g.JobId
+            });
+        }
+
+        return matchups;
+    }
 }

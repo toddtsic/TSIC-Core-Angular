@@ -323,6 +323,9 @@ public record AutoBuildQaResult
     public required List<QaGameSpread> GameSpreads { get; init; }
     public required List<QaRrGamesPerDiv> RrGamesPerDivision { get; init; }
     public required List<QaBracketGame> BracketGames { get; init; }
+
+    // ── Cross-Event (null when job is not in a comparison group) ──
+    public CrossEventQaResult? CrossEventAnalysis { get; init; }
 }
 
 /// <summary>
@@ -480,6 +483,77 @@ public record QaBracketGame
     public required int T1No { get; init; }
     public required string T2Type { get; init; }
     public required int T2No { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Cross-Event Raw Data (internal — not exposed via API)
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Raw matchup record from a single game across compared events.
+/// Each game produces TWO records (team-perspective and opponent-perspective).
+/// </summary>
+public record CrossEventMatchupRaw
+{
+    public required string Agegroup { get; init; }
+    public required string TeamClub { get; init; }
+    public required string TeamName { get; init; }
+    public required string OpponentClub { get; init; }
+    public required string OpponentName { get; init; }
+    public required Guid JobId { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Cross-Event Overplay Analysis
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Cross-event analysis result — only populated when the current job
+/// belongs to a comparison group (e.g. Girls Summer events).
+/// </summary>
+public record CrossEventQaResult
+{
+    public required string GroupName { get; init; }
+    public required List<CrossEventJobInfo> ComparedEvents { get; init; }
+    public required List<CrossEventClubOverplay> ClubOverplay { get; init; }
+    public required List<CrossEventTeamOverplay> TeamOverplay { get; init; }
+}
+
+/// <summary>
+/// An event participating in the cross-event comparison.
+/// </summary>
+public record CrossEventJobInfo
+{
+    public required string Abbreviation { get; init; }
+    public required string JobName { get; init; }
+    public required int GameCount { get; init; }
+}
+
+/// <summary>
+/// Club-level overplay: teams from Club A play teams from Club B
+/// more than once across compared events.
+/// </summary>
+public record CrossEventClubOverplay
+{
+    public required string Agegroup { get; init; }
+    public required string TeamClub { get; init; }
+    public required string OpponentClub { get; init; }
+    public required int MatchCount { get; init; }
+}
+
+/// <summary>
+/// Team-level overplay: specific Team X plays specific Team Y
+/// more than once across compared events, with event names.
+/// </summary>
+public record CrossEventTeamOverplay
+{
+    public required string Agegroup { get; init; }
+    public required string TeamClub { get; init; }
+    public required string TeamName { get; init; }
+    public required string OpponentClub { get; init; }
+    public required string OpponentName { get; init; }
+    public required int MatchCount { get; init; }
+    public required string Events { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
