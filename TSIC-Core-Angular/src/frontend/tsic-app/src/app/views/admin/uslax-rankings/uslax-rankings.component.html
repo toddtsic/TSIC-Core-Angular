@@ -81,8 +81,8 @@
 						}
 					</select>
 				</div>
-				<!-- Align button -->
-				<div class="col-md-2 d-flex align-items-end">
+				<!-- Align + Delete buttons -->
+				<div class="col-md-2 d-flex align-items-end gap-2">
 					<button class="btn btn-primary w-100"
 						(click)="align()"
 						[disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
@@ -93,6 +93,12 @@
 							<i class="bi bi-arrow-left-right me-1"></i>
 							Align
 						}
+					</button>
+					<button class="btn btn-outline-danger"
+						(click)="confirmClearComments()"
+						[disabled]="isLoading() || !selectedRegisteredAg()"
+						title="Delete all team comments for this age group">
+						<i class="bi bi-trash"></i>
 					</button>
 				</div>
 			</div>
@@ -122,7 +128,22 @@
 
 					<!-- ── Matched Teams Table ── -->
 					@if (matchedTeams().length > 0) {
-						<h6 class="mb-2">Matched Teams ({{ matchedTeams().length }}/{{ totalTeamsInAgeGroup() }})</h6>
+						<div class="d-flex align-items-center justify-content-between mb-2">
+							<h6 class="mb-0">Matched Teams ({{ matchedTeams().length }}/{{ totalTeamsInAgeGroup() }})</h6>
+							@if (hasDirtyMatches()) {
+								<button class="btn btn-success btn-sm"
+									(click)="saveAllMatchedComments()"
+									[disabled]="isLoading() || isSavingComments()">
+									@if (isSavingComments()) {
+										<span class="spinner-border spinner-border-sm me-1"></span>
+										Saving...
+									} @else {
+										<i class="bi bi-cloud-upload me-1"></i>
+										Update Matched Teams Comments With Ranking
+									}
+								</button>
+							}
+						</div>
 						<div class="table-responsive mb-4">
 							<table class="table table-sm table-hover align-middle">
 								<thead>
@@ -133,7 +154,9 @@
 										<th>Rating</th>
 										<th>Registered Team</th>
 										<th>Club</th>
-										<th style="width: 100px">Confidence</th>
+										<th>Comment</th>
+										<th style="width: 90px">Confidence</th>
+										<th style="width: 90px"></th>
 									</tr>
 								</thead>
 								<tbody>
@@ -146,17 +169,34 @@
 											<td>{{ match.registeredTeam.teamName }}</td>
 											<td>{{ match.registeredTeam.clubName }}</td>
 											<td>
-												@if (isManualMatch(match)) {
-													<span class="badge confidence-manual me-1">Manual</span>
-													<button class="btn btn-link btn-sm p-0 text-danger"
-														title="Undo manual match"
-														(click)="undoManualMatch(match)">
-														<i class="bi bi-x-circle"></i>
-													</button>
+											@if (match.registeredTeam.teamComments) {
+												<code>{{ match.registeredTeam.teamComments }}</code>
+											} @else {
+												<span class="badge bg-warning-subtle text-warning">unsaved</span>
+											}
+										</td>
+											<td>
+												<span class="badge me-1" [class]="confidenceClass(match.matchScore)">
+													{{ formatPercent(match.matchScore) }}
+												</span>
+											</td>
+											<td>
+												@if (reassigningTeamId() === match.registeredTeam.teamId) {
+													<select class="form-select form-select-sm"
+														(change)="reassignMatch(match, unmatchedRankings()[$any($event.target).selectedIndex - 1])"
+														autofocus>
+														<option value="">Pick ranking...</option>
+														@for (r of unmatchedRankings(); track r.rank) {
+															<option [value]="r.rank">#{{ r.rank }} {{ r.team }} ({{ r.state }}) {{ r.rating | number:'1.2-2' }}</option>
+														}
+													</select>
 												} @else {
-													<span class="badge" [class]="confidenceClass(match.matchScore)">
-														{{ formatPercent(match.matchScore) }}
-													</span>
+													<button class="btn btn-outline-secondary btn-sm"
+														(click)="startReassign(match.registeredTeam.teamId)"
+														[disabled]="unmatchedRankings().length === 0"
+														title="Reassign to different ranking">
+														<i class="bi bi-arrow-repeat"></i>
+													</button>
 												}
 											</td>
 										</tr>
@@ -164,17 +204,6 @@
 								</tbody>
 							</table>
 						</div>
-						<button class="btn btn-success btn-sm mb-4"
-							(click)="saveAllMatchedComments()"
-							[disabled]="isLoading() || matchedTeams().length === 0">
-							@if (isSavingComments()) {
-								<span class="spinner-border spinner-border-sm me-1"></span>
-								Saving...
-							} @else {
-								<i class="bi bi-cloud-upload me-1"></i>
-								Update Matched Teams Comments With Ranking
-							}
-						</button>
 					}
 
 					<!-- ── Unmatched Registered Teams ── -->
@@ -431,13 +460,25 @@
 					Remove ranking comments from all teams in the selected registered age group.
 				</p>
 				<button class="btn btn-outline-danger btn-sm"
-					(click)="clearComments()"
+					(click)="confirmClearComments()"
 					[disabled]="isLoading() || !selectedRegisteredAg()">
 					<i class="bi bi-trash me-1"></i>Clear Comments
 				</button>
 			</div>
 		</div>
 	</div>
+}
+
+<!-- ═══════════════════ Clear Comments Confirm ═══════════════════ -->
+@if (showClearConfirm()) {
+	<confirm-dialog
+		title="Delete All Team Comments"
+		message="This will delete the comment field from <strong>every team in the selected registered age group</strong>, not just matched teams. All ranking data stored in Team Comments will be permanently removed. This cannot be undone."
+		confirmLabel="Delete All Comments"
+		confirmVariant="danger"
+		(confirmed)="clearComments()"
+		(cancelled)="showClearConfirm.set(false)">
+	</confirm-dialog>
 }
 
 <!-- ═══════════════════ Help & Guide Dialog ═══════════════════ -->

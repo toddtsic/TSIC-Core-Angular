@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@a
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UsLaxRankingsService } from '@infrastructure/services/uslax-rankings.service';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type {
 	AgeGroupOptionDto,
 	AlignmentResultDto,
@@ -19,7 +20,7 @@ const MANUAL_MATCH_SCORE = -1;
 @Component({
 	selector: 'app-uslax-rankings',
 	standalone: true,
-	imports: [DecimalPipe, FormsModule],
+	imports: [DecimalPipe, FormsModule, ConfirmDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-rankings.component.html',
 	styleUrl: './uslax-rankings.component.scss'
@@ -56,8 +57,9 @@ export class UsLaxRankingsComponent {
 	// ── Confidence filter for import ──
 	readonly confidenceCategory = signal<'high' | 'medium'>('high');
 
-	// ── Help dialog ──
+	// ── Help / confirm dialogs ──
 	readonly showHelp = signal(false);
+	readonly showClearConfirm = signal(false);
 
 	// ── Inline edit state ──
 	readonly editingTeamId = signal<string | null>(null);
@@ -66,6 +68,7 @@ export class UsLaxRankingsComponent {
 	// ── Manual match selection state ──
 	readonly matchingTeamId = signal<string | null>(null);
 	readonly matchingRankIndex = signal<number | null>(null);
+	readonly reassigningTeamId = signal<string | null>(null);
 	readonly isSavingComments = signal(false);
 
 	// ── Computed views ──
@@ -88,6 +91,13 @@ export class UsLaxRankingsComponent {
 	});
 
 	readonly hasResults = computed(() => this.alignment() !== null);
+
+	/** True when any matched team's expected comment differs from its stored teamComments */
+	readonly hasDirtyMatches = computed(() =>
+		this.matchedTeams().some(m => {
+			const expected = `${m.ranking.rank.toString().padStart(3, '0')}:${m.ranking.team}`;
+			return m.registeredTeam.teamComments !== expected;
+		}));
 
 	constructor() {
 		this.loadAgeGroups();
@@ -197,6 +207,9 @@ export class UsLaxRankingsComponent {
 		this.matchedTeams.set([...this.matchedTeams(), newMatch]);
 		this.unmatchedRankings.set(this.unmatchedRankings().filter(r => r.rank !== ranking.rank));
 		this.unmatchedTeams.set(this.unmatchedTeams().filter(t => t.teamId !== team.teamId));
+
+		// Immediately persist the comment
+		this.persistComment(team.teamId, ranking);
 	}
 
 	/** Remove a manual match → move pieces back to unmatched */
@@ -209,6 +222,56 @@ export class UsLaxRankingsComponent {
 
 	isManualMatch(match: AlignedTeamDto): boolean {
 		return match.matchScore === MANUAL_MATCH_SCORE;
+	}
+
+	// ── Reassign matched team to a different ranking ──
+
+	startReassign(teamId: string): void {
+		this.reassigningTeamId.set(this.reassigningTeamId() === teamId ? null : teamId);
+		this.matchingTeamId.set(null);
+		this.matchingRankIndex.set(null);
+	}
+
+	/** Swap current ranking for a new one: old ranking → unmatched, new ranking → matched */
+	reassignMatch(currentMatch: AlignedTeamDto, newRanking: RankingEntryDto): void {
+		if (!newRanking) {
+			this.reassigningTeamId.set(null);
+			return;
+		}
+
+		// Send old ranking back to unmatched
+		this.unmatchedRankings.set(
+			[...this.unmatchedRankings().filter(r => r.rank !== newRanking.rank), currentMatch.ranking]
+				.sort((a, b) => a.rank - b.rank));
+
+		// Replace the match with the new ranking (marked Manual)
+		this.matchedTeams.set(this.matchedTeams().map(m =>
+			m === currentMatch
+				? { ranking: newRanking, registeredTeam: currentMatch.registeredTeam,
+					matchScore: MANUAL_MATCH_SCORE, matchReason: 'Manual reassignment by user' }
+				: m));
+
+		this.reassigningTeamId.set(null);
+
+		// Immediately persist the updated comment
+		this.persistComment(currentMatch.registeredTeam.teamId, newRanking);
+	}
+
+	/** Save a single team comment and update local teamComments to keep dirty tracking in sync */
+	private persistComment(teamId: string, ranking: RankingEntryDto): void {
+		const comment = `${ranking.rank.toString().padStart(3, '0')}:${ranking.team}`;
+		this.rankingsService.updateTeamComment(teamId, comment).subscribe({
+			next: () => this.updateLocalTeamComments(teamId, comment),
+			error: err => this.errorMessage.set(err.error?.message ?? 'Failed to save comment.')
+		});
+	}
+
+	/** Patch teamComments on the local signal entry so hasDirtyMatches recomputes */
+	private updateLocalTeamComments(teamId: string, comment: string): void {
+		this.matchedTeams.set(this.matchedTeams().map(m =>
+			m.registeredTeam.teamId === teamId
+				? { ...m, registeredTeam: { ...m.registeredTeam, teamComments: comment } }
+				: m));
 	}
 
 	// ── Import ──
@@ -283,7 +346,11 @@ export class UsLaxRankingsComponent {
 			const match = matches[index];
 			const comment = `${match.ranking.rank.toString().padStart(3, '0')}:${match.ranking.team}`;
 			this.rankingsService.updateTeamComment(match.registeredTeam.teamId, comment).subscribe({
-				next: () => { saved++; saveNext(index + 1); },
+				next: () => {
+					saved++;
+					this.updateLocalTeamComments(match.registeredTeam.teamId, comment);
+					saveNext(index + 1);
+				},
 				error: () => { failed++; saveNext(index + 1); }
 			});
 		};
@@ -315,7 +382,11 @@ export class UsLaxRankingsComponent {
 			const match = matches[index];
 			const comment = `${match.ranking.rank.toString().padStart(3, '0')}:${match.ranking.team}`;
 			this.rankingsService.updateTeamComment(match.registeredTeam.teamId, comment).subscribe({
-				next: () => { saved++; saveNext(index + 1); },
+				next: () => {
+					saved++;
+					this.updateLocalTeamComments(match.registeredTeam.teamId, comment);
+					saveNext(index + 1);
+				},
 				error: () => { failed++; saveNext(index + 1); }
 			});
 		};
@@ -325,7 +396,16 @@ export class UsLaxRankingsComponent {
 
 	// ── Clear comments ──
 
+	confirmClearComments(): void {
+		if (!this.selectedRegisteredAg()) {
+			this.errorMessage.set('Select a registered age group first.');
+			return;
+		}
+		this.showClearConfirm.set(true);
+	}
+
 	clearComments(): void {
+		this.showClearConfirm.set(false);
 		const registered = this.selectedRegisteredAg();
 		if (!registered) {
 			this.errorMessage.set('Select a registered age group first.');
@@ -339,6 +419,9 @@ export class UsLaxRankingsComponent {
 			next: () => {
 				this.isLoading.set(false);
 				this.successMessage.set('Team comments cleared.');
+				// Clear local teamComments so UI reflects the change
+				this.matchedTeams.set(this.matchedTeams().map(m =>
+					({ ...m, registeredTeam: { ...m.registeredTeam, teamComments: null } })));
 			},
 			error: err => {
 				this.isLoading.set(false);
@@ -360,9 +443,11 @@ export class UsLaxRankingsComponent {
 	}
 
 	saveEdit(teamId: string): void {
-		this.rankingsService.updateTeamComment(teamId, this.editComment()).subscribe({
+		const comment = this.editComment();
+		this.rankingsService.updateTeamComment(teamId, comment).subscribe({
 			next: () => {
 				this.editingTeamId.set(null);
+				this.updateLocalTeamComments(teamId, comment);
 				this.successMessage.set('Comment updated.');
 			},
 			error: err => this.errorMessage.set(err.error?.message ?? 'Update failed.')
