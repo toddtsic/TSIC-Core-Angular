@@ -370,6 +370,12 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
 			{
+				path: 'scheduling/master-schedule',
+				canActivate: [authGuard],
+				data: { requirePhase2: true },
+				loadComponent: () => import('./views/admin/scheduling/master-schedule/master-schedule.component').then(m => m.MasterScheduleComponent)
+			},
+			{
 				path: 'scheduling/rescheduler',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },

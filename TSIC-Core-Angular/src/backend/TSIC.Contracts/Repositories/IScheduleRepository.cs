@@ -192,4 +192,13 @@ public interface IScheduleRepository
     /// </summary>
     Task<int> ExecuteWeatherAdjustmentAsync(
         Guid jobId, Dtos.Scheduling.AdjustWeatherRequest request, CancellationToken ct = default);
+
+    // ── Master Schedule ──
+
+    /// <summary>
+    /// Get referee names assigned to a list of games.
+    /// Returns a dictionary keyed by Gid with a sorted list of "Last, First" names.
+    /// </summary>
+    Task<Dictionary<int, List<string>>> GetRefereeAssignmentsForGamesAsync(
+        List<int> gids, CancellationToken ct = default);
 }

@@ -208,6 +208,7 @@ builder.Services.AddScoped<IScheduleDivisionService, ScheduleDivisionService>();
 builder.Services.AddScoped<IAutoBuildScheduleService, AutoBuildScheduleService>();
 builder.Services.AddScoped<IScheduleQaService, ScheduleQaService>();
 builder.Services.AddScoped<IViewScheduleService, ViewScheduleService>();
+builder.Services.AddScoped<IMasterScheduleService, MasterScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
 builder.Services.AddScoped<ITournamentParkingService, TournamentParkingService>();

@@ -1,0 +1,140 @@
+<!-- Page Header -->
+<div class="page-header">
+	<div>
+		<h4 class="mb-1">Master Schedule</h4>
+		@if (masterData()) {
+			<span class="text-muted">
+				{{ totalGames() }} games · {{ fieldCount() }} fields
+			</span>
+		}
+	</div>
+
+	@if (masterData() && masterData()!.days.length > 0) {
+		<div class="header-actions">
+			<button class="btn btn-outline-primary btn-sm"
+				[disabled]="isExporting()"
+				(click)="exportDay()">
+				<i class="bi bi-file-earmark-excel me-1"></i>
+				Export This Day
+			</button>
+			<button class="btn btn-outline-primary btn-sm"
+				[disabled]="isExporting()"
+				(click)="exportAll()">
+				<i class="bi bi-files me-1"></i>
+				Export All Days
+			</button>
+		</div>
+	}
+</div>
+
+<!-- Loading -->
+@if (isLoading()) {
+	<div class="text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="text-muted mt-2">Loading master schedule…</p>
+	</div>
+}
+
+<!-- Error -->
+@if (hasError()) {
+	<div class="alert alert-danger">
+		<i class="bi bi-exclamation-triangle me-2"></i>
+		Unable to load master schedule. Please try again.
+	</div>
+}
+
+<!-- Empty state -->
+@if (!isLoading() && !hasError() && totalGames() === 0) {
+	<div class="text-center py-5 text-muted">
+		<i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
+		<p class="mt-2">No games scheduled for this event.</p>
+	</div>
+}
+
+<!-- Day Tabs + Grid -->
+@if (masterData() && masterData()!.days.length > 0) {
+	<!-- Day Tabs (hide if single day) -->
+	@if (masterData()!.days.length > 1) {
+		<div class="day-tabs">
+			@for (day of masterData()!.days; track day.dayLabel; let i = $index) {
+				<button class="day-tab"
+					[class.active]="activeDayIndex() === i"
+					(click)="selectDay(i)">
+					{{ day.shortLabel }}
+					<span class="badge">{{ day.gameCount }}</span>
+				</button>
+			}
+		</div>
+	}
+
+	<!-- Active Day Label -->
+	@if (activeDay()) {
+		<div class="day-label">{{ activeDay()!.dayLabel }}</div>
+	}
+
+	<!-- Desktop Grid -->
+	@if (activeDay()) {
+		<div class="ms-grid"
+			[style.grid-template-columns]="gridTemplateColumns()">
+
+			<!-- Header Row -->
+			<div class="ms-header-cell ms-time-header">Time</div>
+			@for (field of masterData()!.fieldColumns; track field) {
+				<div class="ms-header-cell">{{ field }}</div>
+			}
+
+			<!-- Data Rows -->
+			@for (row of activeDay()!.rows; track row.timeLabel) {
+				<div class="ms-time-cell">{{ row.timeLabel }}</div>
+				@for (cell of row.cells; track $index) {
+					@if (cell) {
+						<div class="ms-cell"
+							[style.background-color]="cell.color"
+							[style.color]="cell.contrastColor">
+							<span class="ms-agdiv">{{ cell.agDiv }}</span>
+							<span class="ms-team">{{ cell.t1Name }}</span>
+							<span class="ms-vs">vs</span>
+							<span class="ms-team">{{ cell.t2Name }}</span>
+							@if (cell.t1Score != null) {
+								<span class="ms-score">{{ cell.t1Score }}–{{ cell.t2Score }}</span>
+							}
+							@if (cell.referees?.length) {
+								<span class="ms-refs">{{ cell.referees!.join(', ') }}</span>
+							}
+						</div>
+					} @else {
+						<div class="ms-empty">—</div>
+					}
+				}
+			}
+		</div>
+
+		<!-- Mobile Cards (visible < 768px) -->
+		<div class="ms-mobile-cards">
+			@for (row of activeDay()!.rows; track row.timeLabel) {
+				<div class="ms-mobile-time-header">{{ row.timeLabel }}</div>
+				@for (cell of row.cells; track $index; let fi = $index) {
+					@if (cell) {
+						<div class="ms-mobile-card"
+							[style.border-left-color]="cell.color || 'var(--border-color)'">
+							<div class="ms-mobile-field">{{ masterData()!.fieldColumns[fi] }}</div>
+							<div class="ms-mobile-agdiv"
+								[style.background-color]="cell.color"
+								[style.color]="cell.contrastColor">
+								{{ cell.agDiv }}
+							</div>
+							<div class="ms-mobile-matchup">
+								{{ cell.t1Name }} <span class="text-muted">vs</span> {{ cell.t2Name }}
+							</div>
+							@if (cell.t1Score != null) {
+								<div class="ms-mobile-score">{{ cell.t1Score }}–{{ cell.t2Score }}</div>
+							}
+						</div>
+					}
+				}
+			}
+		</div>
+	}
+}

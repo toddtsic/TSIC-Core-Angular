@@ -993,4 +993,26 @@ public sealed class ScheduleRepository : IScheduleRepository
 
         return query;
     }
+
+    // ── Master Schedule ──
+
+    public async Task<Dictionary<int, List<string>>> GetRefereeAssignmentsForGamesAsync(
+        List<int> gids, CancellationToken ct = default)
+    {
+        if (gids.Count == 0) return new Dictionary<int, List<string>>();
+
+        return await _context.RefGameAssigments
+            .AsNoTracking()
+            .Where(r => gids.Contains(r.GameId) && r.RefRegistration != null)
+            .Select(r => new
+            {
+                r.GameId,
+                Name = (r.RefRegistration!.User!.LastName ?? "") + ", " + (r.RefRegistration.User.FirstName ?? "")
+            })
+            .GroupBy(r => r.GameId)
+            .ToDictionaryAsync(
+                g => g.Key,
+                g => g.Select(x => x.Name).OrderBy(n => n).ToList(),
+                ct);
+    }
 }

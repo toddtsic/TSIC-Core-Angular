@@ -92,7 +92,7 @@ export class YearOverYearWidgetComponent implements OnInit {
 		if (!data || data.series.length < 2) return '';
 
 		const currentSeries = data.series.find(s => s.year === data.currentYear);
-		const priorSeries = data.series.find(s => s.year !== data.currentYear);
+		const priorSeries = this.findPriorSeries(data);
 		if (!currentSeries || !priorSeries) return '';
 
 		const latestPoint = currentSeries.dailyData.at(-1);
@@ -124,7 +124,7 @@ export class YearOverYearWidgetComponent implements OnInit {
 	readonly priorFinalDisplay = computed(() => {
 		const data = this.rawData();
 		if (!data || data.series.length < 2) return '';
-		const prior = data.series.find(s => s.year !== data.currentYear);
+		const prior = this.findPriorSeries(data);
 		if (!prior) return '';
 		return `${prior.year}: ${prior.finalTotal.toLocaleString()} final`;
 	});
@@ -169,6 +169,13 @@ export class YearOverYearWidgetComponent implements OnInit {
 			args.text = args.text.replace(/<b>(\d+)<\/b>/, (_m: string, v: string) =>
 				`<b>${parseInt(v, 10).toLocaleString()}</b>`);
 		}
+	}
+
+	/** Find the series with the highest year that's still less than currentYear. */
+	private findPriorSeries(data: YearOverYearComparisonDto): YearSeriesDto | undefined {
+		return data.series
+			.filter(s => s.year < data.currentYear)
+			.sort((a, b) => b.year.localeCompare(a.year))[0];
 	}
 
 	/**

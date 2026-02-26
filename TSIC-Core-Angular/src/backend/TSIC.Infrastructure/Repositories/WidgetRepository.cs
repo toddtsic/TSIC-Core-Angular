@@ -483,14 +483,15 @@ public class WidgetRepository : IWidgetRepository
                 CurrentYear = "",
             };
 
-        // 2. Find sibling jobs (same customer + type + sport + season)
+        // 2. Find sibling jobs (same customer + type + sport + season, current year and earlier only)
         var siblings = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.CustomerId == currentJob.CustomerId
                       && j.JobTypeId == currentJob.JobTypeId
                       && j.SportId == currentJob.SportId
                       && j.Season == currentJob.Season
-                      && j.Year != null)
+                      && j.Year != null
+                      && string.Compare(j.Year, currentJob.Year) <= 0)
             .OrderByDescending(j => j.Year)
             .Select(j => new { j.JobId, j.Year, j.JobName })
             .ToListAsync(ct);
