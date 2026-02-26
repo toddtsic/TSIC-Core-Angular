@@ -184,6 +184,9 @@ export class AuthService {
     localStorage.removeItem(LocalStorageKey.ClubRepClubCount);
     localStorage.removeItem(LocalStorageKey.LastJobPath);
     this.currentUser.set(null);
+    // Reset registration cache so next login fetches fresh data
+    this._registrationsFetched = false;
+    this.registrations.set([]);
     const redirect = options?.redirectTo || '/tsic/login';
     const q = options?.queryParams || undefined;
     if (q) {
