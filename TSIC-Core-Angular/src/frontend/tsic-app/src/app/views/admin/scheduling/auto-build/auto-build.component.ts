@@ -452,13 +452,10 @@ export class AutoBuildComponent implements AfterViewChecked {
             `<strong>Coverage: ${f.confidencePercent}%</strong> — proven patterns for <span class="db db-div">${f.coveredDivisions}</span> of <span class="db db-div">${f.coveredDivisions + f.uncoveredDivisions}</span> divisions`
         );
 
-        if (f.warnings.length > 0) {
-            for (const w of f.warnings) {
-                if (w.includes('same address')) {
-                    this.addMessage('success', w);
-                } else {
-                    this.addMessage('warning', w);
-                }
+        // Only show address-matched fields (positive signal); suppress non-actionable warnings
+        for (const w of f.warnings) {
+            if (w.includes('same address')) {
+                this.addMessage('success', w);
             }
         }
 
@@ -542,49 +539,37 @@ export class AutoBuildComponent implements AfterViewChecked {
 
     private presentResults(result: AutoBuildResult): void {
         const failedGames = result.gamesFailedToPlace;
+        const sourceGames = this.analysis()?.sourceTotalGames ?? 0;
 
-        let summary = `<strong>Schedule Built Successfully</strong><br><br>` +
-            `<table><tr><td>Divisions scheduled</td><td><span class="db db-div">${result.divisionsScheduled}</span></td></tr>` +
-            `<tr><td>Divisions skipped</td><td><span class="db db-div">${result.divisionsSkipped}</span></td></tr>` +
-            `<tr><td>Total games placed</td><td><span class="db db-game">${result.totalGamesPlaced}</span></td></tr>`;
+        // ── Hero declaration ──
+        let hero = failedGames === 0
+            ? `<strong>Schedule Built Successfully</strong><br><br>`
+            : `<strong>Schedule Built with Warnings</strong><br><br>`;
+
+        hero += `<span class="db db-game">${result.totalGamesPlaced}</span> games placed across `;
+        hero += `<span class="db db-div">${result.divisionsScheduled}</span> divisions`;
+        if (result.divisionsSkipped > 0) {
+            hero += ` (<span class="db db-div">${result.divisionsSkipped}</span> skipped)`;
+        }
+        hero += `.`;
+
+        // ── Year-over-year comparison ──
+        if (sourceGames > 0) {
+            hero += `<br><br>`;
+            if (result.totalGamesPlaced === sourceGames) {
+                hero += `<strong>Year-over-year:</strong> Last year had <span class="db db-game">${sourceGames}</span> games — this year matches exactly. Same structure, your current fields and timeslots.`;
+            } else {
+                const diff = result.totalGamesPlaced - sourceGames;
+                const direction = diff > 0 ? 'more' : 'fewer';
+                hero += `<strong>Year-over-year:</strong> Last year had <span class="db db-game">${sourceGames}</span> games — this year has <span class="db db-game">${result.totalGamesPlaced}</span> (${Math.abs(diff)} ${direction}, likely due to division size changes).`;
+            }
+        }
 
         if (failedGames > 0) {
-            summary += `<tr><td>Games failed to place</td><td><span class="db db-game">${failedGames}</span></td></tr>`;
+            hero += `<br><br><span class="db db-game">${failedGames}</span> games could not be placed — likely field/timeslot conflicts. Review these in the schedule view.`;
         }
-        summary += `</table>`;
 
-        this.addMessage(failedGames > 0 ? 'warning' : 'success', summary);
-
-        if (result.divisionResults.length > 0) {
-            // Group results by agegroup for readable breakdown
-            const groups = new Map<string, typeof result.divisionResults>();
-            for (const div of result.divisionResults) {
-                let group = groups.get(div.agegroupName);
-                if (!group) {
-                    group = [];
-                    groups.set(div.agegroupName, group);
-                }
-                group.push(div);
-            }
-
-            let breakdown = '<strong>Division Breakdown:</strong><br>';
-            for (const [agName, divs] of groups) {
-                breakdown += `<br><span class="db db-ag">${agName}</span><br>`;
-                for (const div of divs) {
-                    const icon = div.status === 'skipped' || div.status === 'already-scheduled'
-                        ? '<i class="bi bi-skip-forward text-muted"></i>'
-                        : div.gamesFailed > 0
-                            ? '<i class="bi bi-exclamation-triangle text-warning"></i>'
-                            : '<i class="bi bi-check-circle text-success"></i>';
-                    breakdown += `&nbsp;&nbsp;${icon} <strong>${div.divName}</strong> — <span class="db db-game">${div.gamesPlaced}</span> placed`;
-                    if (div.gamesFailed > 0) breakdown += `, <span class="db db-game">${div.gamesFailed}</span> failed`;
-                    if (div.status === 'skipped') breakdown += ' <em>(skipped)</em>';
-                    if (div.status === 'already-scheduled') breakdown += ' <em>(already scheduled)</em>';
-                    breakdown += '<br>';
-                }
-            }
-            this.addMessage('info', breakdown);
-        }
+        this.addMessage(failedGames > 0 ? 'warning' : 'success', hero);
 
         this.runQaValidation();
     }
@@ -606,61 +591,47 @@ export class AutoBuildComponent implements AfterViewChecked {
     }
 
     private presentQaResults(qa: AutoBuildQaResult): void {
-        const critical: string[] = [];
-        const warnings: string[] = [];
-        const info: string[] = [];
+        const criticalCount = qa.fieldDoubleBookings.length
+            + qa.teamDoubleBookings.length
+            + qa.rankMismatches.length;
+        const warningCount = qa.unscheduledTeams.length
+            + qa.backToBackGames.length
+            + qa.repeatedMatchups.length
+            + qa.inactiveTeamsInGames.length;
 
-        if (qa.fieldDoubleBookings.length > 0)
-            critical.push(`Field double-bookings: <span class="msg-badge">${qa.fieldDoubleBookings.length}</span>`);
-        if (qa.teamDoubleBookings.length > 0)
-            critical.push(`Team double-bookings: <span class="msg-badge">${qa.teamDoubleBookings.length}</span>`);
-        if (qa.rankMismatches.length > 0)
-            critical.push(`Rank mismatches: <span class="msg-badge">${qa.rankMismatches.length}</span>`);
+        // ── Single-line verdict ──
+        if (criticalCount === 0 && warningCount === 0) {
+            let verdict = `<strong>Quality Check: All Clear</strong> — no double bookings, no back-to-backs, every team scheduled.`;
 
-        if (qa.unscheduledTeams.length > 0)
-            warnings.push(`Unscheduled teams: <span class="msg-badge">${qa.unscheduledTeams.length}</span>`);
-        if (qa.backToBackGames.length > 0)
-            warnings.push(`Back-to-back games: <span class="msg-badge">${qa.backToBackGames.length}</span>`);
-        if (qa.repeatedMatchups.length > 0)
-            warnings.push(`Repeated matchups: <span class="msg-badge">${qa.repeatedMatchups.length}</span>`);
-        if (qa.inactiveTeamsInGames.length > 0)
-            warnings.push(`Inactive teams in games: <span class="msg-badge">${qa.inactiveTeamsInGames.length}</span>`);
+            // Add balance insight
+            if (qa.gamesPerTeam.length > 0) {
+                const counts = qa.gamesPerTeam.map(t => t.gameCount);
+                const min = Math.min(...counts);
+                const max = Math.max(...counts);
+                verdict += min === max
+                    ? ` Games per team: <span class="db db-game">${min}</span> each (balanced).`
+                    : ` Games per team: <span class="db db-game">${min}–${max}</span>.`;
+            }
 
-        if (qa.gamesPerDate.length > 0) {
-            const total = qa.gamesPerDate.reduce((sum, d) => sum + d.gameCount, 0);
-            info.push(`Total games: <span class="msg-badge">${total}</span> across <span class="msg-badge">${qa.gamesPerDate.length}</span> day(s)`);
-        }
-
-        if (qa.gamesPerTeam.length > 0) {
-            const counts = qa.gamesPerTeam.map(t => t.gameCount);
-            const min = Math.min(...counts);
-            const max = Math.max(...counts);
-            info.push(min !== max
-                ? `Games per team: <span class="msg-badge">${min}–${max}</span> (some imbalance)`
-                : `Games per team: <span class="msg-badge">${min}</span> each (balanced)`
-            );
-        }
-
-        if (qa.rrGamesPerDivision.length > 0) {
-            const shortDiv = qa.rrGamesPerDivision.find(d => d.gameCount < d.poolSize * (d.poolSize - 1) / 2);
-            if (shortDiv)
-                warnings.push(`Incomplete round-robin: Some divisions have fewer games than a full round-robin`);
-        }
-
-        const parts: string[] = [];
-        if (critical.length > 0)
-            parts.push(`<strong>Critical Issues</strong><br>${critical.map(i => `&bull; ${i}`).join('<br>')}`);
-        if (warnings.length > 0)
-            parts.push(`<strong>Warnings</strong><br>${warnings.map(i => `&bull; ${i}`).join('<br>')}`);
-        if (info.length > 0)
-            parts.push(`<strong>Overview</strong><br>${info.map(i => `&bull; ${i}`).join('<br>')}`);
-
-        if (critical.length === 0 && warnings.length === 0) {
-            this.addMessage('success', `<strong>QA Validation: All Checks Passed</strong><br><br>${parts.join('<br><br>')}`);
-        } else if (critical.length > 0) {
-            this.addMessage('error', `<strong>QA Validation: Issues Found</strong><br><br>${parts.join('<br><br>')}`);
+            this.addMessage('success', verdict);
         } else {
-            this.addMessage('warning', `<strong>QA Validation Report</strong><br><br>${parts.join('<br><br>')}`);
+            // Build concise issue summary — only what needs attention
+            const issues: string[] = [];
+            if (qa.fieldDoubleBookings.length > 0)
+                issues.push(`<span class="db db-game">${qa.fieldDoubleBookings.length}</span> field double-bookings`);
+            if (qa.teamDoubleBookings.length > 0)
+                issues.push(`<span class="db db-game">${qa.teamDoubleBookings.length}</span> team double-bookings`);
+            if (qa.rankMismatches.length > 0)
+                issues.push(`<span class="db db-game">${qa.rankMismatches.length}</span> rank mismatches`);
+            if (qa.unscheduledTeams.length > 0)
+                issues.push(`<span class="db db-team">${qa.unscheduledTeams.length}</span> unscheduled teams`);
+            if (qa.backToBackGames.length > 0)
+                issues.push(`<span class="db db-game">${qa.backToBackGames.length}</span> back-to-back games`);
+            if (qa.repeatedMatchups.length > 0)
+                issues.push(`<span class="db db-game">${qa.repeatedMatchups.length}</span> repeated matchups`);
+
+            const verdict = `<strong>Quality Check: ${criticalCount > 0 ? 'Issues Found' : 'Needs Review'}</strong> — ${issues.join(', ')}. See full details in QA Results.`;
+            this.addMessage(criticalCount > 0 ? 'error' : 'warning', verdict);
         }
     }
 

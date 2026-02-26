@@ -101,6 +101,36 @@ export class QaResultsComponent {
         return this.expandedSections().has(key);
     }
 
+    isExporting = signal(false);
+
+    exportToExcel(): void {
+        this.isExporting.set(true);
+        this.qaService.exportExcel().subscribe({
+            next: (response) => {
+                this.isExporting.set(false);
+                const blob = response.body;
+                if (!blob) return;
+
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = `ScheduleQA_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                if (disposition) {
+                    const match = disposition.match(/filename="?([^";\n]+)"?/);
+                    if (match?.[1]) filename = match[1];
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+            error: () => {
+                this.isExporting.set(false);
+            }
+        });
+    }
+
     formatDateTime(iso: string): string {
         const d = new Date(iso);
         return d.toLocaleDateString('en-US', {

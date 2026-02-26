@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type { AutoBuildQaResult } from '@core/api';
@@ -11,5 +11,12 @@ export class ScheduleQaService {
 
     validate(): Observable<AutoBuildQaResult> {
         return this.http.get<AutoBuildQaResult>(`${this.apiUrl}/validate`);
+    }
+
+    exportExcel(): Observable<HttpResponse<Blob>> {
+        return this.http.get(`${this.apiUrl}/export-excel`, {
+            responseType: 'blob',
+            observe: 'response'
+        });
     }
 }

@@ -71,15 +71,19 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   }
 
   selectRole(registration: any): void {
-    if (this.isLoading()) {
+    // Guard with selectingRole directly — not isLoading() — to prevent re-entry
+    // when Syncfusion fires spurious change events during dropdown re-enable
+    if (this.selectingRole()) {
       return;
     }
 
     this.selectingRole.set(true);
     this.authService.selectRegistration(registration.regId).subscribe({
       next: () => {
-        this.selectingRole.set(false);
-        // Close all header/mobile menus before navigating — they persist across route changes
+        // Do NOT reset selectingRole here — keep the dropdown disabled.
+        // Re-enabling the Syncfusion dropdown triggers another change event,
+        // which fires a second selectRole that races with router.navigate.
+        // The component will be destroyed by navigation anyway.
         this.menuState.requestCloseAllMenus();
         const user = this.authService.getCurrentUser();
         if (this._returnUrl) {
@@ -87,6 +91,9 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
         } else if (user?.jobPath) {
           const routePath = user.jobPath.startsWith('/') ? user.jobPath.substring(1) : user.jobPath;
           this.router.navigate([routePath]);
+        } else {
+          // No jobPath in token (shouldn't happen) — re-enable UI as fallback
+          this.selectingRole.set(false);
         }
       },
       error: () => {

@@ -290,37 +290,40 @@
                     </div>
                 }
 
-                <!-- Compact division receipt — grouped by agegroup -->
-                <div class="inline-card">
-                    <div class="card-label">Your Divisions</div>
-                    @for (group of coverageByAgegroup(); track group.agegroupName) {
-                        <div class="receipt-group">
-                            <div class="receipt-group-header">
-                                <span class="db db-ag" [ngStyle]="agBadgeStyle(group.divisions[0]?.agegroupColor)">{{ group.agegroupName }}</span>
-                                <span class="receipt-group-meta">{{ group.divisions.length }} div</span>
+                <!-- Division receipt (collapsed accordion) -->
+                <details class="inline-card receipt-accordion">
+                    <summary class="receipt-summary">
+                        <i class="bi bi-chevron-right receipt-chevron"></i>
+                        <span class="card-label mb-0">Your Divisions</span>
+                        <span class="receipt-summary-meta">
+                            <span class="db db-div">{{ analysis()!.divisionCoverage.length }}</span> divisions across
+                            <span class="db db-ag">{{ coverageByAgegroup().length }}</span> agegroups
+                        </span>
+                    </summary>
+                    <div class="receipt-body">
+                        @for (group of coverageByAgegroup(); track group.agegroupName) {
+                            <div class="receipt-group">
+                                <div class="receipt-group-header">
+                                    <span class="db db-ag" [ngStyle]="agBadgeStyle(group.divisions[0]?.agegroupColor)">{{ group.agegroupName }}</span>
+                                    <span class="receipt-group-meta">{{ group.divisions.length }} div</span>
+                                </div>
+                                <div class="receipt-list">
+                                    @for (div of group.divisions; track div.divId) {
+                                        <div class="receipt-row">
+                                            <span class="receipt-name">{{ div.divName }}</span>
+                                            <span class="receipt-meta">
+                                                <span class="db db-team">{{ div.teamCount }}</span> teams
+                                                @if (div.hasPattern) {
+                                                    &middot; <span class="db db-game">{{ div.patternGameCount }}</span> games
+                                                }
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
                             </div>
-                            <div class="receipt-list">
-                                @for (div of group.divisions; track div.divId) {
-                                    <div class="receipt-row"
-                                         [class.receipt-proven]="div.matchStrategy !== 'no-match'"
-                                         [class.receipt-fresh]="div.matchStrategy === 'no-match'">
-                                        <span class="receipt-dot"
-                                              [class.dot-green]="div.matchStrategy === 'name-matched'"
-                                              [class.dot-yellow]="div.matchStrategy === 'pool-size-fallback'"
-                                              [class.dot-gray]="div.matchStrategy === 'no-match'"></span>
-                                        <span class="receipt-name">{{ div.divName }}</span>
-                                        <span class="receipt-meta">
-                                            <span class="db db-team">{{ div.teamCount }}</span>
-                                            @if (div.hasPattern) {
-                                                <span class="db db-game">{{ div.patternGameCount }}</span> games
-                                            }
-                                        </span>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
+                        }
+                    </div>
+                </details>
 
                 <!-- Build / Back buttons -->
                 <div class="inline-card step-actions">
@@ -353,15 +356,55 @@
         <!-- ═══════════════════════════════════════════════ -->
         @if (step() === 'building' || step() === 'results') {
 
+            <!-- Dramatic build spinner (building phase only) -->
+            @if (step() === 'building') {
+                <div class="build-hero">
+                    <div class="build-spinner">
+                        <div class="spinner-ring ring-outer"></div>
+                        <div class="spinner-ring ring-middle"></div>
+                        <div class="spinner-ring ring-inner"></div>
+                        <div class="spinner-core">
+                            <i class="bi bi-lightning-charge-fill"></i>
+                        </div>
+                    </div>
+                    <div class="build-hero-text">
+                        <h3>Building Your Schedule</h3>
+                        <p>Replaying proven patterns across every division, field, and timeslot</p>
+                    </div>
+                </div>
+            }
+
             <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
 
-            <!-- Results actions -->
+            <!-- Results: Useful Links + Undo -->
             @if (step() === 'results') {
+                <div class="inline-card results-links">
+                    <div class="card-label">Useful Links</div>
+                    <div class="results-link-list">
+                        <a routerLink="../view-schedule" class="results-link">
+                            <i class="bi bi-calendar3"></i>
+                            <span>
+                                <strong>View Schedule</strong>
+                                <small>See all games on the grid</small>
+                            </span>
+                        </a>
+                        <a routerLink="../qa-results" class="results-link">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>
+                                <strong>QA Results</strong>
+                                <small>Full quality check details</small>
+                            </span>
+                        </a>
+                        <a routerLink="." class="results-link" (click)="backToSummary()">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <span>
+                                <strong>Re-Run Auto-Build</strong>
+                                <small>Start over with different options</small>
+                            </span>
+                        </a>
+                    </div>
+                </div>
                 <div class="inline-card results-actions">
-                    <a routerLink="../view-schedule" class="btn btn-outline-primary">
-                        <i class="bi bi-eye"></i>
-                        View Schedule
-                    </a>
                     <button class="btn btn-outline-danger"
                             [disabled]="isUndoing()"
                             (click)="undoBuild()">
@@ -370,7 +413,7 @@
                             Undoing...
                         } @else {
                             <i class="bi bi-arrow-counterclockwise"></i>
-                            Undo All
+                            Undo All Games
                         }
                     </button>
                 </div>

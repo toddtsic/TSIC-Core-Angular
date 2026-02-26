@@ -480,7 +480,49 @@
     flex: 1;
 }
 
-// ── Division Receipt (compact grouped list) ─────────
+// ── Division Receipt (accordion) ────────────────────
+.receipt-accordion {
+    cursor: default;
+
+    &[open] .receipt-chevron {
+        transform: rotate(90deg);
+    }
+}
+
+.receipt-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    list-style: none;           // Remove default marker
+    user-select: none;
+
+    &::-webkit-details-marker { display: none; }  // Chrome/Safari
+    &::marker { display: none; }                   // Firefox
+
+    &:hover {
+        .card-label { color: var(--bs-primary); }
+    }
+}
+
+.receipt-chevron {
+    font-size: 0.75rem;
+    color: var(--brand-text-muted);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.receipt-summary-meta {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    margin-left: auto;
+}
+
+.receipt-body {
+    padding-top: var(--space-3);
+    animation: msg-slide-up 0.15s ease-out;
+}
+
 .receipt-group {
     &:not(:last-child) {
         margin-bottom: var(--space-3);
@@ -517,21 +559,6 @@
     &:nth-child(even) {
         background: rgba(var(--bs-primary-rgb), 0.02);
     }
-
-    &.receipt-fresh {
-        opacity: 0.7;
-    }
-}
-
-.receipt-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-full);
-    flex-shrink: 0;
-
-    &.dot-green { background: var(--bs-success); }
-    &.dot-yellow { background: var(--bs-warning); }
-    &.dot-gray { background: var(--neutral-400); }
 }
 
 .receipt-name {
@@ -861,11 +888,171 @@
     }
 }
 
-// ── Results Actions ───────────────────────────────────
+// ── Results Links + Actions ──────────────────────────
+.results-link-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.results-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    text-decoration: none;
+    color: var(--brand-text);
+    transition: all 0.15s ease;
+
+    &:hover {
+        border-color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.04);
+    }
+
+    > i {
+        font-size: 1.25rem;
+        color: var(--bs-primary);
+        flex-shrink: 0;
+    }
+
+    > span {
+        display: flex;
+        flex-direction: column;
+
+        strong {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+        }
+
+        small {
+            font-size: var(--font-size-xs);
+            color: var(--brand-text-muted);
+        }
+    }
+}
+
 .results-actions {
     display: flex;
     gap: var(--space-3);
     flex-wrap: wrap;
+}
+
+// ── Build Hero Spinner ───────────────────────────────
+.build-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12) var(--space-4) var(--space-8);
+    gap: var(--space-6);
+    animation: build-hero-fade-in 0.6s ease-out;
+}
+
+@keyframes build-hero-fade-in {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.build-spinner {
+    position: relative;
+    width: 160px;
+    height: 160px;
+}
+
+.spinner-ring {
+    position: absolute;
+    border-radius: var(--radius-full);
+    border: 3px solid transparent;
+
+    &.ring-outer {
+        inset: 0;
+        border-top-color: var(--bs-primary);
+        border-right-color: rgba(var(--bs-primary-rgb), 0.2);
+        animation: spin-outer 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    &.ring-middle {
+        inset: 16px;
+        border-top-color: var(--bs-success);
+        border-left-color: rgba(var(--bs-success-rgb), 0.2);
+        animation: spin-middle 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite reverse;
+    }
+
+    &.ring-inner {
+        inset: 32px;
+        border-bottom-color: var(--bs-warning);
+        border-right-color: rgba(var(--bs-warning-rgb), 0.2);
+        animation: spin-inner 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+}
+
+@keyframes spin-outer {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes spin-middle {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes spin-inner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner-core {
+    position: absolute;
+    inset: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background:
+        radial-gradient(
+            circle,
+            rgba(var(--bs-primary-rgb), 0.12) 0%,
+            rgba(var(--bs-primary-rgb), 0.04) 70%,
+            transparent 100%
+        );
+    animation: core-pulse 2s ease-in-out infinite;
+
+    i {
+        font-size: 2rem;
+        color: var(--bs-primary);
+        filter: drop-shadow(0 0 8px rgba(var(--bs-primary-rgb), 0.4));
+    }
+}
+
+@keyframes core-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+.build-hero-text {
+    text-align: center;
+    animation: build-text-fade-in 0.8s ease-out 0.3s both;
+
+    h3 {
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+        margin: 0 0 var(--space-2) 0;
+    }
+
+    p {
+        font-size: var(--font-size-base);
+        color: var(--brand-text-muted);
+        margin: 0;
+        max-width: 400px;
+    }
+}
+
+@keyframes build-text-fade-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 // ── Responsive ────────────────────────────────────────
@@ -888,4 +1075,10 @@
     .mapping-cta { flex: unset; }
     .msg-pitch { max-width: 100%; }
     .msg-pitch .msg-body { padding: var(--space-4); }
+    .build-hero { padding: var(--space-8) var(--space-3) var(--space-6); }
+    .build-spinner { width: 120px; height: 120px; }
+    .spinner-core { inset: 36px; i { font-size: 1.5rem; } }
+    .spinner-ring.ring-middle { inset: 12px; }
+    .spinner-ring.ring-inner { inset: 24px; }
+    .build-hero-text h3 { font-size: var(--font-size-xl); }
 }

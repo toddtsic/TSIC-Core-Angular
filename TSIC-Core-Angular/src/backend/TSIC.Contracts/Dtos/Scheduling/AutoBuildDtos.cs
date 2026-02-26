@@ -347,7 +347,9 @@ public record QaDoubleBooking
 }
 
 /// <summary>
-/// A back-to-back game pair (games within gamestartInterval of each other).
+/// A back-to-back game — team appears in consecutive timeslot rows of the master schedule.
+/// The master schedule is one row per distinct game-start time (across all fields);
+/// consecutive rows means no rest slot between games, regardless of clock time.
 /// </summary>
 public record QaBackToBack
 {
@@ -357,6 +359,8 @@ public record QaBackToBack
     public required string FieldName { get; init; }
     public required DateTime GameDate { get; init; }
     public required int MinutesSincePrevious { get; init; }
+    /// <summary>Slot index in the master timeslot grid (0-based, per day).</summary>
+    public required int SlotIndex { get; init; }
 }
 
 /// <summary>

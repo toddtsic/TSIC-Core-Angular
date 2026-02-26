@@ -457,10 +457,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var warnings = new List<string>();
         if (addressMatched.Count > 0)
             warnings.Add($"Fields matched by address (renamed): {string.Join("; ", addressMatched)}");
-        if (fieldMismatches.Count > 0)
-            warnings.Add($"{fieldMismatches.Count} field(s) from prior year not found: {string.Join(", ", fieldMismatches)}");
-        if (uncovered > 0)
-            warnings.Add($"{uncovered} division(s) have no source pattern — will use auto-schedule.");
 
         return new AutoBuildAnalysisResponse
         {
@@ -542,8 +538,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             .ThenBy(d => d.DivName)
             .ToList();
 
-        // 3. Get current timeslot dates cache
-        var currentDatesByAgegroup = new Dictionary<Guid, List<DateTime>>();
+        // 3. Get current timeslot dates cache (keyed by divId — agegroups can have div-specific timeslots)
+        var currentDatesByDiv = new Dictionary<Guid, List<DateTime>>();
 
         // 4. Get current fields for name matching + address-based fallback
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
@@ -705,7 +701,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     jobId, userId, leagueId, season, year,
                     agegroupId, divId, div.AgegroupName, div.DivName,
                     placements, fieldNameToId, fieldIdToName,
-                    currentDatesByAgegroup, occupiedSlots,
+                    currentDatesByDiv, occupiedSlots,
                     request.IncludeBracketGames, ct);
 
                 divisionResults.Add(new AutoBuildDivisionResult
@@ -767,7 +763,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         List<GamePlacementPattern> allPlacements,
         Dictionary<string, Guid> fieldNameToId,
         Dictionary<Guid, string> fieldIdToName,
-        Dictionary<Guid, List<DateTime>> currentDatesByAgegroup,
+        Dictionary<Guid, List<DateTime>> currentDatesByDiv,
         HashSet<(Guid fieldId, DateTime gDate)> occupiedSlots,
         bool includeBracketGames,
         CancellationToken ct)
@@ -780,8 +776,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         if (placements.Count == 0)
             return (0, 0);
 
-        // Get current year's timeslot dates for this agegroup
-        if (!currentDatesByAgegroup.TryGetValue(agegroupId, out var currentDates))
+        // Get current year's timeslot dates for this division
+        // Keyed by divId because timeslots can be division-specific within an agegroup
+        if (!currentDatesByDiv.TryGetValue(divId, out var currentDates))
         {
             var dates = await _timeslotRepo.GetDatesAsync(agegroupId, season, year, ct);
             var divDates = dates.Where(d => d.DivId == divId).ToList();
@@ -795,7 +792,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 .OrderBy(d => d)
                 .ToList();
 
-            currentDatesByAgegroup[agegroupId] = currentDates;
+            currentDatesByDiv[divId] = currentDates;
         }
 
         // Build DayOrdinal → current date map
@@ -856,7 +853,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (!dayOrdinalToDate.TryGetValue(placement.DayOrdinal, out var targetDate))
             {
                 // DayOrdinal exceeds current dates — try fallback
-                var fallbackSlot = FindNextAvailableTimeslot(effectiveDatesForFallback, effectiveFields, occupiedSlots);
+                var fallbackSlot = TimeslotSlotFinder.FindNextAvailable(effectiveDatesForFallback, effectiveFields, occupiedSlots);
                 if (fallbackSlot == null) { failed++; continue; }
 
                 targetDate = fallbackSlot.Value.gDate.Date;
@@ -871,7 +868,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             else
             {
                 // Field not found — use fallback
-                var fallbackSlot = FindNextAvailableTimeslot(effectiveDatesForFallback, effectiveFields, occupiedSlots);
+                var fallbackSlot = TimeslotSlotFinder.FindNextAvailable(effectiveDatesForFallback, effectiveFields, occupiedSlots);
                 if (fallbackSlot == null) { failed++; continue; }
 
                 targetFieldId = fallbackSlot.Value.fieldId;
@@ -885,7 +882,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (occupiedSlots.Contains((targetFieldId, targetGDate)))
             {
                 // Try fallback
-                var fallbackSlot = FindNextAvailableTimeslot(effectiveDatesForFallback, effectiveFields, occupiedSlots);
+                var fallbackSlot = TimeslotSlotFinder.FindNextAvailable(effectiveDatesForFallback, effectiveFields, occupiedSlots);
                 if (fallbackSlot == null) { failed++; continue; }
 
                 targetFieldId = fallbackSlot.Value.fieldId;
@@ -925,56 +922,18 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             };
 
             _scheduleRepo.AddGame(game);
-            await _scheduleRepo.SaveChangesAsync(ct);
-
             occupiedSlots.Add((targetFieldId, targetGDate));
             placed++;
         }
+
+        // Single save for all games in this division (was per-game before)
+        if (placed > 0)
+            await _scheduleRepo.SaveChangesAsync(ct);
 
         // Bulk resolve team names for the entire division
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);
 
         return (placed, failed);
-    }
-
-    // ══════════════════════════════════════════════════════════
-    // Private: FindNextAvailableTimeslot (same as ScheduleDivisionService)
-    // ══════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Find the next available timeslot by walking dates, fields, and game intervals.
-    /// Matches the algorithm in ScheduleDivisionService.
-    /// </summary>
-    private static (Guid fieldId, DateTime gDate)? FindNextAvailableTimeslot(
-        List<TimeslotDateDto> dates,
-        List<TimeslotFieldDto> fields,
-        HashSet<(Guid fieldId, DateTime gDate)> occupiedSlots)
-    {
-        foreach (var date in dates.OrderBy(d => d.GDate))
-        {
-            var dow = date.GDate.DayOfWeek.ToString();
-            var dowFields = fields
-                .Where(f => f.Dow.Equals(dow, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f.FieldId)
-                .ToList();
-
-            foreach (var ft in dowFields)
-            {
-                if (!TimeSpan.TryParse(ft.StartTime, out var startTime))
-                    continue;
-
-                var baseDate = date.GDate.Date;
-
-                for (var g = 0; g < ft.MaxGamesPerField; g++)
-                {
-                    var gameTime = baseDate + startTime + TimeSpan.FromMinutes(g * ft.GamestartInterval);
-                    if (!occupiedSlots.Contains((ft.FieldId, gameTime)))
-                        return (ft.FieldId, gameTime);
-                }
-            }
-        }
-
-        return null;
     }
 
 }

@@ -9,5 +9,6 @@ export type QaBackToBack = {
     fieldName: string;
     gameDate: string;
     minutesSincePrevious: number;
+    slotIndex: number;
 };
 

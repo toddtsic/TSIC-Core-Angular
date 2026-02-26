@@ -308,7 +308,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             if (roundDates.Count == 0)
                 roundDates = effectiveDates.ToList();
 
-            var slot = FindNextAvailableTimeslot(roundDates, effectiveFields, occupiedSlots);
+            var slot = TimeslotSlotFinder.FindNextAvailable(roundDates, effectiveFields, occupiedSlots);
 
             if (slot == null)
             {
@@ -371,41 +371,4 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         };
     }
 
-    /// <summary>
-    /// Find the next available timeslot by walking dates, fields, and game intervals.
-    /// Matches the legacy GetNextAvailableTimeslot algorithm.
-    /// </summary>
-    private static (Guid fieldId, DateTime gDate)? FindNextAvailableTimeslot(
-        List<TimeslotDateDto> dates,
-        List<TimeslotFieldDto> fields,
-        HashSet<(Guid fieldId, DateTime gDate)> occupiedSlots)
-    {
-        foreach (var date in dates.OrderBy(d => d.GDate))
-        {
-            var dow = date.GDate.DayOfWeek.ToString();
-            var dowFields = fields
-                .Where(f => f.Dow.Equals(dow, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f.FieldId) // stable ordering
-                .ToList();
-
-            foreach (var ft in dowFields)
-            {
-                if (!TimeSpan.TryParse(ft.StartTime, out var startTime))
-                    continue;
-
-                var baseDate = date.GDate.Date;
-
-                for (var g = 0; g < ft.MaxGamesPerField; g++)
-                {
-                    var gameTime = baseDate + startTime + TimeSpan.FromMinutes(g * ft.GamestartInterval);
-                    if (!occupiedSlots.Contains((ft.FieldId, gameTime)))
-                    {
-                        return (ft.FieldId, gameTime);
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
 }
