@@ -71,7 +71,15 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
                 if (string.IsNullOrEmpty(text) || !text.Contains("Girls") || !seen.Add(href))
                     continue;
 
-                results.Add(new AgeGroupOptionDto { Value = href, Text = text });
+                // Parse query parameters from href (e.g., "/rank?v=2027&alpha=N&yr=2025")
+                // Return "v|alpha|yr" format for frontend consumption
+                var queryParams = ParseQueryString(href);
+                var v = queryParams.GetValueOrDefault("v", DefaultVersion);
+                var alpha = queryParams.GetValueOrDefault("alpha", "N");
+                var yr = queryParams.GetValueOrDefault("yr", DefaultYear);
+                var value = $"{v}|{alpha}|{yr}";
+
+                results.Add(new AgeGroupOptionDto { Value = value, Text = text });
             }
 
             _logger.LogInformation("Scraped {Count} Girls age groups from usclublax.com", results.Count);
@@ -194,6 +202,26 @@ public sealed class USLaxScrapingService : IUSLaxScrapingService
 
     private static string ExtractDigits(string? text) =>
         string.IsNullOrEmpty(text) ? string.Empty : new string(text.Where(char.IsDigit).ToArray());
+
+    private static Dictionary<string, string> ParseQueryString(string href)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var qIndex = href.IndexOf('?');
+        if (qIndex < 0) return result;
+
+        var query = href[(qIndex + 1)..];
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eqIndex = pair.IndexOf('=');
+            if (eqIndex > 0)
+            {
+                var key = pair[..eqIndex];
+                var val = eqIndex < pair.Length - 1 ? pair[(eqIndex + 1)..] : "";
+                result[key] = val;
+            }
+        }
+        return result;
+    }
 
     private static ScrapeResultDto FailResult(string ageGroup, string error) => new()
     {

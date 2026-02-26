@@ -3,11 +3,16 @@
 	<h2 class="mb-0">
 		<i class="bi bi-trophy me-2"></i>US Lacrosse National Rankings
 	</h2>
-	@if (hasResults()) {
-		<button class="btn btn-outline-secondary btn-sm" (click)="exportCsv()">
-			<i class="bi bi-download me-1"></i>Export CSV
+	<div class="d-flex gap-2">
+		<button class="btn btn-outline-info btn-sm" (click)="showHelp.set(true)">
+			<i class="bi bi-question-circle me-1"></i>Help &amp; Guide
 		</button>
-	}
+		@if (hasResults()) {
+			<button class="btn btn-outline-secondary btn-sm" (click)="exportCsv()">
+				<i class="bi bi-download me-1"></i>Export CSV
+			</button>
+		}
+	</div>
 </div>
 
 <!-- Tab Nav -->
@@ -92,31 +97,32 @@
 				</div>
 			</div>
 
-			<!-- Results Summary -->
+			<!-- Results -->
 			@if (alignment(); as result) {
 				@if (result.success) {
+					<!-- Summary Bar -->
 					<div class="summary-bar mb-3">
 						<div class="summary-item">
-							<span class="summary-value text-success">{{ result.totalMatches }}</span>
+							<span class="summary-value text-success">{{ matchedTeams().length }}</span>
 							<span class="summary-label">Matched</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-value text-warning">{{ result.unmatchedRankings.length }}</span>
+							<span class="summary-value text-warning">{{ unmatchedRankings().length }}</span>
 							<span class="summary-label">Unmatched Rankings</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-value text-danger">{{ result.unmatchedTeams.length }}</span>
+							<span class="summary-value text-danger">{{ unmatchedTeams().length }}</span>
 							<span class="summary-label">Unmatched Teams</span>
 						</div>
 						<div class="summary-item">
-							<span class="summary-value text-primary">{{ formatPercent(result.matchPercentage / 100) }}</span>
+							<span class="summary-value text-primary">{{ formatPercent(matchedTeams().length / totalTeamsInAgeGroup()) }}</span>
 							<span class="summary-label">Match Rate</span>
 						</div>
 					</div>
 
-					<!-- Matched Teams Table -->
-					@if (result.alignedTeams.length > 0) {
-						<h6 class="mb-2">Matched Teams</h6>
+					<!-- ── Matched Teams Table ── -->
+					@if (matchedTeams().length > 0) {
+						<h6 class="mb-2">Matched Teams ({{ matchedTeams().length }}/{{ totalTeamsInAgeGroup() }})</h6>
 						<div class="table-responsive mb-4">
 							<table class="table table-sm table-hover align-middle">
 								<thead>
@@ -127,12 +133,12 @@
 										<th>Rating</th>
 										<th>Registered Team</th>
 										<th>Club</th>
-										<th style="width: 90px">Confidence</th>
+										<th style="width: 100px">Confidence</th>
 									</tr>
 								</thead>
 								<tbody>
-									@for (match of result.alignedTeams; track match.registeredTeam.teamId) {
-										<tr>
+									@for (match of matchedTeams(); track match.registeredTeam.teamId) {
+										<tr [class.table-info]="isManualMatch(match)">
 											<td class="fw-medium">{{ match.ranking.rank }}</td>
 											<td>{{ match.ranking.team }}</td>
 											<td>{{ match.ranking.state }}</td>
@@ -140,9 +146,73 @@
 											<td>{{ match.registeredTeam.teamName }}</td>
 											<td>{{ match.registeredTeam.clubName }}</td>
 											<td>
-												<span class="badge" [class]="confidenceClass(match.matchScore)">
-													{{ formatPercent(match.matchScore) }}
-												</span>
+												@if (isManualMatch(match)) {
+													<span class="badge confidence-manual me-1">Manual</span>
+													<button class="btn btn-link btn-sm p-0 text-danger"
+														title="Undo manual match"
+														(click)="undoManualMatch(match)">
+														<i class="bi bi-x-circle"></i>
+													</button>
+												} @else {
+													<span class="badge" [class]="confidenceClass(match.matchScore)">
+														{{ formatPercent(match.matchScore) }}
+													</span>
+												}
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+						<button class="btn btn-success btn-sm mb-4"
+							(click)="saveAllMatchedComments()"
+							[disabled]="isLoading() || matchedTeams().length === 0">
+							@if (isSavingComments()) {
+								<span class="spinner-border spinner-border-sm me-1"></span>
+								Saving...
+							} @else {
+								<i class="bi bi-cloud-upload me-1"></i>
+								Update Matched Teams Comments With Ranking
+							}
+						</button>
+					}
+
+					<!-- ── Unmatched Registered Teams ── -->
+					@if (unmatchedTeams().length > 0) {
+						<h6 class="mb-2 text-danger">Unmatched Registered Teams ({{ unmatchedTeams().length }}/{{ totalTeamsInAgeGroup() }})</h6>
+						<div class="table-responsive mb-4">
+							<table class="table table-sm table-hover align-middle">
+								<thead>
+									<tr>
+										<th>Team</th>
+										<th>Club</th>
+										<th>Age Group</th>
+										<th style="width: 200px">Assign Ranking</th>
+									</tr>
+								</thead>
+								<tbody>
+									@for (t of unmatchedTeams(); track t.teamId) {
+										<tr>
+											<td>{{ t.teamName }}</td>
+											<td>{{ t.clubName }}</td>
+											<td>{{ t.agegroupName }}</td>
+											<td>
+												@if (matchingTeamId() === t.teamId) {
+													<select class="form-select form-select-sm"
+														(change)="selectRankingForTeam(t, unmatchedRankings()[$any($event.target).selectedIndex - 1])"
+														autofocus>
+														<option value="">Pick ranking...</option>
+														@for (r of unmatchedRankings(); track r.rank) {
+															<option [value]="r.rank">#{{ r.rank }} {{ r.team }} ({{ r.state }}) {{ r.rating | number:'1.2-2' }}</option>
+														}
+													</select>
+												} @else {
+													<button class="btn btn-outline-primary btn-sm"
+														(click)="startMatchFromTeam(t.teamId)"
+														[disabled]="unmatchedRankings().length === 0">
+														<i class="bi bi-link-45deg me-1"></i>Match
+													</button>
+												}
 											</td>
 										</tr>
 									}
@@ -151,10 +221,10 @@
 						</div>
 					}
 
-					<!-- Unmatched Rankings -->
-					@if (result.unmatchedRankings.length > 0) {
-						<h6 class="mb-2 text-warning">Unmatched Rankings</h6>
-						<div class="table-responsive mb-4">
+					<!-- ── Unmatched Rankings ── -->
+					@if (unmatchedRankings().length > 0) {
+						<h6 class="mb-2 text-warning">Unmatched Rankings ({{ unmatchedRankings().length }})</h6>
+						<div class="table-responsive">
 							<table class="table table-sm table-hover align-middle">
 								<thead>
 									<tr>
@@ -162,40 +232,34 @@
 										<th>Team</th>
 										<th>State</th>
 										<th>Rating</th>
+										<th style="width: 200px">Assign Team</th>
 									</tr>
 								</thead>
 								<tbody>
-									@for (r of result.unmatchedRankings; track r.rank) {
-										<tr class="text-body-secondary">
+									@for (r of unmatchedRankings(); track r.rank; let i = $index) {
+										<tr>
 											<td>{{ r.rank }}</td>
 											<td>{{ r.team }}</td>
 											<td>{{ r.state }}</td>
 											<td>{{ r.rating | number:'1.2-2' }}</td>
-										</tr>
-									}
-								</tbody>
-							</table>
-						</div>
-					}
-
-					<!-- Unmatched Registered Teams -->
-					@if (result.unmatchedTeams.length > 0) {
-						<h6 class="mb-2 text-danger">Unmatched Registered Teams</h6>
-						<div class="table-responsive">
-							<table class="table table-sm table-hover align-middle">
-								<thead>
-									<tr>
-										<th>Team</th>
-										<th>Club</th>
-										<th>Age Group</th>
-									</tr>
-								</thead>
-								<tbody>
-									@for (t of result.unmatchedTeams; track t.teamId) {
-										<tr class="text-body-secondary">
-											<td>{{ t.teamName }}</td>
-											<td>{{ t.clubName }}</td>
-											<td>{{ t.agegroupName }}</td>
+											<td>
+												@if (matchingRankIndex() === i) {
+													<select class="form-select form-select-sm"
+														(change)="selectTeamForRanking(r, unmatchedTeams()[$any($event.target).selectedIndex - 1])"
+														autofocus>
+														<option value="">Pick team...</option>
+														@for (t of unmatchedTeams(); track t.teamId) {
+															<option [value]="t.teamId">{{ t.teamName }} ({{ t.clubName }})</option>
+														}
+													</select>
+												} @else {
+													<button class="btn btn-outline-primary btn-sm"
+														(click)="startMatchFromRanking(i)"
+														[disabled]="unmatchedTeams().length === 0">
+														<i class="bi bi-link-45deg me-1"></i>Match
+													</button>
+												}
+											</td>
 										</tr>
 									}
 								</tbody>
@@ -212,7 +276,7 @@
 @if (activeTab() === 'import') {
 	<div class="card shadow-sm">
 		<div class="card-body">
-			@if (alignment(); as result) {
+			@if (hasResults()) {
 				<p class="text-body-secondary mb-3">
 					Import matched rankings into <strong>TeamComments</strong> for use in Pool Assignment.
 					Format written: <code>001:Team Name</code> (rank padded to 3 digits).
@@ -228,8 +292,8 @@
 								[checked]="confidenceCategory() === 'high'"
 								(change)="confidenceCategory.set('high')">
 							<label class="form-check-label" for="conf-high">
-								High only (75%+)
-								<span class="badge bg-success-subtle text-success ms-1">{{ highConfMatches().length }}</span>
+								High only (75%+) + Manual
+								<span class="badge bg-success-subtle text-success ms-1">{{ highConfMatches().length + manualMatches().length }}</span>
 							</label>
 						</div>
 						<div class="form-check">
@@ -238,8 +302,8 @@
 								[checked]="confidenceCategory() === 'medium'"
 								(change)="confidenceCategory.set('medium')">
 							<label class="form-check-label" for="conf-medium">
-								Medium+ (50%+)
-								<span class="badge bg-warning-subtle text-warning ms-1">{{ highConfMatches().length + mediumConfMatches().length }}</span>
+								Medium+ (50%+) + Manual
+								<span class="badge bg-warning-subtle text-warning ms-1">{{ highConfMatches().length + mediumConfMatches().length + manualMatches().length }}</span>
 							</label>
 						</div>
 					</div>
@@ -255,13 +319,13 @@
 									<th style="width: 60px">Rank</th>
 									<th>Ranked Team</th>
 									<th>Registered Team</th>
-									<th style="width: 90px">Confidence</th>
+									<th style="width: 100px">Confidence</th>
 									<th>Comment Preview</th>
 								</tr>
 							</thead>
 							<tbody>
 								@for (match of filteredMatches(); track match.registeredTeam.teamId) {
-									<tr>
+									<tr [class.table-info]="isManualMatch(match)">
 										<td class="fw-medium">{{ match.ranking.rank }}</td>
 										<td>{{ match.ranking.team }}</td>
 										<td>{{ match.registeredTeam.teamName }}</td>
@@ -311,55 +375,53 @@
 				Edit individual team comments or clear all comments for an age group.
 			</p>
 
-			@if (alignment(); as result) {
-				@if (result.alignedTeams.length > 0) {
-					<div class="table-responsive mb-4">
-						<table class="table table-sm table-hover align-middle">
-							<thead>
-								<tr>
-									<th>Registered Team</th>
-									<th>Club</th>
-									<th>Comment</th>
-									<th style="width: 120px">Actions</th>
+			@if (matchedTeams().length > 0) {
+				<div class="table-responsive mb-4">
+					<table class="table table-sm table-hover align-middle">
+						<thead>
+							<tr>
+								<th>Registered Team</th>
+								<th>Club</th>
+								<th>Comment</th>
+								<th style="width: 120px">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							@for (match of matchedTeams(); track match.registeredTeam.teamId) {
+								<tr [class.table-info]="isManualMatch(match)">
+									<td>{{ match.registeredTeam.teamName }}</td>
+									<td>{{ match.registeredTeam.clubName }}</td>
+									<td>
+										@if (editingTeamId() === match.registeredTeam.teamId) {
+											<input class="form-control form-control-sm"
+												[ngModel]="editComment()"
+												(ngModelChange)="editComment.set($event)">
+										} @else {
+											<code>{{ match.ranking.rank.toString().padStart(3, '0') }}:{{ match.ranking.team }}</code>
+										}
+									</td>
+									<td>
+										@if (editingTeamId() === match.registeredTeam.teamId) {
+											<button class="btn btn-sm btn-success me-1"
+												(click)="saveEdit(match.registeredTeam.teamId)">
+												<i class="bi bi-check"></i>
+											</button>
+											<button class="btn btn-sm btn-outline-secondary"
+												(click)="cancelEdit()">
+												<i class="bi bi-x"></i>
+											</button>
+										} @else {
+											<button class="btn btn-sm btn-outline-primary"
+												(click)="startEdit(match)">
+												<i class="bi bi-pencil"></i>
+											</button>
+										}
+									</td>
 								</tr>
-							</thead>
-							<tbody>
-								@for (match of result.alignedTeams; track match.registeredTeam.teamId) {
-									<tr>
-										<td>{{ match.registeredTeam.teamName }}</td>
-										<td>{{ match.registeredTeam.clubName }}</td>
-										<td>
-											@if (editingTeamId() === match.registeredTeam.teamId) {
-												<input class="form-control form-control-sm"
-													[ngModel]="editComment()"
-													(ngModelChange)="editComment.set($event)">
-											} @else {
-												<code>{{ match.ranking.rank.toString().padStart(3, '0') }}:{{ match.ranking.team }}</code>
-											}
-										</td>
-										<td>
-											@if (editingTeamId() === match.registeredTeam.teamId) {
-												<button class="btn btn-sm btn-success me-1"
-													(click)="saveEdit(match.registeredTeam.teamId)">
-													<i class="bi bi-check"></i>
-												</button>
-												<button class="btn btn-sm btn-outline-secondary"
-													(click)="cancelEdit()">
-													<i class="bi bi-x"></i>
-												</button>
-											} @else {
-												<button class="btn btn-sm btn-outline-primary"
-													(click)="startEdit(match)">
-													<i class="bi bi-pencil"></i>
-												</button>
-											}
-										</td>
-									</tr>
-								}
-							</tbody>
-						</table>
-					</div>
-				}
+							}
+						</tbody>
+					</table>
+				</div>
 			}
 
 			<!-- Clear all -->
@@ -373,6 +435,119 @@
 					[disabled]="isLoading() || !selectedRegisteredAg()">
 					<i class="bi bi-trash me-1"></i>Clear Comments
 				</button>
+			</div>
+		</div>
+	</div>
+}
+
+<!-- ═══════════════════ Help & Guide Dialog ═══════════════════ -->
+@if (showHelp()) {
+	<div class="help-backdrop" (click)="showHelp.set(false)"></div>
+	<div class="help-dialog" role="dialog" aria-labelledby="help-title">
+		<div class="help-header">
+			<h4 id="help-title" class="mb-0">
+				<i class="bi bi-mortarboard me-2"></i>Rankings System Guide
+			</h4>
+			<button class="btn-close btn-close-white" aria-label="Close"
+				(click)="showHelp.set(false)"></button>
+		</div>
+		<div class="help-body">
+			<div class="help-section">
+				<h5><i class="bi bi-info-circle me-2"></i>What This System Does</h5>
+				<p>
+					This automated system matches your registered tournament teams with usclublax.com
+					national rankings, providing accurate ranking data to make informed seeding decisions
+					for your tournament.
+				</p>
+			</div>
+
+			<div class="help-section">
+				<h5><i class="bi bi-gear me-2"></i>Matching Process</h5>
+				<p>
+					The system uses a <strong>multi-factor comparison</strong> with noise-word filtering,
+					state awareness, and strict binary validations:
+				</p>
+				<div class="table-responsive">
+					<table class="table table-sm table-bordered align-middle mb-0">
+						<thead>
+							<tr>
+								<th>Factor</th>
+								<th>Type</th>
+								<th>How It Works</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td class="fw-medium">Club Name</td>
+								<td><span class="badge bg-danger-subtle text-danger">Critical</span></td>
+								<td>Fuzzy match after stripping noise words (Select, Premier, etc.)</td>
+							</tr>
+							<tr class="table-danger">
+								<td class="fw-medium">Color</td>
+								<td><span class="badge bg-danger-subtle text-danger">Binary Gate</span></td>
+								<td>Both must have same color, or neither has a color</td>
+							</tr>
+							<tr class="table-danger">
+								<td class="fw-medium">Year/Level</td>
+								<td><span class="badge bg-danger-subtle text-danger">Binary Gate</span></td>
+								<td>Graduation years must match (supports HS level keywords)</td>
+							</tr>
+							<tr>
+								<td class="fw-medium">State</td>
+								<td><span class="badge bg-warning-subtle text-warning">Penalty</span></td>
+								<td>Different states apply -20% penalty (not a hard rejection)</td>
+							</tr>
+							<tr>
+								<td class="fw-medium">Manual Override</td>
+								<td><span class="badge bg-info-subtle text-info">User</span></td>
+								<td>Manually match unmatched teams via the Match button</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<div class="help-section">
+				<h5><i class="bi bi-shield-exclamation me-2"></i>Binary Validations</h5>
+				<div class="alert alert-danger mb-0">
+					<p class="fw-bold mb-2">Teams are automatically rejected if:</p>
+					<ul class="mb-2">
+						<li><strong>Different Colors:</strong> "Elite Red (2026)" will <strong>NEVER</strong> match "Elite Blue (2026)"</li>
+						<li><strong>Different Years:</strong> "Elite Red (2026)" will <strong>NEVER</strong> match "Elite Red (2027)"</li>
+						<li><strong>Color mismatch:</strong> One has a color and the other doesn't</li>
+					</ul>
+					<p class="fw-bold mb-0">
+						Use the <strong>Match</strong> button on unmatched teams to manually override when the algorithm misses.
+					</p>
+				</div>
+			</div>
+
+			<div class="help-section">
+				<h5><i class="bi bi-speedometer2 me-2"></i>Confidence Levels</h5>
+				<div class="d-flex gap-3 flex-wrap">
+					<div class="d-flex align-items-center gap-2">
+						<span class="badge confidence-high">75%+</span>
+						<span>High &mdash; Very likely correct</span>
+					</div>
+					<div class="d-flex align-items-center gap-2">
+						<span class="badge confidence-medium">50-74%</span>
+						<span>Medium &mdash; Review recommended</span>
+					</div>
+					<div class="d-flex align-items-center gap-2">
+						<span class="badge confidence-manual">Manual</span>
+						<span>User-assigned match</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="help-section">
+				<h5><i class="bi bi-lightning me-2"></i>Workflow</h5>
+				<ul class="mb-0">
+					<li><strong>Step 1:</strong> Select age groups and click <strong>Align</strong></li>
+					<li><strong>Step 2:</strong> Review matches, use <strong>Match</strong> buttons to manually assign unmatched teams</li>
+					<li><strong>Step 3:</strong> Switch to <strong>Import</strong> tab to save rankings to Team Comments</li>
+					<li><strong>Step 4:</strong> Team Comments appear in <strong>Pool Assignment</strong> to inform seeding decisions</li>
+				</ul>
 			</div>
 		</div>
 	</div>

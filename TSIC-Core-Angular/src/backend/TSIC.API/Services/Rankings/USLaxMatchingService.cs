@@ -45,10 +45,61 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
     };
 
     // ── Noise words to strip from word-match scoring ────────────────────────
+    // Includes sport terms, org suffixes, AND tier designators that add no
+    // club-identity signal (e.g., "Select" appears in dozens of unrelated clubs).
     private static readonly HashSet<string> NoiseWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Lacrosse", "LAX", "Club", "LC"
+        // Sport / org
+        "Lacrosse", "LAX", "Club", "LC", "Girls",
+        // Tier designators — common across many unrelated clubs
+        "Select", "Premier", "Elite", "Express", "Force", "National",
+        "Academy", "United", "Total", "Prime", "Intensity", "Futures"
     };
+
+    // ── State abbreviation dictionary (for state-mismatch penalty) ────────
+    // Maps full names, abbreviations, and alternate formats to 2-letter code.
+    private static readonly IReadOnlyDictionary<string, string> StatePatterns =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            {"AL", "AL"}, {"Alabama", "AL"}, {"AK", "AK"}, {"Alaska", "AK"},
+            {"AZ", "AZ"}, {"Arizona", "AZ"}, {"AR", "AR"}, {"Arkansas", "AR"},
+            {"CA", "CA"}, {"California", "CA"}, {"CO", "CO"}, {"Colorado", "CO"},
+            {"CT", "CT"}, {"Connecticut", "CT"}, {"DE", "DE"}, {"Delaware", "DE"},
+            {"FL", "FL"}, {"Florida", "FL"}, {"GA", "GA"}, {"Georgia", "GA"},
+            {"HI", "HI"}, {"Hawaii", "HI"}, {"ID", "ID"}, {"Idaho", "ID"},
+            {"IL", "IL"}, {"Illinois", "IL"}, {"IN", "IN"}, {"Indiana", "IN"},
+            {"IA", "IA"}, {"Iowa", "IA"}, {"KS", "KS"}, {"Kansas", "KS"},
+            {"KY", "KY"}, {"Kentucky", "KY"}, {"LA", "LA"}, {"Louisiana", "LA"},
+            {"ME", "ME"}, {"Maine", "ME"}, {"MD", "MD"}, {"Maryland", "MD"},
+            {"MA", "MA"}, {"Massachusetts", "MA"}, {"MI", "MI"}, {"Michigan", "MI"},
+            {"MN", "MN"}, {"Minnesota", "MN"}, {"MS", "MS"}, {"Mississippi", "MS"},
+            {"MO", "MO"}, {"Missouri", "MO"}, {"MT", "MT"}, {"Montana", "MT"},
+            {"NE", "NE"}, {"Nebraska", "NE"}, {"NV", "NV"}, {"Nevada", "NV"},
+            {"NH", "NH"}, {"New Hampshire", "NH"}, {"NJ", "NJ"}, {"New Jersey", "NJ"},
+            {"NM", "NM"}, {"New Mexico", "NM"}, {"NY", "NY"}, {"New York", "NY"},
+            {"NC", "NC"}, {"North Carolina", "NC"}, {"ND", "ND"}, {"North Dakota", "ND"},
+            {"OH", "OH"}, {"Ohio", "OH"}, {"OK", "OK"}, {"Oklahoma", "OK"},
+            {"OR", "OR"}, {"Oregon", "OR"}, {"PA", "PA"}, {"Pennsylvania", "PA"},
+            {"RI", "RI"}, {"Rhode Island", "RI"}, {"SC", "SC"}, {"South Carolina", "SC"},
+            {"SD", "SD"}, {"South Dakota", "SD"}, {"TN", "TN"}, {"Tennessee", "TN"},
+            {"TX", "TX"}, {"Texas", "TX"}, {"UT", "UT"}, {"Utah", "UT"},
+            {"VT", "VT"}, {"Vermont", "VT"}, {"VA", "VA"}, {"Virginia", "VA"},
+            {"WA", "WA"}, {"Washington", "WA"}, {"WV", "WV"}, {"West Virginia", "WV"},
+            {"WI", "WI"}, {"Wisconsin", "WI"}, {"WY", "WY"}, {"Wyoming", "WY"},
+            {"DC", "DC"}, {"Washington DC", "DC"}, {"District of Columbia", "DC"},
+            {"PR", "PR"}, {"Puerto Rico", "PR"}, {"VI", "VI"}, {"Virgin Islands", "VI"},
+            {"GU", "GU"}, {"Guam", "GU"}, {"AS", "AS"}, {"American Samoa", "AS"},
+            {"MP", "MP"}, {"Northern Mariana Islands", "MP"},
+            {"N.Y.", "NY"}, {"N. Y.", "NY"}, {"New York State", "NY"},
+            {"N.J.", "NJ"}, {"N. J.", "NJ"}, {"N.C.", "NC"}, {"N. C.", "NC"},
+            {"S.C.", "SC"}, {"S. C.", "SC"}, {"N.D.", "ND"}, {"N. D.", "ND"},
+            {"S.D.", "SD"}, {"S. D.", "SD"}, {"W.V.", "WV"}, {"W. V.", "WV"}
+        };
+
+    // Penalty applied when scraped state and registered team state both resolve
+    // to abbreviations but differ (e.g., FL vs NJ). Not a hard gate because
+    // teams occasionally register from a different state than their home base.
+    private const double StateMismatchPenalty = 0.20;
 
     private const double MinimumThreshold = 0.50;
     private const double WordMatchBonusCap = 0.20;
@@ -141,6 +192,9 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
     {
         MatchCandidate? best = null;
 
+        // Resolve scraped state ONCE per ranking (e.g., "FL" from RankingEntryDto.State)
+        var scrapedState = NormalizeState(ranking.State);
+
         foreach (var team in candidates)
         {
             if (usedTeamIds.Contains(team.TeamId)) continue;
@@ -184,6 +238,20 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
             var wordBonus = CalculateWordMatchBonus(ranking.Team, registeredDesignation);
             score += wordBonus;
 
+            // ── State mismatch penalty ────────────────────────────────
+            // If both sides resolve to a state abbreviation and they differ,
+            // apply penalty. Not a hard gate — teams occasionally register
+            // from a different state than their geographic base.
+            var registeredState = ExtractStateFromName(team.TeamName)
+                               ?? ExtractStateFromName(team.ClubName);
+            var statePenalty = 0.0;
+            if (!string.IsNullOrEmpty(scrapedState) && !string.IsNullOrEmpty(registeredState)
+                && !string.Equals(scrapedState, registeredState, StringComparison.OrdinalIgnoreCase))
+            {
+                statePenalty = StateMismatchPenalty;
+                score -= statePenalty;
+            }
+
             // Cap at 1.0
             score = Math.Min(score, 1.0);
 
@@ -191,7 +259,8 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
                 continue;
 
             var reason = FormatMatchReason(score, clubSim, scrapedClub, registeredClub,
-                scrapedColor, scrapedYear, teamSim, wordBonus, clubW, teamW);
+                scrapedColor, scrapedYear, teamSim, wordBonus, clubW, teamW,
+                scrapedState, registeredState, statePenalty);
 
             best = new MatchCandidate(team, score, reason);
         }
@@ -397,16 +466,23 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
     // Similarity scoring
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Strips all noise words (sport terms + tier designators) from a club name
+    /// before Levenshtein comparison, so generic words like "Select" don't inflate
+    /// similarity between unrelated clubs.
+    /// </summary>
     private static string CleanClubName(string club)
     {
         if (string.IsNullOrEmpty(club)) return string.Empty;
-        return club
-            .Replace("Lacrosse", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("LAX", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("LC", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("Club", "", StringComparison.OrdinalIgnoreCase)
-            .Trim()
-            .ToLowerInvariant();
+
+        var words = club.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var significant = words
+            .Where(w => !NoiseWords.Contains(w))
+            .Where(w => !ValidColors.Contains(w))
+            .Where(w => !int.TryParse(w, out _));
+
+        var result = string.Join(" ", significant).Trim().ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(result) ? club.Trim().ToLowerInvariant() : result;
     }
 
     private static double FuzzySimilarity(string a, string b)
@@ -436,12 +512,14 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
     private static string CleanTeamName(string name)
     {
         if (string.IsNullOrEmpty(name)) return string.Empty;
-        var cleaned = ParensYear.Replace(name, "")
-            .Replace("Lacrosse", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("LAX", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("LC", "", StringComparison.OrdinalIgnoreCase)
-            .Trim();
-        return MultiSpaces.Replace(cleaned, " ");
+        var cleaned = ParensYear.Replace(name, "").Trim();
+
+        // Strip noise words consistently with CleanClubName
+        var words = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var significant = words.Where(w => !NoiseWords.Contains(w));
+        cleaned = string.Join(" ", significant);
+
+        return string.IsNullOrWhiteSpace(cleaned) ? name.Trim() : MultiSpaces.Replace(cleaned, " ");
     }
 
     /// <summary>
@@ -471,6 +549,46 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
             .Where(w => !ValidColors.Contains(w))
             .Where(w => !NoiseWords.Contains(w))
             .ToList();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // State helpers
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Normalizes a state value (abbreviation, full name, or dotted format) to a 2-letter code.
+    /// </summary>
+    private static string? NormalizeState(string? state)
+    {
+        if (string.IsNullOrWhiteSpace(state)) return null;
+        return StatePatterns.TryGetValue(state.Trim(), out var abbrev) ? abbrev : null;
+    }
+
+    /// <summary>
+    /// Extracts a state abbreviation from a team/club name by scanning for state names
+    /// or abbreviations embedded in the text (e.g., "Florida Select" → "FL", "NJ Total" → "NJ").
+    /// </summary>
+    private static string? ExtractStateFromName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        // Check each word (handles "NJ Total Select", "Florida Select 2028")
+        var words = name.Split([' ', ':', '-', '(', ')'], StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
+        {
+            var trimmed = word.Trim(',', '.', ';');
+            if (StatePatterns.TryGetValue(trimmed, out var abbrev))
+                return abbrev;
+        }
+
+        // Check multi-word state names (e.g., "New Jersey", "North Carolina")
+        foreach (var (pattern, abbrev) in StatePatterns)
+        {
+            if (pattern.Contains(' ') && name.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                return abbrev;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -514,7 +632,8 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
     private static string FormatMatchReason(
         double score, double clubSim, string scrapedClub, string registeredClub,
         string scrapedColor, string scrapedYear, double teamSim, double wordBonus,
-        double clubW, double teamW)
+        double clubW, double teamW,
+        string? scrapedState, string? registeredState, double statePenalty)
     {
         var label = score switch
         {
@@ -536,6 +655,11 @@ public sealed class USLaxMatchingService : IUSLaxMatchingService
 
         if (wordBonus > 0)
             parts.Add($"Word bonus: +{wordBonus * 100:F0}%");
+
+        if (statePenalty > 0)
+            parts.Add($"State: MISMATCH ({scrapedState} vs {registeredState}, -{statePenalty * 100:F0}%)");
+        else if (!string.IsNullOrEmpty(scrapedState) && !string.IsNullOrEmpty(registeredState))
+            parts.Add($"State: MATCH ({scrapedState})");
 
         return $"{label} match ({pct}%) — {string.Join(", ", parts)}";
     }

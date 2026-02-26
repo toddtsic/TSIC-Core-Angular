@@ -49,6 +49,11 @@
 	color: var(--bs-danger);
 }
 
+.confidence-manual {
+	background-color: rgba(var(--bs-info-rgb), 0.15);
+	color: var(--bs-info);
+}
+
 // ── Table refinements ──
 
 .table {
@@ -73,6 +78,72 @@
 	}
 }
 
+// ── Help & Guide dialog ──
+
+.help-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 1050;
+}
+
+.help-dialog {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: min(90vw, 720px);
+	max-height: 85vh;
+	background: var(--bs-body-bg);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-xl);
+	z-index: 1051;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.help-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--space-4);
+	background: var(--bs-primary);
+	color: var(--bs-light);
+}
+
+.help-body {
+	padding: var(--space-4);
+	overflow-y: auto;
+	flex: 1;
+}
+
+.help-section {
+	margin-bottom: var(--space-4);
+	padding-bottom: var(--space-4);
+	border-bottom: 1px solid var(--border-color);
+
+	&:last-child {
+		margin-bottom: 0;
+		padding-bottom: 0;
+		border-bottom: none;
+	}
+
+	h5 {
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		margin-bottom: var(--space-3);
+	}
+
+	p {
+		color: var(--bs-body-color);
+	}
+
+	ul {
+		padding-left: var(--space-4);
+	}
+}
+
 // ── Responsive ──
 
 @media (max-width: 768px) {
@@ -83,5 +154,10 @@
 
 	.summary-item {
 		min-width: 60px;
+	}
+
+	.help-dialog {
+		width: 95vw;
+		max-height: 90vh;
 	}
 }

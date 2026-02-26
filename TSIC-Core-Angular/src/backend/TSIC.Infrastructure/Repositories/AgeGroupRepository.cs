@@ -112,13 +112,12 @@ public class AgeGroupRepository : IAgeGroupRepository
                         && t.Active == true
                         && !t.Agegroup.AgegroupName.Contains("DROPPED")
                         && !t.Agegroup.AgegroupName.Contains("WAITLIST"))
-            .Select(t => new { t.Agegroup.AgegroupId, t.Agegroup.AgegroupName })
-            .Distinct()
-            .OrderBy(x => x.AgegroupName)
-            .Select(x => new AgeGroupOptionDto
+            .GroupBy(t => new { t.Agegroup.AgegroupId, t.Agegroup.AgegroupName })
+            .OrderBy(g => g.Key.AgegroupName)
+            .Select(g => new AgeGroupOptionDto
             {
-                Value = x.AgegroupId.ToString(),
-                Text = x.AgegroupName ?? string.Empty
+                Value = g.Key.AgegroupId.ToString(),
+                Text = $"{g.Key.AgegroupName ?? string.Empty} ({g.Count()} Teams)"
             })
             .ToListAsync(ct);
     }
