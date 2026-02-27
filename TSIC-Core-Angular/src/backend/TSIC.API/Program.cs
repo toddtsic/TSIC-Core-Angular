@@ -325,7 +325,15 @@ builder.Services.Configure<IdentityOptions>(options =>
 });
 // Configure Identity to use the dedicated TsicIdentityDbContext with ApplicationUser
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-!._@+/ ")
-    .AddEntityFrameworkStores<TsicIdentityDbContext>();
+    .AddEntityFrameworkStores<TsicIdentityDbContext>()
+    .AddDefaultTokenProviders();
+
+// Password reset token lifetime (1 hour)
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromHours(1));
+
+// Frontend URL for building email links (password reset, etc.)
+builder.Services.Configure<FrontendSettings>(builder.Configuration.GetSection("FrontendSettings"));
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

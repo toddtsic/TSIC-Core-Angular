@@ -1,16 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Services;
 using TSIC.Application.Validators;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Application.Services.Auth;
 using TSIC.Application.Services.Users;
 using FluentValidation;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.API.Configuration;
 using TSIC.API.Services.Auth;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers
 {
@@ -26,6 +30,8 @@ namespace TSIC.API.Controllers
         private readonly ITokenService _tokenService;
         private readonly IUserRepository _userRepository;
         private readonly IWebHostEnvironment _env;
+        private readonly IEmailService _emailService;
+        private readonly FrontendSettings _frontendSettings;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -35,7 +41,9 @@ namespace TSIC.API.Controllers
             IRefreshTokenService refreshTokenService,
             ITokenService tokenService,
             IUserRepository userRepository,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IEmailService emailService,
+            IOptions<FrontendSettings> frontendSettings)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
@@ -45,6 +53,8 @@ namespace TSIC.API.Controllers
             _tokenService = tokenService;
             _userRepository = userRepository;
             _env = env;
+            _emailService = emailService;
+            _frontendSettings = frontendSettings.Value;
         }
 
         /// <summary>
@@ -332,6 +342,113 @@ namespace TSIC.API.Controllers
 
             await _userRepository.UpdateTosAcceptanceByUserIdAsync(userId);
             return Ok(new { Message = "Terms of Service accepted successfully" });
+        }
+
+        /// <summary>
+        /// Request a password reset email. Always returns 200 regardless of whether the email exists (no account enumeration).
+        /// </summary>
+        [HttpPost("forgot-password")]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                return Ok(new { Message = "If an account with that email exists, a password reset link has been sent." });
+            }
+
+            var user = await _userManager.FindByEmailAsync(request.Email.Trim());
+            if (user != null)
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var resetUrl = $"{_frontendSettings.BaseUrl.TrimEnd('/')}/reset-password" +
+                    $"?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
+
+                await _emailService.SendAsync(BuildPasswordResetEmail(user.Email!, resetUrl), sendInDevelopment: true, cancellationToken: ct);
+            }
+
+            return Ok(new { Message = "If an account with that email exists, a password reset link has been sent." });
+        }
+
+        /// <summary>
+        /// Reset password using a token from the forgot-password email.
+        /// </summary>
+        [HttpPost("reset-password")]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                return BadRequest(new { Error = "Email, token, and new password are required." });
+            }
+
+            var user = await _userManager.FindByEmailAsync(request.Email.Trim());
+            if (user == null)
+            {
+                return BadRequest(new { Error = "Invalid or expired reset link. Please request a new one." });
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => e.Description).ToList();
+
+                // Surface a user-friendly message for expired/invalid tokens
+                if (errors.Exists(e => e.Contains("Invalid token", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return BadRequest(new { Error = "This reset link has expired or has already been used. Please request a new one." });
+                }
+
+                return BadRequest(new { Error = string.Join(" ", errors) });
+            }
+
+            return Ok(new { Message = "Your password has been reset successfully." });
+        }
+
+        private static EmailMessageDto BuildPasswordResetEmail(string toEmail, string resetUrl)
+        {
+            var htmlBody = $"""
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <h2 style="color: #1c1917; margin: 0 0 8px;">Password Reset</h2>
+                        <p style="color: #78716c; font-size: 14px; margin: 0;">{TsicConstants.SupportEmail}</p>
+                    </div>
+                    <div style="background: #ffffff; border: 1px solid #e7e5e4; border-radius: 8px; padding: 32px;">
+                        <p style="color: #1c1917; font-size: 16px; line-height: 1.5; margin: 0 0 16px;">
+                            We received a request to reset your password. Click the button below to choose a new password.
+                        </p>
+                        <div style="text-align: center; margin: 24px 0;">
+                            <a href="{resetUrl}" style="display: inline-block; background: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                                Reset Password
+                            </a>
+                        </div>
+                        <p style="color: #78716c; font-size: 13px; line-height: 1.5; margin: 16px 0 0;">
+                            This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email &mdash; your password will remain unchanged.
+                        </p>
+                    </div>
+                    <p style="color: #a8a29e; font-size: 12px; text-align: center; margin-top: 24px;">
+                        &copy; TEAMSPORTSINFO.COM
+                    </p>
+                </div>
+                """;
+
+            var textBody = $"""
+                Password Reset — TEAMSPORTSINFO.COM
+
+                We received a request to reset your password. Visit the link below to choose a new password:
+
+                {resetUrl}
+
+                This link expires in 1 hour. If you didn't request this, ignore this email.
+                """;
+
+            return new EmailMessageDto
+            {
+                ToAddresses = [toEmail],
+                Subject = "Reset Your Password — TEAMSPORTSINFO.COM",
+                HtmlBody = htmlBody,
+                TextBody = textBody
+            };
         }
     }
 }

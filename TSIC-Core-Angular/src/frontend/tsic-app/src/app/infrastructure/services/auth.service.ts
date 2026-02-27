@@ -435,6 +435,20 @@ export class AuthService {
   }
 
   /**
+   * Request a password reset email. Backend always returns 200 (no account enumeration).
+   */
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/forgot-password`, { email });
+  }
+
+  /**
+   * Reset password using a token from the forgot-password email.
+   */
+  resetPassword(email: string, token: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/reset-password`, { email, token, newPassword });
+  }
+
+  /**
    * Start proactive token refresh timer
    * Checks token expiration every 60 seconds and refreshes 5 minutes before expiry
    */

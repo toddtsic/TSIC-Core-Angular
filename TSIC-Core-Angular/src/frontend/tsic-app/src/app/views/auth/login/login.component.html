@@ -63,6 +63,12 @@
             }
           </button>
 
+          <div class="text-center login-forgot">
+            <a routerLink="/forgot-password" class="small text-decoration-underline">
+              Forgot your password?
+            </a>
+          </div>
+
           @if (theme !== 'login') {
           <div class="text-center login-escape">
             <a [routerLink]="['/tsic/login']" [queryParams]="escapeQueryParams" class="small text-decoration-underline">

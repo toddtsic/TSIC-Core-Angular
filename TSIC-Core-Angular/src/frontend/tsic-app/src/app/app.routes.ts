@@ -46,6 +46,16 @@ export const routes: Routes = [
 		loadComponent: () => import('./views/home/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
 	},
 
+	// Password reset (top-level — not job-scoped, since users span multiple jobs)
+	{
+		path: 'forgot-password',
+		loadComponent: () => import('./views/auth/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent)
+	},
+	{
+		path: 'reset-password',
+		loadComponent: () => import('./views/auth/reset-password/reset-password.component').then(m => m.ResetPasswordComponent)
+	},
+
 	// 404 route (must be before :jobPath to prevent matching as a jobPath)
 	{
 		path: 'not-found',
