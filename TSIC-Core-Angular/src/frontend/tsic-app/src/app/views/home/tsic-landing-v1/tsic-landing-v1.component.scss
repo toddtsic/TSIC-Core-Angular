@@ -29,7 +29,7 @@
   // Solid state — triggered when hero scrolls out of view
   &--solid {
     background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.92);
-    backdrop-filter: blur(10px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     box-shadow: var(--shadow-sm);
 
     .lp-nav__name { color: var(--brand-text); }
@@ -305,7 +305,7 @@
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(4px);
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
   text-decoration: none;
   transition: background 0.2s ease;
 

@@ -94,8 +94,8 @@
     position: relative;
     background: transparent;
     border: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
+    // -webkit-backdrop-filter banned — creates containing blocks that trap positioned descendants
 
     // Ensure text contrast in both light and dark modes
     color: var(--bs-body-color);

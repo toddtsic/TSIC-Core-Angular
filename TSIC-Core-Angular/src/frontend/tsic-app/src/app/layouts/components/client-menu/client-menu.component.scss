@@ -1,7 +1,8 @@
 // Modern menu — lives inside .tsic-header sticky block, no separate sticky needed
 .navbar {
     background: var(--brand-surface);
-    backdrop-filter: blur(20px) saturate(180%);
+    // NOTE: backdrop-filter removed — creates containing block that traps
+    // position:absolute dropdown-menu children inside the navbar paint layer.
     border-bottom: 1px solid var(--brand-border);
     width: 100%;
     padding: 0;
@@ -77,7 +78,7 @@
                     padding: var(--space-2);
                     margin-top: 0;
                     background: var(--brand-surface);
-                    backdrop-filter: blur(20px) saturate(180%);
+                    // backdrop-filter removed — same stacking context trap
                     min-width: 200px;
 
                     .dropdown-item {
@@ -254,5 +255,5 @@
 // Enhanced backdrop
 .offcanvas-backdrop {
     background-color: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
 }

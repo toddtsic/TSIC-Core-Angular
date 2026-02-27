@@ -43,7 +43,7 @@
 	gap: var(--space-3);
 	padding: var(--space-4);
 	background: var(--surface-elevated-bg);
-	backdrop-filter: blur(12px) saturate(150%);
+	// backdrop-filter banned — creates containing blocks that trap positioned descendants
 	border: 1px solid var(--brand-border);
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-sm);
@@ -114,7 +114,7 @@
 	gap: var(--space-4);
 	padding: var(--space-3) var(--space-4);
 	background: var(--surface-elevated-bg);
-	backdrop-filter: blur(12px) saturate(150%);
+	// backdrop-filter banned — creates containing blocks that trap positioned descendants
 	border: 1px solid var(--brand-border);
 	border-radius: var(--radius-lg);
 	margin-bottom: var(--space-6);
@@ -359,7 +359,7 @@
 @media (prefers-reduced-motion: reduce) {
 	.kpi-card {
 		transition: none;
-		backdrop-filter: none;
+		// backdrop-filter banned — creates containing blocks that trap positioned descendants
 
 		&:hover {
 			transform: none;
@@ -367,7 +367,7 @@
 	}
 
 	.param-bar {
-		backdrop-filter: none;
+		// backdrop-filter banned — creates containing blocks that trap positioned descendants
 	}
 
 	.tab-btn,

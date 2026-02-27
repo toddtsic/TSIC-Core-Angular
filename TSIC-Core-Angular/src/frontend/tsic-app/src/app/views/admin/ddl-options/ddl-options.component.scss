@@ -142,7 +142,7 @@
 	gap: var(--space-3);
 	padding: var(--space-3) var(--space-4);
 	background: var(--surface-elevated-bg);
-	backdrop-filter: blur(12px) saturate(150%);
+	// backdrop-filter banned — creates containing blocks that trap positioned descendants
 	border-top: 1px solid var(--brand-border);
 	border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 	box-shadow: var(--shadow-md);

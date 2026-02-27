@@ -13,7 +13,7 @@
   border-radius: var(--bs-border-radius-lg);
   padding: var(--space-4);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(8px);
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
   background: linear-gradient(
     135deg,
     var(--glass-white-10) 0%,

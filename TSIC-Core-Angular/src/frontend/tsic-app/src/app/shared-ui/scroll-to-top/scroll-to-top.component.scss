@@ -11,7 +11,7 @@
 
     // Glassmorphic design to match your banner
     background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: var(--blur-lg) saturate(180%);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     color: rgba(60, 60, 70, 0.8);
 
     // Always visible for testing

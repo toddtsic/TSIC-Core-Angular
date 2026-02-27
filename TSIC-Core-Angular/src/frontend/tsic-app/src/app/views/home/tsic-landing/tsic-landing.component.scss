@@ -22,13 +22,13 @@
   z-index: 100;
   padding: var(--space-3) 0;
   background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.92);
-  backdrop-filter: blur(16px);
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
   box-shadow: var(--shadow-sm);
   transition: background-color 0.35s ease, box-shadow 0.35s ease;
 
   &--solid {
     background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.92);
-    backdrop-filter: blur(16px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     box-shadow: var(--shadow-sm);
   }
 

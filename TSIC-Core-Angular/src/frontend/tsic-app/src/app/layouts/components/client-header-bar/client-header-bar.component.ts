@@ -157,7 +157,7 @@ export class ClientHeaderBarComponent {
         if (this.auth.isAuthenticated()) {
             this.showTsicConfirm.set(true);
         } else {
-            this.router.navigate(['/tsic']);
+            this.router.navigate(['/tsic'], { queryParams: { force: 1 } });
         }
     }
 

@@ -1,14 +1,16 @@
 :host {
     display: block;
     overflow-y: auto;
+    position: relative;
 }
 
-// ── Collapse-all button row ──
+// ── Collapse-all button (overlaid, no layout shift) ──
 
 .nav-actions {
-    display: flex;
-    justify-content: flex-end;
-    padding: var(--space-1) var(--space-2) 0;
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-1);
+    z-index: 1;
 }
 
 .collapse-all-btn {

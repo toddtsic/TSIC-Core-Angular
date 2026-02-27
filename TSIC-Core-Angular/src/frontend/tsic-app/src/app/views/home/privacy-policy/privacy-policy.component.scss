@@ -131,7 +131,7 @@
   cursor: pointer;
   z-index: 1000;
   background: rgba(var(--bs-primary-rgb), 0.12);
-  backdrop-filter: blur(12px) saturate(180%);
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
   color: var(--bs-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);

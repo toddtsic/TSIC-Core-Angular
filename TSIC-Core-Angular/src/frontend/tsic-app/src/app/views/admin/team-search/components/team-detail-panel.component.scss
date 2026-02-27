@@ -36,7 +36,7 @@
   padding: var(--space-5);
   border-bottom: 1px solid var(--bs-border-color);
   background: var(--surface-elevated-bg);
-  backdrop-filter: var(--surface-elevated-blur);
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
 }
 
 .header-content {
@@ -89,7 +89,7 @@
   display: flex;
   border-bottom: 1px solid var(--bs-border-color);
   background: var(--surface-elevated-bg);
-  backdrop-filter: var(--surface-elevated-blur);
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
 }
 
 .tab-button {

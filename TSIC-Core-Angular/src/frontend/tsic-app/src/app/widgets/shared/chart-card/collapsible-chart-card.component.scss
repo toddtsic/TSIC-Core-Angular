@@ -4,7 +4,7 @@
 
 .chart-card {
 	background: var(--surface-elevated-bg);
-	backdrop-filter: blur(12px) saturate(150%);
+	// backdrop-filter banned — creates containing blocks that trap positioned descendants
 	border: 1px solid var(--brand-border);
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-sm);
@@ -111,7 +111,7 @@
 	max-height: 85vh;
 	z-index: 1000;
 	background: var(--surface-elevated-bg);
-	backdrop-filter: blur(16px) saturate(160%);
+	// backdrop-filter banned — creates containing blocks that trap positioned descendants
 	border: 1px solid var(--brand-border);
 	border-radius: var(--radius-lg);
 	box-shadow: var(--shadow-xl, 0 24px 48px rgba(0, 0, 0, 0.16));

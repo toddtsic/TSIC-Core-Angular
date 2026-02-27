@@ -10,9 +10,8 @@
   border-radius: var(--bs-border-radius) !important;
   box-shadow: var(--bs-box-shadow-sm) !important;
 
-  // Glassmorphic effect
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
+  // backdrop-filter banned — creates containing blocks that trap positioned descendants
+  // -webkit-backdrop-filter banned — creates containing blocks that trap positioned descendants
 
   // Override Syncfusion's hardcoded #fff on the table element
   .e-table {

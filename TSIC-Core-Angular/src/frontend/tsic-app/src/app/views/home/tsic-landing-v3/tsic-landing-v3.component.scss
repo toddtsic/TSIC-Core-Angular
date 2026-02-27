@@ -23,7 +23,7 @@
 
   &--solid {
     background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.92);
-    backdrop-filter: blur(16px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     box-shadow: var(--shadow-sm);
   }
 

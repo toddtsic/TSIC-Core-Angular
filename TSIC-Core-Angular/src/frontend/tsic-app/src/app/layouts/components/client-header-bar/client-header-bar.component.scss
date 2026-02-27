@@ -43,10 +43,6 @@
     &__accent {
         color: var(--bs-primary);
     }
-
-    :host-context([data-bs-theme="dark"]) & {
-        color: var(--neutral-100);
-    }
 }
 
 .job-logo-box {
@@ -94,7 +90,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(10px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     position: relative;
     z-index: 1;
 
@@ -127,7 +123,7 @@
         border: 1px solid rgba(var(--neutral-0-rgb), 0.2);
         border-radius: var(--radius-sm);
         padding: calc(var(--space-1) + var(--space-0\.5)) calc(var(--space-2) + var(--space-0\.5)) !important;
-        backdrop-filter: blur(8px);
+        // backdrop-filter banned — creates containing blocks that trap positioned descendants
         transition: all 0.2s ease;
 
         &:hover {

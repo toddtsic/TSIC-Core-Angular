@@ -12,3 +12,4 @@ Before submitting code, verify:
 8. **JWT claim names**: NEVER use `User.FindFirst("sub")` — ASP.NET remaps `"sub"` to `ClaimTypes.NameIdentifier`. Always use `User.FindFirst(ClaimTypes.NameIdentifier)`
 9. **Breadcrumb sync**: `ROUTE_TITLE_MAP` must match routes
 10. **Relative API URLs**: NEVER use `/api/...` in HTTP services — the Angular dev server (port 4200) returns `index.html` for unknown routes, giving 200 OK with HTML instead of JSON. Always use `` `${environment.apiUrl}/...` `` to hit the backend (port 7215)
+11. **`backdrop-filter` BANNED**: NEVER use `backdrop-filter` or `-webkit-backdrop-filter` — creates containing blocks that trap `position: fixed/absolute` descendants (dropdowns, modals). Use solid `background` + `box-shadow` instead

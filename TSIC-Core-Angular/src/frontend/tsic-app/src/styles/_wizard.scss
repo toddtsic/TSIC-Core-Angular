@@ -98,7 +98,7 @@
         position: sticky;
         top: 0;
         z-index: 1020;
-        backdrop-filter: saturate(120%) blur(6px);
+        // backdrop-filter banned — creates containing blocks that trap positioned descendants
     }
 }
 
@@ -113,7 +113,7 @@
     top: 0;
     z-index: 1020;
     background-color: var(--bg-elevated);
-    backdrop-filter: saturate(120%) blur(6px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);

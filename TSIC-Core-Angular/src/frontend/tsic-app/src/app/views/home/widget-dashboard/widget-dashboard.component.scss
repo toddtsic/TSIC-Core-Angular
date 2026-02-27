@@ -78,7 +78,7 @@
     object-fit: contain;
     border-radius: var(--radius-md);
     background: rgba(var(--neutral-0-rgb), 0.15);
-    backdrop-filter: blur(12px);
+    // backdrop-filter banned — creates containing blocks that trap positioned descendants
     border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
     box-shadow: var(--shadow-md);
     padding: var(--space-1);
@@ -87,7 +87,7 @@
     .dashboard-hero:not(.hero-with-banner) & {
         background: rgba(var(--bs-primary-rgb), 0.06);
         border-color: var(--brand-border);
-        backdrop-filter: none;
+        // backdrop-filter banned — creates containing blocks that trap positioned descendants
         box-shadow: var(--shadow-xs);
     }
 }
@@ -142,7 +142,7 @@
 
     .hero-with-banner & {
         background: rgba(var(--neutral-0-rgb), 0.2);
-        backdrop-filter: blur(8px);
+        // backdrop-filter banned — creates containing blocks that trap positioned descendants
         color: var(--neutral-0);
         border: 1px solid rgba(var(--neutral-0-rgb), 0.25);
     }
