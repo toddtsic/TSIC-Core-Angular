@@ -40,6 +40,15 @@ export class ScheduleGridComponent {
     readonly showOpenSlotHints = input(false);
     readonly showMoveSlotHints = input(false);
 
+    // Division glow color (agegroup hex — persistent highlight for selected division cells)
+    readonly highlightDivColor = input<string | null>(null);
+
+    // Locate-game highlight (marching ants)
+    readonly highlightGameGid = input<number | null>(null);
+
+    // When true, ALL games matching highlightDivId get marching ants (division click)
+    readonly highlightAllDiv = input(false);
+
     // ── Outputs ──
     readonly cellClicked = output<{ row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }>();
     readonly gameMoveRequested = output<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number }>();
@@ -76,9 +85,25 @@ export class ScheduleGridComponent {
         return game.gid === this.selectedGameGid();
     }
 
+    isGameHighlighted(game: ScheduleGameDto): boolean {
+        if (game.gid === this.highlightGameGid()) return true;
+        return this.highlightAllDiv() && this.isDivisionMatch(game);
+    }
+
     isOtherDivision(game: ScheduleGameDto): boolean {
         const divId = this.highlightDivId();
         return divId != null && game.divId !== divId;
+    }
+
+    isDivisionMatch(game: ScheduleGameDto): boolean {
+        const divId = this.highlightDivId();
+        return divId != null && game.divId === divId;
+    }
+
+    /** Division glow applies when cell matches the div (yields to marching ants only). */
+    showDivGlow(game: ScheduleGameDto): boolean {
+        return this.isDivisionMatch(game)
+            && !this.isGameHighlighted(game);
     }
 
     isSlotCollision(game: ScheduleGameDto): boolean {
@@ -116,6 +141,16 @@ export class ScheduleGridComponent {
         }, 50);
     }
 
+    /** Find the gid of the first game belonging to a division (null if none placed). */
+    findFirstDivGameGid(divId: string): number | null {
+        for (const row of this.gridRows()) {
+            for (const cell of row.cells) {
+                if (cell && cell.divId === divId) return cell.gid;
+            }
+        }
+        return null;
+    }
+
     scrollToFirstRelevant(divId?: string): void {
         const rows = this.gridRows();
         if (divId) {
@@ -125,6 +160,23 @@ export class ScheduleGridComponent {
         // Fallback: first row with an open slot, then row 0
         const openIdx = rows.findIndex(r => r.cells.some(c => !c));
         this.scrollToRow(Math.max(openIdx, 0));
+    }
+
+    /** Scroll to a specific game by gid and center it in the viewport. */
+    scrollToGame(gid: number): void {
+        const rows = this.gridRows();
+        for (let ri = 0; ri < rows.length; ri++) {
+            const ci = rows[ri].cells.findIndex(c => c && c.gid === gid);
+            if (ci >= 0) {
+                const el = this.gridScrollEl?.nativeElement;
+                if (!el) return;
+                setTimeout(() => {
+                    const cell = el.querySelector(`tbody tr:nth-child(${ri + 1}) td:nth-child(${ci + 2})`) as HTMLElement | null;
+                    if (cell) cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }, 50);
+                return;
+            }
+        }
     }
 
     scrollToNextOpenSlot(startFromRow: number): void {

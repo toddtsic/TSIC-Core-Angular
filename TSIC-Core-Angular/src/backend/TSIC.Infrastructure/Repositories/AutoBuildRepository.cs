@@ -67,7 +67,9 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                 FieldId = s.FieldId ?? Guid.Empty,
                 GDate = s.GDate!.Value,
                 T1Type = s.T1Type ?? "T",
-                T2Type = s.T2Type ?? "T"
+                T2Type = s.T2Type ?? "T",
+                T1No = s.T1No,
+                T2No = (int?)s.T2No
             })
             .OrderBy(s => s.GDate)
             .ToListAsync(ct);
@@ -98,7 +100,9 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             TimeOfDay = g.GDate.TimeOfDay,
             DayOrdinal = dayOrdinalMap[g.GDate.Date],
             T1Type = g.T1Type,
-            T2Type = g.T2Type
+            T2Type = g.T2Type,
+            T1No = g.T1No,
+            T2No = g.T2No
         }).ToList();
     }
 
@@ -213,7 +217,30 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             .Where(f => !string.IsNullOrWhiteSpace(f.Address))
             .ToDictionary(
                 f => f.FieldId,
-                f => $"{f.Address?.Trim()}|{f.City?.Trim()}|{f.Zip?.Trim()}".ToLowerInvariant());
+                f => NormalizeAddress($"{f.Address}|{f.City}|{f.Zip}"));
+    }
+
+    /// <summary>
+    /// Normalize an address string for comparison: lowercase, trim, strip periods/commas,
+    /// collapse whitespace. "117 Evergreen Rd." and "117 Evergreen Rd" become identical.
+    /// </summary>
+    private static string NormalizeAddress(string raw)
+    {
+        var s = raw.ToLowerInvariant()
+            .Replace(".", "")
+            .Replace(",", "")
+            .Trim();
+
+        // collapse multiple spaces to single
+        while (s.Contains("  "))
+            s = s.Replace("  ", " ");
+
+        // trim each segment individually
+        var parts = s.Split('|');
+        for (var i = 0; i < parts.Length; i++)
+            parts[i] = parts[i].Trim();
+
+        return string.Join("|", parts);
     }
 
     public async Task<Dictionary<Guid, int>> GetExistingGameCountsByDivisionAsync(
@@ -284,6 +311,66 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         return await _context.SaveChangesAsync(ct);
+    }
+
+    // ── V2 Prerequisite Checks ────────────────────────────────
+
+    public async Task<int> GetUnassignedActiveTeamCountAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && t.DivId == null
+                        && t.TeamName != "Unassigned"
+                        && t.TeamName != "WAITLIST"
+                        && t.TeamName != "DROPPED")
+            .CountAsync(ct);
+    }
+
+    public async Task<List<string>> GetAgegroupsMissingTimeslotDatesAsync(
+        Guid jobId, string season, string year, CancellationToken ct = default)
+    {
+        // Get agegroup IDs that have active teams with divisions
+        // Exclude non-schedulable agegroups (WAITLIST, DROPPED) and placeholder divisions
+        var agegroupIdsWithTeams = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && t.DivId != null
+                        && t.Agegroup != null
+                        && !t.Agegroup!.AgegroupName!.StartsWith("WAITLIST")
+                        && !t.Agegroup!.AgegroupName!.StartsWith("DROPPED")
+                        && t.Div != null
+                        && t.Div!.DivName != "Unassigned")
+            .Select(t => t.AgegroupId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        // Get agegroup IDs that have timeslot dates
+        var agegroupIdsWithDates = await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .Where(d => d.Season == season && d.Year == year)
+            .Select(d => d.AgegroupId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        // Find agegroup IDs with teams but no dates
+        var missingIds = agegroupIdsWithTeams
+            .Except(agegroupIdsWithDates)
+            .ToHashSet();
+
+        if (missingIds.Count == 0)
+            return [];
+
+        // Resolve agegroup names
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => missingIds.Contains(a.AgegroupId))
+            .Select(a => a.AgegroupName ?? "")
+            .OrderBy(n => n)
+            .ToListAsync(ct);
     }
 
     // ── Post-Build QA Validation ────────────────────────────

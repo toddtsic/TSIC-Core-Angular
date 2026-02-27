@@ -118,34 +118,18 @@ public class AutoBuildController : ControllerBase
 
     /// <summary>
     /// POST /api/auto-build/undo — Delete all games for the current job.
-    /// SAFETY: Only available in Development environment on non-production hosts.
+    /// Protected by AdminOnly policy (Director, SuperDirector, SuperUser).
     /// </summary>
     [HttpPost("undo")]
     public async Task<ActionResult> Undo(CancellationToken ct)
     {
-        // ── SAFETY: Environment guard (belt + suspenders + hostname) ──
-        var hostname = Environment.MachineName;
-        if (!_env.IsDevelopment()
-            || string.Equals(hostname, "TSIC-PHOENIX", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogCritical(
-                "BLOCKED: Delete-all-games attempted in non-dev environment. " +
-                "Hostname={Hostname}, Env={Env}",
-                hostname, _env.EnvironmentName);
-            return StatusCode(403, new
-            {
-                message = "Delete all games is only available in Development environment."
-            });
-        }
-        // ── End safety guard ─────────────────────────────────────────
-
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         _logger.LogWarning(
             "Delete-all-games executing. Hostname={Hostname}, Env={Env}, " +
             "JobId={JobId}, UserId={UserId}",
-            hostname, _env.EnvironmentName, jobId, userId);
+            Environment.MachineName, _env.EnvironmentName, jobId, userId);
 
         var count = await _service.UndoAsync(jobId!.Value, ct);
         return Ok(new { gamesDeleted = count });
@@ -161,6 +145,50 @@ public class AutoBuildController : ControllerBase
         if (error != null) return error;
 
         var result = await _service.ValidateAsync(jobId!.Value, ct);
+        return Ok(result);
+    }
+
+    // ── V2 Endpoints ──────────────────────────────────────────
+
+    /// <summary>
+    /// GET /api/auto-build/prerequisites — Check pools, pairings, and timeslots readiness.
+    /// </summary>
+    [HttpGet("prerequisites")]
+    public async Task<ActionResult<PrerequisiteCheckResponse>> CheckPrerequisites(CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.CheckPrerequisitesAsync(jobId!.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/auto-build/extract-profiles — Extract Q1–Q10 profiles from source schedule.
+    /// </summary>
+    [HttpPost("extract-profiles")]
+    public async Task<ActionResult<ProfileExtractionResponse>> ExtractProfiles(
+        [FromBody] AutoBuildAnalyzeRequest request, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.ExtractProfilesAsync(
+            jobId!.Value, request.SourceJobId, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/auto-build/execute-v2 — V2 horizontal-first placement with scoring engine.
+    /// </summary>
+    [HttpPost("execute-v2")]
+    public async Task<ActionResult<AutoBuildV2Result>> ExecuteV2(
+        [FromBody] AutoBuildV2Request request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.BuildV2Async(jobId!.Value, userId!, request, ct);
         return Ok(result);
     }
 }

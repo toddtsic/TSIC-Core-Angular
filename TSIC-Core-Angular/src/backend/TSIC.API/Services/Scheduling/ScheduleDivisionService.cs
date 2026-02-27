@@ -284,6 +284,9 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         var fieldIds = effectiveFields.Select(f => f.FieldId).Distinct().ToList();
         var occupiedSlots = await _scheduleRepo.GetOccupiedSlotsAsync(jobId, fieldIds, ct);
 
+        // BTB avoidance within this division
+        var btbTracker = new BtbTracker();
+
         // Pre-load field names for efficiency
         var fieldNameMap = new Dictionary<Guid, string>();
         foreach (var fId in fieldIds)
@@ -308,7 +311,9 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             if (roundDates.Count == 0)
                 roundDates = effectiveDates.ToList();
 
-            var slot = TimeslotSlotFinder.FindNextAvailable(roundDates, effectiveFields, occupiedSlots);
+            var slot = TimeslotSlotFinder.FindNextAvailable(
+                roundDates, effectiveFields, occupiedSlots,
+                btbTracker, divId, pairing.T1, pairing.T2);
 
             if (slot == null)
             {
@@ -317,6 +322,10 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             }
 
             occupiedSlots.Add((slot.Value.fieldId, slot.Value.gDate));
+
+            // Record in BTB tracker
+            if (pairing.T1 > 0) btbTracker.Record(divId, pairing.T1, slot.Value.gDate);
+            if (pairing.T2 > 0) btbTracker.Record(divId, pairing.T2, slot.Value.gDate);
 
             var fName = fieldNameMap.GetValueOrDefault(slot.Value.fieldId, "");
 

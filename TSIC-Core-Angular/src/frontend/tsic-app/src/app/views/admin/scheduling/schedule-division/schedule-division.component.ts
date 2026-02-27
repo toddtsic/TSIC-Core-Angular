@@ -16,7 +16,7 @@ import {
     type ScheduleFieldColumn,
     type ScheduleGameDto
 } from './services/schedule-division.service';
-import { formatTime, teamDes } from '../shared/utils/scheduling-helpers';
+import { formatTime, teamDes, contrastText } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
@@ -49,11 +49,22 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Teams state ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
-    readonly showTeams = signal(false);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; clubName: string } | null>(null);
+    readonly isSavingTeam = signal(false);
+
+    // ── Who Plays Who ──
+    readonly whoPlaysWhoMatrix = signal<number[][] | null>(null);
+    readonly whoPlaysWhoOpen = signal(false);
+
+    // ── Division Teams collapse ──
+    readonly divisionTeamsOpen = signal(false);
 
     // ── Schedule Grid state ──
     readonly gridResponse = signal<ScheduleGridResponse | null>(null);
     readonly isGridLoading = signal(false);
+    readonly highlightGameGid = signal<number | null>(null);
+    readonly highlightAllDiv = signal(false);
+    private highlightAllDivTimer: ReturnType<typeof setTimeout> | null = null;
 
     // ── Placement workflow ──
     readonly placementMode = signal<'mouse' | 'keyboard'>(this.loadPlacementMode());
@@ -73,7 +84,17 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
     readonly gridRows = computed(() => this.gridResponse()?.rows ?? []);
 
+    readonly selectedAgegroup = computed(() => {
+        const agId = this.selectedAgegroupId();
+        if (!agId) return null;
+        return this.agegroups().find(ag => ag.agegroupId === agId) ?? null;
+    });
+    readonly selectedAgegroupName = computed(() => this.selectedAgegroup()?.agegroupName ?? '');
+    readonly selectedAgegroupColor = computed(() => this.selectedAgegroup()?.color ?? null);
+    readonly selectedAgegroupTextColor = computed(() => contrastText(this.selectedAgegroupColor()));
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
+    readonly teamRange = computed(() => Array.from({ length: this.teamCount() }, (_, i) => i + 1));
+    readonly rankOptions = computed(() => Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1));
     readonly allPairingsScheduled = computed(() => this.pairings().length > 0 && this.pairings().every(p => !p.bAvailable));
     readonly remainingPairingsCount = computed(() => this.pairings().filter(p => p.bAvailable).length);
 
@@ -158,6 +179,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.selectedAgegroupId.set(event.agegroupId);
         this.selectedPairing.set(null);
         this.selectedGame.set(null);
+        this.highlightGameGid.set(null);
         this.showDeleteDivConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
     }
@@ -171,12 +193,23 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Pairings ──
 
     loadDivisionPairings(divId: string): void {
-        this.isPairingsLoading.set(true);
+        // Only show spinner on first load (no existing data)
+        if (this.pairings().length === 0) {
+            this.isPairingsLoading.set(true);
+        }
         this.svc.getDivisionPairings(divId).subscribe({
             next: (resp) => {
                 this.divisionResponse.set(resp);
                 this.pairings.set(resp.pairings);
                 this.isPairingsLoading.set(false);
+                // Load Who Plays Who matrix once we know teamCount
+                if (resp.teamCount > 0) {
+                    this.svc.getWhoPlaysWho(resp.teamCount).subscribe({
+                        next: (wpw) => this.whoPlaysWhoMatrix.set(wpw.matrix)
+                    });
+                } else {
+                    this.whoPlaysWhoMatrix.set(null);
+                }
             },
             error: () => this.isPairingsLoading.set(false)
         });
@@ -189,19 +222,76 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    toggleTeams(): void {
-        this.showTeams.update(v => !v);
+    // ── Team Editing (modal) ──
+
+    openTeamEditModal(team: DivisionTeamDto): void {
+        this.editingTeam.set({
+            teamId: team.teamId,
+            divRank: team.divRank,
+            teamName: team.teamName ?? '',
+            clubName: team.clubName ?? ''
+        });
+    }
+
+    closeTeamEditModal(): void {
+        this.editingTeam.set(null);
+    }
+
+    updateEditingRank(rank: number): void {
+        const t = this.editingTeam();
+        if (t) this.editingTeam.set({ ...t, divRank: rank });
+    }
+
+    updateEditingName(name: string): void {
+        const t = this.editingTeam();
+        if (t) this.editingTeam.set({ ...t, teamName: name });
+    }
+
+    saveTeamEdit(): void {
+        const team = this.editingTeam();
+        if (!team) return;
+        this.isSavingTeam.set(true);
+        this.svc.editDivisionTeam({
+            teamId: team.teamId,
+            divRank: team.divRank,
+            teamName: team.teamName
+        }).subscribe({
+            next: (updatedTeams) => {
+                this.divisionTeams.set(updatedTeams);
+                this.editingTeam.set(null);
+                this.isSavingTeam.set(false);
+                // Reload grid — rank swap or name change updates schedule records
+                const div = this.selectedDivision();
+                const agId = this.selectedAgegroupId();
+                if (div && agId) this.loadScheduleGrid(div.divId, agId);
+            },
+            error: () => this.isSavingTeam.set(false)
+        });
     }
 
     // ── Schedule Grid ──
 
     loadScheduleGrid(divId: string, agegroupId: string): void {
-        this.isGridLoading.set(true);
+        // Only show spinner on first load — keep stale grid visible during transitions
+        if (!this.gridResponse()) {
+            this.isGridLoading.set(true);
+        }
         this.svc.getScheduleGrid(divId, agegroupId).subscribe({
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
-                this.scheduleGrid?.scrollToFirstRelevant(divId);
+                // All division games dance for 2s; scroll centers on the first one
+                const gid = this.findFirstGameGidInGrid(grid, divId);
+                this.highlightGameGid.set(null);
+                this.flashAllDiv();
+                // Defer scroll — Angular needs a tick to propagate input + render DOM
+                setTimeout(() => {
+                    if (gid) {
+                        this.scheduleGrid?.scrollToGame(gid);
+                    } else {
+                        this.scheduleGrid?.scrollToFirstRelevant(divId);
+                    }
+                });
             },
             error: () => {
                 this.gridResponse.set(null);
@@ -242,6 +332,34 @@ export class ScheduleDivisionComponent implements OnInit {
 
     isPairingSelected(pairing: PairingDto): boolean {
         return this.selectedPairing()?.ai === pairing.ai;
+    }
+
+    /** Click a scheduled pairing → scroll grid to that game and highlight it persistently. */
+    locateScheduledGame(pairing: PairingDto): void {
+        const gid = this.findGidForPairing(pairing);
+        if (!gid) return;
+
+        this.highlightAllDiv.set(false);
+        this.highlightGameGid.set(gid);
+        this.scheduleGrid?.scrollToGame(gid);
+    }
+
+    /** Match a pairing to a placed game in the grid by round + team numbers. */
+    private findGidForPairing(pairing: PairingDto): number | null {
+        const divId = this.selectedDivision()?.divId;
+        for (const row of this.gridRows()) {
+            for (const cell of row.cells) {
+                if (!cell || cell.divId !== divId) continue;
+                if (cell.rnd === pairing.rnd
+                    && cell.t1No === pairing.t1
+                    && cell.t2No === pairing.t2
+                    && cell.t1Type === pairing.t1Type
+                    && cell.t2Type === pairing.t2Type) {
+                    return cell.gid;
+                }
+            }
+        }
+        return null;
     }
 
     placeGame(row: ScheduleGridRow, colIndex: number): void {
@@ -734,6 +852,23 @@ export class ScheduleDivisionComponent implements OnInit {
             },
             error: () => this.isPlacing.set(false)
         });
+    }
+
+    /** Flash all-division marching ants for 2 seconds, then auto-clear. */
+    private flashAllDiv(): void {
+        if (this.highlightAllDivTimer) clearTimeout(this.highlightAllDivTimer);
+        this.highlightAllDiv.set(true);
+        this.highlightAllDivTimer = setTimeout(() => this.highlightAllDiv.set(false), 2000);
+    }
+
+    /** Find the gid of the first game for a division directly from grid data (no child signal dependency). */
+    private findFirstGameGidInGrid(grid: ScheduleGridResponse, divId: string): number | null {
+        for (const row of grid.rows) {
+            for (const cell of row.cells) {
+                if (cell && cell.divId === divId) return cell.gid;
+            }
+        }
+        return null;
     }
 
     // ── Helpers (delegated to shared utils) ──

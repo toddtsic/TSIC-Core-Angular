@@ -39,6 +39,10 @@ public record GamePlacementPattern
     public required int DayOrdinal { get; init; }
     public required string T1Type { get; init; }
     public required string T2Type { get; init; }
+    /// <summary>Team 1 position number (for Q7 field desirability per-team tracking).</summary>
+    public int? T1No { get; init; }
+    /// <summary>Team 2 position number (for Q7 field desirability per-team tracking).</summary>
+    public int? T2No { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -581,6 +585,7 @@ public record ScheduleGameSummaryDto
 /// </summary>
 public record GameSummaryResponse
 {
+    public required string JobName { get; init; }
     public required int TotalGames { get; init; }
     public required int TotalDivisions { get; init; }
     public required int DivisionsWithGames { get; init; }

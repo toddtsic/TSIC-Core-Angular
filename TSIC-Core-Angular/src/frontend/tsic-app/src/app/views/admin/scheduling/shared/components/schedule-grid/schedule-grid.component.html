@@ -68,6 +68,7 @@
                                 [class.cell-open]="!cell && showOpenSlotHints()"
                                 [class.cell-game]="!!cell"
                                 [class.cell-selected-game]="cell && isGameSelected(cell)"
+                                [class.cell-highlight]="cell && isGameHighlighted(cell)"
                                 [class.cell-move-target]="(showMoveSlotHints() || selectedGameGid()) && (!cell || (cell && !isGameSelected(cell!)))"
                                 [class.cell-breaking]="cell && isBreaking(cell)"
                                 [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
@@ -83,6 +84,7 @@
                                         [isSelected]="isGameSelected(cell)"
                                         [isOtherDivision]="isOtherDivision(cell)"
                                         [showSwapHint]="!!selectedGameGid() && !isGameSelected(cell)"
+                                        [style.outline]="showDivGlow(cell) ? '3px solid ' + highlightDivColor() : null"
                                         [conflictIcons]="{
                                             slotCollision: isSlotCollision(cell),
                                             timeClash: isTimeClash(cell),

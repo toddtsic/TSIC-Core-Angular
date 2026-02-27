@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { ScheduleGameSummaryDto } from './ScheduleGameSummaryDto';
 export type GameSummaryResponse = {
+    jobName: string;
     totalGames: number;
     totalDivisions: number;
     divisionsWithGames: number;

@@ -56,4 +56,27 @@ public interface IAutoBuildScheduleService
     /// Phase 8: Run post-build QA validation checks.
     /// </summary>
     Task<AutoBuildQaResult> ValidateAsync(Guid jobId, CancellationToken ct = default);
+
+    // ── V2 Methods ──────────────────────────────────────────
+
+    /// <summary>
+    /// Check the three mandatory prerequisites before auto-build:
+    /// Pools assigned, Pairings created, Timeslots configured.
+    /// </summary>
+    Task<PrerequisiteCheckResponse> CheckPrerequisitesAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Extract Q1–Q10 attribute profiles from a source job's schedule,
+    /// grouped by team count (TCnt).
+    /// </summary>
+    Task<ProfileExtractionResponse> ExtractProfilesAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// V2 Build: Horizontal-first placement with weighted scoring,
+    /// processing order control, and constraint priorities.
+    /// </summary>
+    Task<AutoBuildV2Result> BuildV2Async(
+        Guid jobId, string userId, AutoBuildV2Request request, CancellationToken ct = default);
 }

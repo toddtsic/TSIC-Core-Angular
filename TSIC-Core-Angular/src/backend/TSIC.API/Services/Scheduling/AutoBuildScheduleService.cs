@@ -55,6 +55,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     public async Task<GameSummaryResponse> GetGameSummaryAsync(
         Guid jobId, CancellationToken ct = default)
     {
+        var jobName = await _autoBuildRepo.GetJobNameAsync(jobId, ct) ?? "this job";
         var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
         var gameCounts = await _scheduleRepo.GetRoundRobinGameCountsByDivisionAsync(jobId, ct);
 
@@ -93,6 +94,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         return new GameSummaryResponse
         {
+            JobName = jobName,
             TotalGames = totalGames,
             TotalDivisions = summaries.Count,
             DivisionsWithGames = divsWithGames,
@@ -585,7 +587,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }
         }
 
-        var fieldIdToName = currentFields.ToDictionary(f => f.FieldId, f => f.FName);
+        var fieldIdToName = currentFields
+            .GroupBy(f => f.FieldId)
+            .ToDictionary(g => g.Key, g => g.First().FName);
 
         // 5. Get skip set from user input
         var skipIds = request.SkipDivisionIds?.ToHashSet() ?? [];
@@ -602,6 +606,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var divisionResults = new List<AutoBuildDivisionResult>();
         int totalPlaced = 0;
         int totalFailed = 0;
+
+        // BTB avoidance: track team game times across all divisions
+        var btbTracker = new BtbTracker();
 
         // 8. Process each current division by pool size
         foreach (var div in activeDivisions)
@@ -701,7 +708,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     jobId, userId, leagueId, season, year,
                     agegroupId, divId, div.AgegroupName, div.DivName,
                     placements, fieldNameToId, fieldIdToName,
-                    currentDatesByDiv, occupiedSlots,
+                    currentDatesByDiv, occupiedSlots, btbTracker,
                     request.IncludeBracketGames, ct);
 
                 divisionResults.Add(new AutoBuildDivisionResult
@@ -754,6 +761,1001 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
+    // V2: Prerequisite Checks
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<PrerequisiteCheckResponse> CheckPrerequisitesAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // 1. Pools: active teams without a division assignment
+        var unassignedCount = await _autoBuildRepo.GetUnassignedActiveTeamCountAsync(jobId, ct);
+        var poolsAssigned = unassignedCount == 0;
+
+        // 2. Pairings: every distinct TCnt in schedulable divisions has pairings
+        //    Exclude WAITLIST/DROPPED agegroups and Unassigned divisions
+        var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var schedulableDivisions = divisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase));
+        var distinctTCnts = schedulableDivisions
+            .Where(d => d.TeamCount > 0)
+            .Select(d => d.TeamCount)
+            .Distinct()
+            .ToList();
+
+        var tcntsWithPairings = await _pairingsRepo
+            .GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
+
+        var missingTCnts = distinctTCnts
+            .Where(t => !tcntsWithPairings.Contains(t))
+            .OrderBy(t => t)
+            .ToList();
+
+        var pairingsCreated = missingTCnts.Count == 0;
+
+        // 3. Timeslots: every agegroup with active divisions has at least one date
+        var agegroupsMissing = await _autoBuildRepo
+            .GetAgegroupsMissingTimeslotDatesAsync(jobId, season, year, ct);
+
+        var timeslotsConfigured = agegroupsMissing.Count == 0;
+
+        return new PrerequisiteCheckResponse
+        {
+            PoolsAssigned = poolsAssigned,
+            UnassignedTeamCount = unassignedCount,
+            PairingsCreated = pairingsCreated,
+            MissingPairingTCnts = missingTCnts,
+            TimeslotsConfigured = timeslotsConfigured,
+            AgegroupsMissingTimeslots = agegroupsMissing,
+            AllPassed = poolsAssigned && pairingsCreated && timeslotsConfigured
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2: Profile Extraction (Q1–Q10)
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<ProfileExtractionResponse> ExtractProfilesAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default)
+    {
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Extract raw patterns and division summaries from source
+        var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
+        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
+
+        // Get source job's timeslot window (earliest field start per DOW)
+        var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
+
+        // Get current-year division counts per TCnt (for DivisionCount in profile)
+        var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var currentDivCountByTCnt = currentDivisions
+            .GroupBy(d => d.TeamCount)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        // Compute Q1–Q10 profiles (pure computation, no DB)
+        var profiles = AttributeExtractor.ExtractProfiles(
+            patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
+
+        // Translate source field names → current field names (address-based mapping)
+        var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
+        if (fieldMap.Count > 0)
+        {
+            profiles = profiles.ToDictionary(
+                kvp => kvp.Key,
+                kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
+        }
+
+        // Get source job metadata
+        var sourceName = await _autoBuildRepo.GetJobNameAsync(sourceJobId, ct) ?? "";
+        var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct) ?? "";
+
+        return new ProfileExtractionResponse
+        {
+            SourceJobId = sourceJobId,
+            SourceJobName = sourceName,
+            SourceYear = sourceYear,
+            Profiles = profiles.Values
+                .OrderBy(p => p.TCnt)
+                .ToList()
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2: Build — Horizontal-First Placement with Scoring Engine
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<AutoBuildV2Result> BuildV2Async(
+        Guid jobId, string userId, AutoBuildV2Request request, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // ── 1. Extract profiles ──
+        Dictionary<int, DivisionSizeProfile> profilesByTCnt;
+        Dictionary<DayOfWeek, TimeSpan>? sourceTimeslotWindow = null;
+        if (request.SourceJobId.HasValue)
+        {
+            var patterns = await _autoBuildRepo.ExtractPatternAsync(request.SourceJobId.Value, ct);
+            var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(
+                request.SourceJobId.Value, ct);
+            sourceTimeslotWindow = await GetSourceTimeslotWindowAsync(request.SourceJobId.Value, ct);
+            var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+            var currentDivCountByTCnt = currentDivisions
+                .GroupBy(d => d.TeamCount)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            profilesByTCnt = AttributeExtractor.ExtractProfiles(
+                patterns, sourceDivisions, currentDivCountByTCnt, sourceTimeslotWindow);
+
+            // Translate source field names → current field names (address-based mapping)
+            var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
+            if (fieldMap.Count > 0)
+            {
+                profilesByTCnt = profilesByTCnt.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
+            }
+        }
+        else
+        {
+            // Clean sheet mode — profiles built later per-division from timeslot config
+            profilesByTCnt = new Dictionary<int, DivisionSizeProfile>();
+        }
+
+        // ── 2. Build ranked constraint evaluators ──
+        var allEvaluators = new Dictionary<string, IConstraintEvaluator>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["correct-day"] = new ConstraintEvaluators.CorrectDayEvaluator(),
+            ["placement-shape"] = new ConstraintEvaluators.PlacementShapeEvaluator(),
+            ["onsite-window"] = new ConstraintEvaluators.OnsiteWindowEvaluator(),
+            ["field-assignment"] = new ConstraintEvaluators.FieldAssignmentEvaluator(),
+            ["field-distribution"] = new ConstraintEvaluators.FieldDistributionEvaluator()
+        };
+
+        var rankedConstraints = PlacementScorer.BuildRankedConstraints(
+            request.ConstraintPriorities, allEvaluators);
+
+        // ── 3. Get current divisions and filter ──
+        var allDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var activeDivisions = allDivisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var excludedIds = request.ExcludedDivisionIds.ToHashSet();
+
+        // ── 4. Initialize global state ──
+        var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
+        var allFieldIds = currentFields.Select(f => f.FieldId).ToList();
+        var fieldIdToName = currentFields
+            .GroupBy(f => f.FieldId)
+            .ToDictionary(g => g.Key, g => g.First().FName);
+
+        var occupiedSlots = allFieldIds.Count > 0
+            ? await _scheduleRepo.GetOccupiedSlotsAsync(jobId, allFieldIds, ct)
+            : new HashSet<(Guid fieldId, DateTime gDate)>();
+
+        var btbTracker = new BtbTracker();
+        var btbThreshold = 0;
+
+        var existingCounts = await _autoBuildRepo.GetExistingGameCountsByDivisionAsync(jobId, ct);
+
+        // ── 5. Build processing order: agegroups → divisions ──
+        var orderedDivisions = BuildProcessingOrder(
+            activeDivisions, request.AgegroupOrder, request.DivisionOrderStrategy, excludedIds);
+
+        // ── 6. Process each division ──
+        var divisionResults = new List<AutoBuildDivisionResult>();
+        var unplacedGames = new List<UnplacedGameDto>();
+        var sacrificeCounts = new Dictionary<string, (int Count, List<string> Examples)>();
+        var totalPlaced = 0;
+        var totalFailed = 0;
+
+        foreach (var div in orderedDivisions)
+        {
+            if (excludedIds.Contains(div.DivId))
+            {
+                divisionResults.Add(new AutoBuildDivisionResult
+                {
+                    AgegroupName = div.AgegroupName, DivName = div.DivName,
+                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = 0, Status = "excluded"
+                });
+                continue;
+            }
+
+            // Delete existing games before rebuilding
+            if (existingCounts.GetValueOrDefault(div.DivId) > 0)
+            {
+                await _scheduleRepo.DeleteDivisionGamesAsync(
+                    div.DivId, leagueId, season, year, ct);
+                await _scheduleRepo.SaveChangesAsync(ct);
+            }
+
+            // Get agegroup/division metadata
+            var agegroup = await _agegroupRepo.GetByIdAsync(div.AgegroupId, ct);
+            var division = await _divisionRepo.GetByIdReadOnlyAsync(div.DivId, ct);
+            var agSeason = agegroup?.Season ?? season;
+            var agLeagueId = agegroup?.LeagueId ?? leagueId;
+
+            // Get pairings
+            var teamCount = await _pairingsRepo.GetDivisionTeamCountAsync(div.DivId, jobId, ct);
+            if (teamCount == 0)
+            {
+                divisionResults.Add(new AutoBuildDivisionResult
+                {
+                    AgegroupName = div.AgegroupName, DivName = div.DivName,
+                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = 0,
+                    Status = "no-teams"
+                });
+                continue;
+            }
+
+            var pairings = await _pairingsRepo.GetPairingsAsync(
+                agLeagueId, agSeason, teamCount, ct);
+            var rrPairings = pairings
+                .Where(p => p.T1Type == "T" && p.T2Type == "T")
+                .OrderBy(p => p.Rnd)
+                .ThenBy(p => p.GameNumber)
+                .ToList();
+
+            if (rrPairings.Count == 0)
+            {
+                divisionResults.Add(new AutoBuildDivisionResult
+                {
+                    AgegroupName = div.AgegroupName, DivName = div.DivName,
+                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = 0,
+                    Status = "no-pairings"
+                });
+                continue;
+            }
+
+            // Generate candidate slots for this agegroup/division
+            var dates = await _timeslotRepo.GetDatesAsync(div.AgegroupId, season, year, ct);
+            var fields = await _timeslotRepo.GetFieldTimeslotsAsync(div.AgegroupId, season, year, ct);
+
+            // Use division-specific timeslots if available, otherwise agegroup-level
+            var divDates = dates.Where(d => d.DivId == div.DivId).ToList();
+            var effectiveDates = divDates.Count > 0
+                ? divDates : dates.Where(d => d.DivId == null).ToList();
+
+            var divFields = fields.Where(f => f.DivId == div.DivId).ToList();
+            var effectiveFields = divFields.Count > 0
+                ? divFields : fields.Where(f => f.DivId == null).ToList();
+
+            if (effectiveDates.Count == 0 || effectiveFields.Count == 0)
+            {
+                var missingCount = rrPairings.Count;
+                totalFailed += missingCount;
+                foreach (var p in rrPairings)
+                {
+                    unplacedGames.Add(new UnplacedGameDto
+                    {
+                        AgegroupName = div.AgegroupName, DivName = div.DivName,
+                        Round = p.Rnd, T1No = p.T1, T2No = p.T2,
+                        Reason = "No timeslot dates or fields configured"
+                    });
+                }
+                divisionResults.Add(new AutoBuildDivisionResult
+                {
+                    AgegroupName = div.AgegroupName, DivName = div.DivName,
+                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = missingCount,
+                    Status = "no-timeslots"
+                });
+                continue;
+            }
+
+            // Compute BTB threshold from field config
+            btbThreshold = effectiveFields.Count > 0
+                ? effectiveFields.Max(f => f.GamestartInterval) : 0;
+
+            // Build candidate slots: date × field × game intervals
+            var candidates = GenerateCandidateSlots(effectiveDates, effectiveFields);
+
+            // Get or build profile for this TCnt
+            var profile = GetOrBuildDefaultProfile(
+                profilesByTCnt, teamCount, effectiveDates, effectiveFields);
+
+            // Remap source play days to current play days by ordinal position
+            var currentPlayDays = effectiveDates
+                .Select(d => d.GDate.DayOfWeek)
+                .Distinct()
+                .OrderBy(d => d)
+                .ToList();
+            profile = ApplyDayOrdinalMap(profile, currentPlayDays);
+
+            // Compute current job's timeslot window start per DOW from field config
+            var currentWindowStart = new Dictionary<DayOfWeek, TimeSpan>();
+            foreach (var field in effectiveFields)
+            {
+                if (!TimeSpan.TryParse(field.StartTime, out var st)) continue;
+                if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow)) continue;
+                if (!currentWindowStart.TryGetValue(dow, out var existing) || st < existing)
+                    currentWindowStart[dow] = st;
+            }
+
+            // Build PlacementState for this pass
+            var state = new PlacementState(occupiedSlots, btbTracker, btbThreshold, currentWindowStart);
+
+            // Group pairings by round
+            var rounds = rrPairings
+                .GroupBy(p => p.Rnd)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            var divPlaced = 0;
+            var divFailed = 0;
+
+            foreach (var round in rounds)
+            {
+                var roundNum = round.Key;
+                var gamesInRound = round.OrderBy(p => p.GameNumber).ToList();
+
+                foreach (var pairing in gamesInRound)
+                {
+                    // Build game context with target day/time from profile
+                    DayOfWeek? targetDay = null;
+                    if (profile.PlayDays.Count > 0)
+                    {
+                        // Distribute rounds across play days
+                        var dayIndex = (roundNum - 1) % profile.PlayDays.Count;
+                        targetDay = profile.PlayDays[dayIndex];
+                    }
+
+                    // Target time: round target (first game sets it) → offset-based → fallback to null
+                    TimeSpan? targetTime = null;
+                    var roundKey = (div.DivId, roundNum);
+                    if (state.RoundTargetTimes.TryGetValue(roundKey, out var existingTarget))
+                    {
+                        targetTime = existingTarget;
+                    }
+                    else if (targetDay.HasValue
+                             && profile.StartOffsetFromWindow != null
+                             && profile.StartOffsetFromWindow.TryGetValue(targetDay.Value, out var offset)
+                             && currentWindowStart.TryGetValue(targetDay.Value, out var winStart))
+                    {
+                        // Offset-based: current window start + source offset = where to aim
+                        targetTime = winStart + offset;
+                    }
+
+                    var game = new GameContext
+                    {
+                        Round = roundNum,
+                        GameNumber = pairing.GameNumber,
+                        T1No = pairing.T1,
+                        T2No = pairing.T2,
+                        DivId = div.DivId,
+                        AgegroupId = div.AgegroupId,
+                        AgegroupName = div.AgegroupName,
+                        DivName = div.DivName,
+                        TCnt = teamCount,
+                        TargetDay = targetDay,
+                        TargetTime = targetTime
+                    };
+
+                    // Score all candidates and find best
+                    var best = PlacementScorer.FindBestSlot(
+                        candidates, game, profile, rankedConstraints, state);
+
+                    if (best == null)
+                    {
+                        divFailed++;
+                        unplacedGames.Add(new UnplacedGameDto
+                        {
+                            AgegroupName = div.AgegroupName,
+                            DivName = div.DivName,
+                            Round = roundNum,
+                            T1No = pairing.T1,
+                            T2No = pairing.T2,
+                            Reason = "No available slot (all occupied or BTB conflict)"
+                        });
+                        continue;
+                    }
+
+                    // Track constraint sacrifices
+                    if (best.Violations.Count > 0)
+                    {
+                        foreach (var violation in best.Violations)
+                        {
+                            if (!sacrificeCounts.TryGetValue(violation, out var entry))
+                            {
+                                entry = (0, new List<string>());
+                                sacrificeCounts[violation] = entry;
+                            }
+                            var count = entry.Count + 1;
+                            var examples = entry.Examples;
+                            if (examples.Count < 3)
+                            {
+                                examples.Add(
+                                    $"{div.AgegroupName}/{div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2}");
+                            }
+                            sacrificeCounts[violation] = (count, examples);
+                        }
+                    }
+
+                    // Create the Schedule entity
+                    var scheduleGame = new Schedule
+                    {
+                        JobId = jobId,
+                        LeagueId = agLeagueId,
+                        Season = agSeason,
+                        Year = year,
+                        AgegroupId = div.AgegroupId,
+                        AgegroupName = agegroup?.AgegroupName ?? "",
+                        DivId = div.DivId,
+                        DivName = division?.DivName ?? "",
+                        Div2Id = div.DivId,
+                        FieldId = best.Slot.FieldId,
+                        FName = best.Slot.FieldName,
+                        GDate = best.Slot.GDate,
+                        GNo = pairing.GameNumber,
+                        GStatusCode = 1, // Scheduled
+                        Rnd = (byte)pairing.Rnd,
+                        T1No = pairing.T1,
+                        T1Type = pairing.T1Type,
+                        T2No = (byte)pairing.T2,
+                        T2Type = pairing.T2Type,
+                        T1Ann = pairing.T1Annotation,
+                        T1CalcType = pairing.T1CalcType,
+                        T1GnoRef = pairing.T1GnoRef,
+                        T2Ann = pairing.T2Annotation,
+                        T2CalcType = pairing.T2CalcType,
+                        T2GnoRef = pairing.T2GnoRef,
+                        LebUserId = userId,
+                        Modified = DateTime.UtcNow
+                    };
+
+                    _scheduleRepo.AddGame(scheduleGame);
+                    state.RecordPlacement(best.Slot, game);
+                    divPlaced++;
+                }
+            }
+
+            // Bulk save per division
+            if (divPlaced > 0)
+                await _scheduleRepo.SaveChangesAsync(ct);
+
+            // Resolve team names
+            await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(
+                div.DivId, jobId, ct);
+
+            divisionResults.Add(new AutoBuildDivisionResult
+            {
+                AgegroupName = div.AgegroupName,
+                DivName = div.DivName,
+                DivId = div.DivId,
+                GamesPlaced = divPlaced,
+                GamesFailed = divFailed,
+                Status = divPlaced > 0 ? "v2-placed" : "no-slots"
+            });
+
+            totalPlaced += divPlaced;
+            totalFailed += divFailed;
+        }
+
+        // ── 7. Build sacrifice log ──
+        var sacrificeLog = sacrificeCounts
+            .Select(kvp => new ConstraintSacrificeDto
+            {
+                ConstraintName = kvp.Key,
+                ViolationCount = kvp.Value.Count,
+                ExampleGames = kvp.Value.Examples,
+                ImpactDescription = allEvaluators.TryGetValue(kvp.Key, out var eval)
+                    ? eval.SacrificeImpact
+                    : ""
+            })
+            .OrderByDescending(s => s.ViolationCount)
+            .ToList();
+
+        var scheduled = divisionResults.Count(r =>
+            r.Status != "excluded" && r.Status != "no-teams" && r.Status != "no-pairings");
+        var skipped = divisionResults.Count - scheduled;
+
+        _logger.LogInformation(
+            "AutoBuild V2: Job={JobId}, Divisions={Total}, Scheduled={Scheduled}, " +
+            "GamesPlaced={Placed}, GamesFailed={Failed}, Sacrifices={SacrificeCount}",
+            jobId, orderedDivisions.Count, scheduled, totalPlaced, totalFailed, sacrificeLog.Count);
+
+        return new AutoBuildV2Result
+        {
+            TotalDivisions = orderedDivisions.Count,
+            DivisionsScheduled = scheduled,
+            DivisionsSkipped = skipped,
+            TotalGamesPlaced = totalPlaced,
+            GamesFailedToPlace = totalFailed,
+            DivisionResults = divisionResults,
+            UnplacedGames = unplacedGames,
+            SacrificeLog = sacrificeLog
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Processing Order
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Build the ordered list of divisions to process based on agegroup order and division strategy.
+    /// </summary>
+    private static List<CurrentDivisionSummary> BuildProcessingOrder(
+        List<CurrentDivisionSummary> activeDivisions,
+        List<Guid> agegroupOrder,
+        string divisionOrderStrategy,
+        HashSet<Guid> excludedIds)
+    {
+        // Group divisions by agegroup
+        var divsByAgegroup = activeDivisions
+            .GroupBy(d => d.AgegroupId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var result = new List<CurrentDivisionSummary>();
+
+        // Process agegroups in specified order
+        foreach (var agId in agegroupOrder)
+        {
+            if (!divsByAgegroup.TryGetValue(agId, out var divisions))
+                continue;
+
+            // Sort divisions within agegroup by strategy
+            var ordered = divisionOrderStrategy switch
+            {
+                "odd-first" => divisions
+                    .OrderByDescending(d => d.TeamCount % 2 != 0) // odd first
+                    .ThenBy(d => d.DivName)
+                    .ToList(),
+                "custom" => divisions, // already in user-defined order
+                _ => divisions // "alpha"
+                    .OrderBy(d => d.DivName)
+                    .ToList()
+            };
+
+            result.AddRange(ordered);
+        }
+
+        // Add any agegroups not in the specified order (safety net)
+        var processedAgIds = new HashSet<Guid>(agegroupOrder);
+        foreach (var (agId, divisions) in divsByAgegroup)
+        {
+            if (processedAgIds.Contains(agId))
+                continue;
+
+            result.AddRange(divisions.OrderBy(d => d.DivName));
+        }
+
+        return result;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Candidate Slot Generation
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Generate all possible (field, datetime) candidates from timeslot config.
+    /// Walks dates × fields × game intervals to produce every schedulable slot.
+    /// </summary>
+    private static List<CandidateSlot> GenerateCandidateSlots(
+        List<TimeslotDateDto> dates,
+        List<TimeslotFieldDto> fields)
+    {
+        var candidates = new List<CandidateSlot>();
+
+        foreach (var date in dates.OrderBy(d => d.GDate))
+        {
+            var dow = date.GDate.DayOfWeek.ToString();
+            var dowFields = fields
+                .Where(f => f.Dow.Equals(dow, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f.FieldName)
+                .ToList();
+
+            foreach (var field in dowFields)
+            {
+                // Parse start time
+                if (!TimeSpan.TryParse(field.StartTime, out var startTime))
+                    continue;
+
+                var intervalMinutes = field.GamestartInterval;
+                if (intervalMinutes <= 0) intervalMinutes = 60; // safety
+
+                // Generate slots from start time through max games
+                for (var g = 0; g < field.MaxGamesPerField; g++)
+                {
+                    var gameTime = startTime + TimeSpan.FromMinutes(g * intervalMinutes);
+                    var gDate = date.GDate.Date + gameTime;
+
+                    candidates.Add(new CandidateSlot
+                    {
+                        FieldId = field.FieldId,
+                        FieldName = field.FieldName,
+                        GDate = gDate
+                    });
+                }
+            }
+        }
+
+        return candidates;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Default Profile for Clean Sheet
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Get a profile from extracted profiles, or build a default from timeslot config.
+    /// Clean sheet mode: no prior year data, so derive sensible defaults.
+    /// </summary>
+    private static DivisionSizeProfile GetOrBuildDefaultProfile(
+        Dictionary<int, DivisionSizeProfile> profilesByTCnt,
+        int teamCount,
+        List<TimeslotDateDto> dates,
+        List<TimeslotFieldDto> fields)
+    {
+        if (profilesByTCnt.TryGetValue(teamCount, out var profile))
+            return profile;
+
+        // Build default profile from timeslot config
+        var playDays = dates
+            .Select(d => d.GDate.DayOfWeek)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        var fieldBand = fields
+            .Select(f => f.FieldName)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
+
+        var timeRangeAbsolute = new Dictionary<DayOfWeek, TimeRangeDto>();
+        foreach (var day in playDays)
+        {
+            var dayFields = fields
+                .Where(f => f.Dow.Equals(day.ToString(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (dayFields.Count == 0) continue;
+
+            var startTimes = dayFields
+                .Select(f => TimeSpan.TryParse(f.StartTime, out var t) ? t : TimeSpan.Zero)
+                .Where(t => t > TimeSpan.Zero)
+                .ToList();
+            if (startTimes.Count == 0) continue;
+
+            var minStart = startTimes.Min();
+            var maxInterval = dayFields.Max(f => f.GamestartInterval);
+            var maxGames = dayFields.Max(f => f.MaxGamesPerField);
+            var maxEnd = minStart + TimeSpan.FromMinutes(maxInterval * maxGames);
+
+            timeRangeAbsolute[day] = new TimeRangeDto { Start = minStart, End = maxEnd };
+        }
+
+        // Default round count: TCnt - 1 for even, TCnt for odd (round-robin)
+        var roundCount = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
+        var gameGuarantee = teamCount - 1;
+
+        // Default interval from field config
+        var defaultInterval = fields.Count > 0
+            ? TimeSpan.FromMinutes(fields.Max(f => f.GamestartInterval))
+            : TimeSpan.FromMinutes(75);
+
+        // Default rounds per day: distribute evenly
+        var roundsPerDay = new Dictionary<DayOfWeek, int>();
+        if (playDays.Count > 0)
+        {
+            var roundsEach = roundCount / playDays.Count;
+            var remainder = roundCount % playDays.Count;
+            for (var i = 0; i < playDays.Count; i++)
+            {
+                roundsPerDay[playDays[i]] = roundsEach + (i < remainder ? 1 : 0);
+            }
+        }
+
+        var defaultProfile = new DivisionSizeProfile
+        {
+            TCnt = teamCount,
+            DivisionCount = 1,
+            PlayDays = playDays,
+            TimeRangeAbsolute = timeRangeAbsolute,
+            FieldBand = fieldBand,
+            RoundCount = roundCount,
+            GameGuarantee = gameGuarantee,
+            PlacementShapePerRound = new Dictionary<int, RoundShapeDto>(),
+            OnsiteIntervalPerDay = timeRangeAbsolute.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.End - kvp.Value.Start),
+            FieldDesirability = new Dictionary<string, FieldUsageDto>(),
+            RoundsPerDay = roundsPerDay,
+            ExtraRoundDay = null,
+            InterRoundInterval = defaultInterval
+        };
+
+        // Cache for subsequent divisions with same TCnt
+        profilesByTCnt[teamCount] = defaultProfile;
+        return defaultProfile;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Source Timeslot Window
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolve the source job's timeslot window: the earliest configured field start time
+    /// per day of week, across all agegroups. Uses the same pattern as ScheduleDivisionService
+    /// to materialize timeslot data (contextResolver → agegroups → fieldTimeslots).
+    /// </summary>
+    private async Task<Dictionary<DayOfWeek, TimeSpan>> GetSourceTimeslotWindowAsync(
+        Guid sourceJobId, CancellationToken ct)
+    {
+        var (srcLeagueId, srcSeason, srcYear) = await _contextResolver.ResolveAsync(sourceJobId, ct);
+        var srcAgegroups = await _agegroupRepo.GetByLeagueIdAsync(srcLeagueId, ct);
+
+        var windowStartPerDow = new Dictionary<DayOfWeek, TimeSpan>();
+
+        foreach (var ag in srcAgegroups)
+        {
+            var fields = await _timeslotRepo.GetFieldTimeslotsAsync(ag.AgegroupId, srcSeason, srcYear, ct);
+
+            foreach (var field in fields)
+            {
+                if (!TimeSpan.TryParse(field.StartTime, out var startTime))
+                    continue;
+
+                if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow))
+                    continue;
+
+                if (!windowStartPerDow.TryGetValue(dow, out var existing) || startTime < existing)
+                    windowStartPerDow[dow] = startTime;
+            }
+        }
+
+        return windowStartPerDow;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Field Name Mapping (Source → Current)
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Build a mapping from source field names to current field names.
+    /// Stage 1: exact name match (case-insensitive). Stage 2: address-based fallback
+    /// for fields that were renamed but share the same physical address.
+    /// Returns only entries where source name differs from current name.
+    /// </summary>
+    private async Task<Dictionary<string, string>> BuildFieldNameMapAsync(
+        List<GamePlacementPattern> patterns,
+        Guid leagueId, string season,
+        CancellationToken ct)
+    {
+        var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
+        var currentFieldNames = currentFields
+            .Select(f => f.FName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Distinct source field names from patterns
+        var sourceFieldNames = patterns
+            .Select(p => p.FieldName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Stage 1: names that already exist in current — no mapping needed
+        var unmatched = new List<string>();
+        foreach (var name in sourceFieldNames)
+        {
+            if (currentFieldNames.Contains(name))
+                continue; // identity — no entry needed in map
+            unmatched.Add(name);
+        }
+
+        if (unmatched.Count == 0)
+            return map;
+
+        // Stage 2: address-based fallback
+        var sourceFieldIds = patterns
+            .Where(p => unmatched.Contains(p.FieldName, StringComparer.OrdinalIgnoreCase))
+            .Select(p => p.FieldId)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        var currentFieldIds = currentFields.Select(f => f.FieldId).ToList();
+
+        var sourceAddresses = sourceFieldIds.Count > 0
+            ? await _autoBuildRepo.GetFieldAddressesAsync(sourceFieldIds, ct)
+            : new Dictionary<Guid, string>();
+        var currentAddresses = currentFieldIds.Count > 0
+            ? await _autoBuildRepo.GetFieldAddressesAsync(currentFieldIds, ct)
+            : new Dictionary<Guid, string>();
+
+        // Group current fields by normalized address (sorted by name for ordinal matching)
+        var currentByAddress = new Dictionary<string, List<string>>();
+        foreach (var cf in currentFields.OrderBy(f => f.FName, StringComparer.OrdinalIgnoreCase))
+        {
+            if (currentAddresses.TryGetValue(cf.FieldId, out var addr))
+            {
+                if (!currentByAddress.TryGetValue(addr, out var list))
+                {
+                    list = [];
+                    currentByAddress[addr] = list;
+                }
+                list.Add(cf.FName);
+            }
+        }
+
+        // Group unmatched source fields by address (sorted by name for ordinal matching)
+        var sourceByAddress = new Dictionary<string, List<string>>();
+        foreach (var name in unmatched.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+        {
+            var fieldId = patterns
+                .FirstOrDefault(p => string.Equals(p.FieldName, name, StringComparison.OrdinalIgnoreCase))
+                ?.FieldId;
+
+            if (fieldId.HasValue && fieldId.Value != Guid.Empty
+                && sourceAddresses.TryGetValue(fieldId.Value, out var addr))
+            {
+                if (!sourceByAddress.TryGetValue(addr, out var list))
+                {
+                    list = [];
+                    sourceByAddress[addr] = list;
+                }
+                list.Add(name);
+            }
+        }
+
+        // Match by ordinal position within each address group:
+        // NewEgyptHS-01 → LBTS-01, NewEgyptHS-02 → LBTS-02, etc.
+        foreach (var (addr, sourceNames) in sourceByAddress)
+        {
+            if (!currentByAddress.TryGetValue(addr, out var currentNames))
+                continue;
+
+            for (var i = 0; i < sourceNames.Count && i < currentNames.Count; i++)
+                map[sourceNames[i]] = currentNames[i];
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Translate a profile's FieldBand and FieldDesirability keys from source names to current names.
+    /// </summary>
+    private static DivisionSizeProfile ApplyFieldNameMap(
+        DivisionSizeProfile profile,
+        Dictionary<string, string> fieldMap)
+    {
+        var translatedBand = profile.FieldBand
+            .Select(name => fieldMap.TryGetValue(name, out var mapped) ? mapped : name)
+            .ToList();
+
+        var translatedDesirability = profile.FieldDesirability
+            .GroupBy(kvp => fieldMap.TryGetValue(kvp.Key, out var mapped) ? mapped : kvp.Key)
+            .ToDictionary(g => g.Key, g => g.First().Value);
+
+        return profile with
+        {
+            FieldBand = translatedBand,
+            FieldDesirability = translatedDesirability
+        };
+    }
+
+    /// <summary>
+    /// Remap a profile's PlayDays (and all DOW-keyed dictionaries) from source days to current days
+    /// by ordinal position. Source day 1 → current day 1, source day 2 → current day 2, etc.
+    /// When multiple source days collapse to the same current day, values are merged.
+    /// </summary>
+    private static DivisionSizeProfile ApplyDayOrdinalMap(
+        DivisionSizeProfile profile,
+        List<DayOfWeek> currentPlayDays)
+    {
+        if (profile.PlayDays.Count == 0 || currentPlayDays.Count == 0)
+            return profile;
+
+        // Build ordinal map: source day[i] → current day[i]
+        var dayMap = new Dictionary<DayOfWeek, DayOfWeek>();
+        var limit = Math.Min(profile.PlayDays.Count, currentPlayDays.Count);
+        var needsMapping = false;
+
+        for (var i = 0; i < limit; i++)
+        {
+            dayMap[profile.PlayDays[i]] = currentPlayDays[i];
+            if (profile.PlayDays[i] != currentPlayDays[i])
+                needsMapping = true;
+        }
+
+        // If current has fewer days than source, map remaining source days to the last current day
+        for (var i = limit; i < profile.PlayDays.Count; i++)
+        {
+            dayMap[profile.PlayDays[i]] = currentPlayDays[^1];
+            needsMapping = true;
+        }
+
+        if (!needsMapping)
+            return profile; // Days already match — no translation needed
+
+        DayOfWeek MapDay(DayOfWeek d) => dayMap.TryGetValue(d, out var mapped) ? mapped : d;
+
+        // PlayDays: deduplicate after mapping (preserves order)
+        var mappedPlayDays = profile.PlayDays
+            .Select(MapDay)
+            .Distinct()
+            .ToList();
+
+        // TimeRangeAbsolute: merge by widening the window (min start, max end)
+        var mappedTimeRange = new Dictionary<DayOfWeek, TimeRangeDto>();
+        foreach (var kvp in profile.TimeRangeAbsolute)
+        {
+            var day = MapDay(kvp.Key);
+            if (mappedTimeRange.TryGetValue(day, out var existing))
+            {
+                mappedTimeRange[day] = new TimeRangeDto
+                {
+                    Start = existing.Start < kvp.Value.Start ? existing.Start : kvp.Value.Start,
+                    End = existing.End > kvp.Value.End ? existing.End : kvp.Value.End
+                };
+            }
+            else
+            {
+                mappedTimeRange[day] = kvp.Value;
+            }
+        }
+
+        // StartOffsetFromWindow: take the earliest offset when merging
+        Dictionary<DayOfWeek, TimeSpan>? mappedOffset = null;
+        if (profile.StartOffsetFromWindow != null)
+        {
+            mappedOffset = new Dictionary<DayOfWeek, TimeSpan>();
+            foreach (var kvp in profile.StartOffsetFromWindow)
+            {
+                var day = MapDay(kvp.Key);
+                if (!mappedOffset.TryGetValue(day, out var existing) || kvp.Value < existing)
+                    mappedOffset[day] = kvp.Value;
+            }
+        }
+
+        // WindowUtilization: take the max when merging
+        Dictionary<DayOfWeek, double>? mappedUtil = null;
+        if (profile.WindowUtilization != null)
+        {
+            mappedUtil = new Dictionary<DayOfWeek, double>();
+            foreach (var kvp in profile.WindowUtilization)
+            {
+                var day = MapDay(kvp.Key);
+                if (!mappedUtil.TryGetValue(day, out var existing) || kvp.Value > existing)
+                    mappedUtil[day] = kvp.Value;
+            }
+        }
+
+        // OnsiteIntervalPerDay: take the max span when merging
+        var mappedOnsite = new Dictionary<DayOfWeek, TimeSpan>();
+        foreach (var kvp in profile.OnsiteIntervalPerDay)
+        {
+            var day = MapDay(kvp.Key);
+            if (!mappedOnsite.TryGetValue(day, out var existing) || kvp.Value > existing)
+                mappedOnsite[day] = kvp.Value;
+        }
+
+        // RoundsPerDay: sum when merging (all rounds now on one day)
+        var mappedRounds = new Dictionary<DayOfWeek, int>();
+        foreach (var kvp in profile.RoundsPerDay)
+        {
+            var day = MapDay(kvp.Key);
+            mappedRounds[day] = mappedRounds.GetValueOrDefault(day) + kvp.Value;
+        }
+
+        return profile with
+        {
+            PlayDays = mappedPlayDays,
+            TimeRangeAbsolute = mappedTimeRange,
+            StartOffsetFromWindow = mappedOffset,
+            WindowUtilization = mappedUtil,
+            OnsiteIntervalPerDay = mappedOnsite,
+            RoundsPerDay = mappedRounds,
+            ExtraRoundDay = profile.ExtraRoundDay.HasValue ? MapDay(profile.ExtraRoundDay.Value) : null
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
     // Private: Pattern Replay for a Single Division
     // ══════════════════════════════════════════════════════════
 
@@ -765,6 +1767,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         Dictionary<Guid, string> fieldIdToName,
         Dictionary<Guid, List<DateTime>> currentDatesByDiv,
         HashSet<(Guid fieldId, DateTime gDate)> occupiedSlots,
+        BtbTracker btbTracker,
         bool includeBracketGames,
         CancellationToken ct)
     {
@@ -878,11 +1881,26 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             // Construct the target game datetime
             var targetGDate = targetDate + placement.TimeOfDay;
 
-            // Check if slot is occupied
-            if (occupiedSlots.Contains((targetFieldId, targetGDate)))
+            // Resolve team numbers for BTB checking
+            var t1No = pairing?.T1 ?? 0;
+            var t2No = pairing?.T2 ?? 0;
+
+            // Check if slot is occupied OR would cause a back-to-back
+            var needsFallback = occupiedSlots.Contains((targetFieldId, targetGDate));
+            if (!needsFallback && t1No > 0 && t2No > 0)
             {
-                // Try fallback
-                var fallbackSlot = TimeslotSlotFinder.FindNextAvailable(effectiveDatesForFallback, effectiveFields, occupiedSlots);
+                var btbThreshold = effectiveFields.Count > 0
+                    ? effectiveFields.Max(f => f.GamestartInterval) : 0;
+                if (btbThreshold > 0 && btbTracker.HasConflict(divId, t1No, t2No, targetGDate, btbThreshold))
+                    needsFallback = true;
+            }
+
+            if (needsFallback)
+            {
+                // Try fallback with BTB awareness
+                var fallbackSlot = TimeslotSlotFinder.FindNextAvailable(
+                    effectiveDatesForFallback, effectiveFields, occupiedSlots,
+                    btbTracker, divId, t1No, t2No);
                 if (fallbackSlot == null) { failed++; continue; }
 
                 targetFieldId = fallbackSlot.Value.fieldId;
@@ -907,9 +1925,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 GNo = pairing?.GameNumber ?? placement.GameNumber,
                 GStatusCode = 1, // Scheduled
                 Rnd = (byte)(pairing?.Rnd ?? placement.Rnd),
-                T1No = pairing?.T1 ?? 0,
+                T1No = t1No,
                 T1Type = pairing?.T1Type ?? placement.T1Type,
-                T2No = (byte)(pairing?.T2 ?? 0),
+                T2No = (byte)t2No,
                 T2Type = pairing?.T2Type ?? placement.T2Type,
                 T1Ann = pairing?.T1Annotation,
                 T1CalcType = pairing?.T1CalcType,
@@ -923,6 +1941,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             _scheduleRepo.AddGame(game);
             occupiedSlots.Add((targetFieldId, targetGDate));
+
+            // Record in BTB tracker so subsequent placements avoid this team's time
+            if (t1No > 0) btbTracker.Record(divId, t1No, targetGDate);
+            if (t2No > 0) btbTracker.Record(divId, t2No, targetGDate);
+
             placed++;
         }
 

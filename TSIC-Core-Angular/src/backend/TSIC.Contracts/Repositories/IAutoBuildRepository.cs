@@ -86,6 +86,20 @@ public interface IAutoBuildRepository
     // ── Post-Build QA Validation ────────────────────────────
     Task<AutoBuildQaResult> RunQaValidationAsync(Guid jobId, CancellationToken ct = default);
 
+    // ── V2 Prerequisite Checks ────────────────────────────────
+
+    /// <summary>
+    /// Count active teams with no division assignment (DivId is null) for the given job.
+    /// Teams with status WAITLIST, DROPPED, or name "Unassigned" are excluded.
+    /// </summary>
+    Task<int> GetUnassignedActiveTeamCountAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get agegroup names that have active divisions but no timeslot dates configured.
+    /// </summary>
+    Task<List<string>> GetAgegroupsMissingTimeslotDatesAsync(
+        Guid jobId, string season, string year, CancellationToken ct = default);
+
     // ── Cross-Event Analysis ──────────────────────────────────
 
     /// <summary>

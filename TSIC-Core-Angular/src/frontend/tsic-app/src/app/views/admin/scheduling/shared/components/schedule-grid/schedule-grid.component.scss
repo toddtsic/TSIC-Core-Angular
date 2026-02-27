@@ -163,6 +163,26 @@ th.sticky-col {
     cursor: default;
 }
 
+// ── Division glow ──
+// Inline [style.outline] on <app-game-card> — bypasses Angular encapsulation.
+// CSS rule removed after 7 failed attempts (background, box-shadow, td outline,
+// ::after pseudo, child selector — all hidden by game-card's opaque background
+// or blocked by encapsulation attribute scoping).
+
+// ── Locate-game highlight (marching ants) ──
+
+.cell-highlight {
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    outline: 2px dashed var(--bs-primary);
+    outline-offset: -2px;
+    animation: highlight-pulse 1s ease-in-out infinite;
+}
+
+@keyframes highlight-pulse {
+    0%, 100% { outline-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.1); }
+    50% { outline-color: transparent; background: rgba(var(--bs-primary-rgb), 0.02); }
+}
+
 .cell-breaking {
     background: rgba(var(--bs-danger-rgb), 0.08);
 }

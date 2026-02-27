@@ -7,11 +7,13 @@ import type {
     AutoScheduleResponse,
     DivisionPairingsResponse,
     DivisionTeamDto,
+    EditDivisionTeamRequest,
     ScheduleGridResponse,
     ScheduleGameDto,
     PlaceGameRequest,
     MoveGameRequest,
-    DeleteDivGamesRequest
+    DeleteDivGamesRequest,
+    WhoPlaysWhoResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -21,6 +23,7 @@ export type {
     DivisionSummaryDto,
     DivisionPairingsResponse,
     DivisionTeamDto,
+    EditDivisionTeamRequest,
     PairingDto,
     ScheduleGridResponse,
     ScheduleGridRow,
@@ -28,7 +31,8 @@ export type {
     ScheduleGameDto,
     PlaceGameRequest,
     MoveGameRequest,
-    DeleteDivGamesRequest
+    DeleteDivGamesRequest,
+    WhoPlaysWhoResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -74,6 +78,22 @@ export class ScheduleDivisionService {
 
     deleteDivisionGames(request: DeleteDivGamesRequest): Observable<void> {
         return this.http.post<void>(`${this.apiUrl}/delete-div-games`, request);
+    }
+
+    // ── Team Editing (delegates to pairings endpoint — rank swap + schedule sync) ──
+
+    editDivisionTeam(request: EditDivisionTeamRequest): Observable<DivisionTeamDto[]> {
+        return this.http.put<DivisionTeamDto[]>(
+            `${environment.apiUrl}/pairings/division-team`, request
+        );
+    }
+
+    // ── Who Plays Who ──
+
+    getWhoPlaysWho(teamCount: number): Observable<WhoPlaysWhoResponse> {
+        return this.http.get<WhoPlaysWhoResponse>(`${this.apiUrl}/who-plays-who`, {
+            params: { teamCount: teamCount.toString() }
+        });
     }
 
     // ── Auto-Schedule ──

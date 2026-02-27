@@ -2,7 +2,24 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "kill-stale-api",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy", "Bypass",
+				"-File",
+				"${workspaceFolder}/scripts/kill-stale-api.ps1"
+			],
+			"presentation": {
+				"reveal": "silent",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
 			"label": "build",
+			"dependsOn": "kill-stale-api",
 			"command": "dotnet",
 			"type": "process",
 			"args": [
@@ -24,6 +41,7 @@
 		},
 		{
 			"label": "Build Backend (API only)",
+			"dependsOn": "kill-stale-api",
 			"command": "dotnet",
 			"type": "process",
 			"args": [

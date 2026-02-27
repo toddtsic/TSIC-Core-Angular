@@ -8,7 +8,6 @@
             </div>
             <div class="agent-title">
                 <h2>Auto-Build Schedule</h2>
-                <span class="agent-subtitle">Pattern-replay from a prior year's proven schedule</span>
             </div>
         </div>
     </div>
@@ -40,7 +39,7 @@
         </ng-template>
 
         <!-- ═══════════════════════════════════════════════ -->
-        <!-- Step: Loading                                   -->
+        <!-- Loading                                         -->
         <!-- ═══════════════════════════════════════════════ -->
         @if (step() === 'loading') {
             <div class="welcome-panel">
@@ -52,7 +51,7 @@
         }
 
         <!-- ═══════════════════════════════════════════════ -->
-        <!-- Step 1: Game Summary                            -->
+        <!-- Game Summary                                    -->
         <!-- ═══════════════════════════════════════════════ -->
         @if (step() === 'summary') {
             @if (gameSummary(); as gs) {
@@ -76,7 +75,6 @@
                         <div class="tree-wrapper">
                             @for (ag of agegroupTree(); track ag.agegroupId) {
                                 <div class="tree-node">
-                                    <!-- Agegroup header (clickable) -->
                                     <button class="tree-parent" (click)="toggleAgegroup(ag.agegroupId)">
                                         <i class="bi" [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
                                                        [class.bi-chevron-down]="isExpanded(ag.agegroupId)"></i>
@@ -99,7 +97,6 @@
                                         }
                                     </button>
 
-                                    <!-- Division children (collapsible) -->
                                     @if (isExpanded(ag.agegroupId)) {
                                         <div class="tree-children">
                                             @for (div of ag.divisions; track div.divId) {
@@ -136,22 +133,17 @@
                         </div>
                     }
 
-                    <!-- Error messages from delete attempts -->
                     @for (msg of messages(); track msg.id) {
                         @if (msg.type === 'error') {
                             <div class="agent-message msg-error">
-                                <div class="msg-icon">
-                                    <i class="bi bi-x-circle"></i>
-                                </div>
+                                <div class="msg-icon"><i class="bi bi-x-circle"></i></div>
                                 <div class="msg-body">{{ msg.content }}</div>
                             </div>
                         }
                     }
 
-                    <!-- Action buttons -->
                     <div class="summary-actions">
                         @if (isFullyScheduled()) {
-                            <!-- All divisions have games — offer breakdown + rebuild -->
                             <button class="btn btn-outline-danger btn-lg"
                                     [disabled]="isDeleting()"
                                     (click)="breakdownAndRebuild()">
@@ -160,16 +152,15 @@
                                     Deleting...
                                 } @else {
                                     <i class="bi bi-arrow-repeat"></i>
-                                    Breakdown Schedule &amp; Re-Auto-Build
+                                    Breakdown Schedule &amp; Rebuild
                                 }
                             </button>
                         } @else {
-                            <!-- Not fully scheduled — offer continue -->
                             <button class="btn btn-primary btn-lg"
                                     [disabled]="gs.totalDivisions === 0"
-                                    (click)="continueToAnalysis()">
-                                <i class="bi bi-play-fill"></i>
-                                Continue to Auto-Build
+                                    (click)="startBuild()">
+                                <i class="bi bi-lightning-charge-fill"></i>
+                                Auto-Build Schedule
                             </button>
                         }
                         <a routerLink="../view-schedule" class="btn btn-outline-secondary btn-lg">
@@ -181,254 +172,323 @@
         }
 
         <!-- ═══════════════════════════════════════════════ -->
-        <!-- Step 1.5: Agegroup Mapping Confirmation         -->
+        <!-- Preparing (automated: prereqs + source + profiles) -->
         <!-- ═══════════════════════════════════════════════ -->
-        @if (step() === 'mapping') {
+        @if (step() === 'preparing') {
 
-            <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
-
-            @if (mappingResponse(); as mr) {
-                <div class="inline-card">
-                    <div class="card-label">Agegroup Mapping</div>
-                    <p class="mapping-instructions">
-                        Match each source agegroup to its current-year equivalent.
-                        Use the dropdown to adjust if the auto-detected mapping is wrong.
-                    </p>
-
-                    <div class="mapping-grid">
-                        <div class="mapping-row mapping-header">
-                            <div class="mapping-row-num">
-                                <span class="mapping-col-header">#</span>
-                            </div>
-                            <div class="mapping-source">
-                                <span class="mapping-col-header">Source ({{ mr.sourceYear }})</span>
-                            </div>
-                            <div class="mapping-arrow"></div>
-                            <div class="mapping-target">
-                                <span class="mapping-col-header">Current Year</span>
-                            </div>
-                            <div class="mapping-strategy">
-                                <span class="mapping-col-header">Match</span>
-                            </div>
+            <!-- Thinking animation while checks run -->
+            @for (msg of messages(); track msg.id) {
+                @if (msg.type === 'thinking') {
+                    <div class="agent-message msg-thinking">
+                        <div class="msg-icon">
+                            <div class="thinking-dots"><span></span><span></span><span></span></div>
                         </div>
-                        @for (proposal of mr.proposals; track proposal.sourceAgegroupName; let idx = $index) {
-                            <div class="mapping-row"
-                                 [class.mapping-exact]="proposal.matchStrategy === 'exact'"
-                                 [class.mapping-year]="proposal.matchStrategy === 'year-increment'"
-                                 [class.mapping-none]="proposal.matchStrategy === 'none'">
-                                <div class="mapping-row-num">{{ idx + 1 }}</div>
-                                <div class="mapping-source">
-                                    <span class="mapping-source-name"><span class="db db-ag" [ngStyle]="agBadgeStyle(currentAgColor(getMappedValue(proposal.sourceAgegroupName)))">{{ proposal.sourceAgegroupName }}</span></span>
-                                    <span class="mapping-source-meta">
-                                        <span class="db db-div">{{ proposal.sourceDivisionCount }}</span> div
-                                    </span>
-                                </div>
-                                <div class="mapping-arrow">
-                                    <i class="bi bi-arrow-right"></i>
-                                </div>
-                                <div class="mapping-target">
-                                    <select class="form-select"
-                                            [ngModel]="getMappedValue(proposal.sourceAgegroupName)"
-                                            (ngModelChange)="updateMapping(proposal.sourceAgegroupName, $event)">
-                                        <option value="">-- Skip --</option>
-                                        @for (name of mr.currentAgegroupNames; track name) {
-                                            <option [value]="name">{{ name }}</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="mapping-strategy">
-                                    @switch (proposal.matchStrategy) {
-                                        @case ('exact') {
-                                            <span class="mapping-badge mapping-badge-exact">Exact</span>
-                                        }
-                                        @case ('year-increment') {
-                                            <span class="mapping-badge mapping-badge-year">Year +1</span>
-                                        }
-                                        @case ('none') {
-                                            <span class="mapping-badge mapping-badge-none">Manual</span>
-                                        }
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-
-                    <div class="mapping-actions">
-                        <button class="btn btn-primary btn-lg mapping-cta"
-                                (click)="confirmMappingsAndAnalyze()">
-                            <i class="bi bi-check2-all"></i>
-                            Confirm &amp; Analyze
-                        </button>
-                        <button class="btn btn-outline-secondary"
-                                (click)="backToSummary()">
-                            <i class="bi bi-arrow-left"></i>
-                            Back
-                        </button>
-                    </div>
-                </div>
-            }
-        }
-
-        <!-- ═══════════════════════════════════════════════ -->
-        <!-- Step 2: Analyzing + Analysis Results            -->
-        <!-- ═══════════════════════════════════════════════ -->
-        @if (step() === 'analyzing' || step() === 'analysis' || step() === 'error') {
-
-            <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
-
-            <!-- Division Coverage (after analysis) -->
-            @if (step() === 'analysis' && analysis()) {
-
-                <!-- Exceptions callout (only if there are fresh divisions) -->
-                @if (noMatchDivisions().length > 0) {
-                    <div class="agent-message msg-warning">
-                        <div class="msg-icon"><i class="bi bi-exclamation-triangle"></i></div>
-                        <div class="msg-body">
-                            <strong>{{ noMatchDivisions().length }} division{{ noMatchDivisions().length > 1 ? 's' : '' }} will be built fresh</strong> — review after building:
-                            {{ noMatchDivisionNames() }}
-                        </div>
+                        <div class="msg-body" [innerHTML]="msg.content"></div>
                     </div>
                 }
-
-                <!-- Division receipt (collapsed accordion) -->
-                <details class="inline-card receipt-accordion">
-                    <summary class="receipt-summary">
-                        <i class="bi bi-chevron-right receipt-chevron"></i>
-                        <span class="card-label mb-0">Your Divisions</span>
-                        <span class="receipt-summary-meta">
-                            <span class="db db-div">{{ analysis()!.divisionCoverage.length }}</span> divisions across
-                            <span class="db db-ag">{{ coverageByAgegroup().length }}</span> agegroups
-                        </span>
-                    </summary>
-                    <div class="receipt-body">
-                        @for (group of coverageByAgegroup(); track group.agegroupName) {
-                            <div class="receipt-group">
-                                <div class="receipt-group-header">
-                                    <span class="db db-ag" [ngStyle]="agBadgeStyle(group.divisions[0]?.agegroupColor)">{{ group.agegroupName }}</span>
-                                    <span class="receipt-group-meta">{{ group.divisions.length }} div</span>
-                                </div>
-                                <div class="receipt-list">
-                                    @for (div of group.divisions; track div.divId) {
-                                        <div class="receipt-row">
-                                            <span class="receipt-name">{{ div.divName }}</span>
-                                            <span class="receipt-meta">
-                                                <span class="db db-team">{{ div.teamCount }}</span> teams
-                                                @if (div.hasPattern) {
-                                                    &middot; <span class="db db-game">{{ div.patternGameCount }}</span> games
-                                                }
-                                            </span>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </details>
-
-                <!-- Build / Back buttons -->
-                <div class="inline-card step-actions">
-                    <button class="btn btn-primary btn-lg"
-                            (click)="executeBuild()">
-                        <i class="bi bi-lightning-charge-fill"></i>
-                        Build Schedule
-                    </button>
-                    <button class="btn btn-outline-secondary btn-lg"
-                            (click)="backToMapping()">
-                        <i class="bi bi-arrow-left"></i>
-                        Back to Mapping
-                    </button>
-                </div>
             }
 
-            <!-- Error restart -->
-            @if (step() === 'error') {
+            <!-- Error banner when preparation fails -->
+            @if (preparationStatus() === 'failed') {
+                <div class="status-banner status-banner-error">
+                    <div class="status-banner-error-header">
+                        <i class="bi bi-exclamation-circle"></i>
+                        Setup issues found
+                    </div>
+                    <ul class="status-banner-errors">
+                        @for (err of preparationErrors(); track $index) {
+                            <li>{{ err }}</li>
+                        }
+                    </ul>
+                    <p class="status-banner-footer">Fix these in the scheduling setup pages, then come back and try again.</p>
+                </div>
                 <div class="inline-card step-actions">
-                    <button class="btn btn-outline-primary" (click)="backToSummary()">
+                    <button class="btn btn-outline-secondary btn-lg" (click)="backToSummary()">
                         <i class="bi bi-arrow-left"></i>
-                        Back to Summary
+                        Back
                     </button>
                 </div>
             }
         }
 
         <!-- ═══════════════════════════════════════════════ -->
-        <!-- Step 3: Building + Results                      -->
+        <!-- Processing Order + Priorities                   -->
         <!-- ═══════════════════════════════════════════════ -->
-        @if (step() === 'building' || step() === 'results') {
+        @if (step() === 'order') {
 
-            <!-- Dramatic build spinner (building phase only) -->
-            @if (step() === 'building') {
-                <div class="build-hero">
-                    <div class="build-spinner">
-                        <div class="spinner-ring ring-outer"></div>
-                        <div class="spinner-ring ring-middle"></div>
-                        <div class="spinner-ring ring-inner"></div>
-                        <div class="spinner-core">
-                            <i class="bi bi-lightning-charge-fill"></i>
+            <!-- Status banner — preparation summary -->
+            <div class="status-banner status-banner-ready">
+                <div class="status-banner-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <div class="status-banner-content">
+                    @if (isCleanSheet()) {
+                        <p class="status-banner-headline">No prior-year schedules were found, so I'll build from scratch using your current timeslot configuration.</p>
+                    } @else {
+                        <p class="status-banner-headline">I've analyzed <strong>{{ profileSourceName() }}</strong> ({{ profileSourceYear() }}) and have everything I need to build your schedule.</p>
+                    }
+                    <p class="status-banner-subtext">Your pools, pairings, and timeslots are all properly configured. Now all you need to do is:</p>
+                    <ul class="status-banner-steps">
+                        <li>Review the scheduling order and priorities below</li>
+                        <li>Hit <strong>Build</strong> when you're ready</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Agegroup Processing Order -->
+            <div class="inline-card v2-ordering">
+                <div class="card-header-row">
+                    <div class="card-step-number">1</div>
+                    <div class="card-label">Which agegroups should I schedule, and in what order?</div>
+                </div>
+                <p class="v2-instructions">I'll process these top-to-bottom. Uncheck any you want to skip and feel free to use the arrows to change the scheduling order.</p>
+
+                <div class="order-list">
+                    @for (ag of agegroupOrder(); track ag.agegroupId; let i = $index) {
+                        <div class="order-row" [class.order-excluded]="!ag.included">
+                            <div class="order-rank">{{ i + 1 }}</div>
+                            <label class="order-check">
+                                <input type="checkbox"
+                                       [checked]="ag.included"
+                                       (change)="toggleAgegroupInclude(i)">
+                            </label>
+                            <span class="order-name">
+                                <span class="db db-ag" [ngStyle]="agBadgeStyle(ag.agegroupColor)">{{ ag.agegroupName }}</span>
+                            </span>
+                            <span class="order-meta">
+                                <span class="db db-team">{{ ag.teamCount }}</span> teams
+                                <span class="order-meta-sep">&middot;</span>
+                                <span class="db db-div">{{ ag.divisionCount }}</span> divisions
+                            </span>
+                            <div class="order-arrows">
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        [disabled]="i === 0"
+                                        (click)="moveAgegroupUp(i)"
+                                        aria-label="Move up">
+                                    <i class="bi bi-chevron-up"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        [disabled]="i === agegroupOrder().length - 1"
+                                        (click)="moveAgegroupDown(i)"
+                                        aria-label="Move down">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="build-hero-text">
-                        <h3>Building Your Schedule</h3>
-                        <p>Replaying proven patterns across every division, field, and timeslot</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Division Order Strategy -->
+            <div class="inline-card">
+                <div class="card-header-row">
+                    <div class="card-step-number">2</div>
+                    <div class="card-label">Within each agegroup, in what order should I schedule their divisions?</div>
+                </div>
+                <p class="v2-instructions">Within each agegroup, divisions are scheduled one at a time. The order can affect how cleanly games fit into the remaining timeslots.</p>
+                <div class="strategy-radios">
+                    <label class="strategy-option">
+                        <input type="radio" name="divStrategy" value="alpha"
+                               [checked]="divisionOrderStrategy() === 'alpha'"
+                               (change)="divisionOrderStrategy.set('alpha')">
+                        <span>Alphabetical</span>
+                    </label>
+                    <label class="strategy-option">
+                        <input type="radio" name="divStrategy" value="odd-first"
+                               [checked]="divisionOrderStrategy() === 'odd-first'"
+                               (change)="divisionOrderStrategy.set('odd-first')">
+                        <span>Odd-sized divisions first, then alphabetically <em class="strategy-hint">(odd divisions need more vertical room)</em></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Constraint Priorities -->
+            <div class="inline-card v2-constraints">
+                <div class="card-header-row">
+                    <div class="card-step-number">3</div>
+                    <div class="card-label">How should I order my priorities?</div>
+                </div>
+                <p class="v2-instructions">Top items take priority. When timeslots are tight, I'll sacrifice from the bottom up. Drag to reorder.</p>
+
+                <div class="constraint-list">
+                    @for (cp of constraintPriorities(); track cp.name; let i = $index) {
+                        <div class="constraint-row">
+                            <div class="constraint-rank">{{ i + 1 }}</div>
+                            <div class="constraint-info">
+                                <span class="constraint-name">{{ cp.label }}</span>
+                                <span class="constraint-impact">{{ cp.impact }}</span>
+                            </div>
+                            <div class="order-arrows">
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        [disabled]="i === 0"
+                                        (click)="moveConstraintUp(i)"
+                                        aria-label="Move up">
+                                    <i class="bi bi-chevron-up"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        [disabled]="i === constraintPriorities().length - 1"
+                                        (click)="moveConstraintDown(i)"
+                                        aria-label="Move down">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Build -->
+            <div class="inline-card step-actions">
+                <button class="btn btn-primary btn-lg"
+                        (click)="executeBuild()">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    Looks good — let's build
+                </button>
+                <button class="btn btn-outline-secondary btn-lg"
+                        (click)="backToSummary()">
+                    <i class="bi bi-arrow-left"></i>
+                    Back
+                </button>
+            </div>
+        }
+
+        <!-- ═══════════════════════════════════════════════ -->
+        <!-- Building                                        -->
+        <!-- ═══════════════════════════════════════════════ -->
+        @if (step() === 'building') {
+            <div class="build-hero">
+                <div class="build-spinner">
+                    <div class="spinner-ring ring-outer"></div>
+                    <div class="spinner-ring ring-middle"></div>
+                    <div class="spinner-ring ring-inner"></div>
+                    <div class="spinner-core">
+                        <i class="bi bi-lightning-charge-fill"></i>
                     </div>
                 </div>
-            }
+                <div class="build-hero-text">
+                    <h3>Building Your Schedule</h3>
+                    <p>Scoring every available slot and placing games across your fields and timeslots</p>
+                </div>
+            </div>
+
+            <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
+        }
+
+        <!-- ═══════════════════════════════════════════════ -->
+        <!-- Results                                         -->
+        <!-- ═══════════════════════════════════════════════ -->
+        @if (step() === 'results') {
 
             <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
 
-            <!-- Results: Useful Links + Undo -->
-            @if (step() === 'results') {
-                <div class="inline-card results-links">
-                    <div class="card-label">Useful Links</div>
-                    <div class="results-link-list">
-                        <a routerLink="../view-schedule" class="results-link">
-                            <i class="bi bi-calendar3"></i>
-                            <span>
-                                <strong>View Schedule</strong>
-                                <small>See all games on the grid</small>
-                            </span>
-                        </a>
-                        <a routerLink="../qa-results" class="results-link">
-                            <i class="bi bi-clipboard-check"></i>
-                            <span>
-                                <strong>QA Results</strong>
-                                <small>Full quality check details</small>
-                            </span>
-                        </a>
-                        <a routerLink="." class="results-link" (click)="backToSummary()">
-                            <i class="bi bi-arrow-repeat"></i>
-                            <span>
-                                <strong>Re-Run Auto-Build</strong>
-                                <small>Start over with different options</small>
-                            </span>
-                        </a>
+            @if (unplacedGames().length > 0) {
+                <div class="inline-card v2-unplaced">
+                    <div class="card-label">Unplaced Games ({{ unplacedGames().length }})</div>
+                    <div class="v2-table-scroll">
+                        <table class="v2-table">
+                            <thead>
+                                <tr>
+                                    <th>Division</th>
+                                    <th>Round</th>
+                                    <th>Game</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (g of unplacedGames(); track $index) {
+                                    <tr>
+                                        <td>{{ g.divName }}</td>
+                                        <td>{{ g.round }}</td>
+                                        <td>{{ g.t1No }} vs {{ g.t2No }}</td>
+                                        <td>{{ g.reason }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="inline-card results-actions">
-                    <button class="btn btn-outline-danger"
-                            [disabled]="isUndoing()"
-                            (click)="undoBuild()">
-                        @if (isUndoing()) {
-                            <span class="spinner-border spinner-border-sm"></span>
-                            Undoing...
-                        } @else {
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                            Undo All Games
+            }
+
+            @if (sacrificeLog().length > 0) {
+                <div class="inline-card v2-sacrifices">
+                    <div class="card-label">Constraint Sacrifices</div>
+                    <div class="sacrifice-list">
+                        @for (sac of sacrificeLog(); track sac.constraintName) {
+                            <div class="sacrifice-row">
+                                <span class="sacrifice-name">{{ sac.constraintName }}</span>
+                                <span class="sacrifice-count">
+                                    <span class="db db-game">{{ sac.violationCount }}</span> violations
+                                </span>
+                                @if (sac.exampleGames.length > 0) {
+                                    <span class="sacrifice-examples">e.g. {{ sac.exampleGames.join(', ') }}</span>
+                                }
+                            </div>
                         }
-                    </button>
+                    </div>
                 </div>
             }
+
+            <div class="inline-card results-links">
+                <div class="card-label">What's next?</div>
+                <div class="results-link-list">
+                    <a routerLink="../view-schedule" class="results-link">
+                        <i class="bi bi-calendar3"></i>
+                        <span>
+                            <strong>View Schedule</strong>
+                            <small>See all games on the grid</small>
+                        </span>
+                    </a>
+                    <a routerLink="../qa-results" class="results-link">
+                        <i class="bi bi-clipboard-check"></i>
+                        <span>
+                            <strong>QA Results</strong>
+                            <small>Full quality check details</small>
+                        </span>
+                    </a>
+                    <a routerLink="." class="results-link" (click)="backToSummary()">
+                        <i class="bi bi-arrow-repeat"></i>
+                        <span>
+                            <strong>Run Again</strong>
+                            <small>Start over with different priorities</small>
+                        </span>
+                    </a>
+                </div>
+            </div>
+            <div class="inline-card results-actions">
+                <button class="btn btn-outline-danger"
+                        [disabled]="isUndoing()"
+                        (click)="undoBuild()">
+                    @if (isUndoing()) {
+                        <span class="spinner-border spinner-border-sm"></span>
+                        Undoing...
+                    } @else {
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        Undo All Games
+                    }
+                </button>
+            </div>
+        }
+
+        <!-- Error restart -->
+        @if (step() === 'error') {
+            <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
+            <div class="inline-card step-actions">
+                <button class="btn btn-outline-primary" (click)="backToSummary()">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Summary
+                </button>
+            </div>
         }
 
     </div><!-- /conversation-feed -->
 
-    <!-- ── Shared Destructive Action Confirm Dialog ───────── -->
     @if (showConfirmDialog()) {
         <confirm-dialog
             [title]="confirmDialogTitle()"
             [message]="confirmDialogMessage()"
             confirmLabel="Yes, Proceed"
             confirmVariant="danger"
+            [requireConfirmText]="true"
             (confirmed)="onConfirmDialogAccepted()"
             (cancelled)="onConfirmDialogCancelled()">
         </confirm-dialog>
