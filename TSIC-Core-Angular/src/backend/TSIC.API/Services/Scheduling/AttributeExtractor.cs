@@ -3,7 +3,7 @@ using TSIC.Contracts.Dtos.Scheduling;
 namespace TSIC.API.Services.Scheduling;
 
 /// <summary>
-/// Extracts aggregate scheduling attributes (Q1–Q10) from a prior year's schedule,
+/// Extracts aggregate scheduling attributes (Q1–Q12) from a prior year's schedule,
 /// grouped by team count (TCnt). Pure computation — no DI, no DB access.
 /// </summary>
 public static class AttributeExtractor
@@ -180,6 +180,37 @@ public static class AttributeExtractor
         // Q10: Inter-round interval (median gap between consecutive round start times on same day)
         var interRoundInterval = ExtractInterRoundInterval(games);
 
+        // Q11: Median team span per day (first-to-last game per team per day)
+        var medianTeamSpan = ExtractMedianTeamSpan(games);
+
+        // ── Tick-based properties (V2.1) ──
+
+        // GSI: infer from most common interval between consecutive games on same field+day
+        var gsiMinutes = InferGsiMinutes(games);
+
+        // Round layout: derive from Q5 — median VerticalityRatio across rounds
+        var roundLayout = DeriveRoundLayout(placementShapePerRound);
+
+        // Start tick offset: convert Q2 TimeSpan offsets to GSI ticks
+        Dictionary<DayOfWeek, int>? startTickOffset = null;
+        if (startOffsetFromWindow is { Count: > 0 } && gsiMinutes > 0)
+        {
+            startTickOffset = startOffsetFromWindow.ToDictionary(
+                kv => kv.Key,
+                kv => (int)Math.Round(kv.Value.TotalMinutes / gsiMinutes));
+        }
+
+        // Inter-round gap: convert Q10 to ticks
+        var interRoundGapTicks = gsiMinutes > 0
+            ? (int)Math.Round(interRoundInterval.TotalMinutes / gsiMinutes)
+            : 1;
+
+        // Q12: Minimum team gap in GSI ticks
+        var minTeamGapTicks = ExtractMinTeamGapTicks(games, gsiMinutes);
+
+        // Field fairness: derive from Q7 — check if any field has usage ratio > 1.5x
+        var fieldFairness = DeriveFieldFairness(fieldDesirability);
+
         return new DivisionSizeProfile
         {
             TCnt = tcnt,
@@ -196,7 +227,15 @@ public static class AttributeExtractor
             FieldDesirability = fieldDesirability,
             RoundsPerDay = roundsPerDay,
             ExtraRoundDay = extraRoundDay,
-            InterRoundInterval = interRoundInterval
+            InterRoundInterval = interRoundInterval,
+            MedianTeamSpan = medianTeamSpan,
+            // Tick-based properties (V2.1)
+            GsiMinutes = gsiMinutes,
+            RoundLayout = roundLayout,
+            StartTickOffset = startTickOffset,
+            InterRoundGapTicks = interRoundGapTicks,
+            MinTeamGapTicks = minTeamGapTicks,
+            FieldFairness = fieldFairness
         };
     }
 
@@ -259,6 +298,51 @@ public static class AttributeExtractor
     }
 
     /// <summary>
+    /// Q11: Median team span — minutes from a team's first to last game on a given day.
+    /// Unpivots both T1 and T2, groups by (division, team, day), computes per-team-day span,
+    /// then returns the median across all team-days with 2+ games.
+    /// </summary>
+    private static TimeSpan? ExtractMedianTeamSpan(List<GamePlacementPattern> games)
+    {
+        // Unpivot: each game produces entries for both teams
+        var teamDayGames = new Dictionary<(string ag, string div, int teamNo, DayOfWeek day), List<TimeSpan>>();
+
+        foreach (var g in games)
+        {
+            if (g.T1No.HasValue)
+            {
+                var key = (g.AgegroupName, g.DivName, g.T1No.Value, g.DayOfWeek);
+                if (!teamDayGames.TryGetValue(key, out var list1))
+                    teamDayGames[key] = list1 = [];
+                list1.Add(g.TimeOfDay);
+            }
+            if (g.T2No.HasValue)
+            {
+                var key = (g.AgegroupName, g.DivName, g.T2No.Value, g.DayOfWeek);
+                if (!teamDayGames.TryGetValue(key, out var list2))
+                    teamDayGames[key] = list2 = [];
+                list2.Add(g.TimeOfDay);
+            }
+        }
+
+        // Compute span for each team-day with 2+ games
+        var spans = teamDayGames.Values
+            .Where(times => times.Count >= 2)
+            .Select(times => times.Max() - times.Min())
+            .OrderBy(s => s)
+            .ToList();
+
+        if (spans.Count == 0)
+            return null;
+
+        // Median
+        var mid = spans.Count / 2;
+        return spans.Count % 2 == 0
+            ? TimeSpan.FromTicks((spans[mid - 1].Ticks + spans[mid].Ticks) / 2)
+            : spans[mid];
+    }
+
+    /// <summary>
     /// Q10: Median time gap between consecutive round start times on the same day.
     /// </summary>
     private static TimeSpan ExtractInterRoundInterval(List<GamePlacementPattern> games)
@@ -295,5 +379,128 @@ public static class AttributeExtractor
         return roundStartsByDay.Count % 2 == 0
             ? TimeSpan.FromTicks((roundStartsByDay[midIndex - 1].Ticks + roundStartsByDay[midIndex].Ticks) / 2)
             : roundStartsByDay[midIndex];
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2.1 — Tick-based property derivations
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Infer GSI (Game Start Interval) in minutes from source game patterns.
+    /// Groups games by (field, day), sorts by time, computes the mode of consecutive intervals.
+    /// </summary>
+    private static int InferGsiMinutes(List<GamePlacementPattern> games)
+    {
+        var intervals = games
+            .GroupBy(g => (g.FieldName, g.DayOfWeek))
+            .SelectMany(fieldDay =>
+            {
+                var sorted = fieldDay.OrderBy(g => g.TimeOfDay).ToList();
+                var gaps = new List<int>();
+                for (var i = 1; i < sorted.Count; i++)
+                {
+                    var gapMinutes = (int)Math.Round((sorted[i].TimeOfDay - sorted[i - 1].TimeOfDay).TotalMinutes);
+                    if (gapMinutes > 0)
+                        gaps.Add(gapMinutes);
+                }
+                return gaps;
+            })
+            .ToList();
+
+        if (intervals.Count == 0)
+            return 60; // Sensible default
+
+        // Mode (most common interval) = the GSI
+        return intervals
+            .GroupBy(i => i)
+            .OrderByDescending(g => g.Count())
+            .First()
+            .Key;
+    }
+
+    /// <summary>
+    /// Derive binary round layout from Q5 PlacementShapePerRound.
+    /// If the median VerticalityRatio across rounds is below 0.3, the source used horizontal layout.
+    /// </summary>
+    private static RoundLayout DeriveRoundLayout(Dictionary<int, RoundShapeDto> shapePerRound)
+    {
+        if (shapePerRound.Count == 0)
+            return RoundLayout.Sequential;
+
+        var ratios = shapePerRound.Values
+            .Select(s => s.VerticalityRatio)
+            .OrderBy(r => r)
+            .ToList();
+
+        var median = ratios[ratios.Count / 2];
+        return median < 0.3 ? RoundLayout.Horizontal : RoundLayout.Sequential;
+    }
+
+    /// <summary>
+    /// Q12: Minimum team gap in GSI ticks — smallest gap between any team's consecutive games on a day.
+    /// Subsumes BTB detection: 1 tick = BTBs existed, 2+ = no BTBs.
+    /// </summary>
+    private static int ExtractMinTeamGapTicks(List<GamePlacementPattern> games, int gsiMinutes)
+    {
+        if (gsiMinutes <= 0)
+            return 2; // Safe default: no BTBs
+
+        // Unpivot: each game produces entries for both teams
+        var teamDayGames = new Dictionary<(string ag, string div, int teamNo, DayOfWeek day), List<TimeSpan>>();
+
+        foreach (var g in games)
+        {
+            if (g.T1No.HasValue)
+            {
+                var key = (g.AgegroupName, g.DivName, g.T1No.Value, g.DayOfWeek);
+                if (!teamDayGames.TryGetValue(key, out var list1))
+                    teamDayGames[key] = list1 = [];
+                list1.Add(g.TimeOfDay);
+            }
+            if (g.T2No.HasValue)
+            {
+                var key = (g.AgegroupName, g.DivName, g.T2No.Value, g.DayOfWeek);
+                if (!teamDayGames.TryGetValue(key, out var list2))
+                    teamDayGames[key] = list2 = [];
+                list2.Add(g.TimeOfDay);
+            }
+        }
+
+        // For each team-day with 2+ games, compute min consecutive gap in ticks
+        var minGapTicks = int.MaxValue;
+
+        foreach (var times in teamDayGames.Values)
+        {
+            if (times.Count < 2) continue;
+
+            var sorted = times.OrderBy(t => t).ToList();
+            for (var i = 1; i < sorted.Count; i++)
+            {
+                var gapMinutes = (sorted[i] - sorted[i - 1]).TotalMinutes;
+                var gapTicks = (int)Math.Round(gapMinutes / gsiMinutes);
+                if (gapTicks > 0 && gapTicks < minGapTicks)
+                    minGapTicks = gapTicks;
+            }
+        }
+
+        return minGapTicks == int.MaxValue ? 2 : minGapTicks;
+    }
+
+    /// <summary>
+    /// Derive field fairness from Q7 FieldDesirability.
+    /// Democratic if all fields have usage ratio between 0.5 and 1.5; Biased otherwise.
+    /// </summary>
+    private static FieldFairness DeriveFieldFairness(Dictionary<string, FieldUsageDto> fieldDesirability)
+    {
+        if (fieldDesirability.Count <= 1)
+            return FieldFairness.Democratic;
+
+        var maxRatio = fieldDesirability.Values.Max(f => f.UsageRatio);
+        var minRatio = fieldDesirability.Values.Min(f => f.UsageRatio);
+
+        // If the spread between most-used and least-used field is > 2x, it's biased
+        return maxRatio > 1.5 || minRatio < 0.5
+            ? FieldFairness.Biased
+            : FieldFairness.Democratic;
     }
 }

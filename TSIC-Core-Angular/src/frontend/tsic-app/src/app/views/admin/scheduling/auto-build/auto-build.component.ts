@@ -21,6 +21,7 @@ import type {
     DivisionSizeProfile,
     UnplacedGameDto,
     ConstraintSacrificeDto,
+    PreFlightDisconnect,
 } from '@core/api';
 
 // ── Step enum (sequential flow) ──────────────────────────
@@ -32,22 +33,6 @@ type AutoBuildStep =
     | 'building'         // Building schedule
     | 'results'          // Results + unplaced + sacrifices
     | 'error';
-
-// ── Default constraint order ─────────────────────────────
-const DEFAULT_CONSTRAINTS = [
-    { name: 'correct-day', label: 'Correct Day', impact: 'Preserve the same games/team/day ratio', locked: false },
-    { name: 'field-assignment', label: 'Field Assignment', impact: 'Keep teams playing on the same set of fields they used last year — if U10 played on Fields 1–4, they stay on Fields 1–4', locked: false },
-    { name: 'placement-shape', label: 'Placement Shape', impact: 'Preserve whether rounds were spread across fields (horizontal) or stacked on fewer fields (vertical) like last year', locked: false },
-    { name: 'onsite-window', label: 'On-Site Window', impact: "Match the time spread between a team's first and last game to last year's pattern — whether that was tight or spread out across the day", locked: false },
-    { name: 'field-distribution', label: 'Field Distribution', impact: 'Maintain per team the balance of different fields used', locked: false },
-];
-
-interface ConstraintPriorityItem {
-    name: string;
-    label: string;
-    impact: string;
-    locked: boolean;
-}
 
 interface AgegroupOrderItem {
     agegroupId: string;
@@ -301,7 +286,7 @@ export class AutoBuildComponent implements AfterViewChecked {
     profileSourceName = signal('');
     profileSourceYear = signal('');
     agegroupOrder = signal<AgegroupOrderItem[]>([]);
-    constraintPriorities = signal<ConstraintPriorityItem[]>([...DEFAULT_CONSTRAINTS]);
+    disconnects = signal<PreFlightDisconnect[]>([]);
     divisionOrderStrategy = signal<'alpha' | 'odd-first'>('alpha');
     buildResult = signal<AutoBuildV2Result | null>(null);
     sourceJobId = signal<string | null>(null);
@@ -407,6 +392,7 @@ export class AutoBuildComponent implements AfterViewChecked {
                         this.profiles.set(response.profiles);
                         this.profileSourceName.set(response.sourceJobName);
                         this.profileSourceYear.set(response.sourceYear);
+                        this.disconnects.set((response.disconnects as PreFlightDisconnect[]) ?? []);
                         this.isCleanSheet.set(false);
                         this.preparationStatus.set('ready');
                         this.transitionToOrder();
@@ -479,25 +465,6 @@ export class AutoBuildComponent implements AfterViewChecked {
         );
     }
 
-    moveConstraintUp(index: number): void {
-        if (index <= 0) return;
-        this.constraintPriorities.update(cp => {
-            const arr = [...cp];
-            [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-            return arr;
-        });
-    }
-
-    moveConstraintDown(index: number): void {
-        const cp = this.constraintPriorities();
-        if (index >= cp.length - 1) return;
-        this.constraintPriorities.update(c => {
-            const arr = [...c];
-            [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-            return arr;
-        });
-    }
-
     // ── Execute Build ────────────────────────────────────────
     executeBuild(): void {
         const request: AutoBuildV2Request = {
@@ -507,13 +474,13 @@ export class AutoBuildComponent implements AfterViewChecked {
                 .map(ag => ag.agegroupId),
             divisionOrderStrategy: this.divisionOrderStrategy(),
             excludedDivisionIds: this.excludedDivisionIds(),
-            constraintPriorities: this.constraintPriorities().map(cp => cp.name),
+            constraintPriorities: ['placement-shape', 'field-distribution'],
         };
 
         this.step.set('building');
         this.messages.set([]);
         this.addMessage('info', 'Building your schedule now...');
-        this.addMessage('thinking', 'Scoring every available slot and placing games...');
+        this.addMessage('thinking', 'Finding the best slot for every game...');
 
         this.svc.executeV2(request).subscribe({
             next: (result) => {
@@ -550,13 +517,20 @@ export class AutoBuildComponent implements AfterViewChecked {
 
         this.addMessage(hasFailures ? 'warning' : 'success', hero);
 
-        // Sacrifice summary
+        // Soft evaluator deviations (discovery-based language)
         if (result.sacrificeLog.length > 0) {
-            let sacMsg = `<strong>Trade-offs made:</strong><br>`;
+            let sacMsg = `<strong>Where the schedule differs from last year's pattern:</strong><br>`;
             for (const sac of result.sacrificeLog) {
-                sacMsg += `&bull; <strong>${sac.constraintName}</strong> &mdash; ${sac.violationCount} time${sac.violationCount > 1 ? 's' : ''}`;
-                if (sac.exampleGames.length > 0) {
-                    sacMsg += ` (e.g. ${sac.exampleGames.join(', ')})`;
+                const label = sac.constraintName === 'placement-shape'
+                    ? 'Round layout'
+                    : sac.constraintName === 'field-distribution'
+                    ? 'Field rotation'
+                    : sac.constraintName === 'team-span'
+                    ? 'Team span'
+                    : sac.constraintName;
+                sacMsg += `&bull; <strong>${label}</strong> &mdash; ${sac.violationCount} game${sac.violationCount > 1 ? 's' : ''} placed differently`;
+                if (sac.impactDescription) {
+                    sacMsg += ` (${sac.impactDescription})`;
                 }
                 sacMsg += `<br>`;
             }
@@ -623,21 +597,21 @@ export class AutoBuildComponent implements AfterViewChecked {
         } else {
             const issues: string[] = [];
             if (qa.fieldDoubleBookings.length > 0)
-                issues.push(`<strong>${qa.fieldDoubleBookings.length}</strong> field double-booking${qa.fieldDoubleBookings.length > 1 ? 's' : ''}`);
+                issues.push(`<strong>${qa.fieldDoubleBookings.length}</strong> field double-booking${qa.fieldDoubleBookings.length > 1 ? 's' : ''} — two games on the same field at the same time`);
             if (qa.teamDoubleBookings.length > 0)
-                issues.push(`<strong>${qa.teamDoubleBookings.length}</strong> team double-booking${qa.teamDoubleBookings.length > 1 ? 's' : ''}`);
+                issues.push(`<strong>${qa.teamDoubleBookings.length}</strong> team double-booking${qa.teamDoubleBookings.length > 1 ? 's' : ''} — a team scheduled for two games at the same time`);
             if (qa.rankMismatches.length > 0)
-                issues.push(`<strong>${qa.rankMismatches.length}</strong> rank mismatch${qa.rankMismatches.length > 1 ? 'es' : ''}`);
+                issues.push(`<strong>${qa.rankMismatches.length}</strong> rank mismatch${qa.rankMismatches.length > 1 ? 'es' : ''} — teams paired outside their competitive tier`);
             if (qa.unscheduledTeams.length > 0)
-                issues.push(`<strong>${qa.unscheduledTeams.length}</strong> unscheduled team${qa.unscheduledTeams.length > 1 ? 's' : ''}`);
+                issues.push(`<strong>${qa.unscheduledTeams.length}</strong> unscheduled team${qa.unscheduledTeams.length > 1 ? 's' : ''} — active teams with no games`);
             if (qa.backToBackGames.length > 0)
-                issues.push(`<strong>${qa.backToBackGames.length}</strong> back-to-back game${qa.backToBackGames.length > 1 ? 's' : ''}`);
+                issues.push(`<strong>${qa.backToBackGames.length}</strong> back-to-back game${qa.backToBackGames.length > 1 ? 's' : ''} — a team playing consecutive time slots with no break`);
             if (qa.repeatedMatchups.length > 0)
-                issues.push(`<strong>${qa.repeatedMatchups.length}</strong> repeated matchup${qa.repeatedMatchups.length > 1 ? 's' : ''}`);
+                issues.push(`<strong>${qa.repeatedMatchups.length}</strong> repeated matchup${qa.repeatedMatchups.length > 1 ? 's' : ''} — same two teams playing more than once`);
 
             const verdict = criticalCount > 0
-                ? `<strong>Quality check found issues:</strong> ${issues.join(', ')}. See QA Results for full details.`
-                : `<strong>Quality check — worth a look:</strong> ${issues.join(', ')}. See QA Results for details.`;
+                ? `<strong>Quality check found issues:</strong><br>&bull; ${issues.join('<br>&bull; ')}<br><br>See QA Results for full details.`
+                : `<strong>Quality check — worth a look:</strong><br>&bull; ${issues.join('<br>&bull; ')}<br><br>See QA Results for details.`;
             this.addMessage(criticalCount > 0 ? 'error' : 'warning', verdict);
         }
     }

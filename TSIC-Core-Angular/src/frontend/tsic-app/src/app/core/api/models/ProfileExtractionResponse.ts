@@ -8,5 +8,6 @@ export type ProfileExtractionResponse = {
     sourceJobName: string;
     sourceYear: string;
     profiles: Array<DivisionSizeProfile>;
+    disconnects?: any[] | null;
 };
 

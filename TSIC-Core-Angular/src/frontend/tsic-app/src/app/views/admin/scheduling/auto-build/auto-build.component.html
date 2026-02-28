@@ -225,15 +225,29 @@
                     @if (isCleanSheet()) {
                         <p class="status-banner-headline">No prior-year schedules were found, so I'll build from scratch using your current timeslot configuration.</p>
                     } @else {
-                        <p class="status-banner-headline">I've analyzed <strong>{{ profileSourceName() }}</strong> ({{ profileSourceYear() }}) and have everything I need to build your schedule.</p>
+                        <p class="status-banner-headline">I've analyzed <strong>{{ profileSourceName() }}</strong> ({{ profileSourceYear() }}) and found what worked. I'll reproduce those patterns using this year's timeslots.</p>
                     }
-                    <p class="status-banner-subtext">Your pools, pairings, and timeslots are all properly configured. Now all you need to do is:</p>
-                    <ul class="status-banner-steps">
-                        <li>Review the scheduling order and priorities below</li>
-                        <li>Hit <strong>Build</strong> when you're ready</li>
-                    </ul>
+                    <p class="status-banner-subtext">Your pools, pairings, and timeslots are all properly configured. Review the scheduling order below and hit <strong>Build</strong> when you're ready.</p>
                 </div>
             </div>
+
+            <!-- Pre-flight disconnects -->
+            @if (disconnects().length > 0) {
+                <div class="status-banner status-banner-warning">
+                    <div class="status-banner-icon">
+                        <i class="bi bi-info-circle-fill"></i>
+                    </div>
+                    <div class="status-banner-content">
+                        <p class="status-banner-headline">Differences between last year and this year's setup:</p>
+                        <ul class="status-banner-errors">
+                            @for (d of disconnects(); track $index) {
+                                <li>{{ d.description }}</li>
+                            }
+                        </ul>
+                        <p class="status-banner-footer">The engine will adapt, but the schedule may differ from last year in these areas.</p>
+                    </div>
+                </div>
+            }
 
             <!-- Agegroup Processing Order -->
             <div class="inline-card v2-ordering">
@@ -302,41 +316,6 @@
                 </div>
             </div>
 
-            <!-- Constraint Priorities -->
-            <div class="inline-card v2-constraints">
-                <div class="card-header-row">
-                    <div class="card-step-number">3</div>
-                    <div class="card-label">How should I order my priorities?</div>
-                </div>
-                <p class="v2-instructions">Top items take priority. When timeslots are tight, I'll sacrifice from the bottom up. Drag to reorder.</p>
-
-                <div class="constraint-list">
-                    @for (cp of constraintPriorities(); track cp.name; let i = $index) {
-                        <div class="constraint-row">
-                            <div class="constraint-rank">{{ i + 1 }}</div>
-                            <div class="constraint-info">
-                                <span class="constraint-name">{{ cp.label }}</span>
-                                <span class="constraint-impact">{{ cp.impact }}</span>
-                            </div>
-                            <div class="order-arrows">
-                                <button class="btn btn-sm btn-outline-secondary"
-                                        [disabled]="i === 0"
-                                        (click)="moveConstraintUp(i)"
-                                        aria-label="Move up">
-                                    <i class="bi bi-chevron-up"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary"
-                                        [disabled]="i === constraintPriorities().length - 1"
-                                        (click)="moveConstraintDown(i)"
-                                        aria-label="Move down">
-                                    <i class="bi bi-chevron-down"></i>
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-
             <!-- Build -->
             <div class="inline-card step-actions">
                 <button class="btn btn-primary btn-lg"
@@ -367,7 +346,7 @@
                 </div>
                 <div class="build-hero-text">
                     <h3>Building Your Schedule</h3>
-                    <p>Scoring every available slot and placing games across your fields and timeslots</p>
+                    <p>Reproducing last year's patterns and finding the best slot for every game</p>
                 </div>
             </div>
 
@@ -411,16 +390,24 @@
 
             @if (sacrificeLog().length > 0) {
                 <div class="inline-card v2-sacrifices">
-                    <div class="card-label">Constraint Sacrifices</div>
+                    <div class="card-label">Pattern Deviations</div>
+                    <p class="sacrifice-explainer">
+                        Games where the engine couldn't perfectly match last year's pattern and found the next best slot.
+                    </p>
                     <div class="sacrifice-list">
                         @for (sac of sacrificeLog(); track sac.constraintName) {
                             <div class="sacrifice-row">
-                                <span class="sacrifice-name">{{ sac.constraintName }}</span>
-                                <span class="sacrifice-count">
-                                    <span class="db db-game">{{ sac.violationCount }}</span> violations
-                                </span>
-                                @if (sac.exampleGames.length > 0) {
-                                    <span class="sacrifice-examples">e.g. {{ sac.exampleGames.join(', ') }}</span>
+                                <div class="sacrifice-header">
+                                    <span class="sacrifice-name">{{ sac.constraintName === 'placement-shape' ? 'Round layout' : sac.constraintName === 'field-distribution' ? 'Field rotation' : sac.constraintName === 'team-span' ? 'Team span' : sac.constraintName }}</span>
+                                    <span class="sacrifice-count">
+                                        <span class="db db-game">{{ sac.violationCount }}</span> game{{ sac.violationCount > 1 ? 's' : '' }}
+                                    </span>
+                                    @if (sac.exampleGames.length > 0) {
+                                        <span class="sacrifice-examples">e.g. {{ sac.exampleGames.join(', ') }}</span>
+                                    }
+                                </div>
+                                @if (sac.impactDescription) {
+                                    <p class="sacrifice-impact">{{ sac.impactDescription }}</p>
                                 }
                             </div>
                         }
@@ -449,7 +436,7 @@
                         <i class="bi bi-arrow-repeat"></i>
                         <span>
                             <strong>Run Again</strong>
-                            <small>Start over with different priorities</small>
+                            <small>Start over with a different ordering</small>
                         </span>
                     </a>
                 </div>

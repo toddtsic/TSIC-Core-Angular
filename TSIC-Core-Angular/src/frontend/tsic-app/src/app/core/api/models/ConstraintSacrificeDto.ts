@@ -6,5 +6,6 @@ export type ConstraintSacrificeDto = {
     constraintName: string;
     violationCount: number;
     exampleGames: Array<string>;
+    impactDescription: string;
 };
 

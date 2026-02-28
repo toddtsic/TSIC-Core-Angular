@@ -1199,6 +1199,26 @@
     }
 }
 
+// ── Warning state (pre-flight disconnects) ──────────
+.status-banner-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
+    border-left: 5px solid var(--bs-warning);
+    background: rgba(var(--bs-warning-rgb), 0.05);
+    box-shadow: var(--shadow-sm);
+
+    .status-banner-icon {
+        background: rgba(var(--bs-warning-rgb), 0.12);
+
+        > i {
+            color: var(--bs-warning);
+        }
+    }
+}
+
 // ── Error state ─────────────────────────────────────
 .status-banner-error {
     padding: var(--space-5);
@@ -1459,6 +1479,13 @@
 }
 
 // ── V2 Sacrifice Log ────────────────────────────────
+.sacrifice-explainer {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+    margin: 0 0 var(--space-3) 0;
+    line-height: var(--line-height-normal);
+}
+
 .sacrifice-list {
     display: flex;
     flex-direction: column;
@@ -1466,14 +1493,17 @@
 }
 
 .sacrifice-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-color);
     border-left: 3px solid var(--bs-warning);
     font-size: var(--font-size-sm);
+}
+
+.sacrifice-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
 }
 
 .sacrifice-name {
@@ -1492,6 +1522,13 @@
     color: var(--brand-text-muted);
     font-style: italic;
     margin-left: auto;
+}
+
+.sacrifice-impact {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    margin: var(--space-1) 0 0 0;
+    line-height: var(--line-height-normal);
 }
 
 // ── Responsive ────────────────────────────────────────
@@ -1522,6 +1559,6 @@
     // V2 responsive overrides
     .profile-grid { grid-template-columns: 1fr; }
     .order-row, .constraint-row { flex-wrap: wrap; }
-    .sacrifice-row { flex-wrap: wrap; }
+    .sacrifice-header { flex-wrap: wrap; }
     .sacrifice-examples { margin-left: 0; }
 }

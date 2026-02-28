@@ -849,6 +849,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
         }
 
+        // Pre-flight disconnects: compare source discoveries against current timeslot canvas
+        var disconnects = await CheckDisconnectsAsync(jobId, profiles, sourceJobId, ct);
+
         // Get source job metadata
         var sourceName = await _autoBuildRepo.GetJobNameAsync(sourceJobId, ct) ?? "";
         var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct) ?? "";
@@ -860,7 +863,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             SourceYear = sourceYear,
             Profiles = profiles.Values
                 .OrderBy(p => p.TCnt)
-                .ToList()
+                .ToList(),
+            Disconnects = disconnects.Count > 0 ? disconnects : null
         };
     }
 
@@ -905,20 +909,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             profilesByTCnt = new Dictionary<int, DivisionSizeProfile>();
         }
 
-        // ── 2. Build ranked constraint evaluators ──
-        var allEvaluators = new Dictionary<string, IConstraintEvaluator>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["correct-day"] = new ConstraintEvaluators.CorrectDayEvaluator(),
-            ["placement-shape"] = new ConstraintEvaluators.PlacementShapeEvaluator(),
-            ["onsite-window"] = new ConstraintEvaluators.OnsiteWindowEvaluator(),
-            ["field-assignment"] = new ConstraintEvaluators.FieldAssignmentEvaluator(),
-            ["field-distribution"] = new ConstraintEvaluators.FieldDistributionEvaluator()
-        };
-
-        var rankedConstraints = PlacementScorer.BuildRankedConstraints(
-            request.ConstraintPriorities, allEvaluators);
-
-        // ── 3. Get current divisions and filter ──
+        // ── 2. Get current divisions and filter ──
         var allDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
         var activeDivisions = allDivisions
             .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
@@ -928,32 +919,29 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         var excludedIds = request.ExcludedDivisionIds.ToHashSet();
 
-        // ── 4. Initialize global state ──
+        // ── 3. Initialize global state ──
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var allFieldIds = currentFields.Select(f => f.FieldId).ToList();
-        var fieldIdToName = currentFields
-            .GroupBy(f => f.FieldId)
-            .ToDictionary(g => g.Key, g => g.First().FName);
 
         var occupiedSlots = allFieldIds.Count > 0
             ? await _scheduleRepo.GetOccupiedSlotsAsync(jobId, allFieldIds, ct)
             : new HashSet<(Guid fieldId, DateTime gDate)>();
 
-        var btbTracker = new BtbTracker();
-        var btbThreshold = 0;
-
         var existingCounts = await _autoBuildRepo.GetExistingGameCountsByDivisionAsync(jobId, ct);
 
-        // ── 5. Build processing order: agegroups → divisions ──
+        // ── 4. Build processing order: agegroups → divisions ──
         var orderedDivisions = BuildProcessingOrder(
             activeDivisions, request.AgegroupOrder, request.DivisionOrderStrategy, excludedIds);
 
-        // ── 6. Process each division ──
+        // ── 5. Pre-compute per-division context (DB calls can't interleave) ──
         var divisionResults = new List<AutoBuildDivisionResult>();
         var unplacedGames = new List<UnplacedGameDto>();
         var sacrificeCounts = new Dictionary<string, (int Count, List<string> Examples)>();
         var totalPlaced = 0;
         var totalFailed = 0;
+
+        // Holds everything needed to place games for one division
+        var divContexts = new List<DivisionBuildContext>();
 
         foreach (var div in orderedDivisions)
         {
@@ -1048,24 +1036,20 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 continue;
             }
 
-            // Compute BTB threshold from field config
-            btbThreshold = effectiveFields.Count > 0
-                ? effectiveFields.Max(f => f.GamestartInterval) : 0;
-
             // Build candidate slots: date × field × game intervals
             var candidates = GenerateCandidateSlots(effectiveDates, effectiveFields);
 
+            // Current year's GSI from field config
+            var currentGsi = effectiveFields.Count > 0
+                ? effectiveFields.Max(f => f.GamestartInterval) : 60;
+
             // Get or build profile for this TCnt
             var profile = GetOrBuildDefaultProfile(
-                profilesByTCnt, teamCount, effectiveDates, effectiveFields);
+                profilesByTCnt, teamCount, effectiveDates, effectiveFields, currentGsi);
 
-            // Remap source play days to current play days by ordinal position
-            var currentPlayDays = effectiveDates
-                .Select(d => d.GDate.DayOfWeek)
-                .Distinct()
-                .OrderBy(d => d)
-                .ToList();
-            profile = ApplyDayOrdinalMap(profile, currentPlayDays);
+            // Play days are actual DayOfWeek — no ordinal remapping.
+            // If source days don't match current timeslot days, the scorer penalizes
+            // wrong-day slots rather than silently remapping Saturday→Sunday.
 
             // Compute current job's timeslot window start per DOW from field config
             var currentWindowStart = new Dictionary<DayOfWeek, TimeSpan>();
@@ -1077,49 +1061,177 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     currentWindowStart[dow] = st;
             }
 
-            // Build PlacementState for this pass
-            var state = new PlacementState(occupiedSlots, btbTracker, btbThreshold, currentWindowStart);
+            // Build PlacementState for this division (shares global occupiedSlots)
+            var state = new PlacementState(occupiedSlots, currentWindowStart);
 
             // Group pairings by round
-            var rounds = rrPairings
+            var roundsByNum = rrPairings
                 .GroupBy(p => p.Rnd)
-                .OrderBy(g => g.Key)
+                .ToDictionary(g => g.Key, g => g.OrderBy(p => p.GameNumber).ToList());
+
+            // Compute effective play days: profile's PlayDays filtered to days that
+            // actually exist in this division's candidates. Profiles are keyed by TCnt,
+            // so a profile may contain PlayDays from multiple agegroups (e.g., Sat from
+            // 2030 + Sun from 2034) even though this division only plays one day.
+            var candidateDays = candidates
+                .Select(c => c.GDate.DayOfWeek)
+                .Distinct()
+                .OrderBy(d => d)
                 .ToList();
 
-            var divPlaced = 0;
-            var divFailed = 0;
+            var effectivePlayDays = profile.PlayDays
+                .Where(d => candidateDays.Contains(d))
+                .ToList();
 
-            foreach (var round in rounds)
+            // If no overlap (source days don't match current at all), use candidate days
+            if (effectivePlayDays.Count == 0)
+                effectivePlayDays = candidateDays;
+
+            divContexts.Add(new DivisionBuildContext
             {
-                var roundNum = round.Key;
-                var gamesInRound = round.OrderBy(p => p.GameNumber).ToList();
+                Div = div,
+                Agegroup = agegroup,
+                Division = division,
+                AgSeason = agSeason,
+                AgLeagueId = agLeagueId,
+                TeamCount = teamCount,
+                Candidates = candidates,
+                Profile = profile,
+                State = state,
+                CurrentWindowStart = currentWindowStart,
+                RoundsByNum = roundsByNum,
+                MaxRound = roundsByNum.Keys.DefaultIfEmpty(0).Max(),
+                EffectivePlayDays = effectivePlayDays
+            });
+        }
 
-                foreach (var pairing in gamesInRound)
+        // ── 7. Division-sequential placement ──
+        // Place ALL rounds for each division before moving to the next.
+        // This keeps each team's games clustered in time (tight span),
+        // matching the source's ~180-min team spans.
+        //
+        // Previous interleaved strategy (R1-all, R2-all, R3-all) consumed
+        // nearby slots across divisions, forcing later rounds into distant
+        // time slots — inflating spans to 315-450+ minutes despite the
+        // span penalty. Division-sequential lets each division claim a
+        // contiguous time block, then the next division claims the next block.
+        //
+        // Division processing order is set by BuildProcessingOrder
+        // (agegroup priority + division strategy).
+
+        // Per-division placement counters
+        var divPlacedCounts = new Dictionary<Guid, int>();
+        var divFailedCounts = new Dictionary<Guid, int>();
+        foreach (var c in divContexts)
+        {
+            divPlacedCounts[c.Div.DivId] = 0;
+            divFailedCounts[c.Div.DivId] = 0;
+        }
+
+        // Track which (TCnt, DayOfWeek) combos have already had a division placed.
+        // The source's StartTickOffset guides the FIRST division of each TCnt to match
+        // the source's start position. Subsequent divisions with the same TCnt should
+        // NOT target the same start offset — those slots are occupied. Instead, they
+        // get no target time for R1, letting the scorer find the best available slot.
+        // R2+ is always relative to where R1 actually landed (via InterRoundGapTicks).
+        var tcntDayFirstPlaced = new HashSet<(int TCnt, DayOfWeek Day)>();
+
+        foreach (var ctx in divContexts)
+        {
+            for (var roundNum = 1; roundNum <= ctx.MaxRound; roundNum++)
+            {
+                if (!ctx.RoundsByNum.TryGetValue(roundNum, out var gamesInRound))
+                    continue;
+
+                // Compute target day for this round.
+                // Uses EffectivePlayDays (profile days filtered to candidate days) so
+                // single-day agegroups don't get false wrong-day penalties.
+                DayOfWeek? targetDay = null;
+                if (ctx.EffectivePlayDays.Count > 0)
                 {
-                    // Build game context with target day/time from profile
-                    DayOfWeek? targetDay = null;
-                    if (profile.PlayDays.Count > 0)
+                    var dayIndex = (roundNum - 1) % ctx.EffectivePlayDays.Count;
+                    targetDay = ctx.EffectivePlayDays[dayIndex];
+                }
+
+                // Compute round start time from source attributes:
+                // 1. If round already has a target (first game placed) → use it
+                // 2. Find previous round on same day → advance by inter-round interval
+                // 3. First round on this day for the FIRST division of this TCnt →
+                //    use start tick offset from window (source pattern)
+                // 4. First round on this day for SUBSEQUENT divisions of same TCnt →
+                //    no target time (let scorer find best available slot)
+                //
+                // Why suppress StartTickOffset for later divisions:
+                // With division-sequential placement, division #1 claims slots near
+                // the source offset. Division #2 targeting the same offset would get
+                // target-time penalties pushing it toward occupied slots, degrading
+                // placement quality. Better to let it float to whatever's available.
+                var roundKey = (ctx.Div.DivId, roundNum);
+                TimeSpan? roundStartTime = null;
+
+                if (ctx.State.RoundTargetTimes.TryGetValue(roundKey, out var existingTarget))
+                {
+                    roundStartTime = existingTarget;
+                }
+                else
+                {
+                    // Look for previous round on same target day
+                    TimeSpan? prevRoundTime = null;
+                    if (targetDay.HasValue && ctx.EffectivePlayDays.Count > 0)
                     {
-                        // Distribute rounds across play days
-                        var dayIndex = (roundNum - 1) % profile.PlayDays.Count;
-                        targetDay = profile.PlayDays[dayIndex];
+                        for (var prev = roundNum - 1; prev >= 1; prev--)
+                        {
+                            var prevDayIndex = (prev - 1) % ctx.EffectivePlayDays.Count;
+                            if (ctx.EffectivePlayDays[prevDayIndex] == targetDay.Value
+                                && ctx.State.RoundTargetTimes.TryGetValue((ctx.Div.DivId, prev), out var pt))
+                            {
+                                prevRoundTime = pt;
+                                break;
+                            }
+                        }
                     }
 
-                    // Target time: round target (first game sets it) → offset-based → fallback to null
-                    TimeSpan? targetTime = null;
-                    var roundKey = (div.DivId, roundNum);
-                    if (state.RoundTargetTimes.TryGetValue(roundKey, out var existingTarget))
+                    if (prevRoundTime.HasValue && ctx.Profile.GsiMinutes > 0)
                     {
-                        targetTime = existingTarget;
+                        // Subsequent round on same day: advance by inter-round interval
+                        roundStartTime = prevRoundTime.Value
+                            + TimeSpan.FromMinutes(ctx.Profile.InterRoundGapTicks * ctx.Profile.GsiMinutes);
                     }
                     else if (targetDay.HasValue
-                             && profile.StartOffsetFromWindow != null
-                             && profile.StartOffsetFromWindow.TryGetValue(targetDay.Value, out var offset)
-                             && currentWindowStart.TryGetValue(targetDay.Value, out var winStart))
+                             && !tcntDayFirstPlaced.Contains((ctx.TeamCount, targetDay.Value)))
                     {
-                        // Offset-based: current window start + source offset = where to aim
-                        targetTime = winStart + offset;
+                        // First division of this TCnt on this day — use source offset
+                        if (ctx.Profile.StartTickOffset != null
+                            && ctx.Profile.StartTickOffset.TryGetValue(targetDay.Value, out var tickOffset)
+                            && ctx.CurrentWindowStart.TryGetValue(targetDay.Value, out var winStart)
+                            && ctx.Profile.GsiMinutes > 0)
+                        {
+                            roundStartTime = winStart + TimeSpan.FromMinutes(tickOffset * ctx.Profile.GsiMinutes);
+                        }
+                        else if (ctx.Profile.StartOffsetFromWindow != null
+                                 && ctx.Profile.StartOffsetFromWindow.TryGetValue(targetDay.Value, out var offset)
+                                 && ctx.CurrentWindowStart.TryGetValue(targetDay.Value, out var winStart2))
+                        {
+                            roundStartTime = winStart2 + offset;
+                        }
                     }
+                    // else: subsequent division of same TCnt on same day — no target time.
+                    // Scorer picks best available based on span, gap, day, and field balance.
+                }
+
+                // Place each game in this round
+                var gameIndex = 0;
+                foreach (var pairing in gamesInRound)
+                {
+                    // Per-game target time: for sequential rounds, each game advances by 1 GSI tick
+                    var gameTargetTime = roundStartTime;
+                    if (ctx.Profile.RoundLayout == RoundLayout.Sequential
+                        && roundStartTime.HasValue && ctx.Profile.GsiMinutes > 0 && gameIndex > 0)
+                    {
+                        gameTargetTime = roundStartTime.Value
+                            + TimeSpan.FromMinutes(gameIndex * ctx.Profile.GsiMinutes);
+                    }
+                    gameIndex++;
 
                     var game = new GameContext
                     {
@@ -1127,52 +1239,51 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         GameNumber = pairing.GameNumber,
                         T1No = pairing.T1,
                         T2No = pairing.T2,
-                        DivId = div.DivId,
-                        AgegroupId = div.AgegroupId,
-                        AgegroupName = div.AgegroupName,
-                        DivName = div.DivName,
-                        TCnt = teamCount,
+                        DivId = ctx.Div.DivId,
+                        AgegroupId = ctx.Div.AgegroupId,
+                        AgegroupName = ctx.Div.AgegroupName,
+                        DivName = ctx.Div.DivName,
+                        TCnt = ctx.TeamCount,
                         TargetDay = targetDay,
-                        TargetTime = targetTime
+                        TargetTime = gameTargetTime
                     };
 
-                    // Score all candidates and find best
                     var best = PlacementScorer.FindBestSlot(
-                        candidates, game, profile, rankedConstraints, state);
+                        ctx.Candidates, game, ctx.Profile, ctx.State);
 
                     if (best == null)
                     {
-                        divFailed++;
+                        divFailedCounts[ctx.Div.DivId]++;
                         unplacedGames.Add(new UnplacedGameDto
                         {
-                            AgegroupName = div.AgegroupName,
-                            DivName = div.DivName,
+                            AgegroupName = ctx.Div.AgegroupName,
+                            DivName = ctx.Div.DivName,
                             Round = roundNum,
                             T1No = pairing.T1,
                             T2No = pairing.T2,
-                            Reason = "No available slot (all occupied or BTB conflict)"
+                            Reason = "No available slot (all occupied)"
                         });
                         continue;
                     }
 
-                    // Track constraint sacrifices
-                    if (best.Violations.Count > 0)
+                    // Track penalty breakdown for sacrifice reporting
+                    if (best.PenaltyBreakdown.Count > 0)
                     {
-                        foreach (var violation in best.Violations)
+                        foreach (var (penaltyName, penaltyValue) in best.PenaltyBreakdown)
                         {
-                            if (!sacrificeCounts.TryGetValue(violation, out var entry))
+                            if (!sacrificeCounts.TryGetValue(penaltyName, out var entry))
                             {
                                 entry = (0, new List<string>());
-                                sacrificeCounts[violation] = entry;
+                                sacrificeCounts[penaltyName] = entry;
                             }
                             var count = entry.Count + 1;
                             var examples = entry.Examples;
                             if (examples.Count < 3)
                             {
                                 examples.Add(
-                                    $"{div.AgegroupName}/{div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2}");
+                                    $"{ctx.Div.AgegroupName}/{ctx.Div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2} (+{penaltyValue})");
                             }
-                            sacrificeCounts[violation] = (count, examples);
+                            sacrificeCounts[penaltyName] = (count, examples);
                         }
                     }
 
@@ -1180,19 +1291,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     var scheduleGame = new Schedule
                     {
                         JobId = jobId,
-                        LeagueId = agLeagueId,
-                        Season = agSeason,
+                        LeagueId = ctx.AgLeagueId,
+                        Season = ctx.AgSeason,
                         Year = year,
-                        AgegroupId = div.AgegroupId,
-                        AgegroupName = agegroup?.AgegroupName ?? "",
-                        DivId = div.DivId,
-                        DivName = division?.DivName ?? "",
-                        Div2Id = div.DivId,
+                        AgegroupId = ctx.Div.AgegroupId,
+                        AgegroupName = ctx.Agegroup?.AgegroupName ?? "",
+                        DivId = ctx.Div.DivId,
+                        DivName = ctx.Division?.DivName ?? "",
+                        Div2Id = ctx.Div.DivId,
                         FieldId = best.Slot.FieldId,
                         FName = best.Slot.FieldName,
                         GDate = best.Slot.GDate,
                         GNo = pairing.GameNumber,
-                        GStatusCode = 1, // Scheduled
+                        GStatusCode = 1,
                         Rnd = (byte)pairing.Rnd,
                         T1No = pairing.T1,
                         T1Type = pairing.T1Type,
@@ -1209,43 +1320,65 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     };
 
                     _scheduleRepo.AddGame(scheduleGame);
-                    state.RecordPlacement(best.Slot, game);
-                    divPlaced++;
+                    ctx.State.RecordPlacement(best.Slot, game);
+                    divPlacedCounts[ctx.Div.DivId]++;
+
+                    // Mark this TCnt+Day as having its first division placed.
+                    // Subsequent divisions with same TCnt won't use source StartTickOffset.
+                    if (targetDay.HasValue)
+                        tcntDayFirstPlaced.Add((ctx.TeamCount, targetDay.Value));
                 }
             }
-
-            // Bulk save per division
-            if (divPlaced > 0)
-                await _scheduleRepo.SaveChangesAsync(ct);
-
-            // Resolve team names
-            await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(
-                div.DivId, jobId, ct);
-
-            divisionResults.Add(new AutoBuildDivisionResult
-            {
-                AgegroupName = div.AgegroupName,
-                DivName = div.DivName,
-                DivId = div.DivId,
-                GamesPlaced = divPlaced,
-                GamesFailed = divFailed,
-                Status = divPlaced > 0 ? "v2-placed" : "no-slots"
-            });
-
-            totalPlaced += divPlaced;
-            totalFailed += divFailed;
         }
 
-        // ── 7. Build sacrifice log ──
+        // ── 8. Bulk save and finalize per division ──
+        // Save all placed games in one batch
+        if (divPlacedCounts.Values.Any(c => c > 0))
+            await _scheduleRepo.SaveChangesAsync(ct);
+
+        // Resolve team names per division
+        foreach (var ctx in divContexts)
+        {
+            if (divPlacedCounts[ctx.Div.DivId] > 0)
+            {
+                await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(
+                    ctx.Div.DivId, jobId, ct);
+            }
+
+            var placed = divPlacedCounts[ctx.Div.DivId];
+            var failed = divFailedCounts[ctx.Div.DivId];
+            divisionResults.Add(new AutoBuildDivisionResult
+            {
+                AgegroupName = ctx.Div.AgegroupName,
+                DivName = ctx.Div.DivName,
+                DivId = ctx.Div.DivId,
+                GamesPlaced = placed,
+                GamesFailed = failed,
+                Status = placed > 0 ? "v2-placed" : "no-slots"
+            });
+
+            totalPlaced += placed;
+            totalFailed += failed;
+        }
+
+        // ── 7. Build sacrifice log from penalty breakdown ──
+        var penaltyImpactDescriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["wrong-day"] = "Games placed on a different day than the source schedule used.",
+            ["team-span"] = "A team's first-to-last game span exceeds the source pattern — longer wait at the field.",
+            ["team-gap"] = "Teams have games closer together than the source schedule — potential back-to-back.",
+            ["target-time"] = "Games placed at a different time than the source pattern — drift from expected position.",
+            ["round-layout"] = "Horizontal round couldn't place all games at the same time — insufficient fields.",
+            ["field-balance"] = "Some teams play on the same field more often than ideal — field rotation imbalance."
+        };
+
         var sacrificeLog = sacrificeCounts
             .Select(kvp => new ConstraintSacrificeDto
             {
                 ConstraintName = kvp.Key,
                 ViolationCount = kvp.Value.Count,
                 ExampleGames = kvp.Value.Examples,
-                ImpactDescription = allEvaluators.TryGetValue(kvp.Key, out var eval)
-                    ? eval.SacrificeImpact
-                    : ""
+                ImpactDescription = penaltyImpactDescriptions.GetValueOrDefault(kvp.Key, "")
             })
             .OrderByDescending(s => s.ViolationCount)
             .ToList();
@@ -1270,6 +1403,37 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             UnplacedGames = unplacedGames,
             SacrificeLog = sacrificeLog
         };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Division Build Context
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Pre-computed context for one division, built during the async first pass.
+    /// Used by the interleaved placement loop (round-by-round across all divisions).
+    /// </summary>
+    private sealed class DivisionBuildContext
+    {
+        public required CurrentDivisionSummary Div { get; init; }
+        public Agegroups? Agegroup { get; init; }
+        public Divisions? Division { get; init; }
+        public required string AgSeason { get; init; }
+        public required Guid AgLeagueId { get; init; }
+        public required int TeamCount { get; init; }
+        public required List<CandidateSlot> Candidates { get; init; }
+        public required DivisionSizeProfile Profile { get; init; }
+        public required PlacementState State { get; init; }
+        public required Dictionary<DayOfWeek, TimeSpan> CurrentWindowStart { get; init; }
+        public required Dictionary<int, List<PairingsLeagueSeason>> RoundsByNum { get; init; }
+        public required int MaxRound { get; init; }
+
+        /// <summary>
+        /// Profile PlayDays filtered to only include days that actually exist in this
+        /// division's candidate slots. Prevents false wrong-day penalties when profiles
+        /// are shared across agegroups that play on different days (same TCnt, different DOW).
+        /// </summary>
+        public required List<DayOfWeek> EffectivePlayDays { get; init; }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1389,7 +1553,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         Dictionary<int, DivisionSizeProfile> profilesByTCnt,
         int teamCount,
         List<TimeslotDateDto> dates,
-        List<TimeslotFieldDto> fields)
+        List<TimeslotFieldDto> fields,
+        int currentGsi)
     {
         if (profilesByTCnt.TryGetValue(teamCount, out var profile))
             return profile;
@@ -1434,9 +1599,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var gameGuarantee = teamCount - 1;
 
         // Default interval from field config
-        var defaultInterval = fields.Count > 0
-            ? TimeSpan.FromMinutes(fields.Max(f => f.GamestartInterval))
-            : TimeSpan.FromMinutes(75);
+        var gsi = currentGsi > 0 ? currentGsi : 60;
+        var defaultInterval = TimeSpan.FromMinutes(gsi);
 
         // Default rounds per day: distribute evenly
         var roundsPerDay = new Dictionary<DayOfWeek, int>();
@@ -1449,6 +1613,18 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 roundsPerDay[playDays[i]] = roundsEach + (i < remainder ? 1 : 0);
             }
         }
+
+        // Determine default round layout: if enough fields for all games in a round, horizontal
+        var gamesPerRound = teamCount / 2; // round-robin: half the teams play per round
+        var fieldCount = fieldBand.Count;
+        var defaultLayout = fieldCount >= gamesPerRound
+            ? RoundLayout.Horizontal
+            : RoundLayout.Sequential;
+
+        // Default inter-round gap: for sequential = gamesPerRound ticks, for horizontal = 1 tick
+        var defaultInterRoundGapTicks = defaultLayout == RoundLayout.Horizontal
+            ? 1
+            : gamesPerRound;
 
         var defaultProfile = new DivisionSizeProfile
         {
@@ -1466,7 +1642,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             FieldDesirability = new Dictionary<string, FieldUsageDto>(),
             RoundsPerDay = roundsPerDay,
             ExtraRoundDay = null,
-            InterRoundInterval = defaultInterval
+            InterRoundInterval = defaultInterval,
+            // Tick-based defaults for clean sheet mode
+            GsiMinutes = gsi,
+            RoundLayout = defaultLayout,
+            StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
+            InterRoundGapTicks = defaultInterRoundGapTicks,
+            MinTeamGapTicks = 2, // No BTBs by default
+            FieldFairness = FieldFairness.Democratic
         };
 
         // Cache for subsequent divisions with same TCnt
@@ -1509,6 +1692,125 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
 
         return windowStartPerDow;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Pre-Flight Disconnects
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Compare source-extracted profiles against the current job's timeslot canvas.
+    /// Surfaces any mismatches (missing fields, shifted time windows, GSI changes)
+    /// so the scheduler sees exactly where the engine may deviate from last year's pattern.
+    /// </summary>
+    private async Task<List<PreFlightDisconnect>> CheckDisconnectsAsync(
+        Guid jobId, Dictionary<int, DivisionSizeProfile> profiles,
+        Guid sourceJobId, CancellationToken ct)
+    {
+        var disconnects = new List<PreFlightDisconnect>();
+        if (profiles.Count == 0)
+            return disconnects;
+
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Gather current timeslot canvas: fields + start times + GSI across all agegroups
+        var currentAgegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, ct);
+        var currentFieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var currentWindowStart = new Dictionary<DayOfWeek, TimeSpan>();
+        var currentGsiValues = new HashSet<int>();
+
+        foreach (var ag in currentAgegroups)
+        {
+            var fields = await _timeslotRepo.GetFieldTimeslotsAsync(ag.AgegroupId, season, year, ct);
+            foreach (var field in fields)
+            {
+                currentFieldNames.Add(field.FieldName);
+                currentGsiValues.Add(field.GamestartInterval);
+
+                if (!TimeSpan.TryParse(field.StartTime, out var st)) continue;
+                if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow)) continue;
+                if (!currentWindowStart.TryGetValue(dow, out var existing) || st < existing)
+                    currentWindowStart[dow] = st;
+            }
+        }
+
+        // ── Check 1: Field availability ──
+        // Collect all field names referenced across all profiles (already mapped to current names)
+        var profileFieldNames = profiles.Values
+            .SelectMany(p => p.FieldBand)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var missingFields = profileFieldNames
+            .Where(f => !currentFieldNames.Contains(f))
+            .ToList();
+
+        foreach (var field in missingFields)
+        {
+            disconnects.Add(new PreFlightDisconnect
+            {
+                Category = "field",
+                Description = $"Source used \"{field}\" but it's not in this year's timeslots"
+            });
+        }
+
+        // ── Check 2: Time range — earliest source start vs earliest current start per DOW ──
+        foreach (var profile in profiles.Values)
+        {
+            foreach (var (dow, range) in profile.TimeRangeAbsolute)
+            {
+                if (!currentWindowStart.TryGetValue(dow, out var currentEarliest))
+                    continue; // DOW not configured — will be caught by day ordinal mapping
+
+                if (range.Start < currentEarliest)
+                {
+                    var sourceTime = DateTime.Today.Add(range.Start).ToString("h:mm tt");
+                    var currentTime = DateTime.Today.Add(currentEarliest).ToString("h:mm tt");
+                    disconnects.Add(new PreFlightDisconnect
+                    {
+                        Category = "time",
+                        Description = $"Source {profile.TCnt}-team divisions started at {sourceTime} on {dow}s " +
+                                      $"but earliest available slot is {currentTime}"
+                    });
+                }
+            }
+        }
+
+        // ── Check 3: GSI change (only if different between source and current) ──
+        var (srcLeagueId, srcSeason, srcYear) = await _contextResolver.ResolveAsync(sourceJobId, ct);
+        var srcAgegroups = await _agegroupRepo.GetByLeagueIdAsync(srcLeagueId, ct);
+        var sourceGsiValues = new HashSet<int>();
+
+        foreach (var ag in srcAgegroups)
+        {
+            var fields = await _timeslotRepo.GetFieldTimeslotsAsync(ag.AgegroupId, srcSeason, srcYear, ct);
+            foreach (var field in fields)
+                sourceGsiValues.Add(field.GamestartInterval);
+        }
+
+        // Compare: if any source GSI differs from ALL current GSIs, flag it
+        var distinctSourceGsi = sourceGsiValues.OrderBy(g => g).ToList();
+        var distinctCurrentGsi = currentGsiValues.OrderBy(g => g).ToList();
+
+        if (distinctSourceGsi.Count > 0 && distinctCurrentGsi.Count > 0
+            && !distinctSourceGsi.SequenceEqual(distinctCurrentGsi))
+        {
+            var srcGsiStr = string.Join("/", distinctSourceGsi.Select(g => $"{g} min"));
+            var curGsiStr = string.Join("/", distinctCurrentGsi.Select(g => $"{g} min"));
+            disconnects.Add(new PreFlightDisconnect
+            {
+                Category = "interval",
+                Description = $"Game interval changed from {srcGsiStr} to {curGsiStr} — team spans may differ"
+            });
+        }
+
+        // Deduplicate time disconnects (one per DOW is enough, not per profile)
+        disconnects = disconnects
+            .GroupBy(d => d.Description)
+            .Select(g => g.First())
+            .ToList();
+
+        return disconnects;
     }
 
     // ══════════════════════════════════════════════════════════

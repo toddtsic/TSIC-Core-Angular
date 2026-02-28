@@ -3,7 +3,9 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { DayOfWeek } from './DayOfWeek';
+import type { FieldFairness } from './FieldFairness';
 import type { FieldUsageDto } from './FieldUsageDto';
+import type { RoundLayout } from './RoundLayout';
 import type { RoundShapeDto } from './RoundShapeDto';
 import type { TimeRangeDto } from './TimeRangeDto';
 export type DivisionSizeProfile = {
@@ -22,5 +24,12 @@ export type DivisionSizeProfile = {
     roundsPerDay: Record<string, number>;
     extraRoundDay?: (null | DayOfWeek);
     interRoundInterval: string;
+    medianTeamSpan?: string | null;
+    gsiMinutes?: number;
+    roundLayout?: RoundLayout;
+    startTickOffset?: any | null;
+    interRoundGapTicks?: number;
+    minTeamGapTicks?: number;
+    fieldFairness?: FieldFairness;
 };
 

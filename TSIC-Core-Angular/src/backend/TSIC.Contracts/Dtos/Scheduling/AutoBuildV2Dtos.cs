@@ -1,7 +1,33 @@
 namespace TSIC.Contracts.Dtos.Scheduling;
 
 // ══════════════════════════════════════════════════════════
-// Division Size Profile (Q1–Q10 Attribute Extraction)
+// Source Schedule Property Enums
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Binary classification of how games within a round were arranged in the source.
+/// </summary>
+public enum RoundLayout
+{
+    /// <summary>All games in the round at the same tick on different fields.</summary>
+    Horizontal,
+    /// <summary>Games stacked on the GSI grid (tick 0, tick 1, tick 2...).</summary>
+    Sequential
+}
+
+/// <summary>
+/// Whether the source distributed teams evenly across fields or concentrated them.
+/// </summary>
+public enum FieldFairness
+{
+    /// <summary>All teams played roughly equal games on each field.</summary>
+    Democratic,
+    /// <summary>Some teams were assigned to specific fields disproportionately.</summary>
+    Biased
+}
+
+// ══════════════════════════════════════════════════════════
+// Division Size Profile (Q1–Q12 Attribute Extraction)
 // ══════════════════════════════════════════════════════════
 
 /// <summary>
@@ -57,6 +83,35 @@ public record DivisionSizeProfile
 
     /// <summary>Q10: Median time gap between consecutive round start times on the same day.</summary>
     public required TimeSpan InterRoundInterval { get; init; }
+
+    /// <summary>Q11: Median team span per day from source — minutes from a team's first to last game.
+    /// Used for reporting (comparing source vs result), not as a hard threshold.</summary>
+    public TimeSpan? MedianTeamSpan { get; init; }
+
+    // ── Tick-based source properties (V2.1 — distance-from-source scoring) ──
+
+    /// <summary>GSI (Game Start Interval) in minutes, inferred from source game patterns.
+    /// The primitive clock tick — all tick-based properties are relative to this.</summary>
+    public int GsiMinutes { get; init; }
+
+    /// <summary>Binary round layout derived from Q5 VerticalityRatio.
+    /// Horizontal = all games at same tick on different fields.
+    /// Sequential = games stacked on GSI grid.</summary>
+    public RoundLayout RoundLayout { get; init; }
+
+    /// <summary>Q2 expressed as GSI ticks from field window start per day.
+    /// Portable across different window starts and GSI values.</summary>
+    public Dictionary<DayOfWeek, int>? StartTickOffset { get; init; }
+
+    /// <summary>Q10 expressed as GSI ticks between consecutive round start times.</summary>
+    public int InterRoundGapTicks { get; init; }
+
+    /// <summary>Q12: Smallest observed gap in GSI ticks between any team's consecutive games on a day.
+    /// 1 = BTBs existed, 2 = no BTBs (most common), 3+ = intentional wider spacing.</summary>
+    public int MinTeamGapTicks { get; init; }
+
+    /// <summary>Whether the source distributed teams evenly across fields (Q7 derived).</summary>
+    public FieldFairness FieldFairness { get; init; }
 }
 
 /// <summary>
@@ -128,7 +183,7 @@ public record PrerequisiteCheckResponse
 // ══════════════════════════════════════════════════════════
 
 /// <summary>
-/// Response for the profile extraction step — Q1–Q10 attributes per TCnt.
+/// Response for the profile extraction step — Q1–Q11 attributes per TCnt.
 /// </summary>
 public record ProfileExtractionResponse
 {
@@ -136,6 +191,25 @@ public record ProfileExtractionResponse
     public required string SourceJobName { get; init; }
     public required string SourceYear { get; init; }
     public required List<DivisionSizeProfile> Profiles { get; init; }
+    /// <summary>Pre-flight disconnects between source discoveries and target timeslot canvas.</summary>
+    public List<PreFlightDisconnect>? Disconnects { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Pre-Flight Disconnects
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// A mismatch between what the source schedule had and what the target job's
+/// timeslot canvas offers. Surfaced before building so the scheduler knows
+/// exactly where the engine may have to deviate from the source pattern.
+/// </summary>
+public record PreFlightDisconnect
+{
+    /// <summary>"field", "time", "interval"</summary>
+    public required string Category { get; init; }
+    /// <summary>Human-readable description of the disconnect.</summary>
+    public required string Description { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -248,12 +322,14 @@ public record GameContext
 }
 
 /// <summary>
-/// A candidate slot with its score and constraint violations.
+/// A candidate slot with its distance-from-source penalty.
+/// Lower TotalPenalty = closer match to source schedule pattern.
 /// </summary>
 public record ScoredCandidate
 {
     public required CandidateSlot Slot { get; init; }
-    public required int Score { get; init; }
-    public required int MaxPossibleScore { get; init; }
-    public required List<string> Violations { get; init; }
+    /// <summary>Sum of all penalty components. 0 = perfect source match.</summary>
+    public required int TotalPenalty { get; init; }
+    /// <summary>Per-property penalty breakdown for diagnostics and sacrifice reporting.</summary>
+    public required Dictionary<string, int> PenaltyBreakdown { get; init; }
 }
