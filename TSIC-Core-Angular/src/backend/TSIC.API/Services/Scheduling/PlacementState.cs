@@ -37,12 +37,20 @@ public sealed class PlacementState
     /// </summary>
     public Dictionary<DayOfWeek, TimeSpan> CurrentWindowStart { get; }
 
+    /// <summary>
+    /// Per-field quality flags: FieldId → FieldPreference (0=Normal, 1=Preferred, 2=Avoid).
+    /// Used by PlacementScorer to penalize "Avoid" fields.
+    /// </summary>
+    public Dictionary<Guid, int> FieldPreferences { get; }
+
     public PlacementState(
         HashSet<(Guid FieldId, DateTime GDate)> occupiedSlots,
-        Dictionary<DayOfWeek, TimeSpan>? currentWindowStart = null)
+        Dictionary<DayOfWeek, TimeSpan>? currentWindowStart = null,
+        Dictionary<Guid, int>? fieldPreferences = null)
     {
         OccupiedSlots = occupiedSlots;
         CurrentWindowStart = currentWindowStart ?? new Dictionary<DayOfWeek, TimeSpan>();
+        FieldPreferences = fieldPreferences ?? new Dictionary<Guid, int>();
     }
 
     /// <summary>

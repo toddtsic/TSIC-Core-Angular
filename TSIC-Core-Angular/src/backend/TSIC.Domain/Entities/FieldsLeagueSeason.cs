@@ -19,6 +19,8 @@ public partial class FieldsLeagueSeason
 
     public string? Season { get; set; }
 
+    public byte FieldPreference { get; set; }
+
     public virtual Fields Field { get; set; } = null!;
 
     public virtual Leagues League { get; set; } = null!;

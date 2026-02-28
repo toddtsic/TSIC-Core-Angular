@@ -221,7 +221,8 @@ public record PreFlightDisconnect
 /// </summary>
 public record AutoBuildV2Request
 {
-    /// <summary>Source job to extract profiles from. Null = clean sheet mode.</summary>
+    /// <summary>Source job to extract profiles from. Null = clean sheet mode.
+    /// RETAINED for backward compat and migration inference only.</summary>
     public Guid? SourceJobId { get; init; }
 
     /// <summary>Agegroup IDs in processing order (first processed gets best slots).</summary>
@@ -233,11 +234,19 @@ public record AutoBuildV2Request
     /// <summary>Division IDs to exclude from scheduling.</summary>
     public required List<Guid> ExcludedDivisionIds { get; init; }
 
-    /// <summary>Constraint names in priority order (index 0 = highest priority).</summary>
-    public required List<string> ConstraintPriorities { get; init; }
+    /// <summary>Constraint names in priority order (index 0 = highest priority).
+    /// DEPRECATED — ignored when DivisionStrategies is present.</summary>
+    public List<string>? ConstraintPriorities { get; init; }
 
     /// <summary>User-confirmed agegroup mappings for name-first matching.</summary>
     public List<ConfirmedAgegroupMapping>? AgegroupMappings { get; init; }
+
+    /// <summary>Per-division-name scheduling strategies. When present, replaces
+    /// source-job-based attribute extraction with explicit user choices.</summary>
+    public List<DivisionStrategyEntry>? DivisionStrategies { get; init; }
+
+    /// <summary>When true, persist DivisionStrategies to DB after successful build.</summary>
+    public bool SaveProfiles { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -332,4 +341,56 @@ public record ScoredCandidate
     public required int TotalPenalty { get; init; }
     /// <summary>Per-property penalty breakdown for diagnostics and sacrifice reporting.</summary>
     public required Dictionary<string, int> PenaltyBreakdown { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Division Strategy Profile DTOs
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Gap pattern between a team's consecutive games.
+/// Maps to MinTeamGapTicks = GapPattern + 1.
+/// </summary>
+public enum GapPattern
+{
+    /// <summary>Back-to-back games allowed (MinTeamGapTicks = 1).</summary>
+    BackToBack = 0,
+    /// <summary>One game on, one off (MinTeamGapTicks = 2). Default.</summary>
+    OneOnOneOff = 1,
+    /// <summary>One game on, two off (MinTeamGapTicks = 3).</summary>
+    OneOnTwoOff = 2
+}
+
+/// <summary>
+/// A single division's scheduling strategy, identified by division name.
+/// Division names are consistent across agegroups by convention.
+/// </summary>
+public record DivisionStrategyEntry
+{
+    /// <summary>Division name (e.g. "Division 1", "Pool A") — stable across agegroups.</summary>
+    public required string DivisionName { get; init; }
+
+    /// <summary>0 = Horizontal (default), 1 = Sequential/Vertical (showcase).</summary>
+    public required int Placement { get; init; }
+
+    /// <summary>0 = BackToBack, 1 = OneOnOneOff (default), 2 = OneOnTwoOff.</summary>
+    public required int GapPattern { get; init; }
+}
+
+/// <summary>
+/// Response containing strategy profiles for a job, with source attribution.
+/// </summary>
+public record DivisionStrategyProfileResponse
+{
+    /// <summary>Per-division strategy entries.</summary>
+    public required List<DivisionStrategyEntry> Strategies { get; init; }
+
+    /// <summary>"saved" | "inferred" | "defaults"</summary>
+    public required string Source { get; init; }
+
+    /// <summary>When Source="inferred", the job ID that was analyzed.</summary>
+    public Guid? InferredFromJobId { get; init; }
+
+    /// <summary>When Source="inferred", the human-readable job name.</summary>
+    public string? InferredFromJobName { get; init; }
 }

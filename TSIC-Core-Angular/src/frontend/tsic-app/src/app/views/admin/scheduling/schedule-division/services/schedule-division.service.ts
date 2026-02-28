@@ -5,6 +5,7 @@ import { environment } from '@environments/environment';
 import type {
     AgegroupWithDivisionsDto,
     AutoScheduleResponse,
+    DeleteAgegroupGamesRequest,
     DivisionPairingsResponse,
     DivisionTeamDto,
     EditDivisionTeamRequest,
@@ -20,6 +21,7 @@ import type {
 export type {
     AgegroupWithDivisionsDto,
     AutoScheduleResponse,
+    DeleteAgegroupGamesRequest,
     DivisionSummaryDto,
     DivisionPairingsResponse,
     DivisionTeamDto,
@@ -78,6 +80,10 @@ export class ScheduleDivisionService {
 
     deleteDivisionGames(request: DeleteDivGamesRequest): Observable<void> {
         return this.http.post<void>(`${this.apiUrl}/delete-div-games`, request);
+    }
+
+    deleteAgegroupGames(request: DeleteAgegroupGamesRequest): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/delete-agegroup-games`, request);
     }
 
     // ── Team Editing (delegates to pairings endpoint — rank swap + schedule sync) ──

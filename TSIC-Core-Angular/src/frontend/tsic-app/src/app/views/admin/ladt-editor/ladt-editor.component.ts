@@ -9,12 +9,14 @@ import { DivisionDetailComponent } from './components/division-detail.component'
 import { TeamDetailComponent } from './components/team-detail.component';
 import { LadtSiblingGridComponent } from './components/ladt-sibling-grid.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { FormsModule } from '@angular/forms';
 import {
   COLUMNS_BY_LEVEL, ID_FIELD_BY_LEVEL,
   type LadtColumnDef
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
-import type { LadtTreeNodeDto } from '../../../core/api';
+import type { LadtTreeNodeDto, DivisionNameSyncPreview } from '../../../core/api';
 
 /** Flat node for CdkTree display */
 export interface LadtFlatNode {
@@ -39,12 +41,14 @@ export interface LadtFlatNode {
   imports: [
     CommonModule,
     CdkTreeModule,
+    FormsModule,
     LeagueDetailComponent,
     AgegroupDetailComponent,
     DivisionDetailComponent,
     TeamDetailComponent,
     LadtSiblingGridComponent,
-    ConfirmDialogComponent
+    ConfirmDialogComponent,
+    TsicDialogComponent
   ],
   templateUrl: './ladt-editor.component.html',
   styleUrl: './ladt-editor.component.scss',
@@ -578,5 +582,118 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   toggleDrawer(): void {
     this.drawerOpen.set(!this.drawerOpen());
+  }
+
+  // ── Division Name Sync ──
+
+  showSyncDialog = signal(false);
+  syncThemeNames = signal<string[]>([]);
+  syncPreviews = signal<DivisionNameSyncPreview[]>([]);
+  syncLoading = signal(false);
+  syncApplying = signal(false);
+  syncResult = signal<string | null>(null);
+
+  /** Max division count across all agegroups (determines theme name slot count) */
+  syncMaxDivisions = computed(() => {
+    const previews = this.syncPreviews();
+    if (previews.length === 0) return 0;
+    return Math.max(...previews.map(p => p.divisionCount));
+  });
+
+  openSyncDialog(): void {
+    this.actionsOpen.set(false);
+    this.syncLoading.set(true);
+    this.syncResult.set(null);
+    this.showSyncDialog.set(true);
+
+    // Initial preview with default theme names to discover structure
+    this.ladtService.previewDivisionNameSync([]).subscribe({
+      next: (previews) => {
+        this.syncPreviews.set(previews);
+        // Initialize theme name inputs from anchor agegroup (most divisions)
+        const anchor = previews.reduce((a, b) => b.divisionCount > a.divisionCount ? b : a, previews[0]);
+        if (anchor) {
+          this.syncThemeNames.set(anchor.divisions.map(d => d.proposedName));
+        }
+        this.syncLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to load division sync preview');
+        this.showSyncDialog.set(false);
+        this.syncLoading.set(false);
+      }
+    });
+  }
+
+  closeSyncDialog(): void {
+    this.showSyncDialog.set(false);
+    this.syncPreviews.set([]);
+    this.syncThemeNames.set([]);
+    this.syncResult.set(null);
+  }
+
+  applyQuickFill(pattern: 'pool' | 'division' | 'flight'): void {
+    const count = this.syncMaxDivisions();
+    const names: string[] = [];
+    for (let i = 0; i < count; i++) {
+      switch (pattern) {
+        case 'pool':
+          names.push(`Pool ${String.fromCharCode(65 + i)}`);
+          break;
+        case 'division':
+          names.push(`Division ${i + 1}`);
+          break;
+        case 'flight':
+          names.push(`Flight ${i + 1}`);
+          break;
+      }
+    }
+    this.syncThemeNames.set(names);
+    this.refreshSyncPreview();
+  }
+
+  updateThemeName(index: number, value: string): void {
+    this.syncThemeNames.update(names => {
+      const updated = [...names];
+      updated[index] = value;
+      return updated;
+    });
+  }
+
+  onThemeNameBlur(): void {
+    this.refreshSyncPreview();
+  }
+
+  private refreshSyncPreview(): void {
+    this.syncLoading.set(true);
+    this.ladtService.previewDivisionNameSync(this.syncThemeNames()).subscribe({
+      next: (previews) => {
+        this.syncPreviews.set(previews);
+        this.syncLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to refresh preview');
+        this.syncLoading.set(false);
+      }
+    });
+  }
+
+  applySyncNames(): void {
+    this.syncApplying.set(true);
+    this.ladtService.applyDivisionNameSync(this.syncThemeNames()).subscribe({
+      next: (result) => {
+        this.syncApplying.set(false);
+        if (result.errors.length > 0) {
+          this.syncResult.set(`Renamed ${result.divisionsRenamed} divisions. Errors: ${result.errors.join(', ')}`);
+        } else {
+          this.syncResult.set(`Successfully renamed ${result.divisionsRenamed} divisions.`);
+        }
+        this.loadTree();
+      },
+      error: (err) => {
+        this.syncApplying.set(false);
+        this.syncResult.set(err.error?.message || 'Failed to apply division name sync');
+      }
+    });
   }
 }

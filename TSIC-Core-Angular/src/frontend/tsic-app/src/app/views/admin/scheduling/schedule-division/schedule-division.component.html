@@ -18,14 +18,17 @@
                 </div>
                 <app-division-navigator
                     [agegroups]="agegroups()"
-                    [selectedDivId]="selectedDivision()?.divId ?? null"
+                    [selectedScope]="scope()"
+                    [jobName]="gameSummary()?.jobName ?? 'Event'"
                     [isLoading]="isNavLoading()"
                     [showCollapseAll]="true"
+                    (eventSelected)="onEventSelected()"
+                    (agegroupSelected)="onAgegroupSelected($event)"
                     (divisionSelected)="onDivisionSelected($event)" />
             </div>
 
-            <!-- ── Pairings Panel (below navigator) ── -->
-            @if (selectedDivision()) {
+            <!-- ── Pairings Panel (below navigator, division scope only) ── -->
+            @if (scope().level === 'division') {
                 <div class="pairings-panel">
                     <div class="panel-header d-flex align-items-center justify-content-between">
                         <span class="fw-semibold">Pairings</span>
@@ -169,13 +172,159 @@
             }
         </div>
 
-        <!-- ══════════ RIGHT PANEL: Schedule Grid ══════════ -->
+        <!-- ══════════ RIGHT PANEL: Event Summary / Agegroup Grid / Division Grid ══════════ -->
         <div class="grid-panel">
-            @if (!selectedDivision()) {
-                <div class="empty-state">
-                    <i class="bi bi-calendar3 text-secondary icon-lg"></i>
-                    <p class="text-secondary mt-2 mb-0">Select a division to view the schedule grid</p>
+
+            <!-- ── Event Summary View ── -->
+            @if (scope().level === 'event') {
+                <div class="event-summary">
+                    <div class="event-summary-header">
+                        <h5 class="mb-0">{{ gameSummary()?.jobName ?? 'Event' }}</h5>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                {{ gameSummary()?.totalGames ?? 0 }} games
+                            </span>
+                            <!-- Context-sensitive buttons -->
+                            @if (!hasGamesInScope()) {
+                                <button class="btn btn-sm btn-outline-primary"
+                                        (click)="openAutoScheduleConfig()"
+                                        [disabled]="isExecutingV2()">
+                                    @if (isExecutingV2()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-lightning-fill"></i>
+                                    }
+                                    Auto-Schedule All
+                                </button>
+                            } @else {
+                                <button class="btn btn-sm btn-outline-danger"
+                                        (click)="confirmDeleteGames()"
+                                        [disabled]="isDeletingGames()">
+                                    @if (isDeletingGames()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-trash"></i>
+                                    }
+                                    Delete All Games
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Delete confirmation (event level = type CONFIRM) -->
+                    @if (showDeleteConfirm()) {
+                        <div class="alert alert-danger m-3 mb-0 py-2 px-3">
+                            <div class="mb-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                This will remove <strong>ALL {{ scopeGameCount() }} games</strong>. Type <strong>CONFIRM</strong> to proceed.
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <input type="text" class="form-control form-control-sm" style="max-width: 160px"
+                                       placeholder="Type CONFIRM"
+                                       [ngModel]="deleteConfirmText()"
+                                       (ngModelChange)="deleteConfirmText.set($event)">
+                                <button class="btn btn-sm btn-danger"
+                                        [disabled]="deleteConfirmText() !== 'CONFIRM'"
+                                        (click)="executeDelete()">Delete All</button>
+                                <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Agegroup cards -->
+                    <div class="ag-summary-list">
+                        @for (ag of agegroups(); track ag.agegroupId) {
+                            <div class="ag-summary-card">
+                                <span class="badge rounded-pill"
+                                      [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
+                                      [style.color]="contrastText(ag.color)">
+                                    {{ ag.agegroupName }}
+                                </span>
+                                <span class="ag-summary-games">{{ agGameCount(ag.agegroupId) }} games</span>
+                                <span class="text-secondary">{{ ag.divisions.length }} divisions</span>
+                                <span class="text-secondary">{{ agTeamCount(ag) }} teams</span>
+                            </div>
+                        }
+                    </div>
                 </div>
+
+            <!-- ── Agegroup View (grid visible, pairings hidden) ── -->
+            } @else if (scope().level === 'agegroup') {
+                <div class="agegroup-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge"
+                              [style.background-color]="selectedAgegroupColor()"
+                              [style.color]="selectedAgegroupTextColor()"
+                              [class.bg-secondary]="!selectedAgegroupColor()">
+                            {{ selectedAgegroupName() }}
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                            {{ scopeGameCount() }} games
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        @if (!hasGamesInScope()) {
+                            <button class="btn btn-sm btn-outline-primary"
+                                    (click)="openAutoScheduleConfig()"
+                                    [disabled]="isExecutingV2()">
+                                @if (isExecutingV2()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    <i class="bi bi-lightning-fill"></i>
+                                }
+                                Auto-Schedule {{ scopeLabel() }}
+                            </button>
+                        } @else {
+                            <button class="btn btn-sm btn-outline-danger"
+                                    (click)="confirmDeleteGames()"
+                                    [disabled]="isDeletingGames()">
+                                @if (isDeletingGames()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    <i class="bi bi-trash"></i>
+                                }
+                                Delete {{ scopeLabel() }} Games
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Delete confirmation (agegroup level = modal-style inline) -->
+                @if (showDeleteConfirm()) {
+                    <div class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
+                        <span>
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Delete <strong>{{ scopeGameCount() }} games</strong> across <strong>{{ selectedAgegroup()?.divisions?.length ?? 0 }} divisions</strong> in {{ scopeLabel() }}?
+                        </span>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-danger" (click)="executeDelete()">Yes, Delete</button>
+                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Grid (loaded for first division, scroll to agegroup's first game) -->
+                @if (gridResponse()) {
+                    <app-schedule-grid #scheduleGrid
+                        [gridResponse]="gridResponse()"
+                        [isLoading]="isGridLoading()"
+                        [emptyMessage]="'No fields or timeslots configured for this agegroup'"
+                        [showMatchupCodes]="true"
+                        [showGameId]="true"
+                        [showTeamDesignators]="true"
+                        [showActionButtons]="false"
+                        [highlightDivId]="null"
+                        [highlightDivColor]="selectedAgegroupColor()"
+                        [selectedGameGid]="null"
+                        [highlightGameGid]="null"
+                        [highlightAllDiv]="false"
+                        [showOpenSlotHints]="false"
+                        [showMoveSlotHints]="false"
+                        (cellClicked)="onGridCellClick($event)">
+                    </app-schedule-grid>
+                }
+
+            <!-- ── Division View (existing behavior) ── -->
             } @else {
                 <app-schedule-grid #scheduleGrid
                     [gridResponse]="gridResponse()"
@@ -209,28 +358,42 @@
                     </span>
 
                     <!-- Projected into grid header actions area -->
-                    <button gridActions class="btn btn-sm btn-outline-danger"
-                            (click)="confirmDeleteDivGames()"
-                            [disabled]="isDeletingDivGames()"
-                            title="Delete all games for this division">
-                        @if (isDeletingDivGames()) {
-                            <span class="spinner-border spinner-border-sm"></span>
+                    <div gridActions class="d-flex gap-1">
+                        @if (!hasGamesInScope()) {
+                            <button class="btn btn-sm btn-outline-primary"
+                                    (click)="openAutoScheduleConfig()"
+                                    [disabled]="isExecutingV2()">
+                                @if (isExecutingV2()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    <i class="bi bi-lightning-fill"></i>
+                                }
+                                Auto-Schedule
+                            </button>
                         } @else {
-                            <i class="bi bi-trash"></i>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    (click)="confirmDeleteGames()"
+                                    [disabled]="isDeletingGames()">
+                                @if (isDeletingGames()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    <i class="bi bi-trash"></i>
+                                }
+                                Delete {{ scopeLabel() }} Games
+                            </button>
                         }
-                        Clear Div
-                    </button>
+                    </div>
 
                     <!-- Projected below grid header -->
-                    @if (showDeleteDivConfirm()) {
+                    @if (showDeleteConfirm()) {
                         <div gridExtra class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
                             <span>
                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                 Delete <strong>all</strong> scheduled games for <strong>{{ selectedAgegroupName() }}:{{ selectedDivision()!.divName }}</strong>?
                             </span>
                             <div class="d-flex gap-1">
-                                <button class="btn btn-sm btn-danger" (click)="deleteDivGames()">Yes, Delete All</button>
-                                <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteDivGames()">Cancel</button>
+                                <button class="btn btn-sm btn-danger" (click)="executeDelete()">Yes, Delete All</button>
+                                <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
                             </div>
                         </div>
                     }
@@ -239,6 +402,121 @@
         </div>
     </div>
 </div>
+
+<!-- ══════════ Auto-Schedule V2 Config Modal ══════════ -->
+@if (showAutoScheduleModal()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="closeAutoScheduleModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Auto-Schedule {{ scopeLabel() }}</h5>
+                <button type="button" class="btn-close" (click)="closeAutoScheduleModal()"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Strategy Grid -->
+                @if (modalStrategyLoading()) {
+                    <div class="text-center py-3">
+                        <span class="spinner-border spinner-border-sm text-primary"></span>
+                        <small class="d-block text-secondary mt-1">Loading preferences...</small>
+                    </div>
+                } @else if (modalStrategies().length > 0) {
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <label class="form-label form-label-sm fw-semibold mb-0">Division Strategy</label>
+                            <span class="badge bg-primary-subtle text-primary" style="font-size: var(--font-size-xs)">{{ modalStrategySourceLabel() }}</span>
+                        </div>
+                        <small class="d-block text-secondary mb-2">Click to change placement or gap pattern per division.</small>
+                        <div class="modal-strategy-grid">
+                            <div class="msg-row msg-header">
+                                <span class="msg-name">Division</span>
+                                <span class="msg-placement">Placement</span>
+                                <span class="msg-gap">Gap</span>
+                            </div>
+                            @for (entry of modalStrategies(); track entry.divisionName) {
+                                <div class="msg-row">
+                                    <span class="msg-name">{{ entry.divisionName }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
+                                            (click)="toggleModalPlacement(entry.divisionName)">
+                                        {{ modalPlacementLabel(entry.placement) }}
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
+                                            (click)="cycleModalGapPattern(entry.divisionName)">
+                                        {{ modalGapLabel(entry.gapPattern) }}
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Agegroup order (event scope only) -->
+                @if (scope().level === 'event') {
+                    <div class="mb-3">
+                        <label class="form-label form-label-sm fw-semibold">Which agegroups should I schedule, and in what order?</label>
+                        <small class="d-block text-secondary mb-2">I'll process these top-to-bottom. Uncheck any you want to skip.</small>
+                        <div class="constraint-list">
+                            @for (ag of modalAgegroups(); track ag.agegroupId; let i = $index) {
+                                <div class="constraint-row">
+                                    <span class="constraint-rank">{{ i + 1 }}</span>
+                                    <input class="form-check-input me-1" type="checkbox"
+                                           [checked]="ag.included"
+                                           (change)="toggleModalAgegroup(i)">
+                                    <span class="constraint-name"
+                                          [style.color]="ag.color ?? 'inherit'"
+                                          [style.font-weight]="600">
+                                        {{ ag.agegroupName }}
+                                    </span>
+                                    <span class="text-secondary" style="font-size: var(--font-size-xs)">
+                                        {{ ag.teamCount }} teams · {{ ag.divisionCount }} divisions
+                                    </span>
+                                    <div class="constraint-arrows">
+                                        <button class="btn-arrow" [disabled]="i === 0" (click)="moveModalAgegroupUp(i)">
+                                            <i class="bi bi-chevron-up"></i>
+                                        </button>
+                                        <button class="btn-arrow"
+                                                [disabled]="i === modalAgegroups().length - 1"
+                                                (click)="moveModalAgegroupDown(i)">
+                                            <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Division sort strategy (agegroup + event scope) -->
+                @if (scope().level !== 'division') {
+                    <div class="mb-0">
+                        <label class="form-label form-label-sm fw-semibold">Within each agegroup, in what order should I schedule their divisions?</label>
+                        <small class="d-block text-secondary mb-2">Divisions are scheduled one at a time. The order can affect how cleanly games fit into the remaining timeslots.</small>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="divOrder" id="divOrderAlpha"
+                                   [checked]="autoScheduleConfig().divisionOrderStrategy === 'alpha'"
+                                   (change)="setDivisionOrderStrategy('alpha')">
+                            <label class="form-check-label" for="divOrderAlpha">Alphabetical</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="divOrder" id="divOrderOdd"
+                                   [checked]="autoScheduleConfig().divisionOrderStrategy === 'odd-first'"
+                                   (change)="setDivisionOrderStrategy('odd-first')">
+                            <label class="form-check-label" for="divOrderOdd">
+                                Odd-sized divisions first, then alphabetically
+                                <small class="text-secondary d-block">(odd divisions need more vertical room)</small>
+                            </label>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeAutoScheduleModal()">Cancel</button>
+                <button class="btn btn-sm btn-primary" (click)="executeAutoScheduleV2()">
+                    <i class="bi bi-lightning-fill me-1"></i>
+                    Build Schedule
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
 
 <!-- ══════════ Rapid-Placement Modal ══════════ -->
 @if (showRapidModal()) {

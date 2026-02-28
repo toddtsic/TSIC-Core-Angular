@@ -19,6 +19,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     private readonly IPairingsRepository _pairingsRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
+    private readonly IDivisionProfileRepository _divisionProfileRepo;
+    private readonly IFieldRepository _fieldRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly IScheduleDivisionService _scheduleDivisionService;
     private readonly IScheduleQaService _qaService;
@@ -31,6 +33,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         IPairingsRepository pairingsRepo,
         IAgeGroupRepository agegroupRepo,
         IDivisionRepository divisionRepo,
+        IDivisionProfileRepository divisionProfileRepo,
+        IFieldRepository fieldRepo,
         ISchedulingContextResolver contextResolver,
         IScheduleDivisionService scheduleDivisionService,
         IScheduleQaService qaService,
@@ -42,6 +46,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         _pairingsRepo = pairingsRepo;
         _agegroupRepo = agegroupRepo;
         _divisionRepo = divisionRepo;
+        _divisionProfileRepo = divisionProfileRepo;
+        _fieldRepo = fieldRepo;
         _contextResolver = contextResolver;
         _scheduleDivisionService = scheduleDivisionService;
         _qaService = qaService;
@@ -878,10 +884,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
         // ── 1. Extract profiles ──
+        // Strategy-driven path: user provided explicit DivisionStrategies
+        var useStrategyPath = request.DivisionStrategies is { Count: > 0 };
+        var strategyByName = useStrategyPath
+            ? request.DivisionStrategies!.ToDictionary(
+                s => s.DivisionName, s => s, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, DivisionStrategyEntry>(StringComparer.OrdinalIgnoreCase);
+
         Dictionary<int, DivisionSizeProfile> profilesByTCnt;
         Dictionary<DayOfWeek, TimeSpan>? sourceTimeslotWindow = null;
-        if (request.SourceJobId.HasValue)
+
+        if (!useStrategyPath && request.SourceJobId.HasValue)
         {
+            // Legacy TCnt-keyed extraction path (backward compatibility)
             var patterns = await _autoBuildRepo.ExtractPatternAsync(request.SourceJobId.Value, ct);
             var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(
                 request.SourceJobId.Value, ct);
@@ -905,7 +920,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
         else
         {
-            // Clean sheet mode — profiles built later per-division from timeslot config
+            // Clean sheet or strategy-driven mode — profiles built per-division
             profilesByTCnt = new Dictionary<int, DivisionSizeProfile>();
         }
 
@@ -922,6 +937,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // ── 3. Initialize global state ──
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var allFieldIds = currentFields.Select(f => f.FieldId).ToList();
+
+        // Load field preferences for Avoid/Preferred scoring
+        var fieldPreferences = await _fieldRepo.GetFieldPreferencesAsync(leagueId, season, ct);
 
         var occupiedSlots = allFieldIds.Count > 0
             ? await _scheduleRepo.GetOccupiedSlotsAsync(jobId, allFieldIds, ct)
@@ -1043,9 +1061,20 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var currentGsi = effectiveFields.Count > 0
                 ? effectiveFields.Max(f => f.GamestartInterval) : 60;
 
-            // Get or build profile for this TCnt
-            var profile = GetOrBuildDefaultProfile(
-                profilesByTCnt, teamCount, effectiveDates, effectiveFields, currentGsi);
+            // Get or build profile for this division
+            DivisionSizeProfile profile;
+            if (useStrategyPath && strategyByName.TryGetValue(div.DivName, out var strategy))
+            {
+                // Strategy-driven: translate user choices to profile
+                profile = BuildProfileFromStrategy(
+                    strategy, teamCount, effectiveDates, effectiveFields, currentGsi);
+            }
+            else
+            {
+                // Legacy TCnt-keyed path or clean sheet
+                profile = GetOrBuildDefaultProfile(
+                    profilesByTCnt, teamCount, effectiveDates, effectiveFields, currentGsi);
+            }
 
             // Play days are actual DayOfWeek — no ordinal remapping.
             // If source days don't match current timeslot days, the scorer penalizes
@@ -1061,8 +1090,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     currentWindowStart[dow] = st;
             }
 
-            // Build PlacementState for this division (shares global occupiedSlots)
-            var state = new PlacementState(occupiedSlots, currentWindowStart);
+            // Build PlacementState for this division (shares global occupiedSlots + field prefs)
+            var state = new PlacementState(occupiedSlots, currentWindowStart, fieldPreferences);
 
             // Group pairings by round
             var roundsByNum = rrPairings
@@ -1129,11 +1158,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
 
         // Track which (TCnt, DayOfWeek) combos have already had a division placed.
-        // The source's StartTickOffset guides the FIRST division of each TCnt to match
-        // the source's start position. Subsequent divisions with the same TCnt should
-        // NOT target the same start offset — those slots are occupied. Instead, they
-        // get no target time for R1, letting the scorer find the best available slot.
-        // R2+ is always relative to where R1 actually landed (via InterRoundGapTicks).
+        // Only used in legacy TCnt-keyed path — the source's StartTickOffset guides
+        // the FIRST division of each TCnt to match the source's start position.
+        // Strategy-driven path doesn't use source offsets, so this is not populated.
         var tcntDayFirstPlaced = new HashSet<(int TCnt, DayOfWeek Day)>();
 
         foreach (var ctx in divContexts)
@@ -1305,7 +1332,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                             if (examples.Count < 3)
                             {
                                 examples.Add(
-                                    $"{ctx.Div.AgegroupName}/{ctx.Div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2} (+{penaltyValue})");
+                                    $"{ctx.Div.AgegroupName}/{ctx.Div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2}");
                             }
                             sacrificeCounts[penaltyName] = (count, examples);
                         }
@@ -1393,7 +1420,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             ["team-gap"] = "Teams have games closer together than the source schedule — potential back-to-back.",
             ["target-time"] = "Games placed at a different time than the source pattern — drift from expected position.",
             ["round-layout"] = "Horizontal round couldn't place all games at the same time — insufficient fields.",
-            ["field-balance"] = "Some teams play on the same field more often than ideal — field rotation imbalance."
+            ["field-balance"] = "Some teams play on the same field more often than ideal — field rotation imbalance.",
+            ["field-avoid"] = "Games placed on a field marked as 'Avoid' — no other slots available without worse trade-offs."
         };
 
         var sacrificeLog = sacrificeCounts
@@ -1411,6 +1439,28 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             r.Status != "excluded" && r.Status != "no-teams" && r.Status != "no-pairings");
         var skipped = divisionResults.Count - scheduled;
 
+        // ── 9. Save strategy profiles to DB if requested ──
+        if (useStrategyPath && request.SaveProfiles && totalPlaced > 0)
+        {
+            var profilesToSave = request.DivisionStrategies!
+                .Select(s => new Domain.Entities.DivisionScheduleProfile
+                {
+                    ProfileId = Guid.NewGuid(),
+                    JobId = jobId,
+                    DivisionName = s.DivisionName,
+                    Placement = (byte)s.Placement,
+                    GapPattern = (byte)s.GapPattern
+                })
+                .ToList();
+
+            await _divisionProfileRepo.UpsertBatchAsync(jobId, profilesToSave, ct);
+            await _divisionProfileRepo.SaveChangesAsync(ct);
+
+            _logger.LogInformation(
+                "AutoBuild V2: Saved {Count} strategy profiles for Job={JobId}",
+                profilesToSave.Count, jobId);
+        }
+
         _logger.LogInformation(
             "AutoBuild V2: Job={JobId}, Divisions={Total}, Scheduled={Scheduled}, " +
             "GamesPlaced={Placed}, GamesFailed={Failed}, Sacrifices={SacrificeCount}",
@@ -1426,6 +1476,113 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             DivisionResults = divisionResults,
             UnplacedGames = unplacedGames,
             SacrificeLog = sacrificeLog
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2: Load Strategy Profiles (three-layer resolution)
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<DivisionStrategyProfileResponse> LoadStrategyProfilesAsync(
+        Guid jobId, Guid? sourceJobId, CancellationToken ct = default)
+    {
+        // Layer 1: Check for saved profiles in DB
+        var saved = await _divisionProfileRepo.GetByJobIdAsync(jobId, ct);
+        if (saved.Count > 0)
+        {
+            return new DivisionStrategyProfileResponse
+            {
+                Strategies = saved.Select(p => new DivisionStrategyEntry
+                {
+                    DivisionName = p.DivisionName,
+                    Placement = p.Placement,
+                    GapPattern = p.GapPattern
+                }).ToList(),
+                Source = "saved"
+            };
+        }
+
+        // Layer 2: Infer from source job via AttributeExtractor
+        if (sourceJobId.HasValue)
+        {
+            var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId.Value, ct);
+            if (patterns.Count > 0)
+            {
+                var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(
+                    sourceJobId.Value, ct);
+                var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
+                var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+                var currentDivCountByTCnt = currentDivisions
+                    .GroupBy(d => d.TeamCount)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                var profilesByTCnt = AttributeExtractor.ExtractProfiles(
+                    patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
+
+                // Get distinct division names and map to strategy entries via TCnt
+                var divNameToTCnt = currentDivisions
+                    .GroupBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().TeamCount,
+                        StringComparer.OrdinalIgnoreCase);
+
+                var strategies = new List<DivisionStrategyEntry>();
+                foreach (var (divName, tCnt) in divNameToTCnt)
+                {
+                    if (profilesByTCnt.TryGetValue(tCnt, out var profile))
+                    {
+                        strategies.Add(new DivisionStrategyEntry
+                        {
+                            DivisionName = divName,
+                            Placement = profile.RoundLayout == RoundLayout.Sequential ? 1 : 0,
+                            GapPattern = Math.Max(0, profile.MinTeamGapTicks - 1)
+                        });
+                    }
+                    else
+                    {
+                        // Default: Horizontal + OneOnOneOff
+                        strategies.Add(new DivisionStrategyEntry
+                        {
+                            DivisionName = divName,
+                            Placement = 0,
+                            GapPattern = 1
+                        });
+                    }
+                }
+
+                var sourceJobName = await _autoBuildRepo.GetJobNameAsync(sourceJobId.Value, ct);
+
+                return new DivisionStrategyProfileResponse
+                {
+                    Strategies = strategies.OrderBy(s => s.DivisionName).ToList(),
+                    Source = "inferred",
+                    InferredFromJobId = sourceJobId.Value,
+                    InferredFromJobName = sourceJobName ?? "Unknown"
+                };
+            }
+        }
+
+        // Layer 3: Defaults from current division names
+        var allDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var distinctDivNames = allDivisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
+            .Select(d => d.DivName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n)
+            .ToList();
+
+        return new DivisionStrategyProfileResponse
+        {
+            Strategies = distinctDivNames.Select(n => new DivisionStrategyEntry
+            {
+                DivisionName = n,
+                Placement = 0,  // Horizontal
+                GapPattern = 1  // OneOnOneOff
+            }).ToList(),
+            Source = "defaults"
         };
     }
 
@@ -1679,6 +1836,111 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // Cache for subsequent divisions with same TCnt
         profilesByTCnt[teamCount] = defaultProfile;
         return defaultProfile;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Build Profile from Strategy Entry
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Translate a user-chosen DivisionStrategyEntry into a DivisionSizeProfile.
+    /// Used by the strategy-driven code path (replaces source-job extraction).
+    /// </summary>
+    private static DivisionSizeProfile BuildProfileFromStrategy(
+        DivisionStrategyEntry strategy,
+        int teamCount,
+        List<TimeslotDateDto> dates,
+        List<TimeslotFieldDto> fields,
+        int currentGsi)
+    {
+        var playDays = dates
+            .Select(d => d.GDate.DayOfWeek)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        var fieldBand = fields
+            .Select(f => f.FieldName)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToList();
+
+        var timeRangeAbsolute = new Dictionary<DayOfWeek, TimeRangeDto>();
+        foreach (var day in playDays)
+        {
+            var dayFields = fields
+                .Where(f => f.Dow.Equals(day.ToString(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (dayFields.Count == 0) continue;
+
+            var startTimes = dayFields
+                .Select(f => TimeSpan.TryParse(f.StartTime, out var t) ? t : TimeSpan.Zero)
+                .Where(t => t > TimeSpan.Zero)
+                .ToList();
+            if (startTimes.Count == 0) continue;
+
+            var minStart = startTimes.Min();
+            var maxInterval = dayFields.Max(f => f.GamestartInterval);
+            var maxGames = dayFields.Max(f => f.MaxGamesPerField);
+            var maxEnd = minStart + TimeSpan.FromMinutes(maxInterval * maxGames);
+
+            timeRangeAbsolute[day] = new TimeRangeDto { Start = minStart, End = maxEnd };
+        }
+
+        var roundCount = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
+        var gameGuarantee = teamCount - 1;
+        var gsi = currentGsi > 0 ? currentGsi : 60;
+        var gamesPerRound = teamCount / 2;
+
+        // Translate strategy choices to profile properties
+        var roundLayout = strategy.Placement == 1
+            ? RoundLayout.Sequential
+            : RoundLayout.Horizontal;
+
+        // GapPattern → MinTeamGapTicks (+1 mapping)
+        var minTeamGapTicks = strategy.GapPattern + 1;
+
+        // InterRoundGapTicks derived from layout and gap
+        var interRoundGapTicks = roundLayout == RoundLayout.Horizontal
+            ? minTeamGapTicks
+            : gamesPerRound + minTeamGapTicks - 1;
+
+        // Distribute rounds across play days
+        var roundsPerDay = new Dictionary<DayOfWeek, int>();
+        if (playDays.Count > 0)
+        {
+            var roundsEach = roundCount / playDays.Count;
+            var remainder = roundCount % playDays.Count;
+            for (var i = 0; i < playDays.Count; i++)
+            {
+                roundsPerDay[playDays[i]] = roundsEach + (i < remainder ? 1 : 0);
+            }
+        }
+
+        return new DivisionSizeProfile
+        {
+            TCnt = teamCount,
+            DivisionCount = 1,
+            PlayDays = playDays,
+            TimeRangeAbsolute = timeRangeAbsolute,
+            FieldBand = fieldBand,
+            RoundCount = roundCount,
+            GameGuarantee = gameGuarantee,
+            PlacementShapePerRound = new Dictionary<int, RoundShapeDto>(),
+            OnsiteIntervalPerDay = timeRangeAbsolute.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.End - kvp.Value.Start),
+            FieldDesirability = new Dictionary<string, FieldUsageDto>(),
+            RoundsPerDay = roundsPerDay,
+            ExtraRoundDay = null,
+            InterRoundInterval = TimeSpan.FromMinutes(gsi),
+            GsiMinutes = gsi,
+            RoundLayout = roundLayout,
+            StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
+            InterRoundGapTicks = interRoundGapTicks,
+            MinTeamGapTicks = minTeamGapTicks,
+            FieldFairness = FieldFairness.Democratic
+        };
     }
 
     // ══════════════════════════════════════════════════════════

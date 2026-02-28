@@ -15,7 +15,7 @@
             </div>
             <app-division-navigator
                 [agegroups]="agegroups()"
-                [selectedDivId]="selectedDivision()?.divId ?? null"
+                [selectedScope]="navScope()"
                 [isLoading]="isNavLoading()"
                 [showCollapseAll]="false"
                 (divisionSelected)="onDivisionSelected($event)" />

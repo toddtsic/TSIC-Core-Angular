@@ -76,6 +76,23 @@ public interface IFieldRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Get field preferences (Normal/Preferred/Avoid) for all fields in a league-season.
+    /// Returns FieldId → FieldPreference (0=Normal, 1=Preferred, 2=Avoid).
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetFieldPreferencesAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Update the field preference for a single FieldsLeagueSeason record.
+    /// </summary>
+    Task UpdateFieldPreferenceAsync(
+        Guid flsId,
+        byte fieldPreference,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);

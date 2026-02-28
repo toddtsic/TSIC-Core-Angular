@@ -464,6 +464,42 @@ public class LadtController : ControllerBase
     }
 
     // ═══════════════════════════════════════════
+    // Division Name Sync
+    // ═══════════════════════════════════════════
+
+    [HttpPost("divisions/sync-names/preview")]
+    public async Task<ActionResult<List<DivisionNameSyncPreview>>> PreviewDivisionNameSync(
+        [FromBody] DivisionNameSyncRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var previews = await _ladtService.PreviewDivisionNameSyncAsync(
+                jobId!.Value, request.ThemeNames, cancellationToken);
+            return Ok(previews);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost("divisions/sync-names/apply")]
+    public async Task<ActionResult<DivisionNameSyncResult>> ApplyDivisionNameSync(
+        [FromBody] DivisionNameSyncRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _ladtService.ApplyDivisionNameSyncAsync(
+                jobId!.Value, request.ThemeNames, userId!, cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    // ═══════════════════════════════════════════
     // Shared context resolution
     // ═══════════════════════════════════════════
 

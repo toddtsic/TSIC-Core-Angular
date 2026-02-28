@@ -79,4 +79,13 @@ public interface IAutoBuildScheduleService
     /// </summary>
     Task<AutoBuildV2Result> BuildV2Async(
         Guid jobId, string userId, AutoBuildV2Request request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Load strategy profiles for a job. Three-layer resolution:
+    /// 1. Saved profiles from DB → Source="saved"
+    /// 2. Inferred from source job via AttributeExtractor → Source="inferred"
+    /// 3. Defaults from current division names → Source="defaults"
+    /// </summary>
+    Task<DivisionStrategyProfileResponse> LoadStrategyProfilesAsync(
+        Guid jobId, Guid? sourceJobId, CancellationToken ct = default);
 }

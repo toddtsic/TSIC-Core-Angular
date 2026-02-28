@@ -1,6 +1,7 @@
 import { Component, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import type { AgegroupWithDivisionsDto, DivisionSummaryDto } from '@core/api';
 import { contrastText, agTeamCount } from '../../utils/scheduling-helpers';
+import type { ScheduleScope } from '../../utils/scheduling-helpers';
 
 @Component({
     selector: 'app-division-navigator',
@@ -13,11 +14,14 @@ export class DivisionNavigatorComponent {
 
     // ── Inputs ──
     readonly agegroups = input.required<AgegroupWithDivisionsDto[]>();
-    readonly selectedDivId = input<string | null>(null);
+    readonly selectedScope = input<ScheduleScope>({ level: 'event' });
+    readonly jobName = input<string>('');
     readonly isLoading = input(false);
     readonly showCollapseAll = input(true);
 
     // ── Outputs ──
+    readonly eventSelected = output<void>();
+    readonly agegroupSelected = output<{ agegroupId: string }>();
     readonly divisionSelected = output<{ division: DivisionSummaryDto; agegroupId: string }>();
 
     // ── Internal state ──
@@ -36,6 +40,13 @@ export class DivisionNavigatorComponent {
         this.expandedAgegroups.set(current);
     }
 
+    selectAgegroup(agId: string): void {
+        const current = new Set(this.expandedAgegroups());
+        current.add(agId);
+        this.expandedAgegroups.set(current);
+        this.agegroupSelected.emit({ agegroupId: agId });
+    }
+
     isExpanded(agId: string): boolean {
         return this.expandedAgegroups().has(agId);
     }
@@ -46,5 +57,15 @@ export class DivisionNavigatorComponent {
 
     selectDivision(div: DivisionSummaryDto, agegroupId: string): void {
         this.divisionSelected.emit({ division: div, agegroupId });
+    }
+
+    isAgActive(agId: string): boolean {
+        const s = this.selectedScope();
+        return s.level === 'agegroup' && s.agegroupId === agId;
+    }
+
+    isDivActive(divId: string): boolean {
+        const s = this.selectedScope();
+        return s.level === 'division' && s.divId === divId;
     }
 }

@@ -233,6 +233,22 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         _logger.LogInformation("DeleteDivGames: DivId={DivId} with cascade cleanup", request.DivId);
     }
 
+    public async Task DeleteAgegroupGamesAsync(Guid jobId, DeleteAgegroupGamesRequest request, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+        var divisions = await _divisionRepo.GetByAgegroupIdAsync(request.AgegroupId, ct);
+
+        foreach (var div in divisions)
+        {
+            await _scheduleRepo.DeleteDivisionGamesAsync(div.DivId, leagueId, season, year, ct);
+            await _scheduleRepo.SaveChangesAsync(ct);
+        }
+
+        _logger.LogInformation(
+            "DeleteAgegroupGames: AgegroupId={AgegroupId}, deleted games across {DivCount} divisions",
+            request.AgegroupId, divisions.Count);
+    }
+
     public async Task<AutoScheduleResponse> AutoScheduleDivAsync(
         Guid jobId, string userId, Guid divId, CancellationToken ct = default)
     {

@@ -60,4 +60,9 @@ public interface ILadtService
 
     Task<int> AddWaitlistAgegroupsAsync(Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<int> UpdatePlayerFeesToAgegroupFeesAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
+
+    // ── Division Name Sync ──
+
+    Task<List<DivisionNameSyncPreview>> PreviewDivisionNameSyncAsync(Guid jobId, List<string> themeNames, CancellationToken cancellationToken = default);
+    Task<DivisionNameSyncResult> ApplyDivisionNameSyncAsync(Guid jobId, List<string> themeNames, string userId, CancellationToken cancellationToken = default);
 }

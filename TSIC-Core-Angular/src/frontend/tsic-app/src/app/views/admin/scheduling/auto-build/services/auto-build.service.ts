@@ -9,6 +9,7 @@ import type {
     GameSummaryResponse,
     PrerequisiteCheckResponse,
     ProfileExtractionResponse,
+    DivisionStrategyProfileResponse,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -48,6 +49,13 @@ export class AutoBuildService {
         return this.http.post<AutoBuildV2Result>(
             `${this.apiUrl}/execute-v2`,
             request
+        );
+    }
+
+    getStrategyProfiles(sourceJobId?: string): Observable<DivisionStrategyProfileResponse> {
+        const params = sourceJobId ? `?sourceJobId=${sourceJobId}` : '';
+        return this.http.get<DivisionStrategyProfileResponse>(
+            `${this.apiUrl}/strategy-profiles${params}`
         );
     }
 }

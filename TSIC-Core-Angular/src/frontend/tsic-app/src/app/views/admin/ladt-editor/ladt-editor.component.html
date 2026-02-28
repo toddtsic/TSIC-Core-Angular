@@ -71,6 +71,9 @@
         </button>
         @if (actionsOpen()) {
           <ul class="dropdown-menu dropdown-menu-end show">
+            <li><button class="dropdown-item" (click)="openSyncDialog()">
+              <i class="bi bi-arrow-repeat me-2"></i>Sync Division Names
+            </button></li>
             <li><button class="dropdown-item" (click)="addWaitlistAgegroups(); actionsOpen.set(false)">
               <i class="bi bi-collection me-2"></i>Add WAITLIST Age Groups
             </button></li>
@@ -291,4 +294,121 @@
     (confirmed)="onDeleteConfirmed()"
     (cancelled)="onDeleteCancelled()"
   />
+}
+
+<!-- Division Name Sync dialog -->
+@if (showSyncDialog()) {
+  <tsic-dialog [open]="true" size="lg" (requestClose)="closeSyncDialog()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-arrow-repeat me-2"></i>Sync Division Names
+        </h5>
+        <button type="button" class="btn-close" (click)="closeSyncDialog()"></button>
+      </div>
+
+      <div class="modal-body">
+        @if (syncLoading() && syncPreviews().length === 0) {
+          <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <p class="mt-2 text-body-secondary">Loading divisions...</p>
+          </div>
+        } @else if (syncMaxDivisions() === 0) {
+          <div class="text-center py-4 text-body-secondary">
+            <i class="bi bi-info-circle fs-3 d-block mb-2"></i>
+            No syncable divisions found. Divisions named Unassigned, WAITLIST, or DROPPED are excluded.
+          </div>
+        } @else {
+          <!-- Quick-fill buttons -->
+          <div class="sync-quickfill">
+            <span class="sync-quickfill-label">Quick fill:</span>
+            <button class="btn btn-sm btn-outline-secondary" (click)="applyQuickFill('pool')">
+              Pool A, B, C...
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" (click)="applyQuickFill('division')">
+              Division 1, 2, 3...
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" (click)="applyQuickFill('flight')">
+              Flight 1, 2, 3...
+            </button>
+          </div>
+
+          <!-- Theme name inputs -->
+          <div class="sync-theme-table">
+            <div class="sync-theme-header">
+              <span class="sync-theme-col-num">#</span>
+              <span class="sync-theme-col-name">Division Name</span>
+            </div>
+            @for (name of syncThemeNames(); track $index) {
+              <div class="sync-theme-row">
+                <span class="sync-theme-col-num">{{ $index + 1 }}</span>
+                <input class="form-control form-control-sm sync-theme-input"
+                       [ngModel]="name"
+                       (ngModelChange)="updateThemeName($index, $event)"
+                       (blur)="onThemeNameBlur()" />
+              </div>
+            }
+          </div>
+
+          <!-- Preview -->
+          @if (syncPreviews().length > 0) {
+            <div class="sync-preview-section">
+              <h6 class="sync-preview-title">
+                Preview
+                @if (syncLoading()) {
+                  <span class="spinner-border spinner-border-sm ms-2"></span>
+                }
+              </h6>
+              @for (preview of syncPreviews(); track preview.agegroupId) {
+                <div class="sync-preview-ag">
+                  <div class="sync-preview-ag-header">
+                    <i class="bi bi-people me-1"></i>
+                    {{ preview.agegroupName }}
+                    <span class="badge bg-primary-subtle text-primary-emphasis ms-1">
+                      {{ preview.divisionCount }} div{{ preview.divisionCount !== 1 ? 's' : '' }}
+                    </span>
+                  </div>
+                  <div class="sync-preview-renames">
+                    @for (entry of preview.divisions; track entry.divId) {
+                      <div class="sync-preview-rename"
+                           [class.sync-unchanged]="entry.currentName === entry.proposedName">
+                        <span class="sync-rename-current">{{ entry.currentName }}</span>
+                        <i class="bi bi-arrow-right sync-rename-arrow"></i>
+                        <span class="sync-rename-proposed"
+                              [class.fw-semibold]="entry.currentName !== entry.proposedName">
+                          {{ entry.proposedName }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Result message -->
+          @if (syncResult()) {
+            <div class="alert alert-info mt-3 mb-0">
+              <i class="bi bi-check-circle me-2"></i>{{ syncResult() }}
+            </div>
+          }
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" (click)="closeSyncDialog()">
+          {{ syncResult() ? 'Close' : 'Cancel' }}
+        </button>
+        @if (!syncResult() && syncMaxDivisions() > 0) {
+          <button class="btn btn-primary" (click)="applySyncNames()"
+                  [disabled]="syncApplying() || syncLoading()">
+            @if (syncApplying()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Apply Names
+          </button>
+        }
+      </div>
+    </div>
+  </tsic-dialog>
 }

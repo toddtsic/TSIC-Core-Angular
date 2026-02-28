@@ -383,3 +383,125 @@
     opacity: 0.7;
   }
 }
+
+// ── Division Name Sync Dialog ──
+
+.sync-quickfill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.sync-quickfill-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+}
+
+.sync-theme-table {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-3);
+}
+
+.sync-theme-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bs-tertiary-bg);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary-color);
+}
+
+.sync-theme-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.sync-theme-col-num {
+  min-width: 24px;
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+}
+
+.sync-theme-col-name {
+  flex: 1;
+}
+
+.sync-theme-input {
+  flex: 1;
+}
+
+.sync-preview-section {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.sync-preview-title {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: var(--bs-tertiary-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.sync-preview-ag {
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+}
+
+.sync-preview-ag-header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: rgba(var(--bs-success-rgb), 0.06);
+}
+
+.sync-preview-renames {
+  padding: var(--space-1) var(--space-3);
+}
+
+.sync-preview-rename {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 0;
+  font-size: var(--font-size-sm);
+
+  &.sync-unchanged {
+    opacity: 0.5;
+  }
+}
+
+.sync-rename-current {
+  min-width: 120px;
+  color: var(--bs-secondary-color);
+}
+
+.sync-rename-arrow {
+  font-size: var(--font-size-xs);
+  color: var(--bs-secondary-color);
+}
+
+.sync-rename-proposed {
+  color: var(--bs-body-color);
+}

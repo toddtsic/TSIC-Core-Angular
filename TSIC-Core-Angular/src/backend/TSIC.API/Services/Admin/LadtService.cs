@@ -1238,6 +1238,133 @@ public sealed class LadtService : ILadtService
     }
 
     // ═══════════════════════════════════════════
+    // Division Name Sync
+    // ═══════════════════════════════════════════
+
+    private static readonly HashSet<string> ExcludedDivisionNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Unassigned", "WAITLIST", "DROPPED"
+    };
+
+    public async Task<List<DivisionNameSyncPreview>> PreviewDivisionNameSyncAsync(
+        Guid jobId, List<string> themeNames, CancellationToken cancellationToken = default)
+    {
+        var agegroupDivisions = await GetSyncableDivisionsAsync(jobId, cancellationToken);
+        var previews = new List<DivisionNameSyncPreview>();
+
+        foreach (var (agName, agId, divisions) in agegroupDivisions)
+        {
+            // Alpha-sort the syncable divisions by current name
+            var sorted = divisions.OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase).ToList();
+
+            var entries = new List<DivisionRenameEntry>();
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                var proposedName = i < themeNames.Count ? themeNames[i] : $"Division {i + 1}";
+                entries.Add(new DivisionRenameEntry
+                {
+                    DivId = sorted[i].DivId,
+                    CurrentName = sorted[i].DivName ?? "(unnamed)",
+                    ProposedName = proposedName
+                });
+            }
+
+            previews.Add(new DivisionNameSyncPreview
+            {
+                AgegroupName = agName,
+                AgegroupId = agId,
+                DivisionCount = sorted.Count,
+                Divisions = entries
+            });
+        }
+
+        return previews;
+    }
+
+    public async Task<DivisionNameSyncResult> ApplyDivisionNameSyncAsync(
+        Guid jobId, List<string> themeNames, string userId, CancellationToken cancellationToken = default)
+    {
+        var agegroupDivisions = await GetSyncableDivisionsAsync(jobId, cancellationToken);
+        var errors = new List<string>();
+        var renamed = 0;
+
+        foreach (var (agName, _, divisions) in agegroupDivisions)
+        {
+            var sorted = divisions.OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase).ToList();
+
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                var newName = i < themeNames.Count ? themeNames[i] : $"Division {i + 1}";
+                var div = sorted[i];
+
+                if (string.Equals(div.DivName, newName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Fetch tracked entity for update
+                var tracked = await _divisionRepo.GetByIdAsync(div.DivId, cancellationToken);
+                if (tracked == null)
+                {
+                    errors.Add($"Division {div.DivId} not found in {agName}.");
+                    continue;
+                }
+
+                tracked.DivName = newName;
+                tracked.LebUserId = userId;
+                tracked.Modified = DateTime.UtcNow;
+                renamed++;
+
+                // Cascade to schedule records
+                await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(
+                    div.DivId, jobId, newName, cancellationToken);
+            }
+        }
+
+        if (renamed > 0)
+            await _divisionRepo.SaveChangesAsync(cancellationToken);
+
+        return new DivisionNameSyncResult
+        {
+            DivisionsRenamed = renamed,
+            Errors = errors
+        };
+    }
+
+    /// <summary>
+    /// Returns syncable divisions (excluding Unassigned/WAITLIST/DROPPED) grouped by agegroup,
+    /// for all agegroups in the job.
+    /// </summary>
+    private async Task<List<(string AgName, Guid AgId, List<Divisions> Divisions)>> GetSyncableDivisionsAsync(
+        Guid jobId, CancellationToken cancellationToken)
+    {
+        var leagues = await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
+        var result = new List<(string AgName, Guid AgId, List<Divisions> Divisions)>();
+
+        foreach (var league in leagues)
+        {
+            var agegroups = await _agegroupRepo.GetByLeagueIdAsync(league.LeagueId, cancellationToken);
+
+            foreach (var ag in agegroups)
+            {
+                // Skip WAITLIST/DROPPED agegroups entirely
+                if (ag.AgegroupName != null && ExcludedDivisionNames.Contains(ag.AgegroupName))
+                    continue;
+
+                var divisions = await _divisionRepo.GetByAgegroupIdAsync(ag.AgegroupId, cancellationToken);
+                var syncable = divisions
+                    .Where(d => !ExcludedDivisionNames.Contains(d.DivName ?? ""))
+                    .ToList();
+
+                if (syncable.Count > 0)
+                {
+                    result.Add((ag.AgegroupName ?? "(unnamed)", ag.AgegroupId, syncable));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // ═══════════════════════════════════════════
     // Validation Helpers
     // ═══════════════════════════════════════════
 

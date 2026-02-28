@@ -23,6 +23,9 @@ public record LeagueSeasonFieldDto
     public string? City { get; init; }
     public string? State { get; init; }
     public bool? BActive { get; init; }
+
+    /// <summary>0 = Normal, 1 = Preferred, 2 = Avoid</summary>
+    public int FieldPreference { get; init; }
 }
 
 public record FieldManagementResponse
@@ -70,4 +73,10 @@ public record RemoveFieldsRequest
 {
     /// <summary>Field IDs to remove from the current league-season.</summary>
     public required List<Guid> FieldIds { get; init; }
+}
+
+public record UpdateFieldPreferenceRequest
+{
+    /// <summary>0 = Normal, 1 = Preferred, 2 = Avoid</summary>
+    public required int FieldPreference { get; init; }
 }

@@ -5,7 +5,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import {
     FieldManagementService,
     FieldDto,
-    LeagueSeasonFieldDto
+    LeagueSeasonFieldDto,
 } from './services/field-management.service';
 
 type SortDir = 'asc' | 'desc' | null;
@@ -349,6 +349,50 @@ export class ManageFieldsComponent {
         this.editDirections.set(field.directions ?? '');
         this.editLatitude.set(field.latitude ?? null);
         this.editLongitude.set(field.longitude ?? null);
+    }
+
+    // ── Field Preference Toggle ──
+
+    /** Cycle: Normal(0) → Preferred(1) → Avoid(2) → Normal(0) */
+    cyclePreference(field: LeagueSeasonFieldDto) {
+        const nextPref = ((field.fieldPreference ?? 0) + 1) % 3;
+        this.fieldService.updateFieldPreference(field.flsId, nextPref).subscribe({
+            next: () => {
+                // Optimistic update in the signal array
+                this.assignedFields.set(
+                    this.assignedFields().map(f =>
+                        f.flsId === field.flsId ? { ...f, fieldPreference: nextPref } : f
+                    )
+                );
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Failed to update preference.', 'danger', 4000);
+            }
+        });
+    }
+
+    preferenceIcon(pref: number | undefined): string {
+        switch (pref) {
+            case 1: return 'bi-star-fill';
+            case 2: return 'bi-exclamation-triangle-fill';
+            default: return 'bi-dash-circle';
+        }
+    }
+
+    preferenceLabel(pref: number | undefined): string {
+        switch (pref) {
+            case 1: return 'Preferred';
+            case 2: return 'Avoid';
+            default: return 'Normal';
+        }
+    }
+
+    preferenceClass(pref: number | undefined): string {
+        switch (pref) {
+            case 1: return 'pref-preferred';
+            case 2: return 'pref-avoid';
+            default: return 'pref-normal';
+        }
     }
 
     // ── Helpers ──

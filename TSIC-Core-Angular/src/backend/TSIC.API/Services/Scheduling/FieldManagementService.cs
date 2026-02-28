@@ -159,4 +159,9 @@ public sealed class FieldManagementService : IFieldManagementService
             request.FieldIds.Count, leagueId, season);
     }
 
+    public async Task UpdateFieldPreferenceAsync(
+        Guid flsId, int fieldPreference, CancellationToken ct = default)
+    {
+        await _fieldRepo.UpdateFieldPreferenceAsync(flsId, (byte)fieldPreference, ct);
+    }
 }

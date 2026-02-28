@@ -98,6 +98,14 @@ public record DeleteDivGamesRequest
 }
 
 /// <summary>
+/// Delete all games for every division in an agegroup.
+/// </summary>
+public record DeleteAgegroupGamesRequest
+{
+    public required Guid AgegroupId { get; init; }
+}
+
+/// <summary>
 /// Auto-schedule result — how many games were placed vs failed to find slots.
 /// </summary>
 public record AutoScheduleResponse

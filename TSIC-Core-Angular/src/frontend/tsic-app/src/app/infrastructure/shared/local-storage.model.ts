@@ -18,6 +18,7 @@ export enum LocalStorageKey {
 
     // ── Scheduling ──
     SchedulePlacementMode = 'tsic.scheduleDivision.placementMode',
+    AutoScheduleConfig = 'tsic.autoSchedule.config',
 }
 
 /**
@@ -41,4 +42,5 @@ export interface LocalStorageSchema {
     [LocalStorageKey.AppTheme]: 'light' | 'dark';
     [LocalStorageKey.SelectedPalette]: number;
     [LocalStorageKey.SchedulePlacementMode]: 'mouse' | 'keyboard';
+    [LocalStorageKey.AutoScheduleConfig]: string; // JSON-serialized AutoScheduleConfig
 }

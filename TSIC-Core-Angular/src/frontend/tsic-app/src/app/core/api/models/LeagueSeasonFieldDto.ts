@@ -9,5 +9,6 @@ export type LeagueSeasonFieldDto = {
     city?: string | null;
     state?: string | null;
     bActive?: boolean | null;
+    fieldPreference?: number;
 };
 

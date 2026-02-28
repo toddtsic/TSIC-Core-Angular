@@ -7,7 +7,9 @@ export type AutoBuildV2Request = {
     agegroupOrder: Array<string>;
     divisionOrderStrategy: string;
     excludedDivisionIds: Array<string>;
-    constraintPriorities: Array<string>;
+    constraintPriorities?: any[] | null;
     agegroupMappings?: any[] | null;
+    divisionStrategies?: any[] | null;
+    saveProfiles?: boolean;
 };
 

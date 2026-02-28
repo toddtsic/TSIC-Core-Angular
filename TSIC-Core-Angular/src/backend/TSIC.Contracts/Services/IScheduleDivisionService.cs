@@ -36,6 +36,11 @@ public interface IScheduleDivisionService
     Task DeleteDivisionGamesAsync(Guid jobId, DeleteDivGamesRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Delete all games for every division in an agegroup with cascade cleanup.
+    /// </summary>
+    Task DeleteAgegroupGamesAsync(Guid jobId, DeleteAgegroupGamesRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Auto-schedule all round-robin pairings for a division.
     /// Deletes existing games first, then iterates pairings by round/game
     /// and places each into the next available timeslot.

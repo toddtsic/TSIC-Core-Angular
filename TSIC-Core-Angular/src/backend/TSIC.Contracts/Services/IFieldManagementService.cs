@@ -24,4 +24,10 @@ public interface IFieldManagementService
 
     Task RemoveFieldsAsync(
         Guid jobId, RemoveFieldsRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update the field quality preference (Normal/Preferred/Avoid) for a league-season field.
+    /// </summary>
+    Task UpdateFieldPreferenceAsync(
+        Guid flsId, int fieldPreference, CancellationToken ct = default);
 }

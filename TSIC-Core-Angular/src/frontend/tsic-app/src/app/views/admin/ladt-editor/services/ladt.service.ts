@@ -21,7 +21,10 @@ import type {
   MoveTeamToClubRequest,
   MoveTeamToClubResultDto,
   CreateStubRequest,
-  SportOptionDto
+  SportOptionDto,
+  DivisionNameSyncPreview,
+  DivisionNameSyncRequest,
+  DivisionNameSyncResult
 } from '../../../../core/api';
 
 @Injectable({
@@ -160,5 +163,21 @@ export class LadtService {
 
   updatePlayerFeesToAgegroupFees(agegroupId: string): Observable<number> {
     return this.http.post<number>(`${this.apiUrl}/batch/update-fees/${agegroupId}`, null);
+  }
+
+  // ── Division Name Sync ──
+
+  previewDivisionNameSync(themeNames: string[]): Observable<DivisionNameSyncPreview[]> {
+    return this.http.post<DivisionNameSyncPreview[]>(
+      `${this.apiUrl}/divisions/sync-names/preview`,
+      { themeNames } as DivisionNameSyncRequest
+    );
+  }
+
+  applyDivisionNameSync(themeNames: string[]): Observable<DivisionNameSyncResult> {
+    return this.http.post<DivisionNameSyncResult>(
+      `${this.apiUrl}/divisions/sync-names/apply`,
+      { themeNames } as DivisionNameSyncRequest
+    );
   }
 }

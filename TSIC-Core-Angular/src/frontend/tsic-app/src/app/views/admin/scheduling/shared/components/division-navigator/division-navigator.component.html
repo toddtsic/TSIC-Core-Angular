@@ -10,14 +10,26 @@
             </button>
         </div>
     }
+
+    <!-- Root node: event-level selection -->
+    <div class="nav-event-root"
+         [class.active]="selectedScope().level === 'event'"
+         (click)="eventSelected.emit()">
+        <i class="bi bi-house-door"></i>
+        <span class="nav-event-name">{{ jobName() || 'Event' }}</span>
+    </div>
+
     <div class="nav-tree">
         @for (ag of agegroups(); track ag.agegroupId) {
             <div class="nav-agegroup">
                 <div class="nav-agegroup-header"
-                     (click)="toggleAgegroup(ag.agegroupId)"
-                     [class.expanded]="isExpanded(ag.agegroupId)">
-                    <i class="bi" [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
-                       [class.bi-chevron-down]="isExpanded(ag.agegroupId)"></i>
+                     [class.expanded]="isExpanded(ag.agegroupId)"
+                     [class.active]="isAgActive(ag.agegroupId)"
+                     (click)="selectAgegroup(ag.agegroupId)">
+                    <i class="bi"
+                       [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
+                       [class.bi-chevron-down]="isExpanded(ag.agegroupId)"
+                       (click)="toggleAgegroup(ag.agegroupId); $event.stopPropagation()"></i>
                     @if (ag.color) {
                         <span class="color-dot" [style.background]="ag.color"></span>
                     }
@@ -33,7 +45,7 @@
                     <div class="nav-divisions">
                         @for (div of ag.divisions; track div.divId) {
                             <div class="nav-division"
-                                 [class.active]="selectedDivId() === div.divId"
+                                 [class.active]="isDivActive(div.divId)"
                                  (click)="selectDivision(div, ag.agegroupId)">
                                 <span class="div-name">{{ div.divName }}</span>
                                 <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">

@@ -16,10 +16,29 @@ import {
     type ScheduleFieldColumn,
     type ScheduleGameDto
 } from './services/schedule-division.service';
-import { formatTime, teamDes, contrastText } from '../shared/utils/scheduling-helpers';
+import { Observable } from 'rxjs';
+import { AutoBuildService } from '../auto-build/services/auto-build.service';
+import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
+import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
+import type { GameSummaryResponse, DivisionStrategyEntry } from '@core/api';
+
+/** Auto-schedule configuration persisted in localStorage. */
+interface AutoScheduleConfig {
+    divisionOrderStrategy: 'alpha' | 'odd-first';
+}
+
+/** Modal-local agegroup entry for reordering/excluding at event scope. */
+interface ModalAgegroup {
+    agegroupId: string;
+    agegroupName: string;
+    color: string | null;
+    teamCount: number;
+    divisionCount: number;
+    included: boolean;
+}
 
 @Component({
     selector: 'app-schedule-division',
@@ -31,16 +50,66 @@ import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 })
 export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
+    private readonly autoBuildSvc = inject(AutoBuildService);
     private readonly toast = inject(ToastService);
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
 
+    // ── Scope selection model (replaces separate selectedDivision + selectedAgegroupId) ──
+    readonly scope = signal<ScheduleScope>({ level: 'event' });
+
+    // Derived for backward compat (grid, pairings, etc. still use these)
+    readonly selectedDivision = computed<DivisionSummaryDto | null>(() => {
+        const s = this.scope();
+        if (s.level !== 'division') return null;
+        const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+        return ag?.divisions.find(d => d.divId === s.divId) ?? null;
+    });
+    readonly selectedAgegroupId = computed<string | null>(() => {
+        const s = this.scope();
+        return s.level === 'event' ? null : s.agegroupId;
+    });
+
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
-    readonly selectedDivision = signal<DivisionSummaryDto | null>(null);
-    readonly selectedAgegroupId = signal<string | null>(null);
     readonly isNavLoading = signal(false);
+
+    // ── Game Summary (from auto-build service) ──
+    readonly gameSummary = signal<GameSummaryResponse | null>(null);
+
+    readonly scopeGameCount = computed(() => {
+        const summary = this.gameSummary();
+        if (!summary) return 0;
+        const s = this.scope();
+        switch (s.level) {
+            case 'event': return summary.totalGames;
+            case 'agegroup': return summary.divisions
+                .filter(d => d.agegroupId === s.agegroupId)
+                .reduce((sum, d) => sum + d.gameCount, 0);
+            case 'division': return summary.divisions
+                .find(d => d.divId === s.divId)?.gameCount ?? 0;
+        }
+    });
+    readonly hasGamesInScope = computed(() => this.scopeGameCount() > 0);
+
+    readonly scopeLabel = computed(() => {
+        const s = this.scope();
+        switch (s.level) {
+            case 'event': return 'All';
+            case 'agegroup': return this.selectedAgegroup()?.agegroupName ?? '';
+            case 'division': return this.selectedDivision()?.divName ?? '';
+        }
+    });
+
+    /** Per-agegroup game count for event summary view. */
+    agGameCount(agegroupId: string): number {
+        const summary = this.gameSummary();
+        if (!summary) return 0;
+        return summary.divisions
+            .filter(d => d.agegroupId === agegroupId)
+            .reduce((sum, d) => sum + d.gameCount, 0);
+    }
 
     // ── Pairings state ──
     readonly divisionResponse = signal<DivisionPairingsResponse | null>(null);
@@ -71,14 +140,25 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly selectedPairing = signal<PairingDto | null>(null);
     readonly isPlacing = signal(false);
 
-    // ── Auto-schedule ──
+    // ── Auto-schedule (V1 division-level — kept for backward compat) ──
     readonly isAutoScheduling = signal(false);
     readonly autoScheduleResult = signal<AutoScheduleResponse | null>(null);
     readonly showAutoScheduleConfirm = signal(false);
 
     // ── Delete confirmation ──
-    readonly showDeleteDivConfirm = signal(false);
-    readonly isDeletingDivGames = signal(false);
+    readonly showDeleteConfirm = signal(false);
+    readonly isDeletingGames = signal(false);
+    readonly deleteConfirmText = signal('');
+
+    // ── Auto-schedule V2 config modal ──
+    readonly showAutoScheduleModal = signal(false);
+    readonly autoScheduleConfig = signal<AutoScheduleConfig>(this.loadAutoScheduleConfig());
+    readonly modalAgegroups = signal<ModalAgegroup[]>([]);
+    readonly isExecutingV2 = signal(false);
+    readonly modalStrategies = signal<DivisionStrategyEntry[]>([]);
+    readonly modalStrategySource = signal<string>('defaults');
+    readonly modalStrategySourceName = signal<string>('');
+    readonly modalStrategyLoading = signal(false);
 
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
@@ -146,6 +226,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadAgegroups();
+        this.refreshGameSummary();
     }
 
     // ── Navigator ──
@@ -174,14 +255,48 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
+    refreshGameSummary(): void {
+        this.autoBuildSvc.getGameSummary().subscribe({
+            next: (summary) => this.gameSummary.set(summary),
+            error: () => this.gameSummary.set(null)
+        });
+    }
+
+    // ── Scope selection handlers (wired from navigator outputs) ──
+
+    onEventSelected(): void {
+        this.scope.set({ level: 'event' });
+        this.clearDivisionState();
+    }
+
+    onAgegroupSelected(event: { agegroupId: string }): void {
+        this.scope.set({ level: 'agegroup', agegroupId: event.agegroupId });
+        this.clearDivisionState();
+        // Load first division's grid for scroll context
+        const ag = this.agegroups().find(a => a.agegroupId === event.agegroupId);
+        if (ag?.divisions.length) {
+            this.loadScheduleGrid(ag.divisions[0].divId, event.agegroupId);
+        }
+    }
+
     onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
-        this.selectedDivision.set(event.division);
-        this.selectedAgegroupId.set(event.agegroupId);
+        this.scope.set({ level: 'division', agegroupId: event.agegroupId, divId: event.division.divId });
         this.selectedPairing.set(null);
         this.selectedGame.set(null);
         this.highlightGameGid.set(null);
-        this.showDeleteDivConfirm.set(false);
+        this.showDeleteConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
+    }
+
+    private clearDivisionState(): void {
+        this.selectedPairing.set(null);
+        this.selectedGame.set(null);
+        this.highlightGameGid.set(null);
+        this.showDeleteConfirm.set(false);
+        this.divisionResponse.set(null);
+        this.pairings.set([]);
+        this.divisionTeams.set([]);
+        this.whoPlaysWhoMatrix.set(null);
     }
 
     private loadDivisionData(divId: string, agegroupId: string): void {
@@ -193,7 +308,6 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Pairings ──
 
     loadDivisionPairings(divId: string): void {
-        // Only show spinner on first load (no existing data)
         if (this.pairings().length === 0) {
             this.isPairingsLoading.set(true);
         }
@@ -202,7 +316,6 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.divisionResponse.set(resp);
                 this.pairings.set(resp.pairings);
                 this.isPairingsLoading.set(false);
-                // Load Who Plays Who matrix once we know teamCount
                 if (resp.teamCount > 0) {
                     this.svc.getWhoPlaysWho(resp.teamCount).subscribe({
                         next: (wpw) => this.whoPlaysWhoMatrix.set(wpw.matrix)
@@ -260,7 +373,6 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.divisionTeams.set(updatedTeams);
                 this.editingTeam.set(null);
                 this.isSavingTeam.set(false);
-                // Reload grid — rank swap or name change updates schedule records
                 const div = this.selectedDivision();
                 const agId = this.selectedAgegroupId();
                 if (div && agId) this.loadScheduleGrid(div.divId, agId);
@@ -272,7 +384,6 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Schedule Grid ──
 
     loadScheduleGrid(divId: string, agegroupId: string): void {
-        // Only show spinner on first load — keep stale grid visible during transitions
         if (!this.gridResponse()) {
             this.isGridLoading.set(true);
         }
@@ -280,11 +391,9 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
-                // All division games dance for 2s; scroll centers on the first one
                 const gid = this.findFirstGameGidInGrid(grid, divId);
                 this.highlightGameGid.set(null);
                 this.flashAllDiv();
-                // Defer scroll — Angular needs a tick to propagate input + render DOM
                 setTimeout(() => {
                     if (gid) {
                         this.scheduleGrid?.scrollToGame(gid);
@@ -334,17 +443,14 @@ export class ScheduleDivisionComponent implements OnInit {
         return this.selectedPairing()?.ai === pairing.ai;
     }
 
-    /** Click a scheduled pairing → scroll grid to that game and highlight it persistently. */
     locateScheduledGame(pairing: PairingDto): void {
         const gid = this.findGidForPairing(pairing);
         if (!gid) return;
-
         this.highlightAllDiv.set(false);
         this.highlightGameGid.set(gid);
         this.scheduleGrid?.scrollToGame(gid);
     }
 
-    /** Match a pairing to a placed game in the grid by round + team numbers. */
     private findGidForPairing(pairing: PairingDto): number | null {
         const divId = this.selectedDivision()?.divId;
         for (const row of this.gridRows()) {
@@ -371,14 +477,12 @@ export class ScheduleDivisionComponent implements OnInit {
         const column = this.gridColumns()[colIndex];
         if (!column) return;
 
-        // Pre-check: bracket enforcement (single-bracket agegroups)
         const bracketBlock = this.checkBracketPlacement(pairing);
         if (bracketBlock) {
             this.toast.show(bracketBlock, 'danger', 5000);
             return;
         }
 
-        // Pre-check: would placing this pairing create a time clash?
         const teamIds = this.resolvePairingTeamIds(pairing);
         const clash = this.findTimeClashInRow(row, teamIds);
         if (clash) {
@@ -395,7 +499,6 @@ export class ScheduleDivisionComponent implements OnInit {
             divId: div.divId
         }).subscribe({
             next: (game) => {
-                // Update the grid cell in place
                 this.gridResponse.update(grid => {
                     if (!grid) return grid;
                     const updatedRows = grid.rows.map((r: ScheduleGridRow) => {
@@ -408,22 +511,21 @@ export class ScheduleDivisionComponent implements OnInit {
                     });
                     return { ...grid, rows: updatedRows };
                 });
-                // Mark pairing as scheduled
                 this.pairings.update(list =>
                     list.map(p => p.ai === pairing.ai ? { ...p, bAvailable: false } : p)
                 );
                 this.isPlacing.set(false);
 
-                // Auto-advance to next unscheduled pairing
                 const nextPairing = this.pairings().find(p => p.ai !== pairing.ai && p.bAvailable);
                 this.selectedPairing.set(nextPairing ?? null);
 
-                // Scroll to next open slot forward in time
                 if (nextPairing) {
                     const rows = this.gridRows();
                     const placedRowIdx = rows.findIndex(r => r.gDate === row.gDate);
                     this.scheduleGrid?.scrollToNextOpenSlot(placedRowIdx + 1);
                 }
+
+                this.refreshGameSummary();
             },
             error: () => this.isPlacing.set(false)
         });
@@ -432,14 +534,12 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Delete single game ──
 
     deleteGame(game: ScheduleGameDto, row: ScheduleGridRow, colIndex: number): void {
-        // Clear move selection if deleting the selected game
         if (this.selectedGame()?.game.gid === game.gid) {
             this.selectedGame.set(null);
         }
 
         this.svc.deleteGame(game.gid).subscribe({
             next: () => {
-                // Clear the grid cell
                 this.gridResponse.update(grid => {
                     if (!grid) return grid;
                     const updatedRows = grid.rows.map((r: ScheduleGridRow) => {
@@ -452,43 +552,264 @@ export class ScheduleDivisionComponent implements OnInit {
                     });
                     return { ...grid, rows: updatedRows };
                 });
-                // Reload pairings to refresh availability
                 const div = this.selectedDivision();
                 if (div) this.loadDivisionPairings(div.divId);
+                this.refreshGameSummary();
             }
         });
     }
 
-    // ── Delete all division games ──
+    // ── Three-tier delete ──
 
-    confirmDeleteDivGames(): void {
-        this.showDeleteDivConfirm.set(true);
+    confirmDeleteGames(): void {
+        this.showDeleteConfirm.set(true);
     }
 
-    cancelDeleteDivGames(): void {
-        this.showDeleteDivConfirm.set(false);
+    cancelDeleteGames(): void {
+        this.showDeleteConfirm.set(false);
+        this.deleteConfirmText.set('');
     }
 
-    deleteDivGames(): void {
-        const div = this.selectedDivision();
-        if (!div) return;
+    executeDelete(): void {
+        const s = this.scope();
+        this.isDeletingGames.set(true);
+        this.showDeleteConfirm.set(false);
 
-        this.isDeletingDivGames.set(true);
-        this.showDeleteDivConfirm.set(false);
-        this.svc.deleteDivisionGames({ divId: div.divId }).subscribe({
+        let delete$: Observable<unknown>;
+        switch (s.level) {
+            case 'division':
+                delete$ = this.svc.deleteDivisionGames({ divId: s.divId });
+                break;
+            case 'agegroup':
+                delete$ = this.svc.deleteAgegroupGames({ agegroupId: s.agegroupId });
+                break;
+            case 'event':
+                delete$ = this.autoBuildSvc.undo();
+                break;
+        }
+
+        delete$.subscribe({
             next: () => {
-                this.isDeletingDivGames.set(false);
-                // Reload grid and pairings
-                const agId = this.selectedAgegroupId();
-                if (agId) {
-                    this.loadDivisionData(div.divId, agId);
-                }
+                this.isDeletingGames.set(false);
+                this.deleteConfirmText.set('');
+                this.refreshAfterBulkOperation();
+                this.toast.show(`Deleted ${this.scopeLabel()} games`, 'success', 3000);
             },
-            error: () => this.isDeletingDivGames.set(false)
+            error: () => {
+                this.isDeletingGames.set(false);
+                this.deleteConfirmText.set('');
+            }
         });
     }
 
-    // ── Auto-schedule ──
+    // ── Auto-schedule V2 config modal ──
+
+    openAutoScheduleConfig(): void {
+        this.autoScheduleConfig.set(this.loadAutoScheduleConfig());
+        // Load strategy profiles from backend (three-layer resolution)
+        this.modalStrategyLoading.set(true);
+        this.autoBuildSvc.getStrategyProfiles().subscribe({
+            next: (response) => {
+                this.modalStrategies.set(response.strategies.map(s => ({ ...s })));
+                this.modalStrategySource.set(response.source);
+                this.modalStrategySourceName.set(response.inferredFromJobName ?? '');
+                this.modalStrategyLoading.set(false);
+            },
+            error: () => {
+                this.modalStrategies.set([]);
+                this.modalStrategyLoading.set(false);
+            }
+        });
+        // Populate modal agegroup list (only relevant at event scope)
+        if (this.scope().level === 'event') {
+            this.modalAgegroups.set(this.agegroups().map(ag => ({
+                agegroupId: ag.agegroupId,
+                agegroupName: ag.agegroupName,
+                color: ag.color ?? null,
+                teamCount: agTeamCount(ag),
+                divisionCount: ag.divisions.length,
+                included: true,
+            })));
+        }
+        this.showAutoScheduleModal.set(true);
+    }
+
+    closeAutoScheduleModal(): void {
+        this.showAutoScheduleModal.set(false);
+    }
+
+    toggleModalPlacement(divisionName: string): void {
+        this.modalStrategies.update(list =>
+            list.map(s => s.divisionName === divisionName
+                ? { ...s, placement: s.placement === 0 ? 1 : 0 } : s)
+        );
+    }
+
+    cycleModalGapPattern(divisionName: string): void {
+        this.modalStrategies.update(list =>
+            list.map(s => s.divisionName === divisionName
+                ? { ...s, gapPattern: (s.gapPattern + 1) % 3 } : s)
+        );
+    }
+
+    modalPlacementLabel(placement: number): string {
+        return placement === 1 ? 'Vertical' : 'Horizontal';
+    }
+
+    modalGapLabel(gapPattern: number): string {
+        switch (gapPattern) {
+            case 0: return 'Back-to-back';
+            case 1: return 'One on, one off';
+            case 2: return 'One on, two off';
+            default: return 'Unknown';
+        }
+    }
+
+    modalStrategySourceLabel(): string {
+        switch (this.modalStrategySource()) {
+            case 'saved': return 'Saved';
+            case 'inferred': return `Based on ${this.modalStrategySourceName() || 'prior year'}`;
+            default: return 'Defaults';
+        }
+    }
+
+    setDivisionOrderStrategy(strategy: 'alpha' | 'odd-first'): void {
+        const config = this.autoScheduleConfig();
+        const updated = { ...config, divisionOrderStrategy: strategy };
+        this.autoScheduleConfig.set(updated);
+        this.saveAutoScheduleConfig(updated);
+    }
+
+    toggleModalAgegroup(index: number): void {
+        this.modalAgegroups.update(list => list.map((ag, i) =>
+            i === index ? { ...ag, included: !ag.included } : ag
+        ));
+    }
+
+    moveModalAgegroupUp(index: number): void {
+        if (index <= 0) return;
+        this.modalAgegroups.update(list => {
+            const updated = [...list];
+            [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+            return updated;
+        });
+    }
+
+    moveModalAgegroupDown(index: number): void {
+        this.modalAgegroups.update(list => {
+            if (index >= list.length - 1) return list;
+            const updated = [...list];
+            [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+            return updated;
+        });
+    }
+
+    executeAutoScheduleV2(): void {
+        this.isExecutingV2.set(true);
+        this.showAutoScheduleModal.set(false);
+        const request = this.buildAutoScheduleRequest();
+
+        this.autoBuildSvc.executeV2(request).subscribe({
+            next: (result) => {
+                this.isExecutingV2.set(false);
+                this.refreshAfterBulkOperation();
+                this.toast.show(
+                    `Scheduled ${result.totalGamesPlaced} games across ${result.divisionsScheduled} divisions`,
+                    result.gamesFailedToPlace > 0 ? 'warning' : 'success',
+                    5000
+                );
+            },
+            error: () => {
+                this.isExecutingV2.set(false);
+                this.toast.show('Auto-schedule failed', 'danger', 5000);
+            }
+        });
+    }
+
+    private buildAutoScheduleRequest() {
+        const s = this.scope();
+        const allDivIds = this.agegroups().flatMap(ag => ag.divisions.map(d => d.divId));
+        const config = this.autoScheduleConfig();
+        const strategies = this.modalStrategies();
+
+        switch (s.level) {
+            case 'division': {
+                const excluded = allDivIds.filter(id => id !== s.divId);
+                return {
+                    agegroupOrder: [s.agegroupId],
+                    divisionOrderStrategy: config.divisionOrderStrategy,
+                    excludedDivisionIds: excluded,
+                    divisionStrategies: strategies,
+                    saveProfiles: true,
+                };
+            }
+            case 'agegroup': {
+                const agDivIds = this.agegroups()
+                    .find(ag => ag.agegroupId === s.agegroupId)!
+                    .divisions.map(d => d.divId);
+                const excluded = allDivIds.filter(id => !agDivIds.includes(id));
+                return {
+                    agegroupOrder: [s.agegroupId],
+                    divisionOrderStrategy: config.divisionOrderStrategy,
+                    excludedDivisionIds: excluded,
+                    divisionStrategies: strategies,
+                    saveProfiles: true,
+                };
+            }
+            case 'event': {
+                const included = this.modalAgegroups().filter(ag => ag.included);
+                const includedDivIds = new Set(
+                    this.agegroups()
+                        .filter(ag => included.some(m => m.agegroupId === ag.agegroupId))
+                        .flatMap(ag => ag.divisions.map(d => d.divId))
+                );
+                const excluded = allDivIds.filter(id => !includedDivIds.has(id));
+                return {
+                    agegroupOrder: included.map(ag => ag.agegroupId),
+                    divisionOrderStrategy: config.divisionOrderStrategy,
+                    excludedDivisionIds: excluded,
+                    divisionStrategies: strategies,
+                    saveProfiles: true,
+                };
+            }
+        }
+    }
+
+    private loadAutoScheduleConfig(): AutoScheduleConfig {
+        try {
+            const raw = localStorage.getItem(LocalStorageKey.AutoScheduleConfig);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return {
+                    divisionOrderStrategy: parsed.divisionOrderStrategy === 'odd-first' ? 'odd-first' : 'alpha',
+                };
+            }
+        } catch { /* ignore parse errors */ }
+        return { divisionOrderStrategy: 'alpha' };
+    }
+
+    private saveAutoScheduleConfig(config: AutoScheduleConfig): void {
+        localStorage.setItem(LocalStorageKey.AutoScheduleConfig, JSON.stringify(config));
+    }
+
+    // ── Refresh after bulk operations ──
+
+    private refreshAfterBulkOperation(): void {
+        this.refreshGameSummary();
+        const s = this.scope();
+        if (s.level === 'division') {
+            this.loadDivisionData(s.divId, s.agegroupId);
+        } else if (s.level === 'agegroup') {
+            const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+            if (ag?.divisions.length) {
+                this.loadScheduleGrid(ag.divisions[0].divId, s.agegroupId);
+            }
+        } else {
+            this.gridResponse.set(null);
+        }
+    }
+
+    // ── Legacy auto-schedule (V1, division-only) ──
 
     confirmAutoSchedule(): void {
         this.showAutoScheduleConfirm.set(true);
@@ -510,11 +831,11 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (result) => {
                 this.autoScheduleResult.set(result);
                 this.isAutoScheduling.set(false);
-                // Reload grid and pairings to reflect new schedule
                 const agId = this.selectedAgegroupId();
                 if (agId) {
                     this.loadDivisionData(div.divId, agId);
                 }
+                this.refreshGameSummary();
             },
             error: () => this.isAutoScheduling.set(false)
         });
@@ -524,7 +845,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.autoScheduleResult.set(null);
     }
 
-    // ── Move/Swap (click game → click destination) ──
+    // ── Move/Swap ──
 
     readonly selectedGame = signal<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number } | null>(null);
 
@@ -544,11 +865,9 @@ export class ScheduleDivisionComponent implements OnInit {
         const targetColumn = this.gridColumns()[targetColIndex];
         if (!targetColumn) return;
 
-        // Pre-check: would moving this game create a time clash?
         const teamIds = [source.game.t1Id, source.game.t2Id].filter((id): id is string => !!id);
         const targetCell = targetRow.cells[targetColIndex];
         if (!targetCell) {
-            // Move to empty cell — check for clash in target row (exclude self)
             const clash = this.findTimeClashInRow(targetRow, teamIds, source.game.gid);
             if (clash) {
                 this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
@@ -563,7 +882,6 @@ export class ScheduleDivisionComponent implements OnInit {
         }).subscribe({
             next: () => {
                 this.selectedGame.set(null);
-                // Reload grid to reflect swap
                 const div = this.selectedDivision();
                 const agId = this.selectedAgegroupId();
                 if (div && agId) this.loadScheduleGrid(div.divId, agId);
@@ -571,16 +889,14 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    // ── Grid cell click handler (dispatches based on state) ──
+    // ── Grid cell click handler ──
 
     onGridCellClick(event: { row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }): void {
         if (this.selectedPairing()) {
-            // Placement mode: clicking an empty slot places the game
             if (!event.game) {
                 this.placeGame(event.row, event.colIndex);
             }
         } else if (this.selectedGame()) {
-            // Move mode: clicking any cell (empty or occupied) moves/swaps
             if (!event.game || event.game.gid !== this.selectedGame()!.game.gid) {
                 this.moveOrSwapGame(event.row, event.colIndex);
             }
@@ -589,7 +905,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Time-clash prevention helpers ──
 
-    /** Resolve a pairing's team ranks to actual team IDs (T-type only; bracket teams are TBD). */
     private resolvePairingTeamIds(pairing: PairingDto): string[] {
         const ids: string[] = [];
         const teams = this.divisionTeams();
@@ -604,7 +919,6 @@ export class ScheduleDivisionComponent implements OnInit {
         return ids;
     }
 
-    /** Check if any team in `teamIds` already has a game in this row. Returns team name if clash found, null otherwise. */
     private findTimeClashInRow(row: ScheduleGridRow, teamIds: string[], excludeGid?: number): string | null {
         for (const cell of row.cells) {
             if (!cell) continue;
@@ -621,15 +935,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Bracket enforcement ──
 
-    /**
-     * Checks whether placing a bracket pairing from the current division is allowed.
-     * When bChampionsByDivision is false/null (traditional single-bracket):
-     *   ALL championship games for the agegroup must come from the SAME pool.
-     *   If any bracket game already exists from a different division → block.
-     * When bChampionsByDivision is true (per-division brackets):
-     *   Each division independently owns its own bracket — no cross-division restriction.
-     * Returns an error message string if blocked, null if allowed.
-     */
     private checkBracketPlacement(pairing: PairingDto): string | null {
         const isBracket = pairing.t1Type !== 'T' || pairing.t2Type !== 'T';
         if (!isBracket) return null;
@@ -638,15 +943,13 @@ export class ScheduleDivisionComponent implements OnInit {
         const ag = this.agegroups().find(a => a.agegroupId === agId);
         if (!ag) return null;
 
-        // Per-division brackets: each division manages its own bracket independently
         if (ag.bChampionsByDivision) return null;
 
-        // Traditional single-bracket: all championship games must come from one pool
         const currentDivId = this.selectedDivision()?.divId;
         for (const row of this.gridRows()) {
             for (const cell of row.cells) {
                 if (!cell) continue;
-                if (cell.t1Type === 'T' && cell.t2Type === 'T') continue; // pool-play game
+                if (cell.t1Type === 'T' && cell.t2Type === 'T') continue;
                 if (cell.divId !== currentDivId) {
                     const ownerDiv = ag.divisions.find(d => d.divId === cell.divId);
                     return `Championship games for this agegroup are already being scheduled from ${ownerDiv?.divName ?? 'another pool'}. All bracket games must come from the same pool.`;
@@ -704,7 +1007,6 @@ export class ScheduleDivisionComponent implements OnInit {
         this.rapidSelectedField.set(field);
         this.rapidFieldFilter.set(field.fName);
         this.rapidFieldOpen.set(false);
-        // Auto-default time to first open slot for this field
         setTimeout(() => {
             const slots = this.rapidOpenSlots();
             if (slots.length > 0) {
@@ -789,14 +1091,12 @@ export class ScheduleDivisionComponent implements OnInit {
         const agId = this.selectedAgegroupId();
         if (!pairing || !field || !time || !div || !agId) return;
 
-        // Bracket enforcement check
         const bracketBlock = this.checkBracketPlacement(pairing);
         if (bracketBlock) {
             this.toast.show(bracketBlock, 'danger', 5000);
             return;
         }
 
-        // Time-clash check
         const row = this.gridRows().find(r => r.gDate === time.gDate);
         if (row) {
             const teamIds = this.resolvePairingTeamIds(pairing);
@@ -816,7 +1116,6 @@ export class ScheduleDivisionComponent implements OnInit {
             divId: div.divId
         }).subscribe({
             next: (game) => {
-                // Update grid cell in place
                 const colIdx = this.gridColumns().findIndex(c => c.fieldId === field.fieldId);
                 this.gridResponse.update(grid => {
                     if (!grid) return grid;
@@ -830,38 +1129,34 @@ export class ScheduleDivisionComponent implements OnInit {
                     });
                     return { ...grid, rows: updatedRows };
                 });
-                // Mark pairing as scheduled
                 this.pairings.update(list =>
                     list.map(p => p.ai === pairing.ai ? { ...p, bAvailable: false } : p)
                 );
                 this.isPlacing.set(false);
 
-                // Auto-advance to next unscheduled pairing
                 const nextPairing = this.pairings().find(p => p.bAvailable);
                 if (nextPairing) {
                     this.rapidPairing.set(nextPairing);
                     this.resetRapidSelections();
-                    // Smart default: keep same field, advance time
                     this.selectRapidField(field);
-                    // Re-focus field input for next round
                     setTimeout(() => this.rapidFieldInputEl?.nativeElement.focus(), 100);
                 } else {
                     this.toast.show('All pairings scheduled!', 'success', 3000);
                     this.closeRapidModal();
                 }
+
+                this.refreshGameSummary();
             },
             error: () => this.isPlacing.set(false)
         });
     }
 
-    /** Flash all-division marching ants for 2 seconds, then auto-clear. */
     private flashAllDiv(): void {
         if (this.highlightAllDivTimer) clearTimeout(this.highlightAllDivTimer);
         this.highlightAllDiv.set(true);
         this.highlightAllDivTimer = setTimeout(() => this.highlightAllDiv.set(false), 2000);
     }
 
-    /** Find the gid of the first game for a division directly from grid data (no child signal dependency). */
     private findFirstGameGidInGrid(grid: ScheduleGridResponse, divId: string): number | null {
         for (const row of grid.rows) {
             for (const cell of row.cells) {
@@ -871,8 +1166,10 @@ export class ScheduleDivisionComponent implements OnInit {
         return null;
     }
 
-    // ── Helpers (delegated to shared utils) ──
+    // ── Helpers ──
 
     readonly formatTime = formatTime;
     readonly teamDes = teamDes;
+    readonly contrastText = contrastText;
+    readonly agTeamCount = agTeamCount;
 }

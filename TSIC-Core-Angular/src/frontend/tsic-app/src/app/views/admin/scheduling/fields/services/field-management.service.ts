@@ -8,7 +8,8 @@ import type {
     CreateFieldRequest,
     UpdateFieldRequest,
     AssignFieldsRequest,
-    RemoveFieldsRequest
+    RemoveFieldsRequest,
+    UpdateFieldPreferenceRequest
 } from '@core/api';
 
 // Re-export for consumers
@@ -19,7 +20,8 @@ export type {
     UpdateFieldRequest,
     AssignFieldsRequest,
     RemoveFieldsRequest,
-    LeagueSeasonFieldDto
+    LeagueSeasonFieldDto,
+    UpdateFieldPreferenceRequest
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -49,5 +51,9 @@ export class FieldManagementService {
 
     removeFields(request: RemoveFieldsRequest): Observable<void> {
         return this.http.post<void>(`${this.apiUrl}/remove`, request);
+    }
+
+    updateFieldPreference(flsId: string, fieldPreference: number): Observable<void> {
+        return this.http.put<void>(`${this.apiUrl}/${flsId}/preference`, { fieldPreference } as UpdateFieldPreferenceRequest);
     }
 }

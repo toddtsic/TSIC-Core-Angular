@@ -162,6 +162,18 @@ public class ScheduleDivisionController : ControllerBase
         return Ok();
     }
 
+    /// <summary>POST /api/schedule-division/delete-agegroup-games — Delete all games for an agegroup.</summary>
+    [HttpPost("delete-agegroup-games")]
+    public async Task<ActionResult> DeleteAgegroupGames(
+        [FromBody] DeleteAgegroupGamesRequest request, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        await _service.DeleteAgegroupGamesAsync(jobId!.Value, request, ct);
+        return Ok();
+    }
+
     /// <summary>GET /api/schedule-division/field-directions/{fieldId} — Public field address/directions.</summary>
     [HttpGet("field-directions/{fieldId:guid}")]
     [AllowAnonymous]

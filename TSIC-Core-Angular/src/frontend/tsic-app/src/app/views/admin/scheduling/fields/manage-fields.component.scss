@@ -170,6 +170,42 @@ thead .frozen {
     }
 }
 
+// ── Preference column ──
+
+.col-pref {
+    width: 48px;
+    min-width: 48px;
+    text-align: center;
+}
+
+.pref-toggle {
+    padding: 0 var(--space-1);
+    line-height: 1.4;
+    font-size: var(--font-size-sm);
+    border: none;
+    background: transparent;
+    transition: color 0.15s ease;
+
+    &.pref-normal {
+        color: var(--bs-secondary-color);
+        opacity: 0.4;
+    }
+
+    &.pref-preferred {
+        color: var(--bs-warning);
+        opacity: 1;
+    }
+
+    &.pref-avoid {
+        color: var(--bs-danger);
+        opacity: 1;
+    }
+
+    &:hover {
+        opacity: 1;
+    }
+}
+
 // ── Sortable column headers ──
 
 .sortable {

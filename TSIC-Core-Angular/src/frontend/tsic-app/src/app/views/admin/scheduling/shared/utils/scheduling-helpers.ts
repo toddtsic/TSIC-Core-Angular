@@ -70,3 +70,9 @@ export function agTeamCount(ag: Pick<AgegroupWithDivisionsDto, 'divisions'>): nu
 export function formatGameDay(iso: string): string {
     return formatDate(iso);
 }
+
+/** Three-tier selection scope for the schedule-division page. */
+export type ScheduleScope =
+    | { level: 'event' }
+    | { level: 'agegroup'; agegroupId: string }
+    | { level: 'division'; agegroupId: string; divId: string };

@@ -28,6 +28,45 @@
     }
 }
 
+// ── Root node (event-level) ──
+
+.nav-event-root {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    margin: var(--space-1) var(--space-1) 0;
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border-bottom: 1px solid var(--bs-border-color);
+
+    .bi {
+        font-size: var(--font-size-base);
+        color: var(--bs-secondary-color);
+    }
+
+    .nav-event-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &:hover {
+        background: var(--bs-tertiary-bg);
+    }
+
+    &.active {
+        background: var(--bs-primary);
+        color: var(--bs-white);
+
+        .bi {
+            color: var(--bs-white);
+        }
+    }
+}
+
 // ── Navigator tree ──
 
 .nav-tree {
@@ -46,6 +85,12 @@
 
     &:hover {
         background: var(--bs-tertiary-bg);
+    }
+
+    &.active {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        border-left: 3px solid var(--bs-primary);
+        padding-left: calc(var(--space-2) - 3px);
     }
 
     .bi {

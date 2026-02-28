@@ -191,5 +191,19 @@ public class AutoBuildController : ControllerBase
         var result = await _service.BuildV2Async(jobId!.Value, userId!, request, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// GET /api/auto-build/strategy-profiles — Load strategy profiles (saved, inferred, or defaults).
+    /// </summary>
+    [HttpGet("strategy-profiles")]
+    public async Task<ActionResult<DivisionStrategyProfileResponse>> GetStrategyProfiles(
+        [FromQuery] Guid? sourceJobId, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.LoadStrategyProfilesAsync(jobId!.Value, sourceJobId, ct);
+        return Ok(result);
+    }
 }
 

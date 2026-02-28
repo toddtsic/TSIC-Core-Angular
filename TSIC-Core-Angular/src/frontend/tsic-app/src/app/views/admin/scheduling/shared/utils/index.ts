@@ -9,6 +9,8 @@ export {
     formatGameDay
 } from './scheduling-helpers';
 
+export type { ScheduleScope } from './scheduling-helpers';
+
 export {
     computeTimeClashGameIds,
     computeBackToBackGameIds,

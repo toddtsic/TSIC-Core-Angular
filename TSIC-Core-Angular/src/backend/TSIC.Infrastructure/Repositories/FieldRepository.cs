@@ -66,7 +66,8 @@ public class FieldRepository : IFieldRepository
                 FName = fls.Field.FName ?? "",
                 City = fls.Field.City,
                 State = fls.Field.State,
-                BActive = fls.BActive
+                BActive = fls.BActive,
+                FieldPreference = fls.FieldPreference
             })
             .ToListAsync(ct);
     }
@@ -147,6 +148,36 @@ public class FieldRepository : IFieldRepository
 
         _context.FieldsLeagueSeason.RemoveRange(records);
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<Dictionary<Guid, int>> GetFieldPreferencesAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken ct = default)
+    {
+        return await _context.FieldsLeagueSeason
+            .AsNoTracking()
+            .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
+            .ToDictionaryAsync(
+                fls => fls.FieldId,
+                fls => (int)fls.FieldPreference,
+                ct);
+    }
+
+    public async Task UpdateFieldPreferenceAsync(
+        Guid flsId,
+        byte fieldPreference,
+        CancellationToken ct = default)
+    {
+        var fls = await _context.FieldsLeagueSeason
+            .FirstOrDefaultAsync(f => f.FlsId == flsId, ct);
+
+        if (fls != null)
+        {
+            fls.FieldPreference = fieldPreference;
+            fls.Modified = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
+        }
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)

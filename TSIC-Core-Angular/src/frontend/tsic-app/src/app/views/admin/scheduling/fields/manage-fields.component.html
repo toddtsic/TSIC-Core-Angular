@@ -147,6 +147,9 @@
                     <th class="col-name frozen frozen-2 sortable" (click)="onSortAssigned('fName')">
                       Field Name <i class="bi" [ngClass]="sortIconAssigned('fName')"></i>
                     </th>
+                    <th class="col-pref sortable" (click)="onSortAssigned('fieldPreference')">
+                      Pref <i class="bi" [ngClass]="sortIconAssigned('fieldPreference')"></i>
+                    </th>
                     <th class="sortable" (click)="onSortAssigned('city')">
                       City <i class="bi" [ngClass]="sortIconAssigned('city')"></i>
                     </th>
@@ -178,6 +181,14 @@
                         </button>
                       </td>
                       <td class="col-name frozen frozen-2 text-nowrap">{{ field.fName }}</td>
+                      <td class="col-pref" (click)="$event.stopPropagation()">
+                        <button class="btn btn-sm pref-toggle"
+                                [ngClass]="preferenceClass(field.fieldPreference)"
+                                (click)="cyclePreference(field)"
+                                [title]="preferenceLabel(field.fieldPreference)">
+                          <i class="bi" [ngClass]="preferenceIcon(field.fieldPreference)"></i>
+                        </button>
+                      </td>
                       <td class="text-nowrap">{{ field.city }}</td>
                       <td class="text-nowrap">{{ field.state }}</td>
                     </tr>

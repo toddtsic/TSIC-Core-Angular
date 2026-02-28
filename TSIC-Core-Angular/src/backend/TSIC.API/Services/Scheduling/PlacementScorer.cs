@@ -29,6 +29,7 @@ public static class PlacementScorer
     private const int PenaltyTargetTimePerTick = 100;
     private const int PenaltyLayoutMismatch = 200;
     private const int PenaltyFieldImbalance = 50;
+    private const int PenaltyAvoidField = 300;
 
     /// <summary>
     /// Find the best slot for a game. Two-tier selection:
@@ -104,6 +105,14 @@ public static class PlacementScorer
             {
                 penalty += fieldPenalty;
                 breakdown["field-balance"] = fieldPenalty;
+            }
+
+            // ── P6: Field Preference (Avoid flag) ──
+            var prefPenalty = ScoreFieldPreference(candidate, state);
+            if (prefPenalty > 0)
+            {
+                penalty += prefPenalty;
+                breakdown["field-avoid"] = prefPenalty;
             }
 
             // ── Candidate ranking ──
@@ -282,6 +291,23 @@ public static class PlacementScorer
         // Horizontal: all games in round should be at the same time
         if (candidate.GDate.TimeOfDay != roundTime)
             return PenaltyLayoutMismatch;
+
+        return 0;
+    }
+
+    /// <summary>
+    /// P6: Field preference — penalize "Avoid" fields to push games toward Normal/Preferred fields.
+    /// Preferred fields get no bonus — they're simply "not penalized" while Avoid fields are
+    /// heavily penalized, naturally pushing teams toward Preferred/Normal fields.
+    /// Applied per team (both teams get the penalty).
+    /// </summary>
+    private static int ScoreFieldPreference(CandidateSlot candidate, PlacementState state)
+    {
+        if (state.FieldPreferences.Count == 0)
+            return 0;
+
+        if (state.FieldPreferences.TryGetValue(candidate.FieldId, out var pref) && pref == 2)
+            return PenaltyAvoidField;
 
         return 0;
     }

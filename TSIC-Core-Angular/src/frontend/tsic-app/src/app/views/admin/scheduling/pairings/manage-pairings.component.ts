@@ -10,6 +10,7 @@ import {
     type DivisionTeamDto
 } from './services/pairings.service';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
+import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 
 /** Team-type code legend for tooltips. */
 const TYPE_LABELS: Record<string, string> = {
@@ -45,6 +46,13 @@ export class ManagePairingsComponent implements OnInit {
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
     readonly selectedDivision = signal<DivisionSummaryDto | null>(null);
+    readonly selectedAgegroupId = signal<string | null>(null);
+    readonly navScope = computed<ScheduleScope>(() => {
+        const div = this.selectedDivision();
+        const agId = this.selectedAgegroupId();
+        if (div && agId) return { level: 'division', agegroupId: agId, divId: div.divId };
+        return { level: 'event' };
+    });
 
     // ── Tab state ──
     readonly activeTab = signal<TabId>('pairings');
@@ -137,6 +145,7 @@ export class ManagePairingsComponent implements OnInit {
 
     onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
         this.selectedDivision.set(event.division);
+        this.selectedAgegroupId.set(event.agegroupId);
         this.editingAi.set(null);
         this.editingTeamId.set(null);
         this.activeTab.set('pairings');

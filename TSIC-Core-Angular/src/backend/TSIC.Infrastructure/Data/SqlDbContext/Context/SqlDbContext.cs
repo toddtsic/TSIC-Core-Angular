@@ -116,6 +116,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<Devices> Devices { get; set; }
 
+    public virtual DbSet<DivisionScheduleProfile> DivisionScheduleProfile { get; set; }
+
     public virtual DbSet<Divisions> Divisions { get; set; }
 
     public virtual DbSet<EmailFailures> EmailFailures { get; set; }
@@ -1279,7 +1281,7 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<AppLog>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__AppLog__3214EC073B88973B");
+            entity.HasKey(e => e.Id).HasName("PK__AppLog__3214EC0792C0561D");
 
             entity.ToTable("AppLog", "logs");
 
@@ -2047,6 +2049,21 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Type)
                 .HasMaxLength(100)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<DivisionScheduleProfile>(entity =>
+        {
+            entity.HasKey(e => e.ProfileId).HasName("PK_scheduling_DivisionScheduleProfile");
+
+            entity.ToTable("DivisionScheduleProfile", "scheduling");
+
+            entity.HasIndex(e => new { e.JobId, e.DivisionName }, "UQ_DivScheduleProfile_Job_DivName").IsUnique();
+
+            entity.Property(e => e.ProfileId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.CreatedUtc).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.DivisionName).HasMaxLength(100);
+            entity.Property(e => e.GapPattern).HasDefaultValue((byte)1);
+            entity.Property(e => e.ModifiedUtc).HasDefaultValueSql("(sysutcdatetime())");
         });
 
         modelBuilder.Entity<Divisions>(entity =>
@@ -4457,7 +4474,7 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.PrimaryContactRegistration).WithMany(p => p.Jobs)
                 .HasForeignKey(d => d.PrimaryContactRegistrationId)
-                .HasConstraintName("FK__Jobs__PrimaryCon__0EB07FE6");
+                .HasConstraintName("FK__Jobs__PrimaryCon__39CFE815");
 
             entity.HasOne(d => d.Sport).WithMany(p => p.Jobs)
                 .HasForeignKey(d => d.SportId)
@@ -6074,7 +6091,7 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<StoreItemImage>(entity =>
         {
-            entity.HasKey(e => e.StoreItemImageId).HasName("PK__StoreIte__316AE544CB8CCEFF");
+            entity.HasKey(e => e.StoreItemImageId).HasName("PK__StoreIte__316AE5449D7D1EEE");
 
             entity.ToTable("StoreItemImage", "stores");
 

@@ -112,4 +112,20 @@ public class FieldController : ControllerBase
         await _fieldService.RemoveFieldsAsync(jobId!.Value, request, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// PUT /api/field/{flsId}/preference — Update field quality preference (Normal/Preferred/Avoid).
+    /// </summary>
+    [HttpPut("{flsId:guid}/preference")]
+    public async Task<ActionResult> UpdateFieldPreference(
+        Guid flsId,
+        [FromBody] UpdateFieldPreferenceRequest request,
+        CancellationToken ct)
+    {
+        var (_, _, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        await _fieldService.UpdateFieldPreferenceAsync(flsId, request.FieldPreference, ct);
+        return NoContent();
+    }
 }

@@ -105,6 +105,7 @@ builder.Services.AddScoped<IAdministratorRepository, AdministratorRepository>();
 builder.Services.AddScoped<IReportingRepository, ReportingRepository>();
 builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<IDivisionRepository, DivisionRepository>();
+builder.Services.AddScoped<IDivisionProfileRepository, DivisionProfileRepository>();
 builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
 builder.Services.AddScoped<IAutoBuildRepository, AutoBuildRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();

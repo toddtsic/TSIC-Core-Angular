@@ -23,6 +23,8 @@ import type {
     UnplacedGameDto,
     ConstraintSacrificeDto,
     PreFlightDisconnect,
+    DivisionStrategyEntry,
+    DivisionStrategyProfileResponse,
 } from '@core/api';
 
 // ── Step enum (sequential flow) ──────────────────────────
@@ -43,6 +45,18 @@ interface AgegroupOrderItem {
     divisionCount: number;
     included: boolean;
 }
+
+// ── Constraint display labels ─────────────────────────────
+const CONSTRAINT_LABELS: Record<string, string> = {
+    'placement-shape': 'Game day pattern',
+    'field-distribution': 'Field variety',
+    'team-span': 'Time between games',
+    'wrong-day': 'Day assignment',
+    'team-gap': 'Rest between games',
+    'target-time': 'Preferred time slot',
+    'round-layout': 'Game day pattern',
+    'field-balance': 'Field variety',
+};
 
 // ── Agent message model ───────────────────────────────────
 type AgentMessageType = 'thinking' | 'info' | 'success' | 'warning' | 'question' | 'error' | 'result' | 'pitch';
@@ -312,6 +326,19 @@ export class AutoBuildComponent implements AfterViewChecked {
     buildResult = signal<AutoBuildV2Result | null>(null);
     sourceJobId = signal<string | null>(null);
 
+    // Strategy profiles
+    strategyProfiles = signal<DivisionStrategyEntry[]>([]);
+    strategySource = signal<string>('defaults');
+    strategySourceJobName = signal<string>('');
+
+    // Build timing (client-side)
+    buildStartTime = signal<number>(0);
+    buildElapsedMs = signal<number>(0);
+
+    // QA result (inline on results page)
+    qaResult = signal<AutoBuildQaResult | null>(null);
+    qaLoading = signal(false);
+
     // Computed: excluded division IDs (from agegroupOrder items with included=false)
     excludedDivisionIds = computed(() => {
         const excluded: string[] = [];
@@ -336,6 +363,55 @@ export class AutoBuildComponent implements AfterViewChecked {
 
     unplacedGames = computed(() => this.buildResult()?.unplacedGames ?? []);
     sacrificeLog = computed(() => this.buildResult()?.sacrificeLog ?? []);
+
+    // Result verdict based on build outcome + QA
+    resultStatus = computed<'success' | 'warning' | 'error'>(() => {
+        const r = this.buildResult();
+        if (!r) return 'success';
+        const qa = this.qaResult();
+        const criticalCount = qa
+            ? (qa.fieldDoubleBookings?.length ?? 0)
+            + (qa.teamDoubleBookings?.length ?? 0)
+            + (qa.rankMismatches?.length ?? 0)
+            : 0;
+        if (criticalCount > 0) return 'error';
+        if (r.gamesFailedToPlace > 0) return 'warning';
+        return 'success';
+    });
+
+    // Games-per-team range from QA
+    gamesPerTeamRange = computed(() => {
+        const qa = this.qaResult();
+        if (!qa?.gamesPerTeam?.length) return null;
+        const counts = qa.gamesPerTeam.map(t => t.gameCount);
+        return { min: Math.min(...counts), max: Math.max(...counts) };
+    });
+
+    // Avg daily time per team (minutes) from QA GameSpreads
+    avgDailyTimePerTeam = computed(() => {
+        const qa = this.qaResult();
+        if (!qa?.gameSpreads?.length) return null;
+        const total = qa.gameSpreads.reduce((sum, s) => sum + s.spreadMinutes, 0);
+        return Math.round(total / qa.gameSpreads.length);
+    });
+
+    // QA issue counts
+    qaCriticalCount = computed(() => {
+        const qa = this.qaResult();
+        if (!qa) return 0;
+        return (qa.fieldDoubleBookings?.length ?? 0)
+            + (qa.teamDoubleBookings?.length ?? 0)
+            + (qa.rankMismatches?.length ?? 0);
+    });
+
+    qaWarningCount = computed(() => {
+        const qa = this.qaResult();
+        if (!qa) return 0;
+        return (qa.unscheduledTeams?.length ?? 0)
+            + (qa.backToBackGames?.length ?? 0)
+            + (qa.repeatedMatchups?.length ?? 0)
+            + (qa.inactiveTeamsInGames?.length ?? 0);
+    });
 
     // ── Automated preparation: prerequisites → source → profiles → order ──
 
@@ -383,44 +459,34 @@ export class AutoBuildComponent implements AfterViewChecked {
     }
 
     private loadSourceAndProfiles(): void {
-        this.addMessage('thinking', 'Analyzing prior-year patterns...');
+        this.addMessage('thinking', 'Loading scheduling preferences...');
 
+        // First check for source jobs (still needed for inference path)
         this.svc.getSourceJobs().subscribe({
             next: (jobs) => {
-                this.removeThinking();
                 this.sourceJobs.set(jobs);
-
-                if (jobs.length === 0) {
-                    // No prior year — clean sheet
+                const source = jobs.length > 0 ? jobs[0] : null;
+                if (source) {
+                    this.selectedSourceJob.set(source);
+                    this.sourceJobId.set(source.jobId);
+                } else {
                     this.sourceJobId.set(null);
-                    this.profiles.set([]);
-                    this.profileSourceName.set('Clean Sheet');
-                    this.profileSourceYear.set('');
-                    this.isCleanSheet.set(true);
-                    this.preparationStatus.set('ready');
-                    this.transitionToOrder();
-                    return;
                 }
 
-                // Auto-select the most recent source
-                const source = jobs[0];
-                this.selectedSourceJob.set(source);
-                this.sourceJobId.set(source.jobId);
-
-                this.svc.extractProfiles(source.jobId).subscribe({
+                // Load strategy profiles (three-layer: saved → inferred → defaults)
+                this.svc.getStrategyProfiles(source?.jobId).subscribe({
                     next: (response) => {
                         this.removeThinking();
-                        this.profiles.set(response.profiles);
-                        this.profileSourceName.set(response.sourceJobName);
-                        this.profileSourceYear.set(response.sourceYear);
-                        this.disconnects.set((response.disconnects as PreFlightDisconnect[]) ?? []);
-                        this.isCleanSheet.set(false);
+                        this.strategyProfiles.set(response.strategies.map(s => ({ ...s })));
+                        this.strategySource.set(response.source);
+                        this.strategySourceJobName.set(response.inferredFromJobName ?? '');
+                        this.isCleanSheet.set(response.source === 'defaults' && jobs.length === 0);
                         this.preparationStatus.set('ready');
                         this.transitionToOrder();
                     },
                     error: (err) => {
                         this.removeThinking();
-                        this.preparationErrors.set([`Couldn't extract profiles: ${err.error?.message ?? 'Unknown error'}`]);
+                        this.preparationErrors.set([`Couldn't load strategy profiles: ${err.error?.message ?? 'Unknown error'}`]);
                         this.preparationStatus.set('failed');
                         this.preparationFailed.set(true);
                     }
@@ -486,6 +552,50 @@ export class AutoBuildComponent implements AfterViewChecked {
         );
     }
 
+    // ── Strategy Grid ──────────────────────────────────────────
+
+    togglePlacement(divisionName: string): void {
+        this.strategyProfiles.update(profiles =>
+            profiles.map(p =>
+                p.divisionName === divisionName
+                    ? { ...p, placement: p.placement === 0 ? 1 : 0 }
+                    : p
+            )
+        );
+    }
+
+    cycleGapPattern(divisionName: string): void {
+        this.strategyProfiles.update(profiles =>
+            profiles.map(p =>
+                p.divisionName === divisionName
+                    ? { ...p, gapPattern: (p.gapPattern + 1) % 3 }
+                    : p
+            )
+        );
+    }
+
+    placementLabel(placement: number): string {
+        return placement === 1 ? 'Vertical' : 'Horizontal';
+    }
+
+    gapPatternLabel(gapPattern: number): string {
+        switch (gapPattern) {
+            case 0: return 'Back-to-back';
+            case 1: return 'One on, one off';
+            case 2: return 'One on, two off';
+            default: return 'Unknown';
+        }
+    }
+
+    strategySourceLabel(): string {
+        switch (this.strategySource()) {
+            case 'saved': return 'Saved from last year';
+            case 'inferred': return `Based on ${this.strategySourceJobName() || 'prior year'}`;
+            case 'defaults': return 'Default settings';
+            default: return '';
+        }
+    }
+
     // ── Execute Build ────────────────────────────────────────
     executeBuild(): void {
         const request: AutoBuildV2Request = {
@@ -495,11 +605,15 @@ export class AutoBuildComponent implements AfterViewChecked {
                 .map(ag => ag.agegroupId),
             divisionOrderStrategy: this.divisionOrderStrategy(),
             excludedDivisionIds: this.excludedDivisionIds(),
-            constraintPriorities: ['placement-shape', 'field-distribution'],
+            divisionStrategies: this.strategyProfiles(),
+            saveProfiles: true,
         };
 
         this.step.set('building');
         this.messages.set([]);
+        this.qaResult.set(null);
+        this.qaLoading.set(false);
+        this.buildStartTime.set(Date.now());
         this.openOperationModal(
             'Building Your Schedule',
             'Reproducing last year\'s patterns and finding the best slot for every game',
@@ -509,137 +623,54 @@ export class AutoBuildComponent implements AfterViewChecked {
         this.svc.executeV2(request).subscribe({
             next: (result) => {
                 this.showOperationModal.set(false);
-                this.removeThinking();
+                this.buildElapsedMs.set(Date.now() - this.buildStartTime());
                 this.buildResult.set(result);
                 this.step.set('results');
-                this.presentResults(result);
+                this.runQaValidation();
             },
             error: (err) => {
                 this.showOperationModal.set(false);
-                this.removeThinking();
                 this.addMessage('error', `Build failed: ${err.error?.message ?? 'Unknown error'}`);
                 this.step.set('error');
             }
         });
     }
 
-    private presentResults(result: AutoBuildV2Result): void {
-        const hasFailures = result.gamesFailedToPlace > 0;
-
-        let hero = hasFailures
-            ? `<strong>Schedule built, but with some gaps.</strong><br><br>`
-            : `<strong>Schedule built successfully.</strong><br><br>`;
-
-        hero += `<span class="db db-game">${result.totalGamesPlaced}</span> games placed across `;
-        hero += `<span class="db db-div">${result.divisionsScheduled}</span> divisions`;
-        if (result.divisionsSkipped > 0) {
-            hero += ` (<span class="db db-div">${result.divisionsSkipped}</span> excluded)`;
-        }
-        hero += `.`;
-
-        if (result.gamesFailedToPlace > 0) {
-            hero += `<br><br><span class="db db-game">${result.gamesFailedToPlace}</span> games couldn't be placed — not enough open slots. See the details below.`;
-        }
-
-        this.addMessage(hasFailures ? 'warning' : 'success', hero);
-
-        // Soft evaluator deviations (discovery-based language)
-        if (result.sacrificeLog.length > 0) {
-            let sacMsg = `<strong>Where the schedule differs from last year's pattern:</strong><br>`;
-            for (const sac of result.sacrificeLog) {
-                const label = sac.constraintName === 'placement-shape'
-                    ? 'Round layout'
-                    : sac.constraintName === 'field-distribution'
-                    ? 'Field rotation'
-                    : sac.constraintName === 'team-span'
-                    ? 'Team span'
-                    : sac.constraintName;
-                sacMsg += `&bull; <strong>${label}</strong> &mdash; ${sac.violationCount} game${sac.violationCount > 1 ? 's' : ''} placed differently`;
-                if (sac.impactDescription) {
-                    sacMsg += ` (${sac.impactDescription})`;
-                }
-                sacMsg += `<br>`;
-            }
-            this.addMessage('info', sacMsg);
-        }
-
-        // Agegroup/Division breakdown (collapsed by default)
-        let divMsg = `<details><summary><strong>Agegroup/Division breakdown:</strong></summary><div style="margin-top:0.5em">`;
-        for (const dr of result.divisionResults) {
-            if (dr.status === 'excluded') {
-                divMsg += `&mdash; ${dr.agegroupName} / ${dr.divName}: <em>excluded</em><br>`;
-            } else if (dr.gamesFailed > 0) {
-                divMsg += `&bull; ${dr.agegroupName} / ${dr.divName}: <strong>${dr.gamesPlaced}</strong> placed, <strong class="text-warning">${dr.gamesFailed} failed</strong><br>`;
-            } else if (dr.gamesPlaced > 0) {
-                divMsg += `&bull; ${dr.agegroupName} / ${dr.divName}: <strong>${dr.gamesPlaced}</strong> placed<br>`;
-            } else {
-                divMsg += `&bull; ${dr.agegroupName} / ${dr.divName}: <em>no games</em><br>`;
-            }
-        }
-        divMsg += `</div></details>`;
-        this.addMessage('info', divMsg);
-
-        this.runQaValidation();
-    }
-
     // ── QA Validation ────────────────────────────────────
     private runQaValidation(): void {
-        this.addMessage('thinking', 'Running quality checks...');
+        this.qaLoading.set(true);
 
         this.qaSvc.validate().subscribe({
             next: (qa) => {
-                this.removeThinking();
-                this.presentQaResults(qa);
+                this.qaResult.set(qa);
+                this.qaLoading.set(false);
             },
             error: () => {
-                this.removeThinking();
-                this.addMessage('warning', 'QA validation could not be run. You can review the schedule manually.');
+                this.qaLoading.set(false);
             }
         });
     }
 
-    private presentQaResults(qa: AutoBuildQaResult): void {
-        const criticalCount = qa.fieldDoubleBookings.length
-            + qa.teamDoubleBookings.length
-            + qa.rankMismatches.length;
-        const warningCount = qa.unscheduledTeams.length
-            + qa.backToBackGames.length
-            + qa.repeatedMatchups.length
-            + qa.inactiveTeamsInGames.length;
+    constraintLabel(name: string): string {
+        return CONSTRAINT_LABELS[name] ?? name;
+    }
 
-        if (criticalCount === 0 && warningCount === 0) {
-            let verdict = `<strong>Quality check passed.</strong> No double bookings, no back-to-backs, every team scheduled.`;
+    cleanExample(example: string): string {
+        return example.replace(/\s*\(\+[\d.]+\)$/, '');
+    }
 
-            if (qa.gamesPerTeam.length > 0) {
-                const counts = qa.gamesPerTeam.map(t => t.gameCount);
-                const min = Math.min(...counts);
-                const max = Math.max(...counts);
-                verdict += min === max
-                    ? ` Games per team: <span class="db db-game">${min}</span> each (balanced).`
-                    : ` Games per team: <span class="db db-game">${min}&ndash;${max}</span>.`;
-            }
+    formatBuildTime(): string {
+        const ms = this.buildElapsedMs();
+        if (ms < 1000) return `${ms}ms`;
+        return `${(ms / 1000).toFixed(1)}s`;
+    }
 
-            this.addMessage('success', verdict);
-        } else {
-            const issues: string[] = [];
-            if (qa.fieldDoubleBookings.length > 0)
-                issues.push(`<strong>${qa.fieldDoubleBookings.length}</strong> field double-booking${qa.fieldDoubleBookings.length > 1 ? 's' : ''} — two games on the same field at the same time`);
-            if (qa.teamDoubleBookings.length > 0)
-                issues.push(`<strong>${qa.teamDoubleBookings.length}</strong> team double-booking${qa.teamDoubleBookings.length > 1 ? 's' : ''} — a team scheduled for two games at the same time`);
-            if (qa.rankMismatches.length > 0)
-                issues.push(`<strong>${qa.rankMismatches.length}</strong> rank mismatch${qa.rankMismatches.length > 1 ? 'es' : ''} — teams paired outside their competitive tier`);
-            if (qa.unscheduledTeams.length > 0)
-                issues.push(`<strong>${qa.unscheduledTeams.length}</strong> unscheduled team${qa.unscheduledTeams.length > 1 ? 's' : ''} — active teams with no games`);
-            if (qa.backToBackGames.length > 0)
-                issues.push(`<strong>${qa.backToBackGames.length}</strong> back-to-back game${qa.backToBackGames.length > 1 ? 's' : ''} — a team playing consecutive time slots with no break`);
-            if (qa.repeatedMatchups.length > 0)
-                issues.push(`<strong>${qa.repeatedMatchups.length}</strong> repeated matchup${qa.repeatedMatchups.length > 1 ? 's' : ''} — same two teams playing more than once`);
-
-            const verdict = criticalCount > 0
-                ? `<strong>Quality check found issues:</strong><br>&bull; ${issues.join('<br>&bull; ')}<br><br>See QA Results for full details.`
-                : `<strong>Quality check — worth a look:</strong><br>&bull; ${issues.join('<br>&bull; ')}<br><br>See QA Results for details.`;
-            this.addMessage(criticalCount > 0 ? 'error' : 'warning', verdict);
-        }
+    printUnplacedGames(): void {
+        document.body.classList.add('printing-unplaced');
+        setTimeout(() => {
+            window.print();
+            document.body.classList.remove('printing-unplaced');
+        });
     }
 
     // ── Undo ─────────────────────────────────────────────
@@ -684,10 +715,16 @@ export class AutoBuildComponent implements AfterViewChecked {
         this.selectedSourceJob.set(null);
         this.sourceJobs.set([]);
         this.buildResult.set(null);
+        this.qaResult.set(null);
+        this.qaLoading.set(false);
+        this.buildElapsedMs.set(0);
         this.preparationFailed.set(false);
         this.preparationStatus.set('pending');
         this.preparationErrors.set([]);
         this.isCleanSheet.set(false);
+        this.strategyProfiles.set([]);
+        this.strategySource.set('defaults');
+        this.strategySourceJobName.set('');
         this.loadGameSummary();
     }
 
