@@ -1177,6 +1177,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 {
                     // Look for previous round on same target day
                     TimeSpan? prevRoundTime = null;
+                    var prevRoundNum = 0;
                     if (targetDay.HasValue && ctx.EffectivePlayDays.Count > 0)
                     {
                         for (var prev = roundNum - 1; prev >= 1; prev--)
@@ -1186,6 +1187,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                                 && ctx.State.RoundTargetTimes.TryGetValue((ctx.Div.DivId, prev), out var pt))
                             {
                                 prevRoundTime = pt;
+                                prevRoundNum = prev;
                                 break;
                             }
                         }
@@ -1193,9 +1195,31 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                     if (prevRoundTime.HasValue && ctx.Profile.GsiMinutes > 0)
                     {
-                        // Subsequent round on same day: advance by inter-round interval
+                        // Subsequent round on same day: advance by enough ticks to avoid BTBs.
+                        //
+                        // For sequential layout, the previous round's games span ticks
+                        // [prevStart .. prevStart + gamesInPrevRound - 1]. The worst-case
+                        // BTB is: team plays the LAST game of prev round and the FIRST game
+                        // of this round. To guarantee MinTeamGapTicks gap:
+                        //   thisRoundStart >= prevStart + gamesInPrevRound - 1 + MinTeamGapTicks
+                        //   i.e., gap in ticks >= gamesInPrevRound + MinTeamGapTicks - 1
+                        //
+                        // For horizontal layout, all games are at the same tick, so the
+                        // minimum gap is just MinTeamGapTicks.
+                        var prevGameCount = ctx.RoundsByNum.TryGetValue(prevRoundNum, out var prevGames)
+                            ? prevGames.Count : 0;
+
+                        int minGapTicks;
+                        if (ctx.Profile.RoundLayout == RoundLayout.Sequential && prevGameCount > 1)
+                            minGapTicks = prevGameCount + ctx.Profile.MinTeamGapTicks - 1;
+                        else
+                            minGapTicks = ctx.Profile.MinTeamGapTicks;
+
+                        // Use the larger of source InterRoundGapTicks and the BTB-safe minimum
+                        var effectiveGapTicks = Math.Max(ctx.Profile.InterRoundGapTicks, minGapTicks);
+
                         roundStartTime = prevRoundTime.Value
-                            + TimeSpan.FromMinutes(ctx.Profile.InterRoundGapTicks * ctx.Profile.GsiMinutes);
+                            + TimeSpan.FromMinutes(effectiveGapTicks * ctx.Profile.GsiMinutes);
                     }
                     else if (targetDay.HasValue
                              && !tcntDayFirstPlaced.Contains((ctx.TeamCount, targetDay.Value)))

@@ -55,6 +55,13 @@ public static class PlacementScorer
             if (state.OccupiedSlots.Contains((candidate.FieldId, candidate.GDate)))
                 continue;
 
+            // ═══ Hard filter: BTB / min team gap ═══
+            // Round-by-round placement always has room further down the canvas,
+            // so there's no reason to accept a slot that creates a BTB.
+            if (profile.MinTeamGapTicks > 0 && profile.GsiMinutes > 0
+                && IsGapViolation(candidate, game, profile, state))
+                continue;
+
             var penalty = 0;
             var breakdown = new Dictionary<string, int>();
 
@@ -73,14 +80,6 @@ public static class PlacementScorer
             {
                 penalty += spanPenalty;
                 breakdown["team-span"] = spanPenalty;
-            }
-
-            // ── P2: Min Team Gap (distance from source observed gap) ──
-            var gapPenalty = ScoreMinTeamGap(candidate, game, profile, state);
-            if (gapPenalty > 0)
-            {
-                penalty += gapPenalty;
-                breakdown["team-gap"] = gapPenalty;
             }
 
             // ── P3: Target Time Distance ──
@@ -359,5 +358,22 @@ public static class PlacementScorer
 
         var minFieldCount = found ? minCount : 0;
         return fieldCount > minFieldCount;
+    }
+
+    /// <summary>
+    /// Hard filter: would placing this game here create a gap smaller than
+    /// MinTeamGapTicks for either team? If so, skip this slot — there's
+    /// always room further down the canvas with round-by-round placement.
+    /// </summary>
+    private static bool IsGapViolation(
+        CandidateSlot candidate, GameContext game, DivisionSizeProfile profile, PlacementState state)
+    {
+        var gameDay = candidate.GDate.Date;
+        var gameTime = candidate.GDate.TimeOfDay;
+
+        var gap1 = ComputeMinGapTicks(state, game.DivId, game.T1No, gameDay, gameTime, profile.GsiMinutes);
+        var gap2 = ComputeMinGapTicks(state, game.DivId, game.T2No, gameDay, gameTime, profile.GsiMinutes);
+
+        return gap1 < profile.MinTeamGapTicks || gap2 < profile.MinTeamGapTicks;
     }
 }
