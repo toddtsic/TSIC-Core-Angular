@@ -1,0 +1,194 @@
+<div class="container-fluid py-3">
+	<h4 class="mb-3">Customer Job Revenue</h4>
+
+	<!-- Filter bar -->
+	<div class="card shadow-sm mb-4">
+		<div class="card-body d-flex flex-wrap align-items-end gap-3">
+			<!-- Start date -->
+			<div>
+				<label class="form-label text-muted mb-1" style="font-size: var(--font-size-sm)">Start Date</label>
+				<select class="form-select form-select-sm" [(ngModel)]="selectedStartDate" style="width: auto;">
+					@for (opt of monthOptions; track opt.startDate) {
+						<option [value]="opt.startDate">{{ opt.label }}</option>
+					}
+				</select>
+			</div>
+
+			<!-- End date -->
+			<div>
+				<label class="form-label text-muted mb-1" style="font-size: var(--font-size-sm)">End Date</label>
+				<select class="form-select form-select-sm" [(ngModel)]="selectedEndDate" style="width: auto;">
+					@for (opt of monthOptions; track opt.endDate) {
+						<option [value]="opt.endDate">{{ opt.label }}</option>
+					}
+				</select>
+			</div>
+
+			<!-- Job filter (multi-select) -->
+			<div class="flex-grow-1" style="min-width: 250px; max-width: 500px;">
+				<label class="form-label text-muted mb-1" style="font-size: var(--font-size-sm)">Filter Jobs</label>
+				<ejs-multiselect
+					[dataSource]="availableJobs()"
+					[(value)]="selectedJobs"
+					placeholder="Select individual jobs"
+					[mode]="'CheckBox'"
+					[showDropDownIcon]="true"
+					[showClearButton]="true"
+					[enableSelectionOrder]="true">
+				</ejs-multiselect>
+			</div>
+
+			<!-- Submit -->
+			<button class="btn btn-sm btn-primary" (click)="onRefresh()" [disabled]="isLoading()">
+				@if (isLoading()) {
+					<span class="spinner-border spinner-border-sm me-1"></span>
+				}
+				Submit
+			</button>
+		</div>
+	</div>
+
+	<!-- Error -->
+	@if (errorMessage()) {
+		<div class="alert alert-danger mb-3">{{ errorMessage() }}</div>
+	}
+
+	<!-- Loading -->
+	@if (isLoading()) {
+		<div class="text-center py-5">
+			<span class="spinner-border text-primary"></span>
+			<div class="text-muted mt-2">Loading revenue data...</div>
+		</div>
+	}
+
+	<!-- Tabs + content -->
+	@if (revenueData() && !isLoading()) {
+		<ul class="nav nav-tabs mb-3">
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'rollup'" (click)="setTab('rollup')">
+					Revenue Rollup
+				</button>
+			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'counts'" (click)="setTab('counts')">
+					Player/Team Counts
+				</button>
+			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'adminFees'" (click)="setTab('adminFees')">
+					Admin Fee Records
+				</button>
+			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'ccRecords'" (click)="setTab('ccRecords')">
+					Credit Card Records
+				</button>
+			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'checkRecords'" (click)="setTab('checkRecords')">
+					Check Records
+				</button>
+			</li>
+		</ul>
+
+		<!-- Tab 1: Revenue Rollup (PivotView) -->
+		@if (activeTab() === 'rollup') {
+			<div class="mb-2">
+				<button class="btn btn-sm btn-outline-secondary me-2" (click)="expandAll()">Expand All</button>
+				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
+			</div>
+			<ejs-pivotview #pivotView
+				[dataSourceSettings]="pivotDataSource"
+				[height]="'600'"
+				[allowExcelExport]="true"
+				[allowPdfExport]="true"
+				[showToolbar]="true"
+				[toolbar]="['Export']"
+				[gridSettings]="{ columnWidth: 120 }">
+			</ejs-pivotview>
+		}
+
+		<!-- Tab 2: Player/Team Counts (editable grid) -->
+		@if (activeTab() === 'counts') {
+			<div class="text-center text-muted mb-2" style="font-size: var(--font-size-xs)">
+				P=Player&nbsp;&nbsp;&nbsp;&nbsp;T=Team&nbsp;&nbsp;|&nbsp;&nbsp;TD=To Date&nbsp;&nbsp;&nbsp;&nbsp;PM=Previous Month&nbsp;&nbsp;&nbsp;&nbsp;CM=Current Month
+			</div>
+			<ejs-grid #countsGrid
+				[dataSource]="monthlyCounts()"
+				[allowExcelExport]="true"
+				[toolbar]="countsToolbar()"
+				[editSettings]="countsEditSettings"
+				(toolbarClick)="onCountsToolbarClick($event)"
+				(actionComplete)="onCountsActionComplete($event)">
+				<e-columns>
+					<e-column field="aid" headerText="Id" [isPrimaryKey]="true" [visible]="false" [allowEditing]="false"></e-column>
+					<e-column field="jobName" headerText="Job" width="120" [allowEditing]="false"></e-column>
+					<e-column field="year" headerText="Year" width="60" [allowEditing]="false"></e-column>
+					<e-column field="month" headerText="Month" width="60" textAlign="Right" [allowEditing]="false"></e-column>
+					<e-column field="countActivePlayersToDate" headerText="P-TD" width="70" textAlign="Right"></e-column>
+					<e-column field="countActivePlayersToDateLastMonth" headerText="P-PM" width="70" textAlign="Right"></e-column>
+					<e-column field="countNewPlayersThisMonth" headerText="P-CM" width="70" textAlign="Right"></e-column>
+					<e-column field="countActiveTeamsToDate" headerText="T-TD" width="70" textAlign="Right"></e-column>
+					<e-column field="countActiveTeamsToDateLastMonth" headerText="T-PM" width="70" textAlign="Right"></e-column>
+					<e-column field="countNewTeamsThisMonth" headerText="T-CM" width="70" textAlign="Right"></e-column>
+				</e-columns>
+			</ejs-grid>
+		}
+
+		<!-- Tab 3: Admin Fees -->
+		@if (activeTab() === 'adminFees') {
+			<ejs-grid #adminFeesGrid
+				[dataSource]="adminFees()"
+				[allowExcelExport]="true"
+				[toolbar]="readOnlyToolbar"
+				(toolbarClick)="onAdminFeesToolbarClick($event)">
+				<e-columns>
+					<e-column field="jobName" headerText="Job" width="120"></e-column>
+					<e-column field="year" headerText="Year" width="60"></e-column>
+					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+					<e-column field="chargeType" headerText="Type" width="100"></e-column>
+					<e-column field="chargeAmount" headerText="Charge" width="100" format="C2" textAlign="Right"></e-column>
+					<e-column field="comment" headerText="Comment" width="200"></e-column>
+				</e-columns>
+			</ejs-grid>
+		}
+
+		<!-- Tab 4: Credit Card Records -->
+		@if (activeTab() === 'ccRecords') {
+			<ejs-grid #ccGrid
+				[dataSource]="creditCardRecords()"
+				[allowExcelExport]="true"
+				[toolbar]="readOnlyToolbar"
+				(toolbarClick)="onCcToolbarClick($event)">
+				<e-columns>
+					<e-column field="jobName" headerText="Job" width="120"></e-column>
+					<e-column field="year" headerText="Year" width="60"></e-column>
+					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+					<e-column field="registrant" headerText="Registrant" width="150"></e-column>
+					<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
+					<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
+					<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
+				</e-columns>
+			</ejs-grid>
+		}
+
+		<!-- Tab 5: Check Records -->
+		@if (activeTab() === 'checkRecords') {
+			<ejs-grid #checkGrid
+				[dataSource]="checkRecords()"
+				[allowExcelExport]="true"
+				[toolbar]="readOnlyToolbar"
+				(toolbarClick)="onCheckToolbarClick($event)">
+				<e-columns>
+					<e-column field="jobName" headerText="Job" width="120"></e-column>
+					<e-column field="year" headerText="Year" width="60"></e-column>
+					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+					<e-column field="registrant" headerText="Registrant" width="150"></e-column>
+					<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
+					<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
+					<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
+				</e-columns>
+			</ejs-grid>
+		}
+	}
+</div>

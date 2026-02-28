@@ -39,6 +39,7 @@ using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.Accounting;
 using TSIC.API.Services.Shared.Bulletins;
+using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Reporting;
@@ -84,6 +85,7 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<IAgeGroupRepository, AgeGroupRepository>();
+builder.Services.AddScoped<IAgeRangeRepository, AgeRangeRepository>();
 builder.Services.AddScoped<IFamilyRepository, FamilyRepository>();
 builder.Services.AddScoped<IJobDiscountCodeRepository, JobDiscountCodeRepository>();
 builder.Services.AddScoped<IClubRepRepository, ClubRepRepository>();
@@ -129,6 +131,9 @@ builder.Services.AddScoped<IStoreAnalyticsRepository, StoreAnalyticsRepository>(
 builder.Services.AddScoped<IStoreCartRepository, StoreCartRepository>();
 builder.Services.AddScoped<IStoreItemRepository, StoreItemRepository>();
 builder.Services.AddScoped<IStoreRepository, StoreRepository>();
+builder.Services.AddScoped<IChangePasswordRepository, ChangePasswordRepository>();
+builder.Services.AddScoped<ICustomerJobRevenueRepository, CustomerJobRevenueRepository>();
+builder.Services.AddScoped<IPushNotificationRepository, PushNotificationRepository>();
 
 // FileStorage configuration + Image service
 builder.Services.Configure<FileStorageOptions>(
@@ -171,6 +176,7 @@ builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
 builder.Services.AddScoped<IBulletinService, BulletinService>();
+builder.Services.AddScoped<IAgeRangeService, AgeRangeService>();
 builder.Services.AddScoped<IPlayerRegConfirmationService, PlayerRegConfirmationService>();
 // VerticalInsure named HttpClient registration (base address only; secrets via env vars VI_DEV_SECRET/VI_PROD_SECRET)
 builder.Services.AddHttpClient("verticalinsure", (sp, c) =>
@@ -237,6 +243,15 @@ builder.Services.AddScoped<IStoreCatalogService, StoreCatalogService>();
 builder.Services.AddScoped<IStoreCartService, StoreCartService>();
 builder.Services.AddScoped<IStoreWalkUpService, StoreWalkUpService>();
 builder.Services.AddScoped<IStoreReceiptService, StoreReceiptService>();
+// Change Password (SuperUser admin utility)
+builder.Services.AddScoped<IChangePasswordService, ChangePasswordService>();
+// Push Notifications (Admin — Firebase Cloud Messaging)
+builder.Services.AddSingleton<IFirebasePushService, FirebasePushService>();
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+// Uniform Number Upload (admin bulk update)
+builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
+// Customer Job Revenue (SuperUser financial dashboard)
+builder.Services.AddScoped<ICustomerJobRevenueService, CustomerJobRevenueService>();
 // Reporting
 builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("Reporting"));
 builder.Services.AddScoped<IReportingService, ReportingService>();

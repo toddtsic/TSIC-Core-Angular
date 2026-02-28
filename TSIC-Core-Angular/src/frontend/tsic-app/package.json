@@ -33,6 +33,7 @@
     "@syncfusion/ej2-angular-inputs": "32.1.24",
     "@syncfusion/ej2-angular-layouts": "32.1.24",
     "@syncfusion/ej2-angular-navigations": "32.1.24",
+    "@syncfusion/ej2-angular-pivotview": "^32.1.24",
     "@syncfusion/ej2-angular-richtexteditor": "32.1.24",
     "@syncfusion/ej2-base": "32.1.24",
     "@syncfusion/ej2-bootstrap5-theme": "32.1.24",

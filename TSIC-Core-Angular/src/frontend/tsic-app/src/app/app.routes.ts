@@ -195,6 +195,14 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
 					},
 					{
+						path: 'bulletin-editor',
+						loadComponent: () => import('./views/admin/bulletin-editor/bulletin-editor.component').then(m => m.BulletinEditorComponent)
+					},
+					{
+						path: 'configure-age-ranges',
+						loadComponent: () => import('./views/admin/configure-age-ranges/configure-age-ranges.component').then(m => m.ConfigureAgeRangesComponent)
+					},
+					{
 						path: 'store',
 						loadComponent: () => import('./views/admin/store-admin/store-admin.component').then(m => m.StoreAdminComponent)
 					},
@@ -212,6 +220,26 @@ export const routes: Routes = [
 						path: 'mobile-scorers',
 						loadComponent: () => import('./views/admin/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent),
 						data: { title: 'Mobile Scorers' }
+					},
+					{
+						path: 'change-password',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/admin/change-password/change-password.component').then(m => m.ChangePasswordComponent)
+					},
+					{
+						path: 'uniform-upload',
+						loadComponent: () => import('./views/admin/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
+					},
+					{
+						path: 'push-notification',
+						loadComponent: () => import('./views/admin/push-notification/push-notification.component').then(m => m.PushNotificationComponent)
+					},
+					{
+						path: 'customer-job-revenue',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/admin/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
 					}
 				]
 			},
@@ -261,8 +289,10 @@ export const routes: Routes = [
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
 			},
-			// Legacy redirect: menu/admin → admin/nav-editor
+			// Legacy redirects
 			{ path: 'menu/admin', redirectTo: 'admin/nav-editor', pathMatch: 'full' },
+			{ path: 'bulletin/admin', redirectTo: 'admin/bulletin-editor', pathMatch: 'full' },
+			{ path: 'jobagerange/admin', redirectTo: 'admin/configure-age-ranges', pathMatch: 'full' },
 			{
 				path: 'jobadministrator/admin',
 				canActivate: [authGuard],
