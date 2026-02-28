@@ -29,6 +29,24 @@ if (!(Test-Path "node_modules")) {
     }
 }
 
+# Stamp build version into environment files
+Write-Host "Stamping build version..." -ForegroundColor Cyan
+try {
+    $gitHash = (git rev-parse --short HEAD 2>$null)
+    if (-not $gitHash) { $gitHash = "unknown" }
+} catch { $gitHash = "unknown" }
+$buildStamp = "v$(Get-Date -Format 'yyMMdd.HHmm').$gitHash"
+Write-Host "  Build version: $buildStamp" -ForegroundColor White
+
+# Update all environment files with the build stamp
+$envDir = Join-Path $AngularPath "src\environments"
+Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
+    $content = Get-Content $_.FullName -Raw
+    $content = $content -replace "buildVersion:\s*'[^']*'", "buildVersion: '$buildStamp'"
+    Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
+    Write-Host "  Stamped: $($_.Name)" -ForegroundColor DarkGray
+}
+
 # Build Angular application
 Write-Host "Building Angular application for production..." -ForegroundColor Cyan
 npm run build -- --configuration production
@@ -63,6 +81,14 @@ Get-ChildItem -Path $OutputPath -Recurse | Remove-Item -Force -Recurse -ErrorAct
 
 # Copy files (ensure index.html lands at root of publish\angular for IIS default document)
 Copy-Item "$DistPath\*" $OutputPath -Recurse -Force
+
+# Reset environment files back to 'dev' so git stays clean
+Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
+    $content = Get-Content $_.FullName -Raw
+    $content = $content -replace "buildVersion:\s*'[^']*'", "buildVersion: 'dev'"
+    Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
+}
+Write-Host "  Environment files reset to 'dev'" -ForegroundColor DarkGray
 
 Write-Host "Angular build completed successfully!" -ForegroundColor Green
 Write-Host "Output location: $OutputPath" -ForegroundColor Green

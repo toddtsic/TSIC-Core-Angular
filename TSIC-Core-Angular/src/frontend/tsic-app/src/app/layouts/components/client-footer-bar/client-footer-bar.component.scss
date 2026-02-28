@@ -39,6 +39,12 @@
                 font-style: italic;
                 opacity: 0.8;
             }
+
+            .build-version {
+                font-size: var(--font-size-xs);
+                opacity: 0.5;
+                font-variant-numeric: tabular-nums;
+            }
         }
     }
 }

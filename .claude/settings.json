@@ -18,7 +18,8 @@
       "Read(//c/Users/Administrator/.claude/projects/c--Users-Administrator-source-TSIC-Core-Angular/memory/**)",
       "Bash(xxd /c/Users/Administrator/source/TSIC-Core-Angular/scripts/1-Build-And-Deploy-Local.ps1)",
       "Bash(git pull)",
-      "WebFetch(domain:www.usclublax.com)"
+      "WebFetch(domain:www.usclublax.com)",
+      "Read(//c/Websites/TSIC.App/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

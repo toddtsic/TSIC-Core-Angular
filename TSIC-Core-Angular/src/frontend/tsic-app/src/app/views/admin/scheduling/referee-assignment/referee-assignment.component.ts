@@ -357,6 +357,17 @@ export class RefereeAssignmentComponent implements OnInit {
 	// Import Modal
 	// ══════════════════════════════════════════════════════════════
 
+	downloadImportTemplate(): void {
+		const headers = 'FirstName,LastName,Email,Cellphone,CertificationNumber';
+		const blob = new Blob([headers + '\n'], { type: 'text/csv' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'referee-import-template.csv';
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
 	openImportModal(): void {
 		this.importFile.set(null);
 		this.importResult.set(null);

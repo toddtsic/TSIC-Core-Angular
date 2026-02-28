@@ -463,9 +463,14 @@
                         }
                     </div>
                 } @else {
-                    <p class="text-secondary mb-3">
-                        Upload a CSV file with referee data. Expected columns: FirstName, LastName, Email, Cellphone, CertificationNumber.
+                    <p class="text-secondary mb-2">
+                        Download the blank template, fill in referee data in Excel or any spreadsheet, then upload the CSV to import.
                     </p>
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-secondary" (click)="downloadImportTemplate()">
+                            <i class="bi bi-download me-1"></i>Download Blank Template
+                        </button>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="importFileInput">CSV File</label>
                         <input id="importFileInput" type="file" class="form-control form-control-sm"
