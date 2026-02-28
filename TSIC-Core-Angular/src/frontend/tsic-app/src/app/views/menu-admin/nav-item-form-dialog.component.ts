@@ -121,17 +121,42 @@ export interface NavItemFormResult {
             @if (navType === 'router') {
               <div class="mb-3">
                 <label for="routerLink" class="form-label">Router Link</label>
-                <select
-                  id="routerLink"
-                  class="form-select"
-                  formControlName="routerLink"
-                >
-                  <option value="">-- Select a route --</option>
-                  @for (route of knownRoutes; track route) {
-                    <option [value]="route">{{ route }}</option>
-                  }
-                </select>
-                @if (form.get('routerLink')?.value && !knownRoutes.includes(form.get('routerLink')?.value)) {
+                <div class="form-check form-switch mb-2">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    id="customRouteToggle"
+                    [(ngModel)]="useCustomRoute"
+                    [ngModelOptions]="{standalone: true}"
+                  >
+                  <label class="form-check-label text-muted small" for="customRouteToggle">
+                    Type custom route (e.g. reporting/Get_JobPlayers_TSICDAILY)
+                  </label>
+                </div>
+                @if (!useCustomRoute) {
+                  <select
+                    id="routerLink"
+                    class="form-select"
+                    formControlName="routerLink"
+                  >
+                    <option value="">-- Select a route --</option>
+                    @for (route of knownRoutes; track route) {
+                      <option [value]="route">{{ route }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input
+                    type="text"
+                    id="routerLinkCustom"
+                    class="form-control"
+                    formControlName="routerLink"
+                    placeholder="e.g. reporting/Get_JobPlayers_TSICDAILY"
+                  >
+                  <small class="form-text text-muted">
+                    Use for parameterized routes like <code>reporting/&lt;action&gt;</code> that don't appear in the dropdown.
+                  </small>
+                }
+                @if (form.get('routerLink')?.value && !useCustomRoute && !knownRoutes.includes(form.get('routerLink')?.value)) {
                   <small class="text-warning mt-1 d-block">
                     <i class="bi bi-exclamation-triangle me-1"></i>
                     Route "{{ form.get('routerLink')?.value }}" is not in the known routes manifest.
@@ -225,6 +250,7 @@ export class NavItemFormDialogComponent implements OnInit {
 
     form!: FormGroup;
     navType = 'router';
+    useCustomRoute = false;
     isEditMode = signal(false);
     isParentItem = false;
 
@@ -263,6 +289,7 @@ export class NavItemFormDialogComponent implements OnInit {
 
         if (this.existingItem.routerLink) {
             this.navType = 'router';
+            this.useCustomRoute = !this.knownRoutes.includes(this.existingItem.routerLink);
         } else if (this.existingItem.navigateUrl) {
             this.navType = 'external';
         } else {

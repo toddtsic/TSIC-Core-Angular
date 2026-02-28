@@ -116,6 +116,17 @@ Copies a Level 1 nav item and its **active children** to a different role's nav:
 **Endpoint**: `POST /api/nav/editor/items/clone-branch`
 **Request**: `CloneBranchRequest { SourceNavItemId, TargetNavId, ReplaceExisting }`
 
+### Custom Route Entry
+
+The Angular Route mode supports two input modes via a toggle switch:
+
+- **Dropdown** (default): Pick from known Angular routes discovered from the router config
+- **Custom route** (toggle on): Free-text input for parameterized routes not in the dropdown
+
+This is needed for routes like `reporting/Get_JobPlayers_TSICDAILY` which match the parameterized `reporting/:action` pattern — the router config scanner skips `:param` segments so these never appear in the dropdown. The `ClientMenuComponent` wildcard prefix matching already recognizes any `reporting/*` route as implemented.
+
+When editing an existing item with a custom route, the toggle auto-enables so the value displays in the text input rather than showing a broken dropdown selection.
+
 ### Route Cascade
 
 When editing an item's route, the editor detects matching items (same text + parent text) across other roles and offers to update them all in one action.
