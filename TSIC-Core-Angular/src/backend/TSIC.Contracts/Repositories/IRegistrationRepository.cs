@@ -396,6 +396,12 @@ public interface IRegistrationRepository
     /// Set the BemailOptOut flag on a registration. Used by both admin toggle and public unsubscribe endpoint.
     /// </summary>
     Task SetEmailOptOutAsync(Guid registrationId, bool optOut, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get player roster data for uniform number template export.
+    /// Joins Registrations → Users → Teams, filtered to Player role for the given job. AsNoTracking.
+    /// </summary>
+    Task<List<UniformTemplateRow>> GetPlayerRosterForTemplateAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public record RegistrationWithInvoiceData
@@ -476,4 +482,14 @@ public record ClubRegistrationInfo
     public required Guid RegistrationId { get; init; }
     public required string ClubName { get; init; }
     public required string UserId { get; init; }
+}
+
+public record UniformTemplateRow
+{
+    public required Guid RegistrationId { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required string TeamName { get; init; }
+    public string? UniformNo { get; init; }
+    public string? DayGroup { get; init; }
 }

@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Bulletin;
 
 namespace TSIC.API.Services.Shared.Bulletins;
 
@@ -8,10 +9,33 @@ namespace TSIC.API.Services.Shared.Bulletins;
 public interface IBulletinService
 {
     /// <summary>
-    /// Get active bulletins for a job with processed text (token replacement and URL translation).
+    /// Get active bulletins for a job with processed text (token replacement).
+    /// Used by public-facing widget.
     /// </summary>
-    /// <param name="jobPath">The job path to fetch bulletins for</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of processed bulletin DTOs with translated URLs and replaced tokens</returns>
     Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get ALL bulletins for a job (admin view — no token substitution, no date filter).
+    /// </summary>
+    Task<List<BulletinAdminDto>> GetAllBulletinsForJobAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Create a new bulletin.
+    /// </summary>
+    Task<BulletinAdminDto> CreateBulletinAsync(Guid jobId, string userId, CreateBulletinRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Update an existing bulletin. Verifies bulletin belongs to job.
+    /// </summary>
+    Task<BulletinAdminDto> UpdateBulletinAsync(Guid bulletinId, Guid jobId, string userId, UpdateBulletinRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Delete a bulletin. Verifies bulletin belongs to job.
+    /// </summary>
+    Task<bool> DeleteBulletinAsync(Guid bulletinId, Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batch update active status for all bulletins in a job.
+    /// </summary>
+    Task<int> BatchUpdateStatusAsync(Guid jobId, bool active, CancellationToken cancellationToken = default);
 }

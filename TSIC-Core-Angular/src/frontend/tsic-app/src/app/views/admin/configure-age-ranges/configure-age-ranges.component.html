@@ -1,0 +1,124 @@
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+    <h2 class="mb-0">Age Ranges</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadAgeRanges()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Range
+        </button>
+    </div>
+</div>
+
+<!-- Error Alert -->
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+<!-- Loading State -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-body-secondary">Loading age ranges...</p>
+    </div>
+}
+
+<!-- Empty State -->
+@if (!isLoading() && !errorMessage() && ageRanges().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-calendar-range fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No age ranges configured for this job.</p>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Range
+        </button>
+    </div>
+}
+
+<!-- Data Table -->
+@if (!isLoading() && ageRanges().length > 0) {
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="col-row-num">#</th>
+                    <th class="sortable" (click)="toggleSort('rangeName')">
+                        Range Name <i class="bi" [ngClass]="getSortIcon('rangeName')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('rangeLeft')">
+                        Start Date <i class="bi" [ngClass]="getSortIcon('rangeLeft')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('rangeRight')">
+                        End Date <i class="bi" [ngClass]="getSortIcon('rangeRight')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('modified')">
+                        Modified <i class="bi" [ngClass]="getSortIcon('modified')"></i>
+                    </th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (range of sortedAgeRanges(); track range.ageRangeId; let i = $index) {
+                    <tr class="editable-row" (dblclick)="openEdit(range)">
+                        <td class="row-num text-body-secondary">{{ i + 1 }}</td>
+                        <td class="fw-semibold">{{ range.rangeName }}</td>
+                        <td class="text-body-secondary small">{{ formatDate(range.rangeLeft) }}</td>
+                        <td class="text-body-secondary small">{{ formatDate(range.rangeRight) }}</td>
+                        <td class="text-body-secondary small">
+                            {{ getRelativeTime(range.modified) }}
+                            @if (range.modifiedByUsername) {
+                                <span class="d-none d-lg-inline"> &mdash; {{ range.modifiedByUsername }}</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="icon-btn" (click)="openEdit(range)" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="icon-btn icon-btn-danger" (click)="confirmDelete(range)" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Add Modal -->
+@if (showAddModal()) {
+    <age-range-form-modal
+        mode="add"
+        (close)="showAddModal.set(false)"
+        (saved)="onFormSaved()">
+    </age-range-form-modal>
+}
+
+<!-- Edit Modal -->
+@if (showEditModal()) {
+    <age-range-form-modal
+        mode="edit"
+        [ageRange]="editTarget()"
+        (close)="showEditModal.set(false); editTarget.set(null)"
+        (saved)="onFormSaved()">
+    </age-range-form-modal>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Age Range"
+        [message]="'Delete age range &quot;' + (deleteTarget()?.rangeName || '') + '&quot;? This cannot be undone.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+    </confirm-dialog>
+}

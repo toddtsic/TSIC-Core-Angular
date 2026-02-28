@@ -11,4 +11,10 @@ public class TsicSettings
     /// The default customer whose ADN credentials are copied when creating a new customer.
     /// </summary>
     public Guid DefaultCustomerId { get; set; }
+
+    /// <summary>
+    /// Base URL for the statics CDN (banner images, headshots, etc.).
+    /// Example: https://statics.teamsportsinfo.com
+    /// </summary>
+    public string StaticsBaseUrl { get; set; } = "https://statics.teamsportsinfo.com";
 }

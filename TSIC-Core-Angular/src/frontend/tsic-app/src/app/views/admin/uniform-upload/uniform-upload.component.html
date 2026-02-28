@@ -1,0 +1,138 @@
+<div class="uniform-upload-page">
+  <h4 class="page-title">Upload Uniform Numbers</h4>
+  <p class="text-muted page-subtitle">
+    Download the template, fill in uniform numbers and day groups in Excel, then upload the file to apply changes.
+  </p>
+
+  <div class="cards-row">
+    <!-- Step 1: Download Template -->
+    <div class="card step-card">
+      <div class="card-body">
+        <div class="step-badge">1</div>
+        <h5 class="card-title">Download Template</h5>
+        <p class="text-muted">
+          Get an Excel file pre-populated with all players for this job.
+          Edit the <strong>UniformNo</strong> and <strong>DayGroup</strong> columns.
+        </p>
+        <button
+          class="btn btn-primary"
+          [disabled]="isDownloading()"
+          (click)="downloadTemplate()">
+          @if (isDownloading()) {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            Generating...
+          } @else {
+            <i class="bi bi-download me-1"></i>Download Template
+          }
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Upload -->
+    <div class="card step-card">
+      <div class="card-body">
+        <div class="step-badge">2</div>
+        <h5 class="card-title">Upload File</h5>
+
+        @if (!selectedFile()) {
+          <div
+            class="drop-zone"
+            [class.drag-over]="isDragOver()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave()"
+            (drop)="onDrop($event)"
+            (click)="fileInput.click()">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+            <span>Drop .xlsx file here or click to browse</span>
+          </div>
+        } @else {
+          <div class="selected-file">
+            <i class="bi bi-file-earmark-check text-success"></i>
+            <span class="file-name">{{ selectedFile()!.name }}</span>
+            <button class="btn btn-sm btn-outline-secondary" (click)="clearFile()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <button
+            class="btn btn-success mt-3"
+            [disabled]="isUploading()"
+            (click)="upload()">
+            @if (isUploading()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              Processing...
+            } @else {
+              <i class="bi bi-upload me-1"></i>Upload &amp; Apply
+            }
+          </button>
+        }
+
+        <input
+          #fileInput
+          type="file"
+          class="d-none"
+          accept=".xlsx"
+          (change)="onFileSelected($event)" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Error message -->
+  @if (errorMessage()) {
+    <div class="alert alert-danger mt-3" role="alert">
+      <i class="bi bi-exclamation-triangle me-1"></i>{{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Results -->
+  @if (uploadResult(); as result) {
+    <div class="card results-card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0">Upload Results</h5>
+      </div>
+      <div class="card-body">
+        <div class="result-summary">
+          <div class="result-stat result-stat--success">
+            <span class="result-stat__value">{{ result.updatedCount }}</span>
+            <span class="result-stat__label">Updated</span>
+          </div>
+          <div class="result-stat result-stat--muted">
+            <span class="result-stat__value">{{ result.skippedCount }}</span>
+            <span class="result-stat__label">Unchanged</span>
+          </div>
+          <div class="result-stat result-stat--danger">
+            <span class="result-stat__value">{{ result.errorCount }}</span>
+            <span class="result-stat__label">Errors</span>
+          </div>
+          <div class="result-stat">
+            <span class="result-stat__value">{{ result.totalRows }}</span>
+            <span class="result-stat__label">Total Rows</span>
+          </div>
+        </div>
+
+        @if (result.errors.length > 0) {
+          <h6 class="mt-4 mb-2">Error Details</h6>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>RegistrationId</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (err of result.errors; track err.row) {
+                  <tr>
+                    <td>{{ err.row }}</td>
+                    <td class="text-muted font-monospace small">{{ err.registrationId }}</td>
+                    <td>{{ err.reason }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

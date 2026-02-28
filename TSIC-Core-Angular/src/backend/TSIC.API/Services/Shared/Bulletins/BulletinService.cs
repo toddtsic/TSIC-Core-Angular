@@ -1,6 +1,8 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Bulletin;
 using TSIC.Contracts.Repositories;
 using TSIC.API.Services.Shared.Jobs;
+using BulletinEntity = TSIC.Domain.Entities.Bulletins;
 
 namespace TSIC.API.Services.Shared.Bulletins;
 
@@ -67,5 +69,113 @@ public class BulletinService : IBulletinService
         }
 
         return processedBulletins;
+    }
+
+    public async Task<List<BulletinAdminDto>> GetAllBulletinsForJobAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _bulletinRepository.GetAllBulletinsForJobAsync(jobId, cancellationToken);
+    }
+
+    public async Task<BulletinAdminDto> CreateBulletinAsync(Guid jobId, string userId, CreateBulletinRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate < request.StartDate)
+        {
+            throw new InvalidOperationException("End date must be on or after start date.");
+        }
+
+        var bulletin = new BulletinEntity
+        {
+            BulletinId = Guid.NewGuid(),
+            JobId = jobId,
+            Title = request.Title,
+            Text = request.Text,
+            Active = request.Active,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            LebUserId = userId,
+            CreateDate = DateTime.UtcNow,
+            Modified = DateTime.UtcNow
+        };
+
+        _bulletinRepository.Add(bulletin);
+        await _bulletinRepository.SaveChangesAsync(cancellationToken);
+
+        return new BulletinAdminDto
+        {
+            BulletinId = bulletin.BulletinId,
+            Title = bulletin.Title,
+            Text = bulletin.Text,
+            Active = bulletin.Active,
+            StartDate = bulletin.StartDate,
+            EndDate = bulletin.EndDate,
+            CreateDate = bulletin.CreateDate,
+            Modified = bulletin.Modified,
+            ModifiedByUsername = null
+        };
+    }
+
+    public async Task<BulletinAdminDto> UpdateBulletinAsync(Guid bulletinId, Guid jobId, string userId, UpdateBulletinRequest request, CancellationToken cancellationToken = default)
+    {
+        var bulletin = await _bulletinRepository.GetByIdAsync(bulletinId, cancellationToken);
+        if (bulletin == null)
+        {
+            throw new InvalidOperationException($"Bulletin with ID {bulletinId} not found.");
+        }
+
+        if (bulletin.JobId != jobId)
+        {
+            throw new InvalidOperationException("Bulletin does not belong to the current job.");
+        }
+
+        if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate < request.StartDate)
+        {
+            throw new InvalidOperationException("End date must be on or after start date.");
+        }
+
+        bulletin.Title = request.Title;
+        bulletin.Text = request.Text;
+        bulletin.Active = request.Active;
+        bulletin.StartDate = request.StartDate;
+        bulletin.EndDate = request.EndDate;
+        bulletin.LebUserId = userId;
+        bulletin.Modified = DateTime.UtcNow;
+
+        await _bulletinRepository.SaveChangesAsync(cancellationToken);
+
+        return new BulletinAdminDto
+        {
+            BulletinId = bulletin.BulletinId,
+            Title = bulletin.Title,
+            Text = bulletin.Text,
+            Active = bulletin.Active,
+            StartDate = bulletin.StartDate,
+            EndDate = bulletin.EndDate,
+            CreateDate = bulletin.CreateDate,
+            Modified = bulletin.Modified,
+            ModifiedByUsername = null
+        };
+    }
+
+    public async Task<bool> DeleteBulletinAsync(Guid bulletinId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var bulletin = await _bulletinRepository.GetByIdAsync(bulletinId, cancellationToken);
+        if (bulletin == null)
+        {
+            return false;
+        }
+
+        if (bulletin.JobId != jobId)
+        {
+            throw new InvalidOperationException("Bulletin does not belong to the current job.");
+        }
+
+        _bulletinRepository.Remove(bulletin);
+        await _bulletinRepository.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<int> BatchUpdateStatusAsync(Guid jobId, bool active, CancellationToken cancellationToken = default)
+    {
+        return await _bulletinRepository.BatchUpdateActiveStatusAsync(jobId, active, cancellationToken);
     }
 }

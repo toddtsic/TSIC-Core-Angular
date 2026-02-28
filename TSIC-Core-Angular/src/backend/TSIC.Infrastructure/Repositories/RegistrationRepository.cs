@@ -1618,4 +1618,26 @@ public class RegistrationRepository : IRegistrationRepository
         reg.BemailOptOut = optOut;
         await _context.SaveChangesAsync(ct);
     }
+
+    public async Task<List<UniformTemplateRow>> GetPlayerRosterForTemplateAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await (
+            from r in _context.Registrations
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            where r.JobId == jobId
+                  && r.RoleId == RoleConstants.Player
+                  && r.BActive == true
+            orderby t.TeamName, u.LastName, u.FirstName
+            select new UniformTemplateRow
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName ?? string.Empty,
+                LastName = u.LastName ?? string.Empty,
+                TeamName = t.TeamName ?? string.Empty,
+                UniformNo = r.UniformNo,
+                DayGroup = r.DayGroup
+            }
+        ).AsNoTracking().ToListAsync(ct);
+    }
 }

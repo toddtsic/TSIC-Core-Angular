@@ -1,0 +1,141 @@
+<!-- Page Header -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+    <h2 class="mb-0">Bulletin Editor</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading() || bulletins().length === 0">
+            <i class="bi bi-check-circle me-1"></i>Activate All
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" (click)="deactivateAll()" [disabled]="isLoading() || bulletins().length === 0">
+            <i class="bi bi-x-circle me-1"></i>Deactivate All
+        </button>
+        <div class="vr d-none d-md-block"></div>
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadBulletins()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Bulletin
+        </button>
+    </div>
+</div>
+
+<!-- Error Alert -->
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+<!-- Loading State -->
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-body-secondary">Loading bulletins...</p>
+    </div>
+}
+
+<!-- Empty State -->
+@if (!isLoading() && !errorMessage() && bulletins().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-megaphone fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No bulletins found for this job.</p>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Bulletin
+        </button>
+    </div>
+}
+
+<!-- Data Table -->
+@if (!isLoading() && bulletins().length > 0) {
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="col-row-num">#</th>
+                    <th class="sortable" (click)="toggleSort('title')">
+                        Title <i class="bi" [ngClass]="getSortIcon('title')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('active')">
+                        Status <i class="bi" [ngClass]="getSortIcon('active')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('startDate')">
+                        Start <i class="bi" [ngClass]="getSortIcon('startDate')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('endDate')">
+                        End <i class="bi" [ngClass]="getSortIcon('endDate')"></i>
+                    </th>
+                    <th class="sortable" (click)="toggleSort('modified')">
+                        Modified <i class="bi" [ngClass]="getSortIcon('modified')"></i>
+                    </th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (bulletin of sortedBulletins(); track bulletin.bulletinId; let i = $index) {
+                    <tr class="editable-row" (dblclick)="openEdit(bulletin)">
+                        <td class="row-num text-body-secondary">{{ i + 1 }}</td>
+                        <td class="fw-semibold">{{ truncateTitle(bulletin.title) }}</td>
+                        <td>
+                            @if (bulletin.active) {
+                                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
+                            } @else {
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-body-secondary small">{{ formatDate(bulletin.startDate) }}</td>
+                        <td class="text-body-secondary small">{{ formatDate(bulletin.endDate) }}</td>
+                        <td class="text-body-secondary small">
+                            {{ getRelativeTime(bulletin.modified) }}
+                            @if (bulletin.modifiedByUsername) {
+                                <span class="d-none d-lg-inline"> &mdash; {{ bulletin.modifiedByUsername }}</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="icon-btn" (click)="openEdit(bulletin)" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="icon-btn icon-btn-danger" (click)="confirmDelete(bulletin)" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Add Modal -->
+@if (showAddModal()) {
+    <bulletin-form-modal
+        mode="add"
+        (close)="showAddModal.set(false)"
+        (saved)="onFormSaved()">
+    </bulletin-form-modal>
+}
+
+<!-- Edit Modal -->
+@if (showEditModal()) {
+    <bulletin-form-modal
+        mode="edit"
+        [bulletin]="editTarget()"
+        (close)="showEditModal.set(false); editTarget.set(null)"
+        (saved)="onFormSaved()">
+    </bulletin-form-modal>
+}
+
+<!-- Delete Confirmation -->
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Bulletin"
+        [message]="'Delete bulletin &quot;' + (deleteTarget()?.title || 'Untitled') + '&quot;? This cannot be undone.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+    </confirm-dialog>
+}

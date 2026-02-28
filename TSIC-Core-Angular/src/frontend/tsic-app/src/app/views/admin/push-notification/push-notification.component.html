@@ -1,0 +1,110 @@
+<div class="push-notification-page">
+  <h2 class="page-title">Push Notification to All Mobile Users</h2>
+
+  <div class="device-badge-wrapper">
+    <span class="device-badge">{{ deviceCount() }} Devices Currently Available</span>
+  </div>
+
+  <div class="info-alert">
+    <i class="bi bi-info-circle"></i>
+    Keep the push text short and simple.
+  </div>
+
+  <!-- Success message -->
+  @if (successMessage()) {
+    <div class="alert alert-success d-flex align-items-center gap-2">
+      <i class="bi bi-check-circle-fill"></i>
+      {{ successMessage() }}
+    </div>
+  }
+
+  <!-- Error message -->
+  @if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Send form -->
+  <div class="card send-card">
+    <div class="card-body">
+      <label for="pushText" class="form-label fw-medium">Push Text</label>
+      <textarea
+        id="pushText"
+        class="form-control"
+        rows="5"
+        placeholder="Enter your push notification message..."
+        [ngModel]="pushText()"
+        (ngModelChange)="pushText.set($event)"
+        [disabled]="isSending()">
+      </textarea>
+
+      <div class="text-center mt-3">
+        <button
+          class="btn btn-primary btn-send"
+          [disabled]="!canSend()"
+          (click)="sendPush()">
+          @if (isSending()) {
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Sending...
+          } @else {
+            <i class="bi bi-send me-2"></i>
+            Send Push Notification
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History table -->
+  <div class="card history-card">
+    <div class="card-header">
+      <h5 class="mb-0">Sent Push Notifications</h5>
+    </div>
+    <div class="card-body p-0">
+      @if (isLoading()) {
+        <div class="text-center py-4">
+          <span class="spinner-border text-primary"></span>
+          <p class="text-muted mt-2">Loading history...</p>
+        </div>
+      } @else if (sortedHistory().length === 0) {
+        <div class="text-center py-4 text-muted">
+          <i class="bi bi-bell-slash fs-3 d-block mb-2"></i>
+          No push notifications have been sent yet.
+        </div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th class="sortable" (click)="toggleSort('sentBy')">
+                  Sent By{{ sortIcon('sentBy') }}
+                </th>
+                <th class="sortable" (click)="toggleSort('sentWhen')">
+                  Sent When{{ sortIcon('sentWhen') }}
+                </th>
+                <th class="sortable text-center" (click)="toggleSort('deviceCount')">
+                  Devices{{ sortIcon('deviceCount') }}
+                </th>
+                <th class="sortable" (click)="toggleSort('pushText')">
+                  Push Text{{ sortIcon('pushText') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of sortedHistory(); track item.id) {
+                <tr>
+                  <td>{{ item.sentBy }}</td>
+                  <td class="text-nowrap">{{ formatDate(item.sentWhen) }}</td>
+                  <td class="text-center">{{ item.deviceCount }}</td>
+                  <td class="push-text-cell">{{ item.pushText }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>
