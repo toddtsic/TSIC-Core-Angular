@@ -7,6 +7,7 @@ namespace TSIC.API.Services.Shared.Firebase;
 /// <summary>
 /// Firebase Cloud Messaging service using the TSIC Events project credentials.
 /// Registered as a singleton — FirebaseApp is thread-safe and should be initialized once.
+/// Credential file path is read from appsettings "Firebase:CredentialFilePath".
 /// </summary>
 public class FirebasePushService : IFirebasePushService
 {
@@ -14,14 +15,17 @@ public class FirebasePushService : IFirebasePushService
     private readonly FirebaseMessaging _messaging;
     private readonly ILogger<FirebasePushService> _logger;
 
-    public FirebasePushService(ILogger<FirebasePushService> logger)
+    public FirebasePushService(IConfiguration configuration, ILogger<FirebasePushService> logger)
     {
         _logger = logger;
+
+        var credentialPath = configuration["Firebase:CredentialFilePath"]
+            ?? throw new InvalidOperationException("Firebase:CredentialFilePath is not configured in appsettings.");
 
         var app = FirebaseApp.Create(new AppOptions
         {
             Credential = GoogleCredential
-                .FromFile("FirebaseAuth_TSICEvents.json")
+                .FromFile(credentialPath)
                 .CreateScoped("https://www.googleapis.com/auth/firebase.messaging")
         });
 

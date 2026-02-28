@@ -99,8 +99,8 @@ if (!(Test-Path $ApiSource)) {
 if (!(Test-Path $ApiTarget)) {
     New-Item -ItemType Directory -Path $ApiTarget -Force | Out-Null
 }
-Write-Host "  Clearing $ApiTarget (preserving logs/ and keys/)..." -ForegroundColor White
-Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -notin @('logs', 'keys') } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "  Clearing $ApiTarget (preserving logs/, keys/, FirebaseAuth_*)..." -ForegroundColor White
+Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -notin @('logs', 'keys') -and $_.Name -notlike 'FirebaseAuth_*.json' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "  Copying API files..." -ForegroundColor White
 Copy-Item "$ApiSource\*" $ApiTarget -Recurse -Force
 
