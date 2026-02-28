@@ -8,6 +8,7 @@ import { RouterModule } from '@angular/router';
 import { AutoBuildService } from './services/auto-build.service';
 import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 import type {
     AutoBuildSourceJobDto,
@@ -56,7 +57,7 @@ interface AgentMessage {
 @Component({
     selector: 'app-auto-build',
     standalone: true,
-    imports: [CommonModule, RouterModule, ConfirmDialogComponent],
+    imports: [CommonModule, RouterModule, ConfirmDialogComponent, TsicDialogComponent],
     templateUrl: './auto-build.component.html',
     styleUrl: './auto-build.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -89,6 +90,12 @@ export class AutoBuildComponent implements AfterViewChecked {
 
     // Build
     isUndoing = signal(false);
+
+    // Operation modal (shared by build / delete / undo)
+    showOperationModal = signal(false);
+    operationTitle = signal('');
+    operationSubtitle = signal('');
+    operationIcon = signal('bi-lightning-charge-fill');
 
     // ── Summary state helpers ─────────────────────────────
     isFullyScheduled = computed(() => {
@@ -232,12 +239,19 @@ export class AutoBuildComponent implements AfterViewChecked {
             `<p>This will delete ALL <strong>${total}</strong> scheduled games (round-robin, bracket, and any other game types) and start a fresh auto-build.</p>`,
             () => {
                 this.isDeleting.set(true);
+                this.openOperationModal(
+                    'Clearing the Schedule',
+                    `Removing ${total} games before rebuilding`,
+                    'bi-trash3'
+                );
                 this.svc.undo().subscribe({
                     next: () => {
+                        this.showOperationModal.set(false);
                         this.isDeleting.set(false);
                         this.startBuild();
                     },
                     error: (err) => {
+                        this.showOperationModal.set(false);
                         this.isDeleting.set(false);
                         this.addMessage('error',
                             `Delete failed: ${err.error?.message ?? 'Unknown error'}`
@@ -258,6 +272,13 @@ export class AutoBuildComponent implements AfterViewChecked {
         );
         this.confirmDialogAction.set(action);
         this.showConfirmDialog.set(true);
+    }
+
+    private openOperationModal(title: string, subtitle: string, icon: string): void {
+        this.operationTitle.set(title);
+        this.operationSubtitle.set(subtitle);
+        this.operationIcon.set(icon);
+        this.showOperationModal.set(true);
     }
 
     onConfirmDialogAccepted(): void {
@@ -479,17 +500,22 @@ export class AutoBuildComponent implements AfterViewChecked {
 
         this.step.set('building');
         this.messages.set([]);
-        this.addMessage('info', 'Building your schedule now...');
-        this.addMessage('thinking', 'Finding the best slot for every game...');
+        this.openOperationModal(
+            'Building Your Schedule',
+            'Reproducing last year\'s patterns and finding the best slot for every game',
+            'bi-lightning-charge-fill'
+        );
 
         this.svc.executeV2(request).subscribe({
             next: (result) => {
+                this.showOperationModal.set(false);
                 this.removeThinking();
                 this.buildResult.set(result);
                 this.step.set('results');
                 this.presentResults(result);
             },
             error: (err) => {
+                this.showOperationModal.set(false);
                 this.removeThinking();
                 this.addMessage('error', `Build failed: ${err.error?.message ?? 'Unknown error'}`);
                 this.step.set('error');
@@ -624,16 +650,20 @@ export class AutoBuildComponent implements AfterViewChecked {
             `<p>Remove ALL <strong>${placed}</strong> games just placed by auto-build?</p>`,
             () => {
                 this.isUndoing.set(true);
-                this.addMessage('thinking', 'Removing all scheduled games...');
+                this.openOperationModal(
+                    'Removing Games',
+                    `Undoing ${placed} games placed by auto-build`,
+                    'bi-arrow-counterclockwise'
+                );
                 this.svc.undo().subscribe({
                     next: (result) => {
-                        this.removeThinking();
+                        this.showOperationModal.set(false);
                         this.isUndoing.set(false);
                         this.addMessage('success', `Done — ${result.gamesDeleted} games removed.`);
                         this.resetAndReload();
                     },
                     error: (err) => {
-                        this.removeThinking();
+                        this.showOperationModal.set(false);
                         this.isUndoing.set(false);
                         this.addMessage('error',
                             `Undo failed: ${err.error?.message ?? 'Unknown error'}`

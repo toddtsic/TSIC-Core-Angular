@@ -332,24 +332,9 @@
         }
 
         <!-- ═══════════════════════════════════════════════ -->
-        <!-- Building                                        -->
+        <!-- Building (message feed — spinner is in modal)   -->
         <!-- ═══════════════════════════════════════════════ -->
         @if (step() === 'building') {
-            <div class="build-hero">
-                <div class="build-spinner">
-                    <div class="spinner-ring ring-outer"></div>
-                    <div class="spinner-ring ring-middle"></div>
-                    <div class="spinner-ring ring-inner"></div>
-                    <div class="spinner-core">
-                        <i class="bi bi-lightning-charge-fill"></i>
-                    </div>
-                </div>
-                <div class="build-hero-text">
-                    <h3>Building Your Schedule</h3>
-                    <p>Reproducing last year's patterns and finding the best slot for every game</p>
-                </div>
-            </div>
-
             <ng-container *ngTemplateOutlet="messageBubbles"></ng-container>
         }
 
@@ -480,5 +465,26 @@
             (cancelled)="onConfirmDialogCancelled()">
         </confirm-dialog>
     }
+
+    <!-- ── Operation Modal (build / delete / undo) ──── -->
+    <tsic-dialog [open]="showOperationModal()"
+                 size="sm"
+                 [closeOnEsc]="false"
+                 [closeOnBackdrop]="false">
+        <div class="modal-content operation-modal">
+            <div class="modal-body">
+                <div class="build-spinner">
+                    <div class="spinner-ring ring-outer"></div>
+                    <div class="spinner-ring ring-middle"></div>
+                    <div class="spinner-ring ring-inner"></div>
+                    <div class="spinner-core">
+                        <i class="bi" [class]="operationIcon()"></i>
+                    </div>
+                </div>
+                <h3 class="operation-title">{{ operationTitle() }}</h3>
+                <p class="operation-subtitle">{{ operationSubtitle() }}</p>
+            </div>
+        </div>
+    </tsic-dialog>
 
 </div>
