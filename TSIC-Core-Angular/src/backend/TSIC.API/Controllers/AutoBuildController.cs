@@ -135,6 +135,20 @@ public class AutoBuildController : ControllerBase
     }
 
     /// <summary>
+    /// PUT /api/auto-build/strategy-profiles — Save strategy profiles standalone (no build required).
+    /// </summary>
+    [HttpPut("strategy-profiles")]
+    public async Task<ActionResult<DivisionStrategyProfileResponse>> SaveStrategyProfiles(
+        [FromBody] List<DivisionStrategyEntry> strategies, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.SaveStrategyProfilesAsync(jobId!.Value, strategies, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// POST /api/auto-build/ensure-pairings — Auto-generate round-robin pairings for missing team counts.
     /// </summary>
     [HttpPost("ensure-pairings")]

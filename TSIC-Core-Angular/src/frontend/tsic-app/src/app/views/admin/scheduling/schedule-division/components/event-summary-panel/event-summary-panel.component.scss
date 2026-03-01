@@ -81,39 +81,130 @@
     flex-shrink: 0;
 }
 
-// ── Hero Game Day Table ──
+// ══════════════════════════════════════════
+// ── READINESS STEPPER ──
+// ══════════════════════════════════════════
 
-.hero-days-table {
+.readiness-stepper {
     margin-top: var(--space-3);
-    font-size: var(--font-size-sm);
-    border-collapse: collapse;
-    width: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.12);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
 
-    td {
-        padding: 2px var(--space-2) 2px 0;
-        white-space: nowrap;
-        color: var(--bs-body-color);
+.stepper-row {
+    display: grid;
+    grid-template-columns: 28px 72px 1fr auto;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    background: var(--bs-body-bg);
+    transition: background 0.1s ease;
+
+    &.step-complete {
+        .step-icon i {
+            color: var(--bs-success);
+        }
+
+        .step-status {
+            color: var(--bs-body-color);
+        }
+    }
+
+    &.step-incomplete {
+        .step-icon {
+            .step-number {
+                color: var(--bs-warning);
+                border-color: var(--bs-warning);
+            }
+        }
+
+        .step-status {
+            color: var(--bs-secondary-color);
+        }
     }
 }
 
-.day-label {
+.step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i {
+        font-size: var(--font-size-lg);
+    }
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--bs-secondary-color);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--bs-secondary-color);
+    line-height: 1;
+}
+
+.step-label {
     font-weight: var(--font-weight-semibold);
-    color: var(--bs-primary) !important;
+    color: var(--bs-body-color);
+    white-space: nowrap;
 }
 
-.day-date {
-    font-weight: var(--font-weight-medium);
+.step-status {
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    strong {
+        font-weight: var(--font-weight-semibold);
+    }
 }
 
-.day-fields,
-.day-time,
-.day-gsi {
-    color: var(--bs-secondary-color) !important;
+.step-action {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    flex-shrink: 0;
 }
 
-// ── Hero Scheduling Style ──
+.step-action-muted {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
 
-.hero-style {
+.step-action-controls {
+    gap: var(--space-1);
+}
+
+.step-btn {
+    font-size: var(--font-size-xs);
+    padding: 2px var(--space-2);
+    white-space: nowrap;
+}
+
+.step-select {
+    font-size: var(--font-size-xs);
+    padding: 2px var(--space-4) 2px var(--space-2);
+    height: auto;
+    min-height: 0;
+    line-height: 1.4;
+}
+
+// ── Hero Plays label ──
+
+.hero-plays {
     margin-top: var(--space-2);
     font-size: var(--font-size-sm);
     color: var(--bs-secondary-color);
@@ -121,22 +212,6 @@
     i {
         margin-right: var(--space-1);
     }
-}
-
-.hero-style-line {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-}
-
-.style-badge {
-    display: inline-block;
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-    background: rgba(var(--bs-primary-rgb), 0.1);
-    color: var(--bs-primary);
-    font-weight: var(--font-weight-semibold);
 }
 
 // ── Hero Progress ──
@@ -157,84 +232,6 @@
     font-weight: var(--font-weight-semibold);
     color: var(--bs-secondary-color);
     white-space: nowrap;
-}
-
-// ══════════════════════════════════════════
-// ── NO FIELDS CTA BANNER ──
-// ══════════════════════════════════════════
-
-.fields-cta-banner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    margin: 0 var(--space-3) var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    background: rgba(var(--bs-danger-rgb), 0.06);
-    border: 1px solid rgba(var(--bs-danger-rgb), 0.25);
-    border-left: 4px solid var(--bs-danger);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: box-shadow 0.15s ease, background 0.15s ease;
-
-    &:hover {
-        background: rgba(var(--bs-danger-rgb), 0.1);
-        box-shadow: var(--shadow-sm);
-
-        .fields-cta-button {
-            background: var(--bs-primary);
-            color: var(--bs-light);
-        }
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-    }
-}
-
-.fields-cta-content {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    min-width: 0;
-}
-
-.fields-cta-icon {
-    font-size: var(--font-size-2xl);
-    color: var(--bs-danger);
-    flex-shrink: 0;
-}
-
-.fields-cta-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-
-    strong {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--bs-body-color);
-    }
-
-    span {
-        font-size: var(--font-size-xs);
-        color: var(--bs-secondary-color);
-    }
-}
-
-.fields-cta-button {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    flex-shrink: 0;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--bs-primary);
-    background: rgba(var(--bs-primary-rgb), 0.1);
-    border-radius: var(--radius-full);
-    transition: background 0.15s ease, color 0.15s ease;
 }
 
 // ══════════════════════════════════════════

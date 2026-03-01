@@ -1982,6 +1982,35 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         };
     }
     // ══════════════════════════════════════════════════════════
+    // Save Strategy Profiles (standalone — no build required)
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<DivisionStrategyProfileResponse> SaveStrategyProfilesAsync(
+        Guid jobId, List<DivisionStrategyEntry> strategies, CancellationToken ct = default)
+    {
+        var profilesToSave = strategies
+            .Select(s => new Domain.Entities.DivisionScheduleProfile
+            {
+                ProfileId = Guid.NewGuid(),
+                JobId = jobId,
+                DivisionName = s.DivisionName,
+                Placement = (byte)s.Placement,
+                GapPattern = (byte)s.GapPattern,
+                Wave = (byte)Math.Clamp(s.Wave, 1, 9)
+            })
+            .ToList();
+
+        await _divisionProfileRepo.UpsertBatchAsync(jobId, profilesToSave, ct);
+        await _divisionProfileRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "SaveStrategyProfiles: Saved {Count} profiles for Job={JobId}",
+            profilesToSave.Count, jobId);
+
+        // Reload and return the updated response
+        return await LoadStrategyProfilesAsync(jobId, null, ct);
+    }
+
     // Ensure Pairings (auto-generate missing round-robin)
     // ══════════════════════════════════════════════════════════
 

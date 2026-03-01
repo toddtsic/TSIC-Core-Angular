@@ -52,6 +52,13 @@ public interface IAutoBuildScheduleService
         Guid jobId, Guid? sourceJobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Save strategy profiles for a job (standalone — does not require a build).
+    /// Upserts all entries and returns the reloaded response.
+    /// </summary>
+    Task<DivisionStrategyProfileResponse> SaveStrategyProfilesAsync(
+        Guid jobId, List<DivisionStrategyEntry> strategies, CancellationToken ct = default);
+
+    /// <summary>
     /// Auto-generate round-robin pairings for team counts that don't have them yet.
     /// </summary>
     Task<EnsurePairingsResponse> EnsurePairingsAsync(

@@ -21,19 +21,6 @@
                         <strong>{{ totalGames() }}/{{ totalExpected() }}</strong> RR games scheduled
                     </div>
                 }
-                @if (totalAgegroups() > 0) {
-                    <div class="hero-status-pill"
-                         [class.status-complete]="configuredCount() === totalAgegroups()"
-                         [class.status-incomplete]="configuredCount() < totalAgegroups()">
-                        @if (configuredCount() === totalAgegroups()) {
-                            <i class="bi bi-check-circle-fill"></i>
-                        } @else {
-                            <i class="bi bi-gear"></i>
-                        }
-                        <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong>
-                        Agegroups {{ configuredCount() === totalAgegroups() ? 'Fully Configured' : 'Configured' }}
-                    </div>
-                }
                 @if (agegroups().length === 0) {
                     <div class="hero-status-pill status-blocked">
                         <i class="bi bi-exclamation-triangle-fill"></i>
@@ -85,38 +72,125 @@
             </div>
         </div>
 
-        <!-- Row 2: Game Day Lines -->
-        @if (eventGameDays().length > 0) {
-            <table class="hero-days-table">
-                @for (gd of eventGameDays(); track gd.dayNumber) {
-                    <tr>
-                        <td class="day-label">Day {{ gd.dayNumber }}</td>
-                        <td class="day-date">{{ gd.dow }} {{ gd.dateFormatted }}</td>
-                        <td class="day-fields">{{ gd.fieldCount }} field{{ gd.fieldCount !== 1 ? 's' : '' }}</td>
-                        <td class="day-time">{{ gd.startTime }} – {{ gd.endTime }}</td>
-                        <td class="day-gsi">{{ gd.gsi }} min GSI</td>
-                    </tr>
-                }
-            </table>
+        <!-- ── Readiness Stepper ── -->
+        @if (agegroups().length > 0) {
+            <div class="readiness-stepper">
+
+                <!-- Step ① Fields -->
+                <div class="stepper-row" [class.step-complete]="fieldsComplete()" [class.step-incomplete]="!fieldsComplete()">
+                    <span class="step-icon">
+                        @if (fieldsComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">1</span>
+                        }
+                    </span>
+                    <span class="step-label">Fields</span>
+                    <span class="step-status">
+                        @if (fieldsComplete()) {
+                            {{ assignedFieldCount() }} field{{ assignedFieldCount() !== 1 ? 's' : '' }} assigned
+                        } @else {
+                            Not assigned
+                        }
+                    </span>
+                    <span class="step-action">
+                        <button class="btn btn-sm btn-outline-primary step-btn"
+                                (click)="manageFieldsClicked.emit()">
+                            Manage Fields <i class="bi bi-box-arrow-up-right"></i>
+                        </button>
+                    </span>
+                </div>
+
+                <!-- Step ② Dates -->
+                <div class="stepper-row" [class.step-complete]="datesComplete()" [class.step-incomplete]="!datesComplete()">
+                    <span class="step-icon">
+                        @if (datesComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">2</span>
+                        }
+                    </span>
+                    <span class="step-label">Dates</span>
+                    <span class="step-status">
+                        <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong> agegroups configured
+                    </span>
+                    <span class="step-action step-action-muted">
+                        Click tiles below
+                    </span>
+                </div>
+
+                <!-- Step ③ Strategy -->
+                <div class="stepper-row" [class.step-complete]="strategyComplete()" [class.step-incomplete]="!strategyComplete()">
+                    <span class="step-icon">
+                        @if (strategyComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">3</span>
+                        }
+                    </span>
+                    <span class="step-label">Strategy</span>
+                    <span class="step-status">{{ strategyStatusLabel() }}</span>
+                    <span class="step-action step-action-controls">
+                        <select class="form-select form-select-sm step-select"
+                                [ngModel]="localPlacement()"
+                                (ngModelChange)="localPlacement.set($event)">
+                            <option [ngValue]="0">Horizontal</option>
+                            <option [ngValue]="1">Vertical</option>
+                        </select>
+                        <select class="form-select form-select-sm step-select"
+                                [ngModel]="localGapPattern()"
+                                (ngModelChange)="localGapPattern.set($event)">
+                            <option [ngValue]="0">Back-to-back</option>
+                            <option [ngValue]="1">1on/1off</option>
+                            <option [ngValue]="2">1on/2off</option>
+                        </select>
+                        @if (strategyDirty()) {
+                            <button class="btn btn-sm btn-primary step-btn"
+                                    [disabled]="isSavingStrategy()"
+                                    (click)="onSaveStrategy()">
+                                @if (isSavingStrategy()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    Save
+                                }
+                            </button>
+                        }
+                    </span>
+                </div>
+
+                <!-- Step ④ Pairings -->
+                <div class="stepper-row" [class.step-complete]="pairingsComplete()" [class.step-incomplete]="!pairingsComplete()">
+                    <span class="step-icon">
+                        @if (pairingsComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">4</span>
+                        }
+                    </span>
+                    <span class="step-label">Pairings</span>
+                    <span class="step-status">{{ pairingsStatusLabel() }}</span>
+                    <span class="step-action">
+                        @if (!pairingsComplete()) {
+                            <button class="btn btn-sm btn-outline-primary step-btn"
+                                    [disabled]="isGeneratingPairings()"
+                                    (click)="generatePairingsRequested.emit()">
+                                @if (isGeneratingPairings()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                    Generating...
+                                } @else {
+                                    Generate All
+                                }
+                            </button>
+                        }
+                    </span>
+                </div>
+            </div>
         }
 
-        <!-- Row 3: Plays + Scheduling Style -->
-        @if (heroPlaysLabel() || schedulingStyle()) {
-            <div class="hero-style">
-                @if (heroPlaysLabel()) {
-                    <div><i class="bi bi-calendar-event"></i> {{ heroPlaysLabel() }}</div>
-                }
-                @if (schedulingStyle(); as style) {
-                    <div class="hero-style-line">
-                        <i class="bi bi-sliders2"></i> Place games
-                        @if (style.placement) {
-                            <span class="style-badge">{{ style.placement }}</span>
-                        }
-                        @if (style.gap) {
-                            in a <span class="style-badge">{{ style.gap }}</span> pattern
-                        }
-                    </div>
-                }
+        <!-- Plays label (uniform across all agegroups) -->
+        @if (heroPlaysLabel()) {
+            <div class="hero-plays">
+                <i class="bi bi-calendar-event"></i> {{ heroPlaysLabel() }}
             </div>
         }
 
@@ -134,26 +208,6 @@
             </div>
         }
     </div>
-
-    <!-- ── No Fields Assigned — standalone CTA banner ── -->
-    @if (hasNoFieldsAssigned()) {
-        <div class="fields-cta-banner"
-             role="button"
-             tabindex="0"
-             (click)="manageFieldsClicked.emit()"
-             (keydown.enter)="manageFieldsClicked.emit()">
-            <div class="fields-cta-content">
-                <i class="bi bi-geo-alt-fill fields-cta-icon"></i>
-                <div class="fields-cta-text">
-                    <strong>No fields assigned to this event</strong>
-                    <span>The schedule engine needs at least one field before it can place games.</span>
-                </div>
-            </div>
-            <span class="fields-cta-button">
-                <i class="bi bi-box-arrow-up-right"></i> Manage Fields
-            </span>
-        </div>
-    }
 
     <!-- ── Delete confirmation ── -->
     @if (showDeleteConfirm()) {

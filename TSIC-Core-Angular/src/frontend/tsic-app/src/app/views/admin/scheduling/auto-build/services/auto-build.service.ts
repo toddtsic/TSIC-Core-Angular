@@ -5,12 +5,13 @@ import { environment } from '@environments/environment';
 import type {
     AutoBuildRequest,
     AutoBuildResult,
+    DivisionStrategyEntry,
+    DivisionStrategyProfileResponse,
     EnsurePairingsRequest,
     EnsurePairingsResponse,
     GameSummaryResponse,
     PrerequisiteCheckResponse,
     ProfileExtractionResponse,
-    DivisionStrategyProfileResponse,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -53,6 +54,13 @@ export class AutoBuildService {
         const params = sourceJobId ? `?sourceJobId=${sourceJobId}` : '';
         return this.http.get<DivisionStrategyProfileResponse>(
             `${this.apiUrl}/strategy-profiles${params}`
+        );
+    }
+
+    saveStrategyProfiles(strategies: DivisionStrategyEntry[]): Observable<DivisionStrategyProfileResponse> {
+        return this.http.put<DivisionStrategyProfileResponse>(
+            `${this.apiUrl}/strategy-profiles`,
+            strategies
         );
     }
 

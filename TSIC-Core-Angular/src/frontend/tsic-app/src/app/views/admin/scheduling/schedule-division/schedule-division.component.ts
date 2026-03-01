@@ -75,6 +75,8 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly canvasReadiness = signal<Record<string, import('@core/api').AgegroupCanvasReadinessDto>>({});
     readonly assignedFieldCount = signal(0);
     readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
+    readonly strategySource = signal<string>('defaults');
+    readonly isSavingStrategy = signal(false);
 
     // ── Game Summary (from auto-build service) ──
     readonly gameSummary = signal<GameSummaryResponse | null>(null);
@@ -270,6 +272,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.refreshGameSummary();
         this.loadCanvasReadiness();
         this.loadStrategyProfiles();
+        this.checkPairingStatus();
     }
 
     // ── Navigator ──
@@ -324,8 +327,14 @@ export class ScheduleDivisionComponent implements OnInit {
 
     loadStrategyProfiles(): void {
         this.autoBuildSvc.getStrategyProfiles().subscribe({
-            next: (res) => this.strategyProfiles.set(res.strategies),
-            error: () => this.strategyProfiles.set([])
+            next: (res) => {
+                this.strategyProfiles.set(res.strategies);
+                this.strategySource.set(res.source);
+            },
+            error: () => {
+                this.strategyProfiles.set([]);
+                this.strategySource.set('defaults');
+            }
         });
     }
 
@@ -707,6 +716,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.refreshAfterBulkOperation();
                 this.loadCanvasReadiness();
                 this.loadStrategyProfiles();
+                this.checkPairingStatus();
             },
             error: () => {
                 this.showOperationModal.set(false);
@@ -781,6 +791,18 @@ export class ScheduleDivisionComponent implements OnInit {
         this.showAutoScheduleModal.set(true);
     }
 
+    /** Lightweight pairing status check — populates missingPairingTCnts for stepper step ④. */
+    checkPairingStatus(): void {
+        this.autoBuildSvc.checkPrerequisites().subscribe({
+            next: (result) => {
+                this.missingPairingTCnts.set(
+                    result.pairingsCreated ? [] : result.missingPairingTCnts
+                );
+            },
+            error: () => this.missingPairingTCnts.set([])
+        });
+    }
+
     dismissPrerequisiteErrors(): void {
         this.prerequisiteErrors.set([]);
         this.missingPairingTCnts.set([]);
@@ -799,12 +821,38 @@ export class ScheduleDivisionComponent implements OnInit {
                     ? `Generated pairings for team count${result.generated.length > 1 ? 's' : ''}: ${result.generated.join(', ')}`
                     : 'Pairings already exist';
                 this.toast.show(msg, 'success');
-                // Re-run prerequisite check — if all pass, open config modal
-                this.openAutoScheduleConfig();
+                // Re-check pairing status to refresh stepper
+                this.checkPairingStatus();
             },
             error: () => {
                 this.isGeneratingPairings.set(false);
                 this.toast.show('Failed to generate pairings', 'danger');
+            }
+        });
+    }
+
+    /** Save inline strategy from stepper — applies uniform values to ALL divisions. */
+    saveInlineStrategy(event: { placement: number; gapPattern: number }): void {
+        const currentStrategies = this.strategyProfiles();
+        if (currentStrategies.length === 0) return;
+
+        const updated = currentStrategies.map(s => ({
+            ...s,
+            placement: event.placement,
+            gapPattern: event.gapPattern
+        }));
+
+        this.isSavingStrategy.set(true);
+        this.autoBuildSvc.saveStrategyProfiles(updated).subscribe({
+            next: (res) => {
+                this.isSavingStrategy.set(false);
+                this.strategyProfiles.set(res.strategies);
+                this.strategySource.set(res.source);
+                this.toast.show('Strategy saved', 'success');
+            },
+            error: () => {
+                this.isSavingStrategy.set(false);
+                this.toast.show('Failed to save strategy', 'danger');
             }
         });
     }

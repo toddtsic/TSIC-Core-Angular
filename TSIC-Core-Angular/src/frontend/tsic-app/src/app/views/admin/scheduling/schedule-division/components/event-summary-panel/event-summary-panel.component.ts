@@ -36,6 +36,7 @@ export class EventSummaryPanelComponent {
     readonly gameSummary = input<GameSummaryResponse | null>(null);
     readonly readinessMap = input<Record<string, AgegroupCanvasReadinessDto>>({});
     readonly strategies = input<DivisionStrategyEntry[]>([]);
+    readonly strategySource = input('defaults');
     readonly assignedFieldCount = input(0);
     readonly hasGamesInScope = input(false);
     readonly scopeGameCount = input(0);
@@ -43,6 +44,9 @@ export class EventSummaryPanelComponent {
     readonly isDeletingGames = input(false);
     readonly showDeleteConfirm = input(false);
     readonly isDevResetting = input(false);
+    readonly missingPairingTCnts = input<number[]>([]);
+    readonly isGeneratingPairings = input(false);
+    readonly isSavingStrategy = input(false);
 
     // ── Outputs ──
     readonly autoScheduleRequested = output<void>();
@@ -51,6 +55,8 @@ export class EventSummaryPanelComponent {
     readonly deleteCancelled = output<void>();
     readonly agegroupClicked = output<string>();
     readonly manageFieldsClicked = output<void>();
+    readonly generatePairingsRequested = output<void>();
+    readonly saveStrategyRequested = output<{ placement: number; gapPattern: number }>();
     readonly devResetConfirmed = output<void>();
 
     // ── Local state ──
@@ -58,6 +64,11 @@ export class EventSummaryPanelComponent {
     readonly showDevResetConfirm = signal(false);
     readonly devResetConfirmText = signal('');
     readonly isDevMode = !environment.production;
+
+    // ── Stepper: local strategy editing ──
+    readonly localPlacement = signal<number | null>(null);
+    readonly localGapPattern = signal<number | null>(null);
+    private stepperInitialized = false;
 
     // ── Helpers ──
     readonly contrastText = contrastText;
@@ -90,14 +101,70 @@ export class EventSummaryPanelComponent {
         this.configuredCount() === 0 && this.totalGames() === 0
     );
 
-    /** True when agegroups exist but no fields are assigned to the event. */
-    readonly hasNoFieldsAssigned = computed(() =>
-        this.agegroups().length > 0 && this.assignedFieldCount() === 0
+    // ── Stepper step completion ──
+
+    /** Step ①: Fields assigned */
+    readonly fieldsComplete = computed(() => this.assignedFieldCount() > 0);
+
+    /** Step ②: All agegroups configured (dates+fields) */
+    readonly datesComplete = computed(() =>
+        this.totalAgegroups() > 0 && this.configuredCount() === this.totalAgegroups()
     );
+
+    /** Step ③: Strategy explicitly saved (not defaults) */
+    readonly strategyComplete = computed(() =>
+        this.strategySource() !== 'defaults'
+    );
+
+    /** Step ④: Pairings generated for all team counts */
+    readonly pairingsComplete = computed(() =>
+        this.missingPairingTCnts().length === 0
+    );
+
+    /** Uniform placement value across all strategies, or null if mixed */
+    readonly uniformPlacement = computed((): number | null => {
+        const strats = this.strategies();
+        if (strats.length === 0) return null;
+        const val = this.uniformValue(strats, s => s.placement.toString());
+        return val !== null ? Number(val) : null;
+    });
+
+    /** Uniform gap pattern value across all strategies, or null if mixed */
+    readonly uniformGap = computed((): number | null => {
+        const strats = this.strategies();
+        if (strats.length === 0) return null;
+        const val = this.uniformValue(strats, s => s.gapPattern.toString());
+        return val !== null ? Number(val) : null;
+    });
+
+    /** True when local strategy differs from server values */
+    readonly strategyDirty = computed(() => {
+        const lp = this.localPlacement();
+        const lg = this.localGapPattern();
+        if (lp === null || lg === null) return false;
+        const up = this.uniformPlacement();
+        const ug = this.uniformGap();
+        return lp !== up || lg !== ug;
+    });
+
+    /** Initialize local strategy signals from uniform values when strategies load. */
+    initStepperLocals(): void {
+        const up = this.uniformPlacement();
+        const ug = this.uniformGap();
+        this.localPlacement.set(up ?? 0);  // default: horizontal
+        this.localGapPattern.set(ug ?? 1); // default: 1on/1off
+        this.stepperInitialized = true;
+    }
 
     // ── Tournament-level game days (union of ALL dates across agegroups) ──
 
     readonly eventGameDays = computed((): GameDayLine[] => {
+        // Initialize stepper locals when strategies first arrive
+        if (!this.stepperInitialized && this.strategies().length > 0) {
+            // Schedule for after this computed finishes (to avoid writing signals inside computed)
+            queueMicrotask(() => this.initStepperLocals());
+        }
+
         const map = this.readinessMap();
         const configured = Object.values(map).filter(r => r.isConfigured);
         if (configured.length === 0) return [];
@@ -150,23 +217,31 @@ export class EventSummaryPanelComponent {
         return `Plays: ${gameDayList.join(' & ')}`;
     });
 
-    /** Scheduling style — uniform across all divisions. Structured for badged rendering. */
-    readonly schedulingStyle = computed((): { placement: string | null; gap: string | null } | null => {
-        // Don't show strategy defaults on a blank slate — they're just noise
-        if (this.configuredCount() === 0) return null;
+    /** Strategy status label for step ③ */
+    readonly strategyStatusLabel = computed((): string => {
         const strats = this.strategies();
-        if (strats.length === 0) return null;
-
-        const placement = this.uniformValue(strats, s => s.placement.toString());
-        const gap = this.uniformValue(strats, s => s.gapPattern.toString());
-
-        if (placement === null && gap === null) return null;
-
-        return {
-            placement: placement !== null ? this.placementLabel(Number(placement)) : null,
-            gap: gap !== null ? this.gapLabel(Number(gap)) : null
-        };
+        if (strats.length === 0 || this.strategySource() === 'defaults') return 'Using defaults';
+        const p = this.uniformPlacement();
+        const g = this.uniformGap();
+        const parts: string[] = [];
+        if (p !== null) parts.push(this.placementLabel(p));
+        if (g !== null) parts.push(this.gapLabel(g));
+        return parts.length > 0 ? parts.join(' · ') : 'Mixed per-division';
     });
+
+    /** Pairings status label for step ④ */
+    readonly pairingsStatusLabel = computed((): string => {
+        const missing = this.missingPairingTCnts();
+        if (missing.length === 0) return 'All generated';
+        return `Missing for ${missing.join(', ')} teams`;
+    });
+
+    onSaveStrategy(): void {
+        const p = this.localPlacement();
+        const g = this.localGapPattern();
+        if (p === null || g === null) return;
+        this.saveStrategyRequested.emit({ placement: p, gapPattern: g });
+    }
 
     // ── Per-agegroup helpers ──
 
@@ -227,12 +302,12 @@ export class EventSummaryPanelComponent {
     // ── Labels ──
 
     placementLabel(val: number): string {
-        return val === 1 ? 'vertically' : 'horizontally';
+        return val === 1 ? 'Vertical' : 'Horizontal';
     }
 
     gapLabel(val: number): string {
         switch (val) {
-            case 0: return 'back-to-back';
+            case 0: return 'Back-to-back';
             case 2: return '1on/2off';
             default: return '1on/1off';
         }

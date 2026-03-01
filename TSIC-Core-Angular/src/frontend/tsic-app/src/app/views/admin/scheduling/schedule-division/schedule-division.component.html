@@ -120,6 +120,7 @@
                     [gameSummary]="gameSummary()"
                     [readinessMap]="canvasReadiness()"
                     [strategies]="strategyProfiles()"
+                    [strategySource]="strategySource()"
                     [assignedFieldCount]="assignedFieldCount()"
                     [hasGamesInScope]="hasGamesInScope()"
                     [scopeGameCount]="scopeGameCount()"
@@ -127,12 +128,17 @@
                     [isDeletingGames]="isDeletingGames()"
                     [showDeleteConfirm]="showDeleteConfirm()"
                     [isDevResetting]="isDevResetting()"
+                    [missingPairingTCnts]="missingPairingTCnts()"
+                    [isGeneratingPairings]="isGeneratingPairings()"
+                    [isSavingStrategy]="isSavingStrategy()"
                     (autoScheduleRequested)="openAutoScheduleConfig()"
                     (deleteRequested)="confirmDeleteGames()"
                     (deleteConfirmed)="executeDelete()"
                     (deleteCancelled)="cancelDeleteGames()"
                     (agegroupClicked)="onAgegroupSelected({ agegroupId: $event })"
                     (manageFieldsClicked)="navigateToManageFields()"
+                    (generatePairingsRequested)="generateMissingPairings()"
+                    (saveStrategyRequested)="saveInlineStrategy($event)"
                     (devResetConfirmed)="executeDevReset()" />
 
             <!-- ── Agegroup View ── -->
