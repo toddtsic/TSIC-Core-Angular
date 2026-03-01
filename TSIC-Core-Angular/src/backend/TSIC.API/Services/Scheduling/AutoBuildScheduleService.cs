@@ -24,6 +24,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly IScheduleDivisionService _scheduleDivisionService;
     private readonly IScheduleQaService _qaService;
+    private readonly IPairingsService _pairingsService;
     private readonly ILogger<AutoBuildScheduleService> _logger;
 
     public AutoBuildScheduleService(
@@ -38,6 +39,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         ISchedulingContextResolver contextResolver,
         IScheduleDivisionService scheduleDivisionService,
         IScheduleQaService qaService,
+        IPairingsService pairingsService,
         ILogger<AutoBuildScheduleService> logger)
     {
         _autoBuildRepo = autoBuildRepo;
@@ -51,6 +53,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         _contextResolver = contextResolver;
         _scheduleDivisionService = scheduleDivisionService;
         _qaService = qaService;
+        _pairingsService = pairingsService;
         _logger = logger;
     }
 
@@ -1529,49 +1532,94 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var saved = await _divisionProfileRepo.GetByJobIdAsync(jobId, ct);
         if (saved.Count > 0)
         {
-            // Compute disconnects if we have a source job to compare against
-            List<PreFlightDisconnect>? disconnects = null;
-            if (sourceJobId.HasValue)
+            // Cross-reference saved profiles against current active divisions
+            // to detect orphans (divisions renamed via sync pools, teams moved, etc.)
+            var activeDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+            var activeDivNames = FilterSchedulableDivisions(activeDivisions)
+                .Select(d => d.DivName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var validSaved = saved
+                .Where(p => activeDivNames.Contains(p.DivisionName))
+                .ToList();
+            var orphanedNames = saved
+                .Where(p => !activeDivNames.Contains(p.DivisionName))
+                .Select(p => p.DivisionName)
+                .ToList();
+
+            // Clean up orphaned rows from DB so they don't accumulate
+            if (orphanedNames.Count > 0)
             {
-                var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId.Value, ct);
-                if (patterns.Count > 0)
-                {
-                    var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId.Value, ct);
-                    var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
-                    var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
-                    var currentDivCountByTCnt = currentDivisions
-                        .GroupBy(d => d.TeamCount)
-                        .ToDictionary(g => g.Key, g => g.Count());
-                    var profilesByTCnt = AttributeExtractor.ExtractProfiles(
-                        patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
-
-                    // Translate source field names → current names before disconnect check
-                    var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
-                    var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
-                    if (fieldMap.Count > 0)
-                    {
-                        profilesByTCnt = profilesByTCnt.ToDictionary(
-                            kvp => kvp.Key,
-                            kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
-                    }
-
-                    var disc = await CheckDisconnectsAsync(jobId, profilesByTCnt, sourceJobId.Value, ct);
-                    if (disc.Count > 0) disconnects = disc;
-                }
+                await _divisionProfileRepo.DeleteOrphansByNamesAsync(jobId, orphanedNames, ct);
             }
 
-            return new DivisionStrategyProfileResponse
+            if (validSaved.Count > 0)
             {
-                Strategies = saved.Select(p => new DivisionStrategyEntry
+                // Some saved profiles survived — use them, fill gaps with defaults
+                var missingDivNames = activeDivNames
+                    .Where(n => !validSaved.Any(p =>
+                        string.Equals(p.DivisionName, n, StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(n => n)
+                    .ToList();
+
+                var strategies = validSaved.Select(p => new DivisionStrategyEntry
                 {
                     DivisionName = p.DivisionName,
                     Placement = p.Placement,
                     GapPattern = p.GapPattern,
                     Wave = p.Wave
-                }).ToList(),
-                Source = "saved",
-                Disconnects = disconnects
-            };
+                }).ToList();
+
+                // Fill gaps for new division names (post-sync) with defaults
+                foreach (var name in missingDivNames)
+                {
+                    strategies.Add(new DivisionStrategyEntry
+                    {
+                        DivisionName = name,
+                        Placement = 0,  // Horizontal
+                        GapPattern = 1  // OneOnOneOff
+                    });
+                }
+
+                // Compute disconnects if we have a source job to compare against
+                List<PreFlightDisconnect>? disconnects = null;
+                if (sourceJobId.HasValue)
+                {
+                    var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId.Value, ct);
+                    if (patterns.Count > 0)
+                    {
+                        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId.Value, ct);
+                        var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
+                        var currentDivCountByTCnt = FilterSchedulableDivisions(activeDivisions)
+                            .GroupBy(d => d.TeamCount)
+                            .ToDictionary(g => g.Key, g => g.Count());
+                        var profilesByTCnt = AttributeExtractor.ExtractProfiles(
+                            patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
+
+                        // Translate source field names → current names before disconnect check
+                        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+                        var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
+                        if (fieldMap.Count > 0)
+                        {
+                            profilesByTCnt = profilesByTCnt.ToDictionary(
+                                kvp => kvp.Key,
+                                kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
+                        }
+
+                        var disc = await CheckDisconnectsAsync(jobId, profilesByTCnt, sourceJobId.Value, ct);
+                        if (disc.Count > 0) disconnects = disc;
+                    }
+                }
+
+                return new DivisionStrategyProfileResponse
+                {
+                    Strategies = strategies.OrderBy(s => s.DivisionName).ToList(),
+                    Source = orphanedNames.Count > 0 ? "saved-cleaned" : "saved",
+                    Disconnects = disconnects
+                };
+            }
+            // All saved profiles were orphaned — fall through to Layer 2/3
         }
 
         // Layer 2: Infer from source job via AttributeExtractor
@@ -1583,7 +1631,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(
                     sourceJobId.Value, ct);
                 var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
-                var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+                var currentDivisions = FilterSchedulableDivisions(
+                    await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct));
                 var currentDivCountByTCnt = currentDivisions
                     .GroupBy(d => d.TeamCount)
                     .ToDictionary(g => g.Key, g => g.Count());
@@ -1673,11 +1722,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
 
         // Layer 3: Defaults from current division names
-        var allDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var allDivisions = FilterSchedulableDivisions(
+            await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct));
         var distinctDivNames = allDivisions
-            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
-                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
-                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
             .Select(d => d.DivName)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n)
@@ -1693,6 +1740,27 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }).ToList(),
             Source = "defaults"
         };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Scheduling Filters
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Filter division summaries to only schedulable divisions:
+    /// excludes Waitlist/Dropped agegroups and Unassigned divisions.
+    /// </summary>
+    private static List<CurrentDivisionSummary> FilterSchedulableDivisions(
+        List<CurrentDivisionSummary> divisions)
+    {
+        return divisions
+            .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.Contains("Waitlist", StringComparison.OrdinalIgnoreCase)
+                     && !d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase)
+                     && !d.DivName.Contains("Unassigned", StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     // ══════════════════════════════════════════════════════════
@@ -2725,6 +2793,46 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(divId, jobId, ct);
 
         return (placed, failed);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Ensure Pairings (auto-generate missing round-robin)
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<EnsurePairingsResponse> EnsurePairingsAsync(
+        Guid jobId, string userId, EnsurePairingsRequest request, CancellationToken ct = default)
+    {
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Find which team counts already have pairings
+        var existing = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
+
+        var generated = new List<int>();
+        var alreadyExisted = new List<int>();
+
+        // Process sequentially (shared DbContext)
+        foreach (var tCnt in request.TeamCounts)
+        {
+            if (existing.Contains(tCnt))
+            {
+                alreadyExisted.Add(tCnt);
+                continue;
+            }
+
+            // Generate standard round-robin: N-1 rounds for N teams
+            var noRounds = tCnt - 1;
+            await _pairingsService.AddPairingBlockAsync(
+                jobId, userId,
+                new AddPairingBlockRequest { TeamCount = tCnt, NoRounds = noRounds },
+                ct);
+            generated.Add(tCnt);
+        }
+
+        return new EnsurePairingsResponse
+        {
+            Generated = generated,
+            AlreadyExisted = alreadyExisted
+        };
     }
 
 }

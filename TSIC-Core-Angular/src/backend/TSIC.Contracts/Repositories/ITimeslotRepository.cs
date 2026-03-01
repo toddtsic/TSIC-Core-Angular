@@ -4,6 +4,38 @@ using TSIC.Domain.Entities;
 namespace TSIC.Contracts.Repositories;
 
 /// <summary>
+/// Per-agegroup readiness data returned by the repository.
+/// Service layer transforms this into AgegroupCanvasReadinessDto.
+/// </summary>
+/// <summary>Per-DOW field scheduling parameters from field-timeslot rows.</summary>
+public record DowFieldData
+{
+    public required string Dow { get; init; }
+    public required int FieldCount { get; init; }
+    public required List<string> StartTimes { get; init; }
+    public required List<int> GsiValues { get; init; }
+    public required List<int> MaxGamesValues { get; init; }
+    public required int TotalMaxGamesSum { get; init; }
+}
+
+public record AgegroupReadinessData
+{
+    public required int DateCount { get; init; }
+    public required int FieldCount { get; init; }
+    public required List<string> DaysOfWeek { get; init; }
+    public required List<int> DistinctGsi { get; init; }
+    public required List<string> DistinctStartTimes { get; init; }
+    public required List<int> DistinctMaxGames { get; init; }
+    public required int TotalMaxGamesSum { get; init; }
+
+    /// <summary>Actual calendar dates from TimeslotsLeagueSeasonDates.</summary>
+    public required List<DateTime> Dates { get; init; }
+
+    /// <summary>Per-DOW field scheduling parameters for game day line construction.</summary>
+    public required List<DowFieldData> PerDowFields { get; init; }
+}
+
+/// <summary>
 /// Repository for timeslot dates and field configurations.
 /// </summary>
 public interface ITimeslotRepository
@@ -40,24 +72,25 @@ public interface ITimeslotRepository
 
     /// <summary>
     /// Get the set of agegroup IDs that have at least one date row for this season/year.
-    /// Used by dashboard timeslot-readiness check.
+    /// Scoped to agegroups belonging to the specified league.
     /// </summary>
     Task<HashSet<Guid>> GetAgegroupIdsWithDatesAsync(
-        string season, string year, CancellationToken ct = default);
+        Guid leagueId, string season, string year, CancellationToken ct = default);
 
     /// <summary>
     /// Get the set of agegroup IDs that have at least one field-timeslot row for this season/year.
-    /// Used by dashboard timeslot-readiness check.
+    /// Scoped to agegroups belonging to the specified league.
     /// </summary>
     Task<HashSet<Guid>> GetAgegroupIdsWithFieldTimeslotsAsync(
-        string season, string year, CancellationToken ct = default);
+        Guid leagueId, string season, string year, CancellationToken ct = default);
 
     /// <summary>
-    /// Get per-agegroup date and field-timeslot counts for canvas readiness display.
-    /// Returns a dictionary keyed by agegroupId → (dateCount, fieldCount).
+    /// Get per-agegroup readiness data for event dashboard display.
+    /// Returns date counts, distinct field counts, and field scheduling parameters.
+    /// Scoped to agegroups belonging to the specified league.
     /// </summary>
-    Task<Dictionary<Guid, (int DateCount, int FieldCount)>> GetReadinessCountsAsync(
-        string season, string year, CancellationToken ct = default);
+    Task<Dictionary<Guid, AgegroupReadinessData>> GetReadinessDataAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
 
     // ── Cloning support queries ──
 

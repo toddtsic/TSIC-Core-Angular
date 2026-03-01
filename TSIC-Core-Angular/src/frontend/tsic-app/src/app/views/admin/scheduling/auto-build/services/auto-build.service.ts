@@ -6,6 +6,8 @@ import type {
     AutoBuildSourceJobDto,
     AutoBuildV2Request,
     AutoBuildV2Result,
+    EnsurePairingsRequest,
+    EnsurePairingsResponse,
     GameSummaryResponse,
     PrerequisiteCheckResponse,
     ProfileExtractionResponse,
@@ -56,6 +58,21 @@ export class AutoBuildService {
         const params = sourceJobId ? `?sourceJobId=${sourceJobId}` : '';
         return this.http.get<DivisionStrategyProfileResponse>(
             `${this.apiUrl}/strategy-profiles${params}`
+        );
+    }
+
+    ensurePairings(request: EnsurePairingsRequest): Observable<EnsurePairingsResponse> {
+        return this.http.post<EnsurePairingsResponse>(
+            `${this.apiUrl}/ensure-pairings`,
+            request
+        );
+    }
+
+    /** Dev-only: clear all scheduling config (games, timeslots, pairings, profiles). */
+    devReset(): Observable<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number }> {
+        return this.http.post<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number }>(
+            `${environment.apiUrl}/dev-scheduling/reset`,
+            {}
         );
     }
 }

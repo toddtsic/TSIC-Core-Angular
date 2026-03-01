@@ -185,6 +185,8 @@ export type { EmailParticipantsResponse } from './models/EmailParticipantsRespon
 export type { EmailPreviewRequest } from './models/EmailPreviewRequest';
 export type { EmailPreviewResponse } from './models/EmailPreviewResponse';
 export type { EmailRecipientCountResponse } from './models/EmailRecipientCountResponse';
+export type { EnsurePairingsRequest } from './models/EnsurePairingsRequest';
+export type { EnsurePairingsResponse } from './models/EnsurePairingsResponse';
 export type { EntityTagHeaderValue } from './models/EntityTagHeaderValue';
 export type { EventContactDto } from './models/EventContactDto';
 export type { FamilyContactDto } from './models/FamilyContactDto';
@@ -212,6 +214,7 @@ export type { FilterOptionDto } from './models/FilterOptionDto';
 export type { FinancialMetrics } from './models/FinancialMetrics';
 export type { ForgotPasswordRequest } from './models/ForgotPasswordRequest';
 export type { GameClockParamsDto } from './models/GameClockParamsDto';
+export type { GameDayDto } from './models/GameDayDto';
 export type { GameRefAssignmentDto } from './models/GameRefAssignmentDto';
 export type { GameSummaryResponse } from './models/GameSummaryResponse';
 export type { GetConfirmationTextRequest } from './models/GetConfirmationTextRequest';

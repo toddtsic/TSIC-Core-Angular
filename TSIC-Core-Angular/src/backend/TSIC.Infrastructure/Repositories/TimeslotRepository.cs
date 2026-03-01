@@ -121,11 +121,12 @@ public class TimeslotRepository : ITimeslotRepository
     // ── Dashboard aggregates ──
 
     public async Task<HashSet<Guid>> GetAgegroupIdsWithDatesAsync(
-        string season, string year, CancellationToken ct = default)
+        Guid leagueId, string season, string year, CancellationToken ct = default)
     {
         var ids = await _context.TimeslotsLeagueSeasonDates
             .AsNoTracking()
-            .Where(d => d.Season == season && d.Year == year)
+            .Where(d => d.Season == season && d.Year == year
+                && d.Agegroup.LeagueId == leagueId)
             .Select(d => d.AgegroupId)
             .Distinct()
             .ToListAsync(ct);
@@ -134,11 +135,12 @@ public class TimeslotRepository : ITimeslotRepository
     }
 
     public async Task<HashSet<Guid>> GetAgegroupIdsWithFieldTimeslotsAsync(
-        string season, string year, CancellationToken ct = default)
+        Guid leagueId, string season, string year, CancellationToken ct = default)
     {
         var ids = await _context.TimeslotsLeagueSeasonFields
             .AsNoTracking()
-            .Where(f => f.Season == season && f.Year == year)
+            .Where(f => f.Season == season && f.Year == year
+                && f.Agegroup.LeagueId == leagueId)
             .Select(f => f.AgegroupId)
             .Distinct()
             .ToListAsync(ct);
@@ -146,34 +148,111 @@ public class TimeslotRepository : ITimeslotRepository
         return ids.ToHashSet();
     }
 
-    public async Task<Dictionary<Guid, (int DateCount, int FieldCount)>> GetReadinessCountsAsync(
-        string season, string year, CancellationToken ct = default)
+    public async Task<Dictionary<Guid, AgegroupReadinessData>> GetReadinessDataAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
     {
-        var dateCounts = await _context.TimeslotsLeagueSeasonDates
+        // Actual dates per agegroup — scoped to this league's agegroups
+        var dateRows = await _context.TimeslotsLeagueSeasonDates
             .AsNoTracking()
-            .Where(d => d.Season == season && d.Year == year)
-            .GroupBy(d => d.AgegroupId)
-            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .Where(d => d.Season == season && d.Year == year
+                && d.Agegroup.LeagueId == leagueId)
+            .Select(d => new { d.AgegroupId, d.GDate })
             .ToListAsync(ct);
 
-        var fieldCounts = await _context.TimeslotsLeagueSeasonFields
+        var datesByAg = dateRows.GroupBy(d => d.AgegroupId);
+
+        // Field timeslot parameters — scoped to this league's agegroups
+        var fieldRows = await _context.TimeslotsLeagueSeasonFields
             .AsNoTracking()
-            .Where(f => f.Season == season && f.Year == year)
-            .GroupBy(f => f.AgegroupId)
-            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .Where(f => f.Season == season && f.Year == year
+                && f.Agegroup.LeagueId == leagueId)
+            .Select(f => new
+            {
+                f.AgegroupId,
+                f.FieldId,
+                f.Dow,
+                f.StartTime,
+                f.GamestartInterval,
+                f.MaxGamesPerField
+            })
             .ToListAsync(ct);
 
-        // Merge into a single dictionary
-        var result = new Dictionary<Guid, (int DateCount, int FieldCount)>();
-        foreach (var d in dateCounts)
-            result[d.AgegroupId] = (d.Count, 0);
+        // Group by agegroup in-memory
+        var fieldsByAg = fieldRows.GroupBy(f => f.AgegroupId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-        foreach (var f in fieldCounts)
+        var result = new Dictionary<Guid, AgegroupReadinessData>();
+
+        // Seed from dates
+        foreach (var g in datesByAg)
         {
-            if (result.TryGetValue(f.AgegroupId, out var existing))
-                result[f.AgegroupId] = (existing.DateCount, f.Count);
+            var dates = g.Select(d => d.GDate).Distinct().OrderBy(d => d).ToList();
+            result[g.Key] = new AgegroupReadinessData
+            {
+                DateCount = dates.Count,
+                FieldCount = 0,
+                DaysOfWeek = [],
+                DistinctGsi = [],
+                DistinctStartTimes = [],
+                DistinctMaxGames = [],
+                TotalMaxGamesSum = 0,
+                Dates = dates,
+                PerDowFields = []
+            };
+        }
+
+        // Merge field data
+        foreach (var (agId, fields) in fieldsByAg)
+        {
+            var distinctFieldCount = fields.Select(f => f.FieldId).Distinct().Count();
+            var distinctDows = fields.Select(f => f.Dow).Distinct().OrderBy(d => d).ToList();
+            var distinctGsi = fields.Select(f => f.GamestartInterval).Distinct().ToList();
+            var distinctStartTimes = fields.Select(f => f.StartTime ?? "").Where(s => s != "").Distinct().ToList();
+            var distinctMaxGames = fields.Select(f => f.MaxGamesPerField).Distinct().ToList();
+            var totalMaxGamesSum = fields.Sum(f => f.MaxGamesPerField);
+
+            // Per-DOW field data for game day line construction
+            var perDowFields = fields
+                .GroupBy(f => f.Dow)
+                .Select(dg => new DowFieldData
+                {
+                    Dow = dg.Key,
+                    FieldCount = dg.Select(f => f.FieldId).Distinct().Count(),
+                    StartTimes = dg.Select(f => f.StartTime ?? "").Where(s => s != "").Distinct().ToList(),
+                    GsiValues = dg.Select(f => f.GamestartInterval).Distinct().ToList(),
+                    MaxGamesValues = dg.Select(f => f.MaxGamesPerField).Distinct().ToList(),
+                    TotalMaxGamesSum = dg.Sum(f => f.MaxGamesPerField)
+                })
+                .ToList();
+
+            if (result.TryGetValue(agId, out var existing))
+            {
+                result[agId] = existing with
+                {
+                    FieldCount = distinctFieldCount,
+                    DaysOfWeek = distinctDows,
+                    DistinctGsi = distinctGsi,
+                    DistinctStartTimes = distinctStartTimes,
+                    DistinctMaxGames = distinctMaxGames,
+                    TotalMaxGamesSum = totalMaxGamesSum,
+                    PerDowFields = perDowFields
+                };
+            }
             else
-                result[f.AgegroupId] = (0, f.Count);
+            {
+                result[agId] = new AgegroupReadinessData
+                {
+                    DateCount = 0,
+                    FieldCount = distinctFieldCount,
+                    DaysOfWeek = distinctDows,
+                    DistinctGsi = distinctGsi,
+                    DistinctStartTimes = distinctStartTimes,
+                    DistinctMaxGames = distinctMaxGames,
+                    TotalMaxGamesSum = totalMaxGamesSum,
+                    Dates = [],
+                    PerDowFields = perDowFields
+                };
+            }
         }
 
         return result;

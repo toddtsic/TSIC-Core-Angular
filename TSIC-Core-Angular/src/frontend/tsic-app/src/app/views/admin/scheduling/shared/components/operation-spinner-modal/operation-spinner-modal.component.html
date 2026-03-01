@@ -1,0 +1,21 @@
+<tsic-dialog [open]="open()"
+             size="sm"
+             [closeOnEsc]="false"
+             [closeOnBackdrop]="false">
+    <div class="modal-content operation-modal">
+        <div class="modal-body">
+            <div class="build-spinner">
+                <div class="spinner-ring ring-outer"></div>
+                <div class="spinner-ring ring-middle"></div>
+                <div class="spinner-ring ring-inner"></div>
+                <div class="spinner-core">
+                    <i class="bi" [class]="icon()"></i>
+                </div>
+            </div>
+            <h3 class="operation-title">{{ title() }}</h3>
+            @if (subtitle()) {
+                <p class="operation-subtitle">{{ subtitle() }}</p>
+            }
+        </div>
+    </div>
+</tsic-dialog>

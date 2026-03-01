@@ -48,20 +48,70 @@
         <!-- ══════════ RIGHT PANEL: Event Summary / Agegroup Grid / Division Grid ══════════ -->
         <div class="grid-panel">
 
+            <!-- ── Prerequisite Errors ── -->
+            @if (prerequisiteErrors().length > 0) {
+                <div class="prerequisite-errors">
+                    <div class="alert alert-warning mb-0">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <strong><i class="bi bi-exclamation-triangle me-1"></i>Setup incomplete</strong>
+                                <p class="mb-1 mt-1">Fix these issues before auto-scheduling:</p>
+                                <ul class="mb-0 ps-3">
+                                    @for (err of prerequisiteErrors(); track $index) {
+                                        <li>
+                                            {{ err }}
+                                            @if (missingPairingTCnts().length > 0 && err.startsWith('Pairings are missing')) {
+                                                <button class="btn btn-sm btn-outline-primary ms-2 py-0"
+                                                        [disabled]="isGeneratingPairings()"
+                                                        (click)="generateMissingPairings()">
+                                                    @if (isGeneratingPairings()) {
+                                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                                        Generating...
+                                                    } @else {
+                                                        <i class="bi bi-plus-circle me-1"></i>Generate
+                                                    }
+                                                </button>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                            <button class="btn-close ms-3" (click)="dismissPrerequisiteErrors()" aria-label="Dismiss"></button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- ── Build Results (shown after auto-schedule completes) ── -->
+            @if (showBuildResults() && buildResult()) {
+                <app-build-results-panel
+                    [buildResult]="buildResult()!"
+                    [qaResult]="qaResult()"
+                    [qaLoading]="qaLoading()"
+                    [buildElapsedMs]="buildElapsedMs()"
+                    (dismissed)="onBuildDismissed()"
+                    (undoRequested)="onBuildUndo()"
+                    (runAgainRequested)="onBuildRunAgain()" />
+
             <!-- ── Event Summary View ── -->
-            @if (scope().level === 'event') {
+            } @else if (scope().level === 'event') {
                 <app-event-summary-panel
                     [agegroups]="agegroups()"
                     [gameSummary]="gameSummary()"
+                    [readinessMap]="canvasReadiness()"
+                    [strategies]="strategyProfiles()"
                     [hasGamesInScope]="hasGamesInScope()"
                     [scopeGameCount]="scopeGameCount()"
                     [isExecutingV2]="isExecutingV2()"
                     [isDeletingGames]="isDeletingGames()"
                     [showDeleteConfirm]="showDeleteConfirm()"
+                    [isDevResetting]="isDevResetting()"
                     (autoScheduleRequested)="openAutoScheduleConfig()"
                     (deleteRequested)="confirmDeleteGames()"
                     (deleteConfirmed)="executeDelete()"
-                    (deleteCancelled)="cancelDeleteGames()" />
+                    (deleteCancelled)="cancelDeleteGames()"
+                    (agegroupClicked)="onAgegroupSelected({ agegroupId: $event })"
+                    (devResetRequested)="executeDevReset()" />
 
             <!-- ── Agegroup View ── -->
             } @else if (scope().level === 'agegroup') {
@@ -381,3 +431,10 @@
         </div>
     </tsic-dialog>
 }
+
+<!-- ══════════ Operation Spinner Modal (build / delete / undo) ══════════ -->
+<app-operation-spinner-modal
+    [open]="showOperationModal()"
+    [title]="operationTitle()"
+    [subtitle]="operationSubtitle()"
+    [icon]="operationIcon()" />

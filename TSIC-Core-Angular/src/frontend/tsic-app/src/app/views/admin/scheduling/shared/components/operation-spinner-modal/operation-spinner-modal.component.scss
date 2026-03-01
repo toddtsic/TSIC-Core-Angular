@@ -1,0 +1,104 @@
+.operation-modal {
+    border: none;
+    background: transparent;
+
+    .modal-body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: var(--space-10) var(--space-6);
+        gap: var(--space-5);
+    }
+}
+
+.operation-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+    margin: 0;
+    animation: build-text-fade-in 0.8s ease-out 0.3s both;
+}
+
+.operation-subtitle {
+    font-size: var(--font-size-base);
+    color: var(--brand-text-muted);
+    margin: 0;
+    max-width: 340px;
+    line-height: var(--line-height-normal);
+    animation: build-text-fade-in 0.8s ease-out 0.5s both;
+}
+
+.build-spinner {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    animation: build-hero-fade-in 0.6s ease-out;
+}
+
+@keyframes build-hero-fade-in {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.spinner-ring {
+    position: absolute;
+    border-radius: var(--radius-full);
+    border: 2px solid transparent;
+}
+
+.ring-outer {
+    inset: 0;
+    border-top-color: var(--bs-primary);
+    border-right-color: rgba(var(--bs-primary-rgb), 0.3);
+    animation: spin-cw 2.2s linear infinite;
+}
+
+.ring-middle {
+    inset: 14px;
+    border-bottom-color: var(--bs-success);
+    border-left-color: rgba(var(--bs-success-rgb), 0.3);
+    animation: spin-ccw 1.8s linear infinite;
+}
+
+.ring-inner {
+    inset: 28px;
+    border-top-color: var(--bs-info);
+    border-right-color: rgba(var(--bs-info-rgb), 0.3);
+    animation: spin-cw 1.4s linear infinite;
+}
+
+.spinner-core {
+    position: absolute;
+    inset: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    animation: core-pulse 2s ease-in-out infinite;
+
+    i {
+        font-size: 1.75rem;
+        color: var(--bs-primary);
+    }
+}
+
+@keyframes spin-cw {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spin-ccw {
+    to { transform: rotate(-360deg); }
+}
+
+@keyframes core-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+@keyframes build-text-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}

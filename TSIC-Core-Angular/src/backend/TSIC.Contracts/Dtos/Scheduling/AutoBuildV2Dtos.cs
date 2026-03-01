@@ -179,6 +179,30 @@ public record PrerequisiteCheckResponse
 }
 
 // ══════════════════════════════════════════════════════════
+// Ensure Pairings (auto-generate missing round-robin)
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Request to auto-generate round-robin pairings for specified team counts.
+/// </summary>
+public record EnsurePairingsRequest
+{
+    /// <summary>Team counts that need round-robin pairings generated.</summary>
+    public required List<int> TeamCounts { get; init; }
+}
+
+/// <summary>
+/// Result of ensure-pairings operation.
+/// </summary>
+public record EnsurePairingsResponse
+{
+    /// <summary>Team counts that had pairings generated.</summary>
+    public required List<int> Generated { get; init; }
+    /// <summary>Team counts that already had pairings.</summary>
+    public required List<int> AlreadyExisted { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
 // Profile Extraction Response
 // ══════════════════════════════════════════════════════════
 

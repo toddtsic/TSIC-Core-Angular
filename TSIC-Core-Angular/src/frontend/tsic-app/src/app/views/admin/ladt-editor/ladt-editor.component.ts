@@ -606,16 +606,42 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     this.syncResult.set(null);
     this.showSyncDialog.set(true);
 
-    // Initial preview with default theme names to discover structure
+    // Initial preview with empty theme names to discover structure + current names
     this.ladtService.previewDivisionNameSync([]).subscribe({
       next: (previews) => {
-        this.syncPreviews.set(previews);
-        // Initialize theme name inputs from anchor agegroup (most divisions)
-        const anchor = previews.reduce((a, b) => b.divisionCount > a.divisionCount ? b : a, previews[0]);
-        if (anchor) {
-          this.syncThemeNames.set(anchor.divisions.map(d => d.proposedName));
+        // Collect distinct current names across all agegroups (preserves first-seen casing)
+        const seen = new Set<string>();
+        const distinctNames: string[] = [];
+        for (const preview of previews) {
+          for (const div of preview.divisions) {
+            const key = div.currentName.toLowerCase();
+            if (!seen.has(key)) {
+              seen.add(key);
+              distinctNames.push(div.currentName);
+            }
+          }
         }
-        this.syncLoading.set(false);
+
+        // Sort distinct names alphabetically; pad with "Division N" if max exceeds count
+        distinctNames.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        const maxDivs = Math.max(...previews.map(p => p.divisionCount), 0);
+        const themeNames = [...distinctNames];
+        for (let i = themeNames.length; i < maxDivs; i++) {
+          themeNames.push(`Division ${i + 1}`);
+        }
+        this.syncThemeNames.set(themeNames);
+
+        // Re-fetch preview with the assembled theme names
+        this.ladtService.previewDivisionNameSync(themeNames).subscribe({
+          next: (updatedPreviews) => {
+            this.syncPreviews.set(updatedPreviews);
+            this.syncLoading.set(false);
+          },
+          error: () => {
+            this.syncPreviews.set(previews);
+            this.syncLoading.set(false);
+          }
+        });
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to load division sync preview');
@@ -658,6 +684,11 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       updated[index] = value;
       return updated;
     });
+  }
+
+  removeThemeName(index: number): void {
+    this.syncThemeNames.update(names => names.filter((_, i) => i !== index));
+    this.refreshSyncPreview();
   }
 
   onThemeNameBlur(): void {

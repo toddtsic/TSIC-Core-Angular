@@ -8,36 +8,380 @@
     height: 100%;
 }
 
-.event-summary-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
+// ══════════════════════════════════════════
+// ── TOURNAMENT HERO — dominant top block ──
+// ══════════════════════════════════════════
+
+.tournament-hero {
+    margin: var(--space-3);
+    padding: var(--space-4);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    border-left: 4px solid var(--bs-primary);
+    border-radius: var(--radius-md);
     flex-shrink: 0;
 }
 
-.ag-summary-list {
-    padding: var(--space-2) var(--space-3);
+// ── Hero Header: Title + Stats + Actions ──
+
+.hero-header {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
 }
 
-.ag-summary-card {
+.hero-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--space-1);
+    color: var(--bs-body-color);
+}
+
+// ── Hero Status Pills (games + config — unified) ──
+
+.hero-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    font-size: var(--font-size-sm);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+
+    i {
+        font-size: var(--font-size-xs);
+    }
+
+    strong {
+        font-weight: var(--font-weight-semibold);
+    }
+
+    &.status-complete {
+        color: var(--bs-success);
+        background: rgba(var(--bs-success-rgb), 0.1);
+    }
+
+    &.status-incomplete {
+        color: var(--bs-warning);
+        background: rgba(var(--bs-warning-rgb), 0.1);
+    }
+
+    &.status-blocked {
+        color: var(--bs-danger);
+        background: rgba(var(--bs-danger-rgb), 0.1);
+        font-weight: var(--font-weight-semibold);
+    }
+}
+
+.hero-actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex-shrink: 0;
+}
+
+// ── Hero Game Day Table ──
+
+.hero-days-table {
+    margin-top: var(--space-3);
+    font-size: var(--font-size-sm);
+    border-collapse: collapse;
+    width: auto;
+
+    td {
+        padding: 2px var(--space-2) 2px 0;
+        white-space: nowrap;
+        color: var(--bs-body-color);
+    }
+}
+
+.day-label {
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-primary) !important;
+}
+
+.day-date {
+    font-weight: var(--font-weight-medium);
+}
+
+.day-fields,
+.day-time,
+.day-gsi {
+    color: var(--bs-secondary-color) !important;
+}
+
+// ── Hero Scheduling Style ──
+
+.hero-style {
+    margin-top: var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--bs-secondary-color);
+
+    i {
+        margin-right: var(--space-1);
+    }
+}
+
+.hero-style-line {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.style-badge {
+    display: inline-block;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    color: var(--bs-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+// ── Hero Progress ──
+
+.hero-progress {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    margin-top: var(--space-3);
+
+    .progress {
+        flex: 1;
+    }
+}
+
+.hero-pct {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+
+// ══════════════════════════════════════════
+// ── EMPTY STATE ──
+// ══════════════════════════════════════════
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    margin: var(--space-4) var(--space-3);
+    padding: var(--space-10) var(--space-6);
+    flex: 1;
+    background: rgba(var(--bs-warning-rgb), 0.06);
+    border: 2px dashed rgba(var(--bs-warning-rgb), 0.4);
+    border-radius: var(--radius-lg);
+    text-align: center;
+}
+
+.empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-warning-rgb), 0.15);
+    color: var(--bs-warning);
+    font-size: 28px;
+}
+
+.empty-state-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--bs-body-color);
+}
+
+.empty-state-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--bs-secondary-color);
+    max-width: 380px;
+    line-height: var(--line-height-normal);
+}
+
+.empty-state-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-light);
+    background: var(--bs-primary);
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+        color: var(--bs-light);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+
+    &:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow-xs);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+// ══════════════════════════════════════════
+// ── AGEGROUP CARD GRID ──
+// ══════════════════════════════════════════
+
+.ag-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-2);
+    padding: var(--space-3);
+    padding-top: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    align-content: start;
+}
+
+// ── Individual Card ──
+
+.ag-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
     padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-body-bg);
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+
+    &:hover {
+        box-shadow: var(--shadow-sm);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    &.ag-card-unconfigured {
+        border-left: 3px solid var(--bs-warning);
+    }
+
+    &.ag-card-configured {
+        border-left: 3px solid var(--bs-primary);
+    }
+
+    &.ag-card-partial {
+        border-left: 3px solid var(--bs-info);
+    }
+
+    &.ag-card-complete {
+        border-left: 3px solid var(--bs-success);
+    }
+}
+
+// ── Agegroup Header Row (badge + counts) ──
+
+.ag-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.ag-badge {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ag-count-badges {
+    display: flex;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+.ag-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+}
+
+// ── Unconfigured Hint ──
+
+.ag-hint {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+
+    i {
+        margin-right: 2px;
+    }
+}
+
+// ── Game Count Badge ──
+
+.ag-games {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    align-self: flex-start;
+
+    &.ag-games-complete {
+        background: rgba(var(--bs-success-rgb), 0.12);
+        color: var(--bs-success);
+    }
+
+    &.ag-games-incomplete {
+        background: rgba(var(--bs-warning-rgb), 0.12);
+        color: var(--bs-warning);
+    }
+
+    &.ag-games-none {
+        color: var(--bs-secondary-color);
+    }
+}
+
+// ── Plays Dropdown ──
+
+.ag-plays-ddl {
+    appearance: auto;
+    width: 100%;
+    padding: 1px var(--space-1);
     border: 1px solid var(--bs-border-color);
     border-radius: var(--radius-sm);
     background: var(--bs-body-bg);
-    font-size: var(--font-size-sm);
-}
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
 
-.ag-summary-games {
-    font-weight: 600;
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
 }

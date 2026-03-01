@@ -73,6 +73,21 @@ public class DivisionProfileRepository : IDivisionProfileRepository
         _context.DivisionScheduleProfile.RemoveRange(existing);
     }
 
+    public async Task<int> DeleteOrphansByNamesAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> orphanedNames,
+        CancellationToken ct = default)
+    {
+        var orphans = await _context.DivisionScheduleProfile
+            .Where(p => p.JobId == jobId && orphanedNames.Contains(p.DivisionName))
+            .ToListAsync(ct);
+
+        if (orphans.Count == 0) return 0;
+
+        _context.DivisionScheduleProfile.RemoveRange(orphans);
+        return await _context.SaveChangesAsync(ct);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         return await _context.SaveChangesAsync(ct);

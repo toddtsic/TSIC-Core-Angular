@@ -15,7 +15,12 @@
                 <div class="mb-3">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <label class="form-label form-label-sm fw-semibold mb-0">Division Strategy</label>
-                        <span class="badge bg-primary-subtle text-primary" style="font-size: var(--font-size-xs)">{{ strategySourceLabel() }}</span>
+                        <span class="badge"
+                              [class.bg-primary-subtle]="strategySource() !== 'saved-cleaned'"
+                              [class.text-primary]="strategySource() !== 'saved-cleaned'"
+                              [class.bg-warning-subtle]="strategySource() === 'saved-cleaned'"
+                              [class.text-warning-emphasis]="strategySource() === 'saved-cleaned'"
+                              style="font-size: var(--font-size-xs)">{{ strategySourceLabel() }}</span>
                     </div>
                     <small class="d-block text-secondary mb-2">Click to change placement or gap pattern per division.</small>
                     <div class="modal-strategy-grid">
@@ -23,6 +28,7 @@
                             <span class="msg-name">Division</span>
                             <span class="msg-placement">Placement</span>
                             <span class="msg-gap">Gap</span>
+                            <span class="msg-wave">Wave</span>
                         </div>
                         @for (entry of localStrategies(); track entry.divisionName) {
                             <div class="msg-row">
@@ -34,6 +40,10 @@
                                 <button class="btn btn-sm btn-outline-secondary msg-btn"
                                         (click)="cycleGapPattern(entry.divisionName)">
                                     {{ gapLabel(entry.gapPattern) }}
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary msg-btn"
+                                        (click)="cycleWave(entry.divisionName)">
+                                    {{ waveLabel(entry.wave) }}
                                 </button>
                             </div>
                         }
@@ -53,10 +63,12 @@
                                 <input class="form-check-input me-1" type="checkbox"
                                        [checked]="ag.included"
                                        (change)="toggleAgegroup(i)">
-                                <span class="constraint-name"
-                                      [style.color]="ag.color ?? 'inherit'"
-                                      [style.font-weight]="600">
-                                    {{ ag.agegroupName }}
+                                <span class="constraint-name">
+                                    <span class="ag-badge"
+                                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
+                                          [style.color]="contrastText(ag.color)">
+                                        {{ ag.agegroupName }}
+                                    </span>
                                 </span>
                                 <span class="text-secondary" style="font-size: var(--font-size-xs)">
                                     {{ ag.teamCount }} teams · {{ ag.divisionCount }} divisions

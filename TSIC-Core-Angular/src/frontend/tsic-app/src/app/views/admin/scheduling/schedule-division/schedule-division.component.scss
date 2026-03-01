@@ -84,6 +84,24 @@ app-pairings-panel {
     flex-shrink: 0;
 }
 
+// ── Prerequisite errors ──
+
+.prerequisite-errors {
+    padding: var(--space-2);
+    flex-shrink: 0;
+
+    p, ul {
+        font-size: var(--font-size-sm);
+    }
+
+    li {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+    }
+}
+
 // Auto-schedule config modal styles → auto-schedule-config-modal child component
 
 // ── Mobile: stack panels vertically ──

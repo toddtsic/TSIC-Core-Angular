@@ -444,6 +444,28 @@
   flex: 1;
 }
 
+.sync-theme-col-action {
+  min-width: 28px;
+}
+
+.sync-theme-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--bs-secondary-color);
+  background: transparent;
+
+  &:hover {
+    color: var(--bs-danger);
+    background: rgba(var(--bs-danger-rgb), 0.1);
+  }
+}
+
 .sync-preview-section {
   border: 1px solid var(--bs-border-color);
   border-radius: var(--radius-sm);

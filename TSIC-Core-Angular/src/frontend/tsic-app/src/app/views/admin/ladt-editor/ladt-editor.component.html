@@ -338,6 +338,7 @@
             <div class="sync-theme-header">
               <span class="sync-theme-col-num">#</span>
               <span class="sync-theme-col-name">Division Name</span>
+              <span class="sync-theme-col-action"></span>
             </div>
             @for (name of syncThemeNames(); track $index) {
               <div class="sync-theme-row">
@@ -346,6 +347,12 @@
                        [ngModel]="name"
                        (ngModelChange)="updateThemeName($index, $event)"
                        (blur)="onThemeNameBlur()" />
+                <button type="button"
+                        class="btn btn-sm sync-theme-remove"
+                        title="Remove this name"
+                        (click)="removeThemeName($index)">
+                  <i class="bi bi-x-lg"></i>
+                </button>
               </div>
             }
           </div>

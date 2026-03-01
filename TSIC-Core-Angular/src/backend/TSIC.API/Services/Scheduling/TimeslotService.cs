@@ -34,18 +34,147 @@ public sealed class TimeslotService : ITimeslotService
     public async Task<CanvasReadinessResponse> GetReadinessAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
-        var counts = await _tsRepo.GetReadinessCountsAsync(season, year, ct);
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+        var data = await _tsRepo.GetReadinessDataAsync(leagueId, season, year, ct);
 
-        var agegroups = counts.Select(kv => new AgegroupCanvasReadinessDto
+        var agegroups = data.Select(kv =>
         {
-            AgegroupId = kv.Key,
-            DateCount = kv.Value.DateCount,
-            FieldCount = kv.Value.FieldCount,
-            IsConfigured = kv.Value.DateCount > 0 && kv.Value.FieldCount > 0
+            var d = kv.Value;
+            // If only one distinct value exists, surface it; otherwise null = "mixed"
+            int? gsi = d.DistinctGsi.Count == 1 ? d.DistinctGsi[0] : null;
+            string? startTime = d.DistinctStartTimes.Count == 1 ? d.DistinctStartTimes[0] : null;
+            int? maxGames = d.DistinctMaxGames.Count == 1 ? d.DistinctMaxGames[0] : null;
+
+            // Total game slots = totalMaxGamesSum (per-DOW field capacity) × dates per DOW
+            // DOW count comes from field timeslots (e.g. Saturday = 1 DOW)
+            var totalSlots = 0;
+            if (d.DaysOfWeek.Count > 0 && d.TotalMaxGamesSum > 0 && d.DateCount > 0)
+            {
+                var datesPerDow = (double)d.DateCount / d.DaysOfWeek.Count;
+                totalSlots = (int)(d.TotalMaxGamesSum * datesPerDow);
+            }
+
+            // Build per game-day entries by joining actual dates with per-DOW field data
+            var gameDays = BuildGameDays(d);
+
+            return new AgegroupCanvasReadinessDto
+            {
+                AgegroupId = kv.Key,
+                DateCount = d.DateCount,
+                FieldCount = d.FieldCount,
+                IsConfigured = d.DateCount > 0 && d.FieldCount > 0,
+                DaysOfWeek = d.DaysOfWeek,
+                GamestartInterval = gsi,
+                StartTime = startTime,
+                MaxGamesPerField = maxGames,
+                TotalGameSlots = totalSlots,
+                GameDays = gameDays
+            };
         }).ToList();
 
         return new CanvasReadinessResponse { Agegroups = agegroups };
+    }
+
+    /// <summary>
+    /// Build per game-day DTOs by joining actual calendar dates with per-DOW field schedules.
+    /// Each date gets its DOW's field count, start time, calculated end time, and GSI.
+    /// </summary>
+    private static List<GameDayDto> BuildGameDays(AgegroupReadinessData d)
+    {
+        if (d.Dates.Count == 0 || d.PerDowFields.Count == 0)
+            return [];
+
+        // Build DOW lookup: full day name → DowFieldData
+        var dowLookup = d.PerDowFields.ToDictionary(f => f.Dow, f => f, StringComparer.OrdinalIgnoreCase);
+
+        // DOW abbreviation map
+        var dowAbbrev = new Dictionary<DayOfWeek, string>
+        {
+            [DayOfWeek.Sunday] = "Sun",
+            [DayOfWeek.Monday] = "Mon",
+            [DayOfWeek.Tuesday] = "Tue",
+            [DayOfWeek.Wednesday] = "Wed",
+            [DayOfWeek.Thursday] = "Thu",
+            [DayOfWeek.Friday] = "Fri",
+            [DayOfWeek.Saturday] = "Sat"
+        };
+
+        var result = new List<GameDayDto>();
+        var dayNumber = 1;
+
+        foreach (var date in d.Dates.OrderBy(dt => dt))
+        {
+            var dayName = date.DayOfWeek.ToString(); // "Saturday", "Sunday", etc.
+
+            if (!dowLookup.TryGetValue(dayName, out var dowFields))
+            {
+                // Date exists but no field config for this DOW — skip
+                continue;
+            }
+
+            // Start time: pick the earliest if multiple
+            var earliestStart = dowFields.StartTimes
+                .OrderBy(t => t)
+                .FirstOrDefault() ?? "";
+
+            // Max games per field: use the most common (or first if all same)
+            var maxGames = dowFields.MaxGamesValues.Count == 1
+                ? dowFields.MaxGamesValues[0]
+                : dowFields.MaxGamesValues.Max();
+
+            // GSI: use the most common (or first if all same)
+            var gsiVal = dowFields.GsiValues.Count == 1
+                ? dowFields.GsiValues[0]
+                : dowFields.GsiValues.Min();
+
+            // Calculate end time: parse start time, add (maxGames × GSI) minutes
+            var endTime = CalculateEndTime(earliestStart, maxGames, gsiVal);
+
+            result.Add(new GameDayDto
+            {
+                DayNumber = dayNumber,
+                Date = date,
+                Dow = dowAbbrev.GetValueOrDefault(date.DayOfWeek, dayName[..3]),
+                FieldCount = dowFields.FieldCount,
+                StartTime = earliestStart,
+                EndTime = endTime,
+                Gsi = gsiVal,
+                TotalSlots = dowFields.TotalMaxGamesSum
+            });
+
+            dayNumber++;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Calculate end time by parsing "HH:mm AM/PM" start time and adding (maxGames × gsi) minutes.
+    /// Returns formatted end time string, or empty string if parsing fails.
+    /// </summary>
+    private static string CalculateEndTime(string startTime, int maxGames, int gsiMinutes)
+    {
+        if (string.IsNullOrEmpty(startTime))
+            return "";
+
+        // Try multiple time formats
+        string[] formats = ["h:mm tt", "hh:mm tt", "H:mm", "HH:mm"];
+        if (TimeSpan.TryParse(startTime, out var ts))
+        {
+            var end = ts.Add(TimeSpan.FromMinutes(maxGames * gsiMinutes));
+            var endDt = DateTime.Today.Add(end);
+            return endDt.ToString("h:mm tt");
+        }
+
+        if (DateTime.TryParseExact(startTime, formats,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var parsed))
+        {
+            var end = parsed.AddMinutes(maxGames * gsiMinutes);
+            return end.ToString("h:mm tt");
+        }
+
+        return "";
     }
 
     // ── Configuration ──

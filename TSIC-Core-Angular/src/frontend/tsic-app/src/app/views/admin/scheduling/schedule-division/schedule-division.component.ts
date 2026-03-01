@@ -18,22 +18,25 @@ import {
 } from './services/schedule-division.service';
 import { Observable } from 'rxjs';
 import { AutoBuildService } from '../auto-build/services/auto-build.service';
+import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
+import { OperationSpinnerModalComponent } from '../shared/components/operation-spinner-modal/operation-spinner-modal.component';
 import { PairingsPanelComponent } from './components/pairings-panel/pairings-panel.component';
 import { EventSummaryPanelComponent } from './components/event-summary-panel/event-summary-panel.component';
 import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
+import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
-import type { GameSummaryResponse, DivisionStrategyEntry } from '@core/api';
+import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildV2Result, AutoBuildQaResult } from '@core/api';
 
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -41,6 +44,7 @@ import type { GameSummaryResponse, DivisionStrategyEntry } from '@core/api';
 export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
     private readonly autoBuildSvc = inject(AutoBuildService);
+    private readonly qaSvc = inject(ScheduleQaService);
     private readonly timeslotSvc = inject(TimeslotService);
     private readonly toast = inject(ToastService);
 
@@ -66,6 +70,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
     readonly isNavLoading = signal(false);
     readonly canvasReadiness = signal<Record<string, import('@core/api').AgegroupCanvasReadinessDto>>({});
+    readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
 
     // ── Game Summary (from auto-build service) ──
     readonly gameSummary = signal<GameSummaryResponse | null>(null);
@@ -129,6 +134,9 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly isDeletingGames = signal(false);
     readonly deleteConfirmText = signal('');
 
+    // ── Dev reset ──
+    readonly isDevResetting = signal(false);
+
     // ── Auto-schedule V2 config modal ──
     readonly showAutoScheduleModal = signal(false);
     readonly autoScheduleConfig = signal<AutoScheduleConfig>(this.loadAutoScheduleConfig());
@@ -138,6 +146,26 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly modalStrategySource = signal<string>('defaults');
     readonly modalStrategySourceName = signal<string>('');
     readonly modalStrategyLoading = signal(false);
+
+    // ── Build results ──
+    readonly buildResult = signal<AutoBuildV2Result | null>(null);
+    readonly qaResult = signal<AutoBuildQaResult | null>(null);
+    readonly qaLoading = signal(false);
+    readonly buildElapsedMs = signal(0);
+    readonly showBuildResults = signal(false);
+    readonly isUndoing = signal(false);
+
+    // ── Operation spinner modal ──
+    readonly showOperationModal = signal(false);
+    readonly operationTitle = signal('');
+    readonly operationSubtitle = signal('');
+    readonly operationIcon = signal('bi-lightning-charge-fill');
+
+    // ── Prerequisite check ──
+    readonly prerequisiteErrors = signal<string[]>([]);
+    readonly isCheckingPrereqs = signal(false);
+    readonly missingPairingTCnts = signal<number[]>([]);
+    readonly isGeneratingPairings = signal(false);
 
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
@@ -212,6 +240,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.loadAgegroups();
         this.refreshGameSummary();
         this.loadCanvasReadiness();
+        this.loadStrategyProfiles();
     }
 
     // ── Navigator ──
@@ -257,6 +286,13 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.canvasReadiness.set(map);
             },
             error: () => this.canvasReadiness.set({})
+        });
+    }
+
+    loadStrategyProfiles(): void {
+        this.autoBuildSvc.getStrategyProfiles().subscribe({
+            next: (res) => this.strategyProfiles.set(res.strategies),
+            error: () => this.strategyProfiles.set([])
         });
     }
 
@@ -608,9 +644,64 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
+    // ── Dev reset (dev environment only) ──
+
+    executeDevReset(): void {
+        this.isDevResetting.set(true);
+        this.autoBuildSvc.devReset().subscribe({
+            next: (result) => {
+                this.isDevResetting.set(false);
+                this.toast.show(
+                    `Reset complete: ${result.gamesDeleted} games, ${result.agegroupsCleared} agegroups, ${result.pairingGroupsCleared} pairing groups cleared`,
+                    'success', 5000
+                );
+                this.refreshAfterBulkOperation();
+                this.loadCanvasReadiness();
+                this.loadStrategyProfiles();
+            },
+            error: () => {
+                this.isDevResetting.set(false);
+                this.toast.show('Dev reset failed', 'danger', 3000);
+            }
+        });
+    }
+
     // ── Auto-schedule V2 config modal ──
 
     openAutoScheduleConfig(): void {
+        this.prerequisiteErrors.set([]);
+        this.missingPairingTCnts.set([]);
+        this.isCheckingPrereqs.set(true);
+
+        this.autoBuildSvc.checkPrerequisites().subscribe({
+            next: (result) => {
+                this.isCheckingPrereqs.set(false);
+                if (!result.allPassed) {
+                    const errors: string[] = [];
+                    if (!result.poolsAssigned) {
+                        errors.push(`${result.unassignedTeamCount} team${result.unassignedTeamCount > 1 ? 's' : ''} haven't been assigned to a pool yet`);
+                    }
+                    if (!result.pairingsCreated) {
+                        this.missingPairingTCnts.set(result.missingPairingTCnts);
+                        errors.push(`Pairings are missing for team count${result.missingPairingTCnts.length > 1 ? 's' : ''}: ${result.missingPairingTCnts.join(', ')}`);
+                    }
+                    if (!result.timeslotsConfigured) {
+                        errors.push(`Timeslots not configured for: ${result.agegroupsMissingTimeslots.join(', ')}`);
+                    }
+                    this.prerequisiteErrors.set(errors);
+                    return;
+                }
+                // All prerequisites passed — open the config modal
+                this.openAutoScheduleModal();
+            },
+            error: () => {
+                this.isCheckingPrereqs.set(false);
+                this.prerequisiteErrors.set(['Failed to check prerequisites']);
+            }
+        });
+    }
+
+    private openAutoScheduleModal(): void {
         this.autoScheduleConfig.set(this.loadAutoScheduleConfig());
         // Load strategy profiles from backend (three-layer resolution)
         this.modalStrategyLoading.set(true);
@@ -640,6 +731,34 @@ export class ScheduleDivisionComponent implements OnInit {
         this.showAutoScheduleModal.set(true);
     }
 
+    dismissPrerequisiteErrors(): void {
+        this.prerequisiteErrors.set([]);
+        this.missingPairingTCnts.set([]);
+    }
+
+    generateMissingPairings(): void {
+        const tCnts = this.missingPairingTCnts();
+        if (tCnts.length === 0) return;
+
+        this.isGeneratingPairings.set(true);
+        this.autoBuildSvc.ensurePairings({ teamCounts: tCnts }).subscribe({
+            next: (result) => {
+                this.isGeneratingPairings.set(false);
+                this.missingPairingTCnts.set([]);
+                const msg = result.generated.length > 0
+                    ? `Generated pairings for team count${result.generated.length > 1 ? 's' : ''}: ${result.generated.join(', ')}`
+                    : 'Pairings already exist';
+                this.toast.show(msg, 'success');
+                // Re-run prerequisite check — if all pass, open config modal
+                this.openAutoScheduleConfig();
+            },
+            error: () => {
+                this.isGeneratingPairings.set(false);
+                this.toast.show('Failed to generate pairings', 'danger');
+            }
+        });
+    }
+
     closeAutoScheduleModal(): void {
         this.showAutoScheduleModal.set(false);
     }
@@ -652,21 +771,79 @@ export class ScheduleDivisionComponent implements OnInit {
 
         this.isExecutingV2.set(true);
         this.showAutoScheduleModal.set(false);
+        this.openOperationModal('Building Your Schedule', 'Placing games and checking constraints...', 'bi-lightning-charge-fill');
+        const buildStart = Date.now();
         const request = this.buildAutoScheduleRequest(event);
 
         this.autoBuildSvc.executeV2(request).subscribe({
             next: (result) => {
+                this.buildElapsedMs.set(Date.now() - buildStart);
                 this.isExecutingV2.set(false);
+                this.showOperationModal.set(false);
+                this.buildResult.set(result);
+                this.showBuildResults.set(true);
+
+                // Run QA validation in background
+                this.qaLoading.set(true);
+                this.qaResult.set(null);
+                this.qaSvc.validate().subscribe({
+                    next: (qa) => {
+                        this.qaResult.set(qa);
+                        this.qaLoading.set(false);
+                    },
+                    error: () => this.qaLoading.set(false)
+                });
+
                 this.refreshAfterBulkOperation();
-                this.toast.show(
-                    `Scheduled ${result.totalGamesPlaced} games across ${result.divisionsScheduled} divisions`,
-                    result.gamesFailedToPlace > 0 ? 'warning' : 'success',
-                    5000
-                );
             },
             error: () => {
                 this.isExecutingV2.set(false);
+                this.showOperationModal.set(false);
                 this.toast.show('Auto-schedule failed', 'danger', 5000);
+            }
+        });
+    }
+
+    // ── Build results handlers ──
+
+    private openOperationModal(title: string, subtitle: string, icon: string): void {
+        this.operationTitle.set(title);
+        this.operationSubtitle.set(subtitle);
+        this.operationIcon.set(icon);
+        this.showOperationModal.set(true);
+    }
+
+    onBuildDismissed(): void {
+        this.showBuildResults.set(false);
+        this.buildResult.set(null);
+        this.qaResult.set(null);
+        this.refreshAfterBulkOperation();
+    }
+
+    onBuildRunAgain(): void {
+        this.showBuildResults.set(false);
+        this.buildResult.set(null);
+        this.qaResult.set(null);
+        this.openAutoScheduleConfig();
+    }
+
+    onBuildUndo(): void {
+        this.isUndoing.set(true);
+        this.openOperationModal('Removing Games', 'Undoing all placed games...', 'bi-arrow-counterclockwise');
+        this.autoBuildSvc.undo().subscribe({
+            next: (result) => {
+                this.isUndoing.set(false);
+                this.showOperationModal.set(false);
+                this.showBuildResults.set(false);
+                this.buildResult.set(null);
+                this.qaResult.set(null);
+                this.refreshAfterBulkOperation();
+                this.toast.show(`Removed ${result.gamesDeleted} games`, 'success', 3000);
+            },
+            error: () => {
+                this.isUndoing.set(false);
+                this.showOperationModal.set(false);
+                this.toast.show('Undo failed', 'danger', 5000);
             }
         });
     }

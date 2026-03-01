@@ -43,12 +43,61 @@ public record CapacityPreviewDto
 
 // ── Readiness ──
 
+/// <summary>
+/// Per game-day scheduling parameters for the event summary dashboard.
+/// One entry per actual date in the timeslot config.
+/// </summary>
+public record GameDayDto
+{
+    /// <summary>Ordinal game day number (1-based).</summary>
+    public required int DayNumber { get; init; }
+
+    /// <summary>Actual calendar date.</summary>
+    public required DateTime Date { get; init; }
+
+    /// <summary>Day of week abbreviation (e.g. "Sat").</summary>
+    public required string Dow { get; init; }
+
+    /// <summary>Number of distinct fields scheduled on this DOW.</summary>
+    public required int FieldCount { get; init; }
+
+    /// <summary>Earliest start time (e.g. "08:00 AM").</summary>
+    public required string StartTime { get; init; }
+
+    /// <summary>Calculated end time: startTime + (maxGamesPerField × GSI minutes).</summary>
+    public required string EndTime { get; init; }
+
+    /// <summary>Game-start interval in minutes.</summary>
+    public required int Gsi { get; init; }
+
+    /// <summary>Total game slots for this DOW (sum of MaxGamesPerField across all fields).</summary>
+    public required int TotalSlots { get; init; }
+}
+
 public record AgegroupCanvasReadinessDto
 {
     public required Guid AgegroupId { get; init; }
     public required int DateCount { get; init; }
     public required int FieldCount { get; init; }
     public required bool IsConfigured { get; init; }
+
+    /// <summary>Distinct days of week (e.g. ["Saturday", "Sunday"]).</summary>
+    public required List<string> DaysOfWeek { get; init; }
+
+    /// <summary>Game-start interval in minutes (null if mixed across fields).</summary>
+    public int? GamestartInterval { get; init; }
+
+    /// <summary>Start time (null if mixed across fields).</summary>
+    public string? StartTime { get; init; }
+
+    /// <summary>Max games per field (null if mixed across fields).</summary>
+    public int? MaxGamesPerField { get; init; }
+
+    /// <summary>Total game slots = sum of MaxGamesPerField across all field-timeslot rows × date count per DOW.</summary>
+    public required int TotalGameSlots { get; init; }
+
+    /// <summary>Per game-day breakdown with dates, field counts, time ranges, and GSI.</summary>
+    public required List<GameDayDto> GameDays { get; init; }
 }
 
 public record CanvasReadinessResponse

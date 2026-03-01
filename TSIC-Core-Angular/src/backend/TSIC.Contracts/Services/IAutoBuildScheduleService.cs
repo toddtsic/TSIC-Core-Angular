@@ -88,4 +88,10 @@ public interface IAutoBuildScheduleService
     /// </summary>
     Task<DivisionStrategyProfileResponse> LoadStrategyProfilesAsync(
         Guid jobId, Guid? sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Auto-generate round-robin pairings for team counts that don't have them yet.
+    /// </summary>
+    Task<EnsurePairingsResponse> EnsurePairingsAsync(
+        Guid jobId, string userId, EnsurePairingsRequest request, CancellationToken ct = default);
 }

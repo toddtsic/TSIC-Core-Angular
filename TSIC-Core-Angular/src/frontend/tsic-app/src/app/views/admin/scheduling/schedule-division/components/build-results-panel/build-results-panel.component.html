@@ -1,0 +1,249 @@
+<!-- Verdict Banner -->
+<div class="verdict-banner" [class]="'verdict-' + resultStatus()">
+    <div class="verdict-icon">
+        @switch (resultStatus()) {
+            @case ('success') { <i class="bi bi-check-circle-fill"></i> }
+            @case ('warning') { <i class="bi bi-exclamation-triangle-fill"></i> }
+            @case ('error') { <i class="bi bi-x-circle-fill"></i> }
+        }
+    </div>
+    <div class="verdict-text">
+        @switch (resultStatus()) {
+            @case ('success') { Your schedule is ready! }
+            @case ('warning') { Schedule built — some games couldn't be placed. }
+            @case ('error') { Schedule built — a few things need your attention. }
+        }
+    </div>
+</div>
+
+<!-- Hero Metrics -->
+<div class="results-metrics">
+    <div class="metric-card">
+        <span class="metric-value">{{ buildResult().totalGamesPlaced }}</span>
+        <span class="metric-label">Games Placed</span>
+        @if (buildResult().gamesFailedToPlace > 0) {
+            <span class="metric-sub metric-sub-warn">{{ buildResult().gamesFailedToPlace }} couldn't be placed</span>
+        }
+    </div>
+    <div class="metric-card">
+        <span class="metric-value">{{ buildResult().divisionsScheduled }}<span class="metric-denom">/{{ buildResult().totalDivisions }}</span></span>
+        <span class="metric-label">Divisions</span>
+        @if (buildResult().divisionsSkipped > 0) {
+            <span class="metric-sub">{{ buildResult().divisionsSkipped }} excluded</span>
+        }
+    </div>
+    <div class="metric-card">
+        @if (gamesPerTeamRange(); as gpt) {
+            <span class="metric-value">
+                @if (gpt.min === gpt.max) {
+                    {{ gpt.min }}
+                } @else {
+                    {{ gpt.min }}&ndash;{{ gpt.max }}
+                }
+            </span>
+        } @else {
+            <span class="metric-value metric-loading">
+                @if (qaLoading()) {
+                    <span class="spinner-border spinner-border-sm"></span>
+                } @else {
+                    &mdash;
+                }
+            </span>
+        }
+        <span class="metric-label">Games Per Team</span>
+        @if (gamesPerTeamRange(); as gpt) {
+            @if (gpt.min === gpt.max) {
+                <span class="metric-sub metric-sub-good">Balanced</span>
+            }
+        }
+    </div>
+    <div class="metric-card">
+        @if (avgDailyTimePerTeam(); as avg) {
+            <span class="metric-value">{{ avg }}<span class="metric-unit">min</span></span>
+        } @else {
+            <span class="metric-value metric-loading">
+                @if (qaLoading()) {
+                    <span class="spinner-border spinner-border-sm"></span>
+                } @else {
+                    &mdash;
+                }
+            </span>
+        }
+        <span class="metric-label">Avg. Daily Time Per Team</span>
+        <span class="metric-sub">First game to last game</span>
+    </div>
+    <div class="metric-card">
+        <span class="metric-value">{{ formatBuildTime() }}</span>
+        <span class="metric-label">Build Time</span>
+    </div>
+</div>
+
+<!-- Schedule Health -->
+<div class="inline-card qa-summary">
+    <div class="card-label">Schedule Health</div>
+    @if (qaLoading()) {
+        <div class="qa-loading">
+            <span class="spinner-border spinner-border-sm"></span>
+            Checking your schedule...
+        </div>
+    } @else if (qaResult()) {
+        @if (qaCriticalCount() === 0 && qaWarningCount() === 0) {
+            <div class="qa-verdict qa-verdict-pass">
+                <i class="bi bi-check-circle-fill"></i>
+                Looking good — no conflicts, no gaps, every team has games.
+            </div>
+        } @else {
+            <div class="qa-issues">
+                @if (qaCriticalCount() > 0) {
+                    <div class="qa-verdict qa-verdict-error">
+                        <i class="bi bi-x-circle-fill"></i>
+                        {{ qaCriticalCount() }} scheduling conflict{{ qaCriticalCount() > 1 ? 's' : '' }} found
+                        <span class="qa-issue-detail">
+                            @if (qaResult()!.fieldDoubleBookings.length > 0) { two games on same field at same time }
+                            @if (qaResult()!.teamDoubleBookings.length > 0) { team in two games at once }
+                            @if (qaResult()!.rankMismatches.length > 0) { teams paired outside their level }
+                        </span>
+                    </div>
+                }
+                @if (qaWarningCount() > 0) {
+                    <div class="qa-verdict qa-verdict-warn">
+                        <i class="bi bi-info-circle-fill"></i>
+                        {{ qaWarningCount() }} item{{ qaWarningCount() > 1 ? 's' : '' }} worth reviewing
+                        <span class="qa-issue-detail">
+                            @if (qaResult()!.backToBackGames.length > 0) { games without a break }
+                            @if (qaResult()!.repeatedMatchups.length > 0) { same teams playing twice }
+                            @if (qaResult()!.unscheduledTeams.length > 0) { teams with no games }
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+        <a routerLink="../qa-results" class="qa-details-link">
+            <i class="bi bi-clipboard-check"></i>
+            View full details
+        </a>
+    } @else {
+        <div class="qa-verdict qa-verdict-warn">
+            <i class="bi bi-info-circle-fill"></i>
+            Health check couldn't run. You can review the schedule directly.
+        </div>
+    }
+</div>
+
+<!-- Adjustments from Last Year -->
+@if (sacrificeLog().length > 0) {
+    <div class="inline-card v2-sacrifices">
+        <div class="card-label">Adjustments from Last Year</div>
+        <p class="sacrifice-explainer">
+            This year's schedule is based on last year's proven pattern. A few games landed in slightly different slots — this is normal and expected.
+        </p>
+        <div class="sacrifice-list">
+            @for (sac of sacrificeLog(); track sac.constraintName) {
+                <div class="sacrifice-row">
+                    <div class="sacrifice-header">
+                        <span class="sacrifice-name">{{ constraintLabel(sac.constraintName) }}</span>
+                        <span class="sacrifice-count">
+                            <span class="db db-game">{{ sac.violationCount }}</span> game{{ sac.violationCount > 1 ? 's' : '' }} adjusted
+                        </span>
+                    </div>
+                    @if (sac.impactDescription) {
+                        <p class="sacrifice-impact">{{ sac.impactDescription }}</p>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<!-- Games That Couldn't Be Placed -->
+@if (unplacedGames().length > 0) {
+    <div class="inline-card v2-unplaced" id="unplaced-print-area">
+        <div class="unplaced-header">
+            <div class="card-label">Games That Need Attention ({{ unplacedGames().length }})</div>
+            <button class="btn btn-sm btn-outline-secondary no-print"
+                    (click)="printUnplacedGames()"
+                    aria-label="Print this list">
+                <i class="bi bi-printer"></i>
+                Print
+            </button>
+        </div>
+        <div class="v2-table-scroll">
+            <table class="v2-table">
+                <thead>
+                    <tr>
+                        <th>Division</th>
+                        <th>Round</th>
+                        <th>Game</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (g of unplacedGames(); track $index) {
+                        <tr>
+                            <td>{{ g.divName }}</td>
+                            <td>{{ g.round }}</td>
+                            <td>{{ g.t1No }} vs {{ g.t2No }}</td>
+                            <td>{{ g.reason }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- Division Breakdown (collapsible) -->
+@if (buildResult().divisionResults.length > 0) {
+    <div class="inline-card">
+        <details>
+            <summary class="card-label division-summary-toggle">
+                <i class="bi bi-chevron-right"></i>
+                Agegroup / Division Breakdown
+            </summary>
+            <div class="division-breakdown">
+                @for (dr of buildResult().divisionResults; track dr.divId) {
+                    <div class="division-row" [class.division-excluded]="dr.status === 'excluded'">
+                        <span class="division-name">{{ dr.agegroupName }} / {{ dr.divName }}</span>
+                        @if (dr.status === 'excluded') {
+                            <span class="division-status division-status-excluded">skipped</span>
+                        } @else if (dr.gamesFailed > 0) {
+                            <span class="division-status">
+                                <strong>{{ dr.gamesPlaced }}</strong> placed,
+                                <strong class="division-status-warn">{{ dr.gamesFailed }} need attention</strong>
+                            </span>
+                        } @else if (dr.gamesPlaced > 0) {
+                            <span class="division-status"><strong>{{ dr.gamesPlaced }}</strong> placed</span>
+                        } @else {
+                            <span class="division-status division-status-excluded">no games</span>
+                        }
+                    </div>
+                }
+            </div>
+        </details>
+    </div>
+}
+
+<!-- Action Bar -->
+<div class="results-action-bar">
+    <button class="btn btn-primary btn-lg" (click)="dismissed.emit()">
+        <i class="bi bi-calendar3"></i>
+        View Schedule
+    </button>
+    <a routerLink="../qa-results" class="btn btn-outline-secondary btn-lg">
+        <i class="bi bi-clipboard-check"></i>
+        Review Details
+    </a>
+    <button class="btn btn-outline-secondary btn-lg" (click)="runAgainRequested.emit()">
+        <i class="bi bi-arrow-repeat"></i>
+        Run Again
+    </button>
+</div>
+
+<!-- Danger Zone -->
+<div class="results-danger-zone">
+    <button class="btn btn-outline-danger"
+            (click)="undoRequested.emit()">
+        <i class="bi bi-arrow-counterclockwise"></i>
+        Undo All Games
+    </button>
+</div>

@@ -468,7 +468,8 @@ export const routes: Routes = [
 					},
 					{
 						path: 'auto-build',
-						loadComponent: () => import('./views/admin/scheduling/auto-build/auto-build.component').then(m => m.AutoBuildComponent)
+						redirectTo: 'schedule-division',
+						pathMatch: 'full'
 					},
 					{
 						path: 'qa-results',

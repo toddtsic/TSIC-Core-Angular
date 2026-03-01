@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { DivisionStrategyEntry } from '@core/api';
+import { contrastText } from '../../../shared/utils/scheduling-helpers';
 import type { ScheduleScope } from '../../../shared/utils/scheduling-helpers';
 
 /** Auto-schedule configuration persisted in localStorage. */
@@ -50,6 +51,9 @@ export class AutoScheduleConfigModalComponent {
     readonly buildRequested = output<AutoScheduleBuildEvent>();
     readonly cancelled = output<void>();
 
+    // ── Helpers ──
+    readonly contrastText = contrastText;
+
     // ── Local mutable copies (initialized from inputs via ngOnInit or setter) ──
     readonly localStrategies = signal<DivisionStrategyEntry[]>([]);
     readonly localAgegroups = signal<ModalAgegroup[]>([]);
@@ -87,6 +91,13 @@ export class AutoScheduleConfigModalComponent {
         );
     }
 
+    cycleWave(divisionName: string): void {
+        this.localStrategies.update(list =>
+            list.map(s => s.divisionName === divisionName
+                ? { ...s, wave: ((s.wave ?? 1) % 3) + 1 } : s)
+        );
+    }
+
     placementLabel(placement: number): string {
         return placement === 1 ? 'Vertical' : 'Horizontal';
     }
@@ -100,9 +111,14 @@ export class AutoScheduleConfigModalComponent {
         }
     }
 
+    waveLabel(wave: number | undefined): string {
+        return `Wave ${wave ?? 1}`;
+    }
+
     strategySourceLabel(): string {
         switch (this.strategySource()) {
             case 'saved': return 'Saved';
+            case 'saved-cleaned': return 'Saved — updated after division rename';
             case 'inferred': return `Based on ${this.strategySourceName() || 'prior year'}`;
             default: return 'Defaults';
         }

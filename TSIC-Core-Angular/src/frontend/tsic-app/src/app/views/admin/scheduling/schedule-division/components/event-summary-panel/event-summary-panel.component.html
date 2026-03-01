@@ -1,38 +1,141 @@
 <div class="event-summary">
-    <div class="event-summary-header">
-        <h5 class="mb-0">{{ gameSummary()?.jobName ?? 'Event' }}</h5>
-        <div class="d-flex gap-2 align-items-center">
-            <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                {{ gameSummary()?.totalGames ?? 0 }} games
-            </span>
-            <!-- Context-sensitive buttons -->
-            @if (!hasGamesInScope()) {
-                <button class="btn btn-sm btn-outline-primary"
-                        (click)="autoScheduleRequested.emit()"
-                        [disabled]="isExecutingV2()">
-                    @if (isExecutingV2()) {
-                        <span class="spinner-border spinner-border-sm"></span>
-                    } @else {
-                        <i class="bi bi-lightning-fill"></i>
-                    }
-                    Auto-Schedule All
-                </button>
-            } @else {
-                <button class="btn btn-sm btn-outline-danger"
-                        (click)="deleteRequested.emit()"
-                        [disabled]="isDeletingGames()">
-                    @if (isDeletingGames()) {
-                        <span class="spinner-border spinner-border-sm"></span>
-                    } @else {
-                        <i class="bi bi-trash"></i>
-                    }
-                    Delete All Games
-                </button>
-            }
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- ── TOURNAMENT HERO — visually dominant, separated block ── -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <div class="tournament-hero">
+
+        <!-- Row 1: Title + Actions -->
+        <div class="hero-header">
+            <div>
+                <h4 class="hero-title">{{ gameSummary()?.jobName ?? 'Event' }}</h4>
+                @if (totalExpected() > 0) {
+                    <div class="hero-status-pill"
+                         [class.status-complete]="totalGames() >= totalExpected()"
+                         [class.status-incomplete]="totalGames() < totalExpected()">
+                        @if (totalGames() >= totalExpected()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <i class="bi bi-clock"></i>
+                        }
+                        <strong>{{ totalGames() }}/{{ totalExpected() }}</strong> RR games scheduled
+                    </div>
+                }
+                @if (totalAgegroups() > 0) {
+                    <div class="hero-status-pill"
+                         [class.status-complete]="configuredCount() === totalAgegroups()"
+                         [class.status-incomplete]="configuredCount() < totalAgegroups()">
+                        @if (configuredCount() === totalAgegroups()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <i class="bi bi-gear"></i>
+                        }
+                        <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong>
+                        Agegroups {{ configuredCount() === totalAgegroups() ? 'Fully Configured' : 'Configured' }}
+                    </div>
+                }
+                @if (agegroups().length === 0) {
+                    <div class="hero-status-pill status-blocked">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Not Ready — Teams have not yet been assigned to pools
+                    </div>
+                }
+            </div>
+            <div class="hero-actions">
+                @if (!hasGamesInScope()) {
+                    <button class="btn btn-sm btn-primary"
+                            (click)="autoScheduleRequested.emit()"
+                            [disabled]="isExecutingV2() || configuredCount() === 0">
+                        @if (isExecutingV2()) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                            <i class="bi bi-lightning-fill"></i>
+                        }
+                        Auto-Schedule All
+                    </button>
+                } @else {
+                    <button class="btn btn-sm btn-primary"
+                            (click)="autoScheduleRequested.emit()"
+                            [disabled]="isExecutingV2()">
+                        <i class="bi bi-lightning-fill"></i> Re-Schedule
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                            (click)="deleteRequested.emit()"
+                            [disabled]="isDeletingGames()">
+                        @if (isDeletingGames()) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                            <i class="bi bi-trash"></i>
+                        }
+                        Delete All
+                    </button>
+                }
+                @if (isDevMode) {
+                    <button class="btn btn-sm btn-outline-warning"
+                            (click)="devResetRequested.emit()"
+                            [disabled]="isDevResetting()">
+                        @if (isDevResetting()) {
+                            <span class="spinner-border spinner-border-sm"></span>
+                        } @else {
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        }
+                        Dev Reset
+                    </button>
+                }
+            </div>
         </div>
+
+        <!-- Row 2: Game Day Lines -->
+        @if (eventGameDays().length > 0) {
+            <table class="hero-days-table">
+                @for (gd of eventGameDays(); track gd.dayNumber) {
+                    <tr>
+                        <td class="day-label">Day {{ gd.dayNumber }}</td>
+                        <td class="day-date">{{ gd.dow }} {{ gd.dateFormatted }}</td>
+                        <td class="day-fields">{{ gd.fieldCount }} field{{ gd.fieldCount !== 1 ? 's' : '' }}</td>
+                        <td class="day-time">{{ gd.startTime }} – {{ gd.endTime }}</td>
+                        <td class="day-gsi">{{ gd.gsi }} min GSI</td>
+                    </tr>
+                }
+            </table>
+        }
+
+        <!-- Row 3: Plays + Scheduling Style -->
+        @if (heroPlaysLabel() || schedulingStyle()) {
+            <div class="hero-style">
+                @if (heroPlaysLabel()) {
+                    <div><i class="bi bi-calendar-event"></i> {{ heroPlaysLabel() }}</div>
+                }
+                @if (schedulingStyle(); as style) {
+                    <div class="hero-style-line">
+                        <i class="bi bi-sliders2"></i> Place games
+                        @if (style.placement) {
+                            <span class="style-badge">{{ style.placement }}</span>
+                        }
+                        @if (style.gap) {
+                            in a <span class="style-badge">{{ style.gap }}</span> pattern
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Row 4: Progress Bar -->
+        @if (totalExpected() > 0) {
+            <div class="hero-progress">
+                <div class="progress" style="height: 6px">
+                    <div class="progress-bar"
+                         [class.bg-success]="completionPct() >= 100"
+                         [class.bg-primary]="completionPct() < 100"
+                         [style.width.%]="completionPct()">
+                    </div>
+                </div>
+                <span class="hero-pct">{{ completionPct() }}%</span>
+            </div>
+        }
     </div>
 
-    <!-- Delete confirmation (event level = type CONFIRM) -->
+    <!-- ── Delete confirmation ── -->
     @if (showDeleteConfirm()) {
         <div class="alert alert-danger m-3 mb-0 py-2 px-3">
             <div class="mb-2">
@@ -52,18 +155,82 @@
         </div>
     }
 
-    <!-- Agegroup cards -->
-    <div class="ag-summary-list">
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- ── AGEGROUP TILES — compact data-driven cards ── -->
+    <!-- ══════════════════════════════════════════════ -->
+    @if (agegroups().length === 0) {
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="empty-state-title">Teams need to be placed into divisions</div>
+            <div class="empty-state-subtitle">
+                Before the schedule engine can build games, each team must be assigned
+                to a division inside the League Assignment tool.
+            </div>
+            <a routerLink="../../pool-assignment" class="empty-state-cta">
+                <i class="bi bi-box-arrow-up-right"></i>
+                Click here to ASSIGN TEAMS TO POOLS
+            </a>
+        </div>
+    }
+
+    <div class="ag-card-grid">
         @for (ag of agegroups(); track ag.agegroupId) {
-            <div class="ag-summary-card">
-                <span class="badge rounded-pill"
-                      [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
-                      [style.color]="contrastText(ag.color)">
-                    {{ ag.agegroupName }}
-                </span>
-                <span class="ag-summary-games">{{ agGameCount(ag.agegroupId) }} games</span>
-                <span class="text-secondary">{{ ag.divisions.length }} divisions</span>
-                <span class="text-secondary">{{ agTeamCount(ag) }} teams</span>
+            @let stage = agStage(ag.agegroupId);
+            @let games = agGameCount(ag.agegroupId);
+            @let expected = agExpectedGames(ag.agegroupId);
+            @let gameDayList = agTileGameDayList(ag.agegroupId);
+
+            <div class="ag-card"
+                 [class.ag-card-unconfigured]="stage === 'unconfigured'"
+                 [class.ag-card-configured]="stage === 'configured'"
+                 [class.ag-card-partial]="stage === 'scheduled-partial'"
+                 [class.ag-card-complete]="stage === 'scheduled-complete'"
+                 (click)="agegroupClicked.emit(ag.agegroupId)"
+                 role="button"
+                 tabindex="0">
+
+                <!-- Row 1: Agegroup badge + team/div count badges flush right -->
+                <div class="ag-header-row">
+                    <span class="ag-badge"
+                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
+                          [style.color]="contrastText(ag.color)">
+                        {{ ag.agegroupName }}
+                    </span>
+                    <span class="ag-count-badges">
+                        <span class="ag-count-badge">{{ agTeamCount(ag) }}</span>
+                        <span class="ag-count-badge">{{ ag.divisions.length }}</span>
+                    </span>
+                </div>
+
+                <!-- Row 2: Game count or unconfigured hint -->
+                @if (stage === 'unconfigured') {
+                    <div class="ag-hint">
+                        <i class="bi bi-gear"></i> Click to configure
+                    </div>
+                } @else if (expected > 0) {
+                    <div class="ag-games"
+                         [class.ag-games-complete]="games >= expected"
+                         [class.ag-games-incomplete]="games < expected">
+                        @if (games >= expected) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        }
+                        {{ games }}/{{ expected }} RR games scheduled
+                    </div>
+                } @else {
+                    <div class="ag-games ag-games-none">0 RR games scheduled</div>
+                }
+
+                <!-- Row 3: Plays dropdown -->
+                @if (gameDayList.length > 0) {
+                    <select class="ag-plays-ddl"
+                            (click)="$event.stopPropagation()">
+                        @for (day of gameDayList; track day) {
+                            <option>{{ day }}</option>
+                        }
+                    </select>
+                }
             </div>
         }
     </div>

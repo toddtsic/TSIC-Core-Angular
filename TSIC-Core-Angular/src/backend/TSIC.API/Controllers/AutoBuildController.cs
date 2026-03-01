@@ -205,5 +205,19 @@ public class AutoBuildController : ControllerBase
         var result = await _service.LoadStrategyProfilesAsync(jobId!.Value, sourceJobId, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// POST /api/auto-build/ensure-pairings — Auto-generate round-robin pairings for missing team counts.
+    /// </summary>
+    [HttpPost("ensure-pairings")]
+    public async Task<ActionResult<EnsurePairingsResponse>> EnsurePairings(
+        [FromBody] EnsurePairingsRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.EnsurePairingsAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
 }
 

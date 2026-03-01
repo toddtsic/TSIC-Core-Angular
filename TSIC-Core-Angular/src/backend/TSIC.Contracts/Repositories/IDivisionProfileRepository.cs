@@ -30,5 +30,14 @@ public interface IDivisionProfileRepository
     /// </summary>
     Task DeleteByJobIdAsync(Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Delete orphaned profiles whose division names no longer exist.
+    /// Calls SaveChanges internally.
+    /// </summary>
+    Task<int> DeleteOrphansByNamesAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> orphanedNames,
+        CancellationToken ct = default);
+
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

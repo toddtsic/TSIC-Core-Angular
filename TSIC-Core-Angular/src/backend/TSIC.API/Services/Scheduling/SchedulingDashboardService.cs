@@ -39,8 +39,8 @@ public sealed class SchedulingDashboardService : ISchedulingDashboardService
         var teamCountsByAg = await _teamRepo.GetRegistrationCountsByAgeGroupAsync(jobId, ct);
         var teamCountsByDiv = await _teamRepo.GetTeamCountsByDivisionAsync(jobId, ct);
         var poolSizesWithPairings = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
-        var agsWithDates = await _timeslotRepo.GetAgegroupIdsWithDatesAsync(season, year, ct);
-        var agsWithFieldTimeslots = await _timeslotRepo.GetAgegroupIdsWithFieldTimeslotsAsync(season, year, ct);
+        var agsWithDates = await _timeslotRepo.GetAgegroupIdsWithDatesAsync(leagueId, season, year, ct);
+        var agsWithFieldTimeslots = await _timeslotRepo.GetAgegroupIdsWithFieldTimeslotsAsync(leagueId, season, year, ct);
         var gamesByDiv = await _scheduleRepo.GetRoundRobinGameCountsByDivisionAsync(jobId, ct);
 
         // Filter out utility agegroups
