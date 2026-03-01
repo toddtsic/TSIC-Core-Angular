@@ -7,6 +7,7 @@ import type {
     TimeslotDateDto,
     TimeslotFieldDto,
     CapacityPreviewDto,
+    CanvasReadinessResponse,
     AddTimeslotDateRequest,
     EditTimeslotDateRequest,
     AddTimeslotFieldRequest,
@@ -26,6 +27,7 @@ export type {
     TimeslotDateDto,
     TimeslotFieldDto,
     CapacityPreviewDto,
+    CanvasReadinessResponse,
     AddTimeslotDateRequest,
     EditTimeslotDateRequest,
     AddTimeslotFieldRequest,
@@ -43,6 +45,12 @@ export type {
 export class TimeslotService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environment.apiUrl}/timeslot`;
+
+    // ── Readiness ──
+
+    getReadiness(): Observable<CanvasReadinessResponse> {
+        return this.http.get<CanvasReadinessResponse>(`${this.apiUrl}/readiness`);
+    }
 
     // ── Configuration ──
 

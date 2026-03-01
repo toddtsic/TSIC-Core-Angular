@@ -1,5 +1,5 @@
 import { Component, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
-import type { AgegroupWithDivisionsDto, DivisionSummaryDto } from '@core/api';
+import type { AgegroupWithDivisionsDto, AgegroupCanvasReadinessDto, DivisionSummaryDto } from '@core/api';
 import { contrastText, agTeamCount } from '../../utils/scheduling-helpers';
 import type { ScheduleScope } from '../../utils/scheduling-helpers';
 
@@ -18,6 +18,7 @@ export class DivisionNavigatorComponent {
     readonly jobName = input<string>('');
     readonly isLoading = input(false);
     readonly showCollapseAll = input(true);
+    readonly readinessMap = input<Record<string, AgegroupCanvasReadinessDto>>({});
 
     // ── Outputs ──
     readonly eventSelected = output<void>();
@@ -67,5 +68,23 @@ export class DivisionNavigatorComponent {
     isDivActive(divId: string): boolean {
         const s = this.selectedScope();
         return s.level === 'division' && s.divId === divId;
+    }
+
+    /** null = no readiness data yet, true = configured, false = not configured */
+    isAgConfigured(agId: string): boolean | null {
+        const map = this.readinessMap();
+        if (!map || Object.keys(map).length === 0) return null;
+        return map[agId]?.isConfigured ?? false;
+    }
+
+    readinessTooltip(agId: string): string {
+        const map = this.readinessMap();
+        const r = map?.[agId];
+        if (!r) return 'Not configured — click to set up';
+        if (r.isConfigured) return `${r.dateCount} dates, ${r.fieldCount} field schedules`;
+        const parts: string[] = [];
+        if (r.dateCount === 0) parts.push('no dates');
+        if (r.fieldCount === 0) parts.push('no field schedules');
+        return `Incomplete — ${parts.join(', ')}`;
     }
 }

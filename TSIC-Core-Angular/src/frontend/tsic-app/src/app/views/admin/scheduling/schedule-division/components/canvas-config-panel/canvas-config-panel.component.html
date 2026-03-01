@@ -1,0 +1,295 @@
+<div class="canvas-panel">
+
+    <!-- ── Header ── -->
+    <div class="canvas-header">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-gear-wide-connected text-secondary"></i>
+            <span class="fw-semibold">Set Up Canvas</span>
+            @if (agegroupColor()) {
+                <span class="badge"
+                      [style.background-color]="agegroupColor()"
+                      style="color: var(--bs-white)">
+                    {{ agegroupName() }}
+                </span>
+            } @else {
+                <span class="badge bg-secondary">{{ agegroupName() }}</span>
+            }
+        </div>
+        @if (canFinish()) {
+            <button class="btn btn-sm btn-primary" (click)="finishSetup()">
+                <i class="bi bi-check2 me-1"></i>Ready — View Grid
+            </button>
+        }
+    </div>
+
+    @if (isLoading()) {
+        <div class="text-center p-4">
+            <div class="spinner-border spinner-border-sm text-secondary"></div>
+        </div>
+    } @else {
+        <div class="canvas-body">
+
+            <!-- ══════════ Clone Section ══════════ -->
+            @if (cloneableAgegroups().length > 0) {
+                <div class="canvas-section">
+                    <div class="section-header" (click)="showClonePanel.set(!showClonePanel())">
+                        <i class="bi bi-clipboard2-data me-1"></i>
+                        <span>Clone from another agegroup</span>
+                        <i class="bi ms-auto"
+                           [class.bi-chevron-down]="showClonePanel()"
+                           [class.bi-chevron-right]="!showClonePanel()"></i>
+                    </div>
+                    @if (showClonePanel()) {
+                        <div class="section-body">
+                            <div class="d-flex gap-2 align-items-end">
+                                <div class="flex-grow-1">
+                                    <label class="form-label form-label-sm mb-1">Source agegroup</label>
+                                    <select class="form-select form-select-sm"
+                                            [ngModel]="cloneSourceId()"
+                                            (ngModelChange)="cloneSourceId.set($event)">
+                                        <option value="">Choose...</option>
+                                        @for (ag of cloneableAgegroups(); track ag.agegroupId) {
+                                            <option [value]="ag.agegroupId">{{ ag.agegroupName }}</option>
+                                        }
+                                    </select>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary"
+                                        [disabled]="!cloneSourceId() || isCloning()"
+                                        (click)="cloneFromAgegroup()">
+                                    @if (isCloning()) {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    Clone
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- ══════════ Game Dates ══════════ -->
+            <div class="canvas-section">
+                <div class="section-header">
+                    <i class="bi bi-calendar3 me-1"></i>
+                    <span>Game Dates</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis ms-auto">
+                        {{ dates().length }}
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary ms-2"
+                            (click)="openDateForm()">
+                        <i class="bi bi-plus"></i> Add
+                    </button>
+                </div>
+
+                @if (showDateForm()) {
+                    <div class="inline-form">
+                        <div class="d-flex gap-2 align-items-end">
+                            <div>
+                                <label class="form-label form-label-sm mb-0">Date</label>
+                                <input type="date" class="form-control form-control-sm"
+                                       [ngModel]="dateFormDate()"
+                                       (ngModelChange)="dateFormDate.set($event)">
+                            </div>
+                            <div style="width: 70px">
+                                <label class="form-label form-label-sm mb-0">Round</label>
+                                <input type="number" class="form-control form-control-sm"
+                                       min="1" max="99"
+                                       [ngModel]="dateFormRnd()"
+                                       (ngModelChange)="dateFormRnd.set($event)">
+                            </div>
+                            <button class="btn btn-sm btn-primary"
+                                    [disabled]="!dateFormDate() || isSavingDate()"
+                                    (click)="saveDate()">
+                                @if (isSavingDate()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    <i class="bi bi-check"></i>
+                                }
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    (click)="showDateForm.set(false)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @if (dates().length > 0) {
+                    <div class="data-list">
+                        @for (d of dates(); track d.ai) {
+                            <div class="data-row">
+                                <span class="data-primary">{{ formatDate(d.gDate) }}</span>
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis">R{{ d.rnd }}</span>
+                                <button class="btn-delete" (click)="deleteDate(d.ai)" title="Remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                } @else if (!showDateForm()) {
+                    <div class="empty-hint">
+                        <i class="bi bi-calendar-plus me-1"></i> Add game dates to get started
+                    </div>
+                }
+            </div>
+
+            <!-- ══════════ Field Schedules ══════════ -->
+            <div class="canvas-section">
+                <div class="section-header">
+                    <i class="bi bi-grid-3x3 me-1"></i>
+                    <span>Field Schedules</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis ms-auto">
+                        {{ fields().length }}
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary ms-2"
+                            (click)="openFieldForm()">
+                        <i class="bi bi-plus"></i> Add All
+                    </button>
+                </div>
+
+                @if (showFieldForm()) {
+                    <div class="inline-form">
+                        <div class="d-flex gap-2 align-items-end flex-wrap">
+                            <div>
+                                <label class="form-label form-label-sm mb-0">Day</label>
+                                <select class="form-select form-select-sm"
+                                        [ngModel]="fieldFormDow()"
+                                        (ngModelChange)="fieldFormDow.set($event)">
+                                    @for (day of daysOfWeek; track day) {
+                                        <option [value]="day">{{ day }}</option>
+                                    }
+                                </select>
+                            </div>
+                            <div style="width: 90px">
+                                <label class="form-label form-label-sm mb-0">Start</label>
+                                <input type="time" class="form-control form-control-sm"
+                                       [ngModel]="fieldFormStartTime()"
+                                       (ngModelChange)="fieldFormStartTime.set($event)">
+                            </div>
+                            <div style="width: 70px">
+                                <label class="form-label form-label-sm mb-0">Int (m)</label>
+                                <input type="number" class="form-control form-control-sm"
+                                       min="1" max="999"
+                                       [ngModel]="fieldFormInterval()"
+                                       (ngModelChange)="fieldFormInterval.set($event)">
+                            </div>
+                            <div style="width: 60px">
+                                <label class="form-label form-label-sm mb-0">Max</label>
+                                <input type="number" class="form-control form-control-sm"
+                                       min="1" max="99"
+                                       [ngModel]="fieldFormMaxGames()"
+                                       (ngModelChange)="fieldFormMaxGames.set($event)">
+                            </div>
+                            <button class="btn btn-sm btn-primary"
+                                    [disabled]="isSavingField()"
+                                    (click)="saveField()">
+                                @if (isSavingField()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    <i class="bi bi-check"></i>
+                                }
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    (click)="showFieldForm.set(false)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                        <small class="text-secondary mt-1 d-block">
+                            Creates entries for all assigned fields and divisions.
+                        </small>
+                    </div>
+                }
+
+                @if (fields().length > 0) {
+                    <div class="data-list">
+                        @for (f of fields(); track f.ai) {
+                            <div class="data-row">
+                                <span class="data-primary">{{ f.fieldName }}</span>
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ shortDow(f.dow) }}</span>
+                                <span class="text-secondary data-detail">{{ f.startTime }}</span>
+                                <span class="text-secondary data-detail">{{ f.gamestartInterval }}m</span>
+                                <span class="text-secondary data-detail">×{{ f.maxGamesPerField }}</span>
+                                <button class="btn-delete" (click)="deleteField(f.ai)" title="Remove">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                } @else if (!showFieldForm()) {
+                    <div class="empty-hint">
+                        <i class="bi bi-grid-3x3-gap me-1"></i> Add field schedules to define the canvas
+                    </div>
+                }
+            </div>
+
+            <!-- ══════════ Capacity Preview ══════════ -->
+            @if (capacity().length > 0) {
+                <div class="canvas-section">
+                    <div class="section-header">
+                        <i class="bi bi-bar-chart me-1"></i>
+                        <span>Capacity</span>
+                        @if (capacityAllSufficient()) {
+                            <span class="badge bg-success-subtle text-success-emphasis ms-auto">
+                                <i class="bi bi-check-circle me-1"></i>Sufficient
+                            </span>
+                        } @else {
+                            <span class="badge bg-danger-subtle text-danger-emphasis ms-auto">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Short
+                            </span>
+                        }
+                    </div>
+                    <div class="data-list">
+                        @for (c of capacity(); track c.dow) {
+                            <div class="data-row">
+                                <span class="data-primary">{{ c.dow }}</span>
+                                <span class="text-secondary data-detail">{{ c.fieldCount }} fields</span>
+                                <span class="text-secondary data-detail">{{ c.totalGameSlots }} slots</span>
+                                <span class="text-secondary data-detail">{{ c.gamesNeeded }} needed</span>
+                                @if (c.isSufficient) {
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                } @else {
+                                    <i class="bi bi-exclamation-circle text-danger"
+                                       title="Short by {{ c.gamesNeeded - c.totalGameSlots }}"></i>
+                                }
+                            </div>
+                        }
+                        <div class="data-row capacity-total">
+                            <span class="data-primary fw-semibold">Total</span>
+                            <span class="data-detail"></span>
+                            <span class="data-detail fw-semibold">{{ capacityTotalSlots() }}</span>
+                            <span class="data-detail fw-semibold">{{ capacityTotalNeeded() }}</span>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- ══════════ Clone to All Unconfigured ══════════ -->
+            @if (canFinish() && unconfiguredAgegroups().length > 0) {
+                <div class="canvas-section">
+                    <div class="section-header">
+                        <i class="bi bi-copy me-1"></i>
+                        <span>Apply to Others</span>
+                    </div>
+                    <div class="section-body">
+                        <p class="text-secondary mb-2" style="font-size: var(--font-size-sm)">
+                            Copy this setup to {{ unconfiguredAgegroups().length }} unconfigured agegroup{{ unconfiguredAgegroups().length > 1 ? 's' : '' }}.
+                        </p>
+                        <button class="btn btn-sm btn-outline-primary"
+                                [disabled]="isCloningAll()"
+                                (click)="cloneToAllUnconfigured()">
+                            @if (isCloningAll()) {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                Cloning...
+                            } @else {
+                                <i class="bi bi-clipboard2-check me-1"></i>
+                                Apply to All Unconfigured
+                            }
+                        </button>
+                    </div>
+                </div>
+            }
+
+        </div>
+    }
+</div>

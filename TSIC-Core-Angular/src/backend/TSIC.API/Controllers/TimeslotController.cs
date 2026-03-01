@@ -37,6 +37,18 @@ public class TimeslotController : ControllerBase
         return (jobId, userId, null);
     }
 
+    // ── Readiness ──
+
+    [HttpGet("readiness")]
+    public async Task<ActionResult<CanvasReadinessResponse>> GetReadiness(CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _timeslotService.GetReadinessAsync(jobId!.Value, ct);
+        return Ok(result);
+    }
+
     // ── Configuration ──
 
     [HttpGet("{agegroupId:guid}")]

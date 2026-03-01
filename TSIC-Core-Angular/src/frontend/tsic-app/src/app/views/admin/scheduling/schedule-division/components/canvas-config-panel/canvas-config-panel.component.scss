@@ -1,0 +1,135 @@
+:host {
+    display: block;
+    height: 100%;
+}
+
+.canvas-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+.canvas-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+}
+
+.canvas-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+// ── Sections ──
+
+.canvas-section {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bs-tertiary-bg);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: default;
+
+    .bi:first-child {
+        color: var(--bs-secondary-color);
+    }
+}
+
+.section-body {
+    padding: var(--space-2);
+}
+
+// ── Inline forms ──
+
+.inline-form {
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+// ── Data lists ──
+
+.data-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.data-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-sm);
+    border-top: 1px solid var(--bs-border-color);
+
+    &:first-child {
+        border-top: none;
+    }
+
+    &.capacity-total {
+        background: var(--bs-tertiary-bg);
+    }
+}
+
+.data-primary {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.data-detail {
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    padding: 0;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+
+    &:hover {
+        color: var(--bs-danger);
+        background: var(--bs-danger-bg-subtle);
+    }
+}
+
+// ── Empty hints ──
+
+.empty-hint {
+    padding: var(--space-3);
+    text-align: center;
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-sm);
+}

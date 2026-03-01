@@ -18,6 +18,7 @@ import {
 } from './services/schedule-division.service';
 import { Observable } from 'rxjs';
 import { AutoBuildService } from '../auto-build/services/auto-build.service';
+import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
@@ -25,13 +26,14 @@ import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedu
 import { PairingsPanelComponent } from './components/pairings-panel/pairings-panel.component';
 import { EventSummaryPanelComponent } from './components/event-summary-panel/event-summary-panel.component';
 import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
+import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import type { GameSummaryResponse, DivisionStrategyEntry } from '@core/api';
 
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -39,6 +41,7 @@ import type { GameSummaryResponse, DivisionStrategyEntry } from '@core/api';
 export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
     private readonly autoBuildSvc = inject(AutoBuildService);
+    private readonly timeslotSvc = inject(TimeslotService);
     private readonly toast = inject(ToastService);
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
@@ -62,6 +65,7 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
     readonly isNavLoading = signal(false);
+    readonly canvasReadiness = signal<Record<string, import('@core/api').AgegroupCanvasReadinessDto>>({});
 
     // ── Game Summary (from auto-build service) ──
     readonly gameSummary = signal<GameSummaryResponse | null>(null);
@@ -151,6 +155,12 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly rankOptions = computed(() => Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1));
     readonly allPairingsScheduled = computed(() => this.pairings().length > 0 && this.pairings().every(p => !p.bAvailable));
     readonly remainingPairingsCount = computed(() => this.pairings().filter(p => p.bAvailable).length);
+    readonly isAgegroupConfigured = computed(() => {
+        const s = this.scope();
+        if (s.level === 'event') return true;
+        const r = this.canvasReadiness()[s.agegroupId];
+        return r?.isConfigured ?? false;
+    });
 
     // ── Rapid-placement modal ──
 
@@ -201,6 +211,7 @@ export class ScheduleDivisionComponent implements OnInit {
     ngOnInit(): void {
         this.loadAgegroups();
         this.refreshGameSummary();
+        this.loadCanvasReadiness();
     }
 
     // ── Navigator ──
@@ -234,6 +245,31 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (summary) => this.gameSummary.set(summary),
             error: () => this.gameSummary.set(null)
         });
+    }
+
+    loadCanvasReadiness(): void {
+        this.timeslotSvc.getReadiness().subscribe({
+            next: (res) => {
+                const map: Record<string, import('@core/api').AgegroupCanvasReadinessDto> = {};
+                for (const ag of res.agegroups) {
+                    map[ag.agegroupId] = ag;
+                }
+                this.canvasReadiness.set(map);
+            },
+            error: () => this.canvasReadiness.set({})
+        });
+    }
+
+    onCanvasConfigured(): void {
+        this.loadCanvasReadiness();
+        // If at agegroup level, reload the grid now that canvas is configured
+        const s = this.scope();
+        if (s.level === 'agegroup') {
+            const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+            if (ag?.divisions.length) {
+                this.loadScheduleGrid(ag.divisions[0].divId, s.agegroupId);
+            }
+        }
     }
 
     // ── Scope selection handlers (wired from navigator outputs) ──

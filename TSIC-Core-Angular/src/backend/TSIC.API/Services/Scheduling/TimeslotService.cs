@@ -29,6 +29,25 @@ public sealed class TimeslotService : ITimeslotService
         _logger = logger;
     }
 
+    // ── Readiness ──
+
+    public async Task<CanvasReadinessResponse> GetReadinessAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+        var counts = await _tsRepo.GetReadinessCountsAsync(season, year, ct);
+
+        var agegroups = counts.Select(kv => new AgegroupCanvasReadinessDto
+        {
+            AgegroupId = kv.Key,
+            DateCount = kv.Value.DateCount,
+            FieldCount = kv.Value.FieldCount,
+            IsConfigured = kv.Value.DateCount > 0 && kv.Value.FieldCount > 0
+        }).ToList();
+
+        return new CanvasReadinessResponse { Agegroups = agegroups };
+    }
+
     // ── Configuration ──
 
     public async Task<TimeslotConfigurationResponse> GetConfigurationAsync(

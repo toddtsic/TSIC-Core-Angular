@@ -26,6 +26,7 @@ export type { AdultRegistrationExistingRequest } from './models/AdultRegistratio
 export type { AdultRegistrationRequest } from './models/AdultRegistrationRequest';
 export type { AdultRoleType } from './models/AdultRoleType';
 export type { AffectedGameCountResponse } from './models/AffectedGameCountResponse';
+export type { AgegroupCanvasReadinessDto } from './models/AgegroupCanvasReadinessDto';
 export type { AgegroupDetailDto } from './models/AgegroupDetailDto';
 export type { AgegroupDistributionDto } from './models/AgegroupDistributionDto';
 export type { AgegroupDistributionPointDto } from './models/AgegroupDistributionPointDto';
@@ -80,6 +81,7 @@ export type { CadtAgegroupNode } from './models/CadtAgegroupNode';
 export type { CadtClubNode } from './models/CadtClubNode';
 export type { CadtDivisionNode } from './models/CadtDivisionNode';
 export type { CadtTeamNode } from './models/CadtTeamNode';
+export type { CanvasReadinessResponse } from './models/CanvasReadinessResponse';
 export type { CapacityPreviewDto } from './models/CapacityPreviewDto';
 export type { CascadeRouteRequest } from './models/CascadeRouteRequest';
 export type { CategoryOrderEntry } from './models/CategoryOrderEntry';

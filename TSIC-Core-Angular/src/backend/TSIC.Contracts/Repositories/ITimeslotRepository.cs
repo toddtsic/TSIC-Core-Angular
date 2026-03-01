@@ -52,6 +52,13 @@ public interface ITimeslotRepository
     Task<HashSet<Guid>> GetAgegroupIdsWithFieldTimeslotsAsync(
         string season, string year, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get per-agegroup date and field-timeslot counts for canvas readiness display.
+    /// Returns a dictionary keyed by agegroupId → (dateCount, fieldCount).
+    /// </summary>
+    Task<Dictionary<Guid, (int DateCount, int FieldCount)>> GetReadinessCountsAsync(
+        string season, string year, CancellationToken ct = default);
+
     // ── Cloning support queries ──
 
     /// <summary>Get all field timeslots for a source agegroup (used by clone-fields, clone-by-field, etc.).</summary>

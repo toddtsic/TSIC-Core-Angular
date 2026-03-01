@@ -146,6 +146,39 @@ public class TimeslotRepository : ITimeslotRepository
         return ids.ToHashSet();
     }
 
+    public async Task<Dictionary<Guid, (int DateCount, int FieldCount)>> GetReadinessCountsAsync(
+        string season, string year, CancellationToken ct = default)
+    {
+        var dateCounts = await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .Where(d => d.Season == season && d.Year == year)
+            .GroupBy(d => d.AgegroupId)
+            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var fieldCounts = await _context.TimeslotsLeagueSeasonFields
+            .AsNoTracking()
+            .Where(f => f.Season == season && f.Year == year)
+            .GroupBy(f => f.AgegroupId)
+            .Select(g => new { AgegroupId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Merge into a single dictionary
+        var result = new Dictionary<Guid, (int DateCount, int FieldCount)>();
+        foreach (var d in dateCounts)
+            result[d.AgegroupId] = (d.Count, 0);
+
+        foreach (var f in fieldCounts)
+        {
+            if (result.TryGetValue(f.AgegroupId, out var existing))
+                result[f.AgegroupId] = (existing.DateCount, f.Count);
+            else
+                result[f.AgegroupId] = (0, f.Count);
+        }
+
+        return result;
+    }
+
     // ── Cloning support queries ──
 
     public async Task<List<TimeslotsLeagueSeasonFields>> GetFieldTimeslotsByFilterAsync(

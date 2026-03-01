@@ -111,6 +111,19 @@
     flex-shrink: 0;
 }
 
+.readiness-icon {
+    font-size: var(--font-size-2xs);
+    flex-shrink: 0;
+
+    &.configured {
+        color: var(--bs-success);
+    }
+
+    &.unconfigured {
+        color: var(--bs-warning);
+    }
+}
+
 .nav-divisions {
     padding-left: var(--space-4);
 }

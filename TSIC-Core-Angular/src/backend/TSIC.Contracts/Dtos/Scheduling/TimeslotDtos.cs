@@ -41,6 +41,21 @@ public record CapacityPreviewDto
     public required bool IsSufficient { get; init; }
 }
 
+// ── Readiness ──
+
+public record AgegroupCanvasReadinessDto
+{
+    public required Guid AgegroupId { get; init; }
+    public required int DateCount { get; init; }
+    public required int FieldCount { get; init; }
+    public required bool IsConfigured { get; init; }
+}
+
+public record CanvasReadinessResponse
+{
+    public required List<AgegroupCanvasReadinessDto> Agegroups { get; init; }
+}
+
 // ── Request DTOs ──
 
 public record AddTimeslotDateRequest

@@ -8,6 +8,11 @@ namespace TSIC.Contracts.Services;
 /// </summary>
 public interface ITimeslotService
 {
+    // ── Readiness ──
+
+    Task<CanvasReadinessResponse> GetReadinessAsync(
+        Guid jobId, CancellationToken ct = default);
+
     // ── Configuration ──
 
     Task<TimeslotConfigurationResponse> GetConfigurationAsync(

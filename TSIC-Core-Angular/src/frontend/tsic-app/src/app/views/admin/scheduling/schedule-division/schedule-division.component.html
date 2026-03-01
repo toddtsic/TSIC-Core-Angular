@@ -22,6 +22,7 @@
                     [jobName]="gameSummary()?.jobName ?? 'Event'"
                     [isLoading]="isNavLoading()"
                     [showCollapseAll]="true"
+                    [readinessMap]="canvasReadiness()"
                     (eventSelected)="onEventSelected()"
                     (agegroupSelected)="onAgegroupSelected($event)"
                     (divisionSelected)="onDivisionSelected($event)" />
@@ -62,8 +63,21 @@
                     (deleteConfirmed)="executeDelete()"
                     (deleteCancelled)="cancelDeleteGames()" />
 
-            <!-- ── Agegroup View (grid visible, pairings hidden) ── -->
+            <!-- ── Agegroup View ── -->
             } @else if (scope().level === 'agegroup') {
+
+                <!-- Canvas config for unconfigured agegroups -->
+                @if (!isAgegroupConfigured()) {
+                    <app-canvas-config-panel
+                        [agegroupId]="selectedAgegroupId()!"
+                        [agegroupName]="selectedAgegroupName()"
+                        [agegroupColor]="selectedAgegroupColor()"
+                        [agegroups]="agegroups()"
+                        [readinessMap]="canvasReadiness()"
+                        (canvasConfigured)="onCanvasConfigured()" />
+
+                <!-- Configured agegroup: show header + grid -->
+                } @else {
                 <div class="agegroup-header">
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge"
@@ -137,6 +151,7 @@
                         (cellClicked)="onGridCellClick($event)">
                     </app-schedule-grid>
                 }
+                } <!-- end @else configured agegroup -->
 
             <!-- ── Division View (existing behavior) ── -->
             } @else {
