@@ -22,28 +22,16 @@ import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
+import { PairingsPanelComponent } from './components/pairings-panel/pairings-panel.component';
+import { EventSummaryPanelComponent } from './components/event-summary-panel/event-summary-panel.component';
+import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import type { GameSummaryResponse, DivisionStrategyEntry } from '@core/api';
-
-/** Auto-schedule configuration persisted in localStorage. */
-interface AutoScheduleConfig {
-    divisionOrderStrategy: 'alpha' | 'odd-first';
-}
-
-/** Modal-local agegroup entry for reordering/excluding at event scope. */
-interface ModalAgegroup {
-    agegroupId: string;
-    agegroupName: string;
-    color: string | null;
-    teamCount: number;
-    divisionCount: number;
-    included: boolean;
-}
 
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -102,15 +90,6 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     });
 
-    /** Per-agegroup game count for event summary view. */
-    agGameCount(agegroupId: string): number {
-        const summary = this.gameSummary();
-        if (!summary) return 0;
-        return summary.divisions
-            .filter(d => d.agegroupId === agegroupId)
-            .reduce((sum, d) => sum + d.gameCount, 0);
-    }
-
     // ── Pairings state ──
     readonly divisionResponse = signal<DivisionPairingsResponse | null>(null);
     readonly pairings = signal<PairingDto[]>([]);
@@ -123,10 +102,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Who Plays Who ──
     readonly whoPlaysWhoMatrix = signal<number[][] | null>(null);
-    readonly whoPlaysWhoOpen = signal(false);
-
-    // ── Division Teams collapse ──
-    readonly divisionTeamsOpen = signal(false);
 
     // ── Schedule Grid state ──
     readonly gridResponse = signal<ScheduleGridResponse | null>(null);
@@ -173,7 +148,6 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly selectedAgegroupColor = computed(() => this.selectedAgegroup()?.color ?? null);
     readonly selectedAgegroupTextColor = computed(() => contrastText(this.selectedAgegroupColor()));
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
-    readonly teamRange = computed(() => Array.from({ length: this.teamCount() }, (_, i) => i + 1));
     readonly rankOptions = computed(() => Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1));
     readonly allPairingsScheduled = computed(() => this.pairings().length > 0 && this.pairings().every(p => !p.bAvailable));
     readonly remainingPairingsCount = computed(() => this.pairings().filter(p => p.bAvailable).length);
@@ -439,10 +413,6 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     }
 
-    isPairingSelected(pairing: PairingDto): boolean {
-        return this.selectedPairing()?.ai === pairing.ai;
-    }
-
     locateScheduledGame(pairing: PairingDto): void {
         const gid = this.findGidForPairing(pairing);
         if (!gid) return;
@@ -638,76 +608,15 @@ export class ScheduleDivisionComponent implements OnInit {
         this.showAutoScheduleModal.set(false);
     }
 
-    toggleModalPlacement(divisionName: string): void {
-        this.modalStrategies.update(list =>
-            list.map(s => s.divisionName === divisionName
-                ? { ...s, placement: s.placement === 0 ? 1 : 0 } : s)
-        );
-    }
+    /** Handle build event from the auto-schedule config modal child. */
+    onAutoScheduleBuild(event: AutoScheduleBuildEvent): void {
+        // Persist the config choice to localStorage
+        this.saveAutoScheduleConfig(event.config);
+        this.autoScheduleConfig.set(event.config);
 
-    cycleModalGapPattern(divisionName: string): void {
-        this.modalStrategies.update(list =>
-            list.map(s => s.divisionName === divisionName
-                ? { ...s, gapPattern: (s.gapPattern + 1) % 3 } : s)
-        );
-    }
-
-    modalPlacementLabel(placement: number): string {
-        return placement === 1 ? 'Vertical' : 'Horizontal';
-    }
-
-    modalGapLabel(gapPattern: number): string {
-        switch (gapPattern) {
-            case 0: return 'Back-to-back';
-            case 1: return 'One on, one off';
-            case 2: return 'One on, two off';
-            default: return 'Unknown';
-        }
-    }
-
-    modalStrategySourceLabel(): string {
-        switch (this.modalStrategySource()) {
-            case 'saved': return 'Saved';
-            case 'inferred': return `Based on ${this.modalStrategySourceName() || 'prior year'}`;
-            default: return 'Defaults';
-        }
-    }
-
-    setDivisionOrderStrategy(strategy: 'alpha' | 'odd-first'): void {
-        const config = this.autoScheduleConfig();
-        const updated = { ...config, divisionOrderStrategy: strategy };
-        this.autoScheduleConfig.set(updated);
-        this.saveAutoScheduleConfig(updated);
-    }
-
-    toggleModalAgegroup(index: number): void {
-        this.modalAgegroups.update(list => list.map((ag, i) =>
-            i === index ? { ...ag, included: !ag.included } : ag
-        ));
-    }
-
-    moveModalAgegroupUp(index: number): void {
-        if (index <= 0) return;
-        this.modalAgegroups.update(list => {
-            const updated = [...list];
-            [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-            return updated;
-        });
-    }
-
-    moveModalAgegroupDown(index: number): void {
-        this.modalAgegroups.update(list => {
-            if (index >= list.length - 1) return list;
-            const updated = [...list];
-            [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-            return updated;
-        });
-    }
-
-    executeAutoScheduleV2(): void {
         this.isExecutingV2.set(true);
         this.showAutoScheduleModal.set(false);
-        const request = this.buildAutoScheduleRequest();
+        const request = this.buildAutoScheduleRequest(event);
 
         this.autoBuildSvc.executeV2(request).subscribe({
             next: (result) => {
@@ -726,20 +635,18 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    private buildAutoScheduleRequest() {
+    private buildAutoScheduleRequest(event: AutoScheduleBuildEvent) {
         const s = this.scope();
         const allDivIds = this.agegroups().flatMap(ag => ag.divisions.map(d => d.divId));
-        const config = this.autoScheduleConfig();
-        const strategies = this.modalStrategies();
 
         switch (s.level) {
             case 'division': {
                 const excluded = allDivIds.filter(id => id !== s.divId);
                 return {
                     agegroupOrder: [s.agegroupId],
-                    divisionOrderStrategy: config.divisionOrderStrategy,
+                    divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
-                    divisionStrategies: strategies,
+                    divisionStrategies: event.strategies,
                     saveProfiles: true,
                 };
             }
@@ -750,14 +657,14 @@ export class ScheduleDivisionComponent implements OnInit {
                 const excluded = allDivIds.filter(id => !agDivIds.includes(id));
                 return {
                     agegroupOrder: [s.agegroupId],
-                    divisionOrderStrategy: config.divisionOrderStrategy,
+                    divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
-                    divisionStrategies: strategies,
+                    divisionStrategies: event.strategies,
                     saveProfiles: true,
                 };
             }
             case 'event': {
-                const included = this.modalAgegroups().filter(ag => ag.included);
+                const included = event.agegroups.filter(ag => ag.included);
                 const includedDivIds = new Set(
                     this.agegroups()
                         .filter(ag => included.some(m => m.agegroupId === ag.agegroupId))
@@ -766,9 +673,9 @@ export class ScheduleDivisionComponent implements OnInit {
                 const excluded = allDivIds.filter(id => !includedDivIds.has(id));
                 return {
                     agegroupOrder: included.map(ag => ag.agegroupId),
-                    divisionOrderStrategy: config.divisionOrderStrategy,
+                    divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
-                    divisionStrategies: strategies,
+                    divisionStrategies: event.strategies,
                     saveProfiles: true,
                 };
             }

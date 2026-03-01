@@ -29,146 +29,18 @@
 
             <!-- ── Pairings Panel (below navigator, division scope only) ── -->
             @if (scope().level === 'division') {
-                <div class="pairings-panel">
-                    <div class="panel-header d-flex align-items-center justify-content-between">
-                        <span class="fw-semibold">Pairings</span>
-                        <div class="d-flex align-items-center gap-1">
-                            @if (selectedPairing()) {
-                                <span class="badge bg-success-subtle text-success-emphasis">
-                                    <i class="bi bi-cursor-fill me-1"></i>Click open slot to place
-                                </span>
-                            }
-                            <div class="placement-mode-toggle">
-                                <span class="placement-mode-label">Schedule by:</span>
-                                <div class="placement-mode-pill">
-                                    <button class="pill-seg"
-                                            [class.pill-seg-active]="placementMode() === 'mouse'"
-                                            (click)="setPlacementMode('mouse')">
-                                        Mouse
-                                    </button>
-                                    <button class="pill-seg"
-                                            [class.pill-seg-active]="placementMode() === 'keyboard'"
-                                            (click)="setPlacementMode('keyboard')">
-                                        Keyboard
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    @if (isPairingsLoading()) {
-                        <div class="text-center p-3">
-                            <div class="spinner-border spinner-border-sm text-secondary"></div>
-                        </div>
-                    } @else {
-                        <div class="panel-body pairings-body">
-                            @for (p of pairings(); track p.ai) {
-                                <div class="pairing-row"
-                                     [class.pairing-selected]="isPairingSelected(p)"
-                                     [class.pairing-scheduled]="!p.bAvailable"
-                                     (click)="p.bAvailable ? onPairingClick(p) : locateScheduledGame(p)">
-                                    <span class="pairing-gno">G{{ p.gameNumber }}</span>
-                                    <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
-                                    <span class="pairing-rnd">R{{ p.rnd }}</span>
-                                    @if (p.bAvailable) {
-                                        <button class="pairing-pick-btn" title="Select for placement"
-                                                (click)="onPairingClick(p); $event.stopPropagation()">
-                                            <i class="bi bi-pencil-fill"></i>
-                                        </button>
-                                    } @else {
-                                        <i class="bi bi-check-circle-fill pairing-scheduled-icon"></i>
-                                    }
-                                </div>
-                            }
-
-                            @if (pairings().length === 0) {
-                                <div class="empty-state-sm">
-                                    <p class="text-secondary mb-0">No pairings for this division</p>
-                                </div>
-                            }
-                        </div>
-                    }
-
-                    <!-- Who Plays Who matrix (collapsible, collapsed by default) -->
-                    @if (teamCount() > 0) {
-                        <div class="section-label section-label-toggle" (click)="whoPlaysWhoOpen.set(!whoPlaysWhoOpen())">
-                            <i class="bi" [class.bi-chevron-right]="!whoPlaysWhoOpen()" [class.bi-chevron-down]="whoPlaysWhoOpen()"></i>
-                            Who Plays Who
-                        </div>
-                        @if (whoPlaysWhoOpen()) {
-                            @if (whoPlaysWhoMatrix()) {
-                                <div class="matrix-scroll">
-                                    <table class="table table-sm matrix-table mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th></th>
-                                                @for (t of teamRange(); track t) {
-                                                    <th class="text-center">T{{ t }}</th>
-                                                }
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @for (row of whoPlaysWhoMatrix()!; track $index; let i = $index) {
-                                                <tr>
-                                                    <th>T{{ i + 1 }}</th>
-                                                    @for (val of row; track $index; let j = $index) {
-                                                        <td class="text-center"
-                                                            [class.matrix-diagonal]="i === j"
-                                                            [class.matrix-zero]="val === 0 && i !== j">
-                                                            @if (i === j) { — } @else { {{ val }} }
-                                                        </td>
-                                                    }
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            } @else {
-                                <div class="text-center p-2">
-                                    <div class="spinner-border spinner-border-sm text-secondary"></div>
-                                </div>
-                            }
-                        }
-                    }
-
-                    <!-- Division Teams (collapsible, collapsed by default) -->
-                    @if (divisionTeams().length > 0) {
-                        <div class="section-label section-label-toggle" (click)="divisionTeamsOpen.set(!divisionTeamsOpen())">
-                            <i class="bi" [class.bi-chevron-right]="!divisionTeamsOpen()" [class.bi-chevron-down]="divisionTeamsOpen()"></i>
-                            Division Teams
-                        </div>
-                        @if (divisionTeamsOpen()) {
-                            <div class="teams-table-scroll">
-                                <table class="table table-sm table-hover teams-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th class="col-rank">#</th>
-                                            <th class="col-club">Club</th>
-                                            <th class="col-teamname">Team</th>
-                                            <th class="col-actions"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @for (team of divisionTeams(); track team.teamId) {
-                                            <tr (dblclick)="openTeamEditModal(team)">
-                                                <td class="col-rank fw-semibold">{{ team.divRank }}</td>
-                                                <td class="col-club text-secondary" [title]="team.clubName">{{ team.clubName }}</td>
-                                                <td class="col-teamname" [title]="team.teamName">{{ team.teamName }}</td>
-                                                <td class="col-actions">
-                                                    <button class="edit-trigger"
-                                                            (click)="openTeamEditModal(team); $event.stopPropagation()"
-                                                            title="Edit team">
-                                                        <i class="bi bi-pencil-fill"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    }
-                </div>
+                <app-pairings-panel
+                    [pairings]="pairings()"
+                    [isPairingsLoading]="isPairingsLoading()"
+                    [placementMode]="placementMode()"
+                    [selectedPairingAi]="selectedPairing()?.ai ?? null"
+                    [teamCount]="teamCount()"
+                    [whoPlaysWhoMatrix]="whoPlaysWhoMatrix()"
+                    [divisionTeams]="divisionTeams()"
+                    (pairingClicked)="onPairingClick($event)"
+                    (placementModeChanged)="setPlacementMode($event)"
+                    (teamEditRequested)="openTeamEditModal($event)"
+                    (pairingLocated)="locateScheduledGame($event)" />
             }
         </div>
 
@@ -177,76 +49,18 @@
 
             <!-- ── Event Summary View ── -->
             @if (scope().level === 'event') {
-                <div class="event-summary">
-                    <div class="event-summary-header">
-                        <h5 class="mb-0">{{ gameSummary()?.jobName ?? 'Event' }}</h5>
-                        <div class="d-flex gap-2 align-items-center">
-                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                {{ gameSummary()?.totalGames ?? 0 }} games
-                            </span>
-                            <!-- Context-sensitive buttons -->
-                            @if (!hasGamesInScope()) {
-                                <button class="btn btn-sm btn-outline-primary"
-                                        (click)="openAutoScheduleConfig()"
-                                        [disabled]="isExecutingV2()">
-                                    @if (isExecutingV2()) {
-                                        <span class="spinner-border spinner-border-sm"></span>
-                                    } @else {
-                                        <i class="bi bi-lightning-fill"></i>
-                                    }
-                                    Auto-Schedule All
-                                </button>
-                            } @else {
-                                <button class="btn btn-sm btn-outline-danger"
-                                        (click)="confirmDeleteGames()"
-                                        [disabled]="isDeletingGames()">
-                                    @if (isDeletingGames()) {
-                                        <span class="spinner-border spinner-border-sm"></span>
-                                    } @else {
-                                        <i class="bi bi-trash"></i>
-                                    }
-                                    Delete All Games
-                                </button>
-                            }
-                        </div>
-                    </div>
-
-                    <!-- Delete confirmation (event level = type CONFIRM) -->
-                    @if (showDeleteConfirm()) {
-                        <div class="alert alert-danger m-3 mb-0 py-2 px-3">
-                            <div class="mb-2">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                This will remove <strong>ALL {{ scopeGameCount() }} games</strong>. Type <strong>CONFIRM</strong> to proceed.
-                            </div>
-                            <div class="d-flex gap-2 align-items-center">
-                                <input type="text" class="form-control form-control-sm" style="max-width: 160px"
-                                       placeholder="Type CONFIRM"
-                                       [ngModel]="deleteConfirmText()"
-                                       (ngModelChange)="deleteConfirmText.set($event)">
-                                <button class="btn btn-sm btn-danger"
-                                        [disabled]="deleteConfirmText() !== 'CONFIRM'"
-                                        (click)="executeDelete()">Delete All</button>
-                                <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
-                            </div>
-                        </div>
-                    }
-
-                    <!-- Agegroup cards -->
-                    <div class="ag-summary-list">
-                        @for (ag of agegroups(); track ag.agegroupId) {
-                            <div class="ag-summary-card">
-                                <span class="badge rounded-pill"
-                                      [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
-                                      [style.color]="contrastText(ag.color)">
-                                    {{ ag.agegroupName }}
-                                </span>
-                                <span class="ag-summary-games">{{ agGameCount(ag.agegroupId) }} games</span>
-                                <span class="text-secondary">{{ ag.divisions.length }} divisions</span>
-                                <span class="text-secondary">{{ agTeamCount(ag) }} teams</span>
-                            </div>
-                        }
-                    </div>
-                </div>
+                <app-event-summary-panel
+                    [agegroups]="agegroups()"
+                    [gameSummary]="gameSummary()"
+                    [hasGamesInScope]="hasGamesInScope()"
+                    [scopeGameCount]="scopeGameCount()"
+                    [isExecutingV2]="isExecutingV2()"
+                    [isDeletingGames]="isDeletingGames()"
+                    [showDeleteConfirm]="showDeleteConfirm()"
+                    (autoScheduleRequested)="openAutoScheduleConfig()"
+                    (deleteRequested)="confirmDeleteGames()"
+                    (deleteConfirmed)="executeDelete()"
+                    (deleteCancelled)="cancelDeleteGames()" />
 
             <!-- ── Agegroup View (grid visible, pairings hidden) ── -->
             } @else if (scope().level === 'agegroup') {
@@ -405,117 +219,17 @@
 
 <!-- ══════════ Auto-Schedule V2 Config Modal ══════════ -->
 @if (showAutoScheduleModal()) {
-    <tsic-dialog [open]="true" size="sm" (requestClose)="closeAutoScheduleModal()">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Auto-Schedule {{ scopeLabel() }}</h5>
-                <button type="button" class="btn-close" (click)="closeAutoScheduleModal()"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Strategy Grid -->
-                @if (modalStrategyLoading()) {
-                    <div class="text-center py-3">
-                        <span class="spinner-border spinner-border-sm text-primary"></span>
-                        <small class="d-block text-secondary mt-1">Loading preferences...</small>
-                    </div>
-                } @else if (modalStrategies().length > 0) {
-                    <div class="mb-3">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <label class="form-label form-label-sm fw-semibold mb-0">Division Strategy</label>
-                            <span class="badge bg-primary-subtle text-primary" style="font-size: var(--font-size-xs)">{{ modalStrategySourceLabel() }}</span>
-                        </div>
-                        <small class="d-block text-secondary mb-2">Click to change placement or gap pattern per division.</small>
-                        <div class="modal-strategy-grid">
-                            <div class="msg-row msg-header">
-                                <span class="msg-name">Division</span>
-                                <span class="msg-placement">Placement</span>
-                                <span class="msg-gap">Gap</span>
-                            </div>
-                            @for (entry of modalStrategies(); track entry.divisionName) {
-                                <div class="msg-row">
-                                    <span class="msg-name">{{ entry.divisionName }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                            (click)="toggleModalPlacement(entry.divisionName)">
-                                        {{ modalPlacementLabel(entry.placement) }}
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                            (click)="cycleModalGapPattern(entry.divisionName)">
-                                        {{ modalGapLabel(entry.gapPattern) }}
-                                    </button>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-
-                <!-- Agegroup order (event scope only) -->
-                @if (scope().level === 'event') {
-                    <div class="mb-3">
-                        <label class="form-label form-label-sm fw-semibold">Which agegroups should I schedule, and in what order?</label>
-                        <small class="d-block text-secondary mb-2">I'll process these top-to-bottom. Uncheck any you want to skip.</small>
-                        <div class="constraint-list">
-                            @for (ag of modalAgegroups(); track ag.agegroupId; let i = $index) {
-                                <div class="constraint-row">
-                                    <span class="constraint-rank">{{ i + 1 }}</span>
-                                    <input class="form-check-input me-1" type="checkbox"
-                                           [checked]="ag.included"
-                                           (change)="toggleModalAgegroup(i)">
-                                    <span class="constraint-name"
-                                          [style.color]="ag.color ?? 'inherit'"
-                                          [style.font-weight]="600">
-                                        {{ ag.agegroupName }}
-                                    </span>
-                                    <span class="text-secondary" style="font-size: var(--font-size-xs)">
-                                        {{ ag.teamCount }} teams · {{ ag.divisionCount }} divisions
-                                    </span>
-                                    <div class="constraint-arrows">
-                                        <button class="btn-arrow" [disabled]="i === 0" (click)="moveModalAgegroupUp(i)">
-                                            <i class="bi bi-chevron-up"></i>
-                                        </button>
-                                        <button class="btn-arrow"
-                                                [disabled]="i === modalAgegroups().length - 1"
-                                                (click)="moveModalAgegroupDown(i)">
-                                            <i class="bi bi-chevron-down"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
-
-                <!-- Division sort strategy (agegroup + event scope) -->
-                @if (scope().level !== 'division') {
-                    <div class="mb-0">
-                        <label class="form-label form-label-sm fw-semibold">Within each agegroup, in what order should I schedule their divisions?</label>
-                        <small class="d-block text-secondary mb-2">Divisions are scheduled one at a time. The order can affect how cleanly games fit into the remaining timeslots.</small>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="divOrder" id="divOrderAlpha"
-                                   [checked]="autoScheduleConfig().divisionOrderStrategy === 'alpha'"
-                                   (change)="setDivisionOrderStrategy('alpha')">
-                            <label class="form-check-label" for="divOrderAlpha">Alphabetical</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="divOrder" id="divOrderOdd"
-                                   [checked]="autoScheduleConfig().divisionOrderStrategy === 'odd-first'"
-                                   (change)="setDivisionOrderStrategy('odd-first')">
-                            <label class="form-check-label" for="divOrderOdd">
-                                Odd-sized divisions first, then alphabetically
-                                <small class="text-secondary d-block">(odd divisions need more vertical room)</small>
-                            </label>
-                        </div>
-                    </div>
-                }
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closeAutoScheduleModal()">Cancel</button>
-                <button class="btn btn-sm btn-primary" (click)="executeAutoScheduleV2()">
-                    <i class="bi bi-lightning-fill me-1"></i>
-                    Build Schedule
-                </button>
-            </div>
-        </div>
-    </tsic-dialog>
+    <app-auto-schedule-config-modal
+        [scope]="scope()"
+        [scopeLabel]="scopeLabel()"
+        [strategies]="modalStrategies()"
+        [strategySource]="modalStrategySource()"
+        [strategySourceName]="modalStrategySourceName()"
+        [strategyLoading]="modalStrategyLoading()"
+        [agegroups]="modalAgegroups()"
+        [config]="autoScheduleConfig()"
+        (buildRequested)="onAutoScheduleBuild($event)"
+        (cancelled)="closeAutoScheduleModal()" />
 }
 
 <!-- ══════════ Rapid-Placement Modal ══════════ -->

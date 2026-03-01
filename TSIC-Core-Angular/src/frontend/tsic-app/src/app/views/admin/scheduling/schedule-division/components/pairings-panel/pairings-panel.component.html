@@ -1,0 +1,140 @@
+<div class="pairings-panel">
+    <div class="panel-header d-flex align-items-center justify-content-between">
+        <span class="fw-semibold">Pairings</span>
+        <div class="d-flex align-items-center gap-1">
+            @if (selectedPairingAi()) {
+                <span class="badge bg-success-subtle text-success-emphasis">
+                    <i class="bi bi-cursor-fill me-1"></i>Click open slot to place
+                </span>
+            }
+            <div class="placement-mode-toggle">
+                <span class="placement-mode-label">Schedule by:</span>
+                <div class="placement-mode-pill">
+                    <button class="pill-seg"
+                            [class.pill-seg-active]="placementMode() === 'mouse'"
+                            (click)="placementModeChanged.emit('mouse')">
+                        Mouse
+                    </button>
+                    <button class="pill-seg"
+                            [class.pill-seg-active]="placementMode() === 'keyboard'"
+                            (click)="placementModeChanged.emit('keyboard')">
+                        Keyboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isPairingsLoading()) {
+        <div class="text-center p-3">
+            <div class="spinner-border spinner-border-sm text-secondary"></div>
+        </div>
+    } @else {
+        <div class="panel-body pairings-body">
+            @for (p of pairings(); track p.ai) {
+                <div class="pairing-row"
+                     [class.pairing-selected]="isPairingSelected(p)"
+                     [class.pairing-scheduled]="!p.bAvailable"
+                     (click)="onPairingClick(p)">
+                    <span class="pairing-gno">G{{ p.gameNumber }}</span>
+                    <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
+                    <span class="pairing-rnd">R{{ p.rnd }}</span>
+                    @if (p.bAvailable) {
+                        <button class="pairing-pick-btn" title="Select for placement"
+                                (click)="pairingClicked.emit(p); $event.stopPropagation()">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                    } @else {
+                        <i class="bi bi-check-circle-fill pairing-scheduled-icon"></i>
+                    }
+                </div>
+            }
+
+            @if (pairings().length === 0) {
+                <div class="empty-state-sm">
+                    <p class="text-secondary mb-0">No pairings for this division</p>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Who Plays Who matrix (collapsible, collapsed by default) -->
+    @if (teamCount() > 0) {
+        <div class="section-label section-label-toggle" (click)="whoPlaysWhoOpen.set(!whoPlaysWhoOpen())">
+            <i class="bi" [class.bi-chevron-right]="!whoPlaysWhoOpen()" [class.bi-chevron-down]="whoPlaysWhoOpen()"></i>
+            Who Plays Who
+        </div>
+        @if (whoPlaysWhoOpen()) {
+            @if (whoPlaysWhoMatrix()) {
+                <div class="matrix-scroll">
+                    <table class="table table-sm matrix-table mb-0">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                @for (t of teamRange(); track t) {
+                                    <th class="text-center">T{{ t }}</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (row of whoPlaysWhoMatrix()!; track $index; let i = $index) {
+                                <tr>
+                                    <th>T{{ i + 1 }}</th>
+                                    @for (val of row; track $index; let j = $index) {
+                                        <td class="text-center"
+                                            [class.matrix-diagonal]="i === j"
+                                            [class.matrix-zero]="val === 0 && i !== j">
+                                            @if (i === j) { — } @else { {{ val }} }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            } @else {
+                <div class="text-center p-2">
+                    <div class="spinner-border spinner-border-sm text-secondary"></div>
+                </div>
+            }
+        }
+    }
+
+    <!-- Division Teams (collapsible, collapsed by default) -->
+    @if (divisionTeams().length > 0) {
+        <div class="section-label section-label-toggle" (click)="divisionTeamsOpen.set(!divisionTeamsOpen())">
+            <i class="bi" [class.bi-chevron-right]="!divisionTeamsOpen()" [class.bi-chevron-down]="divisionTeamsOpen()"></i>
+            Division Teams
+        </div>
+        @if (divisionTeamsOpen()) {
+            <div class="teams-table-scroll">
+                <table class="table table-sm table-hover teams-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="col-rank">#</th>
+                            <th class="col-club">Club</th>
+                            <th class="col-teamname">Team</th>
+                            <th class="col-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (team of divisionTeams(); track team.teamId) {
+                            <tr (dblclick)="teamEditRequested.emit(team)">
+                                <td class="col-rank fw-semibold">{{ team.divRank }}</td>
+                                <td class="col-club text-secondary" [title]="team.clubName">{{ team.clubName }}</td>
+                                <td class="col-teamname" [title]="team.teamName">{{ team.teamName }}</td>
+                                <td class="col-actions">
+                                    <button class="edit-trigger"
+                                            (click)="teamEditRequested.emit(team); $event.stopPropagation()"
+                                            title="Edit team">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>

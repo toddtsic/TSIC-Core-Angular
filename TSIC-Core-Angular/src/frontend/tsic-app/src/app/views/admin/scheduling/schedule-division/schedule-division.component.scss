@@ -41,7 +41,6 @@
 // ── Shared panel styles ──
 
 .nav-panel,
-.pairings-panel,
 .grid-panel {
     display: flex;
     flex-direction: column;
@@ -60,7 +59,7 @@
     }
 }
 
-.pairings-panel {
+app-pairings-panel {
     flex: 1;
     min-height: 0;
 }
@@ -70,280 +69,9 @@
 }
 
 // .panel-header, .panel-body → _scheduling-panels.scss
+// Pairings list, WPW matrix, division teams → pairings-panel child component
 
-// ── Pairings list (single flat list) ──
-
-.pairings-body {
-    padding: 0;
-    flex: 1 1 0;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-.pairing-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--font-size-sm);
-    cursor: pointer;
-    border-bottom: 1px solid var(--bs-border-color-translucent);
-
-    &:hover {
-        background: var(--bs-tertiary-bg);
-    }
-
-    &.pairing-selected {
-        background: rgba(var(--bs-success-rgb), 0.12);
-        border-left: 3px solid var(--bs-success);
-    }
-
-    &.pairing-scheduled {
-        color: var(--bs-secondary-color);
-    }
-}
-
-.pairing-gno {
-    font-weight: 600;
-    font-size: var(--font-size-xs);
-    min-width: 32px;
-    color: var(--bs-secondary-color);
-}
-
-.pairing-teams {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.pairing-rnd {
-    font-size: var(--font-size-2xs);
-    color: var(--bs-secondary-color);
-    min-width: 24px;
-    text-align: right;
-}
-
-.pairing-pick-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border: none;
-    background: transparent;
-    color: var(--bs-primary);
-    border-radius: var(--bs-border-radius-sm);
-    cursor: pointer;
-    font-size: var(--font-size-xs);
-    flex-shrink: 0;
-
-    &:hover {
-        background: rgba(var(--bs-primary-rgb), 0.1);
-    }
-}
-
-.pairing-scheduled-icon {
-    color: var(--bs-success);
-    font-size: var(--font-size-sm);
-    flex-shrink: 0;
-    width: 24px;
-    text-align: center;
-}
-
-// ── Division Teams table ──
-
-.teams-table-scroll {
-    overflow-y: auto;
-    max-height: 200px;
-}
-
-.teams-table {
-    font-size: var(--font-size-2xs);
-    table-layout: fixed;
-    width: 100%;
-
-    thead th {
-        position: sticky;
-        top: 0;
-        background: var(--bs-body-bg);
-        z-index: 1;
-        font-weight: 700;
-        border-bottom-width: 2px;
-    }
-
-    td, th {
-        vertical-align: middle;
-        padding: 2px var(--space-1);
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
-
-.col-rank {
-    width: 28px;
-    text-align: center;
-}
-
-.col-club {
-    width: 35%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.col-teamname {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.col-actions {
-    width: 32px;
-    text-align: center;
-}
-
-.edit-trigger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border: none;
-    background: transparent;
-    color: var(--bs-primary);
-    cursor: pointer;
-    font-size: var(--font-size-xs);
-    border-radius: var(--bs-border-radius-sm);
-    opacity: 0.7;
-    transition: opacity 0.15s, background 0.15s;
-
-    &:hover {
-        opacity: 1;
-        background: rgba(var(--bs-primary-rgb), 0.1);
-    }
-}
-
-// ── Who Plays Who matrix ──
-
-.section-label {
-    font-size: var(--font-size-2xs);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--bs-secondary-color);
-    padding: var(--space-1) var(--space-2);
-    border-top: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-    flex-shrink: 0;
-
-    &.section-label-toggle {
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: var(--space-1);
-        padding: var(--space-1) var(--space-2);
-        user-select: none;
-
-        &:hover {
-            background: var(--bs-secondary-bg);
-        }
-
-        .bi {
-            font-size: var(--font-size-sm);
-            flex-shrink: 0;
-            width: 16px;
-            text-align: center;
-            line-height: 1;
-        }
-    }
-}
-
-.matrix-scroll {
-    overflow: auto;
-    max-height: 200px;
-}
-
-.matrix-table {
-    font-size: var(--font-size-2xs);
-
-    th, td {
-        padding: var(--space-1);
-        min-width: 32px;
-        vertical-align: middle;
-    }
-
-    thead th {
-        position: sticky;
-        top: 0;
-        background: var(--bs-body-bg);
-        z-index: 1;
-        font-weight: 700;
-    }
-
-    tbody th {
-        font-weight: 700;
-        background: var(--bs-body-bg);
-        position: sticky;
-        left: 0;
-        z-index: 1;
-    }
-}
-
-.matrix-diagonal {
-    background: var(--bs-tertiary-bg);
-    color: var(--bs-secondary-color);
-}
-
-.matrix-zero {
-    background: var(--bs-warning-bg-subtle);
-    color: var(--bs-warning-text-emphasis);
-    font-weight: 600;
-}
-
-// .icon-lg, .empty-state, .empty-state-sm → _scheduling-panels.scss
-
-// ── Event Summary View ──
-
-.event-summary {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
-
-.event-summary-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
-    flex-shrink: 0;
-}
-
-.ag-summary-list {
-    padding: var(--space-2) var(--space-3);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-}
-
-.ag-summary-card {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bs-body-bg);
-    font-size: var(--font-size-sm);
-}
-
-.ag-summary-games {
-    font-weight: 600;
-}
+// Event summary styles → event-summary-panel child component
 
 // ── Agegroup Scope Header ──
 
@@ -356,131 +84,7 @@
     flex-shrink: 0;
 }
 
-// ── Auto-Schedule Config Modal ──
-
-.source-banner {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bs-tertiary-bg);
-    font-size: var(--font-size-sm);
-
-    &.source-active {
-        border-color: rgba(var(--bs-success-rgb), 0.3);
-        background: rgba(var(--bs-success-rgb), 0.06);
-    }
-
-    .bi {
-        font-size: var(--font-size-lg);
-        flex-shrink: 0;
-    }
-}
-
-// ── Modal Strategy Grid ──
-.modal-strategy-grid {
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    font-size: var(--font-size-sm);
-}
-
-.msg-row {
-    display: grid;
-    grid-template-columns: 1fr 100px 120px;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
-    align-items: center;
-    border-top: 1px solid var(--bs-border-color);
-
-    &.msg-header {
-        border-top: none;
-        background: var(--bs-tertiary-bg);
-        font-size: var(--font-size-xs);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        color: var(--bs-secondary-color);
-    }
-}
-
-.msg-name {
-    font-weight: var(--font-weight-medium);
-}
-
-.msg-btn {
-    font-size: var(--font-size-xs);
-    padding: 1px var(--space-1);
-    white-space: nowrap;
-}
-
-.constraint-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.constraint-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bs-body-bg);
-    font-size: var(--font-size-sm);
-}
-
-.constraint-rank {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: var(--radius-full);
-    background: var(--bs-primary);
-    color: var(--bs-white);
-    font-size: var(--font-size-xs);
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
-.constraint-name {
-    flex: 1;
-}
-
-.constraint-arrows {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    flex-shrink: 0;
-}
-
-.btn-arrow {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 16px;
-    border: none;
-    background: transparent;
-    color: var(--bs-secondary-color);
-    cursor: pointer;
-    font-size: var(--font-size-xs);
-    line-height: 1;
-    padding: 0;
-
-    &:hover:not(:disabled) {
-        color: var(--bs-primary);
-    }
-
-    &:disabled {
-        opacity: 0.25;
-        cursor: default;
-    }
-}
+// Auto-schedule config modal styles → auto-schedule-config-modal child component
 
 // ── Mobile: stack panels vertically ──
 
@@ -500,7 +104,7 @@
         max-height: none;
     }
 
-    .pairings-panel {
+    app-pairings-panel {
         flex: 1;
     }
 
@@ -519,56 +123,9 @@
         max-height: 200px;
     }
 
-    .pairings-panel {
+    app-pairings-panel {
         max-height: 250px;
     }
-}
-
-// ── Placement mode toggle (text pill) ──
-
-.placement-mode-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-}
-
-.placement-mode-label {
-    font-size: var(--font-size-2xs);
-    color: var(--bs-secondary-color);
-    white-space: nowrap;
-}
-
-.placement-mode-pill {
-    display: inline-flex;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius);
-    overflow: hidden;
-}
-
-.pill-seg {
-    padding: 1px var(--space-2);
-    border: none;
-    background: transparent;
-    color: var(--bs-secondary-color);
-    cursor: pointer;
-    font-size: var(--font-size-2xs);
-    font-weight: 600;
-    white-space: nowrap;
-    transition: all 0.15s ease;
-
-    &:not(:last-child) {
-        border-right: 1px solid var(--bs-border-color);
-    }
-
-    &:hover:not(.pill-seg-active) {
-        background: var(--bs-tertiary-bg);
-        color: var(--bs-body-color);
-    }
-}
-
-.pill-seg-active {
-    background: var(--bs-primary);
-    color: var(--bs-white);
 }
 
 // ── Rapid-placement button ──
