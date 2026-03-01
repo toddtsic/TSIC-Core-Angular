@@ -19,7 +19,8 @@
       "Bash(xxd /c/Users/Administrator/source/TSIC-Core-Angular/scripts/1-Build-And-Deploy-Local.ps1)",
       "Bash(git pull)",
       "WebFetch(domain:www.usclublax.com)",
-      "Read(//c/Websites/TSIC.App/**)"
+      "Read(//c/Websites/TSIC.App/**)",
+      "Read(//c/Users/Administrator/.claude/projects/c--Users-Administrator-source-TSIC-Core-Angular/f250af54-cf2e-439c-ba74-591e5043eb82/tool-results/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

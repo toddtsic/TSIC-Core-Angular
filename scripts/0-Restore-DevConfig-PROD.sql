@@ -9,7 +9,7 @@
 --
 -- ============================================================================
 --
--- Generated: 2026-02-24 16:15:56
+-- Generated: 2026-03-01 11:23:29
 -- Source:    0-Restore-DevConfig-DEV.ps1 (queried dev DB)
 --
 -- WHAT THIS DOES:
@@ -23,8 +23,8 @@
 --   * Data targets ONLY: widgets.*, nav.*, logs.*, stores.StoreItemImage
 --   * ZERO writes to legacy tables
 --
--- Snapshot: 2 widget categories, 7 widgets, 87 defaults, 0 job overrides
---           10 navs, 65 nav items
+-- Snapshot: 2 widget categories, 8 widgets, 115 defaults, 0 job overrides
+--           10 navs, 88 nav items
 --           10 store images
 --
 -- Prerequisites: reference.JobTypes + dbo.AspNetRoles + dbo.AspNetUsers populated
@@ -35,7 +35,7 @@ SET NOCOUNT ON;
 PRINT '';
 PRINT '==========================================================';
 PRINT '  0-Restore-DevConfig-PROD.sql';
-PRINT '  Generated: 2026-02-24 16:15:56';
+PRINT '  Generated: 2026-03-01 11:23:29';
 PRINT '==========================================================';
 PRINT '';
 
@@ -306,8 +306,10 @@ INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId
 VALUES (21, N'Event Contact', N'content', N'event-contact', 1, NULL, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
 VALUES (23, N'Year-over-Year Comparison', N'chart-tile', N'year-over-year', 3, N'Registration comparison between current and prior year', N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
+INSERT INTO widgets.Widget (WidgetId, Name, WidgetType, ComponentKey, CategoryId, Description, DefaultConfig)
+VALUES (24, N'Job Pulse', N'content', N'job-pulse', 1, N'Smart registration availability cards', N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
 SET IDENTITY_INSERT widgets.Widget OFF;
-PRINT '  Loaded 7 widgets';
+PRINT '  Loaded 8 widgets';
 
 SET IDENTITY_INSERT widgets.WidgetDefault ON;
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -316,8 +318,6 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (2, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (3, 2, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (4, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (5, 4, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -331,8 +331,6 @@ VALUES (9, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (10, 2, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (11, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (12, 4, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (13, 5, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
@@ -344,8 +342,6 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (16, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (17, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (18, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (19, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -359,8 +355,6 @@ VALUES (23, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (24, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (25, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (26, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (27, 5, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
@@ -372,8 +366,6 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (30, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (31, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (32, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (33, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -387,8 +379,6 @@ VALUES (37, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (38, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (39, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (40, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (41, 5, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
@@ -400,8 +390,6 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (44, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (45, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (46, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (47, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -415,8 +403,6 @@ VALUES (51, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (52, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (53, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (54, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (55, 5, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
@@ -428,8 +414,6 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (58, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (59, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (60, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (61, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -443,8 +427,6 @@ VALUES (65, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (66, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (67, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (68, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (69, 5, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
@@ -456,8 +438,6 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (72, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (73, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (74, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (75, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
@@ -471,8 +451,6 @@ VALUES (471, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"E
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (472, 0, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
-VALUES (473, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
-INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (474, 5, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (475, 6, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
@@ -484,8 +462,88 @@ INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId,
 VALUES (478, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 23, 3, 4, N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
 INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
 VALUES (479, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 23, 3, 4, N'{"label":"Year-over-Year Comparison","icon":"bi-arrow-repeat"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (480, 4, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (481, 4, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (482, 4, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (483, 4, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (484, 1, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (485, 1, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (486, 1, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (487, 1, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (488, 0, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (489, 0, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (490, 0, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (491, 0, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (496, 5, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (497, 5, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (498, 5, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (499, 5, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (500, 6, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (501, 6, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (502, 6, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (503, 6, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (504, 2, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (505, 2, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (506, 2, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (507, 2, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 4, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (508, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 1, 1, 1, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (509, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 2, 1, 2, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (510, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 3, 3, 1, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (511, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 3, 3, 1, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (512, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 3, 3, 1, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (513, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 4, 3, 2, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (514, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 4, 3, 2, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (515, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 4, 3, 2, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (516, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 5, 3, 3, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (517, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 5, 3, 3, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (518, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 5, 3, 3, NULL);
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (519, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 21, 1, 3, N'{"label":"Event Contact","icon":"bi-person-fill","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (520, 3, N'CBF3F384-190F-4962-BF58-40B095628DC8', 24, 1, 0, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (521, 3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', 24, 1, 0, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (522, 3, N'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06', 24, 1, 0, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
+INSERT INTO widgets.WidgetDefault (WidgetDefaultId, JobTypeId, RoleId, WidgetId, CategoryId, DisplayOrder, Config)
+VALUES (523, 3, N'7B9EB503-53C9-44FA-94A0-17760C512440', 24, 1, 0, N'{"label":"Job Pulse","icon":"bi-activity","displayStyle":"block"}');
 SET IDENTITY_INSERT widgets.WidgetDefault OFF;
-PRINT '  Loaded 87 defaults';
+PRINT '  Loaded 115 defaults';
 
 PRINT '  Loaded 0 job overrides';
 PRINT '  2A complete';
@@ -526,27 +584,33 @@ SET IDENTITY_INSERT [nav].[NavItem] ON;
 
 -- Parents
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (1, 1, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (8, 2, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (15, 3, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (18, 3, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (4, 1, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (11, 2, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (18, 3, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (36, 1, NULL, 1, 3, N'Scheduling', N'receipt', NULL, NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (23, 3, NULL, 1, 3, N'Analyze', N'bar-chart', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (76, 1, NULL, 1, 3, N'Search', N'search', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (80, 1, NULL, 1, 4, N'LADT', NULL, NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (63, 3, NULL, 1, 4, N'LADT', NULL, NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (84, 1, NULL, 1, 5, N'ARB', N'gear', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (26, 3, NULL, 1, 5, N'Scheduling', N'receipt', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (89, 1, NULL, 1, 6, N'Scheduling', N'receipt', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (51, 3, NULL, 1, 6, N'ARB', N'gear', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (86, 1, NULL, 1, 6, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (46, 3, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -556,13 +620,7 @@ VALUES (60, 3, NULL, 1, 9, N'Merch', N'cart', NULL, NULL, NULL, GETDATE());
 
 -- Children
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (2, 1, 1, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (3, 1, 1, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (5, 1, 4, 1, 1, N'Job', N'briefcase', N'admin/job-config', NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (6, 1, 4, 1, 2, N'Administrators', N'person-badge', N'configure/administrators', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (7, 1, 4, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -596,11 +654,19 @@ VALUES (68, 3, 18, 1, 6, N'Job Clone', N'tools', N'admin/job-clone', NULL, NULL,
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (69, 3, 18, 1, 7, N'Theme', N'tools', N'admin/theme', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (24, 3, 23, 0, 1, N'new child', NULL, NULL, NULL, NULL, GETDATE());
+VALUES (104, 3, 18, 1, 8, N'Bulletins', N'tools', N'admin/bulletin-editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (105, 3, 18, 1, 9, N'Passwords', N'tools', N'admin/change-password', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (106, 3, 18, 1, 10, N'Age Ranges', N'tools', N'admin/configure-age-ranges', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (109, 3, 23, 1, 2, N'Customer Job Revenue', N'search', N'admin/customer-job-revenue', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (25, 3, 23, 1, 2, N'Logs', N'tools', N'admin/log-viewer', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (28, 3, 26, 1, 2, N'1) Pool Assignment', N'receipt', N'admin/pool-assignment', NULL, NULL, GETDATE());
+VALUES (110, 3, 23, 1, 3, N'TSIC Daily Registrations', N'search', N'reporting/Get_JobPlayers_TSICDaily', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (28, 3, 26, 1, 1, N'1) Pool Assignment', N'receipt', N'admin/pool-assignment', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (29, 3, 26, 1, 2, N'2) Manage Fields', N'map', N'scheduling/fields', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -616,29 +682,23 @@ VALUES (34, 3, 26, 1, 7, N'Rescheduler', N'grid', N'scheduling/rescheduler', NUL
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (35, 3, 26, 1, 8, N'QA Schedule', N'receipt', N'scheduling/qa-results', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (49, 3, 26, 1, 9, N'Mobile Scorers', N'pencil', N'admin/mobile-scorers', NULL, NULL, GETDATE());
+VALUES (88, 3, 26, 1, 9, N'Master Schedule', N'receipt', N'scheduling/master-schedule', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (70, 3, 26, 1, 10, N'Auto-Schedule', N'tools', N'scheduling/auto-build', NULL, NULL, GETDATE());
+VALUES (49, 3, 26, 1, 10, N'Mobile Scorers', N'pencil', N'admin/mobile-scorers', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (37, 1, 36, 1, 1, N'1) Pool Assignment', N'receipt', N'admin/pool-assignment', NULL, NULL, GETDATE());
+VALUES (70, 3, 26, 1, 11, N'Auto-Schedule', N'tools', N'scheduling/auto-build', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (38, 1, 36, 1, 2, N'2) Manage Fields', N'map', N'scheduling/fields', NULL, NULL, GETDATE());
+VALUES (72, 3, 26, 1, 12, N'Ref Assignment', N'tools', N'scheduling/referee-assignment', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (39, 1, 36, 1, 3, N'3) Manage Pairings', N'list', N'scheduling/pairings', NULL, NULL, GETDATE());
+VALUES (73, 3, 26, 1, 13, N'Parking Stats', N'search', N'scheduling/tournament-parking', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (40, 1, 36, 1, 4, N'4) Manage Timeslots', N'clock', N'scheduling/timeslots', NULL, NULL, GETDATE());
+VALUES (74, 3, 26, 1, 14, N'US Lax Rankings', N'trophy', N'uslaxrankings/index', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (41, 1, 36, 1, 5, N'5) Schedule Games', N'grid', N'scheduling/schedule-division', NULL, NULL, GETDATE());
+VALUES (48, 3, 46, 1, 1, N'US Lax Number Tester', N'tools', N'admin/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (42, 1, 36, 1, 6, N'View Schedule', N'list', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+VALUES (108, 3, 46, 1, 2, N'Upload Uniform Numbers', N'tools', N'admin/uniform-upload', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (43, 1, 36, 1, 7, N'Rescheduler', N'grid', N'scheduling/rescheduler', NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (44, 1, 36, 1, 8, N'QA Schedule', N'receipt', N'scheduling/qa-results', NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (47, 3, 46, 0, 1, N'new child', NULL, NULL, NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (48, 3, 46, 1, 2, N'US Lax Number Tester', N'tools', N'admin/uslax-test', NULL, NULL, GETDATE());
+VALUES (107, 3, 46, 1, 3, N'Send Push Notifications To Mobile Users', N'envelope', N'admin/push-notification', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (53, 3, 51, 1, 2, N'Check Status', N'gear', N'admin/arb-health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -654,12 +714,56 @@ VALUES (62, 3, 60, 1, 2, N'Configure Store', N'tools', N'admin/store', NULL, NUL
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (71, 3, 60, 1, 2, N'Shop Store', N'cart', N'store/walk-up', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (65, 3, 63, 1, 2, N'Roster Swapper', N'people', N'admin/roster-swapper', NULL, NULL, GETDATE());
+VALUES (75, 3, 63, 1, 1, N'LADT Editor', N'tools', N'ladt/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (66, 3, 63, 1, 2, N'Pool Assignment', N'tools', N'admin/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (65, 3, 63, 1, 3, N'Roster Swapper', N'people', N'admin/roster-swapper', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (77, 1, 76, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (78, 1, 76, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (79, 1, 76, 1, 3, N'Email Log', N'envelope', N'admin/email-log', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (81, 1, 80, 1, 1, N'LADT Editor', N'tools', N'ladt/admin', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (82, 1, 80, 1, 2, N'Pool Assignment', N'tools', N'admin/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (83, 1, 80, 1, 3, N'Roster Swapper', N'people', N'admin/roster-swapper', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (85, 1, 84, 1, 1, N'Check Status', N'gear', N'admin/arb-health', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (87, 1, 86, 1, 1, N'US Lax Number Tester', N'tools', N'admin/uslax-test', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (90, 1, 89, 1, 1, N'1) Pool Assignment', N'receipt', N'admin/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (91, 1, 89, 1, 2, N'2) Manage Fields', N'map', N'scheduling/fields', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (92, 1, 89, 1, 3, N'3) Manage Pairings', N'list', N'scheduling/pairings', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (93, 1, 89, 1, 4, N'4) Manage Timeslots', N'clock', N'scheduling/timeslots', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (94, 1, 89, 1, 5, N'5) Schedule Games', N'grid', N'scheduling/schedule-division', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (95, 1, 89, 1, 6, N'View Schedule', N'list', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (96, 1, 89, 1, 7, N'Rescheduler', N'grid', N'scheduling/rescheduler', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (97, 1, 89, 1, 8, N'QA Schedule', N'receipt', N'scheduling/qa-results', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (98, 1, 89, 1, 9, N'Master Schedule', N'receipt', N'scheduling/master-schedule', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (99, 1, 89, 1, 10, N'Mobile Scorers', N'pencil', N'admin/mobile-scorers', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (100, 1, 89, 1, 11, N'Auto-Schedule', N'tools', N'scheduling/auto-build', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (101, 1, 89, 1, 12, N'Ref Assignment', N'tools', N'scheduling/referee-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (102, 1, 89, 1, 13, N'Parking Stats', N'search', N'scheduling/tournament-parking', NULL, NULL, GETDATE());
 
 SET IDENTITY_INSERT [nav].[NavItem] OFF;
-PRINT '  Loaded 65 nav items (14 parents, 51 children)';
+PRINT '  Loaded 88 nav items (17 parents, 71 children)';
 PRINT '  2B complete';
 GO
 
@@ -731,10 +835,33 @@ UNION ALL
 SELECT 'widgets.Widget.DefaultConfig',
     CASE WHEN COL_LENGTH('widgets.Widget', 'DefaultConfig') IS NOT NULL THEN 'EXISTS' ELSE 'MISSING' END;
 
+-- ========================================================================
+-- SECTION 3: IIS APP POOL DB LOGIN
+-- After a restore, the IIS app pool identity loses database access.
+-- This idempotently creates the login + user mapping.
+-- ========================================================================
+
+PRINT '-- 3: IIS App Pool DB Login';
+
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
+    CREATE LOGIN [IIS APPPOOL\TSIC.Api] FROM WINDOWS;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
+    CREATE USER [IIS APPPOOL\TSIC.Api] FOR LOGIN [IIS APPPOOL\TSIC.Api];
+ELSE
+    ALTER USER [IIS APPPOOL\TSIC.Api] WITH LOGIN = [IIS APPPOOL\TSIC.Api];
+
+ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\TSIC.Api];
+ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\TSIC.Api];
+
+PRINT '  IIS APPPOOL\TSIC.Api login ensured.';
+PRINT '  Section 3 complete.';
+GO
+
 PRINT '';
 PRINT '==========================================================';
 PRINT '  0-Restore-DevConfig-PROD.sql -- COMPLETE';
-PRINT '  All schemas, tables, and dev config are in place.';
+PRINT '  All schemas, tables, dev config, and IIS login are in place.';
 PRINT '  Legacy tables were NOT modified.';
 PRINT '==========================================================';
 
