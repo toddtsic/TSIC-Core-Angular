@@ -218,15 +218,14 @@ namespace TSIC.API.Controllers
             var jobPath = selectedReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
             var jobLogo = selectedReg.JobLogo; // Get the job logo from selected registration
 
-            // Generate enriched Phase 2 JWT token with regId, jobPath, jobLogo, and role claims
+            // Generate enriched Phase 2 JWT token with regId, jobPath, jobLogo, and role claims.
+            // Reuse the Phase 1 refresh token — no need to generate a second one per login session.
             var token = _tokenService.GenerateEnrichedJwtToken(user, request.RegId, jobPath, jobLogo, roleName);
-            var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
             var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
 
             return Ok(new AuthTokenResponse
             {
                 AccessToken = token,
-                RefreshToken = refreshToken,
                 ExpiresIn = expirationMinutes * 60
             });
         }
