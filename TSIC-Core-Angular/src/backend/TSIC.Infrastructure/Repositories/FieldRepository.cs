@@ -150,6 +150,16 @@ public class FieldRepository : IFieldRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task<int> RemoveAllFieldsFromLeagueSeasonAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken ct = default)
+    {
+        return await _context.FieldsLeagueSeason
+            .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
+            .ExecuteDeleteAsync(ct);
+    }
+
     public async Task<Dictionary<Guid, int>> GetFieldPreferencesAsync(
         Guid leagueId,
         string season,

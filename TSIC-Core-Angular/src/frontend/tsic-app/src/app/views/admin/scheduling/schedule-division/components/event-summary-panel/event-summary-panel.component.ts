@@ -49,10 +49,12 @@ export class EventSummaryPanelComponent {
     readonly deleteConfirmed = output<void>();
     readonly deleteCancelled = output<void>();
     readonly agegroupClicked = output<string>();
-    readonly devResetRequested = output<void>();
+    readonly devResetConfirmed = output<void>();
 
     // ── Local state ──
     readonly deleteConfirmText = signal('');
+    readonly showDevResetConfirm = signal(false);
+    readonly devResetConfirmText = signal('');
     readonly isDevMode = !environment.production;
 
     // ── Helpers ──
@@ -263,5 +265,21 @@ export class EventSummaryPanelComponent {
     onDeleteCancelled(): void {
         this.deleteCancelled.emit();
         this.deleteConfirmText.set('');
+    }
+
+    requestDevReset(): void {
+        this.showDevResetConfirm.set(true);
+        this.devResetConfirmText.set('');
+    }
+
+    onDevResetConfirmed(): void {
+        this.showDevResetConfirm.set(false);
+        this.devResetConfirmText.set('');
+        this.devResetConfirmed.emit();
+    }
+
+    onDevResetCancelled(): void {
+        this.showDevResetConfirm.set(false);
+        this.devResetConfirmText.set('');
     }
 }

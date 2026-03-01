@@ -72,7 +72,7 @@
                 }
                 @if (isDevMode) {
                     <button class="btn btn-sm btn-outline-warning"
-                            (click)="devResetRequested.emit()"
+                            (click)="requestDevReset()"
                             [disabled]="isDevResetting()">
                         @if (isDevResetting()) {
                             <span class="spinner-border spinner-border-sm"></span>
@@ -151,6 +151,26 @@
                         [disabled]="deleteConfirmText() !== 'CONFIRM'"
                         (click)="onDeleteConfirmed()">Delete All</button>
                 <button class="btn btn-sm btn-outline-secondary" (click)="onDeleteCancelled()">Cancel</button>
+            </div>
+        </div>
+    }
+
+    <!-- ── Dev Reset confirmation ── -->
+    @if (showDevResetConfirm()) {
+        <div class="alert alert-warning m-3 mb-0 py-2 px-3">
+            <div class="mb-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                This will wipe <strong>ALL</strong> scheduling config: games, timeslots, pairings, field assignments, and strategy profiles. Type <strong>confirm</strong> to proceed.
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" class="form-control form-control-sm" style="max-width: 160px"
+                       placeholder="Type confirm"
+                       [ngModel]="devResetConfirmText()"
+                       (ngModelChange)="devResetConfirmText.set($event)">
+                <button class="btn btn-sm btn-warning"
+                        [disabled]="devResetConfirmText().toLowerCase() !== 'confirm'"
+                        (click)="onDevResetConfirmed()">Reset All</button>
+                <button class="btn btn-sm btn-outline-secondary" (click)="onDevResetCancelled()">Cancel</button>
             </div>
         </div>
     }

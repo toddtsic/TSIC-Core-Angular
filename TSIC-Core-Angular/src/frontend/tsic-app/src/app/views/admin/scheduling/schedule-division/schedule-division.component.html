@@ -111,7 +111,7 @@
                     (deleteConfirmed)="executeDelete()"
                     (deleteCancelled)="cancelDeleteGames()"
                     (agegroupClicked)="onAgegroupSelected({ agegroupId: $event })"
-                    (devResetRequested)="executeDevReset()" />
+                    (devResetConfirmed)="executeDevReset()" />
 
             <!-- ── Agegroup View ── -->
             } @else if (scope().level === 'agegroup') {

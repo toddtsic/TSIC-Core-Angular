@@ -21,6 +21,7 @@ public class DevSchedulingController : ControllerBase
     private readonly ITimeslotRepository _tsRepo;
     private readonly IPairingsRepository _pairingsRepo;
     private readonly IDivisionProfileRepository _profileRepo;
+    private readonly IFieldRepository _fieldRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<DevSchedulingController> _logger;
 
@@ -31,6 +32,7 @@ public class DevSchedulingController : ControllerBase
         ITimeslotRepository tsRepo,
         IPairingsRepository pairingsRepo,
         IDivisionProfileRepository profileRepo,
+        IFieldRepository fieldRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<DevSchedulingController> logger)
     {
@@ -40,13 +42,14 @@ public class DevSchedulingController : ControllerBase
         _tsRepo = tsRepo;
         _pairingsRepo = pairingsRepo;
         _profileRepo = profileRepo;
+        _fieldRepo = fieldRepo;
         _contextResolver = contextResolver;
         _logger = logger;
     }
 
     /// <summary>
     /// POST /api/dev-scheduling/reset — Clear all scheduling config for the current job.
-    /// Deletes: games, timeslot dates, timeslot fields, pairings, strategy profiles.
+    /// Deletes: games, strategy profiles, timeslot config, pairings, field assignments.
     /// Development environment ONLY.
     /// </summary>
     [HttpPost("reset")]
@@ -93,16 +96,20 @@ public class DevSchedulingController : ControllerBase
         }
         await _pairingsRepo.SaveChangesAsync(ct);
 
+        // 6. Remove field-to-job assignments (FieldsLeagueSeason — NOT reference.Fields)
+        var fieldsCleared = await _fieldRepo.RemoveAllFieldsFromLeagueSeasonAsync(leagueId, season, ct);
+
         _logger.LogWarning(
             "DEV RESET complete. JobId={JobId}, GamesDeleted={Games}, " +
-            "AgegroupsCleared={Ags}, PairingGroupsCleared={Pairings}",
-            jobId, gamesDeleted, allAgIds.Count, teamCounts.Count);
+            "AgegroupsCleared={Ags}, PairingGroupsCleared={Pairings}, FieldsCleared={Fields}",
+            jobId, gamesDeleted, allAgIds.Count, teamCounts.Count, fieldsCleared);
 
         return Ok(new
         {
             gamesDeleted,
             agegroupsCleared = allAgIds.Count,
             pairingGroupsCleared = teamCounts.Count,
+            fieldsCleared,
             profilesCleared = true
         });
     }

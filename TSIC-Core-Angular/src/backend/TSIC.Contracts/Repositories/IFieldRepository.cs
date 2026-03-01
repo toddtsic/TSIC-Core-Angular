@@ -76,6 +76,15 @@ public interface IFieldRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Remove ALL field assignments from a league-season (bulk clear for dev reset).
+    /// Returns the number of records deleted.
+    /// </summary>
+    Task<int> RemoveAllFieldsFromLeagueSeasonAsync(
+        Guid leagueId,
+        string season,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Get field preferences (Normal/Preferred/Avoid) for all fields in a league-season.
     /// Returns FieldId → FieldPreference (0=Normal, 1=Preferred, 2=Avoid).
     /// </summary>
