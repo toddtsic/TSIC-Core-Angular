@@ -44,6 +44,7 @@ interface AgegroupOrderItem {
     teamCount: number;
     divisionCount: number;
     included: boolean;
+    wave: number;
 }
 
 // ── Constraint display labels ─────────────────────────────
@@ -480,9 +481,11 @@ export class AutoBuildComponent implements AfterViewChecked {
                         this.strategyProfiles.set(response.strategies.map(s => ({ ...s })));
                         this.strategySource.set(response.source);
                         this.strategySourceJobName.set(response.inferredFromJobName ?? '');
+                        this.disconnects.set((response.disconnects as PreFlightDisconnect[]) ?? []);
                         this.isCleanSheet.set(response.source === 'defaults' && jobs.length === 0);
                         this.preparationStatus.set('ready');
                         this.transitionToOrder();
+                        this.applyWavesFromProfiles();
                     },
                     error: (err) => {
                         this.removeThinking();
@@ -516,6 +519,7 @@ export class AutoBuildComponent implements AfterViewChecked {
                         teamCount: 0,
                         divisionCount: 0,
                         included: true,
+                        wave: 1,
                     };
                     agMap.set(div.agegroupId, item);
                 }
@@ -549,6 +553,49 @@ export class AutoBuildComponent implements AfterViewChecked {
     toggleAgegroupInclude(index: number): void {
         this.agegroupOrder.update(order =>
             order.map((item, i) => i === index ? { ...item, included: !item.included } : item)
+        );
+    }
+
+    cycleWave(index: number): void {
+        this.agegroupOrder.update(order =>
+            order.map((item, i) =>
+                i === index
+                    ? { ...item, wave: item.wave >= 3 ? 1 : item.wave + 1 }
+                    : item
+            )
+        );
+    }
+
+    waveLabel(wave: number): string {
+        return `W${wave}`;
+    }
+
+    /** Apply wave assignments from loaded strategy profiles to agegroup order items. */
+    private applyWavesFromProfiles(): void {
+        const profiles = this.strategyProfiles();
+        if (profiles.length === 0) return;
+
+        const gs = this.gameSummary();
+        if (!gs) return;
+
+        // Build map: agegroupName → wave (from any division in that agegroup)
+        const agWaveMap = new Map<string, number>();
+        for (const div of gs.divisions) {
+            const profile = profiles.find(
+                p => p.divisionName.toLowerCase() === div.divName.toLowerCase()
+            );
+            if (profile?.wave && profile.wave > 1) {
+                agWaveMap.set(div.agegroupName, profile.wave);
+            }
+        }
+
+        if (agWaveMap.size === 0) return;
+
+        this.agegroupOrder.update(order =>
+            order.map(ag => ({
+                ...ag,
+                wave: agWaveMap.get(ag.agegroupName) ?? ag.wave,
+            }))
         );
     }
 
@@ -598,6 +645,22 @@ export class AutoBuildComponent implements AfterViewChecked {
 
     // ── Execute Build ────────────────────────────────────────
     executeBuild(): void {
+        // Apply wave from agegroup order to each division's strategy entry
+        const gs = this.gameSummary();
+        const agegroupWaves = new Map<string, number>();
+        for (const ag of this.agegroupOrder()) {
+            agegroupWaves.set(ag.agegroupName, ag.wave);
+        }
+
+        const strategiesWithWaves = this.strategyProfiles().map(s => {
+            // Find which agegroup this division belongs to
+            const div = gs?.divisions.find(
+                d => d.divName.toLowerCase() === s.divisionName.toLowerCase()
+            );
+            const wave = div ? (agegroupWaves.get(div.agegroupName) ?? 1) : 1;
+            return { ...s, wave };
+        });
+
         const request: AutoBuildV2Request = {
             sourceJobId: this.sourceJobId() ?? undefined,
             agegroupOrder: this.agegroupOrder()
@@ -605,7 +668,7 @@ export class AutoBuildComponent implements AfterViewChecked {
                 .map(ag => ag.agegroupId),
             divisionOrderStrategy: this.divisionOrderStrategy(),
             excludedDivisionIds: this.excludedDivisionIds(),
-            divisionStrategies: this.strategyProfiles(),
+            divisionStrategies: strategiesWithWaves,
             saveProfiles: true,
         };
 

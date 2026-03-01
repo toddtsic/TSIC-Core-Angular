@@ -1116,6 +1116,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (effectivePlayDays.Count == 0)
                 effectivePlayDays = candidateDays;
 
+            // Resolve wave from strategy entry (defaults to 1 if not set)
+            var divWave = useStrategyPath && strategyByName.TryGetValue(div.DivName, out var divStrategy)
+                ? Math.Max(1, divStrategy.Wave)
+                : 1;
+
             divContexts.Add(new DivisionBuildContext
             {
                 Div = div,
@@ -1130,7 +1135,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 CurrentWindowStart = currentWindowStart,
                 RoundsByNum = roundsByNum,
                 MaxRound = roundsByNum.Keys.DefaultIfEmpty(0).Max(),
-                EffectivePlayDays = effectivePlayDays
+                EffectivePlayDays = effectivePlayDays,
+                Wave = divWave
             });
         }
 
@@ -1163,8 +1169,26 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // Strategy-driven path doesn't use source offsets, so this is not populated.
         var tcntDayFirstPlaced = new HashSet<(int TCnt, DayOfWeek Day)>();
 
-        foreach (var ctx in divContexts)
+        // ── Wave-grouped placement ──
+        // Group divisions by wave number, process each wave sequentially.
+        // After each wave completes, set a time floor so subsequent waves
+        // can't place games before the latest game in the completed wave.
+        // When all divisions are Wave 1 (default), this collapses to the
+        // original flat loop with no time floor — zero behavioral change.
+        var waveGroups = divContexts
+            .GroupBy(c => c.Wave)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        DateTime? waveTimeFloor = null;
+        DateTime? waveLatestPlacement = null;
+
+        foreach (var waveGroup in waveGroups)
         {
+            waveLatestPlacement = null;
+
+            foreach (var ctx in waveGroup)
+            {
             for (var roundNum = 1; roundNum <= ctx.MaxRound; roundNum++)
             {
                 if (!ctx.RoundsByNum.TryGetValue(roundNum, out var gamesInRound))
@@ -1300,7 +1324,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     };
 
                     var best = PlacementScorer.FindBestSlot(
-                        ctx.Candidates, game, ctx.Profile, ctx.State);
+                        ctx.Candidates, game, ctx.Profile, ctx.State, waveTimeFloor);
 
                     if (best == null)
                     {
@@ -1374,13 +1398,27 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     ctx.State.RecordPlacement(best.Slot, game);
                     divPlacedCounts[ctx.Div.DivId]++;
 
+                    // Track latest placement time for wave floor computation
+                    if (!waveLatestPlacement.HasValue || best.Slot.GDate > waveLatestPlacement.Value)
+                        waveLatestPlacement = best.Slot.GDate;
+
                     // Mark this TCnt+Day as having its first division placed.
                     // Subsequent divisions with same TCnt won't use source StartTickOffset.
                     if (targetDay.HasValue)
                         tcntDayFirstPlaced.Add((ctx.TeamCount, targetDay.Value));
                 }
             }
-        }
+        } // end foreach ctx in waveGroup
+
+            // After all divisions in this wave are placed, set the wave time floor.
+            // Wave 2+ candidates must start at or after the latest placed game + 1 GSI.
+            // This ensures young agegroups finish before older ones start.
+            if (waveGroups.Count > 1 && waveLatestPlacement.HasValue)
+            {
+                var gsiMinutes = waveGroup.FirstOrDefault()?.Profile.GsiMinutes ?? 60;
+                waveTimeFloor = waveLatestPlacement.Value.AddMinutes(gsiMinutes);
+            }
+        } // end foreach waveGroup
 
         // ── 8. Bulk save and finalize per division ──
         // Save all placed games in one batch
@@ -1449,7 +1487,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     JobId = jobId,
                     DivisionName = s.DivisionName,
                     Placement = (byte)s.Placement,
-                    GapPattern = (byte)s.GapPattern
+                    GapPattern = (byte)s.GapPattern,
+                    Wave = (byte)Math.Clamp(s.Wave, 1, 9)
                 })
                 .ToList();
 
@@ -1490,15 +1529,48 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var saved = await _divisionProfileRepo.GetByJobIdAsync(jobId, ct);
         if (saved.Count > 0)
         {
+            // Compute disconnects if we have a source job to compare against
+            List<PreFlightDisconnect>? disconnects = null;
+            if (sourceJobId.HasValue)
+            {
+                var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId.Value, ct);
+                if (patterns.Count > 0)
+                {
+                    var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId.Value, ct);
+                    var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
+                    var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+                    var currentDivCountByTCnt = currentDivisions
+                        .GroupBy(d => d.TeamCount)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    var profilesByTCnt = AttributeExtractor.ExtractProfiles(
+                        patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
+
+                    // Translate source field names → current names before disconnect check
+                    var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+                    var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
+                    if (fieldMap.Count > 0)
+                    {
+                        profilesByTCnt = profilesByTCnt.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
+                    }
+
+                    var disc = await CheckDisconnectsAsync(jobId, profilesByTCnt, sourceJobId.Value, ct);
+                    if (disc.Count > 0) disconnects = disc;
+                }
+            }
+
             return new DivisionStrategyProfileResponse
             {
                 Strategies = saved.Select(p => new DivisionStrategyEntry
                 {
                     DivisionName = p.DivisionName,
                     Placement = p.Placement,
-                    GapPattern = p.GapPattern
+                    GapPattern = p.GapPattern,
+                    Wave = p.Wave
                 }).ToList(),
-                Source = "saved"
+                Source = "saved",
+                Disconnects = disconnects
             };
         }
 
@@ -1551,14 +1623,51 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     }
                 }
 
+                // Detect wave boundaries from source game patterns.
+                // Groups source games by agegroup, computes time envelopes,
+                // and assigns wave numbers where natural time gaps exist.
+                var waveByAgegroup = DetectWaveAssignments(patterns);
+                if (waveByAgegroup.Count > 0)
+                {
+                    // Map division name → agegroup name(s) from current year's divisions
+                    var divToAgegroup = currentDivisions
+                        .GroupBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.First().AgegroupName,
+                            StringComparer.OrdinalIgnoreCase);
+
+                    strategies = strategies.Select(s =>
+                    {
+                        if (divToAgegroup.TryGetValue(s.DivisionName, out var agName)
+                            && waveByAgegroup.TryGetValue(agName, out var wave))
+                        {
+                            return s with { Wave = wave };
+                        }
+                        return s;
+                    }).ToList();
+                }
+
+                // Translate source field names → current names before disconnect check
+                var (leagueId2, season2, _) = await _contextResolver.ResolveAsync(jobId, ct);
+                var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId2, season2, ct);
+                if (fieldMap.Count > 0)
+                {
+                    profilesByTCnt = profilesByTCnt.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
+                }
+
                 var sourceJobName = await _autoBuildRepo.GetJobNameAsync(sourceJobId.Value, ct);
+                var disconnects = await CheckDisconnectsAsync(jobId, profilesByTCnt, sourceJobId.Value, ct);
 
                 return new DivisionStrategyProfileResponse
                 {
                     Strategies = strategies.OrderBy(s => s.DivisionName).ToList(),
                     Source = "inferred",
                     InferredFromJobId = sourceJobId.Value,
-                    InferredFromJobName = sourceJobName ?? "Unknown"
+                    InferredFromJobName = sourceJobName ?? "Unknown",
+                    Disconnects = disconnects.Count > 0 ? disconnects : null
                 };
             }
         }
@@ -1615,6 +1724,77 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         /// are shared across agegroups that play on different days (same TCnt, different DOW).
         /// </summary>
         public required List<DayOfWeek> EffectivePlayDays { get; init; }
+
+        /// <summary>
+        /// Wave group (1-based). Engine completes all Wave 1 divisions before starting Wave 2.
+        /// </summary>
+        public int Wave { get; init; } = 1;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // V2 Private: Wave Detection
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Detect wave boundaries from source game patterns.
+    /// Analyzes per-agegroup time envelopes and finds natural gaps where one group
+    /// of agegroups finishes before another starts (e.g., young AM / old PM).
+    /// Returns empty dictionary if no wave pattern detected (all overlap or single agegroup).
+    /// </summary>
+    private static Dictionary<string, int> DetectWaveAssignments(
+        List<GamePlacementPattern> patterns)
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        // Only analyze round-robin games (T vs T)
+        var rrGames = patterns
+            .Where(p => p.T1Type == "T" && p.T2Type == "T")
+            .ToList();
+
+        if (rrGames.Count == 0)
+            return result;
+
+        // Compute time envelope per agegroup: (earliest game start, latest game start)
+        // Use TimeOfDay (abstracted from literal dates) for year-agnostic comparison.
+        var agEnvelopes = rrGames
+            .GroupBy(g => g.AgegroupName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new
+            {
+                AgegroupName = g.Key,
+                Earliest = g.Min(p => p.TimeOfDay),
+                Latest = g.Max(p => p.TimeOfDay)
+            })
+            .OrderBy(e => e.Earliest)
+            .ThenBy(e => e.Latest)
+            .ToList();
+
+        if (agEnvelopes.Count <= 1)
+            return result; // Single agegroup — no waves possible
+
+        // Detect natural gaps: walk sorted agegroups, mark wave boundaries
+        // where agegroup N's latest game < agegroup N+1's earliest game.
+        // A gap of even 1 minute counts — if they don't overlap, they're separate waves.
+        var waveNumber = 1;
+        result[agEnvelopes[0].AgegroupName] = waveNumber;
+
+        for (var i = 1; i < agEnvelopes.Count; i++)
+        {
+            var prev = agEnvelopes[i - 1];
+            var curr = agEnvelopes[i];
+
+            // If current agegroup's earliest game starts after previous agegroup's
+            // latest game, this is a wave boundary.
+            if (curr.Earliest > prev.Latest)
+                waveNumber++;
+
+            result[curr.AgegroupName] = waveNumber;
+        }
+
+        // Only return waves if we detected more than one
+        if (waveNumber <= 1)
+            return new Dictionary<string, int>();
+
+        return result;
     }
 
     // ══════════════════════════════════════════════════════════

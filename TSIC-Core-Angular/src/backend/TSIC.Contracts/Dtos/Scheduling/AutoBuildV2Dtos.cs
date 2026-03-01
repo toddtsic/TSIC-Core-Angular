@@ -375,6 +375,10 @@ public record DivisionStrategyEntry
 
     /// <summary>0 = BackToBack, 1 = OneOnOneOff (default), 2 = OneOnTwoOff.</summary>
     public required int GapPattern { get; init; }
+
+    /// <summary>Wave group for staggered scheduling. 1 = default (all together),
+    /// 2+ = later waves. Engine completes all Wave 1 divisions before starting Wave 2.</summary>
+    public int Wave { get; init; } = 1;
 }
 
 /// <summary>
@@ -393,4 +397,7 @@ public record DivisionStrategyProfileResponse
 
     /// <summary>When Source="inferred", the human-readable job name.</summary>
     public string? InferredFromJobName { get; init; }
+
+    /// <summary>Differences between source schedule and current timeslot setup.</summary>
+    public List<PreFlightDisconnect>? Disconnects { get; init; }
 }

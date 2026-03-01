@@ -8,5 +8,6 @@ export type DivisionStrategyProfileResponse = {
     source: string;
     inferredFromJobId?: string | null;
     inferredFromJobName?: string | null;
+    disconnects?: any[] | null;
 };
 

@@ -237,6 +237,24 @@
                 </div>
             </div>
 
+            <!-- Pre-Flight Disconnects -->
+            @if (disconnects().length > 0) {
+                <div class="inline-card v2-disconnects">
+                    <div class="status-banner-warning">
+                        <i class="bi bi-info-circle-fill disconnect-icon"></i>
+                        <div>
+                            <strong>Differences between last year and this year's setup:</strong>
+                            <ul class="disconnect-list">
+                                @for (d of disconnects(); track d.description) {
+                                    <li>{{ d.description }}</li>
+                                }
+                            </ul>
+                            <p class="disconnect-reassurance">The engine will adapt, but the schedule may differ from last year in these areas.</p>
+                        </div>
+                    </div>
+                </div>
+            }
+
             <!-- Strategy Grid -->
             @if (strategyProfiles().length > 0) {
                 <div class="inline-card v2-strategy">
@@ -287,10 +305,16 @@
                     <div class="card-step-number">2</div>
                     <div class="card-label">Which agegroups should I schedule, and in what order?</div>
                 </div>
-                <p class="v2-instructions">I'll process these top-to-bottom. Uncheck any you want to skip and feel free to use the arrows to change the scheduling order.</p>
+                <p class="v2-instructions">I'll process these top-to-bottom. Uncheck any you want to skip, use the arrows to change order, and click W1/W2/W3 to assign wave groups (all Wave 1 games finish before Wave 2 starts).</p>
 
                 <div class="order-list">
                     @for (ag of agegroupOrder(); track ag.agegroupId; let i = $index) {
+                        <!-- Wave divider between different wave groups -->
+                        @if (i > 0 && ag.wave !== agegroupOrder()[i - 1].wave) {
+                            <div class="wave-divider">
+                                <span class="wave-divider-label">Wave {{ ag.wave }}</span>
+                            </div>
+                        }
                         <div class="order-row" [class.order-excluded]="!ag.included">
                             <div class="order-rank">{{ i + 1 }}</div>
                             <label class="order-check">
@@ -306,6 +330,14 @@
                                 <span class="order-meta-sep">&middot;</span>
                                 <span class="db db-div">{{ ag.divisionCount }}</span> divisions
                             </span>
+                            <button class="btn btn-sm order-wave-btn"
+                                    [class.wave-1]="ag.wave === 1"
+                                    [class.wave-2]="ag.wave === 2"
+                                    [class.wave-3]="ag.wave === 3"
+                                    (click)="cycleWave(i)"
+                                    [title]="'Wave ' + ag.wave">
+                                W{{ ag.wave }}
+                            </button>
                             <div class="order-arrows">
                                 <button class="btn btn-sm btn-outline-secondary"
                                         [disabled]="i === 0"
@@ -579,7 +611,7 @@
                                 Agegroup / Division Breakdown
                             </summary>
                             <div class="division-breakdown">
-                                @for (dr of r.divisionResults; track dr.divName) {
+                                @for (dr of r.divisionResults; track dr.divId) {
                                     <div class="division-row" [class.division-excluded]="dr.status === 'excluded'">
                                         <span class="division-name">{{ dr.agegroupName }} / {{ dr.divName }}</span>
                                         @if (dr.status === 'excluded') {

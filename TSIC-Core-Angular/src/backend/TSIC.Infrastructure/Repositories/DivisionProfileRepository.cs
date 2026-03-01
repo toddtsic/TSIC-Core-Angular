@@ -49,6 +49,7 @@ public class DivisionProfileRepository : IDivisionProfileRepository
                 // Update existing row
                 existing1.Placement = incoming.Placement;
                 existing1.GapPattern = incoming.GapPattern;
+                existing1.Wave = incoming.Wave;
                 existing1.InferredFromJob = incoming.InferredFromJob;
                 existing1.ModifiedUtc = now;
             }

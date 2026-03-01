@@ -22,6 +22,7 @@ BEGIN
         DivisionName    NVARCHAR(100)    NOT NULL,
         Placement       TINYINT          NOT NULL DEFAULT 0,   -- 0=Horizontal, 1=Sequential
         GapPattern      TINYINT          NOT NULL DEFAULT 1,   -- 0=BTB, 1=OneOnOneOff, 2=OneOnTwoOff
+        Wave            TINYINT          NOT NULL DEFAULT 1,   -- 1=default, 2+=later waves
         InferredFromJob UNIQUEIDENTIFIER NULL,
         CreatedUtc      DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME(),
         ModifiedUtc     DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -35,7 +36,20 @@ END
 ELSE
     PRINT 'Table scheduling.DivisionScheduleProfile already exists — skipped.';
 
--- 3. Add FieldPreference column to Leagues.Fields_LeagueSeason
+-- 3. Add Wave column to DivisionScheduleProfile (wave-grouped scheduling)
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'scheduling' AND TABLE_NAME = 'DivisionScheduleProfile' AND COLUMN_NAME = 'Wave')
+BEGIN
+    ALTER TABLE scheduling.DivisionScheduleProfile
+        ADD Wave TINYINT NOT NULL DEFAULT 1;
+        -- 1 = default wave (all divisions), 2+ = later waves
+
+    PRINT 'Added column: scheduling.DivisionScheduleProfile.Wave';
+END
+ELSE
+    PRINT 'Column scheduling.DivisionScheduleProfile.Wave already exists — skipped.';
+
+-- 5. Add FieldPreference column to Leagues.Fields_LeagueSeason
 IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = 'Leagues' AND TABLE_NAME = 'Fields_LeagueSeason' AND COLUMN_NAME = 'FieldPreference')
 BEGIN
@@ -48,7 +62,7 @@ END
 ELSE
     PRINT 'Column Leagues.Fields_LeagueSeason.FieldPreference already exists — skipped.';
 
--- 4. Verification
+-- 6. Verification
 SELECT
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
      WHERE TABLE_SCHEMA = 'scheduling' AND TABLE_NAME = 'DivisionScheduleProfile')

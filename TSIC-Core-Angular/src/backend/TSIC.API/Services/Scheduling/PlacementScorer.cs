@@ -41,7 +41,8 @@ public static class PlacementScorer
         List<CandidateSlot> candidates,
         GameContext game,
         DivisionSizeProfile profile,
-        PlacementState state)
+        PlacementState state,
+        DateTime? waveTimeFloor = null)
     {
         if (candidates.Count == 0)
             return null;
@@ -54,6 +55,12 @@ public static class PlacementScorer
         {
             // ═══ Hard filter: occupied slot ═══
             if (state.OccupiedSlots.Contains((candidate.FieldId, candidate.GDate)))
+                continue;
+
+            // ═══ Hard filter: wave time floor ═══
+            // When wave scheduling is active, reject any slot before the floor.
+            // This ensures Wave 2+ agegroups can't bleed into Wave 1's time window.
+            if (waveTimeFloor.HasValue && candidate.GDate < waveTimeFloor.Value)
                 continue;
 
             // ═══ Hard filter: BTB / min team gap ═══

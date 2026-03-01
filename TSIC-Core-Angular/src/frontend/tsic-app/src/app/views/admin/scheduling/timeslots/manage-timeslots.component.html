@@ -114,51 +114,40 @@
                     <!-- ════════════════════════════════════════════════════ -->
                     @if (activeTab() === 'dates') {
                         <div class="tab-content">
-                            <!-- Add Date form -->
-                            <div class="add-form">
-                                <input type="date" class="form-control form-control-sm"
-                                       [ngModel]="newDateValue()"
-                                       (ngModelChange)="newDateValue.set($event)">
-                                <label class="form-label mb-0 small text-nowrap">Rnd:</label>
-                                <input type="number" class="form-control form-control-sm rnd-input"
-                                       [ngModel]="newDateRnd()"
-                                       (ngModelChange)="newDateRnd.set($event)"
-                                       min="1" max="99">
-                                <button class="btn btn-sm btn-primary"
-                                        (click)="addDate()"
-                                        [disabled]="isAddingDate() || !newDateValue()">
-                                    @if (isAddingDate()) {
-                                        <span class="spinner-border spinner-border-sm"></span>
-                                    } @else {
-                                        <i class="bi bi-plus-circle"></i>
-                                    }
-                                    Add
+                            <!-- Round guidance -->
+                            <div class="guidance-bar">
+                                <i class="bi bi-info-circle"></i>
+                                <span>
+                                    <strong>Rnd</strong> = starting round number for each date.
+                                    For multi-day events, each date must have a unique round so the engine knows which games belong to which day
+                                    (e.g., Day 1 = Rnd 1, Day 2 = Rnd 4 if 3 rounds per day).
+                                </span>
+                            </div>
+
+                            <!-- Round validation warnings -->
+                            @for (warning of roundWarnings(); track warning) {
+                                <div class="alert alert-warning m-2 mb-0 py-2 d-flex align-items-start gap-2">
+                                    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+                                    <span>{{ warning }}</span>
+                                </div>
+                            }
+
+                            <!-- Action bar -->
+                            <div class="action-bar">
+                                <button class="btn btn-sm btn-primary" (click)="openAddDateModal()">
+                                    <i class="bi bi-plus-circle me-1"></i> Add Date
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger ms-auto"
-                                        (click)="confirmDeleteAllDates()"
+                                        (click)="showDeleteDatesConfirm.set(true)"
                                         [disabled]="isDeletingAllDates() || dates().length === 0">
                                     @if (isDeletingAllDates()) {
                                         <span class="spinner-border spinner-border-sm"></span>
                                     } @else {
-                                        <i class="bi bi-trash"></i>
+                                        <i class="bi bi-trash me-1"></i>
                                     }
                                     Delete All
                                 </button>
                             </div>
-
-                            <!-- Delete All Dates Confirmation -->
-                            @if (showDeleteDatesConfirm()) {
-                                <div class="alert alert-danger m-2 d-flex align-items-center justify-content-between">
-                                    <span>
-                                        <i class="bi bi-exclamation-triangle me-1"></i>
-                                        Delete <strong>all {{ dates().length }}</strong> dates for this agegroup?
-                                    </span>
-                                    <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-danger" (click)="deleteAllDates()">Yes, Delete</button>
-                                        <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteAllDates()">Cancel</button>
-                                    </div>
-                                </div>
-                            }
 
                             <!-- Dates Table -->
                             @if (dates().length > 0) {
@@ -175,69 +164,46 @@
                                         </thead>
                                         <tbody>
                                             @for (d of dates(); track d.ai) {
-                                                <tr (dblclick)="startEditDate(d.ai)">
-                                                    @if (editingDateAi() === d.ai) {
-                                                        <!-- Edit mode -->
-                                                        <td class="col-date">
-                                                            <input type="date" class="form-control form-control-sm"
-                                                                   [value]="toDateInput(d.gDate)"
-                                                                   (input)="d.gDate = $any($event.target).value">
-                                                        </td>
-                                                        <td class="col-rnd">
-                                                            <input type="number" class="form-control form-control-sm rnd-input"
-                                                                   [(ngModel)]="d.rnd" min="1" max="99">
-                                                        </td>
-                                                        <td class="col-dow">—</td>
-                                                        <td class="col-div">{{ d.divName ?? 'All' }}</td>
-                                                        <td class="col-actions">
-                                                            <button class="btn btn-sm btn-link text-success p-0 me-1"
-                                                                    (click)="saveEditDate(d); $event.stopPropagation()"
-                                                                    title="Save">
-                                                                <i class="bi bi-check-lg"></i>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-link text-secondary p-0"
-                                                                    (click)="cancelEditDate(); $event.stopPropagation()"
-                                                                    title="Cancel">
-                                                                <i class="bi bi-x-lg"></i>
-                                                            </button>
-                                                        </td>
-                                                    } @else {
-                                                        <!-- Display mode -->
-                                                        <td class="col-date">{{ formatDate(d.gDate) }}</td>
-                                                        <td class="col-rnd">{{ d.rnd }}</td>
-                                                        <td class="col-dow">{{ dayOfWeek(d.gDate) }}</td>
-                                                        <td class="col-div">
-                                                            @if (d.divName) {
-                                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                                    {{ d.divName }}
-                                                                </span>
-                                                            } @else {
-                                                                <span class="text-secondary">All</span>
-                                                            }
-                                                        </td>
-                                                        <td class="col-actions">
-                                                            <button class="btn btn-sm btn-link p-0 me-1"
-                                                                    (click)="cloneDateDay(d.ai); $event.stopPropagation()"
-                                                                    title="Clone +1 Day">
-                                                                <span class="clone-badge">+D</span>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-link p-0 me-1"
-                                                                    (click)="cloneDateWeek(d.ai); $event.stopPropagation()"
-                                                                    title="Clone +1 Week">
-                                                                <span class="clone-badge">+W</span>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-link p-0 me-1"
-                                                                    (click)="cloneDateRound(d.ai); $event.stopPropagation()"
-                                                                    title="Clone Same Date, Rnd+1">
-                                                                <span class="clone-badge">+R</span>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-link text-danger p-0"
-                                                                    (click)="deleteDate(d.ai); $event.stopPropagation()"
-                                                                    title="Delete">
-                                                                <i class="bi bi-x-lg"></i>
-                                                            </button>
-                                                        </td>
-                                                    }
+                                                <tr>
+                                                    <td class="col-date">{{ formatDate(d.gDate) }}</td>
+                                                    <td class="col-rnd">{{ d.rnd }}</td>
+                                                    <td class="col-dow">{{ dayOfWeek(d.gDate) }}</td>
+                                                    <td class="col-div">
+                                                        @if (d.divName) {
+                                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                                {{ d.divName }}
+                                                            </span>
+                                                        } @else {
+                                                            <span class="text-secondary">All</span>
+                                                        }
+                                                    </td>
+                                                    <td class="col-actions">
+                                                        <button class="btn btn-sm btn-link text-primary p-0 me-1"
+                                                                (click)="openEditDateModal(d)"
+                                                                title="Edit">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-link p-0 me-1"
+                                                                (click)="cloneDateDay(d.ai)"
+                                                                title="Clone +1 Day">
+                                                            <span class="clone-badge">+D</span>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-link p-0 me-1"
+                                                                (click)="cloneDateWeek(d.ai)"
+                                                                title="Clone +1 Week">
+                                                            <span class="clone-badge">+W</span>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-link p-0 me-1"
+                                                                (click)="cloneDateRound(d.ai)"
+                                                                title="Clone Same Date, Rnd+1">
+                                                            <span class="clone-badge">+R</span>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-link text-danger p-0"
+                                                                (click)="deleteDate(d.ai)"
+                                                                title="Delete">
+                                                            <i class="bi bi-x-lg"></i>
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -245,7 +211,7 @@
                                 </div>
                             } @else {
                                 <div class="empty-state-sm">
-                                    <p class="text-secondary mb-0">No dates configured. Add a date or clone from another agegroup.</p>
+                                    <p class="text-secondary mb-0">No dates configured. Click <strong>Add Date</strong> to get started, or clone from another agegroup.</p>
                                 </div>
                             }
                         </div>
@@ -256,67 +222,36 @@
                     <!-- ════════════════════════════════════════════════════ -->
                     @if (activeTab() === 'fields') {
                         <div class="tab-content">
-                            <!-- Add Field Timeslot form -->
-                            <div class="add-form">
-                                <select class="form-select form-select-sm dow-select"
-                                        [ngModel]="newFieldDow()"
-                                        (ngModelChange)="newFieldDow.set($event)">
-                                    @for (day of daysOfWeek; track day) {
-                                        <option [value]="day">{{ day }}</option>
-                                    }
-                                </select>
-                                <input type="time" class="form-control form-control-sm time-input"
-                                       [ngModel]="newFieldStartTime()"
-                                       (ngModelChange)="newFieldStartTime.set($event)">
-                                <label class="form-label mb-0 small text-nowrap">Int:</label>
-                                <input type="number" class="form-control form-control-sm num-input"
-                                       [ngModel]="newFieldInterval()"
-                                       (ngModelChange)="newFieldInterval.set($event)"
-                                       min="1" max="999">
-                                <label class="form-label mb-0 small text-nowrap">Max:</label>
-                                <input type="number" class="form-control form-control-sm num-input"
-                                       [ngModel]="newFieldMaxGames()"
-                                       (ngModelChange)="newFieldMaxGames.set($event)"
-                                       min="1" max="99">
-                                <button class="btn btn-sm btn-primary"
-                                        (click)="addFieldTimeslot()"
-                                        [disabled]="isAddingField()">
-                                    @if (isAddingField()) {
-                                        <span class="spinner-border spinner-border-sm"></span>
-                                    } @else {
-                                        <i class="bi bi-plus-circle"></i>
-                                    }
-                                    Add All
+                            <!-- Action bar -->
+                            <div class="action-bar">
+                                <button class="btn btn-sm btn-primary" (click)="openAddFieldModal()">
+                                    <i class="bi bi-plus-circle me-1"></i> Add All
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        [class.active]="showClonePanel()"
+                                        (click)="toggleClonePanel()">
+                                    <i class="bi bi-copy me-1"></i> Clone
+                                    <i class="bi" [class.bi-chevron-down]="!showClonePanel()"
+                                       [class.bi-chevron-up]="showClonePanel()"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger ms-auto"
-                                        (click)="confirmDeleteAllFields()"
+                                        (click)="showDeleteFieldsConfirm.set(true)"
                                         [disabled]="isDeletingAllFields() || fields().length === 0">
                                     @if (isDeletingAllFields()) {
                                         <span class="spinner-border spinner-border-sm"></span>
                                     } @else {
-                                        <i class="bi bi-trash"></i>
+                                        <i class="bi bi-trash me-1"></i>
                                     }
                                     Delete All
                                 </button>
                             </div>
 
-                            <!-- Delete All Fields Confirmation -->
-                            @if (showDeleteFieldsConfirm()) {
-                                <div class="alert alert-danger m-2 d-flex align-items-center justify-content-between">
-                                    <span>
-                                        <i class="bi bi-exclamation-triangle me-1"></i>
-                                        Delete <strong>all {{ fields().length }}</strong> field timeslots for this agegroup?
-                                    </span>
-                                    <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-danger" (click)="deleteAllFields()">Yes, Delete</button>
-                                        <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteAllFields()">Cancel</button>
+                            <!-- Clone Panel (collapsible) -->
+                            @if (showClonePanel()) {
+                                <div class="clone-panel">
+                                    <div class="clone-panel-header">
+                                        <span class="fw-semibold small">Bulk Clone Operations</span>
                                     </div>
-                                </div>
-                            }
-
-                            <!-- Clone Controls -->
-                            @if (uniqueFields().length > 0 || divisions().length > 0) {
-                                <div class="clone-controls">
                                     <!-- Clone by Field -->
                                     @if (uniqueFields().length >= 2) {
                                         <div class="clone-row">
@@ -424,77 +359,43 @@
                                                 <th class="col-num">Interval</th>
                                                 <th class="col-num">Max</th>
                                                 <th class="col-div">Division</th>
-                                                <th class="col-actions">Actions</th>
+                                                <th class="col-actions-sm">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @for (f of fields(); track f.ai) {
-                                                <tr (dblclick)="startEditField(f.ai)">
-                                                    @if (editingFieldAi() === f.ai) {
-                                                        <!-- Edit mode -->
-                                                        <td class="col-field">{{ f.fieldName }}</td>
-                                                        <td class="col-dow">
-                                                            <select class="form-select form-select-sm"
-                                                                    [(ngModel)]="f.dow">
-                                                                @for (day of daysOfWeek; track day) {
-                                                                    <option [value]="day">{{ day }}</option>
-                                                                }
-                                                            </select>
-                                                        </td>
-                                                        <td class="col-time">
-                                                            <input type="time" class="form-control form-control-sm"
-                                                                   [(ngModel)]="f.startTime">
-                                                        </td>
-                                                        <td class="col-num">
-                                                            <input type="number" class="form-control form-control-sm num-input"
-                                                                   [(ngModel)]="f.gamestartInterval" min="1">
-                                                        </td>
-                                                        <td class="col-num">
-                                                            <input type="number" class="form-control form-control-sm num-input"
-                                                                   [(ngModel)]="f.maxGamesPerField" min="1">
-                                                        </td>
-                                                        <td class="col-div">{{ f.divName ?? 'All' }}</td>
-                                                        <td class="col-actions">
-                                                            <button class="btn btn-sm btn-link text-success p-0 me-1"
-                                                                    (click)="saveEditField(f); $event.stopPropagation()"
-                                                                    title="Save">
-                                                                <i class="bi bi-check-lg"></i>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-link text-secondary p-0"
-                                                                    (click)="cancelEditField(); $event.stopPropagation()"
-                                                                    title="Cancel">
-                                                                <i class="bi bi-x-lg"></i>
-                                                            </button>
-                                                        </td>
-                                                    } @else {
-                                                        <!-- Display mode -->
-                                                        <td class="col-field">{{ f.fieldName }}</td>
-                                                        <td class="col-dow">{{ dowShort(f.dow) }}</td>
-                                                        <td class="col-time">{{ f.startTime }}</td>
-                                                        <td class="col-num">{{ f.gamestartInterval }}m</td>
-                                                        <td class="col-num">{{ f.maxGamesPerField }}</td>
-                                                        <td class="col-div">
-                                                            @if (f.divName) {
-                                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                                    {{ f.divName }}
-                                                                </span>
-                                                            } @else {
-                                                                <span class="text-secondary">All</span>
-                                                            }
-                                                        </td>
-                                                        <td class="col-actions">
-                                                            <button class="btn btn-sm btn-link p-0 me-1"
-                                                                    (click)="cloneFieldDow(f.ai); $event.stopPropagation()"
-                                                                    title="Clone to next DOW">
-                                                                <span class="clone-badge">+D</span>
-                                                            </button>
-                                                            <button class="btn btn-sm btn-link text-danger p-0"
-                                                                    (click)="deleteFieldTimeslot(f.ai); $event.stopPropagation()"
-                                                                    title="Delete">
-                                                                <i class="bi bi-x-lg"></i>
-                                                            </button>
-                                                        </td>
-                                                    }
+                                                <tr>
+                                                    <td class="col-field">{{ f.fieldName }}</td>
+                                                    <td class="col-dow">{{ dowShort(f.dow) }}</td>
+                                                    <td class="col-time">{{ f.startTime }}</td>
+                                                    <td class="col-num">{{ f.gamestartInterval }}m</td>
+                                                    <td class="col-num">{{ f.maxGamesPerField }}</td>
+                                                    <td class="col-div">
+                                                        @if (f.divName) {
+                                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                                {{ f.divName }}
+                                                            </span>
+                                                        } @else {
+                                                            <span class="text-secondary">All</span>
+                                                        }
+                                                    </td>
+                                                    <td class="col-actions-sm">
+                                                        <button class="btn btn-sm btn-link text-primary p-0 me-1"
+                                                                (click)="openEditFieldModal(f)"
+                                                                title="Edit">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-link p-0 me-1"
+                                                                (click)="cloneFieldDow(f.ai)"
+                                                                title="Clone to next DOW">
+                                                            <span class="clone-badge">+D</span>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-link text-danger p-0"
+                                                                (click)="deleteFieldTimeslot(f.ai)"
+                                                                title="Delete">
+                                                            <i class="bi bi-x-lg"></i>
+                                                        </button>
+                                                    </td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -502,7 +403,7 @@
                                 </div>
                             } @else {
                                 <div class="empty-state-sm">
-                                    <p class="text-secondary mb-0">No field timeslots configured. Click <strong>Add All</strong> to create for all fields &times; divisions.</p>
+                                    <p class="text-secondary mb-0">No field timeslots configured. Click <strong>Add All</strong> to create timeslots for all fields and divisions.</p>
                                 </div>
                             }
                         </div>
@@ -514,43 +415,71 @@
                     @if (activeTab() === 'capacity') {
                         <div class="tab-content">
                             @if (capacityPreview().length > 0) {
-                                <div class="table-scroll-wrapper">
-                                    <table class="table table-sm timeslot-table mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Day</th>
-                                                <th class="text-center">Fields</th>
-                                                <th class="text-center">Game Slots</th>
-                                                <th class="text-center">Games Needed</th>
-                                                <th class="text-center">Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @for (c of capacityPreview(); track c.dow) {
-                                                <tr>
-                                                    <td class="fw-medium">{{ c.dow }}</td>
-                                                    <td class="text-center">{{ c.fieldCount }}</td>
-                                                    <td class="text-center">{{ c.totalGameSlots }}</td>
-                                                    <td class="text-center">{{ c.gamesNeeded }}</td>
-                                                    <td class="text-center">
-                                                        @if (c.isSufficient) {
-                                                            <span class="badge bg-success-subtle text-success-emphasis">
-                                                                <i class="bi bi-check-circle me-1"></i> OK
-                                                            </span>
-                                                        } @else {
-                                                            <span class="badge bg-danger-subtle text-danger-emphasis">
-                                                                <i class="bi bi-exclamation-triangle me-1"></i> Short
-                                                            </span>
-                                                        }
-                                                    </td>
-                                                </tr>
+                                <!-- Summary Cards -->
+                                <div class="capacity-summary">
+                                    <div class="capacity-card">
+                                        <div class="capacity-card-label">Total Game Slots</div>
+                                        <div class="capacity-card-value">{{ capacityTotalSlots() }}</div>
+                                    </div>
+                                    <div class="capacity-card">
+                                        <div class="capacity-card-label">Games Needed</div>
+                                        <div class="capacity-card-value">{{ capacityTotalNeeded() }}</div>
+                                    </div>
+                                    <div class="capacity-card"
+                                         [class.capacity-ok]="capacityAllSufficient()"
+                                         [class.capacity-short]="!capacityAllSufficient()">
+                                        <div class="capacity-card-label">Status</div>
+                                        <div class="capacity-card-value">
+                                            @if (capacityAllSufficient()) {
+                                                <i class="bi bi-check-circle-fill me-1"></i> Sufficient
+                                            } @else {
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                {{ capacityShortDays().length }} day(s) short
                                             }
-                                        </tbody>
-                                    </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Per-Day Breakdown -->
+                                <div class="capacity-details">
+                                    <div class="capacity-details-header">
+                                        <span class="fw-semibold small">Per-Day Breakdown</span>
+                                    </div>
+                                    @for (c of capacityPreview(); track c.dow) {
+                                        <div class="capacity-row" [class.insufficient]="!c.isSufficient">
+                                            <span class="capacity-dow">{{ c.dow }}</span>
+                                            <div class="capacity-metrics">
+                                                <span class="capacity-metric">
+                                                    <span class="metric-label">Fields</span>
+                                                    <span class="metric-value">{{ c.fieldCount }}</span>
+                                                </span>
+                                                <span class="capacity-metric">
+                                                    <span class="metric-label">Slots</span>
+                                                    <span class="metric-value">{{ c.totalGameSlots }}</span>
+                                                </span>
+                                                <span class="capacity-metric">
+                                                    <span class="metric-label">Needed</span>
+                                                    <span class="metric-value">{{ c.gamesNeeded }}</span>
+                                                </span>
+                                            </div>
+                                            <span class="capacity-status">
+                                                @if (c.isSufficient) {
+                                                    <span class="badge bg-success-subtle text-success-emphasis">
+                                                        <i class="bi bi-check-circle me-1"></i> OK
+                                                    </span>
+                                                } @else {
+                                                    <span class="badge bg-danger-subtle text-danger-emphasis">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i> Short by {{ c.gamesNeeded - c.totalGameSlots }}
+                                                    </span>
+                                                }
+                                            </span>
+                                        </div>
+                                    }
                                 </div>
                             } @else {
                                 <div class="empty-state-sm">
-                                    <p class="text-secondary mb-0">Configure field timeslots to see capacity preview.</p>
+                                    <i class="bi bi-bar-chart text-secondary" style="font-size: var(--font-size-2xl);"></i>
+                                    <p class="text-secondary mt-2 mb-0">Configure field timeslots first, then check capacity here.</p>
                                 </div>
                             }
                         </div>
@@ -560,3 +489,158 @@
         </div>
     </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- ── MODALS ──                                                  -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+
+<!-- Date Modal -->
+@if (showDateModal()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="closeDateModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    {{ dateModalMode() === 'add' ? 'Add Date' : 'Edit Date' }}
+                </h5>
+                <button type="button" class="btn-close" (click)="closeDateModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="modalDate" class="form-label fw-semibold">Game Date</label>
+                    <input id="modalDate" type="date" class="form-control"
+                           [ngModel]="dateModalDate()"
+                           (ngModelChange)="dateModalDate.set($event)">
+                </div>
+                <div class="mb-3">
+                    <label for="modalRnd" class="form-label fw-semibold">Starting Round</label>
+                    <input id="modalRnd" type="number" class="form-control"
+                           style="max-width: 100px;"
+                           [ngModel]="dateModalRnd()"
+                           (ngModelChange)="dateModalRnd.set($event)"
+                           min="1" max="99">
+                    <small class="form-text text-muted">
+                        Each calendar date should have a unique starting round number.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" (click)="closeDateModal()">Cancel</button>
+                <button type="button" class="btn btn-primary"
+                        (click)="saveDateModal()"
+                        [disabled]="!dateModalDate() || isSavingDate()">
+                    @if (isSavingDate()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    {{ dateModalMode() === 'add' ? 'Add Date' : 'Save Changes' }}
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- Field Modal -->
+@if (showFieldModal()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="closeFieldModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    {{ fieldModalMode() === 'add' ? 'Add Field Timeslots' : 'Edit Field Timeslot' }}
+                </h5>
+                <button type="button" class="btn-close" (click)="closeFieldModal()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Read-only context (edit mode only) -->
+                @if (fieldModalMode() === 'edit') {
+                    <div class="d-flex gap-4 mb-3 pb-3 border-bottom">
+                        <div>
+                            <div class="form-label fw-semibold text-secondary small mb-0">Field</div>
+                            <div>{{ fieldModalFieldName() }}</div>
+                        </div>
+                        <div>
+                            <div class="form-label fw-semibold text-secondary small mb-0">Division</div>
+                            <div>{{ fieldModalDivName() ?? 'All' }}</div>
+                        </div>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label for="modalDow" class="form-label fw-semibold">Day of Week</label>
+                    <select id="modalDow" class="form-select"
+                            [ngModel]="fieldModalDow()"
+                            (ngModelChange)="fieldModalDow.set($event)">
+                        @for (day of daysOfWeek; track day) {
+                            <option [value]="day">{{ day }}</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="modalStartTime" class="form-label fw-semibold">Start Time</label>
+                    <input id="modalStartTime" type="time" class="form-control"
+                           style="max-width: 140px;"
+                           [ngModel]="fieldModalStartTime()"
+                           (ngModelChange)="fieldModalStartTime.set($event)">
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label for="modalInterval" class="form-label fw-semibold">Interval (min)</label>
+                        <input id="modalInterval" type="number" class="form-control"
+                               [ngModel]="fieldModalInterval()"
+                               (ngModelChange)="fieldModalInterval.set($event)"
+                               min="1" max="999">
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label for="modalMaxGames" class="form-label fw-semibold">Max Games</label>
+                        <input id="modalMaxGames" type="number" class="form-control"
+                               [ngModel]="fieldModalMaxGames()"
+                               (ngModelChange)="fieldModalMaxGames.set($event)"
+                               min="1" max="99">
+                    </div>
+                </div>
+
+                @if (fieldModalMode() === 'add') {
+                    <div class="alert alert-info d-flex align-items-start py-2 mb-0">
+                        <i class="bi bi-info-circle me-2 mt-1"></i>
+                        <small>Creates timeslot entries for <strong>all fields</strong> and <strong>all divisions</strong> in this agegroup.</small>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" (click)="closeFieldModal()">Cancel</button>
+                <button type="button" class="btn btn-primary"
+                        (click)="saveFieldModal()"
+                        [disabled]="isSavingField()">
+                    @if (isSavingField()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    {{ fieldModalMode() === 'add' ? 'Add All' : 'Save Changes' }}
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- Delete All Dates Confirmation -->
+@if (showDeleteDatesConfirm()) {
+    <confirm-dialog
+        title="Delete All Dates"
+        [message]="'Delete all <strong>' + dates().length + '</strong> dates for this agegroup?'"
+        confirmLabel="Yes, Delete All"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        (confirmed)="deleteAllDates()"
+        (cancelled)="showDeleteDatesConfirm.set(false)">
+    </confirm-dialog>
+}
+
+<!-- Delete All Fields Confirmation -->
+@if (showDeleteFieldsConfirm()) {
+    <confirm-dialog
+        title="Delete All Field Timeslots"
+        [message]="'Delete all <strong>' + fields().length + '</strong> field timeslots for this agegroup?'"
+        confirmLabel="Yes, Delete All"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        (confirmed)="deleteAllFields()"
+        (cancelled)="showDeleteFieldsConfirm.set(false)">
+    </confirm-dialog>
+}

@@ -9,6 +9,8 @@ import {
     type CapacityPreviewDto
 } from './services/timeslot.service';
 import { PairingsService } from '../pairings/services/pairings.service';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { AgegroupWithDivisionsDto, DivisionSummaryDto } from '@core/api';
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -16,7 +18,7 @@ const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 @Component({
     selector: 'app-manage-timeslots',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, ConfirmDialogComponent],
     templateUrl: './manage-timeslots.component.html',
     styleUrl: './manage-timeslots.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -39,17 +41,25 @@ export class ManageTimeslotsComponent implements OnInit {
     // ── Tabs ──
     readonly activeTab = signal<'dates' | 'fields' | 'capacity'>('dates');
 
-    // ── Add Date form ──
-    readonly newDateValue = signal('');
-    readonly newDateRnd = signal(1);
-    readonly isAddingDate = signal(false);
+    // ── Date Modal ──
+    readonly showDateModal = signal(false);
+    readonly dateModalMode = signal<'add' | 'edit'>('add');
+    readonly dateModalDate = signal('');
+    readonly dateModalRnd = signal(1);
+    readonly dateModalAi = signal<number | null>(null);
+    readonly isSavingDate = signal(false);
 
-    // ── Add Field Timeslot form ──
-    readonly newFieldDow = signal('Saturday');
-    readonly newFieldStartTime = signal('08:00');
-    readonly newFieldInterval = signal(60);
-    readonly newFieldMaxGames = signal(6);
-    readonly isAddingField = signal(false);
+    // ── Field Modal ──
+    readonly showFieldModal = signal(false);
+    readonly fieldModalMode = signal<'add' | 'edit'>('add');
+    readonly fieldModalDow = signal('Saturday');
+    readonly fieldModalStartTime = signal('08:00');
+    readonly fieldModalInterval = signal(60);
+    readonly fieldModalMaxGames = signal(6);
+    readonly fieldModalAi = signal<number | null>(null);
+    readonly fieldModalFieldName = signal('');
+    readonly fieldModalDivName = signal<string | null>(null);
+    readonly isSavingField = signal(false);
 
     // ── Clone Agegroup ──
     readonly cloneTargetAgId = signal('');
@@ -72,15 +82,14 @@ export class ManageTimeslotsComponent implements OnInit {
     readonly cloneDowStartTime = signal('');
     readonly isCloningByDow = signal(false);
 
+    // ── Clone panel toggle ──
+    readonly showClonePanel = signal(false);
+
     // ── Delete All ──
     readonly showDeleteDatesConfirm = signal(false);
     readonly showDeleteFieldsConfirm = signal(false);
     readonly isDeletingAllDates = signal(false);
     readonly isDeletingAllFields = signal(false);
-
-    // ── Inline editing ──
-    readonly editingDateAi = signal<number | null>(null);
-    readonly editingFieldAi = signal<number | null>(null);
 
     // ── Constants ──
     readonly daysOfWeek = DAYS_OF_WEEK;
@@ -105,6 +114,64 @@ export class ManageTimeslotsComponent implements OnInit {
         const sel = this.selectedAgegroup();
         return this.agegroups().filter(ag => ag.agegroupId !== sel?.agegroupId);
     });
+
+    // ── Computed: round validation warnings ──
+    readonly roundWarnings = computed(() => {
+        const allDates = this.dates();
+        if (allDates.length < 2) return [];
+
+        const agDates = allDates.filter(d => !d.divId);
+        const byRound = new Map<number, string[]>();
+        for (const d of agDates) {
+            const dateStr = d.gDate.substring(0, 10);
+            const existing = byRound.get(d.rnd) ?? [];
+            if (!existing.includes(dateStr)) {
+                existing.push(dateStr);
+            }
+            byRound.set(d.rnd, existing);
+        }
+
+        const warnings: string[] = [];
+        for (const [rnd, dates] of byRound) {
+            if (dates.length > 1) {
+                warnings.push(
+                    `Round ${rnd} is assigned to ${dates.length} different dates. ` +
+                    `Each calendar date should have a unique starting round so the engine knows which games go on which day.`
+                );
+            }
+        }
+
+        const uniqueRounds = new Set(agDates.map(d => d.rnd));
+        const uniqueDates = new Set(agDates.map(d => d.gDate.substring(0, 10)));
+        if (uniqueDates.size > 1 && uniqueRounds.size === 1) {
+            warnings.push(
+                `All ${uniqueDates.size} dates share Round ${agDates[0].rnd}. ` +
+                `For multi-day events, each day needs a different starting round (e.g., Day 1 = Rnd 1, Day 2 = Rnd 2).`
+            );
+        }
+
+        return warnings;
+    });
+
+    // ── Computed: suggested next round number ──
+    readonly suggestedNextRnd = computed(() => {
+        const allDates = this.dates();
+        if (allDates.length === 0) return 1;
+        return Math.max(...allDates.map(d => d.rnd)) + 1;
+    });
+
+    // ── Computed: capacity summary ──
+    readonly capacityTotalSlots = computed(() =>
+        this.capacityPreview().reduce((sum, c) => sum + c.totalGameSlots, 0));
+
+    readonly capacityTotalNeeded = computed(() =>
+        this.capacityPreview().reduce((sum, c) => sum + c.gamesNeeded, 0));
+
+    readonly capacityAllSufficient = computed(() =>
+        this.capacityPreview().length > 0 && this.capacityPreview().every(c => c.isSufficient));
+
+    readonly capacityShortDays = computed(() =>
+        this.capacityPreview().filter(c => !c.isSufficient));
 
     ngOnInit(): void {
         this.loadAgegroups();
@@ -131,10 +198,9 @@ export class ManageTimeslotsComponent implements OnInit {
 
     selectAgegroup(ag: AgegroupWithDivisionsDto): void {
         this.selectedAgegroup.set(ag);
-        this.editingDateAi.set(null);
-        this.editingFieldAi.set(null);
         this.activeTab.set('dates');
         this.capacityPreview.set([]);
+        this.showClonePanel.set(false);
         this.loadConfiguration(ag.agegroupId);
     }
 
@@ -165,25 +231,66 @@ export class ManageTimeslotsComponent implements OnInit {
         });
     }
 
-    // ── Add Date ──
+    // ── Date Modal ──
 
-    addDate(): void {
+    openAddDateModal(): void {
+        this.dateModalMode.set('add');
+        this.dateModalDate.set('');
+        this.dateModalRnd.set(this.suggestedNextRnd());
+        this.dateModalAi.set(null);
+        this.showDateModal.set(true);
+    }
+
+    openEditDateModal(date: TimeslotDateDto): void {
+        this.dateModalMode.set('edit');
+        this.dateModalDate.set(this.toDateInput(date.gDate));
+        this.dateModalRnd.set(date.rnd);
+        this.dateModalAi.set(date.ai);
+        this.showDateModal.set(true);
+    }
+
+    closeDateModal(): void {
+        this.showDateModal.set(false);
+        this.isSavingDate.set(false);
+    }
+
+    saveDateModal(): void {
         const ag = this.selectedAgegroup();
-        if (!ag || !this.newDateValue()) return;
+        if (!ag || !this.dateModalDate()) return;
 
-        this.isAddingDate.set(true);
-        this.svc.addDate({
-            agegroupId: ag.agegroupId,
-            gDate: this.newDateValue(),
-            rnd: this.newDateRnd()
-        }).subscribe({
-            next: (newDate) => {
-                this.dates.update(curr => [...curr, newDate]
-                    .sort((a, b) => new Date(a.gDate).getTime() - new Date(b.gDate).getTime()));
-                this.isAddingDate.set(false);
-            },
-            error: () => this.isAddingDate.set(false)
-        });
+        this.isSavingDate.set(true);
+
+        if (this.dateModalMode() === 'add') {
+            this.svc.addDate({
+                agegroupId: ag.agegroupId,
+                gDate: this.dateModalDate(),
+                rnd: this.dateModalRnd()
+            }).subscribe({
+                next: (newDate) => {
+                    this.dates.update(curr => [...curr, newDate]
+                        .sort((a, b) => new Date(a.gDate).getTime() - new Date(b.gDate).getTime()));
+                    this.closeDateModal();
+                },
+                error: () => this.isSavingDate.set(false)
+            });
+        } else {
+            const ai = this.dateModalAi()!;
+            this.svc.editDate({
+                ai,
+                gDate: this.dateModalDate(),
+                rnd: this.dateModalRnd()
+            }).subscribe({
+                next: () => {
+                    this.dates.update(curr => curr.map(d =>
+                        d.ai === ai
+                            ? { ...d, gDate: this.dateModalDate(), rnd: this.dateModalRnd() }
+                            : d
+                    ).sort((a, b) => new Date(a.gDate).getTime() - new Date(b.gDate).getTime()));
+                    this.closeDateModal();
+                },
+                error: () => this.isSavingDate.set(false)
+            });
+        }
     }
 
     // ── Date Clone Actions ──
@@ -223,14 +330,6 @@ export class ManageTimeslotsComponent implements OnInit {
 
     // ── Delete All Dates ──
 
-    confirmDeleteAllDates(): void {
-        this.showDeleteDatesConfirm.set(true);
-    }
-
-    cancelDeleteAllDates(): void {
-        this.showDeleteDatesConfirm.set(false);
-    }
-
     deleteAllDates(): void {
         const ag = this.selectedAgegroup();
         if (!ag) return;
@@ -246,26 +345,83 @@ export class ManageTimeslotsComponent implements OnInit {
         });
     }
 
-    // ── Add Field Timeslot ──
+    // ── Field Modal ──
 
-    addFieldTimeslot(): void {
+    openAddFieldModal(): void {
+        this.fieldModalMode.set('add');
+        this.fieldModalDow.set('Saturday');
+        this.fieldModalStartTime.set('08:00');
+        this.fieldModalInterval.set(60);
+        this.fieldModalMaxGames.set(6);
+        this.fieldModalAi.set(null);
+        this.fieldModalFieldName.set('');
+        this.fieldModalDivName.set(null);
+        this.showFieldModal.set(true);
+    }
+
+    openEditFieldModal(field: TimeslotFieldDto): void {
+        this.fieldModalMode.set('edit');
+        this.fieldModalDow.set(field.dow);
+        this.fieldModalStartTime.set(field.startTime);
+        this.fieldModalInterval.set(field.gamestartInterval);
+        this.fieldModalMaxGames.set(field.maxGamesPerField);
+        this.fieldModalAi.set(field.ai);
+        this.fieldModalFieldName.set(field.fieldName);
+        this.fieldModalDivName.set(field.divName ?? null);
+        this.showFieldModal.set(true);
+    }
+
+    closeFieldModal(): void {
+        this.showFieldModal.set(false);
+        this.isSavingField.set(false);
+    }
+
+    saveFieldModal(): void {
         const ag = this.selectedAgegroup();
         if (!ag) return;
 
-        this.isAddingField.set(true);
-        this.svc.addFieldTimeslot({
-            agegroupId: ag.agegroupId,
-            startTime: this.newFieldStartTime(),
-            gamestartInterval: this.newFieldInterval(),
-            maxGamesPerField: this.newFieldMaxGames(),
-            dow: this.newFieldDow()
-        }).subscribe({
-            next: (newFields) => {
-                this.fields.update(curr => [...curr, ...newFields]);
-                this.isAddingField.set(false);
-            },
-            error: () => this.isAddingField.set(false)
-        });
+        this.isSavingField.set(true);
+
+        if (this.fieldModalMode() === 'add') {
+            this.svc.addFieldTimeslot({
+                agegroupId: ag.agegroupId,
+                startTime: this.fieldModalStartTime(),
+                gamestartInterval: this.fieldModalInterval(),
+                maxGamesPerField: this.fieldModalMaxGames(),
+                dow: this.fieldModalDow()
+            }).subscribe({
+                next: (newFields) => {
+                    this.fields.update(curr => [...curr, ...newFields]);
+                    this.closeFieldModal();
+                },
+                error: () => this.isSavingField.set(false)
+            });
+        } else {
+            const ai = this.fieldModalAi()!;
+            this.svc.editFieldTimeslot({
+                ai,
+                startTime: this.fieldModalStartTime(),
+                gamestartInterval: this.fieldModalInterval(),
+                maxGamesPerField: this.fieldModalMaxGames(),
+                dow: this.fieldModalDow()
+            }).subscribe({
+                next: () => {
+                    this.fields.update(curr => curr.map(f =>
+                        f.ai === ai
+                            ? {
+                                ...f,
+                                dow: this.fieldModalDow(),
+                                startTime: this.fieldModalStartTime(),
+                                gamestartInterval: this.fieldModalInterval(),
+                                maxGamesPerField: this.fieldModalMaxGames()
+                            }
+                            : f
+                    ));
+                    this.closeFieldModal();
+                },
+                error: () => this.isSavingField.set(false)
+            });
+        }
     }
 
     deleteFieldTimeslot(ai: number): void {
@@ -275,14 +431,6 @@ export class ManageTimeslotsComponent implements OnInit {
     }
 
     // ── Delete All Fields ──
-
-    confirmDeleteAllFields(): void {
-        this.showDeleteFieldsConfirm.set(true);
-    }
-
-    cancelDeleteAllFields(): void {
-        this.showDeleteFieldsConfirm.set(false);
-    }
 
     deleteAllFields(): void {
         const ag = this.selectedAgegroup();
@@ -307,6 +455,12 @@ export class ManageTimeslotsComponent implements OnInit {
                 this.fields.update(curr => [...curr, newField]);
             }
         });
+    }
+
+    // ── Clone panel toggle ──
+
+    toggleClonePanel(): void {
+        this.showClonePanel.update(v => !v);
     }
 
     // ── Agegroup-level cloning ──
@@ -405,52 +559,6 @@ export class ManageTimeslotsComponent implements OnInit {
                 this.loadConfiguration(ag.agegroupId);
             },
             error: () => this.isCloningByDow.set(false)
-        });
-    }
-
-    // ── Inline editing: dates ──
-
-    startEditDate(ai: number): void {
-        this.editingDateAi.set(ai);
-    }
-
-    cancelEditDate(): void {
-        this.editingDateAi.set(null);
-        const ag = this.selectedAgegroup();
-        if (ag) this.loadConfiguration(ag.agegroupId);
-    }
-
-    saveEditDate(date: TimeslotDateDto): void {
-        this.svc.editDate({
-            ai: date.ai,
-            gDate: date.gDate,
-            rnd: date.rnd
-        }).subscribe({
-            next: () => this.editingDateAi.set(null)
-        });
-    }
-
-    // ── Inline editing: fields ──
-
-    startEditField(ai: number): void {
-        this.editingFieldAi.set(ai);
-    }
-
-    cancelEditField(): void {
-        this.editingFieldAi.set(null);
-        const ag = this.selectedAgegroup();
-        if (ag) this.loadConfiguration(ag.agegroupId);
-    }
-
-    saveEditField(field: TimeslotFieldDto): void {
-        this.svc.editFieldTimeslot({
-            ai: field.ai,
-            startTime: field.startTime,
-            gamestartInterval: field.gamestartInterval,
-            maxGamesPerField: field.maxGamesPerField,
-            dow: field.dow
-        }).subscribe({
-            next: () => this.editingFieldAi.set(null)
         });
     }
 

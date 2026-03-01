@@ -946,6 +946,34 @@
     }
 }
 
+// ── Disconnect list inside warning banner ────────────
+.disconnect-icon {
+    font-size: 1.25rem;
+    color: var(--bs-warning);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.disconnect-list {
+    margin: var(--space-2) 0 var(--space-2) var(--space-4);
+    padding-left: var(--space-4);
+    list-style: disc;
+
+    li {
+        margin-bottom: var(--space-1);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        line-height: var(--line-height-normal);
+    }
+}
+
+.disconnect-reassurance {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    margin: var(--space-1) 0 0 0;
+    font-style: italic;
+}
+
 // ── Error state ─────────────────────────────────────
 .status-banner-error {
     padding: var(--space-5);
@@ -1107,6 +1135,59 @@
 .order-name { font-weight: var(--font-weight-medium); font-size: var(--font-size-sm); color: var(--brand-text); }
 .order-meta { display: flex; align-items: center; gap: var(--space-1); font-size: var(--font-size-xs); color: var(--brand-text-muted); margin-left: auto; }
 .order-meta-sep { color: var(--neutral-400); }
+
+// ── Wave button & divider ──
+.order-wave-btn {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    min-width: 36px;
+    text-align: center;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+
+    &.wave-1 {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        color: var(--bs-primary);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
+    }
+    &.wave-2 {
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        color: var(--bs-dark);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.4);
+    }
+    &.wave-3 {
+        background: rgba(var(--bs-success-rgb), 0.12);
+        color: var(--bs-success);
+        border: 1px solid rgba(var(--bs-success-rgb), 0.3);
+    }
+}
+
+.wave-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+
+    &::before, &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: rgba(var(--bs-warning-rgb), 0.4);
+    }
+}
+
+.wave-divider-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--brand-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 .order-arrows { display: flex; gap: 2px; flex-shrink: 0; .btn { padding: 2px var(--space-1); font-size: 0.75rem; line-height: 1; } }
 
 // ── V2 Constraints ──

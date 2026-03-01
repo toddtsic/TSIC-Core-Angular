@@ -6,5 +6,6 @@ export type DivisionStrategyEntry = {
     divisionName: string;
     placement: number;
     gapPattern: number;
+    wave?: number;
 };
 
