@@ -87,10 +87,15 @@
             Checking your schedule...
         </div>
     } @else if (qaResult()) {
-        @if (qaCriticalCount() === 0 && qaWarningCount() === 0) {
+        @if (qaCriticalCount() === 0 && qaWarningCount() === 0 && buildResult().gamesFailedToPlace === 0) {
             <div class="qa-verdict qa-verdict-pass">
                 <i class="bi bi-check-circle-fill"></i>
                 Looking good — no conflicts, no gaps, every team has games.
+            </div>
+        } @else if (qaCriticalCount() === 0 && qaWarningCount() === 0 && buildResult().gamesFailedToPlace > 0) {
+            <div class="qa-verdict qa-verdict-warn">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                {{ buildResult().gamesFailedToPlace }} game{{ buildResult().gamesFailedToPlace > 1 ? 's' : '' }} couldn't be placed — see details below.
             </div>
         } @else {
             <div class="qa-issues">
@@ -203,7 +208,11 @@
             <div class="division-breakdown">
                 @for (dr of buildResult().divisionResults; track dr.divId) {
                     <div class="division-row" [class.division-excluded]="dr.status === 'excluded'">
-                        <span class="division-name">{{ dr.agegroupName }} / {{ dr.divName }}</span>
+                        <span class="division-name">{{ dr.agegroupName }} / {{ dr.divName }}
+                            @if (dr.teamCount > 0) {
+                                <span class="division-pool-size">{{ dr.teamCount }} teams</span>
+                            }
+                        </span>
                         @if (dr.status === 'excluded') {
                             <span class="division-status division-status-excluded">skipped</span>
                         } @else if (dr.gamesFailed > 0) {

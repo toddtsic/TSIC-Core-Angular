@@ -313,6 +313,16 @@ details[open] > .division-summary-toggle > i {
 .division-name {
     color: var(--brand-text);
     font-weight: var(--font-weight-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.division-pool-size {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    color: var(--brand-text-muted);
+    white-space: nowrap;
 }
 
 .division-status {

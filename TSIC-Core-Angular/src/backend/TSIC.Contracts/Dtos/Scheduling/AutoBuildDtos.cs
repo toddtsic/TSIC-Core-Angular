@@ -214,6 +214,8 @@ public record AutoBuildDivisionResult
     public required string AgegroupName { get; init; }
     public required string DivName { get; init; }
     public required Guid DivId { get; init; }
+    /// <summary>Pool size (number of active teams in this division).</summary>
+    public required int TeamCount { get; init; }
     public required int GamesPlaced { get; init; }
     public required int GamesFailed { get; init; }
     /// <summary>"pattern-replay" | "auto-schedule" | "skipped" | "already-scheduled"</summary>

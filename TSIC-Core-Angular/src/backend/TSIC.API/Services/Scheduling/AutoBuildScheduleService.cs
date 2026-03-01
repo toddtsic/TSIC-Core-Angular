@@ -632,6 +632,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     AgegroupName = div.AgegroupName,
                     DivName = div.DivName,
                     DivId = divId,
+                    TeamCount = div.TeamCount,
                     GamesPlaced = 0,
                     GamesFailed = 0,
                     Status = "skipped"
@@ -646,6 +647,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     AgegroupName = div.AgegroupName,
                     DivName = div.DivName,
                     DivId = divId,
+                    TeamCount = div.TeamCount,
                     GamesPlaced = 0,
                     GamesFailed = 0,
                     Status = "already-scheduled"
@@ -703,6 +705,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     AgegroupName = div.AgegroupName,
                     DivName = div.DivName,
                     DivId = divId,
+                    TeamCount = div.TeamCount,
                     GamesPlaced = result.ScheduledCount,
                     GamesFailed = result.FailedCount,
                     Status = "auto-schedule"
@@ -725,6 +728,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     AgegroupName = div.AgegroupName,
                     DivName = div.DivName,
                     DivId = divId,
+                    TeamCount = div.TeamCount,
                     GamesPlaced = placed,
                     GamesFailed = failed,
                     Status = status
@@ -971,7 +975,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
                     AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = 0, Status = "excluded"
+                    DivId = div.DivId, TeamCount = div.TeamCount,
+                    GamesPlaced = 0, GamesFailed = 0, Status = "excluded"
                 });
                 continue;
             }
@@ -997,7 +1002,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
                     AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = 0,
+                    DivId = div.DivId, TeamCount = 0,
+                    GamesPlaced = 0, GamesFailed = 0,
                     Status = "no-teams"
                 });
                 continue;
@@ -1016,7 +1022,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
                     AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = 0,
+                    DivId = div.DivId, TeamCount = teamCount,
+                    GamesPlaced = 0, GamesFailed = 0,
                     Status = "no-pairings"
                 });
                 continue;
@@ -1051,7 +1058,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 divisionResults.Add(new AutoBuildDivisionResult
                 {
                     AgegroupName = div.AgegroupName, DivName = div.DivName,
-                    DivId = div.DivId, GamesPlaced = 0, GamesFailed = missingCount,
+                    DivId = div.DivId, TeamCount = teamCount,
+                    GamesPlaced = 0, GamesFailed = missingCount,
                     Status = "no-timeslots"
                 });
                 continue;
@@ -1141,6 +1149,23 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 EffectivePlayDays = effectivePlayDays,
                 Wave = divWave
             });
+        }
+
+        // ── 6b. Refresh occupiedSlots after deletions ──
+        // The initial load (step 3) captured slots for games that were just
+        // deleted in the loop above. Those "ghost" entries would incorrectly
+        // block placement. Mutate the existing HashSet instance so all
+        // PlacementState references see the updated set.
+        if (existingCounts.Values.Any(c => c > 0))
+        {
+            occupiedSlots.Clear();
+            if (allFieldIds.Count > 0)
+            {
+                var freshSlots = await _scheduleRepo.GetOccupiedSlotsAsync(
+                    jobId, allFieldIds, ct);
+                foreach (var slot in freshSlots)
+                    occupiedSlots.Add(slot);
+            }
         }
 
         // ── 7. Division-sequential placement ──
@@ -1444,6 +1469,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 AgegroupName = ctx.Div.AgegroupName,
                 DivName = ctx.Div.DivName,
                 DivId = ctx.Div.DivId,
+                TeamCount = ctx.TeamCount,
                 GamesPlaced = placed,
                 GamesFailed = failed,
                 Status = placed > 0 ? "v2-placed" : "no-slots"
@@ -1967,7 +1993,22 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }
         }
 
-        return candidates;
+        // Time-first ordering: group all fields at the same time together.
+        // The scorer short-circuits on the first zero-penalty candidate, so
+        // iteration order determines which field gets picked when multiple
+        // candidates tie at penalty 0. Field-first ordering (the loop above)
+        // causes a "Field_A cascade" where every division grabs the next
+        // available slot on the first field alphabetically, packing one field
+        // forward through the day while leaving other fields empty. By the
+        // 5th+ division the time range is exhausted and R2/R3 fail.
+        //
+        // Time-first ordering makes divisions spread across fields at the
+        // same time position: Div1 gets 08:00-A/B, Div2 gets 08:00-C/D, etc.
+        // All 15 fields participate, and every division has room for R2/R3.
+        return candidates
+            .OrderBy(c => c.GDate)
+            .ThenBy(c => c.FieldName)
+            .ToList();
     }
 
     // ══════════════════════════════════════════════════════════

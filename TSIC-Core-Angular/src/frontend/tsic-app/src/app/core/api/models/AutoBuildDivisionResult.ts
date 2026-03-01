@@ -6,6 +6,7 @@ export type AutoBuildDivisionResult = {
     agegroupName: string;
     divName: string;
     divId: string;
+    teamCount: number;
     gamesPlaced: number;
     gamesFailed: number;
     status: string;
