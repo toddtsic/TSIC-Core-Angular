@@ -149,8 +149,15 @@ public class TimeslotController : ControllerBase
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _timeslotService.AddFieldTimeslotAsync(jobId!.Value, userId!, request, ct);
-        return Ok(result);
+        try
+        {
+            var result = await _timeslotService.AddFieldTimeslotAsync(jobId!.Value, userId!, request, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("field")]

@@ -9,13 +9,6 @@ namespace TSIC.Contracts.Repositories;
 public interface IAutoBuildRepository
 {
     /// <summary>
-    /// Find candidate source jobs for auto-build: same CustomerId as target job,
-    /// with at least one scheduled game, ordered by year descending.
-    /// </summary>
-    Task<List<AutoBuildSourceJobDto>> GetSourceJobCandidatesAsync(
-        Guid targetJobId, CancellationToken ct = default);
-
-    /// <summary>
     /// Extract the complete game placement pattern from a source job's schedule.
     /// For each game, abstracts the literal date into (DayOfWeek, TimeOfDay, DayOrdinal)
     /// for year-agnostic replay.
@@ -86,7 +79,7 @@ public interface IAutoBuildRepository
     // ── Post-Build QA Validation ────────────────────────────
     Task<AutoBuildQaResult> RunQaValidationAsync(Guid jobId, CancellationToken ct = default);
 
-    // ── V2 Prerequisite Checks ────────────────────────────────
+    // ── Prerequisite Checks ────────────────────────────────
 
     /// <summary>
     /// Count active teams with no division assignment (DivId is null) for the given job.

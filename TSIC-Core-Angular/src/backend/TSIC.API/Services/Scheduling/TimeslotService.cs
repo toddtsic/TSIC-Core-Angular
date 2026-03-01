@@ -72,7 +72,14 @@ public sealed class TimeslotService : ITimeslotService
             };
         }).ToList();
 
-        return new CanvasReadinessResponse { Agegroups = agegroups };
+        // Count fields assigned to this league-season (FieldsLeagueSeason)
+        var assignedFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+
+        return new CanvasReadinessResponse
+        {
+            Agegroups = agegroups,
+            AssignedFieldCount = assignedFieldIds.Count
+        };
     }
 
     /// <summary>
@@ -338,6 +345,16 @@ public sealed class TimeslotService : ITimeslotService
         var fieldIds = request.FieldId.HasValue
             ? [request.FieldId.Value]
             : await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+
+        if (fieldIds.Count == 0)
+        {
+            _logger.LogWarning(
+                "No fields assigned to league-season for agegroup {AgId}. " +
+                "Use Manage Fields to assign fields before creating field schedules.",
+                request.AgegroupId);
+            throw new InvalidOperationException(
+                "No fields are assigned to this event. Use Manage Fields to assign fields first.");
+        }
 
         // Determine division IDs (single or all active)
         var divIds = request.DivId.HasValue

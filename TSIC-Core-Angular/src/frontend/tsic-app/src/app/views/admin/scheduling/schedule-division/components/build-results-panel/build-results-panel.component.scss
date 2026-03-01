@@ -244,12 +244,12 @@
     margin-bottom: var(--space-2);
 }
 
-.v2-table-scroll {
+.results-table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
 
-.v2-table {
+.results-table {
     width: 100%;
     border-collapse: collapse;
     font-size: var(--font-size-xs);

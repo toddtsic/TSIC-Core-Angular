@@ -9,7 +9,7 @@ using TSIC.Contracts.Services;
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// Auto-Build Entire Schedule: pattern-replay from prior year's proven schedule.
+/// Auto-Build Schedule: horizontal-first placement with scoring engine.
 /// </summary>
 [ApiController]
 [Route("api/auto-build")]
@@ -60,63 +60,6 @@ public class AutoBuildController : ControllerBase
     }
 
     /// <summary>
-    /// GET /api/auto-build/source-jobs — Get candidate prior-year jobs for pattern extraction.
-    /// </summary>
-    [HttpGet("source-jobs")]
-    public async Task<ActionResult<List<AutoBuildSourceJobDto>>> GetSourceJobs(CancellationToken ct)
-    {
-        var (jobId, _, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _service.GetSourceJobsAsync(jobId!.Value, ct);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// POST /api/auto-build/propose-mappings — Propose agegroup mappings for user confirmation.
-    /// </summary>
-    [HttpPost("propose-mappings")]
-    public async Task<ActionResult<AgegroupMappingResponse>> ProposeMappings(
-        [FromBody] AutoBuildAnalyzeRequest request, CancellationToken ct)
-    {
-        var (jobId, _, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _service.ProposeAgegroupMappingsAsync(
-            jobId!.Value, request.SourceJobId, ct);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// POST /api/auto-build/analyze — Analyze source pattern with confirmed agegroup mappings.
-    /// </summary>
-    [HttpPost("analyze")]
-    public async Task<ActionResult<AutoBuildAnalysisResponse>> Analyze(
-        [FromBody] AutoBuildAnalyzeRequest request, CancellationToken ct)
-    {
-        var (jobId, _, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _service.AnalyzeAsync(
-            jobId!.Value, request.SourceJobId, request.AgegroupMappings, ct);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// POST /api/auto-build/execute — Execute the auto-build with user-provided resolutions.
-    /// </summary>
-    [HttpPost("execute")]
-    public async Task<ActionResult<AutoBuildResult>> Execute(
-        [FromBody] AutoBuildRequest request, CancellationToken ct)
-    {
-        var (jobId, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _service.BuildAsync(jobId!.Value, userId!, request, ct);
-        return Ok(result);
-    }
-
-    /// <summary>
     /// POST /api/auto-build/undo — Delete all games for the current job.
     /// Protected by AdminOnly policy (Director, SuperDirector, SuperUser).
     /// </summary>
@@ -134,21 +77,6 @@ public class AutoBuildController : ControllerBase
         var count = await _service.UndoAsync(jobId!.Value, ct);
         return Ok(new { gamesDeleted = count });
     }
-
-    /// <summary>
-    /// GET /api/auto-build/validate — Run post-build QA checks on the current schedule.
-    /// </summary>
-    [HttpGet("validate")]
-    public async Task<ActionResult<AutoBuildQaResult>> Validate(CancellationToken ct)
-    {
-        var (jobId, _, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var result = await _service.ValidateAsync(jobId!.Value, ct);
-        return Ok(result);
-    }
-
-    // ── V2 Endpoints ──────────────────────────────────────────
 
     /// <summary>
     /// GET /api/auto-build/prerequisites — Check pools, pairings, and timeslots readiness.
@@ -179,16 +107,16 @@ public class AutoBuildController : ControllerBase
     }
 
     /// <summary>
-    /// POST /api/auto-build/execute-v2 — V2 horizontal-first placement with scoring engine.
+    /// POST /api/auto-build/execute — Horizontal-first placement with scoring engine.
     /// </summary>
-    [HttpPost("execute-v2")]
-    public async Task<ActionResult<AutoBuildV2Result>> ExecuteV2(
-        [FromBody] AutoBuildV2Request request, CancellationToken ct)
+    [HttpPost("execute")]
+    public async Task<ActionResult<AutoBuildResult>> Execute(
+        [FromBody] AutoBuildRequest request, CancellationToken ct)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _service.BuildV2Async(jobId!.Value, userId!, request, ct);
+        var result = await _service.BuildAsync(jobId!.Value, userId!, request, ct);
         return Ok(result);
     }
 
@@ -220,4 +148,3 @@ public class AutoBuildController : ControllerBase
         return Ok(result);
     }
 }
-

@@ -3,10 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export type AutoBuildRequest = {
-    sourceJobId: string;
-    skipDivisionIds?: any[] | null;
-    includeBracketGames?: boolean;
-    skipAlreadyScheduled?: boolean;
-    agegroupMappings?: any[] | null;
+    sourceJobId?: string | null;
+    agegroupOrder: Array<string>;
+    divisionOrderStrategy: string;
+    excludedDivisionIds: Array<string>;
+    divisionStrategies?: any[] | null;
+    saveProfiles?: boolean;
 };
 

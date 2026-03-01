@@ -48,6 +48,26 @@
         <!-- ══════════ RIGHT PANEL: Event Summary / Agegroup Grid / Division Grid ══════════ -->
         <div class="grid-panel">
 
+            <!-- ── Breadcrumb Trail ── -->
+            @if (breadcrumbs().length > 0) {
+                <nav class="scope-breadcrumb" aria-label="Scope navigation">
+                    @for (crumb of breadcrumbs(); track crumb.level) {
+                        <span class="crumb-link"
+                              role="button"
+                              tabindex="0"
+                              (click)="onBreadcrumbClick(crumb.level)"
+                              (keydown.enter)="onBreadcrumbClick(crumb.level)">
+                            @if (crumb.level === 'event') {
+                                <i class="bi bi-house-door"></i>
+                            }
+                            {{ crumb.label }}
+                        </span>
+                        <i class="bi bi-chevron-right crumb-sep"></i>
+                    }
+                    <span class="crumb-current">{{ breadcrumbCurrent() }}</span>
+                </nav>
+            }
+
             <!-- ── Prerequisite Errors ── -->
             @if (prerequisiteErrors().length > 0) {
                 <div class="prerequisite-errors">
@@ -100,9 +120,10 @@
                     [gameSummary]="gameSummary()"
                     [readinessMap]="canvasReadiness()"
                     [strategies]="strategyProfiles()"
+                    [assignedFieldCount]="assignedFieldCount()"
                     [hasGamesInScope]="hasGamesInScope()"
                     [scopeGameCount]="scopeGameCount()"
-                    [isExecutingV2]="isExecutingV2()"
+                    [isExecuting]="isExecuting()"
                     [isDeletingGames]="isDeletingGames()"
                     [showDeleteConfirm]="showDeleteConfirm()"
                     [isDevResetting]="isDevResetting()"
@@ -111,12 +132,13 @@
                     (deleteConfirmed)="executeDelete()"
                     (deleteCancelled)="cancelDeleteGames()"
                     (agegroupClicked)="onAgegroupSelected({ agegroupId: $event })"
+                    (manageFieldsClicked)="navigateToManageFields()"
                     (devResetConfirmed)="executeDevReset()" />
 
             <!-- ── Agegroup View ── -->
             } @else if (scope().level === 'agegroup') {
 
-                <!-- Canvas config for unconfigured agegroups -->
+                <!-- Dates & fields setup for unconfigured agegroups -->
                 @if (!isAgegroupConfigured()) {
                     <app-canvas-config-panel
                         [agegroupId]="selectedAgegroupId()!"
@@ -124,6 +146,7 @@
                         [agegroupColor]="selectedAgegroupColor()"
                         [agegroups]="agegroups()"
                         [readinessMap]="canvasReadiness()"
+                        [assignedFieldCount]="assignedFieldCount()"
                         (canvasConfigured)="onCanvasConfigured()" />
 
                 <!-- Configured agegroup: show header + grid -->
@@ -144,8 +167,8 @@
                         @if (!hasGamesInScope()) {
                             <button class="btn btn-sm btn-outline-primary"
                                     (click)="openAutoScheduleConfig()"
-                                    [disabled]="isExecutingV2()">
-                                @if (isExecutingV2()) {
+                                    [disabled]="isExecuting()">
+                                @if (isExecuting()) {
                                     <span class="spinner-border spinner-border-sm"></span>
                                 } @else {
                                     <i class="bi bi-lightning-fill"></i>
@@ -241,8 +264,8 @@
                         @if (!hasGamesInScope()) {
                             <button class="btn btn-sm btn-outline-primary"
                                     (click)="openAutoScheduleConfig()"
-                                    [disabled]="isExecutingV2()">
-                                @if (isExecutingV2()) {
+                                    [disabled]="isExecuting()">
+                                @if (isExecuting()) {
                                     <span class="spinner-border spinner-border-sm"></span>
                                 } @else {
                                     <i class="bi bi-lightning-fill"></i>
@@ -282,7 +305,7 @@
     </div>
 </div>
 
-<!-- ══════════ Auto-Schedule V2 Config Modal ══════════ -->
+<!-- ══════════ Auto-Schedule Config Modal ══════════ -->
 @if (showAutoScheduleModal()) {
     <app-auto-schedule-config-modal
         [scope]="scope()"

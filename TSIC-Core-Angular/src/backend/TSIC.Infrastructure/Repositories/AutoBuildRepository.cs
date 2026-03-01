@@ -17,39 +17,6 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
         _context = context;
     }
 
-    public async Task<List<AutoBuildSourceJobDto>> GetSourceJobCandidatesAsync(
-        Guid targetJobId, CancellationToken ct = default)
-    {
-        // Find the customer that owns the target job
-        var customerId = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == targetJobId)
-            .Select(j => j.CustomerId)
-            .FirstOrDefaultAsync(ct);
-
-        if (customerId == Guid.Empty)
-            return [];
-
-        // Get all other jobs for this customer that have at least one scheduled game
-        return await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.CustomerId == customerId && j.JobId != targetJobId)
-            .Select(j => new AutoBuildSourceJobDto
-            {
-                JobId = j.JobId,
-                JobName = j.JobName ?? "",
-                JobPath = j.JobPath,
-                Year = j.Year,
-                Season = j.Season,
-                ScheduledGameCount = _context.Schedule
-                    .Count(s => s.JobId == j.JobId && s.GDate != null)
-            })
-            .Where(j => j.ScheduledGameCount > 0)
-            .OrderByDescending(j => j.Year)
-            .ThenByDescending(j => j.ScheduledGameCount)
-            .ToListAsync(ct);
-    }
-
     public async Task<List<GamePlacementPattern>> ExtractPatternAsync(
         Guid sourceJobId, CancellationToken ct = default)
     {
@@ -313,7 +280,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
         return await _context.SaveChangesAsync(ct);
     }
 
-    // ── V2 Prerequisite Checks ────────────────────────────────
+    // ── Prerequisite Checks ────────────────────────────────
 
     public async Task<int> GetUnassignedActiveTeamCountAsync(
         Guid jobId, CancellationToken ct = default)

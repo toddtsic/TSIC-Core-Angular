@@ -137,7 +137,7 @@
 
 <!-- Adjustments from Last Year -->
 @if (sacrificeLog().length > 0) {
-    <div class="inline-card v2-sacrifices">
+    <div class="inline-card sacrifices">
         <div class="card-label">Adjustments from Last Year</div>
         <p class="sacrifice-explainer">
             This year's schedule is based on last year's proven pattern. A few games landed in slightly different slots — this is normal and expected.
@@ -162,7 +162,7 @@
 
 <!-- Games That Couldn't Be Placed -->
 @if (unplacedGames().length > 0) {
-    <div class="inline-card v2-unplaced" id="unplaced-print-area">
+    <div class="inline-card unplaced" id="unplaced-print-area">
         <div class="unplaced-header">
             <div class="card-label">Games That Need Attention ({{ unplacedGames().length }})</div>
             <button class="btn btn-sm btn-outline-secondary no-print"
@@ -172,8 +172,8 @@
                 Print
             </button>
         </div>
-        <div class="v2-table-scroll">
-            <table class="v2-table">
+        <div class="results-table-scroll">
+            <table class="results-table">
                 <thead>
                     <tr>
                         <th>Division</th>

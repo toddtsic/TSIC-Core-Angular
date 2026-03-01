@@ -103,6 +103,12 @@ public record AgegroupCanvasReadinessDto
 public record CanvasReadinessResponse
 {
     public required List<AgegroupCanvasReadinessDto> Agegroups { get; init; }
+
+    /// <summary>
+    /// Number of fields assigned to this league-season (FieldsLeagueSeason count).
+    /// Zero means Manage Fields must be completed before field schedules can be created.
+    /// </summary>
+    public required int AssignedFieldCount { get; init; }
 }
 
 // ── Request DTOs ──

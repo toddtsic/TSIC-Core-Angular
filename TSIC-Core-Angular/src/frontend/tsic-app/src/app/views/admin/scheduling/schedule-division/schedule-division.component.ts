@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import {
@@ -31,7 +32,7 @@ import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type Aut
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
-import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildV2Result, AutoBuildQaResult } from '@core/api';
+import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult } from '@core/api';
 
 @Component({
     selector: 'app-schedule-division',
@@ -47,6 +48,8 @@ export class ScheduleDivisionComponent implements OnInit {
     private readonly qaSvc = inject(ScheduleQaService);
     private readonly timeslotSvc = inject(TimeslotService);
     private readonly toast = inject(ToastService);
+    private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
@@ -70,6 +73,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
     readonly isNavLoading = signal(false);
     readonly canvasReadiness = signal<Record<string, import('@core/api').AgegroupCanvasReadinessDto>>({});
+    readonly assignedFieldCount = signal(0);
     readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
 
     // ── Game Summary (from auto-build service) ──
@@ -99,6 +103,31 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     });
 
+    /** Breadcrumb segments for the right panel. Only shown when drilled below event level. */
+    readonly breadcrumbs = computed((): { label: string; level: 'event' | 'agegroup' }[] => {
+        const s = this.scope();
+        if (s.level === 'event') return [];
+
+        const eventName = this.gameSummary()?.jobName ?? 'Event';
+        const crumbs: { label: string; level: 'event' | 'agegroup' }[] = [
+            { label: eventName, level: 'event' }
+        ];
+
+        if (s.level === 'division') {
+            crumbs.push({ label: this.selectedAgegroup()?.agegroupName ?? '', level: 'agegroup' });
+        }
+
+        return crumbs;
+    });
+
+    /** The final (non-clickable) breadcrumb label — current scope. */
+    readonly breadcrumbCurrent = computed((): string => {
+        const s = this.scope();
+        if (s.level === 'agegroup') return this.selectedAgegroup()?.agegroupName ?? '';
+        if (s.level === 'division') return this.selectedDivision()?.divName ?? '';
+        return '';
+    });
+
     // ── Pairings state ──
     readonly divisionResponse = signal<DivisionPairingsResponse | null>(null);
     readonly pairings = signal<PairingDto[]>([]);
@@ -124,7 +153,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly selectedPairing = signal<PairingDto | null>(null);
     readonly isPlacing = signal(false);
 
-    // ── Auto-schedule (V1 division-level — kept for backward compat) ──
+    // ── Auto-schedule (division-level) ──
     readonly isAutoScheduling = signal(false);
     readonly autoScheduleResult = signal<AutoScheduleResponse | null>(null);
     readonly showAutoScheduleConfirm = signal(false);
@@ -137,18 +166,18 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Dev reset ──
     readonly isDevResetting = signal(false);
 
-    // ── Auto-schedule V2 config modal ──
+    // ── Auto-schedule config modal ──
     readonly showAutoScheduleModal = signal(false);
     readonly autoScheduleConfig = signal<AutoScheduleConfig>(this.loadAutoScheduleConfig());
     readonly modalAgegroups = signal<ModalAgegroup[]>([]);
-    readonly isExecutingV2 = signal(false);
+    readonly isExecuting = signal(false);
     readonly modalStrategies = signal<DivisionStrategyEntry[]>([]);
     readonly modalStrategySource = signal<string>('defaults');
     readonly modalStrategySourceName = signal<string>('');
     readonly modalStrategyLoading = signal(false);
 
     // ── Build results ──
-    readonly buildResult = signal<AutoBuildV2Result | null>(null);
+    readonly buildResult = signal<AutoBuildResult | null>(null);
     readonly qaResult = signal<AutoBuildQaResult | null>(null);
     readonly qaLoading = signal(false);
     readonly buildElapsedMs = signal(0);
@@ -284,8 +313,12 @@ export class ScheduleDivisionComponent implements OnInit {
                     map[ag.agegroupId] = ag;
                 }
                 this.canvasReadiness.set(map);
+                this.assignedFieldCount.set(res.assignedFieldCount);
             },
-            error: () => this.canvasReadiness.set({})
+            error: () => {
+                this.canvasReadiness.set({});
+                this.assignedFieldCount.set(0);
+            }
         });
     }
 
@@ -313,6 +346,19 @@ export class ScheduleDivisionComponent implements OnInit {
     onEventSelected(): void {
         this.scope.set({ level: 'event' });
         this.clearDivisionState();
+    }
+
+    navigateToManageFields(): void {
+        this.router.navigate(['../fields'], { relativeTo: this.route });
+    }
+
+    onBreadcrumbClick(level: 'event' | 'agegroup'): void {
+        if (level === 'event') {
+            this.onEventSelected();
+        } else {
+            const agId = this.selectedAgegroupId();
+            if (agId) this.onAgegroupSelected({ agegroupId: agId });
+        }
     }
 
     onAgegroupSelected(event: { agegroupId: string }): void {
@@ -648,11 +694,14 @@ export class ScheduleDivisionComponent implements OnInit {
 
     executeDevReset(): void {
         this.isDevResetting.set(true);
+        this.openOperationModal('Resetting Scheduling Data', 'Clearing games, pairings, timeslots, fields, and strategy profiles…', 'bi-arrow-counterclockwise');
         this.autoBuildSvc.devReset().subscribe({
             next: (result) => {
+                this.showOperationModal.set(false);
                 this.isDevResetting.set(false);
                 this.toast.show(
-                    `Reset complete: ${result.gamesDeleted} games, ${result.agegroupsCleared} agegroups, ${result.pairingGroupsCleared} pairing groups cleared`,
+                    `Reset complete: ${result.gamesDeleted} games, ${result.agegroupsCleared} agegroups, ` +
+                    `${result.pairingGroupsCleared} pairing groups, ${result.fieldsCleared} field assignments cleared`,
                     'success', 5000
                 );
                 this.refreshAfterBulkOperation();
@@ -660,13 +709,14 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.loadStrategyProfiles();
             },
             error: () => {
+                this.showOperationModal.set(false);
                 this.isDevResetting.set(false);
                 this.toast.show('Dev reset failed', 'danger', 3000);
             }
         });
     }
 
-    // ── Auto-schedule V2 config modal ──
+    // ── Auto-schedule config modal ──
 
     openAutoScheduleConfig(): void {
         this.prerequisiteErrors.set([]);
@@ -769,16 +819,16 @@ export class ScheduleDivisionComponent implements OnInit {
         this.saveAutoScheduleConfig(event.config);
         this.autoScheduleConfig.set(event.config);
 
-        this.isExecutingV2.set(true);
+        this.isExecuting.set(true);
         this.showAutoScheduleModal.set(false);
         this.openOperationModal('Building Your Schedule', 'Placing games and checking constraints...', 'bi-lightning-charge-fill');
         const buildStart = Date.now();
         const request = this.buildAutoScheduleRequest(event);
 
-        this.autoBuildSvc.executeV2(request).subscribe({
+        this.autoBuildSvc.execute(request).subscribe({
             next: (result) => {
                 this.buildElapsedMs.set(Date.now() - buildStart);
-                this.isExecutingV2.set(false);
+                this.isExecuting.set(false);
                 this.showOperationModal.set(false);
                 this.buildResult.set(result);
                 this.showBuildResults.set(true);
@@ -797,7 +847,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.refreshAfterBulkOperation();
             },
             error: () => {
-                this.isExecutingV2.set(false);
+                this.isExecuting.set(false);
                 this.showOperationModal.set(false);
                 this.toast.show('Auto-schedule failed', 'danger', 5000);
             }
@@ -929,7 +979,7 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     }
 
-    // ── Legacy auto-schedule (V1, division-only) ──
+    // ── Legacy auto-schedule (division-only) ──
 
     confirmAutoSchedule(): void {
         this.showAutoScheduleConfirm.set(true);

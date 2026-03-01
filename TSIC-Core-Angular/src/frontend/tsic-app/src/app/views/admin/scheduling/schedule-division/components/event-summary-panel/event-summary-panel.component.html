@@ -45,8 +45,8 @@
                 @if (!hasGamesInScope()) {
                     <button class="btn btn-sm btn-primary"
                             (click)="autoScheduleRequested.emit()"
-                            [disabled]="isExecutingV2() || configuredCount() === 0">
-                        @if (isExecutingV2()) {
+                            [disabled]="isExecuting() || configuredCount() === 0">
+                        @if (isExecuting()) {
                             <span class="spinner-border spinner-border-sm"></span>
                         } @else {
                             <i class="bi bi-lightning-fill"></i>
@@ -56,7 +56,7 @@
                 } @else {
                     <button class="btn btn-sm btn-primary"
                             (click)="autoScheduleRequested.emit()"
-                            [disabled]="isExecutingV2()">
+                            [disabled]="isExecuting()">
                         <i class="bi bi-lightning-fill"></i> Re-Schedule
                     </button>
                     <button class="btn btn-sm btn-outline-danger"
@@ -73,7 +73,7 @@
                 @if (isDevMode) {
                     <button class="btn btn-sm btn-outline-warning"
                             (click)="requestDevReset()"
-                            [disabled]="isDevResetting()">
+                            [disabled]="isDevResetting() || isResetEmpty()">
                         @if (isDevResetting()) {
                             <span class="spinner-border spinner-border-sm"></span>
                         } @else {
@@ -135,6 +135,26 @@
         }
     </div>
 
+    <!-- ── No Fields Assigned — standalone CTA banner ── -->
+    @if (hasNoFieldsAssigned()) {
+        <div class="fields-cta-banner"
+             role="button"
+             tabindex="0"
+             (click)="manageFieldsClicked.emit()"
+             (keydown.enter)="manageFieldsClicked.emit()">
+            <div class="fields-cta-content">
+                <i class="bi bi-geo-alt-fill fields-cta-icon"></i>
+                <div class="fields-cta-text">
+                    <strong>No fields assigned to this event</strong>
+                    <span>The schedule engine needs at least one field before it can place games.</span>
+                </div>
+            </div>
+            <span class="fields-cta-button">
+                <i class="bi bi-box-arrow-up-right"></i> Manage Fields
+            </span>
+        </div>
+    }
+
     <!-- ── Delete confirmation ── -->
     @if (showDeleteConfirm()) {
         <div class="alert alert-danger m-3 mb-0 py-2 px-3">
@@ -160,8 +180,15 @@
         <div class="alert alert-warning m-3 mb-0 py-2 px-3">
             <div class="mb-2">
                 <i class="bi bi-exclamation-triangle me-1"></i>
-                This will wipe <strong>ALL</strong> scheduling config: games, timeslots, pairings, field assignments, and strategy profiles. Type <strong>confirm</strong> to proceed.
+                <strong>Dev Reset</strong> will wipe ALL scheduling config back to pool assignment level:
             </div>
+            <ul class="mb-2 ps-4" style="font-size: var(--font-size-sm)">
+                <li>Delete all <strong>scheduled games</strong></li>
+                <li>Delete all <strong>strategy profiles</strong> (placement &amp; gap patterns)</li>
+                <li>Clear all <strong>timeslot configuration</strong> (dates &amp; field-timeslot assignments)</li>
+                <li>Delete all <strong>pairings</strong></li>
+                <li>Remove all <strong>field assignments</strong> from this job (fields remain in global library)</li>
+            </ul>
             <div class="d-flex gap-2 align-items-center">
                 <input type="text" class="form-control form-control-sm" style="max-width: 160px"
                        placeholder="Type confirm"
@@ -227,7 +254,7 @@
                 <!-- Row 2: Game count or unconfigured hint -->
                 @if (stage === 'unconfigured') {
                     <div class="ag-hint">
-                        <i class="bi bi-gear"></i> Click to configure
+                        <i class="bi bi-gear"></i> Click to set up dates & fields
                     </div>
                 } @else if (expected > 0) {
                     <div class="ag-games"

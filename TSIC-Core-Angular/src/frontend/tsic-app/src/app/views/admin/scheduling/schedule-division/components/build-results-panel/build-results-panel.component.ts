@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import type { AutoBuildV2Result, AutoBuildQaResult } from '@core/api';
+import type { AutoBuildResult, AutoBuildQaResult } from '@core/api';
 
 const CONSTRAINT_LABELS: Record<string, string> = {
     'placement-shape': 'Game day pattern',
@@ -25,7 +25,7 @@ const CONSTRAINT_LABELS: Record<string, string> = {
 export class BuildResultsPanelComponent {
 
     // ── Inputs ──
-    readonly buildResult = input.required<AutoBuildV2Result>();
+    readonly buildResult = input.required<AutoBuildResult>();
     readonly qaResult = input<AutoBuildQaResult | null>(null);
     readonly qaLoading = input(false);
     readonly buildElapsedMs = input(0);

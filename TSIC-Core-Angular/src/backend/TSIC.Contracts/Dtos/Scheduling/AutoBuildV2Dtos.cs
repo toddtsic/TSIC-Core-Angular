@@ -32,7 +32,7 @@ public enum FieldFairness
 
 /// <summary>
 /// Aggregate scheduling attributes for all divisions of a given team count (TCnt).
-/// Extracted from a prior year's schedule to guide V2 horizontal placement.
+/// Extracted from a prior year's schedule to guide horizontal placement.
 /// </summary>
 public record DivisionSizeProfile
 {
@@ -88,7 +88,7 @@ public record DivisionSizeProfile
     /// Used for reporting (comparing source vs result), not as a hard threshold.</summary>
     public TimeSpan? MedianTeamSpan { get; init; }
 
-    // ── Tick-based source properties (V2.1 — distance-from-source scoring) ──
+    // ── Tick-based source properties (distance-from-source scoring) ──
 
     /// <summary>GSI (Game Start Interval) in minutes, inferred from source game patterns.
     /// The primitive clock tick — all tick-based properties are relative to this.</summary>
@@ -237,13 +237,13 @@ public record PreFlightDisconnect
 }
 
 // ══════════════════════════════════════════════════════════
-// V2 Build Request
+// Build Request
 // ══════════════════════════════════════════════════════════
 
 /// <summary>
-/// Request body for V2 auto-build with processing order, include/exclude, and constraint priorities.
+/// Request body for auto-build with processing order, include/exclude, and constraint priorities.
 /// </summary>
-public record AutoBuildV2Request
+public record AutoBuildRequest
 {
     /// <summary>Source job to extract profiles from. Null = clean sheet mode.
     /// RETAINED for backward compat and migration inference only.</summary>
@@ -258,15 +258,7 @@ public record AutoBuildV2Request
     /// <summary>Division IDs to exclude from scheduling.</summary>
     public required List<Guid> ExcludedDivisionIds { get; init; }
 
-    /// <summary>Constraint names in priority order (index 0 = highest priority).
-    /// DEPRECATED — ignored when DivisionStrategies is present.</summary>
-    public List<string>? ConstraintPriorities { get; init; }
-
-    /// <summary>User-confirmed agegroup mappings for name-first matching.</summary>
-    public List<ConfirmedAgegroupMapping>? AgegroupMappings { get; init; }
-
-    /// <summary>Per-division-name scheduling strategies. When present, replaces
-    /// source-job-based attribute extraction with explicit user choices.</summary>
+    /// <summary>Per-division-name scheduling strategies.</summary>
     public List<DivisionStrategyEntry>? DivisionStrategies { get; init; }
 
     /// <summary>When true, persist DivisionStrategies to DB after successful build.</summary>
@@ -274,13 +266,13 @@ public record AutoBuildV2Request
 }
 
 // ══════════════════════════════════════════════════════════
-// V2 Build Result
+// Build Result
 // ══════════════════════════════════════════════════════════
 
 /// <summary>
-/// Result of V2 auto-build with unplaced games and sacrifice log.
+/// Result of auto-build with unplaced games and sacrifice log.
 /// </summary>
-public record AutoBuildV2Result
+public record AutoBuildResult
 {
     public required int TotalDivisions { get; init; }
     public required int DivisionsScheduled { get; init; }

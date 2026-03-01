@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, input, output, signal, computed, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TimeslotService } from '../../../timeslots/services/timeslot.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type {
@@ -14,7 +15,7 @@ import type {
 @Component({
     selector: 'app-canvas-config-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, RouterLink],
     templateUrl: './canvas-config-panel.component.html',
     styleUrl: './canvas-config-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,6 +30,7 @@ export class CanvasConfigPanelComponent implements OnChanges {
     readonly agegroupColor = input<string | null>(null);
     readonly agegroups = input<AgegroupWithDivisionsDto[]>([]);
     readonly readinessMap = input<Record<string, AgegroupCanvasReadinessDto>>({});
+    readonly assignedFieldCount = input(0);
 
     // ── Outputs ──
     readonly canvasConfigured = output<void>();
@@ -74,6 +76,8 @@ export class CanvasConfigPanelComponent implements OnChanges {
 
     readonly capacityAllSufficient = computed(() =>
         this.capacity().length > 0 && this.capacity().every(c => c.isSufficient));
+
+    readonly hasNoFieldsAssigned = computed(() => this.assignedFieldCount() === 0);
 
     readonly canFinish = computed(() =>
         this.dates().length > 0 && this.fields().length > 0);
@@ -229,7 +233,7 @@ export class CanvasConfigPanelComponent implements OnChanges {
                         this.isCloning.set(false);
                         this.showClonePanel.set(false);
                         this.loadConfiguration();
-                        this.toast.show('Canvas cloned successfully', 'success');
+                        this.toast.show('Dates & fields cloned successfully', 'success');
                     },
                     error: () => {
                         this.isCloning.set(false);

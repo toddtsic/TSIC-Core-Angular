@@ -68,6 +68,54 @@ app-pairings-panel {
     min-height: 0;
 }
 
+// ── Scope Breadcrumb ──
+
+.scope-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-sm);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: rgba(var(--bs-secondary-bg-rgb, 0), 0.3);
+    flex-shrink: 0;
+}
+
+.crumb-link {
+    color: var(--bs-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px var(--space-1);
+    border-radius: var(--radius-sm);
+    transition: background 0.1s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    i {
+        font-size: var(--font-size-xs);
+    }
+}
+
+.crumb-sep {
+    font-size: 10px;
+    color: var(--bs-secondary-color);
+}
+
+.crumb-current {
+    color: var(--bs-body-color);
+    font-weight: var(--font-weight-semibold);
+}
+
 // .panel-header, .panel-body → _scheduling-panels.scss
 // Pairings list, WPW matrix, division teams → pairings-panel child component
 

@@ -5,5 +5,6 @@
 import type { AgegroupCanvasReadinessDto } from './AgegroupCanvasReadinessDto';
 export type CanvasReadinessResponse = {
     agegroups: Array<AgegroupCanvasReadinessDto>;
+    assignedFieldCount: number;
 };
 

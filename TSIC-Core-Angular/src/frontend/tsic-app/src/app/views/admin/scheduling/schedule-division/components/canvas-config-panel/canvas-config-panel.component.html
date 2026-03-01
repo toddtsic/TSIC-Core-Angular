@@ -4,7 +4,7 @@
     <div class="canvas-header">
         <div class="d-flex align-items-center gap-2">
             <i class="bi bi-gear-wide-connected text-secondary"></i>
-            <span class="fw-semibold">Set Up Canvas</span>
+            <span class="fw-semibold">Set Up Dates & Fields</span>
             @if (agegroupColor()) {
                 <span class="badge"
                       [style.background-color]="agegroupColor()"
@@ -142,10 +142,24 @@
                         {{ fields().length }}
                     </span>
                     <button class="btn btn-sm btn-outline-primary ms-2"
+                            [disabled]="hasNoFieldsAssigned()"
                             (click)="openFieldForm()">
                         <i class="bi bi-plus"></i> Add All
                     </button>
                 </div>
+
+                @if (hasNoFieldsAssigned()) {
+                    <div class="no-fields-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <div>
+                            <strong>No fields assigned to this event</strong>
+                            <div>Fields must be assigned before field schedules can be created.</div>
+                            <a routerLink="../../fields" class="no-fields-link">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Go to Manage Fields
+                            </a>
+                        </div>
+                    </div>
+                }
 
                 @if (showFieldForm()) {
                     <div class="inline-form">
@@ -215,9 +229,9 @@
                             </div>
                         }
                     </div>
-                } @else if (!showFieldForm()) {
+                } @else if (!showFieldForm() && !hasNoFieldsAssigned()) {
                     <div class="empty-hint">
-                        <i class="bi bi-grid-3x3-gap me-1"></i> Add field schedules to define the canvas
+                        <i class="bi bi-grid-3x3-gap me-1"></i> Add field schedules to define the grid
                     </div>
                 }
             </div>

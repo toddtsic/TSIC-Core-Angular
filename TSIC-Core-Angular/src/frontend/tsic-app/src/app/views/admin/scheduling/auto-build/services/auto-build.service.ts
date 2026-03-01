@@ -3,9 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
-    AutoBuildSourceJobDto,
-    AutoBuildV2Request,
-    AutoBuildV2Result,
+    AutoBuildRequest,
+    AutoBuildResult,
     EnsurePairingsRequest,
     EnsurePairingsResponse,
     GameSummaryResponse,
@@ -21,10 +20,6 @@ export class AutoBuildService {
 
     getGameSummary(): Observable<GameSummaryResponse> {
         return this.http.get<GameSummaryResponse>(`${this.apiUrl}/game-summary`);
-    }
-
-    getSourceJobs(): Observable<AutoBuildSourceJobDto[]> {
-        return this.http.get<AutoBuildSourceJobDto[]>(`${this.apiUrl}/source-jobs`);
     }
 
     undo(): Observable<{ gamesDeleted: number }> {
@@ -47,9 +42,9 @@ export class AutoBuildService {
         );
     }
 
-    executeV2(request: AutoBuildV2Request): Observable<AutoBuildV2Result> {
-        return this.http.post<AutoBuildV2Result>(
-            `${this.apiUrl}/execute-v2`,
+    execute(request: AutoBuildRequest): Observable<AutoBuildResult> {
+        return this.http.post<AutoBuildResult>(
+            `${this.apiUrl}/execute`,
             request
         );
     }
@@ -68,9 +63,9 @@ export class AutoBuildService {
         );
     }
 
-    /** Dev-only: clear all scheduling config (games, timeslots, pairings, profiles). */
-    devReset(): Observable<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number }> {
-        return this.http.post<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number }>(
+    /** Dev-only: clear all scheduling config (games, timeslots, pairings, fields, profiles). */
+    devReset(): Observable<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }> {
+        return this.http.post<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }>(
             `${environment.apiUrl}/dev-scheduling/reset`,
             {}
         );

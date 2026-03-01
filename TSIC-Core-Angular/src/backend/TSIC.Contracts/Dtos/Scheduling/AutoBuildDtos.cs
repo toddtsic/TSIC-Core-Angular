@@ -1,23 +1,6 @@
 namespace TSIC.Contracts.Dtos.Scheduling;
 
 // ══════════════════════════════════════════════════════════
-// Source Job Selection
-// ══════════════════════════════════════════════════════════
-
-/// <summary>
-/// A candidate prior-year job whose schedule can be used as a template.
-/// </summary>
-public record AutoBuildSourceJobDto
-{
-    public required Guid JobId { get; init; }
-    public required string JobName { get; init; }
-    public required string JobPath { get; init; }
-    public string? Year { get; init; }
-    public string? Season { get; init; }
-    public required int ScheduledGameCount { get; init; }
-}
-
-// ══════════════════════════════════════════════════════════
 // Pattern Extraction
 // ══════════════════════════════════════════════════════════
 
@@ -46,160 +29,15 @@ public record GamePlacementPattern
 }
 
 // ══════════════════════════════════════════════════════════
-// Agegroup Mapping (user-confirmed, before full analysis)
+// Source Job Analysis Request
 // ══════════════════════════════════════════════════════════
 
 /// <summary>
-/// A single proposed mapping from a source agegroup to a current agegroup.
-/// System proposes best-guess; user confirms/adjusts before full analysis.
-/// </summary>
-public record AgegroupMappingProposal
-{
-    public required string SourceAgegroupName { get; init; }
-    /// <summary>Division names in this source agegroup (for context).</summary>
-    public required List<string> SourceDivisionNames { get; init; }
-    public required int SourceDivisionCount { get; init; }
-    /// <summary>Proposed current agegroup name. Null if no match found.</summary>
-    public string? ProposedCurrentAgegroupName { get; init; }
-    /// <summary>"exact" | "year-increment" | "none"</summary>
-    public required string MatchStrategy { get; init; }
-}
-
-/// <summary>
-/// Response for the agegroup mapping proposal step.
-/// </summary>
-public record AgegroupMappingResponse
-{
-    public required Guid SourceJobId { get; init; }
-    public required string SourceJobName { get; init; }
-    public required string SourceYear { get; init; }
-    public required int SourceTotalGames { get; init; }
-    public required List<AgegroupMappingProposal> Proposals { get; init; }
-    /// <summary>Distinct active agegroup names in the current job (for dropdown options).</summary>
-    public required List<string> CurrentAgegroupNames { get; init; }
-    /// <summary>Agegroup name → hex color for current-year agegroups (null entries omitted).</summary>
-    public required Dictionary<string, string> CurrentAgegroupColors { get; init; }
-}
-
-/// <summary>
-/// User-confirmed mapping from source agegroup to current agegroup.
-/// </summary>
-public record ConfirmedAgegroupMapping
-{
-    public required string SourceAgegroupName { get; init; }
-    /// <summary>Current agegroup name. Null = skip/unmapped.</summary>
-    public string? CurrentAgegroupName { get; init; }
-}
-
-/// <summary>
-/// Request body for the analyze and propose-mappings endpoints.
+/// Request body for the extract-profiles endpoint.
 /// </summary>
 public record AutoBuildAnalyzeRequest
 {
     public required Guid SourceJobId { get; init; }
-    /// <summary>User-confirmed agegroup mappings (null for propose-mappings call).</summary>
-    public List<ConfirmedAgegroupMapping>? AgegroupMappings { get; init; }
-}
-
-// ══════════════════════════════════════════════════════════
-// Pool-Size Pattern Matching
-// ══════════════════════════════════════════════════════════
-
-/// <summary>
-/// Describes an available source-year pattern for a given pool size (team count).
-/// </summary>
-public record PoolSizePattern
-{
-    /// <summary>Number of teams in the pool.</summary>
-    public required int TeamCount { get; init; }
-    /// <summary>Number of round-robin games in the pattern.</summary>
-    public required int GameCount { get; init; }
-    /// <summary>How many source divisions had this pool size.</summary>
-    public required int SourceDivisionCount { get; init; }
-}
-
-/// <summary>
-/// Per current-year division: how it will be scheduled (name-match, pool-size fallback, or auto-schedule).
-/// </summary>
-public record PoolSizeCoverage
-{
-    public required Guid DivId { get; init; }
-    public required Guid AgegroupId { get; init; }
-    public required string AgegroupName { get; init; }
-    public string? AgegroupColor { get; init; }
-    public required string DivName { get; init; }
-    public required int TeamCount { get; init; }
-    /// <summary>True if a pattern (name-matched or pool-size) is available.</summary>
-    public required bool HasPattern { get; init; }
-    /// <summary>Number of RR games the pattern will place (0 if no pattern).</summary>
-    public required int PatternGameCount { get; init; }
-    /// <summary>"name-matched" | "pool-size-fallback" | "no-match"</summary>
-    public required string MatchStrategy { get; init; }
-    /// <summary>Source agegroup used for name-match (null if pool-size fallback).</summary>
-    public string? SourceAgegroupName { get; init; }
-    /// <summary>Source division used for name-match (null if pool-size fallback).</summary>
-    public string? SourceDivName { get; init; }
-}
-
-// ══════════════════════════════════════════════════════════
-// Feasibility & Analysis
-// ══════════════════════════════════════════════════════════
-
-/// <summary>
-/// Overall feasibility assessment for auto-build.
-/// </summary>
-public record AutoBuildFeasibility
-{
-    public required int TotalCurrentDivisions { get; init; }
-    /// <summary>Divisions covered by any pattern (name-match or pool-size).</summary>
-    public required int CoveredDivisions { get; init; }
-    /// <summary>Divisions with no pattern at all (will use auto-schedule).</summary>
-    public required int UncoveredDivisions { get; init; }
-    /// <summary>Divisions matched by exact agegroup + division name from source.</summary>
-    public required int NameMatchedDivisions { get; init; }
-    /// <summary>"green" (>80%), "yellow" (50-80%), "red" (&lt;50%).</summary>
-    public required string ConfidenceLevel { get; init; }
-    public required int ConfidencePercent { get; init; }
-    public required List<string> FieldMismatches { get; init; }
-    public required List<string> Warnings { get; init; }
-    /// <summary>Distinct pool sizes found in the source job.</summary>
-    public required List<PoolSizePattern> AvailablePatterns { get; init; }
-}
-
-/// <summary>
-/// Complete analysis response returned to the agent UI.
-/// </summary>
-public record AutoBuildAnalysisResponse
-{
-    public required Guid SourceJobId { get; init; }
-    public required string SourceJobName { get; init; }
-    public required string SourceYear { get; init; }
-    public required int SourceTotalGames { get; init; }
-    /// <summary>Per-division coverage with match strategy (name-matched, pool-size, or no-match).</summary>
-    public required List<PoolSizeCoverage> DivisionCoverage { get; init; }
-    public required AutoBuildFeasibility Feasibility { get; init; }
-    /// <summary>The confirmed agegroup mappings used for this analysis.</summary>
-    public required List<ConfirmedAgegroupMapping> AgegroupMappings { get; init; }
-}
-
-// ══════════════════════════════════════════════════════════
-// Build Request (after user answers questions)
-// ══════════════════════════════════════════════════════════
-
-/// <summary>
-/// Request to execute the auto-build schedule generation.
-/// </summary>
-public record AutoBuildRequest
-{
-    public required Guid SourceJobId { get; init; }
-    /// <summary>Divisions to skip entirely.</summary>
-    public List<Guid>? SkipDivisionIds { get; init; }
-    /// <summary>If true, include bracket games in the pattern replay.</summary>
-    public bool IncludeBracketGames { get; init; }
-    /// <summary>If true, skip divisions that already have games scheduled.</summary>
-    public bool SkipAlreadyScheduled { get; init; }
-    /// <summary>User-confirmed agegroup mappings for name-first matching.</summary>
-    public List<ConfirmedAgegroupMapping>? AgegroupMappings { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -218,51 +56,12 @@ public record AutoBuildDivisionResult
     public required int TeamCount { get; init; }
     public required int GamesPlaced { get; init; }
     public required int GamesFailed { get; init; }
-    /// <summary>"pattern-replay" | "auto-schedule" | "skipped" | "already-scheduled"</summary>
+    /// <summary>"placed" | "excluded" | "no-teams" | "no-pairings" | "no-timeslots" | "no-slots"</summary>
     public required string Status { get; init; }
 }
 
-/// <summary>
-/// Overall result of the auto-build operation.
-/// </summary>
-public record AutoBuildResult
-{
-    public required int TotalDivisions { get; init; }
-    public required int DivisionsScheduled { get; init; }
-    public required int DivisionsSkipped { get; init; }
-    public required int TotalGamesPlaced { get; init; }
-    public required int GamesFailedToPlace { get; init; }
-    public required List<AutoBuildDivisionResult> DivisionResults { get; init; }
-}
-
 // ══════════════════════════════════════════════════════════
-// Parking Preview
-// ══════════════════════════════════════════════════════════
-
-/// <summary>
-/// Peak parking load for a single field complex.
-/// </summary>
-public record ParkingPreviewDto
-{
-    public required string ComplexName { get; init; }
-    public required DateTime PeakTime { get; init; }
-    public required int PeakTeamsOnSite { get; init; }
-    public required int EstimatedCars { get; init; }
-    /// <summary>"ok" | "warn" | "critical"</summary>
-    public required string Severity { get; init; }
-}
-
-/// <summary>
-/// Parking validation result for the proposed schedule.
-/// </summary>
-public record AutoBuildParkingResponse
-{
-    public required List<ParkingPreviewDto> Complexes { get; init; }
-    public required bool HasWarnings { get; init; }
-}
-
-// ══════════════════════════════════════════════════════════
-// Repository helper DTOs (internal to pattern extraction)
+// Repository Helper DTOs
 // ══════════════════════════════════════════════════════════
 
 /// <summary>

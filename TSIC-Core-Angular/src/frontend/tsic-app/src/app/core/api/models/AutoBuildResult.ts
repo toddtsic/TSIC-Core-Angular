@@ -3,6 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AutoBuildDivisionResult } from './AutoBuildDivisionResult';
+import type { ConstraintSacrificeDto } from './ConstraintSacrificeDto';
+import type { UnplacedGameDto } from './UnplacedGameDto';
 export type AutoBuildResult = {
     totalDivisions: number;
     divisionsScheduled: number;
@@ -10,5 +12,7 @@ export type AutoBuildResult = {
     totalGamesPlaced: number;
     gamesFailedToPlace: number;
     divisionResults: Array<AutoBuildDivisionResult>;
+    unplacedGames: Array<UnplacedGameDto>;
+    sacrificeLog: Array<ConstraintSacrificeDto>;
 };
 

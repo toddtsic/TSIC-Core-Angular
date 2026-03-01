@@ -36,9 +36,10 @@ export class EventSummaryPanelComponent {
     readonly gameSummary = input<GameSummaryResponse | null>(null);
     readonly readinessMap = input<Record<string, AgegroupCanvasReadinessDto>>({});
     readonly strategies = input<DivisionStrategyEntry[]>([]);
+    readonly assignedFieldCount = input(0);
     readonly hasGamesInScope = input(false);
     readonly scopeGameCount = input(0);
-    readonly isExecutingV2 = input(false);
+    readonly isExecuting = input(false);
     readonly isDeletingGames = input(false);
     readonly showDeleteConfirm = input(false);
     readonly isDevResetting = input(false);
@@ -49,6 +50,7 @@ export class EventSummaryPanelComponent {
     readonly deleteConfirmed = output<void>();
     readonly deleteCancelled = output<void>();
     readonly agegroupClicked = output<string>();
+    readonly manageFieldsClicked = output<void>();
     readonly devResetConfirmed = output<void>();
 
     // ── Local state ──
@@ -82,6 +84,16 @@ export class EventSummaryPanelComponent {
     );
 
     readonly totalAgegroups = computed(() => this.agegroups().length);
+
+    /** True when there's nothing for dev reset to clear. */
+    readonly isResetEmpty = computed(() =>
+        this.configuredCount() === 0 && this.totalGames() === 0
+    );
+
+    /** True when agegroups exist but no fields are assigned to the event. */
+    readonly hasNoFieldsAssigned = computed(() =>
+        this.agegroups().length > 0 && this.assignedFieldCount() === 0
+    );
 
     // ── Tournament-level game days (union of ALL dates across agegroups) ──
 
@@ -140,6 +152,8 @@ export class EventSummaryPanelComponent {
 
     /** Scheduling style — uniform across all divisions. Structured for badged rendering. */
     readonly schedulingStyle = computed((): { placement: string | null; gap: string | null } | null => {
+        // Don't show strategy defaults on a blank slate — they're just noise
+        if (this.configuredCount() === 0) return null;
         const strats = this.strategies();
         if (strats.length === 0) return null;
 

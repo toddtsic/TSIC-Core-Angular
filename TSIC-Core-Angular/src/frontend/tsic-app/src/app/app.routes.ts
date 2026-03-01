@@ -17,29 +17,6 @@ export const routes: Routes = [
 		loadComponent: () => import('./views/home/tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent)
 	},
 
-	// V1 snapshot for A/B comparison
-	{
-		path: 'tsic-v1',
-		loadComponent: () => import('./views/home/tsic-landing-v1/tsic-landing-v1.component').then(m => m.TsicLandingV1Component)
-	},
-
-	// V2 snapshot for A/B comparison
-	{
-		path: 'tsic-v2',
-		loadComponent: () => import('./views/home/tsic-landing-v2/tsic-landing-v2.component').then(m => m.TsicLandingV2Component)
-	},
-
-	// V3 snapshot for A/B comparison
-	{
-		path: 'tsic-v3',
-		loadComponent: () => import('./views/home/tsic-landing-v3/tsic-landing-v3.component').then(m => m.TsicLandingV3Component)
-	},
-	// V4 snapshot for A/B comparison
-	{
-		path: 'tsic-v4',
-		loadComponent: () => import('./views/home/tsic-landing-v4/tsic-landing-v4.component').then(m => m.TsicLandingV4Component)
-	},
-
 	// Privacy Policy — public, no auth required, no layout chrome
 	{
 		path: 'privacy-policy',
@@ -465,11 +442,6 @@ export const routes: Routes = [
 					{
 						path: 'schedule-division',
 						loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
-					},
-					{
-						path: 'auto-build',
-						redirectTo: 'schedule-division',
-						pathMatch: 'full'
 					},
 					{
 						path: 'qa-results',
