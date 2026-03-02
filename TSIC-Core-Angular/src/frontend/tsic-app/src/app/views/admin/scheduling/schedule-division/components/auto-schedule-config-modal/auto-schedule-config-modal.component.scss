@@ -8,7 +8,7 @@
 
 .msg-row {
     display: grid;
-    grid-template-columns: 1fr 100px 120px 70px;
+    grid-template-columns: 1fr 100px 120px;
     gap: var(--space-2);
     padding: var(--space-1) var(--space-2);
     align-items: center;
@@ -79,6 +79,13 @@
     font-size: var(--font-size-xs);
     font-weight: 700;
     white-space: nowrap;
+}
+
+.constraint-wave {
+    width: 80px;
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    padding: 2px var(--space-1);
 }
 
 .constraint-arrows {

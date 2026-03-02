@@ -249,8 +249,9 @@ public record AutoBuildRequest
     /// RETAINED for backward compat and migration inference only.</summary>
     public Guid? SourceJobId { get; init; }
 
-    /// <summary>Agegroup IDs in processing order (first processed gets best slots).</summary>
-    public required List<Guid> AgegroupOrder { get; init; }
+    /// <summary>Agegroups in processing order with wave assignments.
+    /// First entry gets best slots. Wave groups agegroups into time blocks.</summary>
+    public required List<AgegroupBuildEntry> AgegroupOrder { get; init; }
 
     /// <summary>"alpha" | "odd-first" | "custom"</summary>
     public required string DivisionOrderStrategy { get; init; }
@@ -392,8 +393,19 @@ public record DivisionStrategyEntry
     /// <summary>0 = BackToBack, 1 = OneOnOneOff (default), 2 = OneOnTwoOff.</summary>
     public required int GapPattern { get; init; }
 
-    /// <summary>Wave group for staggered scheduling. 1 = default (all together),
-    /// 2+ = later waves. Engine completes all Wave 1 divisions before starting Wave 2.</summary>
+}
+
+/// <summary>
+/// Per-agegroup build entry carrying processing order and wave assignment.
+/// Wave controls which time block of the day an agegroup occupies:
+/// Wave 1 = first block (e.g. morning), Wave 2 = second block (e.g. afternoon), etc.
+/// The engine completes all Wave 1 agegroups before starting Wave 2.
+/// </summary>
+public record AgegroupBuildEntry
+{
+    public required Guid AgegroupId { get; init; }
+
+    /// <summary>1 = default (all agegroups in one block), 2+ = later time block.</summary>
     public int Wave { get; init; } = 1;
 }
 

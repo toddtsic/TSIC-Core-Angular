@@ -33,7 +33,7 @@ import { CanvasConfigPanelComponent } from './components/canvas-config-panel/can
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
-import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult } from '@core/api';
+import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
 
 @Component({
     selector: 'app-schedule-division',
@@ -833,6 +833,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 teamCount: agTeamCount(ag),
                 divisionCount: ag.divisions.length,
                 included: true,
+                wave: 1,
             })));
         }
         this.showAutoScheduleModal.set(true);
@@ -1015,7 +1016,7 @@ export class ScheduleDivisionComponent implements OnInit {
             case 'division': {
                 const excluded = allDivIds.filter(id => id !== s.divId);
                 return {
-                    agegroupOrder: [s.agegroupId],
+                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: 1 }] satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
@@ -1028,7 +1029,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     .divisions.map(d => d.divId);
                 const excluded = allDivIds.filter(id => !agDivIds.includes(id));
                 return {
-                    agegroupOrder: [s.agegroupId],
+                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: 1 }] satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
@@ -1044,7 +1045,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 );
                 const excluded = allDivIds.filter(id => !includedDivIds.has(id));
                 return {
-                    agegroupOrder: included.map(ag => ag.agegroupId),
+                    agegroupOrder: included.map(ag => ({ agegroupId: ag.agegroupId, wave: ag.wave })) satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,

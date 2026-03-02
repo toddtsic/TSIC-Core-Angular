@@ -2064,7 +2064,6 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.DivisionName).HasMaxLength(100);
             entity.Property(e => e.GapPattern).HasDefaultValue((byte)1);
             entity.Property(e => e.ModifiedUtc).HasDefaultValueSql("(sysutcdatetime())");
-            entity.Property(e => e.Wave).HasDefaultValue((byte)1);
         });
 
         modelBuilder.Entity<Divisions>(entity =>

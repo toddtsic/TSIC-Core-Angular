@@ -305,6 +305,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var existingCounts = await _autoBuildRepo.GetExistingGameCountsByDivisionAsync(jobId, ct);
 
         // ── 4. Build processing order: agegroups → divisions ──
+        // Build wave lookup: agegroupId → wave number
+        var waveByAgId = request.AgegroupOrder
+            .ToDictionary(e => e.AgegroupId, e => e.Wave);
+
         var orderedDivisions = BuildProcessingOrder(
             activeDivisions, request.AgegroupOrder, request.DivisionOrderStrategy, excludedIds);
 
@@ -478,10 +482,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (effectivePlayDays.Count == 0)
                 effectivePlayDays = candidateDays;
 
-            // Resolve wave from strategy entry (defaults to 1 if not set)
-            var divWave = useStrategyPath && strategyByName.TryGetValue(div.DivName, out var divStrategy)
-                ? Math.Max(1, divStrategy.Wave)
-                : 1;
+            // Resolve wave from agegroup — all divisions in the same agegroup share its wave
+            var divWave = waveByAgId.GetValueOrDefault(div.AgegroupId, 1);
 
             divContexts.Add(new DivisionBuildContext
             {
@@ -867,8 +869,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     JobId = jobId,
                     DivisionName = s.DivisionName,
                     Placement = (byte)s.Placement,
-                    GapPattern = (byte)s.GapPattern,
-                    Wave = (byte)Math.Clamp(s.Wave, 1, 9)
+                    GapPattern = (byte)s.GapPattern
                 })
                 .ToList();
 
@@ -944,8 +945,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 {
                     DivisionName = p.DivisionName,
                     Placement = p.Placement,
-                    GapPattern = p.GapPattern,
-                    Wave = p.Wave
+                    GapPattern = p.GapPattern
                 }).ToList();
 
                 // Fill gaps for new division names (post-sync) with defaults
@@ -1047,31 +1047,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                             GapPattern = 1
                         });
                     }
-                }
-
-                // Detect wave boundaries from source game patterns.
-                // Groups source games by agegroup, computes time envelopes,
-                // and assigns wave numbers where natural time gaps exist.
-                var waveByAgegroup = DetectWaveAssignments(patterns);
-                if (waveByAgegroup.Count > 0)
-                {
-                    // Map division name → agegroup name(s) from current year's divisions
-                    var divToAgegroup = currentDivisions
-                        .GroupBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.First().AgegroupName,
-                            StringComparer.OrdinalIgnoreCase);
-
-                    strategies = strategies.Select(s =>
-                    {
-                        if (divToAgegroup.TryGetValue(s.DivisionName, out var agName)
-                            && waveByAgegroup.TryGetValue(agName, out var wave))
-                        {
-                            return s with { Wave = wave };
-                        }
-                        return s;
-                    }).ToList();
                 }
 
                 // Translate source field names → current names before disconnect check
@@ -1251,7 +1226,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     /// </summary>
     private static List<CurrentDivisionSummary> BuildProcessingOrder(
         List<CurrentDivisionSummary> activeDivisions,
-        List<Guid> agegroupOrder,
+        List<AgegroupBuildEntry> agegroupOrder,
         string divisionOrderStrategy,
         HashSet<Guid> excludedIds)
     {
@@ -1263,9 +1238,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var result = new List<CurrentDivisionSummary>();
 
         // Process agegroups in specified order
-        foreach (var agId in agegroupOrder)
+        foreach (var entry in agegroupOrder)
         {
-            if (!divsByAgegroup.TryGetValue(agId, out var divisions))
+            if (!divsByAgegroup.TryGetValue(entry.AgegroupId, out var divisions))
                 continue;
 
             // Sort divisions within agegroup by strategy
@@ -1285,7 +1260,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
 
         // Add any agegroups not in the specified order (safety net)
-        var processedAgIds = new HashSet<Guid>(agegroupOrder);
+        var processedAgIds = agegroupOrder.Select(e => e.AgegroupId).ToHashSet();
         foreach (var (agId, divisions) in divsByAgegroup)
         {
             if (processedAgIds.Contains(agId))
@@ -1999,8 +1974,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 JobId = jobId,
                 DivisionName = s.DivisionName,
                 Placement = (byte)s.Placement,
-                GapPattern = (byte)s.GapPattern,
-                Wave = (byte)Math.Clamp(s.Wave, 1, 9)
+                GapPattern = (byte)s.GapPattern
             })
             .ToList();
 

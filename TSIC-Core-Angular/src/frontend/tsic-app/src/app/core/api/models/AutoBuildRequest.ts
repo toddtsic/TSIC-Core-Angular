@@ -2,9 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { AgegroupBuildEntry } from './AgegroupBuildEntry';
 export type AutoBuildRequest = {
     sourceJobId?: string | null;
-    agegroupOrder: Array<string>;
+    agegroupOrder: Array<AgegroupBuildEntry>;
     divisionOrderStrategy: string;
     excludedDivisionIds: Array<string>;
     divisionStrategies?: any[] | null;

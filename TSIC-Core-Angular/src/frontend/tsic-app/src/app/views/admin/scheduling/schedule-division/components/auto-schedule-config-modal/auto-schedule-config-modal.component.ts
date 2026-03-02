@@ -19,6 +19,8 @@ export interface ModalAgegroup {
     teamCount: number;
     divisionCount: number;
     included: boolean;
+    /** Time block for this agegroup. 1 = morning (first), 2 = afternoon, 3 = evening. */
+    wave: number;
 }
 
 /** Emitted when the user clicks "Build Schedule". */
@@ -102,10 +104,9 @@ export class AutoScheduleConfigModalComponent {
         );
     }
 
-    cycleWave(divisionName: string): void {
-        this.localStrategies.update(list =>
-            list.map(s => s.divisionName === divisionName
-                ? { ...s, wave: ((s.wave ?? 1) % 3) + 1 } : s)
+    setWave(agegroupId: string, wave: number): void {
+        this.localAgegroups.update(list =>
+            list.map(ag => ag.agegroupId === agegroupId ? { ...ag, wave } : ag)
         );
     }
 
@@ -120,10 +121,6 @@ export class AutoScheduleConfigModalComponent {
             case 2: return 'One on, two off';
             default: return 'Unknown';
         }
-    }
-
-    waveLabel(wave: number | undefined): string {
-        return `Wave ${wave ?? 1}`;
     }
 
     strategySourceLabel(): string {

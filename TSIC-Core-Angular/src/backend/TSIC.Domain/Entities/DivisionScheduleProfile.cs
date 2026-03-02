@@ -20,6 +20,4 @@ public partial class DivisionScheduleProfile
     public DateTime CreatedUtc { get; set; }
 
     public DateTime ModifiedUtc { get; set; }
-
-    public byte Wave { get; set; }
 }

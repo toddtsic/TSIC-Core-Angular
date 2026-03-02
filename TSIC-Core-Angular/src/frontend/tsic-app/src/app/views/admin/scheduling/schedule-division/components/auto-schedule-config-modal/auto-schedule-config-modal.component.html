@@ -28,7 +28,6 @@
                             <span class="msg-name">Division</span>
                             <span class="msg-placement">Placement</span>
                             <span class="msg-gap">Gap</span>
-                            <span class="msg-wave">Wave</span>
                         </div>
                         @for (entry of displayStrategies(); track entry.divisionName) {
                             <div class="msg-row">
@@ -40,10 +39,6 @@
                                 <button class="btn btn-sm btn-outline-secondary msg-btn"
                                         (click)="cycleGapPattern(entry.divisionName)">
                                     {{ gapLabel(entry.gapPattern) }}
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                        (click)="cycleWave(entry.divisionName)">
-                                    {{ waveLabel(entry.wave) }}
                                 </button>
                             </div>
                         }
@@ -73,6 +68,13 @@
                                 <span class="text-secondary" style="font-size: var(--font-size-xs)">
                                     {{ ag.teamCount }} teams · {{ ag.divisionCount }} divisions
                                 </span>
+                                <select class="form-select form-select-sm constraint-wave"
+                                        [ngModel]="ag.wave"
+                                        (ngModelChange)="setWave(ag.agegroupId, +$event)">
+                                    <option [ngValue]="1">Wave 1</option>
+                                    <option [ngValue]="2">Wave 2</option>
+                                    <option [ngValue]="3">Wave 3</option>
+                                </select>
                                 <div class="constraint-arrows">
                                     <button class="btn-arrow" [disabled]="i === 0" (click)="moveAgegroupUp(i)">
                                         <i class="bi bi-chevron-up"></i>

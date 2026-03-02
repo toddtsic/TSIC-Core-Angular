@@ -2,9 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DivisionStrategyEntry = {
-    divisionName: string;
-    placement: number;
-    gapPattern: number;
+export type AgegroupBuildEntry = {
+    agegroupId: string;
+    wave?: number;
 };
 

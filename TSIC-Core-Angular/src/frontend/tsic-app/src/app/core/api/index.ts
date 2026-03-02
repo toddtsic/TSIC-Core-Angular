@@ -26,6 +26,7 @@ export type { AdultRegistrationExistingRequest } from './models/AdultRegistratio
 export type { AdultRegistrationRequest } from './models/AdultRegistrationRequest';
 export type { AdultRoleType } from './models/AdultRoleType';
 export type { AffectedGameCountResponse } from './models/AffectedGameCountResponse';
+export type { AgegroupBuildEntry } from './models/AgegroupBuildEntry';
 export type { AgegroupCanvasReadinessDto } from './models/AgegroupCanvasReadinessDto';
 export type { AgegroupDetailDto } from './models/AgegroupDetailDto';
 export type { AgegroupDistributionDto } from './models/AgegroupDistributionDto';
