@@ -375,6 +375,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     onEventSelected(): void {
         this.scope.set({ level: 'event' });
+        this.dismissBuildResults();
         this.clearDivisionState();
     }
 
@@ -393,6 +394,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     onAgegroupSelected(event: { agegroupId: string }): void {
         this.scope.set({ level: 'agegroup', agegroupId: event.agegroupId });
+        this.dismissBuildResults();
         this.clearDivisionState();
         // Load first division's grid for scroll context
         const ag = this.agegroups().find(a => a.agegroupId === event.agegroupId);
@@ -403,11 +405,20 @@ export class ScheduleDivisionComponent implements OnInit {
 
     onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
         this.scope.set({ level: 'division', agegroupId: event.agegroupId, divId: event.division.divId });
+        this.dismissBuildResults();
         this.selectedPairing.set(null);
         this.selectedGame.set(null);
         this.highlightGameGid.set(null);
         this.showDeleteConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
+    }
+
+    private dismissBuildResults(): void {
+        if (this.showBuildResults()) {
+            this.showBuildResults.set(false);
+            this.buildResult.set(null);
+            this.qaResult.set(null);
+        }
     }
 
     private clearDivisionState(): void {
@@ -788,7 +799,8 @@ export class ScheduleDivisionComponent implements OnInit {
         this.modalStrategyLoading.set(true);
         this.autoBuildSvc.getStrategyProfiles().subscribe({
             next: (response) => {
-                this.modalStrategies.set(response.strategies.map(s => ({ ...s })));
+                const filtered = this.filterStrategiesByScope(response.strategies);
+                this.modalStrategies.set(filtered.map(s => ({ ...s })));
                 this.modalStrategySource.set(response.source);
                 this.modalStrategySourceName.set(response.inferredFromJobName ?? '');
                 this.modalStrategyLoading.set(false);
@@ -810,6 +822,29 @@ export class ScheduleDivisionComponent implements OnInit {
             })));
         }
         this.showAutoScheduleModal.set(true);
+    }
+
+    /** Filter strategy entries to only division names relevant to the current scope. */
+    private filterStrategiesByScope(strategies: DivisionStrategyEntry[]): DivisionStrategyEntry[] {
+        const s = this.scope();
+        if (s.level === 'event') return strategies;
+
+        const relevantNames = new Set<string>();
+        if (s.level === 'division') {
+            const div = this.agegroups()
+                .find(ag => ag.agegroupId === s.agegroupId)
+                ?.divisions.find(d => d.divId === s.divId);
+            if (div) relevantNames.add(div.divName);
+        } else {
+            const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+            if (ag) {
+                for (const div of ag.divisions) {
+                    relevantNames.add(div.divName);
+                }
+            }
+        }
+
+        return strategies.filter(s => relevantNames.has(s.divisionName));
     }
 
     /** Lightweight pairing status check — populates missingPairingTCnts for stepper step ④. */
