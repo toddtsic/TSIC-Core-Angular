@@ -68,6 +68,7 @@ export type { BatchUpdateStatusRequest } from './models/BatchUpdateStatusRequest
 export type { BillingTypeRefDto } from './models/BillingTypeRefDto';
 export type { BracketMatchDto } from './models/BracketMatchDto';
 export type { BulkAddDiscountCodeRequest } from './models/BulkAddDiscountCodeRequest';
+export type { BulkDateAgegroupEntry } from './models/BulkDateAgegroupEntry';
 export type { BulkDateAssignRequest } from './models/BulkDateAssignRequest';
 export type { BulkDateAssignResponse } from './models/BulkDateAssignResponse';
 export type { BulkDateAssignResult } from './models/BulkDateAssignResult';

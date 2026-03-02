@@ -102,19 +102,8 @@
                 </div>
             }
 
-            <!-- ── Build Results (shown after auto-schedule completes) ── -->
-            @if (showBuildResults() && buildResult()) {
-                <app-build-results-panel
-                    [buildResult]="buildResult()!"
-                    [qaResult]="qaResult()"
-                    [qaLoading]="qaLoading()"
-                    [buildElapsedMs]="buildElapsedMs()"
-                    (dismissed)="onBuildDismissed()"
-                    (undoRequested)="onBuildUndo()"
-                    (runAgainRequested)="onBuildRunAgain()" />
-
             <!-- ── Event Summary View ── -->
-            } @else if (scope().level === 'event') {
+            @if (scope().level === 'event') {
                 <app-event-summary-panel
                     [agegroups]="agegroups()"
                     [gameSummary]="gameSummary()"
@@ -331,10 +320,33 @@
         [strategySource]="modalStrategySource()"
         [strategySourceName]="modalStrategySourceName()"
         [strategyLoading]="modalStrategyLoading()"
+        [scopeDivisionNames]="modalScopeDivisionNames()"
         [agegroups]="modalAgegroups()"
         [config]="autoScheduleConfig()"
         (buildRequested)="onAutoScheduleBuild($event)"
         (cancelled)="closeAutoScheduleModal()" />
+}
+
+<!-- ══════════ Build Results Modal ══════════ -->
+@if (showBuildResults() && buildResult()) {
+    <tsic-dialog [open]="true" size="lg" (requestClose)="onBuildDismissed()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Build Results</h5>
+                <button type="button" class="btn-close" (click)="onBuildDismissed()"></button>
+            </div>
+            <div class="modal-body p-0">
+                <app-build-results-panel
+                    [buildResult]="buildResult()!"
+                    [qaResult]="qaResult()"
+                    [qaLoading]="qaLoading()"
+                    [buildElapsedMs]="buildElapsedMs()"
+                    (dismissed)="onBuildDismissed()"
+                    (undoRequested)="onBuildUndo()"
+                    (runAgainRequested)="onBuildRunAgain()" />
+            </div>
+        </div>
+    </tsic-dialog>
 }
 
 <!-- ══════════ Rapid-Placement Modal ══════════ -->

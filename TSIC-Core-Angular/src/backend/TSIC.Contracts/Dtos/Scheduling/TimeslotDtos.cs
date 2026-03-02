@@ -232,7 +232,21 @@ public record BulkDateAssignRequest
     public required string StartTime { get; init; }
     public required int GamestartInterval { get; init; }
     public required int MaxGamesPerField { get; init; }
-    public required List<Guid> AgegroupIds { get; init; }
+
+    /// <summary>Per-agegroup entries with wave assignment. Processed in list order.</summary>
+    public required List<BulkDateAgegroupEntry> Entries { get; init; }
+
+    /// <summary>Legacy flat list — ignored when Entries is populated.</summary>
+    public List<Guid>? AgegroupIds { get; init; }
+}
+
+public record BulkDateAgegroupEntry
+{
+    public required Guid AgegroupId { get; init; }
+
+    /// <summary>Wave group (1-3). Controls start time offset: wave N starts at
+    /// StartTime + (N-1) × MaxGamesPerField × GamestartInterval minutes.</summary>
+    public int Wave { get; init; } = 1;
 }
 
 public record BulkDateAssignResult

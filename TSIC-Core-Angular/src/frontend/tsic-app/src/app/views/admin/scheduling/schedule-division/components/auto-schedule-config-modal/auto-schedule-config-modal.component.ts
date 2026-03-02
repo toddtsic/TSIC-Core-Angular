@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -46,6 +46,8 @@ export class AutoScheduleConfigModalComponent {
     readonly strategyLoading = input(false);
     readonly agegroups = input<ModalAgegroup[]>([]);
     readonly config = input<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha' });
+    /** Division names relevant to the current scope (empty = show all). */
+    readonly scopeDivisionNames = input<string[]>([]);
 
     // ── Outputs ──
     readonly buildRequested = output<AutoScheduleBuildEvent>();
@@ -58,6 +60,15 @@ export class AutoScheduleConfigModalComponent {
     readonly localStrategies = signal<DivisionStrategyEntry[]>([]);
     readonly localAgegroups = signal<ModalAgegroup[]>([]);
     readonly localConfig = signal<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha' });
+
+    /** Strategies filtered to current scope for display only. Full list is still emitted on build. */
+    readonly displayStrategies = computed(() => {
+        const all = this.localStrategies();
+        const names = this.scopeDivisionNames();
+        if (names.length === 0) return all;
+        const nameSet = new Set(names);
+        return all.filter(s => nameSet.has(s.divisionName));
+    });
 
     private initialized = false;
 

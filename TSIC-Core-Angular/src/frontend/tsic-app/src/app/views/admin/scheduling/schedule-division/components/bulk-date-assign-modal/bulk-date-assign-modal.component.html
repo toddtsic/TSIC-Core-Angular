@@ -15,7 +15,7 @@
                        (ngModelChange)="selectedDate.set($event)">
             </div>
 
-            <!-- ── Wave + Field Schedule Defaults ── -->
+            <!-- ── Field Schedule Defaults ── -->
             <div class="defaults-row">
                 <span class="defaults-label">
                     Field Defaults
@@ -24,16 +24,6 @@
                     }
                 </span>
                 <div class="defaults-inputs">
-                    <div class="default-field default-field-wave">
-                        <label>Wave</label>
-                        <select class="form-select form-select-sm"
-                                [ngModel]="wave()"
-                                (ngModelChange)="wave.set(+$event)">
-                            <option [ngValue]="1">1</option>
-                            <option [ngValue]="2">2</option>
-                            <option [ngValue]="3">3</option>
-                        </select>
-                    </div>
                     <div class="default-field">
                         <label>Start</label>
                         <input type="text"
@@ -60,7 +50,7 @@
                 </div>
             </div>
 
-            <!-- ── Agegroup Checklist ── -->
+            <!-- ── Agegroup List with Sort + Wave ── -->
             <div class="ag-section">
                 <div class="ag-section-header">
                     <span class="ag-section-label">Agegroups</span>
@@ -75,18 +65,31 @@
                 </div>
 
                 <div class="ag-list">
-                    @for (ag of sortedAgegroups(); track ag.agegroupId) {
-                        @let dates = agExistingDates(ag.agegroupId);
-                        <label class="ag-row" [class.ag-row-checked]="isChecked(ag.agegroupId)">
-                            <div class="ag-info">
+                    @for (entry of entries(); track entry.agegroupId; let i = $index) {
+                        @let dates = agExistingDates(entry.agegroupId);
+                        <div class="ag-row" [class.ag-row-checked]="entry.checked">
+                            <!-- Sort arrows -->
+                            <div class="ag-sort">
+                                <button class="btn-arrow" [disabled]="i === 0" (click)="moveUp(i)">
+                                    <i class="bi bi-chevron-up"></i>
+                                </button>
+                                <button class="btn-arrow"
+                                        [disabled]="i === entries().length - 1"
+                                        (click)="moveDown(i)">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+
+                            <!-- Agegroup info -->
+                            <label class="ag-info" [for]="'ag-check-' + i">
                                 <div class="ag-info-top">
                                     <span class="ag-badge"
-                                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
-                                          [style.color]="contrastText(ag.color)">
-                                        {{ ag.agegroupName }}
+                                          [style.background]="entry.color ?? 'var(--bs-secondary)'"
+                                          [style.color]="contrastText(entry.color)">
+                                        {{ entry.agegroupName }}
                                     </span>
                                     <span class="ag-meta">
-                                        {{ agTeamCount(ag) }} teams &middot; {{ ag.divisions.length }} div
+                                        {{ entry.teamCount }} teams &middot; {{ entry.divCount }} div
                                     </span>
                                 </div>
                                 @if (dates.length > 0) {
@@ -97,13 +100,34 @@
                                         }
                                     </select>
                                 }
-                            </div>
+                            </label>
+
+                            <!-- Wave dropdown -->
+                            <select class="form-select form-select-sm ag-wave"
+                                    [ngModel]="entry.wave"
+                                    (ngModelChange)="setWave(i, +$event)"
+                                    (click)="$event.stopPropagation()">
+                                <option [ngValue]="1">1</option>
+                                <option [ngValue]="2">2</option>
+                                <option [ngValue]="3">3</option>
+                            </select>
+
+                            <!-- Checkbox -->
                             <input type="checkbox"
                                    class="form-check-input"
-                                   [checked]="isChecked(ag.agegroupId)"
-                                   (change)="toggleAgegroup(ag.agegroupId)">
-                        </label>
+                                   [id]="'ag-check-' + i"
+                                   [checked]="entry.checked"
+                                   (change)="toggleAgegroup(i)">
+                        </div>
                     }
+                </div>
+
+                <!-- Column legend -->
+                <div class="ag-legend">
+                    <span class="ag-legend-sort">Order</span>
+                    <span class="ag-legend-info">Agegroup</span>
+                    <span class="ag-legend-wave">Wave</span>
+                    <span class="ag-legend-check"></span>
                 </div>
             </div>
 
@@ -114,7 +138,6 @@
                     @for (entry of appliedLog(); track $index) {
                         <div class="applied-entry">
                             <i class="bi bi-check-circle-fill text-success"></i>
-                            <span class="applied-wave">W{{ entry.wave }}</span>
                             {{ entry.dow }} {{ entry.dateFormatted }} &rarr; {{ entry.count }} agegroup{{ entry.count !== 1 ? 's' : '' }}
                         </div>
                     }

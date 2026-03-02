@@ -7,11 +7,21 @@ import type { AgegroupWithDivisionsDto } from '../../services/schedule-division.
 import type { AgegroupCanvasReadinessDto, PriorYearFieldDefaults } from '@core/api';
 import { contrastText, agTeamCount } from '../../../shared/utils/scheduling-helpers';
 
+/** Per-agegroup entry in the ordered list (mutable local state). */
+interface AgEntry {
+    agegroupId: string;
+    agegroupName: string;
+    color: string | null;
+    teamCount: number;
+    divCount: number;
+    wave: number;
+    checked: boolean;
+}
+
 interface AppliedEntry {
     dow: string;
     dateFormatted: string;
     count: number;
-    wave: number;
 }
 
 @Component({
@@ -36,42 +46,51 @@ export class BulkDateAssignModalComponent implements OnInit {
 
     // ── Helpers ──
     readonly contrastText = contrastText;
-    readonly agTeamCount = agTeamCount;
 
     // ── Local state ──
     readonly selectedDate = signal('');
-    readonly wave = signal(1);
     readonly startTime = signal('08:00 AM');
     readonly gsi = signal(60);
     readonly maxGames = signal(8);
-    readonly checkedIds = signal<Set<string>>(new Set());
     readonly isApplying = signal(false);
     readonly appliedLog = signal<AppliedEntry[]>([]);
 
+    /** Ordered agegroup entries with per-agegroup wave and check state. */
+    readonly entries = signal<AgEntry[]>([]);
+
     // ── Computed ──
 
-    /** Agegroups sorted by sortAge for consistent display order */
-    readonly sortedAgegroups = computed(() =>
-        [...this.agegroups()].sort((a, b) => a.sortAge - b.sortAge)
-    );
-
-    readonly allChecked = computed(() =>
-        this.checkedIds().size === this.agegroups().length && this.agegroups().length > 0
-    );
+    readonly allChecked = computed(() => {
+        const list = this.entries();
+        return list.length > 0 && list.every(e => e.checked);
+    });
 
     readonly someChecked = computed(() => {
-        const size = this.checkedIds().size;
-        return size > 0 && size < this.agegroups().length;
+        const list = this.entries();
+        const checkedCount = list.filter(e => e.checked).length;
+        return checkedCount > 0 && checkedCount < list.length;
     });
 
     readonly canApply = computed(() =>
-        this.selectedDate() !== '' && this.checkedIds().size > 0 && !this.isApplying()
+        this.selectedDate() !== '' && this.entries().some(e => e.checked) && !this.isApplying()
     );
 
     /** Source of inherited defaults, shown in the UI */
     readonly defaultsSource = signal('');
 
     ngOnInit(): void {
+        // Initialize ordered entries from agegroups (sorted by sortAge)
+        const sorted = [...this.agegroups()].sort((a, b) => a.sortAge - b.sortAge);
+        this.entries.set(sorted.map(ag => ({
+            agegroupId: ag.agegroupId,
+            agegroupName: ag.agegroupName,
+            color: ag.color ?? null,
+            teamCount: agTeamCount(ag),
+            divCount: ag.divisions.length,
+            wave: 1,
+            checked: true,
+        })));
+
         // Three-tier field defaults: current config → prior year → hardcoded
         const map = this.readinessMap();
         const configured = Object.values(map).find(r => r.isConfigured);
@@ -90,44 +109,51 @@ export class BulkDateAssignModalComponent implements OnInit {
                 this.defaultsSource.set(`From ${prior.priorYear}`);
             }
         }
-
-        // Check all agegroups
-        this.checkAll();
     }
 
-    // ── Actions ──
+    // ── Agegroup check/uncheck ──
 
-    toggleAgegroup(agId: string): void {
-        const current = new Set(this.checkedIds());
-        if (current.has(agId)) {
-            current.delete(agId);
-        } else {
-            current.add(agId);
-        }
-        this.checkedIds.set(current);
-    }
-
-    isChecked(agId: string): boolean {
-        return this.checkedIds().has(agId);
-    }
-
-    checkAll(): void {
-        this.checkedIds.set(new Set(this.agegroups().map(ag => ag.agegroupId)));
-    }
-
-    uncheckAll(): void {
-        this.checkedIds.set(new Set());
+    toggleAgegroup(index: number): void {
+        this.entries.update(list => list.map((e, i) =>
+            i === index ? { ...e, checked: !e.checked } : e
+        ));
     }
 
     toggleAll(): void {
-        if (this.allChecked()) {
-            this.uncheckAll();
-        } else {
-            this.checkAll();
-        }
+        const newVal = !this.allChecked();
+        this.entries.update(list => list.map(e => ({ ...e, checked: newVal })));
     }
 
-    /** Formatted date list for an agegroup, e.g. ["Sat 06/06/2026", "Sun 06/07/2026"] */
+    // ── Sort order ──
+
+    moveUp(index: number): void {
+        if (index <= 0) return;
+        this.entries.update(list => {
+            const updated = [...list];
+            [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+            return updated;
+        });
+    }
+
+    moveDown(index: number): void {
+        this.entries.update(list => {
+            if (index >= list.length - 1) return list;
+            const updated = [...list];
+            [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+            return updated;
+        });
+    }
+
+    // ── Per-agegroup wave ──
+
+    setWave(index: number, wave: number): void {
+        this.entries.update(list => list.map((e, i) =>
+            i === index ? { ...e, wave } : e
+        ));
+    }
+
+    // ── Existing dates helper ──
+
     agExistingDates(agId: string): string[] {
         const r = this.readinessMap()[agId];
         if (!r?.gameDays || r.gameDays.length === 0) return [];
@@ -142,12 +168,14 @@ export class BulkDateAssignModalComponent implements OnInit {
             });
     }
 
+    // ── Apply ──
+
     apply(): void {
         const dateStr = this.selectedDate();
-        if (!dateStr || this.checkedIds().size === 0) return;
+        const checked = this.entries().filter(e => e.checked);
+        if (!dateStr || checked.length === 0) return;
 
         this.isApplying.set(true);
-
         const gDate = new Date(dateStr + 'T00:00:00');
 
         this.timeslotSvc.bulkAssignDate({
@@ -155,12 +183,14 @@ export class BulkDateAssignModalComponent implements OnInit {
             startTime: this.startTime(),
             gamestartInterval: this.gsi(),
             maxGamesPerField: this.maxGames(),
-            agegroupIds: [...this.checkedIds()]
+            entries: checked.map(e => ({
+                agegroupId: e.agegroupId,
+                wave: e.wave,
+            })),
         }).subscribe({
             next: (response) => {
                 const created = response.results.filter(r => r.dateCreated).length;
 
-                // Format the applied entry
                 const dow = gDate.toLocaleDateString('en-US', { weekday: 'short' });
                 const mm = String(gDate.getMonth() + 1).padStart(2, '0');
                 const dd = String(gDate.getDate()).padStart(2, '0');
@@ -168,15 +198,14 @@ export class BulkDateAssignModalComponent implements OnInit {
 
                 this.appliedLog.set([
                     ...this.appliedLog(),
-                    { dow, dateFormatted: `${mm}/${dd}/${yyyy}`, count: created, wave: this.wave() }
+                    { dow, dateFormatted: `${mm}/${dd}/${yyyy}`, count: created }
                 ]);
 
-                // Reset for next pass
+                // Reset date for next pass, keep sort order and wave assignments
                 this.selectedDate.set('');
-                this.checkAll();
+                this.entries.update(list => list.map(e => ({ ...e, checked: true })));
                 this.isApplying.set(false);
 
-                // Notify parent to refresh readiness
                 this.applied.emit();
             },
             error: () => {

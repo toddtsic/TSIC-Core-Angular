@@ -11,7 +11,7 @@
                     <span class="spinner-border spinner-border-sm text-primary"></span>
                     <small class="d-block text-secondary mt-1">Loading preferences...</small>
                 </div>
-            } @else if (localStrategies().length > 0) {
+            } @else if (displayStrategies().length > 0) {
                 <div class="mb-3">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <label class="form-label form-label-sm fw-semibold mb-0">Division Strategy</label>
@@ -30,7 +30,7 @@
                             <span class="msg-gap">Gap</span>
                             <span class="msg-wave">Wave</span>
                         </div>
-                        @for (entry of localStrategies(); track entry.divisionName) {
+                        @for (entry of displayStrategies(); track entry.divisionName) {
                             <div class="msg-row">
                                 <span class="msg-name">{{ entry.divisionName }}</span>
                                 <button class="btn btn-sm btn-outline-secondary msg-btn"

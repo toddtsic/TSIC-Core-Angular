@@ -678,11 +678,22 @@ public sealed class TimeslotService : ITimeslotService
 
         var results = new List<BulkDateAssignResult>();
 
+        // Resolve entries: prefer per-agegroup Entries, fall back to legacy AgegroupIds
+        var entries = request.Entries?.Count > 0
+            ? request.Entries
+            : (request.AgegroupIds ?? []).Select(id =>
+                new BulkDateAgegroupEntry { AgegroupId = id }).ToList();
+
         // Process each agegroup sequentially (DbContext is not thread-safe)
-        foreach (var agegroupId in request.AgegroupIds)
+        foreach (var entry in entries)
         {
+            var agegroupId = entry.AgegroupId;
             var dateCreated = false;
             var fieldTimeslotsCreated = 0;
+
+            // Calculate wave-based start time offset
+            var startTime = CalculateWaveStartTime(
+                request.StartTime, entry.Wave, request.GamestartInterval, request.MaxGamesPerField);
 
             // ① Check for duplicate date
             var existingDates = await _tsRepo.GetDatesByAgegroupAsync(agegroupId, season, year, ct);
@@ -726,7 +737,7 @@ public sealed class TimeslotService : ITimeslotService
                             AgegroupId = agegroupId,
                             FieldId = fId,
                             DivId = dId,
-                            StartTime = request.StartTime,
+                            StartTime = startTime,
                             GamestartInterval = request.GamestartInterval,
                             MaxGamesPerField = request.MaxGamesPerField,
                             Dow = dow,
@@ -759,7 +770,7 @@ public sealed class TimeslotService : ITimeslotService
         _logger.LogInformation(
             "Bulk date assign: {Date:yyyy-MM-dd} → {Count} agegroups, {DatesCreated} dates, {FieldsCreated} field timeslots",
             request.GDate,
-            request.AgegroupIds.Count,
+            entries.Count,
             results.Count(r => r.DateCreated),
             results.Sum(r => r.FieldTimeslotsCreated));
 
@@ -767,6 +778,20 @@ public sealed class TimeslotService : ITimeslotService
     }
 
     // ── Helpers ──
+
+    /// <summary>Calculate start time offset for a wave.
+    /// Wave 1 = baseStartTime, Wave 2 = base + (max × gsi) minutes, etc.</summary>
+    private static string CalculateWaveStartTime(string baseStartTime, int wave, int gsi, int maxGames)
+    {
+        if (wave <= 1) return baseStartTime;
+
+        if (!DateTime.TryParse(baseStartTime, out var baseTime))
+            return baseStartTime;
+
+        var offsetMinutes = (wave - 1) * maxGames * gsi;
+        var waveTime = baseTime.AddMinutes(offsetMinutes);
+        return waveTime.ToString("hh:mm tt");
+    }
 
     private static string GetNextDow(string dow)
     {
