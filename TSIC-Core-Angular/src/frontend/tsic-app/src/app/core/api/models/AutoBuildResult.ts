@@ -9,6 +9,8 @@ export type AutoBuildResult = {
     totalDivisions: number;
     divisionsScheduled: number;
     divisionsSkipped: number;
+    divisionsKept: number;
+    existingGamesKept: number;
     totalGamesPlaced: number;
     gamesFailedToPlace: number;
     divisionResults: Array<AutoBuildDivisionResult>;

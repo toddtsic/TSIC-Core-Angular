@@ -73,11 +73,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var pairingsByPoolSize = await _pairingsRepo.GetRoundRobinPairingCountsByPoolSizeAsync(
             leagueId, season, ct);
 
-        // Filter out inactive agegroups (WAITLIST, DROPPED) and placeholder divisions (Unassigned)
+        // Filter out inactive agegroups (WAITLIST, DROPPED) and placeholder/dropped divisions
         var activeDivisions = divisions
             .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
                      && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
-                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase));
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase)
+                     && !d.DivName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase));
 
         var summaries = activeDivisions.Select(d =>
         {
@@ -137,12 +138,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var poolsAssigned = unassignedCount == 0;
 
         // 2. Pairings: every distinct TCnt in schedulable divisions has pairings
-        //    Exclude WAITLIST/DROPPED agegroups and Unassigned divisions
+        //    Exclude WAITLIST/DROPPED agegroups and placeholder/dropped divisions
         var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
         var schedulableDivisions = divisions
             .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
                      && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
-                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase));
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase)
+                     && !d.DivName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase));
         var distinctTCnts = schedulableDivisions
             .Where(d => d.TeamCount > 0)
             .Select(d => d.TeamCount)
@@ -240,6 +242,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     {
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
+        var keepExisting = string.Equals(
+            request.ExistingGameMode, "keep", StringComparison.OrdinalIgnoreCase);
+
         // ── 1. Extract profiles ──
         // Strategy-driven path: user provided explicit DivisionStrategies
         var useStrategyPath = request.DivisionStrategies is { Count: > 0 };
@@ -286,7 +291,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var activeDivisions = allDivisions
             .Where(d => !d.AgegroupName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
                      && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
-                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase))
+                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase)
+                     && !d.DivName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         var excludedIds = request.ExcludedDivisionIds.ToHashSet();
@@ -321,6 +327,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         // Holds everything needed to place games for one division
         var divContexts = new List<DivisionBuildContext>();
+        var anyDeletions = false;
 
         foreach (var div in orderedDivisions)
         {
@@ -335,12 +342,25 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 continue;
             }
 
-            // Delete existing games before rebuilding
-            if (existingCounts.GetValueOrDefault(div.DivId) > 0)
+            // Handle existing games: "keep" mode preserves them; "rebuild" deletes them
+            var existingGameCount = existingCounts.GetValueOrDefault(div.DivId);
+            if (existingGameCount > 0)
             {
+                if (keepExisting)
+                {
+                    divisionResults.Add(new AutoBuildDivisionResult
+                    {
+                        AgegroupName = div.AgegroupName, DivName = div.DivName,
+                        DivId = div.DivId, TeamCount = div.TeamCount,
+                        GamesPlaced = 0, GamesFailed = 0, Status = "kept"
+                    });
+                    continue;
+                }
+
                 await _scheduleRepo.DeleteDivisionGamesAsync(
                     div.DivId, leagueId, season, year, ct);
                 await _scheduleRepo.SaveChangesAsync(ct);
+                anyDeletions = true;
             }
 
             // Get agegroup/division metadata
@@ -509,7 +529,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // deleted in the loop above. Those "ghost" entries would incorrectly
         // block placement. Mutate the existing HashSet instance so all
         // PlacementState references see the updated set.
-        if (existingCounts.Values.Any(c => c > 0))
+        // In "keep" mode with no deletions, the initial load is already correct
+        // (kept divisions' slots remain, preventing double-booking).
+        if (anyDeletions)
         {
             occupiedSlots.Clear();
             if (allFieldIds.Count > 0)
@@ -855,9 +877,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             .OrderByDescending(s => s.ViolationCount)
             .ToList();
 
+        var kept = divisionResults.Count(r => r.Status == "kept");
+        var keptGames = existingCounts
+            .Where(kvp => divisionResults.Any(r => r.DivId == kvp.Key && r.Status == "kept"))
+            .Sum(kvp => kvp.Value);
         var scheduled = divisionResults.Count(r =>
-            r.Status != "excluded" && r.Status != "no-teams" && r.Status != "no-pairings");
-        var skipped = divisionResults.Count - scheduled;
+            r.Status != "excluded" && r.Status != "no-teams"
+            && r.Status != "no-pairings" && r.Status != "kept");
+        var skipped = divisionResults.Count - scheduled - kept;
 
         // ── 9. Save strategy profiles to DB if requested ──
         if (useStrategyPath && request.SaveProfiles && totalPlaced > 0)
@@ -882,15 +909,17 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
 
         _logger.LogInformation(
-            "AutoBuild: Job={JobId}, Divisions={Total}, Scheduled={Scheduled}, " +
+            "AutoBuild: Job={JobId}, Divisions={Total}, Scheduled={Scheduled}, Kept={Kept}, " +
             "GamesPlaced={Placed}, GamesFailed={Failed}, Sacrifices={SacrificeCount}",
-            jobId, orderedDivisions.Count, scheduled, totalPlaced, totalFailed, sacrificeLog.Count);
+            jobId, orderedDivisions.Count, scheduled, kept, totalPlaced, totalFailed, sacrificeLog.Count);
 
         return new AutoBuildResult
         {
             TotalDivisions = orderedDivisions.Count,
             DivisionsScheduled = scheduled,
             DivisionsSkipped = skipped,
+            DivisionsKept = kept,
+            ExistingGamesKept = keptGames,
             TotalGamesPlaced = totalPlaced,
             GamesFailedToPlace = totalFailed,
             DivisionResults = divisionResults,
@@ -1100,7 +1129,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
     /// <summary>
     /// Filter division summaries to only schedulable divisions:
-    /// excludes Waitlist/Dropped agegroups and Unassigned divisions.
+    /// excludes Waitlist/Dropped agegroups, Unassigned divisions, and Dropped divisions.
     /// </summary>
     private static List<CurrentDivisionSummary> FilterSchedulableDivisions(
         List<CurrentDivisionSummary> divisions)
@@ -1111,7 +1140,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                      && !d.AgegroupName.Contains("Waitlist", StringComparison.OrdinalIgnoreCase)
                      && !d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase)
                      && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase)
-                     && !d.DivName.Contains("Unassigned", StringComparison.OrdinalIgnoreCase))
+                     && !d.DivName.Contains("Unassigned", StringComparison.OrdinalIgnoreCase)
+                     && !d.DivName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 

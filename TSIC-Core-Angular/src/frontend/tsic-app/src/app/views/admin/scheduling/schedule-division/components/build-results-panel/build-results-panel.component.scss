@@ -125,6 +125,10 @@
         font-weight: var(--font-weight-semibold);
     }
 
+    &.metric-sub-keep {
+        color: var(--bs-success);
+    }
+
     &.metric-sub-good {
         color: var(--bs-success);
         font-weight: var(--font-weight-medium);
@@ -308,6 +312,7 @@ details[open] > .division-summary-toggle > i {
 
     &:hover { background: rgba(var(--bs-primary-rgb), 0.03); }
     &.division-excluded { opacity: 0.5; }
+    &.division-kept { opacity: 0.7; }
 }
 
 .division-name {
@@ -331,6 +336,7 @@ details[open] > .division-summary-toggle > i {
 }
 
 .division-status-excluded { font-style: italic; }
+.division-status-kept { color: var(--bs-success); font-style: italic; }
 .division-status-warn { color: var(--bs-warning); }
 
 // ── Action Bar + Danger Zone ──

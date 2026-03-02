@@ -10,5 +10,6 @@ export type AutoBuildRequest = {
     excludedDivisionIds: Array<string>;
     divisionStrategies?: any[] | null;
     saveProfiles?: boolean;
+    existingGameMode?: string | null;
 };
 

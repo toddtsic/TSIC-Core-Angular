@@ -323,6 +323,8 @@
         [scopeDivisionNames]="modalScopeDivisionNames()"
         [agegroups]="modalAgegroups()"
         [config]="autoScheduleConfig()"
+        [hasGamesInScope]="hasGamesInScope()"
+        [divisionGameCounts]="scopeDivisionGameCounts()"
         (buildRequested)="onAutoScheduleBuild($event)"
         (cancelled)="closeAutoScheduleModal()" />
 }

@@ -9,6 +9,7 @@ import type { ScheduleScope } from '../../../shared/utils/scheduling-helpers';
 /** Auto-schedule configuration persisted in localStorage. */
 export interface AutoScheduleConfig {
     divisionOrderStrategy: 'alpha' | 'odd-first';
+    existingGameMode: 'rebuild' | 'keep';
 }
 
 /** Modal-local agegroup entry for reordering/excluding at event scope. */
@@ -47,9 +48,13 @@ export class AutoScheduleConfigModalComponent {
     readonly strategySourceName = input('');
     readonly strategyLoading = input(false);
     readonly agegroups = input<ModalAgegroup[]>([]);
-    readonly config = input<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha' });
+    readonly config = input<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha', existingGameMode: 'rebuild' });
     /** Division names relevant to the current scope (empty = show all). */
     readonly scopeDivisionNames = input<string[]>([]);
+    /** Whether games already exist in the current scope (controls mode toggle visibility). */
+    readonly hasGamesInScope = input(false);
+    /** Per-division-name game counts — used to mark kept divisions in "keep" mode. */
+    readonly divisionGameCounts = input<Record<string, number>>({});
 
     // ── Outputs ──
     readonly buildRequested = output<AutoScheduleBuildEvent>();
@@ -61,7 +66,7 @@ export class AutoScheduleConfigModalComponent {
     // ── Local mutable copies (initialized from inputs via ngOnInit or setter) ──
     readonly localStrategies = signal<DivisionStrategyEntry[]>([]);
     readonly localAgegroups = signal<ModalAgegroup[]>([]);
-    readonly localConfig = signal<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha' });
+    readonly localConfig = signal<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha', existingGameMode: 'rebuild' });
 
     /** Strategies filtered to current scope for display only. Full list is still emitted on build. */
     readonly displayStrategies = computed(() => {
@@ -70,6 +75,13 @@ export class AutoScheduleConfigModalComponent {
         if (names.length === 0) return all;
         const nameSet = new Set(names);
         return all.filter(s => nameSet.has(s.divisionName));
+    });
+
+    /** In "keep" mode, division names that have existing games and will be kept in place. */
+    readonly keptDivisionNames = computed(() => {
+        if (this.localConfig().existingGameMode !== 'keep') return new Set<string>();
+        const counts = this.divisionGameCounts();
+        return new Set(Object.entries(counts).filter(([_, c]) => c > 0).map(([n]) => n));
     });
 
     private initialized = false;
@@ -136,6 +148,10 @@ export class AutoScheduleConfigModalComponent {
 
     setDivisionOrderStrategy(strategy: 'alpha' | 'odd-first'): void {
         this.localConfig.update(c => ({ ...c, divisionOrderStrategy: strategy }));
+    }
+
+    setExistingGameMode(mode: 'rebuild' | 'keep'): void {
+        this.localConfig.update(c => ({ ...c, existingGameMode: mode }));
     }
 
     // ── Agegroup ordering ──

@@ -264,6 +264,9 @@ public record AutoBuildRequest
 
     /// <summary>When true, persist DivisionStrategies to DB after successful build.</summary>
     public bool SaveProfiles { get; init; }
+
+    /// <summary>"rebuild" (default) = delete existing games + rebuild. "keep" = skip divisions with existing games.</summary>
+    public string? ExistingGameMode { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -278,6 +281,8 @@ public record AutoBuildResult
     public required int TotalDivisions { get; init; }
     public required int DivisionsScheduled { get; init; }
     public required int DivisionsSkipped { get; init; }
+    public required int DivisionsKept { get; init; }
+    public required int ExistingGamesKept { get; init; }
     public required int TotalGamesPlaced { get; init; }
     public required int GamesFailedToPlace { get; init; }
     public required List<AutoBuildDivisionResult> DivisionResults { get; init; }

@@ -98,6 +98,24 @@ export class ScheduleDivisionComponent implements OnInit {
     });
     readonly hasGamesInScope = computed(() => this.scopeGameCount() > 0);
 
+    /** Per-division-name game counts within the current scope. Used by config modal for "keep" mode. */
+    readonly scopeDivisionGameCounts = computed<Record<string, number>>(() => {
+        const summary = this.gameSummary();
+        if (!summary) return {};
+        const s = this.scope();
+        let divisions = summary.divisions;
+        if (s.level === 'agegroup') {
+            divisions = divisions.filter(d => d.agegroupId === s.agegroupId);
+        } else if (s.level === 'division') {
+            divisions = divisions.filter(d => d.divId === s.divId);
+        }
+        const map: Record<string, number> = {};
+        for (const d of divisions) {
+            map[d.divName] = (map[d.divName] ?? 0) + d.gameCount;
+        }
+        return map;
+    });
+
     readonly scopeLabel = computed(() => {
         const s = this.scope();
         switch (s.level) {
@@ -809,7 +827,12 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     private openAutoScheduleModal(): void {
-        this.autoScheduleConfig.set(this.loadAutoScheduleConfig());
+        const config = this.loadAutoScheduleConfig();
+        // Default to "keep" when games exist in scope — protect hand-tweaked work
+        if (this.hasGamesInScope()) {
+            config.existingGameMode = 'keep';
+        }
+        this.autoScheduleConfig.set(config);
         // Load strategy profiles from backend (three-layer resolution)
         this.modalStrategyLoading.set(true);
         this.autoBuildSvc.getStrategyProfiles().subscribe({
@@ -1011,6 +1034,7 @@ export class ScheduleDivisionComponent implements OnInit {
     private buildAutoScheduleRequest(event: AutoScheduleBuildEvent) {
         const s = this.scope();
         const allDivIds = this.agegroups().flatMap(ag => ag.divisions.map(d => d.divId));
+        const mode = event.config.existingGameMode ?? 'rebuild';
 
         switch (s.level) {
             case 'division': {
@@ -1021,6 +1045,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
                     saveProfiles: true,
+                    existingGameMode: mode,
                 };
             }
             case 'agegroup': {
@@ -1034,6 +1059,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
                     saveProfiles: true,
+                    existingGameMode: mode,
                 };
             }
             case 'event': {
@@ -1050,6 +1076,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
                     saveProfiles: true,
+                    existingGameMode: mode,
                 };
             }
         }
@@ -1062,10 +1089,11 @@ export class ScheduleDivisionComponent implements OnInit {
                 const parsed = JSON.parse(raw);
                 return {
                     divisionOrderStrategy: parsed.divisionOrderStrategy === 'odd-first' ? 'odd-first' : 'alpha',
+                    existingGameMode: parsed.existingGameMode === 'keep' ? 'keep' : 'rebuild',
                 };
             }
         } catch { /* ignore parse errors */ }
-        return { divisionOrderStrategy: 'alpha' };
+        return { divisionOrderStrategy: 'alpha', existingGameMode: 'rebuild' };
     }
 
     private saveAutoScheduleConfig(config: AutoScheduleConfig): void {

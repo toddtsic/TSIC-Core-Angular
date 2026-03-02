@@ -56,7 +56,7 @@ public record AutoBuildDivisionResult
     public required int TeamCount { get; init; }
     public required int GamesPlaced { get; init; }
     public required int GamesFailed { get; init; }
-    /// <summary>"placed" | "excluded" | "no-teams" | "no-pairings" | "no-timeslots" | "no-slots"</summary>
+    /// <summary>"placed" | "excluded" | "no-teams" | "no-pairings" | "no-timeslots" | "no-slots" | "kept"</summary>
     public required string Status { get; init; }
 }
 

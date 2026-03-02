@@ -5,6 +5,36 @@
             <button type="button" class="btn-close" (click)="cancelled.emit()"></button>
         </div>
         <div class="modal-body">
+            <!-- Existing Game Mode Toggle (only shown when games exist in scope) -->
+            @if (hasGamesInScope()) {
+                <div class="mb-3 mode-toggle-section">
+                    <label class="form-label form-label-sm fw-semibold mb-1">Existing Games</label>
+                    <div class="mode-toggle">
+                        <button class="mode-btn"
+                                [class.mode-btn-active]="localConfig().existingGameMode === 'keep'"
+                                (click)="setExistingGameMode('keep')">
+                            <i class="bi bi-shield-check"></i>
+                            Keep Existing
+                        </button>
+                        <button class="mode-btn"
+                                [class.mode-btn-active]="localConfig().existingGameMode === 'rebuild'"
+                                (click)="setExistingGameMode('rebuild')">
+                            <i class="bi bi-arrow-repeat"></i>
+                            Rebuild All
+                        </button>
+                    </div>
+                    @if (localConfig().existingGameMode === 'keep') {
+                        <small class="d-block text-secondary mt-1">
+                            Divisions with games will be kept in place. Only unscheduled divisions will be built.
+                        </small>
+                    } @else {
+                        <small class="d-block text-secondary mt-1">
+                            All existing games in scope will be deleted and rebuilt from scratch.
+                        </small>
+                    }
+                </div>
+            }
+
             <!-- Strategy Grid -->
             @if (strategyLoading()) {
                 <div class="text-center py-3">
@@ -30,17 +60,26 @@
                             <span class="msg-gap">Gap</span>
                         </div>
                         @for (entry of displayStrategies(); track entry.divisionName) {
-                            <div class="msg-row">
-                                <span class="msg-name">{{ entry.divisionName }}</span>
-                                <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                        (click)="togglePlacement(entry.divisionName)">
-                                    {{ placementLabel(entry.placement) }}
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                        (click)="cycleGapPattern(entry.divisionName)">
-                                    {{ gapLabel(entry.gapPattern) }}
-                                </button>
-                            </div>
+                            @if (keptDivisionNames().has(entry.divisionName)) {
+                                <div class="msg-row msg-row-kept">
+                                    <span class="msg-name">{{ entry.divisionName }}</span>
+                                    <span class="msg-kept-badge">
+                                        <i class="bi bi-lock-fill"></i> Keeping existing games
+                                    </span>
+                                </div>
+                            } @else {
+                                <div class="msg-row">
+                                    <span class="msg-name">{{ entry.divisionName }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
+                                            (click)="togglePlacement(entry.divisionName)">
+                                        {{ placementLabel(entry.placement) }}
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
+                                            (click)="cycleGapPattern(entry.divisionName)">
+                                        {{ gapLabel(entry.gapPattern) }}
+                                    </button>
+                                </div>
+                            }
                         }
                     </div>
                 </div>

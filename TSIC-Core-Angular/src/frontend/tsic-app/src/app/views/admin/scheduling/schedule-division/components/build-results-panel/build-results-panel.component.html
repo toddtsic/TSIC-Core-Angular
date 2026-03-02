@@ -28,6 +28,9 @@
     <div class="metric-card">
         <span class="metric-value">{{ buildResult().divisionsScheduled }}<span class="metric-denom">/{{ buildResult().totalDivisions }}</span></span>
         <span class="metric-label">Divisions</span>
+        @if (buildResult().divisionsKept > 0) {
+            <span class="metric-sub metric-sub-keep"><i class="bi bi-shield-check"></i> {{ buildResult().divisionsKept }} kept ({{ buildResult().existingGamesKept }} games)</span>
+        }
         @if (buildResult().divisionsSkipped > 0) {
             <span class="metric-sub">{{ buildResult().divisionsSkipped }} excluded</span>
         }
@@ -207,7 +210,9 @@
             </summary>
             <div class="division-breakdown">
                 @for (dr of buildResult().divisionResults; track dr.divId) {
-                    <div class="division-row" [class.division-excluded]="dr.status === 'excluded'">
+                    <div class="division-row"
+                         [class.division-excluded]="dr.status === 'excluded'"
+                         [class.division-kept]="dr.status === 'kept'">
                         <span class="division-name">{{ dr.agegroupName }} / {{ dr.divName }}
                             @if (dr.teamCount > 0) {
                                 <span class="division-pool-size">{{ dr.teamCount }} teams</span>
@@ -215,6 +220,8 @@
                         </span>
                         @if (dr.status === 'excluded') {
                             <span class="division-status division-status-excluded">skipped</span>
+                        } @else if (dr.status === 'kept') {
+                            <span class="division-status division-status-kept"><i class="bi bi-shield-check"></i> kept</span>
                         } @else if (dr.gamesFailed > 0) {
                             <span class="division-status">
                                 <strong>{{ dr.gamesPlaced }}</strong> placed,
