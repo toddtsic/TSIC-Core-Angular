@@ -68,6 +68,9 @@ export type { BatchUpdateStatusRequest } from './models/BatchUpdateStatusRequest
 export type { BillingTypeRefDto } from './models/BillingTypeRefDto';
 export type { BracketMatchDto } from './models/BracketMatchDto';
 export type { BulkAddDiscountCodeRequest } from './models/BulkAddDiscountCodeRequest';
+export type { BulkDateAssignRequest } from './models/BulkDateAssignRequest';
+export type { BulkDateAssignResponse } from './models/BulkDateAssignResponse';
+export type { BulkDateAssignResult } from './models/BulkDateAssignResult';
 export type { BulletinAdminDto } from './models/BulletinAdminDto';
 export type { BulletinDto } from './models/BulletinDto';
 export type { CadtAgegroupNode } from './models/CadtAgegroupNode';
@@ -321,6 +324,7 @@ export type { PreSubmitTeamInsuranceDto } from './models/PreSubmitTeamInsuranceD
 export type { PreSubmitTeamResultDto } from './models/PreSubmitTeamResultDto';
 export type { PreSubmitTeamSelectionDto } from './models/PreSubmitTeamSelectionDto';
 export type { PreSubmitValidationErrorDto } from './models/PreSubmitValidationErrorDto';
+export type { PriorYearFieldDefaults } from './models/PriorYearFieldDefaults';
 export type { ProblemDetails } from './models/ProblemDetails';
 export type { ProfileBatchMigrationReport } from './models/ProfileBatchMigrationReport';
 export type { ProfileExtractionResponse } from './models/ProfileExtractionResponse';

@@ -445,7 +445,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var currentWindowStart = new Dictionary<DayOfWeek, TimeSpan>();
             foreach (var field in effectiveFields)
             {
-                if (!TimeSpan.TryParse(field.StartTime, out var st)) continue;
+                if (!DateTime.TryParse(field.StartTime, out var stDt)) continue;
+                var st = stDt.TimeOfDay;
                 if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow)) continue;
                 if (!currentWindowStart.TryGetValue(dow, out var existing) || st < existing)
                     currentWindowStart[dow] = st;
@@ -1320,9 +1321,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             foreach (var field in dowFields)
             {
-                // Parse start time
-                if (!TimeSpan.TryParse(field.StartTime, out var startTime))
+                // Parse start time (supports "08:00 AM" format)
+                if (!DateTime.TryParse(field.StartTime, out var startDt))
                     continue;
+                var startTime = startDt.TimeOfDay;
 
                 var intervalMinutes = field.GamestartInterval;
                 if (intervalMinutes <= 0) intervalMinutes = 60; // safety
@@ -1401,7 +1403,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (dayFields.Count == 0) continue;
 
             var startTimes = dayFields
-                .Select(f => TimeSpan.TryParse(f.StartTime, out var t) ? t : TimeSpan.Zero)
+                .Select(f => DateTime.TryParse(f.StartTime, out var dt) ? dt.TimeOfDay : TimeSpan.Zero)
                 .Where(t => t > TimeSpan.Zero)
                 .ToList();
             if (startTimes.Count == 0) continue;
@@ -1513,7 +1515,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (dayFields.Count == 0) continue;
 
             var startTimes = dayFields
-                .Select(f => TimeSpan.TryParse(f.StartTime, out var t) ? t : TimeSpan.Zero)
+                .Select(f => DateTime.TryParse(f.StartTime, out var dt) ? dt.TimeOfDay : TimeSpan.Zero)
                 .Where(t => t > TimeSpan.Zero)
                 .ToList();
             if (startTimes.Count == 0) continue;
@@ -1605,8 +1607,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             foreach (var field in fields)
             {
-                if (!TimeSpan.TryParse(field.StartTime, out var startTime))
+                if (!DateTime.TryParse(field.StartTime, out var startDt))
                     continue;
+                var startTime = startDt.TimeOfDay;
 
                 if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow))
                     continue;
@@ -1652,7 +1655,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 currentFieldNames.Add(field.FieldName);
                 currentGsiValues.Add(field.GamestartInterval);
 
-                if (!TimeSpan.TryParse(field.StartTime, out var st)) continue;
+                if (!DateTime.TryParse(field.StartTime, out var stDt)) continue;
+                var st = stDt.TimeOfDay;
                 if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow)) continue;
                 if (!currentWindowStart.TryGetValue(dow, out var existing) || st < existing)
                     currentWindowStart[dow] = st;

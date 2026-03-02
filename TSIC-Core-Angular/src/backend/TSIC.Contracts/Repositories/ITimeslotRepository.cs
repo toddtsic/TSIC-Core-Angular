@@ -7,6 +7,14 @@ namespace TSIC.Contracts.Repositories;
 /// Per-agegroup readiness data returned by the repository.
 /// Service layer transforms this into AgegroupCanvasReadinessDto.
 /// </summary>
+/// <summary>Most common field schedule defaults from a league-season-year.</summary>
+public record FieldScheduleDefaults
+{
+    public required string StartTime { get; init; }
+    public required int GamestartInterval { get; init; }
+    public required int MaxGamesPerField { get; init; }
+}
+
 /// <summary>Per-DOW field scheduling parameters from field-timeslot rows.</summary>
 public record DowFieldData
 {
@@ -111,6 +119,15 @@ public interface ITimeslotRepository
 
     /// <summary>Get field IDs assigned to the league-season (excluding system fields).</summary>
     Task<List<Guid>> GetAssignedFieldIdsAsync(Guid leagueId, string season, CancellationToken ct = default);
+
+    // ── Prior-year defaults ──
+
+    /// <summary>
+    /// Get the most common field schedule defaults (StartTime, GSI, MaxGamesPerField)
+    /// from any league-season-year. Returns null if no field timeslots exist.
+    /// </summary>
+    Task<FieldScheduleDefaults?> GetDominantFieldDefaultsAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
 
     // ── Capacity ──
 

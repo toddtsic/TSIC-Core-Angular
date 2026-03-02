@@ -256,6 +256,19 @@ public class TimeslotController : ControllerBase
         return NoContent();
     }
 
+    // ── Bulk operations ──
+
+    [HttpPost("bulk-assign")]
+    public async Task<ActionResult<BulkDateAssignResponse>> BulkAssignDate(
+        [FromBody] BulkDateAssignRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _timeslotService.BulkAssignDateAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
+
     [HttpPost("clone-field-dow")]
     public async Task<ActionResult<TimeslotFieldDto>> CloneFieldDow(
         [FromBody] CloneFieldDowRequest request, CancellationToken ct)

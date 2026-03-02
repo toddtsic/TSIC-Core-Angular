@@ -76,13 +76,35 @@
         @if (agegroups().length > 0) {
             <div class="readiness-stepper">
 
-                <!-- Step ① Fields -->
+                <!-- Step ① Dates -->
+                <div class="stepper-row" [class.step-complete]="datesComplete()" [class.step-incomplete]="!datesComplete()">
+                    <span class="step-icon">
+                        @if (datesComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">1</span>
+                        }
+                    </span>
+                    <span class="step-label">Dates</span>
+                    <span class="step-status">
+                        <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong> agegroups configured
+                    </span>
+                    <span class="step-action">
+                        <button class="btn btn-sm btn-outline-primary step-btn"
+                                (click)="bulkDateAssignRequested.emit()"
+                                title="Bulk assign dates">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </span>
+                </div>
+
+                <!-- Step ② Fields -->
                 <div class="stepper-row" [class.step-complete]="fieldsComplete()" [class.step-incomplete]="!fieldsComplete()">
                     <span class="step-icon">
                         @if (fieldsComplete()) {
                             <i class="bi bi-check-circle-fill"></i>
                         } @else {
-                            <span class="step-number">1</span>
+                            <span class="step-number">2</span>
                         }
                     </span>
                     <span class="step-label">Fields</span>
@@ -101,70 +123,13 @@
                     </span>
                 </div>
 
-                <!-- Step ② Dates -->
-                <div class="stepper-row" [class.step-complete]="datesComplete()" [class.step-incomplete]="!datesComplete()">
-                    <span class="step-icon">
-                        @if (datesComplete()) {
-                            <i class="bi bi-check-circle-fill"></i>
-                        } @else {
-                            <span class="step-number">2</span>
-                        }
-                    </span>
-                    <span class="step-label">Dates</span>
-                    <span class="step-status">
-                        <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong> agegroups configured
-                    </span>
-                    <span class="step-action step-action-muted">
-                        Click tiles below
-                    </span>
-                </div>
-
-                <!-- Step ③ Strategy -->
-                <div class="stepper-row" [class.step-complete]="strategyComplete()" [class.step-incomplete]="!strategyComplete()">
-                    <span class="step-icon">
-                        @if (strategyComplete()) {
-                            <i class="bi bi-check-circle-fill"></i>
-                        } @else {
-                            <span class="step-number">3</span>
-                        }
-                    </span>
-                    <span class="step-label">Strategy</span>
-                    <span class="step-status">{{ strategyStatusLabel() }}</span>
-                    <span class="step-action step-action-controls">
-                        <select class="form-select form-select-sm step-select"
-                                [ngModel]="localPlacement()"
-                                (ngModelChange)="localPlacement.set($event)">
-                            <option [ngValue]="0">Horizontal</option>
-                            <option [ngValue]="1">Vertical</option>
-                        </select>
-                        <select class="form-select form-select-sm step-select"
-                                [ngModel]="localGapPattern()"
-                                (ngModelChange)="localGapPattern.set($event)">
-                            <option [ngValue]="0">Back-to-back</option>
-                            <option [ngValue]="1">1on/1off</option>
-                            <option [ngValue]="2">1on/2off</option>
-                        </select>
-                        @if (strategyDirty()) {
-                            <button class="btn btn-sm btn-primary step-btn"
-                                    [disabled]="isSavingStrategy()"
-                                    (click)="onSaveStrategy()">
-                                @if (isSavingStrategy()) {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                } @else {
-                                    Save
-                                }
-                            </button>
-                        }
-                    </span>
-                </div>
-
-                <!-- Step ④ Pairings -->
+                <!-- Step ③ Pairings -->
                 <div class="stepper-row" [class.step-complete]="pairingsComplete()" [class.step-incomplete]="!pairingsComplete()">
                     <span class="step-icon">
                         @if (pairingsComplete()) {
                             <i class="bi bi-check-circle-fill"></i>
                         } @else {
-                            <span class="step-number">4</span>
+                            <span class="step-number">3</span>
                         }
                     </span>
                     <span class="step-label">Pairings</span>
@@ -179,6 +144,45 @@
                                     Generating...
                                 } @else {
                                     Generate All
+                                }
+                            </button>
+                        }
+                    </span>
+                </div>
+
+                <!-- Step ④ Strategy -->
+                <div class="stepper-row" [class.step-complete]="strategyComplete()" [class.step-incomplete]="!strategyComplete()">
+                    <span class="step-icon">
+                        @if (strategyComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">4</span>
+                        }
+                    </span>
+                    <span class="step-label">Strategy</span>
+                    <span class="step-status">{{ strategyStatusLabel() }}</span>
+                    <span class="step-action step-action-controls">
+                        <select class="form-select form-select-sm step-select"
+                                [ngModel]="effectivePlacement()"
+                                (ngModelChange)="localPlacement.set(+$event)">
+                            <option [ngValue]="0">Horizontal</option>
+                            <option [ngValue]="1">Vertical</option>
+                        </select>
+                        <select class="form-select form-select-sm step-select"
+                                [ngModel]="effectiveGapPattern()"
+                                (ngModelChange)="localGapPattern.set(+$event)">
+                            <option [ngValue]="0">Back-to-back</option>
+                            <option [ngValue]="1">1on/1off</option>
+                            <option [ngValue]="2">1on/2off</option>
+                        </select>
+                        @if (strategyDirty()) {
+                            <button class="btn btn-sm btn-primary step-btn"
+                                    [disabled]="isSavingStrategy()"
+                                    (click)="onSaveStrategy()">
+                                @if (isSavingStrategy()) {
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                } @else {
+                                    Save
                                 }
                             </button>
                         }

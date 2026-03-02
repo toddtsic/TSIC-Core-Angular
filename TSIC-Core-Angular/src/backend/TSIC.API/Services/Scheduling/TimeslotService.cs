@@ -12,6 +12,8 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class TimeslotService : ITimeslotService
 {
     private readonly ITimeslotRepository _tsRepo;
+    private readonly IJobRepository _jobRepo;
+    private readonly IJobLeagueRepository _jobLeagueRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<TimeslotService> _logger;
 
@@ -21,10 +23,14 @@ public sealed class TimeslotService : ITimeslotService
 
     public TimeslotService(
         ITimeslotRepository tsRepo,
+        IJobRepository jobRepo,
+        IJobLeagueRepository jobLeagueRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<TimeslotService> logger)
     {
         _tsRepo = tsRepo;
+        _jobRepo = jobRepo;
+        _jobLeagueRepo = jobLeagueRepo;
         _contextResolver = contextResolver;
         _logger = logger;
     }
@@ -75,10 +81,41 @@ public sealed class TimeslotService : ITimeslotService
         // Count fields assigned to this league-season (FieldsLeagueSeason)
         var assignedFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
 
+        // Prior-year field defaults: look up sibling job from previous year
+        PriorYearFieldDefaults? priorYearDefaults = null;
+        var priorJob = await _jobRepo.GetPriorYearJobAsync(jobId, ct);
+        if (priorJob != null)
+        {
+            // Resolve the prior job's league context
+            var priorLeagueId = await _jobLeagueRepo.GetPrimaryLeagueForJobAsync(priorJob.JobId, ct);
+            if (priorLeagueId != null)
+            {
+                var priorSeasonYear = await _jobRepo.GetJobSeasonYearAsync(priorJob.JobId, ct);
+                if (priorSeasonYear?.Season != null && priorSeasonYear.Year != null)
+                {
+                    var defaults = await _tsRepo.GetDominantFieldDefaultsAsync(
+                        priorLeagueId.Value, priorSeasonYear.Season, priorSeasonYear.Year, ct);
+
+                    if (defaults != null)
+                    {
+                        priorYearDefaults = new PriorYearFieldDefaults
+                        {
+                            StartTime = defaults.StartTime,
+                            GamestartInterval = defaults.GamestartInterval,
+                            MaxGamesPerField = defaults.MaxGamesPerField,
+                            PriorJobName = priorJob.JobName,
+                            PriorYear = priorJob.Year
+                        };
+                    }
+                }
+            }
+        }
+
         return new CanvasReadinessResponse
         {
             Agegroups = agegroups,
-            AssignedFieldCount = assignedFieldIds.Count
+            AssignedFieldCount = assignedFieldIds.Count,
+            PriorYearDefaults = priorYearDefaults
         };
     }
 
@@ -624,6 +661,109 @@ public sealed class TimeslotService : ITimeslotService
         // Reload with navigation properties
         var reloaded = await _tsRepo.GetFieldTimeslotByIdAsync(clone.Ai, ct);
         return MapFieldDto(reloaded ?? clone);
+    }
+
+    // ── Bulk operations ──
+
+    public async Task<BulkDateAssignResponse> BulkAssignDateAsync(
+        Guid jobId, string userId, BulkDateAssignRequest request, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Pre-fetch assigned fields (shared across all agegroups)
+        var assignedFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+
+        // Determine DOW from the date (full name: "Saturday", "Sunday", etc.)
+        var dow = request.GDate.DayOfWeek.ToString();
+
+        var results = new List<BulkDateAssignResult>();
+
+        // Process each agegroup sequentially (DbContext is not thread-safe)
+        foreach (var agegroupId in request.AgegroupIds)
+        {
+            var dateCreated = false;
+            var fieldTimeslotsCreated = 0;
+
+            // ① Check for duplicate date
+            var existingDates = await _tsRepo.GetDatesByAgegroupAsync(agegroupId, season, year, ct);
+            var alreadyHasDate = existingDates.Any(d => d.GDate.Date == request.GDate.Date);
+
+            if (!alreadyHasDate)
+            {
+                // Auto-calculate round number: max existing + 1
+                var maxRnd = existingDates.Count > 0 ? existingDates.Max(d => d.Rnd) : 0;
+
+                _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
+                {
+                    AgegroupId = agegroupId,
+                    GDate = request.GDate,
+                    Rnd = maxRnd + 1,
+                    Season = season,
+                    Year = year,
+                    LebUserId = userId,
+                    Modified = DateTime.UtcNow
+                });
+                dateCreated = true;
+            }
+
+            // ② Check if field timeslots exist for this DOW
+            var existingFields = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                agegroupId, season, year, dow: dow, ct: ct);
+
+            if (existingFields.Count == 0 && assignedFieldIds.Count > 0)
+            {
+                // Get active division IDs for this agegroup
+                var divIds = await _tsRepo.GetActiveDivisionIdsAsync(agegroupId, jobId, ct);
+
+                // Cartesian product: fields × divisions
+                var newTimeslots = new List<TimeslotsLeagueSeasonFields>();
+                foreach (var fId in assignedFieldIds)
+                {
+                    foreach (var dId in divIds)
+                    {
+                        newTimeslots.Add(new TimeslotsLeagueSeasonFields
+                        {
+                            AgegroupId = agegroupId,
+                            FieldId = fId,
+                            DivId = dId,
+                            StartTime = request.StartTime,
+                            GamestartInterval = request.GamestartInterval,
+                            MaxGamesPerField = request.MaxGamesPerField,
+                            Dow = dow,
+                            Season = season,
+                            Year = year,
+                            LebUserId = userId,
+                            Modified = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                if (newTimeslots.Count > 0)
+                {
+                    await _tsRepo.AddFieldTimeslotsRangeAsync(newTimeslots, ct);
+                    fieldTimeslotsCreated = newTimeslots.Count;
+                }
+            }
+
+            results.Add(new BulkDateAssignResult
+            {
+                AgegroupId = agegroupId,
+                DateCreated = dateCreated,
+                FieldTimeslotsCreated = fieldTimeslotsCreated
+            });
+        }
+
+        // Single save for all agegroups
+        await _tsRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Bulk date assign: {Date:yyyy-MM-dd} → {Count} agegroups, {DatesCreated} dates, {FieldsCreated} field timeslots",
+            request.GDate,
+            request.AgegroupIds.Count,
+            results.Count(r => r.DateCreated),
+            results.Sum(r => r.FieldTimeslotsCreated));
+
+        return new BulkDateAssignResponse { Results = results };
     }
 
     // ── Helpers ──

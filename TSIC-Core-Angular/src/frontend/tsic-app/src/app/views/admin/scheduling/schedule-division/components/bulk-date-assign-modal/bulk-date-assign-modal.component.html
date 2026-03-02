@@ -1,0 +1,137 @@
+<tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Assign Game Dates</h5>
+            <button type="button" class="btn-close" (click)="closed.emit()"></button>
+        </div>
+
+        <div class="modal-body">
+            <!-- ── Date Picker ── -->
+            <div class="date-row">
+                <label class="form-label fw-semibold">Game Date</label>
+                <input type="date"
+                       class="form-control form-control-sm"
+                       [ngModel]="selectedDate()"
+                       (ngModelChange)="selectedDate.set($event)">
+            </div>
+
+            <!-- ── Wave + Field Schedule Defaults ── -->
+            <div class="defaults-row">
+                <span class="defaults-label">
+                    Field Defaults
+                    @if (defaultsSource()) {
+                        <span class="defaults-source">{{ defaultsSource() }}</span>
+                    }
+                </span>
+                <div class="defaults-inputs">
+                    <div class="default-field default-field-wave">
+                        <label>Wave</label>
+                        <select class="form-select form-select-sm"
+                                [ngModel]="wave()"
+                                (ngModelChange)="wave.set(+$event)">
+                            <option [ngValue]="1">1</option>
+                            <option [ngValue]="2">2</option>
+                            <option [ngValue]="3">3</option>
+                        </select>
+                    </div>
+                    <div class="default-field">
+                        <label>Start</label>
+                        <input type="text"
+                               class="form-control form-control-sm"
+                               [ngModel]="startTime()"
+                               (ngModelChange)="startTime.set($event)">
+                    </div>
+                    <div class="default-field">
+                        <label>GSI</label>
+                        <input type="number"
+                               class="form-control form-control-sm"
+                               [ngModel]="gsi()"
+                               (ngModelChange)="gsi.set($event)"
+                               min="30" max="120" step="5">
+                    </div>
+                    <div class="default-field">
+                        <label>Max</label>
+                        <input type="number"
+                               class="form-control form-control-sm"
+                               [ngModel]="maxGames()"
+                               (ngModelChange)="maxGames.set($event)"
+                               min="1" max="20">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Agegroup Checklist ── -->
+            <div class="ag-section">
+                <div class="ag-section-header">
+                    <span class="ag-section-label">Agegroups</span>
+                    <label class="ag-check-all">
+                        <input type="checkbox"
+                               class="form-check-input"
+                               [checked]="allChecked()"
+                               [indeterminate]="someChecked()"
+                               (change)="toggleAll()">
+                        All
+                    </label>
+                </div>
+
+                <div class="ag-list">
+                    @for (ag of sortedAgegroups(); track ag.agegroupId) {
+                        @let dates = agExistingDates(ag.agegroupId);
+                        <label class="ag-row" [class.ag-row-checked]="isChecked(ag.agegroupId)">
+                            <div class="ag-info">
+                                <div class="ag-info-top">
+                                    <span class="ag-badge"
+                                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
+                                          [style.color]="contrastText(ag.color)">
+                                        {{ ag.agegroupName }}
+                                    </span>
+                                    <span class="ag-meta">
+                                        {{ agTeamCount(ag) }} teams &middot; {{ ag.divisions.length }} div
+                                    </span>
+                                </div>
+                                @if (dates.length > 0) {
+                                    <select class="ag-dates-ddl"
+                                            (click)="$event.stopPropagation()">
+                                        @for (day of dates; track day) {
+                                            <option>{{ day }}</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   [checked]="isChecked(ag.agegroupId)"
+                                   (change)="toggleAgegroup(ag.agegroupId)">
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <!-- ── Applied Log ── -->
+            @if (appliedLog().length > 0) {
+                <div class="applied-log">
+                    <span class="applied-label">Applied</span>
+                    @for (entry of appliedLog(); track $index) {
+                        <div class="applied-entry">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <span class="applied-wave">W{{ entry.wave }}</span>
+                            {{ entry.dow }} {{ entry.dateFormatted }} &rarr; {{ entry.count }} agegroup{{ entry.count !== 1 ? 's' : '' }}
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-sm btn-outline-secondary" (click)="closed.emit()">Close</button>
+            <button class="btn btn-sm btn-primary"
+                    [disabled]="!canApply()"
+                    (click)="apply()">
+                @if (isApplying()) {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                Apply
+            </button>
+        </div>
+    </div>
+</tsic-dialog>

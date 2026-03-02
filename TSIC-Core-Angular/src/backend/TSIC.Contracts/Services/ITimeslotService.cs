@@ -71,4 +71,9 @@ public interface ITimeslotService
 
     Task<TimeslotFieldDto> CloneFieldDowAsync(
         string userId, CloneFieldDowRequest request, CancellationToken ct = default);
+
+    // ── Bulk operations ──
+
+    Task<BulkDateAssignResponse> BulkAssignDateAsync(
+        Guid jobId, string userId, BulkDateAssignRequest request, CancellationToken ct = default);
 }

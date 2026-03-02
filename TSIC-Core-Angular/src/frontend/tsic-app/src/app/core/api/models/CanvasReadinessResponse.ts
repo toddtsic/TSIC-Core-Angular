@@ -3,8 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AgegroupCanvasReadinessDto } from './AgegroupCanvasReadinessDto';
+import type { PriorYearFieldDefaults } from './PriorYearFieldDefaults';
 export type CanvasReadinessResponse = {
     agegroups: Array<AgegroupCanvasReadinessDto>;
     assignedFieldCount: number;
+    priorYearDefaults?: (null | PriorYearFieldDefaults);
 };
 

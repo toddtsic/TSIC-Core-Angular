@@ -322,6 +322,36 @@ public class TimeslotRepository : ITimeslotRepository
             .ToListAsync(ct);
     }
 
+    // ── Prior-year defaults ──
+
+    public async Task<FieldScheduleDefaults?> GetDominantFieldDefaultsAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
+    {
+        // Get the most common (StartTime, GSI, MaxGamesPerField) combination
+        var dominant = await _context.TimeslotsLeagueSeasonFields
+            .AsNoTracking()
+            .Where(f => f.Agegroup.LeagueId == leagueId && f.Season == season && f.Year == year)
+            .GroupBy(f => new { f.StartTime, f.GamestartInterval, f.MaxGamesPerField })
+            .Select(g => new
+            {
+                g.Key.StartTime,
+                g.Key.GamestartInterval,
+                g.Key.MaxGamesPerField,
+                Count = g.Count()
+            })
+            .OrderByDescending(g => g.Count)
+            .FirstOrDefaultAsync(ct);
+
+        if (dominant == null) return null;
+
+        return new FieldScheduleDefaults
+        {
+            StartTime = dominant.StartTime,
+            GamestartInterval = dominant.GamestartInterval,
+            MaxGamesPerField = dominant.MaxGamesPerField
+        };
+    }
+
     // ── Capacity ──
 
     public async Task<int> GetPairingCountAsync(Guid leagueId, string season, int teamCount, CancellationToken ct = default)

@@ -378,4 +378,35 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<PriorYearJobInfo?> GetPriorYearJobAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Get current job's identity dimensions
+        var current = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.CustomerId, j.JobTypeId, j.SportId, j.Season, j.Year })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (current == null || current.Year == null) return null;
+
+        // Find most recent sibling job with same customer/type/sport/season but earlier year
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == current.CustomerId
+                     && j.JobTypeId == current.JobTypeId
+                     && j.SportId == current.SportId
+                     && j.Season == current.Season
+                     && j.Year != null
+                     && string.Compare(j.Year, current.Year) < 0)
+            .OrderByDescending(j => j.Year)
+            .Select(j => new PriorYearJobInfo
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "Unknown",
+                Year = j.Year!
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
 }

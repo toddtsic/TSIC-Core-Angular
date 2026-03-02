@@ -100,6 +100,19 @@ public record AgegroupCanvasReadinessDto
     public required List<GameDayDto> GameDays { get; init; }
 }
 
+/// <summary>
+/// Field schedule defaults inherited from the prior-year sibling job.
+/// Null if no prior-year job exists or if it had no timeslot configuration.
+/// </summary>
+public record PriorYearFieldDefaults
+{
+    public required string StartTime { get; init; }
+    public required int GamestartInterval { get; init; }
+    public required int MaxGamesPerField { get; init; }
+    public required string PriorJobName { get; init; }
+    public required string PriorYear { get; init; }
+}
+
 public record CanvasReadinessResponse
 {
     public required List<AgegroupCanvasReadinessDto> Agegroups { get; init; }
@@ -109,6 +122,13 @@ public record CanvasReadinessResponse
     /// Zero means Manage Fields must be completed before field schedules can be created.
     /// </summary>
     public required int AssignedFieldCount { get; init; }
+
+    /// <summary>
+    /// Field schedule defaults from the prior-year sibling job (same customer/type/sport/season).
+    /// Null when no prior-year job exists or when it had no timeslot config.
+    /// Used as fallback when the current job has no configured agegroups yet.
+    /// </summary>
+    public PriorYearFieldDefaults? PriorYearDefaults { get; init; }
 }
 
 // ── Request DTOs ──
@@ -202,4 +222,27 @@ public record CloneFieldDowRequest
 public record DeleteAgegroupTimeslotsRequest
 {
     public required Guid AgegroupId { get; init; }
+}
+
+// ── Bulk Date Assignment ──
+
+public record BulkDateAssignRequest
+{
+    public required DateTime GDate { get; init; }
+    public required string StartTime { get; init; }
+    public required int GamestartInterval { get; init; }
+    public required int MaxGamesPerField { get; init; }
+    public required List<Guid> AgegroupIds { get; init; }
+}
+
+public record BulkDateAssignResult
+{
+    public required Guid AgegroupId { get; init; }
+    public required bool DateCreated { get; init; }
+    public required int FieldTimeslotsCreated { get; init; }
+}
+
+public record BulkDateAssignResponse
+{
+    public required List<BulkDateAssignResult> Results { get; init; }
 }

@@ -56,6 +56,7 @@ export class EventSummaryPanelComponent {
     readonly agegroupClicked = output<string>();
     readonly manageFieldsClicked = output<void>();
     readonly generatePairingsRequested = output<void>();
+    readonly bulkDateAssignRequested = output<void>();
     readonly saveStrategyRequested = output<{ placement: number; gapPattern: number }>();
     readonly devResetConfirmed = output<void>();
 
@@ -65,10 +66,9 @@ export class EventSummaryPanelComponent {
     readonly devResetConfirmText = signal('');
     readonly isDevMode = !environment.production;
 
-    // ── Stepper: local strategy editing ──
+    // ── Stepper: local strategy overrides (null = user hasn't touched it) ──
     readonly localPlacement = signal<number | null>(null);
     readonly localGapPattern = signal<number | null>(null);
-    private stepperInitialized = false;
 
     // ── Helpers ──
     readonly contrastText = contrastText;
@@ -103,23 +103,21 @@ export class EventSummaryPanelComponent {
 
     // ── Stepper step completion ──
 
-    /** Step ①: Fields assigned */
-    readonly fieldsComplete = computed(() => this.assignedFieldCount() > 0);
-
-    /** Step ②: All agegroups configured (dates+fields) */
+    /** Step ①: At least one agegroup configured (dates+fields) */
     readonly datesComplete = computed(() =>
         this.totalAgegroups() > 0 && this.configuredCount() === this.totalAgegroups()
     );
 
-    /** Step ③: Strategy explicitly saved (not defaults) */
-    readonly strategyComplete = computed(() =>
-        this.strategySource() !== 'defaults'
-    );
+    /** Step ②: Fields assigned */
+    readonly fieldsComplete = computed(() => this.assignedFieldCount() > 0);
 
-    /** Step ④: Pairings generated for all team counts */
+    /** Step ③: Pairings generated for all team counts */
     readonly pairingsComplete = computed(() =>
         this.missingPairingTCnts().length === 0
     );
+
+    /** Step ④: Strategy always has an effective value (defaults or saved) */
+    readonly strategyComplete = computed(() => true);
 
     /** Uniform placement value across all strategies, or null if mixed */
     readonly uniformPlacement = computed((): number | null => {
@@ -137,34 +135,28 @@ export class EventSummaryPanelComponent {
         return val !== null ? Number(val) : null;
     });
 
-    /** True when local strategy differs from server values */
-    readonly strategyDirty = computed(() => {
-        const lp = this.localPlacement();
-        const lg = this.localGapPattern();
-        if (lp === null || lg === null) return false;
-        const up = this.uniformPlacement();
-        const ug = this.uniformGap();
-        return lp !== up || lg !== ug;
-    });
+    /** Effective placement: local override → server value → default */
+    readonly effectivePlacement = computed(() =>
+        this.localPlacement() ?? this.uniformPlacement() ?? 0
+    );
 
-    /** Initialize local strategy signals from uniform values when strategies load. */
-    initStepperLocals(): void {
-        const up = this.uniformPlacement();
-        const ug = this.uniformGap();
-        this.localPlacement.set(up ?? 0);  // default: horizontal
-        this.localGapPattern.set(ug ?? 1); // default: 1on/1off
-        this.stepperInitialized = true;
-    }
+    /** Effective gap pattern: local override → server value → default */
+    readonly effectiveGapPattern = computed(() =>
+        this.localGapPattern() ?? this.uniformGap() ?? 1
+    );
+
+    /** True when effective strategy differs from server/default values */
+    readonly strategyDirty = computed(() => {
+        // No override = user hasn't touched anything
+        if (this.localPlacement() === null && this.localGapPattern() === null) return false;
+        const sp = this.uniformPlacement() ?? 0;
+        const sg = this.uniformGap() ?? 1;
+        return this.effectivePlacement() !== sp || this.effectiveGapPattern() !== sg;
+    });
 
     // ── Tournament-level game days (union of ALL dates across agegroups) ──
 
     readonly eventGameDays = computed((): GameDayLine[] => {
-        // Initialize stepper locals when strategies first arrive
-        if (!this.stepperInitialized && this.strategies().length > 0) {
-            // Schedule for after this computed finishes (to avoid writing signals inside computed)
-            queueMicrotask(() => this.initStepperLocals());
-        }
-
         const map = this.readinessMap();
         const configured = Object.values(map).filter(r => r.isConfigured);
         if (configured.length === 0) return [];
@@ -217,7 +209,7 @@ export class EventSummaryPanelComponent {
         return `Plays: ${gameDayList.join(' & ')}`;
     });
 
-    /** Strategy status label for step ③ */
+    /** Strategy status label for step ④ */
     readonly strategyStatusLabel = computed((): string => {
         const strats = this.strategies();
         if (strats.length === 0 || this.strategySource() === 'defaults') return 'Using defaults';
@@ -229,7 +221,7 @@ export class EventSummaryPanelComponent {
         return parts.length > 0 ? parts.join(' · ') : 'Mixed per-division';
     });
 
-    /** Pairings status label for step ④ */
+    /** Pairings status label for step ③ */
     readonly pairingsStatusLabel = computed((): string => {
         const missing = this.missingPairingTCnts();
         if (missing.length === 0) return 'All generated';
@@ -237,10 +229,10 @@ export class EventSummaryPanelComponent {
     });
 
     onSaveStrategy(): void {
-        const p = this.localPlacement();
-        const g = this.localGapPattern();
-        if (p === null || g === null) return;
-        this.saveStrategyRequested.emit({ placement: p, gapPattern: g });
+        this.saveStrategyRequested.emit({
+            placement: this.effectivePlacement(),
+            gapPattern: this.effectiveGapPattern()
+        });
     }
 
     // ── Per-agegroup helpers ──
@@ -338,12 +330,6 @@ export class EventSummaryPanelComponent {
             gsi: gd.gsi,
             totalSlots: gd.totalSlots
         };
-    }
-
-    /** Convert MM/DD/YYYY back to YYYY-MM-DD for comparison. */
-    private toIsoDate(formatted: string): string {
-        const [mm, dd, yyyy] = formatted.split('/');
-        return `${yyyy}-${mm}-${dd}`;
     }
 
     onDeleteConfirmed(): void {

@@ -89,8 +89,9 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
             foreach (var ft in fieldsForDow)
             {
-                if (TimeSpan.TryParse(ft.StartTime, out var startTime))
+                if (DateTime.TryParse(ft.StartTime, out var startDt))
                 {
+                    var startTime = startDt.TimeOfDay;
                     for (var g = 0; g < ft.MaxGamesPerField; g++)
                     {
                         var gameTime = date + startTime + TimeSpan.FromMinutes(g * ft.GamestartInterval);

@@ -49,8 +49,9 @@ public static class TimeslotSlotFinder
 
             foreach (var ft in dowFields)
             {
-                if (!TimeSpan.TryParse(ft.StartTime, out var startTime))
+                if (!DateTime.TryParse(ft.StartTime, out var startDt))
                     continue;
+                var startTime = startDt.TimeOfDay;
 
                 var baseDate = date.GDate.Date;
 

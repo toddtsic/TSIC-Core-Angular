@@ -31,13 +31,14 @@ import { EventSummaryPanelComponent } from './components/event-summary-panel/eve
 import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
+import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult } from '@core/api';
 
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -74,6 +75,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly isNavLoading = signal(false);
     readonly canvasReadiness = signal<Record<string, import('@core/api').AgegroupCanvasReadinessDto>>({});
     readonly assignedFieldCount = signal(0);
+    readonly priorYearDefaults = signal<import('@core/api').PriorYearFieldDefaults | null>(null);
     readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
     readonly strategySource = signal<string>('defaults');
     readonly isSavingStrategy = signal(false);
@@ -198,6 +200,9 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly missingPairingTCnts = signal<number[]>([]);
     readonly isGeneratingPairings = signal(false);
 
+    // ── Bulk date assignment modal ──
+    readonly showBulkDateModal = signal(false);
+
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
     readonly gridRows = computed(() => this.gridResponse()?.rows ?? []);
@@ -317,10 +322,12 @@ export class ScheduleDivisionComponent implements OnInit {
                 }
                 this.canvasReadiness.set(map);
                 this.assignedFieldCount.set(res.assignedFieldCount);
+                this.priorYearDefaults.set(res.priorYearDefaults ?? null);
             },
             error: () => {
                 this.canvasReadiness.set({});
                 this.assignedFieldCount.set(0);
+                this.priorYearDefaults.set(null);
             }
         });
     }
@@ -348,6 +355,20 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.loadScheduleGrid(ag.divisions[0].divId, s.agegroupId);
             }
         }
+    }
+
+    // ── Bulk date assignment modal ──
+
+    openBulkDateModal(): void {
+        this.showBulkDateModal.set(true);
+    }
+
+    onBulkDateApplied(): void {
+        this.loadCanvasReadiness();
+    }
+
+    closeBulkDateModal(): void {
+        this.showBulkDateModal.set(false);
     }
 
     // ── Scope selection handlers (wired from navigator outputs) ──
@@ -833,10 +854,25 @@ export class ScheduleDivisionComponent implements OnInit {
 
     /** Save inline strategy from stepper — applies uniform values to ALL divisions. */
     saveInlineStrategy(event: { placement: number; gapPattern: number }): void {
-        const currentStrategies = this.strategyProfiles();
-        if (currentStrategies.length === 0) return;
+        let entries = this.strategyProfiles();
 
-        const updated = currentStrategies.map(s => ({
+        // When on defaults (no saved profiles), build entries from unique division names
+        if (entries.length === 0) {
+            const divNames = new Set<string>();
+            for (const ag of this.agegroups()) {
+                for (const div of ag.divisions) {
+                    divNames.add(div.divName);
+                }
+            }
+            if (divNames.size === 0) return;
+            entries = [...divNames].map(name => ({
+                divisionName: name,
+                placement: event.placement,
+                gapPattern: event.gapPattern
+            }));
+        }
+
+        const updated = entries.map(s => ({
             ...s,
             placement: event.placement,
             gapPattern: event.gapPattern

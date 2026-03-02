@@ -65,6 +65,13 @@ public record JobRegistrationStatus
     public DateTime? ExpiryUsers { get; init; }
 }
 
+public record PriorYearJobInfo
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public required string Year { get; init; }
+}
+
 /// <summary>
 /// Repository for managing Jobs entity data access.
 /// </summary>
@@ -184,6 +191,12 @@ public interface IJobRepository
     /// Public endpoint — no authentication required.
     /// </summary>
     Task<Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Find the most recent prior-year sibling job (same CustomerId, JobTypeId, SportId, Season).
+    /// Returns null if no prior-year sibling exists.
+    /// </summary>
+    Task<PriorYearJobInfo?> GetPriorYearJobAsync(Guid jobId, CancellationToken cancellationToken = default);
 
 }
 

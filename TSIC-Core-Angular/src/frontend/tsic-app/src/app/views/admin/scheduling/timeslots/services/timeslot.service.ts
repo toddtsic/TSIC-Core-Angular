@@ -18,7 +18,9 @@ import type {
     CloneByDivisionRequest,
     CloneByDowRequest,
     CloneDateRecordRequest,
-    CloneFieldDowRequest
+    CloneFieldDowRequest,
+    BulkDateAssignRequest,
+    BulkDateAssignResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -38,7 +40,9 @@ export type {
     CloneByDivisionRequest,
     CloneByDowRequest,
     CloneDateRecordRequest,
-    CloneFieldDowRequest
+    CloneFieldDowRequest,
+    BulkDateAssignRequest,
+    BulkDateAssignResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -126,5 +130,11 @@ export class TimeslotService {
 
     cloneFieldDow(request: CloneFieldDowRequest): Observable<TimeslotFieldDto> {
         return this.http.post<TimeslotFieldDto>(`${this.apiUrl}/clone-field-dow`, request);
+    }
+
+    // ── Bulk operations ──
+
+    bulkAssignDate(request: BulkDateAssignRequest): Observable<BulkDateAssignResponse> {
+        return this.http.post<BulkDateAssignResponse>(`${this.apiUrl}/bulk-assign`, request);
     }
 }
