@@ -8,7 +8,9 @@ export type BulkDateAssignRequest = {
     startTime: string;
     gamestartInterval: number;
     maxGamesPerField: number;
+    roundsPerDay?: number;
     entries: Array<BulkDateAgegroupEntry>;
     agegroupIds?: any[] | null;
+    removedAgegroupIds?: any[] | null;
 };
 

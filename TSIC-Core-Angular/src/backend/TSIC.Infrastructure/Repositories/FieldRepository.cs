@@ -190,6 +190,15 @@ public class FieldRepository : IFieldRepository
         }
     }
 
+    public async Task<Dictionary<Guid, string>> GetFieldNamesByIdsAsync(
+        List<Guid> fieldIds, CancellationToken ct = default)
+    {
+        return await _context.Fields
+            .AsNoTracking()
+            .Where(f => fieldIds.Contains(f.FieldId))
+            .ToDictionaryAsync(f => f.FieldId, f => f.FName ?? f.FieldId.ToString(), ct);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         return await _context.SaveChangesAsync(ct);

@@ -63,6 +63,14 @@ public class TimeslotRepository : ITimeslotRepository
         _context.TimeslotsLeagueSeasonDates.RemoveRange(toDelete);
     }
 
+    public async Task DeleteDatesByDateAsync(Guid agegroupId, DateTime gDate, string season, string year, CancellationToken ct = default)
+    {
+        var toDelete = await _context.TimeslotsLeagueSeasonDates
+            .Where(d => d.AgegroupId == agegroupId && d.GDate.Date == gDate.Date && d.Season == season && d.Year == year)
+            .ToListAsync(ct);
+        _context.TimeslotsLeagueSeasonDates.RemoveRange(toDelete);
+    }
+
     // ── Field timeslots ──
 
     public async Task<List<TimeslotFieldDto>> GetFieldTimeslotsAsync(
@@ -152,11 +160,12 @@ public class TimeslotRepository : ITimeslotRepository
         Guid leagueId, string season, string year, CancellationToken ct = default)
     {
         // Actual dates per agegroup — scoped to this league's agegroups
+        // Include Rnd to count round-slots per date
         var dateRows = await _context.TimeslotsLeagueSeasonDates
             .AsNoTracking()
             .Where(d => d.Season == season && d.Year == year
                 && d.Agegroup.LeagueId == leagueId)
-            .Select(d => new { d.AgegroupId, d.GDate })
+            .Select(d => new { d.AgegroupId, d.GDate, d.Rnd })
             .ToListAsync(ct);
 
         var datesByAg = dateRows.GroupBy(d => d.AgegroupId);
@@ -187,6 +196,8 @@ public class TimeslotRepository : ITimeslotRepository
         foreach (var g in datesByAg)
         {
             var dates = g.Select(d => d.GDate).Distinct().OrderBy(d => d).ToList();
+            var roundsPerDate = g.GroupBy(d => d.GDate.Date)
+                .ToDictionary(dg => dg.Key, dg => dg.Count());
             result[g.Key] = new AgegroupReadinessData
             {
                 DateCount = dates.Count,
@@ -197,6 +208,7 @@ public class TimeslotRepository : ITimeslotRepository
                 DistinctMaxGames = [],
                 TotalMaxGamesSum = 0,
                 Dates = dates,
+                RoundsPerDate = roundsPerDate,
                 PerDowFields = []
             };
         }
@@ -250,12 +262,40 @@ public class TimeslotRepository : ITimeslotRepository
                     DistinctMaxGames = distinctMaxGames,
                     TotalMaxGamesSum = totalMaxGamesSum,
                     Dates = [],
+                    RoundsPerDate = new Dictionary<DateTime, int>(),
                     PerDowFields = perDowFields
                 };
             }
         }
 
         return result;
+    }
+
+    public async Task<Dictionary<string, int>> GetRoundCountsByAgegroupNameAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
+    {
+        var rows = await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .Where(d => d.Season == season && d.Year == year
+                && d.Agegroup.LeagueId == leagueId)
+            .Select(d => new { d.Agegroup.AgegroupName, d.Rnd })
+            .ToListAsync(ct);
+
+        return rows
+            .Where(r => r.AgegroupName != null)
+            .GroupBy(r => r.AgegroupName!)
+            .ToDictionary(g => g.Key, g => g.Max(r => r.Rnd));
+    }
+
+    // ── Bulk field config update ──
+
+    public async Task<List<TimeslotsLeagueSeasonFields>> GetAllFieldTimeslotsForUpdateAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
+    {
+        // TRACKED (no AsNoTracking) — caller will modify these entities in-place
+        return await _context.TimeslotsLeagueSeasonFields
+            .Where(f => f.Agegroup.LeagueId == leagueId && f.Season == season && f.Year == year)
+            .ToListAsync(ct);
     }
 
     // ── Cloning support queries ──
@@ -320,6 +360,55 @@ public class TimeslotRepository : ITimeslotRepository
             .Where(x => x.FName == null || !x.FName.StartsWith('*'))
             .Select(x => x.FieldId)
             .ToListAsync(ct);
+    }
+
+    public async Task<Dictionary<Guid, List<Guid>>> GetFieldIdsPerAgegroupAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
+    {
+        var rows = await _context.TimeslotsLeagueSeasonFields
+            .AsNoTracking()
+            .Where(f => f.Season == season && f.Year == year
+                && f.Agegroup.LeagueId == leagueId)
+            .Select(f => new { f.AgegroupId, f.FieldId })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.AgegroupId)
+            .ToDictionary(g => g.Key, g => g.Select(r => r.FieldId).Distinct().ToList());
+    }
+
+    public async Task<List<EventFieldSummaryDto>> GetEventFieldSummariesAsync(
+        Guid leagueId, string season, CancellationToken ct = default)
+    {
+        return await _context.FieldsLeagueSeason
+            .AsNoTracking()
+            .Where(fls => fls.LeagueId == leagueId && fls.Season == season)
+            .Join(_context.Fields,
+                fls => fls.FieldId,
+                f => f.FieldId,
+                (fls, f) => new { f.FieldId, f.FName })
+            .Where(x => x.FName == null || !x.FName.StartsWith('*'))
+            .OrderBy(x => x.FName)
+            .Select(x => new EventFieldSummaryDto
+            {
+                FieldId = x.FieldId,
+                FieldName = x.FName ?? ""
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task DeleteFieldTimeslotsByFieldAsync(
+        Guid agegroupId, Guid fieldId, string season, string year, CancellationToken ct = default)
+    {
+        var toDelete = await _context.TimeslotsLeagueSeasonFields
+            .Where(f => f.AgegroupId == agegroupId
+                && f.FieldId == fieldId
+                && f.Season == season
+                && f.Year == year)
+            .ToListAsync(ct);
+
+        _context.TimeslotsLeagueSeasonFields.RemoveRange(toDelete);
     }
 
     // ── Prior-year defaults ──

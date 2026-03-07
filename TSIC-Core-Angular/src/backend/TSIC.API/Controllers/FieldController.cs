@@ -109,8 +109,15 @@ public class FieldController : ControllerBase
         var (jobId, _, _, error) = await ResolveContext();
         if (error != null) return error;
 
-        await _fieldService.RemoveFieldsAsync(jobId!.Value, request, ct);
-        return NoContent();
+        try
+        {
+            await _fieldService.RemoveFieldsAsync(jobId!.Value, request, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>

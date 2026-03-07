@@ -4,5 +4,7 @@
 /* eslint-disable */
 export type EnsurePairingsRequest = {
     teamCounts: Array<number>;
+    roundsOverrides?: any | null;
+    forceRegenerate?: boolean;
 };
 

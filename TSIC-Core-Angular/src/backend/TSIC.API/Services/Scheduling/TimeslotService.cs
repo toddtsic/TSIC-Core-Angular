@@ -12,6 +12,7 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class TimeslotService : ITimeslotService
 {
     private readonly ITimeslotRepository _tsRepo;
+    private readonly IScheduleRepository _scheduleRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IJobLeagueRepository _jobLeagueRepo;
     private readonly ISchedulingContextResolver _contextResolver;
@@ -23,12 +24,14 @@ public sealed class TimeslotService : ITimeslotService
 
     public TimeslotService(
         ITimeslotRepository tsRepo,
+        IScheduleRepository scheduleRepo,
         IJobRepository jobRepo,
         IJobLeagueRepository jobLeagueRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<TimeslotService> logger)
     {
         _tsRepo = tsRepo;
+        _scheduleRepo = scheduleRepo;
         _jobRepo = jobRepo;
         _jobLeagueRepo = jobLeagueRepo;
         _contextResolver = contextResolver;
@@ -42,6 +45,18 @@ public sealed class TimeslotService : ITimeslotService
     {
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
         var data = await _tsRepo.GetReadinessDataAsync(leagueId, season, year, ct);
+
+        // Max round per agegroup from placed RR games (for round suggestions)
+        var maxPairingRounds = await _scheduleRepo.GetMaxRoundByAgegroupAsync(leagueId, season, year, ct);
+
+        // Count fields assigned to this league-season (FieldsLeagueSeason)
+        var assignedFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+
+        // Event-level field summaries for the field config section
+        var eventFields = await _tsRepo.GetEventFieldSummariesAsync(leagueId, season, ct);
+
+        // Per-agegroup field IDs for the field config section
+        var fieldIdsPerAg = await _tsRepo.GetFieldIdsPerAgegroupAsync(leagueId, season, year, ct);
 
         var agegroups = data.Select(kv =>
         {
@@ -74,15 +89,16 @@ public sealed class TimeslotService : ITimeslotService
                 StartTime = startTime,
                 MaxGamesPerField = maxGames,
                 TotalGameSlots = totalSlots,
-                GameDays = gameDays
+                GameDays = gameDays,
+                TotalRounds = d.RoundsPerDate.Values.Sum(),
+                MaxPairingRound = maxPairingRounds.GetValueOrDefault(kv.Key, 0),
+                FieldIds = fieldIdsPerAg.GetValueOrDefault(kv.Key, [])
             };
         }).ToList();
 
-        // Count fields assigned to this league-season (FieldsLeagueSeason)
-        var assignedFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
-
         // Prior-year field defaults: look up sibling job from previous year
         PriorYearFieldDefaults? priorYearDefaults = null;
+        Dictionary<string, int>? priorYearRounds = null;
         var priorJob = await _jobRepo.GetPriorYearJobAsync(jobId, ct);
         if (priorJob != null)
         {
@@ -107,6 +123,11 @@ public sealed class TimeslotService : ITimeslotService
                             PriorYear = priorJob.Year
                         };
                     }
+
+                    // Prior-year round counts per agegroup name (for round suggestions)
+                    priorYearRounds = await _tsRepo.GetRoundCountsByAgegroupNameAsync(
+                        priorLeagueId.Value, priorSeasonYear.Season, priorSeasonYear.Year, ct);
+                    if (priorYearRounds.Count == 0) priorYearRounds = null;
                 }
             }
         }
@@ -115,7 +136,9 @@ public sealed class TimeslotService : ITimeslotService
         {
             Agegroups = agegroups,
             AssignedFieldCount = assignedFieldIds.Count,
-            PriorYearDefaults = priorYearDefaults
+            PriorYearDefaults = priorYearDefaults,
+            PriorYearRounds = priorYearRounds,
+            EventFields = eventFields
         };
     }
 
@@ -183,7 +206,8 @@ public sealed class TimeslotService : ITimeslotService
                 StartTime = earliestStart,
                 EndTime = endTime,
                 Gsi = gsiVal,
-                TotalSlots = dowFields.TotalMaxGamesSum
+                TotalSlots = dowFields.TotalMaxGamesSum,
+                RoundCount = d.RoundsPerDate.GetValueOrDefault(date.Date, 0)
             });
 
             dayNumber++;
@@ -689,32 +713,39 @@ public sealed class TimeslotService : ITimeslotService
         {
             var agegroupId = entry.AgegroupId;
             var dateCreated = false;
+            var roundsCreated = 0;
             var fieldTimeslotsCreated = 0;
 
             // Calculate wave-based start time offset
             var startTime = CalculateWaveStartTime(
                 request.StartTime, entry.Wave, request.GamestartInterval, request.MaxGamesPerField);
 
-            // ① Check for duplicate date
+            // ① Additive round fill: create only the missing rounds for this date
             var existingDates = await _tsRepo.GetDatesByAgegroupAsync(agegroupId, season, year, ct);
-            var alreadyHasDate = existingDates.Any(d => d.GDate.Date == request.GDate.Date);
+            var existingRoundsForDate = existingDates.Count(d => d.GDate.Date == request.GDate.Date);
+            var roundsPerDay = Math.Max(1, entry.RoundsPerDay ?? request.RoundsPerDay);
+            var roundsToAdd = roundsPerDay - existingRoundsForDate;
 
-            if (!alreadyHasDate)
+            if (roundsToAdd > 0)
             {
-                // Auto-calculate round number: max existing + 1
                 var maxRnd = existingDates.Count > 0 ? existingDates.Max(d => d.Rnd) : 0;
 
-                _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
+                for (var i = 0; i < roundsToAdd; i++)
                 {
-                    AgegroupId = agegroupId,
-                    GDate = request.GDate,
-                    Rnd = maxRnd + 1,
-                    Season = season,
-                    Year = year,
-                    LebUserId = userId,
-                    Modified = DateTime.UtcNow
-                });
+                    _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
+                    {
+                        AgegroupId = agegroupId,
+                        GDate = request.GDate,
+                        Rnd = maxRnd + 1 + i,
+                        Season = season,
+                        Year = year,
+                        LebUserId = userId,
+                        Modified = DateTime.UtcNow
+                    });
+                }
+
                 dateCreated = true;
+                roundsCreated = roundsToAdd;
             }
 
             // ② Check if field timeslots exist for this DOW
@@ -760,21 +791,410 @@ public sealed class TimeslotService : ITimeslotService
             {
                 AgegroupId = agegroupId,
                 DateCreated = dateCreated,
+                RoundsCreated = roundsCreated,
                 FieldTimeslotsCreated = fieldTimeslotsCreated
             });
         }
 
-        // Single save for all agegroups
+        // ③ Process removals — agegroups unchecked from this existing date
+        var removedCount = 0;
+        if (request.RemovedAgegroupIds is { Count: > 0 })
+        {
+            foreach (var agId in request.RemovedAgegroupIds)
+            {
+                await _tsRepo.DeleteDatesByDateAsync(agId, request.GDate, season, year, ct);
+                removedCount++;
+            }
+        }
+
+        // Single save for all agegroups (additions + removals)
         await _tsRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Bulk date assign: {Date:yyyy-MM-dd} → {Count} agegroups, {DatesCreated} dates, {FieldsCreated} field timeslots",
+            "Bulk date assign: {Date:yyyy-MM-dd} → {Count} agegroups, {DatesCreated} dates, {FieldsCreated} field timeslots, {Removed} removed",
             request.GDate,
             entries.Count,
             results.Count(r => r.DateCreated),
-            results.Sum(r => r.FieldTimeslotsCreated));
+            results.Sum(r => r.FieldTimeslotsCreated),
+            removedCount);
 
         return new BulkDateAssignResponse { Results = results };
+    }
+
+    // ── Field config update ──
+
+    public async Task<UpdateFieldConfigResponse> UpdateFieldConfigAsync(
+        Guid jobId, string userId, UpdateFieldConfigRequest request, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Fetch all TRACKED field timeslot entities for this league-season
+        var allRows = await _tsRepo.GetAllFieldTimeslotsForUpdateAsync(leagueId, season, year, ct);
+
+        if (allRows.Count == 0)
+            return new UpdateFieldConfigResponse { RowsUpdated = 0 };
+
+        int updatedCount;
+
+        if (request.Entries is { Count: > 0 })
+        {
+            // Per-AG mode: client sends pre-calculated values per agegroup
+            updatedCount = ApplyPerAgConfig(allRows, request.Entries, userId);
+        }
+        else
+        {
+            // Uniform mode: infer waves from current start time offsets, recalculate
+            updatedCount = ApplyUniformConfig(allRows, request, userId);
+        }
+
+        // Per-AG-per-DOW overrides: second pass that refines individual (agegroup, DOW) groups.
+        // Applied AFTER uniform/per-AG to allow the matrix to override specific cells.
+        if (request.AgDowOverrides is { Count: > 0 })
+        {
+            updatedCount += ApplyAgDowOverrides(allRows, request.AgDowOverrides, userId);
+        }
+
+        if (updatedCount > 0)
+            await _tsRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Updated field config: {Count} rows for league-season {Season}/{Year}",
+            updatedCount, season, year);
+
+        return new UpdateFieldConfigResponse { RowsUpdated = updatedCount };
+    }
+
+    /// <summary>Per-AG mode: apply values from entries directly to matching rows.</summary>
+    private static int ApplyPerAgConfig(
+        List<TimeslotsLeagueSeasonFields> allRows,
+        List<FieldConfigAgegroupEntry> entries,
+        string userId)
+    {
+        var entryMap = entries.ToDictionary(e => e.AgegroupId);
+        var updated = 0;
+
+        foreach (var row in allRows)
+        {
+            if (!entryMap.TryGetValue(row.AgegroupId, out var entry))
+                continue;
+
+            var changed = false;
+
+            if (entry.StartTime != null && row.StartTime != entry.StartTime)
+            {
+                row.StartTime = entry.StartTime;
+                changed = true;
+            }
+
+            if (entry.GamestartInterval.HasValue && row.GamestartInterval != entry.GamestartInterval.Value)
+            {
+                row.GamestartInterval = entry.GamestartInterval.Value;
+                changed = true;
+            }
+
+            if (entry.MaxGamesPerField.HasValue && row.MaxGamesPerField != entry.MaxGamesPerField.Value)
+            {
+                row.MaxGamesPerField = entry.MaxGamesPerField.Value;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                row.LebUserId = userId;
+                row.Modified = DateTime.UtcNow;
+                updated++;
+            }
+        }
+
+        return updated;
+    }
+
+    /// <summary>
+    /// Uniform mode: infer wave per (agegroup, dow) group from current start time offsets,
+    /// then recalculate start times with new parameters while preserving wave assignments.
+    /// </summary>
+    private static int ApplyUniformConfig(
+        List<TimeslotsLeagueSeasonFields> allRows,
+        UpdateFieldConfigRequest request,
+        string userId)
+    {
+        // Nothing to change if all fields are null
+        if (request.BaseStartTime == null && !request.GamestartInterval.HasValue && !request.MaxGamesPerField.HasValue)
+            return 0;
+
+        // Group by (AgegroupId, Dow) — each group shares the same time config
+        var groups = allRows
+            .GroupBy(r => (r.AgegroupId, r.Dow))
+            .ToList();
+
+        // Step 1: Find current dominant GSI and MaxGames (most common values across all rows)
+        var currentGsi = allRows
+            .GroupBy(r => r.GamestartInterval)
+            .OrderByDescending(g => g.Count())
+            .First().Key;
+
+        var currentMaxGames = allRows
+            .GroupBy(r => r.MaxGamesPerField)
+            .OrderByDescending(g => g.Count())
+            .First().Key;
+
+        // Step 2: Parse each group's dominant start time to minutes-from-midnight
+        var currentBaseMinutes = int.MaxValue;
+        var groupStartMinutes = new Dictionary<(Guid, string), int>();
+
+        foreach (var g in groups)
+        {
+            // Use the most common start time in this group
+            var dominantStart = g
+                .Where(r => !string.IsNullOrEmpty(r.StartTime))
+                .GroupBy(r => r.StartTime!)
+                .OrderByDescending(sg => sg.Count())
+                .FirstOrDefault()?.Key;
+
+            var minutes = ParseTimeToMinutes(dominantStart);
+            groupStartMinutes[g.Key] = minutes;
+
+            if (minutes < currentBaseMinutes)
+                currentBaseMinutes = minutes;
+        }
+
+        if (currentBaseMinutes == int.MaxValue)
+            currentBaseMinutes = 480; // 8:00 AM fallback
+
+        // Step 3: Infer wave per group using current wave size.
+        // Use tolerance-based rounding: an offset within 15% of a wave boundary
+        // snaps to the nearest wave. This prevents 1-minute time drift from
+        // pushing a group into the wrong wave.
+        var waveSize = currentMaxGames * currentGsi;
+        var groupWaves = new Dictionary<(Guid, string), int>();
+
+        foreach (var (key, startMins) in groupStartMinutes)
+        {
+            var offset = startMins - currentBaseMinutes;
+            int wave;
+            if (waveSize > 0)
+            {
+                wave = 1 + (int)Math.Round((double)offset / waveSize);
+            }
+            else
+            {
+                wave = 1;
+            }
+            if (wave < 1) wave = 1;
+            groupWaves[key] = wave;
+        }
+
+        // Step 4: Determine new global values
+        var newGsi = request.GamestartInterval ?? currentGsi;
+        var globalMaxGames = request.MaxGamesPerField ?? currentMaxGames;
+        var globalBaseMinutes = request.BaseStartTime != null
+            ? ParseTimeToMinutes(request.BaseStartTime)
+            : currentBaseMinutes;
+
+        // Build per-DOW overrides lookup (e.g., Saturday → 7:30 AM, Sunday → 8:00 AM)
+        var dowOverrides = (request.DowOverrides ?? [])
+            .ToDictionary(d => d.Dow, StringComparer.OrdinalIgnoreCase);
+
+        // Step 5: Apply to all rows, resolving per-DOW values where available
+        var updated = 0;
+
+        foreach (var g in groups)
+        {
+            var dow = g.Key.Dow;
+            dowOverrides.TryGetValue(dow, out var dowOvr);
+
+            // Per-DOW overrides take precedence over global values
+            var newMaxGames = dowOvr?.MaxGamesPerField ?? globalMaxGames;
+            var newBaseMinutes = dowOvr?.BaseStartTime != null
+                ? ParseTimeToMinutes(dowOvr.BaseStartTime)
+                : globalBaseMinutes;
+
+            var wave = groupWaves[g.Key];
+            var newStartMinutes = newBaseMinutes + (wave - 1) * newMaxGames * newGsi;
+            var newStartTime = MinutesToTimeString(newStartMinutes);
+
+            foreach (var row in g)
+            {
+                var changed = false;
+
+                // Recalculate start time (wave-adjusted) when any parameter changes
+                if (row.StartTime != newStartTime)
+                {
+                    row.StartTime = newStartTime;
+                    changed = true;
+                }
+
+                if (request.GamestartInterval.HasValue && row.GamestartInterval != newGsi)
+                {
+                    row.GamestartInterval = newGsi;
+                    changed = true;
+                }
+
+                if (row.MaxGamesPerField != newMaxGames)
+                {
+                    row.MaxGamesPerField = newMaxGames;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    row.LebUserId = userId;
+                    row.Modified = DateTime.UtcNow;
+                    updated++;
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    /// <summary>
+    /// Per-agegroup-per-DOW overrides: apply StartTime and MaxGamesPerField to
+    /// rows matching each (AgegroupId, Dow) pair. Wave adjustment is applied
+    /// using the group's inferred wave number.
+    /// </summary>
+    /// <summary>Normalize abbreviated DOW (e.g. "Sat") to full name ("Saturday").</summary>
+    private static readonly Dictionary<string, string> DowAbbrevToFull = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["sun"] = "sunday", ["mon"] = "monday", ["tue"] = "tuesday", ["wed"] = "wednesday",
+        ["thu"] = "thursday", ["fri"] = "friday", ["sat"] = "saturday"
+    };
+
+    private static string NormalizeDow(string dow)
+    {
+        var lower = dow.ToLowerInvariant();
+        // Already a full name?
+        if (lower is "sunday" or "monday" or "tuesday" or "wednesday"
+            or "thursday" or "friday" or "saturday")
+            return lower;
+        // Try abbreviation lookup (3-char)
+        if (lower.Length >= 3 && DowAbbrevToFull.TryGetValue(lower[..3], out var full))
+            return full;
+        return lower;
+    }
+
+    private static int ApplyAgDowOverrides(
+        List<TimeslotsLeagueSeasonFields> allRows,
+        List<AgDowFieldConfigEntry> overrides,
+        string userId)
+    {
+        // Build lookup: (AgegroupId, Dow) → override — normalize abbreviated DOW to full name
+        var lookup = new Dictionary<(Guid, string), AgDowFieldConfigEntry>();
+        foreach (var ovr in overrides)
+        {
+            lookup[(ovr.AgegroupId, NormalizeDow(ovr.Dow))] = ovr;
+        }
+
+        // Group rows by (AgegroupId, Dow) — DB stores full names ("Saturday")
+        var groups = allRows
+            .GroupBy(r => (r.AgegroupId, Dow: r.Dow.ToLowerInvariant()))
+            .ToList();
+
+        var updated = 0;
+
+        foreach (var g in groups)
+        {
+            if (!lookup.TryGetValue(g.Key, out var ovr))
+                continue;
+
+            // --- Infer current wave structure (same logic as ApplyUniformConfig) ---
+
+            // Current base = earliest start time in group (wave 1)
+            var currentBaseMinutes = g
+                .Where(r => !string.IsNullOrEmpty(r.StartTime))
+                .Select(r => ParseTimeToMinutes(r.StartTime))
+                .DefaultIfEmpty(480)
+                .Min();
+
+            // Current dominant GSI and MaxGames for wave-size calculation
+            var currentGsi = g
+                .GroupBy(r => r.GamestartInterval)
+                .OrderByDescending(sg => sg.Count())
+                .First().Key;
+            var currentMaxGames = g
+                .GroupBy(r => r.MaxGamesPerField)
+                .OrderByDescending(sg => sg.Count())
+                .First().Key;
+            var currentWaveSize = currentMaxGames * currentGsi;
+
+            // New values from override
+            var newMaxGames = ovr.MaxGamesPerField ?? currentMaxGames;
+            var newBaseMinutes = ovr.StartTime != null
+                ? ParseTimeToMinutes(ovr.StartTime)
+                : currentBaseMinutes;
+            // GSI may have been updated by ApplyPerAgConfig already; read from first row
+            var newGsi = g.First().GamestartInterval;
+            var newWaveSize = newMaxGames * newGsi;
+
+            // Infer each row's wave from its offset, then recalculate with new params
+            foreach (var row in g)
+            {
+                // Determine this row's wave number from its current start time offset
+                var rowMinutes = ParseTimeToMinutes(row.StartTime);
+                var wave = 1;
+                if (currentWaveSize > 0)
+                {
+                    var offset = rowMinutes - currentBaseMinutes;
+                    wave = 1 + (int)Math.Round((double)offset / currentWaveSize);
+                    if (wave < 1) wave = 1;
+                }
+
+                // Recalculate start time preserving wave offset
+                var newStartMinutes = newBaseMinutes + (wave - 1) * newWaveSize;
+                var newStartTime = MinutesToTimeString(newStartMinutes);
+
+                var changed = false;
+
+                if (row.StartTime != newStartTime)
+                {
+                    row.StartTime = newStartTime;
+                    changed = true;
+                }
+
+                if (ovr.MaxGamesPerField.HasValue && row.MaxGamesPerField != newMaxGames)
+                {
+                    row.MaxGamesPerField = newMaxGames;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    row.LebUserId = userId;
+                    row.Modified = DateTime.UtcNow;
+                    updated++;
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    /// <summary>Parse a time string (e.g. "8:00 AM", "08:00 AM", "16:30") to minutes from midnight.</summary>
+    private static int ParseTimeToMinutes(string? timeStr)
+    {
+        if (string.IsNullOrWhiteSpace(timeStr))
+            return 480; // 8:00 AM default
+
+        if (DateTime.TryParse(timeStr, out var dt))
+            return dt.Hour * 60 + dt.Minute;
+
+        string[] formats = ["h:mm tt", "hh:mm tt", "H:mm", "HH:mm"];
+        if (DateTime.TryParseExact(timeStr, formats,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var parsed))
+        {
+            return parsed.Hour * 60 + parsed.Minute;
+        }
+
+        return 480; // fallback
+    }
+
+    /// <summary>Convert minutes from midnight to "h:mm tt" format (no leading zero).</summary>
+    private static string MinutesToTimeString(int totalMinutes)
+    {
+        totalMinutes = Math.Clamp(totalMinutes, 0, 24 * 60 - 1);
+        var dt = DateTime.Today.AddMinutes(totalMinutes);
+        return dt.ToString("h:mm tt");
     }
 
     // ── Helpers ──
@@ -790,7 +1210,7 @@ public sealed class TimeslotService : ITimeslotService
 
         var offsetMinutes = (wave - 1) * maxGames * gsi;
         var waveTime = baseTime.AddMinutes(offsetMinutes);
-        return waveTime.ToString("hh:mm tt");
+        return waveTime.ToString("h:mm tt");
     }
 
     private static string GetNextDow(string dow)
@@ -822,4 +1242,91 @@ public sealed class TimeslotService : ITimeslotService
         DivId = f.DivId,
         DivName = f.Div?.DivName
     };
+
+    // ── Field assignment management ──
+
+    public async Task<SaveFieldAssignmentsResponse> SaveFieldAssignmentsAsync(
+        Guid jobId, string userId, SaveFieldAssignmentsRequest request, CancellationToken ct = default)
+    {
+        var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        var totalCreated = 0;
+        var totalDeleted = 0;
+
+        foreach (var entry in request.Entries)
+        {
+            var desiredFieldIds = entry.FieldIds.ToHashSet();
+
+            // Get existing field-timeslot rows for this agegroup
+            var existingRows = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                entry.AgegroupId, season, year, ct: ct);
+
+            var currentFieldIds = existingRows.Select(r => r.FieldId).Distinct().ToHashSet();
+
+            // Fields to remove: in current but not in desired
+            var fieldsToRemove = currentFieldIds.Except(desiredFieldIds).ToList();
+
+            // Fields to add: in desired but not in current
+            var fieldsToAdd = desiredFieldIds.Except(currentFieldIds).ToList();
+
+            // Delete rows for removed fields
+            foreach (var fieldId in fieldsToRemove)
+            {
+                await _tsRepo.DeleteFieldTimeslotsByFieldAsync(
+                    entry.AgegroupId, fieldId, season, year, ct);
+                totalDeleted += existingRows.Count(r => r.FieldId == fieldId);
+            }
+
+            // Add rows for new fields by cloning from existing templates
+            if (fieldsToAdd.Count > 0 && existingRows.Count > 0)
+            {
+                // Group existing rows by (Dow, DivId) to get timing templates
+                var templates = existingRows
+                    .Where(r => desiredFieldIds.Contains(r.FieldId) || !fieldsToRemove.Contains(r.FieldId))
+                    .GroupBy(r => new { r.Dow, r.DivId })
+                    .Select(g => g.First())
+                    .ToList();
+
+                var newRows = new List<TimeslotsLeagueSeasonFields>();
+                foreach (var newFieldId in fieldsToAdd)
+                {
+                    foreach (var tmpl in templates)
+                    {
+                        newRows.Add(new TimeslotsLeagueSeasonFields
+                        {
+                            AgegroupId = entry.AgegroupId,
+                            FieldId = newFieldId,
+                            DivId = tmpl.DivId,
+                            StartTime = tmpl.StartTime,
+                            GamestartInterval = tmpl.GamestartInterval,
+                            MaxGamesPerField = tmpl.MaxGamesPerField,
+                            Dow = tmpl.Dow,
+                            Season = season,
+                            Year = year,
+                            LebUserId = userId,
+                            Modified = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                if (newRows.Count > 0)
+                {
+                    await _tsRepo.AddFieldTimeslotsRangeAsync(newRows, ct);
+                    totalCreated += newRows.Count;
+                }
+            }
+        }
+
+        await _tsRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "SaveFieldAssignments: created {Created}, deleted {Deleted} field-timeslot rows",
+            totalCreated, totalDeleted);
+
+        return new SaveFieldAssignmentsResponse
+        {
+            RowsCreated = totalCreated,
+            RowsDeleted = totalDeleted
+        };
+    }
 }

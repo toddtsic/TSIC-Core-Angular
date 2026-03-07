@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 
@@ -53,7 +54,7 @@ public class DevSchedulingController : ControllerBase
     /// Development environment ONLY.
     /// </summary>
     [HttpPost("reset")]
-    public async Task<ActionResult> Reset(CancellationToken ct)
+    public async Task<ActionResult> Reset([FromBody] DevResetRequest request, CancellationToken ct)
     {
         if (!_env.IsDevelopment())
             return NotFound();
@@ -62,55 +63,92 @@ public class DevSchedulingController : ControllerBase
         if (jobId == null)
             return BadRequest(new { message = "Scheduling context required" });
 
+        // Resolve granular flags — legacy TimeslotConfig = both dates + field timeslots
+        var clearDates = request.Dates || request.TimeslotConfig;
+        var clearFieldTimeslots = request.FieldTimeslots || request.TimeslotConfig;
+
         _logger.LogWarning(
-            "DEV RESET executing — clearing all scheduling config. JobId={JobId}",
-            jobId);
+            "DEV RESET executing — Games={Games}, Profiles={Profiles}, Pairings={Pairings}, " +
+            "Dates={Dates}, FieldTimeslots={FieldTimeslots}, Fields={Fields}. JobId={JobId}",
+            request.Games, request.StrategyProfiles, request.Pairings,
+            clearDates, clearFieldTimeslots, request.FieldAssignments, jobId);
 
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId.Value, ct);
 
         // 1. Delete all games
-        var gamesDeleted = await _autoBuildService.UndoAsync(jobId.Value, ct);
+        var gamesDeleted = 0;
+        if (request.Games)
+        {
+            gamesDeleted = await _autoBuildService.UndoAsync(jobId.Value, ct);
+        }
 
         // 2. Delete strategy profiles
-        await _profileRepo.DeleteByJobIdAsync(jobId.Value, ct);
-        await _profileRepo.SaveChangesAsync(ct);
-
-        // 3. Get all agegroup IDs that have timeslot config (scoped to this job's league)
-        var agIdsWithDates = await _tsRepo.GetAgegroupIdsWithDatesAsync(leagueId, season, year, ct);
-        var agIdsWithFields = await _tsRepo.GetAgegroupIdsWithFieldTimeslotsAsync(leagueId, season, year, ct);
-        var allAgIds = agIdsWithDates.Union(agIdsWithFields).ToList();
-
-        // 4. Delete timeslot dates and fields for each agegroup (sequential — shared DbContext)
-        foreach (var agId in allAgIds)
+        if (request.StrategyProfiles)
         {
-            await _tsRepo.DeleteAllDatesAsync(agId, season, year, ct);
-            await _tsRepo.DeleteAllFieldTimeslotsAsync(agId, season, year, ct);
+            await _profileRepo.DeleteByJobIdAsync(jobId.Value, ct);
+            await _profileRepo.SaveChangesAsync(ct);
         }
-        await _tsRepo.SaveChangesAsync(ct);
 
-        // 5. Delete pairings — get distinct pool sizes (team counts), then delete each
-        var teamCounts = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
-        foreach (var tCnt in teamCounts)
+        // 3–4. Clear timeslot configuration (dates and/or field-timeslots independently)
+        var agegroupsCleared = 0;
+        if (clearDates || clearFieldTimeslots)
         {
-            await _pairingsRepo.DeleteAllAsync(leagueId, season, tCnt, ct);
+            var agIds = new HashSet<Guid>();
+            if (clearDates)
+            {
+                var ids = await _tsRepo.GetAgegroupIdsWithDatesAsync(leagueId, season, year, ct);
+                foreach (var id in ids) agIds.Add(id);
+            }
+            if (clearFieldTimeslots)
+            {
+                var ids = await _tsRepo.GetAgegroupIdsWithFieldTimeslotsAsync(leagueId, season, year, ct);
+                foreach (var id in ids) agIds.Add(id);
+            }
+            agegroupsCleared = agIds.Count;
+
+            foreach (var agId in agIds)
+            {
+                if (clearDates)
+                    await _tsRepo.DeleteAllDatesAsync(agId, season, year, ct);
+                if (clearFieldTimeslots)
+                    await _tsRepo.DeleteAllFieldTimeslotsAsync(agId, season, year, ct);
+            }
+            await _tsRepo.SaveChangesAsync(ct);
         }
-        await _pairingsRepo.SaveChangesAsync(ct);
+
+        // 5. Delete pairings
+        var pairingGroupsCleared = 0;
+        if (request.Pairings)
+        {
+            var teamCounts = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
+            pairingGroupsCleared = teamCounts.Count;
+
+            foreach (var tCnt in teamCounts)
+            {
+                await _pairingsRepo.DeleteAllAsync(leagueId, season, tCnt, ct);
+            }
+            await _pairingsRepo.SaveChangesAsync(ct);
+        }
 
         // 6. Remove field-to-job assignments (FieldsLeagueSeason — NOT reference.Fields)
-        var fieldsCleared = await _fieldRepo.RemoveAllFieldsFromLeagueSeasonAsync(leagueId, season, ct);
+        var fieldsCleared = 0;
+        if (request.FieldAssignments)
+        {
+            fieldsCleared = await _fieldRepo.RemoveAllFieldsFromLeagueSeasonAsync(leagueId, season, ct);
+        }
 
         _logger.LogWarning(
             "DEV RESET complete. JobId={JobId}, GamesDeleted={Games}, " +
             "AgegroupsCleared={Ags}, PairingGroupsCleared={Pairings}, FieldsCleared={Fields}",
-            jobId, gamesDeleted, allAgIds.Count, teamCounts.Count, fieldsCleared);
+            jobId, gamesDeleted, agegroupsCleared, pairingGroupsCleared, fieldsCleared);
 
         return Ok(new
         {
             gamesDeleted,
-            agegroupsCleared = allAgIds.Count,
-            pairingGroupsCleared = teamCounts.Count,
+            agegroupsCleared,
+            pairingGroupsCleared,
             fieldsCleared,
-            profilesCleared = true
+            profilesCleared = request.StrategyProfiles
         });
     }
 }

@@ -6,116 +6,195 @@
         </div>
 
         <div class="modal-body">
-            <!-- ── Date Picker ── -->
-            <div class="date-row">
-                <label class="form-label fw-semibold">Game Date</label>
-                <input type="date"
-                       class="form-control form-control-sm"
-                       [ngModel]="selectedDate()"
-                       (ngModelChange)="selectedDate.set($event)">
-            </div>
 
-            <!-- ── Wave + Field Schedule Defaults ── -->
-            <div class="defaults-row">
-                <span class="defaults-label">
-                    Field Defaults
-                    @if (defaultsSource()) {
-                        <span class="defaults-source">{{ defaultsSource() }}</span>
-                    }
-                </span>
-                <div class="defaults-inputs">
-                    <div class="default-field">
-                        <label>Start</label>
-                        <input type="text"
-                               class="form-control form-control-sm"
-                               [ngModel]="startTime()"
-                               (ngModelChange)="startTime.set($event)">
-                    </div>
-                    <div class="default-field">
-                        <label>GSI</label>
-                        <input type="number"
-                               class="form-control form-control-sm"
-                               [ngModel]="gsi()"
-                               (ngModelChange)="gsi.set($event)"
-                               min="30" max="120" step="5">
-                    </div>
-                    <div class="default-field">
-                        <label>Max</label>
-                        <input type="number"
-                               class="form-control form-control-sm"
-                               [ngModel]="maxGames()"
-                               (ngModelChange)="maxGames.set($event)"
-                               min="1" max="20">
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Agegroup Checklist ── -->
-            <div class="ag-section">
-                <div class="ag-section-header">
-                    <span class="ag-section-label">Agegroups</span>
-                    <label class="ag-check-all">
-                        <input type="checkbox"
-                               class="form-check-input"
-                               [checked]="allChecked()"
-                               [indeterminate]="someChecked()"
-                               (change)="toggleAll()">
-                        All
-                    </label>
-                </div>
-
-                <div class="ag-list">
-                    @for (ag of sortedAgegroups(); track ag.agegroupId) {
-                        @let dates = agExistingDates(ag.agegroupId);
-                        <label class="ag-row" [class.ag-row-checked]="isChecked(ag.agegroupId)">
-                            <div class="ag-info">
-                                <div class="ag-info-top">
-                                    <span class="ag-badge"
-                                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
-                                          [style.color]="contrastText(ag.color)">
-                                        {{ ag.agegroupName }}
-                                    </span>
-                                    <span class="ag-meta">
-                                        {{ agTeamCount(ag) }} teams &middot; {{ ag.divisions.length }} div
-                                    </span>
-                                </div>
-                                @if (dates.length > 0) {
-                                    <select class="ag-dates-ddl"
-                                            (click)="$event.stopPropagation()">
-                                        @for (day of dates; track day) {
-                                            <option>{{ day }}</option>
-                                        }
-                                    </select>
-                                }
-                            </div>
-                            <select class="form-select form-select-sm ag-wave-select"
-                                    [ngModel]="getWave(ag.agegroupId)"
-                                    (ngModelChange)="setWave(ag.agegroupId, +$event)"
-                                    (click)="$event.stopPropagation()">
-                                <option [ngValue]="1">W1</option>
-                                <option [ngValue]="2">W2</option>
-                                <option [ngValue]="3">W3</option>
-                            </select>
-                            <input type="checkbox"
-                                   class="form-check-input"
-                                   [checked]="isChecked(ag.agegroupId)"
-                                   (change)="toggleAgegroup(ag.agegroupId)">
-                        </label>
+            <!-- ── Existing Game Dates (clickable to edit) ── -->
+            @if (existingDates().length > 0) {
+                <div class="existing-dates">
+                    <span class="existing-dates-label">Configured Game Days</span>
+                    @for (d of existingDates(); track d.isoDate) {
+                        <div class="existing-date-entry"
+                             [class.existing-date-active]="isSelectedDate(d.isoDate)"
+                             role="button"
+                             tabindex="0"
+                             (click)="selectExistingDate(d.isoDate, d.agIds)"
+                             (keydown.enter)="selectExistingDate(d.isoDate, d.agIds)">
+                            <i class="bi" [class.bi-calendar-check-fill]="isSelectedDate(d.isoDate)" [class.bi-calendar-check]="!isSelectedDate(d.isoDate)"></i>
+                            <span class="existing-date-dow">{{ d.dow }}</span>
+                            {{ d.dateFormatted }}
+                            <span class="existing-date-count">{{ d.agCount }} ag</span>
+                        </div>
                     }
                 </div>
-            </div>
+            }
 
-            <!-- ── Applied Log ── -->
+            <!-- ── Applied Log (dates just assigned this session) ── -->
             @if (appliedLog().length > 0) {
                 <div class="applied-log">
-                    <span class="applied-label">Applied</span>
+                    <span class="applied-label">Just Assigned</span>
                     @for (entry of appliedLog(); track $index) {
                         <div class="applied-entry">
                             <i class="bi bi-check-circle-fill text-success"></i>
                             <span class="applied-wave">W{{ entry.wave }}</span>
-                            {{ entry.dow }} {{ entry.dateFormatted }} &rarr; {{ entry.count }} agegroup{{ entry.count !== 1 ? 's' : '' }}
+                            {{ entry.dow }} {{ entry.dateFormatted }}
+                            @if (entry.roundsPerDay > 1) {
+                                <span class="applied-rounds">{{ entry.roundsPerDay }}R</span>
+                            }
+                            &rarr; {{ entry.count }} agegroup{{ entry.count !== 1 ? 's' : '' }}
                         </div>
                     }
+                </div>
+            }
+
+            <!-- ── Add Game Date: Button or Input ── -->
+            <div class="add-date-row">
+                @if (showDateInput()) {
+                    <div class="date-input-row">
+                        <label class="form-label form-label-sm mb-0 fw-semibold">New Game Date</label>
+                        <input #dateInput
+                               type="date"
+                               class="form-control form-control-sm date-input"
+                               [ngModel]="selectedDate()"
+                               (ngModelChange)="selectedDate.set($event)">
+                    </div>
+                } @else if (!isEditingExisting()) {
+                    <button class="btn btn-sm btn-outline-primary add-date-btn"
+                            (click)="onAddDate()">
+                        <i class="bi bi-plus-circle"></i> Add Game Date
+                    </button>
+                }
+            </div>
+
+            <!-- ── Agegroup Configuration (visible when date selected OR dates already applied) ── -->
+            @if (hasDate() || appliedLog().length > 0) {
+                <!-- ── Field Schedule Defaults ── -->
+                <div class="defaults-row">
+                    <span class="defaults-label">
+                        Field Defaults
+                        @if (defaultsSource()) {
+                            <span class="defaults-source">{{ defaultsSource() }}</span>
+                        }
+                    </span>
+                    <div class="defaults-inputs">
+                        <div class="default-field">
+                            <label>Start</label>
+                            <input type="text"
+                                   class="form-control form-control-sm"
+                                   [ngModel]="startTime()"
+                                   (ngModelChange)="startTime.set($event)">
+                        </div>
+                        <div class="default-field">
+                            <label>GSI</label>
+                            <input type="number"
+                                   class="form-control form-control-sm"
+                                   [ngModel]="gsi()"
+                                   (ngModelChange)="gsi.set($event)"
+                                   min="30" max="120" step="5">
+                        </div>
+                        <div class="default-field">
+                            <label>Max</label>
+                            <input type="number"
+                                   class="form-control form-control-sm"
+                                   [ngModel]="maxGames()"
+                                   (ngModelChange)="maxGames.set($event)"
+                                   min="1" max="20">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Agegroup Checklist ── -->
+                <div class="ag-section">
+                    <div class="ag-section-header">
+                        <span class="ag-section-label">
+                            @if (hasDate()) {
+                                Agegroups for {{ selectedDateLabel() }}
+                            } @else {
+                                Select next date above
+                            }
+                        </span>
+                        <label class="ag-check-all">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   [checked]="allChecked()"
+                                   [indeterminate]="someChecked()"
+                                   (change)="toggleAll()">
+                            All
+                        </label>
+                    </div>
+                    <p class="ag-instruction">
+                        @if (hasDate()) {
+                            Check agegroups that play on this date. Uncheck to skip.
+                        } @else {
+                            Click a date above to edit, or add a new one.
+                        }
+                    </p>
+
+                    <div class="ag-col-header-row">
+                        <span class="ag-col-spacer"></span>
+                        <span class="ag-col-hdr ag-col-hdr-r" title="Rounds to assign on this date">R/day</span>
+                        <span class="ag-col-hdr ag-col-hdr-w" title="Wave group">Wave</span>
+                        <span class="ag-col-hdr-check"></span>
+                    </div>
+
+                    <div class="ag-list">
+                        @for (ag of sortedAgegroups(); track ag.agegroupId) {
+                            @let dates = agExistingDates(ag.agegroupId);
+                            @let needed = agRoundsNeeded(ag.agegroupId);
+                            @let configured = agTotalRounds(ag.agegroupId);
+                            <label class="ag-row"
+                                   [class.ag-row-checked]="isChecked(ag.agegroupId)"
+                                   [class.ag-row-unchecked]="!isChecked(ag.agegroupId)">
+                                <div class="ag-info">
+                                    <div class="ag-info-top">
+                                        <span class="ag-badge"
+                                              [style.background]="ag.color ?? 'var(--bs-secondary)'"
+                                              [style.color]="contrastText(ag.color)">
+                                            {{ ag.agegroupName }}
+                                        </span>
+                                        <span class="ag-meta">
+                                            {{ agTeamCount(ag) }} teams &middot; {{ ag.divisions.length }} div
+                                            @if (needed > 0) {
+                                                &middot;
+                                                <span class="ag-rounds-status"
+                                                      [class.rounds-ok]="configured >= needed"
+                                                      [class.rounds-short]="configured < needed">
+                                                    {{ configured }}/{{ needed }}R
+                                                </span>
+                                            }
+                                        </span>
+                                    </div>
+                                    @if (dates.length > 0) {
+                                        <select class="ag-dates-ddl"
+                                                (click)="$event.stopPropagation()">
+                                            @for (day of dates; track day) {
+                                                <option>{{ day }}</option>
+                                            }
+                                        </select>
+                                    }
+                                </div>
+                                <select class="form-select form-select-sm ag-rounds-select"
+                                        [ngModel]="getRounds(ag.agegroupId)"
+                                        (ngModelChange)="setRounds(ag.agegroupId, +$event)"
+                                        (click)="$event.stopPropagation()"
+                                        [title]="roundsSource(ag.agegroupId)">
+                                    @for (n of roundOptions; track n) {
+                                        <option [ngValue]="n">{{ roundOptionLabel(ag.agegroupId, n) }}</option>
+                                    }
+                                </select>
+                                <select class="form-select form-select-sm ag-wave-select"
+                                        [ngModel]="getWave(ag.agegroupId)"
+                                        (ngModelChange)="setWave(ag.agegroupId, +$event)"
+                                        (click)="$event.stopPropagation()">
+                                    <option [ngValue]="1">W1</option>
+                                    <option [ngValue]="2">W2</option>
+                                    <option [ngValue]="3">W3</option>
+                                </select>
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       [checked]="isChecked(ag.agegroupId)"
+                                       (change)="toggleAgegroup(ag.agegroupId)">
+                            </label>
+                        }
+                    </div>
                 </div>
             }
         </div>

@@ -7,6 +7,7 @@ export type PrerequisiteCheckResponse = {
     unassignedTeamCount: number;
     pairingsCreated: boolean;
     missingPairingTCnts: Array<number>;
+    existingPairingRounds: Record<string, number>;
     timeslotsConfigured: boolean;
     agegroupsMissingTimeslots: Array<string>;
     allPassed: boolean;

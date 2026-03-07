@@ -256,6 +256,19 @@ public class TimeslotController : ControllerBase
         return NoContent();
     }
 
+    // ── Field config update ──
+
+    [HttpPut("field-config")]
+    public async Task<ActionResult<UpdateFieldConfigResponse>> UpdateFieldConfig(
+        [FromBody] UpdateFieldConfigRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _timeslotService.UpdateFieldConfigAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
+
     // ── Bulk operations ──
 
     [HttpPost("bulk-assign")]
@@ -282,5 +295,18 @@ public class TimeslotController : ControllerBase
             return Ok(result);
         }
         catch (KeyNotFoundException) { return NotFound(); }
+    }
+
+    // ── Field assignments ──
+
+    [HttpPut("field-assignments")]
+    public async Task<ActionResult<SaveFieldAssignmentsResponse>> SaveFieldAssignments(
+        [FromBody] SaveFieldAssignmentsRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _timeslotService.SaveFieldAssignmentsAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
     }
 }

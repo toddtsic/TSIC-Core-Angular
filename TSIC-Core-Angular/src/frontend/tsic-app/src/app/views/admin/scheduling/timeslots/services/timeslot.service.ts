@@ -20,7 +20,11 @@ import type {
     CloneDateRecordRequest,
     CloneFieldDowRequest,
     BulkDateAssignRequest,
-    BulkDateAssignResponse
+    BulkDateAssignResponse,
+    UpdateFieldConfigRequest,
+    UpdateFieldConfigResponse,
+    SaveFieldAssignmentsRequest,
+    SaveFieldAssignmentsResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -42,7 +46,11 @@ export type {
     CloneDateRecordRequest,
     CloneFieldDowRequest,
     BulkDateAssignRequest,
-    BulkDateAssignResponse
+    BulkDateAssignResponse,
+    UpdateFieldConfigRequest,
+    UpdateFieldConfigResponse,
+    SaveFieldAssignmentsRequest,
+    SaveFieldAssignmentsResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -136,5 +144,17 @@ export class TimeslotService {
 
     bulkAssignDate(request: BulkDateAssignRequest): Observable<BulkDateAssignResponse> {
         return this.http.post<BulkDateAssignResponse>(`${this.apiUrl}/bulk-assign`, request);
+    }
+
+    // ── Field config update ──
+
+    updateFieldConfig(request: UpdateFieldConfigRequest): Observable<UpdateFieldConfigResponse> {
+        return this.http.put<UpdateFieldConfigResponse>(`${this.apiUrl}/field-config`, request);
+    }
+
+    // ── Field assignments ──
+
+    saveFieldAssignments(request: SaveFieldAssignmentsRequest): Observable<SaveFieldAssignmentsResponse> {
+        return this.http.put<SaveFieldAssignmentsResponse>(`${this.apiUrl}/field-assignments`, request);
     }
 }

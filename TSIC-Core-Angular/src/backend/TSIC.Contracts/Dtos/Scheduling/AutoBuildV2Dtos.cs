@@ -169,6 +169,9 @@ public record PrerequisiteCheckResponse
     /// <summary>TCnt values that are missing pairings.</summary>
     public required List<int> MissingPairingTCnts { get; init; }
 
+    /// <summary>Current rounds generated per team count. Key = TCnt, Value = maxRound.</summary>
+    public required Dictionary<int, int> ExistingPairingRounds { get; init; }
+
     /// <summary>All agegroups with active divisions have at least one timeslot date.</summary>
     public required bool TimeslotsConfigured { get; init; }
     /// <summary>Agegroup names missing timeslot configuration.</summary>
@@ -189,6 +192,18 @@ public record EnsurePairingsRequest
 {
     /// <summary>Team counts that need round-robin pairings generated.</summary>
     public required List<int> TeamCounts { get; init; }
+
+    /// <summary>
+    /// Optional rounds-per-team-count overrides. Key = TCnt, Value = NoRounds.
+    /// When null or key missing, defaults to full round-robin.
+    /// </summary>
+    public Dictionary<int, int>? RoundsOverrides { get; init; }
+
+    /// <summary>
+    /// When true, deletes existing pairings for each TCnt before generating new ones.
+    /// Use this to change the number of rounds for already-generated pairings.
+    /// </summary>
+    public bool ForceRegenerate { get; init; }
 }
 
 /// <summary>

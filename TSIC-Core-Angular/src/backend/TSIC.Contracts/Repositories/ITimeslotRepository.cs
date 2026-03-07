@@ -39,6 +39,9 @@ public record AgegroupReadinessData
     /// <summary>Actual calendar dates from TimeslotsLeagueSeasonDates.</summary>
     public required List<DateTime> Dates { get; init; }
 
+    /// <summary>Per-date round counts: date → number of TimeslotsLeagueSeasonDates rows.</summary>
+    public required Dictionary<DateTime, int> RoundsPerDate { get; init; }
+
     /// <summary>Per-DOW field scheduling parameters for game day line construction.</summary>
     public required List<DowFieldData> PerDowFields { get; init; }
 }
@@ -60,6 +63,9 @@ public interface ITimeslotRepository
     void RemoveDate(TimeslotsLeagueSeasonDates date);
 
     Task DeleteAllDatesAsync(Guid agegroupId, string season, string year, CancellationToken ct = default);
+
+    /// <summary>Delete date entries for an agegroup on a specific date.</summary>
+    Task DeleteDatesByDateAsync(Guid agegroupId, DateTime gDate, string season, string year, CancellationToken ct = default);
 
     // ── Field timeslots ──
 
@@ -100,6 +106,22 @@ public interface ITimeslotRepository
     Task<Dictionary<Guid, AgegroupReadinessData>> GetReadinessDataAsync(
         Guid leagueId, string season, string year, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get per-agegroup total round counts from timeslot dates for a league-season-year.
+    /// Keyed by agegroup name (for cross-year matching). Returns count of date rows per agegroup.
+    /// </summary>
+    Task<Dictionary<string, int>> GetRoundCountsByAgegroupNameAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
+
+    // ── Bulk field config update ──
+
+    /// <summary>
+    /// Get ALL field timeslot rows for a league-season-year as TRACKED entities (for in-place update).
+    /// Used by UpdateFieldConfig to modify GSI/StartTime/MaxGames without recreating rows.
+    /// </summary>
+    Task<List<TimeslotsLeagueSeasonFields>> GetAllFieldTimeslotsForUpdateAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
+
     // ── Cloning support queries ──
 
     /// <summary>Get all field timeslots for a source agegroup (used by clone-fields, clone-by-field, etc.).</summary>
@@ -119,6 +141,28 @@ public interface ITimeslotRepository
 
     /// <summary>Get field IDs assigned to the league-season (excluding system fields).</summary>
     Task<List<Guid>> GetAssignedFieldIdsAsync(Guid leagueId, string season, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get the distinct field IDs used by each agegroup in field-timeslot rows.
+    /// Returns agegroupId → list of distinct fieldIds.
+    /// Scoped to agegroups belonging to the specified league.
+    /// </summary>
+    Task<Dictionary<Guid, List<Guid>>> GetFieldIdsPerAgegroupAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get event-level field summaries (FieldId + FieldName) for all fields assigned
+    /// to a league-season. Excludes system fields (name starts with '*').
+    /// </summary>
+    Task<List<EventFieldSummaryDto>> GetEventFieldSummariesAsync(
+        Guid leagueId, string season, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete all field-timeslot rows for a specific (agegroup, field) combination.
+    /// Used when removing a field from an agegroup's field assignment.
+    /// </summary>
+    Task DeleteFieldTimeslotsByFieldAsync(
+        Guid agegroupId, Guid fieldId, string season, string year, CancellationToken ct = default);
 
     // ── Prior-year defaults ──
 

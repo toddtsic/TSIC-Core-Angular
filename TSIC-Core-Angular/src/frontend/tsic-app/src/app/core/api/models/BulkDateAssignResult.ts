@@ -5,6 +5,7 @@
 export type BulkDateAssignResult = {
     agegroupId: string;
     dateCreated: boolean;
+    roundsCreated: number;
     fieldTimeslotsCreated: number;
 };
 

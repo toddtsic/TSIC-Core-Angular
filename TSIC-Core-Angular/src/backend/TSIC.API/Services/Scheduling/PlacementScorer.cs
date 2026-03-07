@@ -7,15 +7,15 @@ namespace TSIC.API.Services.Scheduling;
 ///
 /// Two hard filters:
 ///   1. Occupied slot (can't double-book)
-///   2. Team span (prefer candidates within source median span; fall back only when
-///      no span-safe slot exists — this guarantees tight clustering by construction)
+///   2. Wave time floor (wave 2+ can't bleed into wave 1's window)
 ///
 /// Soft penalties (tiebreakers among span-safe candidates, in priority order):
 ///   1. Wrong day — not a source play day, or not the round's target day
-///   2. Min team gap violation — creating a gap smaller than source observed
+///   2. Min team gap violation — creating a gap smaller than MinTeamGapTicks
 ///   3. Target time distance — ticks away from expected time for this game
 ///   4. Round layout mismatch — horizontal round but different time from round target
 ///   5. Field distribution imbalance — team overusing a field vs their least-used
+///   6. Field preference — penalize "Avoid" fields
 /// </summary>
 public static class PlacementScorer
 {
@@ -42,7 +42,7 @@ public static class PlacementScorer
         GameContext game,
         DivisionSizeProfile profile,
         PlacementState state,
-        DateTime? waveTimeFloor = null)
+        Dictionary<DateTime, DateTime>? waveFloorByDay = null)
     {
         if (candidates.Count == 0)
             return null;
@@ -57,17 +57,20 @@ public static class PlacementScorer
             if (state.OccupiedSlots.Contains((candidate.FieldId, candidate.GDate)))
                 continue;
 
-            // ═══ Hard filter: wave time floor ═══
-            // When wave scheduling is active, reject any slot before the floor.
-            // This ensures Wave 2+ agegroups can't bleed into Wave 1's time window.
-            if (waveTimeFloor.HasValue && candidate.GDate < waveTimeFloor.Value)
+            // ═══ Hard filter: wave time floor (per-day) ═══
+            // When wave scheduling is active, reject any slot before the floor
+            // for that specific calendar day. Each day gets its own floor so
+            // Saturday's wave boundary doesn't affect Sunday's placements.
+            if (waveFloorByDay != null
+                && waveFloorByDay.TryGetValue(candidate.GDate.Date, out var dayFloor)
+                && candidate.GDate < dayFloor)
                 continue;
 
-            // ═══ Hard filter: BTB / min team gap ═══
-            // Round-by-round placement always has room further down the canvas,
-            // so there's no reason to accept a slot that creates a BTB.
-            if (profile.MinTeamGapTicks > 0 && profile.GsiMinutes > 0
-                && IsGapViolation(candidate, game, profile, state))
+            // ═══ Hard filter: time overlap ═══
+            // A team physically can't play two games at the same time.
+            // Reject if either team already has a game within 1 GSI tick of this slot.
+            // Gaps >= 1 tick are handled as soft penalties below.
+            if (profile.GsiMinutes > 0 && IsTimeOverlap(candidate, game, profile, state))
                 continue;
 
             var penalty = 0;
@@ -88,6 +91,14 @@ public static class PlacementScorer
             {
                 penalty += spanPenalty;
                 breakdown["team-span"] = spanPenalty;
+            }
+
+            // ── P2: Min Team Gap ──
+            var gapPenalty = ScoreMinTeamGap(candidate, game, profile, state);
+            if (gapPenalty > 0)
+            {
+                penalty += gapPenalty;
+                breakdown["team-gap"] = gapPenalty;
             }
 
             // ── P3: Target Time Distance ──
@@ -394,11 +405,12 @@ public static class PlacementScorer
     }
 
     /// <summary>
-    /// Hard filter: would placing this game here create a gap smaller than
-    /// MinTeamGapTicks for either team? If so, skip this slot — there's
-    /// always room further down the canvas with round-by-round placement.
+    /// Hard filter: would placing this game here cause either team to be in two
+    /// games at the same time? Returns true if the gap to any existing game for
+    /// either team is less than 1 GSI tick (i.e. games overlap in real time).
+    /// Gaps of 1+ ticks are allowed and handled as soft penalties by ScoreMinTeamGap.
     /// </summary>
-    private static bool IsGapViolation(
+    private static bool IsTimeOverlap(
         CandidateSlot candidate, GameContext game, DivisionSizeProfile profile, PlacementState state)
     {
         var gameDay = candidate.GDate.Date;
@@ -407,6 +419,7 @@ public static class PlacementScorer
         var gap1 = ComputeMinGapTicks(state, game.DivId, game.T1No, gameDay, gameTime, profile.GsiMinutes);
         var gap2 = ComputeMinGapTicks(state, game.DivId, game.T2No, gameDay, gameTime, profile.GsiMinutes);
 
-        return gap1 < profile.MinTeamGapTicks || gap2 < profile.MinTeamGapTicks;
+        return gap1 < 1 || gap2 < 1;
     }
+
 }

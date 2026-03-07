@@ -27,13 +27,18 @@ import { DivisionNavigatorComponent } from '../shared/components/division-naviga
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { OperationSpinnerModalComponent } from '../shared/components/operation-spinner-modal/operation-spinner-modal.component';
 import { PairingsPanelComponent } from './components/pairings-panel/pairings-panel.component';
-import { EventSummaryPanelComponent } from './components/event-summary-panel/event-summary-panel.component';
+import { EventSummaryPanelComponent, type DevResetOptions } from './components/event-summary-panel/event-summary-panel.component';
 import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
+import { JobService } from '@infrastructure/services/job.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
+import type { CalendarApplyEvent, FieldConfigApplyEvent } from './components/schedule-config/schedule-config.types';
+import type { TimeConfigSaveEvent } from './components/schedule-config/time-config-section.component';
+import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
+import type { CanvasReadinessResponse } from '@core/api';
 
 @Component({
     selector: 'app-schedule-division',
@@ -41,16 +46,25 @@ import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoB
     imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [ScheduleConfigService]
 })
 export class ScheduleDivisionComponent implements OnInit {
     private readonly svc = inject(ScheduleDivisionService);
     private readonly autoBuildSvc = inject(AutoBuildService);
     private readonly qaSvc = inject(ScheduleQaService);
     private readonly timeslotSvc = inject(TimeslotService);
+    private readonly jobSvc = inject(JobService);
     private readonly toast = inject(ToastService);
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
+    readonly configSvc = inject(ScheduleConfigService);
+
+    // ── Config service init tracking ──
+    private configInitDone = false;
+    private fullReadinessResponse: CanvasReadinessResponse | null = null;
+    private agegroupsLoaded = false;
+    private strategiesLoaded = false;
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
@@ -76,9 +90,20 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly canvasReadiness = signal<Record<string, import('@core/api').AgegroupCanvasReadinessDto>>({});
     readonly assignedFieldCount = signal(0);
     readonly priorYearDefaults = signal<import('@core/api').PriorYearFieldDefaults | null>(null);
+    readonly priorYearRounds = signal<Record<string, number> | null>(null);
     readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
     readonly strategySource = signal<string>('defaults');
     readonly isSavingStrategy = signal(false);
+    readonly isApplyingCalendar = signal(false);
+
+    /** Auto-detected event type label for the stepper badge. */
+    readonly eventTypeLabel = computed(() => {
+        const job = this.jobSvc.currentJob();
+        const typeName = (job?.jobTypeName ?? '').toLowerCase();
+        if (typeName.includes('league')) return 'League';
+        if (typeName.includes('tournament')) return 'Tournament';
+        return 'Tournament';
+    });
 
     // ── Game Summary (from auto-build service) ──
     readonly gameSummary = signal<GameSummaryResponse | null>(null);
@@ -231,7 +256,15 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly prerequisiteErrors = signal<string[]>([]);
     readonly isCheckingPrereqs = signal(false);
     readonly missingPairingTCnts = signal<number[]>([]);
+    readonly existingPairingRounds = signal<Record<number, number>>({});
     readonly isGeneratingPairings = signal(false);
+
+    // ── Time Config save state ──
+    readonly isSavingTimeConfig = signal(false);
+
+    // ── Field Config save state ──
+    readonly isSavingFieldConfig = signal(false);
+    readonly eventFields = signal<import('@core/api').EventFieldSummaryDto[]>([]);
 
     // ── Bulk date assignment modal ──
     readonly showBulkDateModal = signal(false);
@@ -334,6 +367,8 @@ export class ScheduleDivisionComponent implements OnInit {
                     .sort((a, b) => (a.agegroupName ?? '').localeCompare(b.agegroupName ?? ''));
                 this.agegroups.set(filtered);
                 this.isNavLoading.set(false);
+                this.agegroupsLoaded = true;
+                this.tryInitConfig();
             },
             error: () => this.isNavLoading.set(false)
         });
@@ -356,11 +391,16 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.canvasReadiness.set(map);
                 this.assignedFieldCount.set(res.assignedFieldCount);
                 this.priorYearDefaults.set(res.priorYearDefaults ?? null);
+                this.priorYearRounds.set(res.priorYearRounds ?? null);
+                this.eventFields.set(res.eventFields ?? []);
+                this.fullReadinessResponse = res;
+                this.tryInitConfig();
             },
             error: () => {
                 this.canvasReadiness.set({});
                 this.assignedFieldCount.set(0);
                 this.priorYearDefaults.set(null);
+                this.priorYearRounds.set(null);
             }
         });
     }
@@ -370,12 +410,38 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (res) => {
                 this.strategyProfiles.set(res.strategies);
                 this.strategySource.set(res.source);
+                this.strategiesLoaded = true;
+                this.tryInitConfig();
             },
             error: () => {
                 this.strategyProfiles.set([]);
                 this.strategySource.set('defaults');
+                this.strategiesLoaded = true;
+                this.tryInitConfig();
             }
         });
+    }
+
+    /**
+     * Try to initialize the ScheduleConfigService once all three
+     * parallel loads (readiness, agegroups, strategies) are done.
+     * Only runs once — subsequent data refreshes don't re-derive config.
+     */
+    private tryInitConfig(): void {
+        if (this.configInitDone) return;
+        if (!this.fullReadinessResponse || !this.agegroupsLoaded || !this.strategiesLoaded) return;
+
+        this.configInitDone = true;
+        this.configSvc.initialize(
+            this.fullReadinessResponse,
+            this.agegroups().map(ag => ({
+                agegroupId: ag.agegroupId,
+                agegroupName: ag.agegroupName,
+                teamCount: agTeamCount(ag)
+            })),
+            this.strategyProfiles(),
+            this.strategySource()
+        );
     }
 
     onCanvasConfigured(): void {
@@ -392,12 +458,184 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Bulk date assignment modal ──
 
+    // ── Bulk date modal ──
+
     openBulkDateModal(): void {
         this.showBulkDateModal.set(true);
     }
 
     onBulkDateApplied(): void {
         this.loadCanvasReadiness();
+    }
+
+    /**
+     * Handle calendar section "Save & Apply" — calls bulkAssignDate per date sequentially.
+     * GSI/StartTime/MaxGames are read from the CURRENT effective values (readiness or defaults),
+     * NOT from the calendar event (Calendar section no longer owns these).
+     */
+    onCalendarApply(event: CalendarApplyEvent): void {
+        const dateKeys = Object.keys(event.assignments).sort();
+        if (dateKeys.length === 0) return;
+
+        this.isApplyingCalendar.set(true);
+
+        // Derive current effective GSI/Start/Max from readiness or defaults
+        const { startTime, gsi, maxGamesPerField } = this.resolveEffectiveFieldDefaults();
+
+        let completed = 0;
+
+        const applyNext = (): void => {
+            if (completed >= dateKeys.length) {
+                this.isApplyingCalendar.set(false);
+
+                // Persist wave assignments
+                this.configSvc.updateValue('waveAssignments', event.waveMap);
+
+                // Persist representative R/day (first date's value per AG)
+                const rpdMap: Record<string, number> = {};
+                for (const dk of dateKeys) {
+                    for (const entry of event.assignments[dk].entries) {
+                        rpdMap[entry.agegroupId] ??= entry.roundsPerDay ?? 1;
+                    }
+                }
+                this.configSvc.updateValue('roundsPerDay', rpdMap);
+
+                this.loadCanvasReadiness();
+                this.configSvc.saveToLocalStorage();
+                this.toast.show(`Applied ${dateKeys.length} date(s) successfully`, 'success');
+                return;
+            }
+
+            const isoDate = dateKeys[completed];
+            const assignment = event.assignments[isoDate];
+            const gDate = new Date(isoDate + 'T00:00:00');
+
+            this.timeslotSvc.bulkAssignDate({
+                gDate: gDate.toISOString(),
+                startTime,
+                gamestartInterval: gsi,
+                maxGamesPerField,
+                entries: assignment.entries,
+                removedAgegroupIds: assignment.removedAgegroupIds
+            }).subscribe({
+                next: () => {
+                    completed++;
+                    applyNext();
+                },
+                error: () => {
+                    this.isApplyingCalendar.set(false);
+                    this.toast.show(`Failed on date ${isoDate}`, 'danger');
+                    if (completed > 0) this.loadCanvasReadiness();
+                }
+            });
+        };
+
+        applyNext();
+    }
+
+    /**
+     * Time Config save: uses updateFieldConfig to update GSI/StartTime/MaxGames
+     * on existing field timeslot rows. Sends per-AG-per-DOW overrides from the matrix.
+     */
+    onTimeConfigSave(event: TimeConfigSaveEvent): void {
+        this.isSavingTimeConfig.set(true);
+
+        // When per-AG-per-DOW overrides are present, send GSI via per-AG entries
+        // and let overrides handle StartTime + MaxGamesPerField.
+        // Do NOT send baseStartTime/maxGamesPerField as uniform values — that would
+        // trigger ApplyUniformConfig which recalculates ALL wave offsets destructively.
+        const hasOverrides = (event.agDowOverrides?.length ?? 0) > 0;
+
+        // Always send GSI as per-AG entries so each agegroup gets its value
+        // without triggering the uniform config path for StartTime/MaxGames
+        let entries: Array<{ agegroupId: string; gamestartInterval?: number }> | undefined;
+        if (hasOverrides) {
+            // Send GSI for every agegroup as per-AG entries (not uniform)
+            const rows = typeof event.gsi === 'object' ? event.gsi : {};
+            const uniformGsi = typeof event.gsi === 'number' ? event.gsi : undefined;
+            const ags = this.agegroups();
+            entries = ags.map(ag => ({
+                agegroupId: ag.agegroupId,
+                gamestartInterval: rows[ag.agegroupId] ?? uniformGsi
+            }));
+        } else if (event.gsiScope === 'per-ag' && typeof event.gsi === 'object') {
+            entries = Object.entries(event.gsi).map(([agId, gsi]) => ({
+                agegroupId: agId,
+                gamestartInterval: gsi
+            }));
+        }
+
+        this.timeslotSvc.updateFieldConfig({
+            // Only send uniform start/max when there are NO per-DOW overrides
+            baseStartTime: hasOverrides ? undefined : event.startTime,
+            gamestartInterval: hasOverrides ? undefined : (typeof event.gsi === 'number' ? event.gsi : undefined),
+            maxGamesPerField: hasOverrides ? undefined : event.maxGamesPerField,
+            entries,
+            agDowOverrides: hasOverrides ? event.agDowOverrides : undefined
+        }).subscribe({
+            next: (result) => {
+                this.isSavingTimeConfig.set(false);
+                this.loadCanvasReadiness();
+                this.configSvc.saveToLocalStorage();
+                this.toast.show(`Time config updated (${result.rowsUpdated} rows)`, 'success');
+            },
+            error: () => {
+                this.isSavingTimeConfig.set(false);
+                this.toast.show('Failed to update time config', 'danger');
+            }
+        });
+    }
+
+    onFieldConfigApply(event: FieldConfigApplyEvent): void {
+        this.isSavingFieldConfig.set(true);
+
+        // Build entries: for AGs with overrides, send their field list.
+        // For AGs NOT in overrides, send all event fields (= full set, no restriction).
+        const allFieldIds = this.eventFields().map(f => f.fieldId);
+        const entries = this.agegroups().map(ag => ({
+            agegroupId: ag.agegroupId,
+            fieldIds: event.overrides[ag.agegroupId] ?? allFieldIds
+        }));
+
+        this.timeslotSvc.saveFieldAssignments({ entries }).subscribe({
+            next: (result) => {
+                this.isSavingFieldConfig.set(false);
+                this.loadCanvasReadiness();
+                const msg = result.rowsCreated + result.rowsDeleted > 0
+                    ? `Field assignments updated (+${result.rowsCreated} / -${result.rowsDeleted} rows)`
+                    : 'Field assignments saved (no changes)';
+                this.toast.show(msg, 'success');
+            },
+            error: () => {
+                this.isSavingFieldConfig.set(false);
+                this.toast.show('Failed to save field assignments', 'danger');
+            }
+        });
+    }
+
+    /**
+     * Resolve current effective GSI/StartTime/MaxGames from readiness data or defaults.
+     * Used by onCalendarApply to create new field timeslots with the right values.
+     */
+    private resolveEffectiveFieldDefaults(): { startTime: string; gsi: number; maxGamesPerField: number } {
+        const map = this.canvasReadiness();
+        const configured = Object.values(map).find(a => a.isConfigured && a.gamestartInterval != null);
+        if (configured) {
+            return {
+                startTime: configured.startTime ?? '8:00 AM',
+                gsi: configured.gamestartInterval ?? 60,
+                maxGamesPerField: configured.maxGamesPerField ?? 8
+            };
+        }
+        const py = this.priorYearDefaults();
+        if (py) {
+            return {
+                startTime: py.startTime ?? '8:00 AM',
+                gsi: py.gamestartInterval ?? 60,
+                maxGamesPerField: py.maxGamesPerField ?? 8
+            };
+        }
+        return { startTime: '8:00 AM', gsi: 60, maxGamesPerField: 8 };
     }
 
     closeBulkDateModal(): void {
@@ -766,18 +1004,42 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Dev reset (dev environment only) ──
 
-    executeDevReset(): void {
+    executeDevReset(options: DevResetOptions): void {
         this.isDevResetting.set(true);
-        this.openOperationModal('Resetting Scheduling Data', 'Clearing games, pairings, timeslots, fields, and strategy profiles…', 'bi-arrow-counterclockwise');
-        this.autoBuildSvc.devReset().subscribe({
+        const parts: string[] = [];
+        if (options.games) parts.push('games');
+        if (options.strategyProfiles) parts.push('strategy profiles');
+        if (options.pairings) parts.push('pairings');
+        if (options.dates) parts.push('dates');
+        if (options.fieldTimeslots) parts.push('field timeslots');
+        this.openOperationModal('Resetting Scheduling Data', `Clearing ${parts.join(', ')}…`, 'bi-arrow-counterclockwise');
+        this.autoBuildSvc.devReset({
+            games: options.games,
+            strategyProfiles: options.strategyProfiles,
+            pairings: options.pairings,
+            dates: options.dates,
+            fieldTimeslots: options.fieldTimeslots,
+            fieldAssignments: false
+        }).subscribe({
             next: (result) => {
                 this.showOperationModal.set(false);
                 this.isDevResetting.set(false);
+                const summary: string[] = [];
+                if (result.gamesDeleted) summary.push(`${result.gamesDeleted} games`);
+                if (result.agegroupsCleared) summary.push(`${result.agegroupsCleared} agegroups`);
+                if (result.pairingGroupsCleared) summary.push(`${result.pairingGroupsCleared} pairing groups`);
                 this.toast.show(
-                    `Reset complete: ${result.gamesDeleted} games, ${result.agegroupsCleared} agegroups, ` +
-                    `${result.pairingGroupsCleared} pairing groups, ${result.fieldsCleared} field assignments cleared`,
+                    `Reset complete: ${summary.length > 0 ? summary.join(', ') + ' cleared' : 'nothing to clear'}`,
                     'success', 5000
                 );
+                // Reset config service: clear localStorage + in-memory signal,
+                // then re-open the init gate so the refresh calls below
+                // trigger tryInitConfig() with fresh DB data.
+                this.configSvc.clearLocalStorage();
+                this.configSvc.reset();
+                this.configInitDone = false;
+                this.strategiesLoaded = false;
+
                 this.refreshAfterBulkOperation();
                 this.loadCanvasReadiness();
                 this.loadStrategyProfiles();
@@ -849,6 +1111,7 @@ export class ScheduleDivisionComponent implements OnInit {
         });
         // Populate modal agegroup list (only relevant at event scope)
         if (this.scope().level === 'event') {
+            const waveAssignments = this.configSvc.config()?.waveAssignments ?? {};
             this.modalAgegroups.set(this.agegroups().map(ag => ({
                 agegroupId: ag.agegroupId,
                 agegroupName: ag.agegroupName,
@@ -856,7 +1119,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 teamCount: agTeamCount(ag),
                 divisionCount: ag.divisions.length,
                 included: true,
-                wave: 1,
+                wave: waveAssignments[ag.agegroupId] ?? 1,
             })));
         }
         this.showAutoScheduleModal.set(true);
@@ -869,8 +1132,14 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.missingPairingTCnts.set(
                     result.pairingsCreated ? [] : result.missingPairingTCnts
                 );
+                this.existingPairingRounds.set(
+                    (result as any).existingPairingRounds ?? {}
+                );
             },
-            error: () => this.missingPairingTCnts.set([])
+            error: () => {
+                this.missingPairingTCnts.set([]);
+                this.existingPairingRounds.set({});
+            }
         });
     }
 
@@ -893,6 +1162,37 @@ export class ScheduleDivisionComponent implements OnInit {
                     : 'Pairings already exist';
                 this.toast.show(msg, 'success');
                 // Re-check pairing status to refresh stepper
+                this.checkPairingStatus();
+            },
+            error: () => {
+                this.isGeneratingPairings.set(false);
+                this.toast.show('Failed to generate pairings', 'danger');
+            }
+        });
+    }
+
+    /** Generate pairings with configurable rounds per division size. */
+    generatePairingsWithRounds(event: { teamCounts: number[]; roundsOverrides: Record<number, number>; forceRegenerate: boolean }): void {
+        if (event.teamCounts.length === 0) return;
+
+        this.isGeneratingPairings.set(true);
+        this.autoBuildSvc.ensurePairings({
+            teamCounts: event.teamCounts,
+            roundsOverrides: event.roundsOverrides,
+            forceRegenerate: event.forceRegenerate
+        } as any).subscribe({
+            next: (result) => {
+                this.isGeneratingPairings.set(false);
+                this.missingPairingTCnts.set([]);
+                const parts: string[] = [];
+                for (const tCnt of result.generated) {
+                    const rounds = event.roundsOverrides[tCnt];
+                    parts.push(rounds ? `${tCnt}-team (${rounds} rds)` : `${tCnt}-team`);
+                }
+                const msg = parts.length > 0
+                    ? `Generated pairings: ${parts.join(', ')}`
+                    : 'Pairings already exist';
+                this.toast.show(msg, 'success');
                 this.checkPairingStatus();
             },
             error: () => {
@@ -1036,11 +1336,13 @@ export class ScheduleDivisionComponent implements OnInit {
         const allDivIds = this.agegroups().flatMap(ag => ag.divisions.map(d => d.divId));
         const mode = event.config.existingGameMode ?? 'rebuild';
 
+        const waveAssignments = this.configSvc.config()?.waveAssignments ?? {};
+
         switch (s.level) {
             case 'division': {
                 const excluded = allDivIds.filter(id => id !== s.divId);
                 return {
-                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: 1 }] satisfies AgegroupBuildEntry[],
+                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: waveAssignments[s.agegroupId] ?? 1 }] satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
@@ -1054,7 +1356,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     .divisions.map(d => d.divId);
                 const excluded = allDivIds.filter(id => !agDivIds.includes(id));
                 return {
-                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: 1 }] satisfies AgegroupBuildEntry[],
+                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: waveAssignments[s.agegroupId] ?? 1 }] satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,

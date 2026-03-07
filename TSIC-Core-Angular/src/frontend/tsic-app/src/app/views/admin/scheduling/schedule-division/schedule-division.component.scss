@@ -9,7 +9,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    height: calc(100vh - 200px);
+
+    &:has(.schedule-layout) {
+        height: calc(100vh - 200px);
+    }
 }
 
 .schedule-header {
@@ -59,6 +62,30 @@
     }
 }
 
+// ── Event-scope full-width navigator ──
+
+.nav-panel-event {
+    flex: none;
+    max-height: 280px;
+
+    app-division-navigator {
+        flex: 1;
+        min-height: 0;
+    }
+}
+
+.panel-hint {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+    font-weight: var(--font-weight-normal);
+    margin-left: var(--space-2);
+}
+
+.nav-panel-event > .panel-header {
+    display: flex;
+    align-items: center;
+}
+
 app-pairings-panel {
     flex: 1;
     min-height: 0;
@@ -73,12 +100,41 @@ app-pairings-panel {
 .scope-breadcrumb {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-3);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
     font-size: var(--font-size-sm);
     border-bottom: 1px solid var(--bs-border-color);
-    background: rgba(var(--bs-secondary-bg-rgb, 0), 0.3);
+    background: rgba(var(--bs-primary-rgb), 0.03);
     flex-shrink: 0;
+}
+
+.crumb-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--bs-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: background 0.1s ease, border-color 0.1s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+        border-color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    i {
+        font-size: var(--font-size-sm);
+    }
 }
 
 .crumb-link {
@@ -99,10 +155,6 @@ app-pairings-panel {
     &:focus-visible {
         outline: none;
         box-shadow: var(--shadow-focus);
-    }
-
-    i {
-        font-size: var(--font-size-xs);
     }
 }
 

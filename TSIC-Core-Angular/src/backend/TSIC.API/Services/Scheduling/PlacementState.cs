@@ -85,4 +85,39 @@ public sealed class PlacementState
             TeamDayGameTimes[tdKey2] = times2 = [];
         times2.Add(gameTime);
     }
+
+    /// <summary>
+    /// Undo a placement — reverses all tracking state changes from RecordPlacement.
+    /// Used when a round can't be fully placed and must be rolled back.
+    /// </summary>
+    public void UndoPlacement(CandidateSlot slot, GameContext game)
+    {
+        OccupiedSlots.Remove((slot.FieldId, slot.GDate));
+
+        var roundKey = (game.DivId, game.Round);
+        RoundTargetTimes.Remove(roundKey);
+
+        var tfKey1 = (game.DivId, game.T1No, slot.FieldName);
+        if (TeamFieldCounts.TryGetValue(tfKey1, out var c1) && c1 > 1)
+            TeamFieldCounts[tfKey1] = c1 - 1;
+        else
+            TeamFieldCounts.Remove(tfKey1);
+
+        var tfKey2 = (game.DivId, game.T2No, slot.FieldName);
+        if (TeamFieldCounts.TryGetValue(tfKey2, out var c2) && c2 > 1)
+            TeamFieldCounts[tfKey2] = c2 - 1;
+        else
+            TeamFieldCounts.Remove(tfKey2);
+
+        var gameDay = slot.GDate.Date;
+        var gameTime = slot.GDate.TimeOfDay;
+
+        var tdKey1 = (game.DivId, game.T1No, gameDay);
+        if (TeamDayGameTimes.TryGetValue(tdKey1, out var times1))
+            times1.Remove(gameTime);
+
+        var tdKey2 = (game.DivId, game.T2No, gameDay);
+        if (TeamDayGameTimes.TryGetValue(tdKey2, out var times2))
+            times2.Remove(gameTime);
+    }
 }

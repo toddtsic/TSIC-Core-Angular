@@ -10,5 +10,6 @@ export type LeagueSeasonFieldDto = {
     state?: string | null;
     bActive?: boolean | null;
     fieldPreference?: number;
+    scheduledGameCount?: number;
 };
 

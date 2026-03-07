@@ -1,0 +1,324 @@
+:host {
+    display: block;
+}
+
+// ═══════════════════════════════════════
+// ── COLLAPSED VIEW ──
+// ═══════════════════════════════════════
+
+.section-collapsed {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    transition: background 0.1s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.04);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.section-status-icon {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.section-summary {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-body-color);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.section-edit-btn {
+    font-size: var(--font-size-xs);
+    padding: 2px var(--space-2);
+    flex-shrink: 0;
+}
+
+.source-badge {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    color: var(--bs-secondary-color);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    white-space: nowrap;
+}
+
+// ═══════════════════════════════════════
+// ── EXPANDED VIEW ──
+// ═══════════════════════════════════════
+
+.section-expanded {
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+    border-radius: var(--radius-md);
+    margin: var(--space-2) var(--space-3);
+    background: var(--bs-body-bg);
+}
+
+.section-header-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.section-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--bs-body-color);
+    flex: 1;
+
+    i {
+        color: var(--bs-primary);
+        margin-right: var(--space-1);
+    }
+}
+
+.section-collapse-btn {
+    font-size: var(--font-size-sm);
+    padding: 2px var(--space-1);
+    color: var(--bs-secondary-color);
+}
+
+// ═══════════════════════════════════════
+// ── GUIDANCE TEXT ──
+// ═══════════════════════════════════════
+
+.matrix-guidance {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
+
+// ═══════════════════════════════════════
+// ── BULK FILL ROW ──
+// ═══════════════════════════════════════
+
+.bulk-fill-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.bulk-fill-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+
+.bulk-input {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+    max-width: 120px;
+}
+
+.bulk-input-num {
+    max-width: 80px;
+}
+
+// ═══════════════════════════════════════
+// ── AGEGROUP × DATE MATRIX ──
+// ═══════════════════════════════════════
+
+.matrix-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.time-matrix {
+    display: grid;
+    grid-template-columns:
+        minmax(120px, 1fr)
+        80px
+        repeat(var(--date-cols), minmax(110px, 1fr));
+    gap: 1px;
+    background: var(--bs-border-color);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    min-width: fit-content;
+}
+
+// Header and rows use display:contents so children
+// participate directly in the parent grid
+.matrix-header,
+.matrix-row {
+    display: contents;
+}
+
+// ── Header cells ──
+
+.matrix-hdr {
+    font-size: 10px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    padding: var(--space-1) var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.matrix-hdr-ag {
+    justify-content: flex-start;
+}
+
+.matrix-hdr-gsi {
+    text-align: center;
+}
+
+.matrix-hdr-date {
+    flex-direction: column;
+    gap: 1px;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.matrix-date-dow {
+    font-weight: var(--font-weight-bold);
+}
+
+.matrix-date-val {
+    font-size: 9px;
+    opacity: 0.7;
+}
+
+// ── Data cells ──
+
+.matrix-cell {
+    background: var(--bs-body-bg);
+    padding: var(--space-1) var(--space-2);
+    display: flex;
+    align-items: center;
+}
+
+.matrix-cell-ag {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.matrix-cell-gsi {
+    justify-content: center;
+}
+
+.matrix-cell-date {
+    justify-content: center;
+    padding: var(--space-1);
+}
+
+// ── AG badge ──
+
+.ag-badge {
+    display: inline-block;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+// ── GSI input (in matrix) ──
+
+.gsi-input {
+    font-size: var(--font-size-xs);
+    padding: 1px var(--space-1);
+    height: auto;
+    min-height: 0;
+    line-height: 1.4;
+    text-align: center;
+    width: 100%;
+}
+
+// ── Per-date cell inputs ──
+
+.cell-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+
+.cell-input {
+    font-size: var(--font-size-xs);
+    padding: 1px var(--space-1);
+    text-align: center;
+    height: auto;
+    min-height: 0;
+    line-height: 1.4;
+}
+
+.cell-input-time {
+    // Start time input — text
+}
+
+.cell-input-max {
+    // Max games input — number
+    max-width: 60px;
+    margin: 0 auto;
+}
+
+// ── Empty state ──
+
+.matrix-empty {
+    font-size: var(--font-size-sm);
+    color: var(--bs-secondary-color);
+    text-align: center;
+    padding: var(--space-4);
+
+    i {
+        margin-right: var(--space-1);
+    }
+}
+
+// ═══════════════════════════════════════
+// ── CAPACITY SUMMARY ──
+// ═══════════════════════════════════════
+
+.capacity-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    background: rgba(var(--bs-info-rgb), 0.06);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    color: var(--bs-body-color);
+
+    i {
+        color: var(--bs-info);
+        font-size: var(--font-size-sm);
+    }
+}
+
+// ═══════════════════════════════════════
+// ── SECTION ACTIONS ──
+// ═══════════════════════════════════════
+
+.section-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--bs-border-color);
+}

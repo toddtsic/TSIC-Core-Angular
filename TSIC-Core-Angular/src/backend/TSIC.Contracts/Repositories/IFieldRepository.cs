@@ -102,6 +102,13 @@ public interface IFieldRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Get field names for a list of field IDs. Returns FieldId → FName.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetFieldNamesByIdsAsync(
+        List<Guid> fieldIds,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);

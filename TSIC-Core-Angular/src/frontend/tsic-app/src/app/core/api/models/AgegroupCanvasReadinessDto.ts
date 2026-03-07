@@ -14,5 +14,8 @@ export type AgegroupCanvasReadinessDto = {
     maxGamesPerField?: number;
     totalGameSlots: number;
     gameDays: Array<GameDayDto>;
+    totalRounds: number;
+    maxPairingRound: number;
+    fieldIds: Array<string>;
 };
 

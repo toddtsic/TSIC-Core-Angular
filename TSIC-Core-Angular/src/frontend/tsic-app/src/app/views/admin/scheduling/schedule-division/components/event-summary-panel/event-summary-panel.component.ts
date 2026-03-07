@@ -5,9 +5,25 @@ import { RouterLink } from '@angular/router';
 import { environment } from '@environments/environment';
 import type { AgegroupWithDivisionsDto } from '../../services/schedule-division.service';
 import { contrastText, agTeamCount } from '../../../shared/utils/scheduling-helpers';
-import type { AgegroupCanvasReadinessDto, DivisionStrategyEntry, GameDayDto, GameSummaryResponse } from '@core/api';
+import type { AgegroupCanvasReadinessDto, DivisionStrategyEntry, EventFieldSummaryDto, GameDayDto, GameSummaryResponse, PriorYearFieldDefaults } from '@core/api';
+import { CalendarSectionComponent } from '../schedule-config/calendar-section.component';
+import { TimeConfigSectionComponent, type TimeConfigSaveEvent, type DateColumnInfo } from '../schedule-config/time-config-section.component';
+import { BuildSectionComponent } from '../schedule-config/build-section.component';
+import { FieldConfigSectionComponent } from '../schedule-config/field-config-section.component';
+import { PairingsSectionComponent, type PairingsGenerateEvent } from '../schedule-config/pairings-section.component';
+import type { CalendarApplyEvent, FieldConfigApplyEvent, StepperSection } from '../schedule-config/schedule-config.types';
 
 export type AgStage = 'unconfigured' | 'configured' | 'scheduled-partial' | 'scheduled-complete';
+
+export interface DevResetOptions {
+    games: boolean;
+    strategyProfiles: boolean;
+    pairings: boolean;
+    /** Clear date/round assignments (TimeslotsLeagueSeasonDates) */
+    dates: boolean;
+    /** Clear field-timeslot configuration (TimeslotsLeagueSeasonFields — start time, GSI, max games) */
+    fieldTimeslots: boolean;
+}
 
 /** Formatted game day line for hero display. */
 export interface GameDayLine {
@@ -25,7 +41,7 @@ export interface GameDayLine {
 @Component({
     selector: 'app-event-summary-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink],
+    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent],
     templateUrl: './event-summary-panel.component.html',
     styleUrl: './event-summary-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -45,8 +61,20 @@ export class EventSummaryPanelComponent {
     readonly showDeleteConfirm = input(false);
     readonly isDevResetting = input(false);
     readonly missingPairingTCnts = input<number[]>([]);
+    readonly existingPairingRounds = input<Record<number, number>>({});
     readonly isGeneratingPairings = input(false);
     readonly isSavingStrategy = input(false);
+    readonly isSavingTimeConfig = input(false);
+    readonly isSavingFieldConfig = input(false);
+    readonly isApplyingCalendar = input(false);
+    readonly eventFields = input<EventFieldSummaryDto[]>([]);
+    readonly priorYearDefaults = input<PriorYearFieldDefaults | null>(null);
+    readonly priorYearRounds = input<Record<string, number> | null>(null);
+    readonly eventTypeLabel = input<string>('Tournament');
+    readonly configScenario = input<'saved' | 'prior-year' | 'new'>('new');
+    readonly configPriorYearLabel = input<string | null>(null);
+    readonly configWaves = input<Record<string, number>>({});
+    readonly configRoundsPerDay = input<Record<string, number>>({});
 
     // ── Outputs ──
     readonly autoScheduleRequested = output<void>();
@@ -56,15 +84,34 @@ export class EventSummaryPanelComponent {
     readonly agegroupClicked = output<string>();
     readonly manageFieldsClicked = output<void>();
     readonly generatePairingsRequested = output<void>();
+    readonly generatePairingsWithRoundsRequested = output<PairingsGenerateEvent>();
     readonly bulkDateAssignRequested = output<void>();
     readonly saveStrategyRequested = output<{ placement: number; gapPattern: number }>();
-    readonly devResetConfirmed = output<void>();
+    readonly devResetConfirmed = output<DevResetOptions>();
+    readonly calendarApplyRequested = output<CalendarApplyEvent>();
+    readonly timeConfigSaveRequested = output<TimeConfigSaveEvent>();
+    readonly fieldConfigApplyRequested = output<FieldConfigApplyEvent>();
 
     // ── Local state ──
     readonly deleteConfirmText = signal('');
     readonly showDevResetConfirm = signal(false);
     readonly devResetConfirmText = signal('');
     readonly isDevMode = !environment.production;
+
+    // ── Dev reset checklist ──
+    readonly resetGames = signal(true);
+    readonly resetStrategyProfiles = signal(true);
+    readonly resetPairings = signal(true);
+    readonly resetDates = signal(false);
+    readonly resetFieldTimeslots = signal(false);
+
+    readonly anyResetChecked = computed(() =>
+        this.resetGames() || this.resetStrategyProfiles() || this.resetPairings() ||
+        this.resetDates() || this.resetFieldTimeslots()
+    );
+
+    // ── Accordion: which section is expanded (null = all collapsed) ──
+    readonly expandedSection = signal<StepperSection | null>(null);
 
     // ── Stepper: local strategy overrides (null = user hasn't touched it) ──
     readonly localPlacement = signal<number | null>(null);
@@ -118,6 +165,53 @@ export class EventSummaryPanelComponent {
 
     /** Step ④: Strategy always has an effective value (defaults or saved) */
     readonly strategyComplete = computed(() => true);
+
+    // ── Time Config summary computed (current effective values from readiness or defaults) ──
+
+    readonly effectiveGsi = computed((): number => {
+        const configured = Object.values(this.readinessMap())
+            .find(a => a.isConfigured && a.gamestartInterval != null);
+        if (configured) return configured.gamestartInterval!;
+        return this.priorYearDefaults()?.gamestartInterval ?? 60;
+    });
+
+    readonly effectiveStartTime = computed((): string => {
+        const configured = Object.values(this.readinessMap())
+            .find(a => a.isConfigured && a.startTime);
+        if (configured) return configured.startTime!;
+        return this.priorYearDefaults()?.startTime ?? '8:00 AM';
+    });
+
+    readonly effectiveMaxGames = computed((): number => {
+        const configured = Object.values(this.readinessMap())
+            .find(a => a.isConfigured && a.maxGamesPerField != null);
+        if (configured) return configured.maxGamesPerField!;
+        return this.priorYearDefaults()?.maxGamesPerField ?? 8;
+    });
+
+    // ── Accordion toggle ──
+
+    toggleSection(section: StepperSection): void {
+        this.expandedSection.set(
+            this.expandedSection() === section ? null : section
+        );
+    }
+
+    onCalendarApply(event: CalendarApplyEvent): void {
+        this.calendarApplyRequested.emit(event);
+    }
+
+    onTimeConfigSave(event: TimeConfigSaveEvent): void {
+        this.timeConfigSaveRequested.emit(event);
+    }
+
+    onFieldConfigApply(event: FieldConfigApplyEvent): void {
+        this.fieldConfigApplyRequested.emit(event);
+    }
+
+    onPairingsGenerate(event: PairingsGenerateEvent): void {
+        this.generatePairingsWithRoundsRequested.emit(event);
+    }
 
     /** Uniform placement value across all strategies, or null if mixed */
     readonly uniformPlacement = computed((): number | null => {
@@ -182,6 +276,29 @@ export class EventSummaryPanelComponent {
             ...this.toGameDayLine(gd),
             dayNumber: i + 1
         }));
+    });
+
+    /** All unique dates across configured agegroups, formatted for the time config matrix. */
+    readonly allDatesForMatrix = computed((): DateColumnInfo[] => {
+        const map = this.readinessMap();
+        const configured = Object.values(map).filter(r => r.isConfigured);
+        const dateMap = new Map<string, { dow: string }>();
+        for (const r of configured) {
+            for (const gd of r.gameDays ?? []) {
+                const key = gd.date.substring(0, 10);
+                if (!dateMap.has(key)) {
+                    dateMap.set(key, { dow: gd.dow });
+                }
+            }
+        }
+        return [...dateMap.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([iso, info]) => {
+                const d = new Date(iso + 'T00:00:00');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return { isoDate: iso, dow: info.dow, dateFormatted: `${mm}/${dd}/${d.getFullYear()}` };
+            });
     });
 
     /**
@@ -345,12 +462,25 @@ export class EventSummaryPanelComponent {
     requestDevReset(): void {
         this.showDevResetConfirm.set(true);
         this.devResetConfirmText.set('');
+        // Default: clear games + strategies + pairings but KEEP dates/field config
+        this.resetGames.set(true);
+        this.resetStrategyProfiles.set(true);
+        this.resetPairings.set(true);
+        this.resetDates.set(false);
+        this.resetFieldTimeslots.set(false);
     }
 
     onDevResetConfirmed(): void {
+        const options: DevResetOptions = {
+            games: this.resetGames(),
+            strategyProfiles: this.resetStrategyProfiles(),
+            pairings: this.resetPairings(),
+            dates: this.resetDates(),
+            fieldTimeslots: this.resetFieldTimeslots()
+        };
         this.showDevResetConfirm.set(false);
         this.devResetConfirmText.set('');
-        this.devResetConfirmed.emit();
+        this.devResetConfirmed.emit(options);
     }
 
     onDevResetCancelled(): void {

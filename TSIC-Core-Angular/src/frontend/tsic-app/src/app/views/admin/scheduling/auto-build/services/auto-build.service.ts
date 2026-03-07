@@ -71,11 +71,18 @@ export class AutoBuildService {
         );
     }
 
-    /** Dev-only: clear all scheduling config (games, timeslots, pairings, fields, profiles). */
-    devReset(): Observable<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }> {
+    /** Dev-only: clear selected scheduling config (games, timeslots, pairings, fields, profiles). */
+    devReset(options: {
+        games: boolean;
+        strategyProfiles: boolean;
+        pairings: boolean;
+        dates?: boolean;
+        fieldTimeslots?: boolean;
+        fieldAssignments: boolean;
+    }): Observable<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }> {
         return this.http.post<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }>(
             `${environment.apiUrl}/dev-scheduling/reset`,
-            {}
+            options
         );
     }
 }

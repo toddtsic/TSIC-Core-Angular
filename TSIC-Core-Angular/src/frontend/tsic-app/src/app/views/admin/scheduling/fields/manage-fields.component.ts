@@ -28,8 +28,8 @@ export class ManageFieldsComponent {
     readonly availableFields = signal<FieldDto[]>([]);
     readonly availableSelected = signal<Set<string>>(new Set());
     readonly availableFilter = signal('');
-    readonly availableSortCol = signal<AvailableSortCol>(null);
-    readonly availableSortDir = signal<SortDir>(null);
+    readonly availableSortCol = signal<AvailableSortCol>('fName');
+    readonly availableSortDir = signal<SortDir>('asc');
     readonly sortedFilteredAvailable = computed(() =>
         this.sortFields(this.filterAvailable(this.availableFields(), this.availableFilter()),
             this.availableSortCol(), this.availableSortDir()));
@@ -38,11 +38,13 @@ export class ManageFieldsComponent {
     readonly assignedFields = signal<LeagueSeasonFieldDto[]>([]);
     readonly assignedSelected = signal<Set<string>>(new Set());
     readonly assignedFilter = signal('');
-    readonly assignedSortCol = signal<AssignedSortCol>(null);
-    readonly assignedSortDir = signal<SortDir>(null);
+    readonly assignedSortCol = signal<AssignedSortCol>('fName');
+    readonly assignedSortDir = signal<SortDir>('asc');
     readonly sortedFilteredAssigned = computed(() =>
         this.sortFields(this.filterAssigned(this.assignedFields(), this.assignedFilter()),
             this.assignedSortCol(), this.assignedSortDir()));
+    readonly removableAssignedCount = computed(() =>
+        this.sortedFilteredAssigned().filter(f => !f.scheduledGameCount).length);
 
     // ── Transfer state ──
     readonly swappingId = signal<string | null>(null);
@@ -147,7 +149,11 @@ export class ManageFieldsComponent {
     }
 
     selectAllAssigned() {
-        this.assignedSelected.set(new Set(this.sortedFilteredAssigned().map(f => f.fieldId)));
+        this.assignedSelected.set(new Set(
+            this.sortedFilteredAssigned()
+                .filter(f => !f.scheduledGameCount)
+                .map(f => f.fieldId)
+        ));
     }
 
     deselectAllAssigned() {
@@ -162,7 +168,7 @@ export class ManageFieldsComponent {
             next: () => {
                 this.toast.show(`${field.fName} assigned.`, 'success', 2000);
                 this.swappingId.set(null);
-                this.loadData();
+                this.moveToAssigned([field]);
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to assign field.', 'danger', 4000);
@@ -177,7 +183,7 @@ export class ManageFieldsComponent {
             next: () => {
                 this.toast.show(`${field.fName} removed.`, 'success', 2000);
                 this.swappingId.set(null);
-                this.loadData();
+                this.moveToAvailable([field]);
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to remove field.', 'danger', 4000);
@@ -190,13 +196,15 @@ export class ManageFieldsComponent {
 
     assignSelected() {
         if (this.availableSelected().size === 0) return;
+        const selectedIds = new Set(this.availableSelected());
+        const movedFields = this.availableFields().filter(f => selectedIds.has(f.fieldId));
         this.isBatchAssigning.set(true);
-        this.fieldService.assignFields({ fieldIds: Array.from(this.availableSelected()) }).subscribe({
+        this.fieldService.assignFields({ fieldIds: Array.from(selectedIds) }).subscribe({
             next: () => {
-                this.toast.show(`${this.availableSelected().size} field(s) assigned.`, 'success', 2000);
+                this.toast.show(`${selectedIds.size} field(s) assigned.`, 'success', 2000);
                 this.isBatchAssigning.set(false);
                 this.availableSelected.set(new Set());
-                this.loadData();
+                this.moveToAssigned(movedFields);
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to assign fields.', 'danger', 4000);
@@ -207,19 +215,54 @@ export class ManageFieldsComponent {
 
     removeSelected() {
         if (this.assignedSelected().size === 0) return;
+        const selectedIds = new Set(this.assignedSelected());
+        const movedFields = this.assignedFields().filter(f => selectedIds.has(f.fieldId));
         this.isBatchRemoving.set(true);
-        this.fieldService.removeFields({ fieldIds: Array.from(this.assignedSelected()) }).subscribe({
+        this.fieldService.removeFields({ fieldIds: Array.from(selectedIds) }).subscribe({
             next: () => {
-                this.toast.show(`${this.assignedSelected().size} field(s) removed.`, 'success', 2000);
+                this.toast.show(`${selectedIds.size} field(s) removed.`, 'success', 2000);
                 this.isBatchRemoving.set(false);
                 this.assignedSelected.set(new Set());
-                this.loadData();
+                this.moveToAvailable(movedFields);
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to remove fields.', 'danger', 4000);
                 this.isBatchRemoving.set(false);
             }
         });
+    }
+
+    // ── Local state transfer (no reload) ──
+
+    private moveToAssigned(fields: FieldDto[]) {
+        const ids = new Set(fields.map(f => f.fieldId));
+        this.availableFields.set(this.availableFields().filter(f => !ids.has(f.fieldId)));
+        this.assignedFields.set([
+            ...this.assignedFields(),
+            ...fields.map(f => ({
+                flsId: '',
+                fieldId: f.fieldId,
+                fName: f.fName,
+                city: f.city,
+                state: f.state,
+                fieldPreference: 0,
+                scheduledGameCount: 0,
+            } as LeagueSeasonFieldDto))
+        ]);
+    }
+
+    private moveToAvailable(fields: LeagueSeasonFieldDto[]) {
+        const ids = new Set(fields.map(f => f.fieldId));
+        this.assignedFields.set(this.assignedFields().filter(f => !ids.has(f.fieldId)));
+        this.availableFields.set([
+            ...this.availableFields(),
+            ...fields.map(f => ({
+                fieldId: f.fieldId,
+                fName: f.fName,
+                city: f.city,
+                state: f.state,
+            } as FieldDto))
+        ]);
     }
 
     // ── Detail editor ──
@@ -285,7 +328,7 @@ export class ManageFieldsComponent {
                     this.isSaving.set(false);
                     this.isCreating.set(false);
                     this.selectedField.set(null);
-                    this.loadData();
+                    this.availableFields.set([...this.availableFields(), created]);
                 },
                 error: err => {
                     this.toast.show(err?.error?.message || 'Failed to create field.', 'danger', 4000);
@@ -296,7 +339,7 @@ export class ManageFieldsComponent {
             const field = this.selectedField();
             if (!field) return;
 
-            this.fieldService.updateField({
+            const updatedDto: FieldDto = {
                 fieldId: field.fieldId,
                 fName: this.editName().trim(),
                 address: this.editAddress() || undefined,
@@ -306,12 +349,17 @@ export class ManageFieldsComponent {
                 directions: this.editDirections() || undefined,
                 latitude: this.editLatitude() ?? undefined,
                 longitude: this.editLongitude() ?? undefined
-            }).subscribe({
+            };
+            this.fieldService.updateField(updatedDto).subscribe({
                 next: () => {
-                    this.toast.show(`${this.editName()} updated.`, 'success', 2000);
+                    this.toast.show(`${updatedDto.fName} updated.`, 'success', 2000);
                     this.isSaving.set(false);
                     this.selectedField.set(null);
-                    this.loadData();
+                    // Update in whichever list contains it
+                    this.availableFields.set(this.availableFields().map(f =>
+                        f.fieldId === field.fieldId ? updatedDto : f));
+                    this.assignedFields.set(this.assignedFields().map(f =>
+                        f.fieldId === field.fieldId ? { ...f, fName: updatedDto.fName, city: updatedDto.city, state: updatedDto.state } : f));
                 },
                 error: err => {
                     this.toast.show(err?.error?.message || 'Failed to update field.', 'danger', 4000);
@@ -331,7 +379,8 @@ export class ManageFieldsComponent {
                 this.toast.show(`${field.fName} deleted.`, 'success', 2000);
                 this.isDeleting.set(false);
                 this.selectedField.set(null);
-                this.loadData();
+                this.availableFields.set(this.availableFields().filter(f => f.fieldId !== field.fieldId));
+                this.assignedFields.set(this.assignedFields().filter(f => f.fieldId !== field.fieldId));
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Field is in use and cannot be deleted.', 'danger', 4000);

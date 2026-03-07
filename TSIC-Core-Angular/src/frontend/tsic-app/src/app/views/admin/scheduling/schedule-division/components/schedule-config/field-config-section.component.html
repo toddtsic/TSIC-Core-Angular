@@ -1,0 +1,145 @@
+<!-- ═════════════════════════════════════════════ -->
+<!-- Field Config Section — Stepper Section ①    -->
+<!-- Collapsed: summary + edit button             -->
+<!-- Expanded: field×agegroup checkbox matrix      -->
+<!-- ═════════════════════════════════════════════ -->
+
+<!-- ── Collapsed View ── -->
+@if (!isExpanded()) {
+    <div class="section-collapsed" (click)="onToggle()" role="button" tabindex="0">
+        <span class="section-status-icon">
+            @if (isComplete()) {
+                <i class="bi bi-check-circle-fill text-success"></i>
+            } @else {
+                <i class="bi bi-exclamation-circle text-warning"></i>
+            }
+        </span>
+        <span class="section-summary">
+            {{ summaryLabel() }}
+        </span>
+        @if (eventFields().length > 0) {
+            <button class="btn btn-sm btn-outline-primary section-edit-btn"
+                    (click)="$event.stopPropagation(); onToggle()">
+                <i class="bi bi-pencil"></i> Edit
+            </button>
+        }
+    </div>
+}
+
+<!-- ── Expanded View ── -->
+@if (isExpanded()) {
+    <div class="section-expanded" (click)="closePopover()">
+        <div class="section-header-row">
+            <span class="section-title">
+                <i class="bi bi-grid-3x3"></i> Field Assignments
+            </span>
+            <button class="btn btn-sm btn-link section-collapse-btn"
+                    (click)="onToggle()">
+                <i class="bi bi-chevron-up"></i>
+            </button>
+        </div>
+
+        <!-- ── Matrix ── -->
+        @if (eventFields().length > 0 && agegroups().length > 0) {
+            <div class="matrix-wrapper">
+                <div class="matrix-table"
+                     [style.--ag-cols]="agegroups().length">
+
+                    <!-- ── Header row ── -->
+                    <div class="matrix-header">
+                        <!-- Top-left corner: "Field" label -->
+                        <div class="matrix-hdr matrix-hdr-field">Field</div>
+
+                        <!-- Agegroup column headers with popover -->
+                        @for (ag of agegroups(); track ag.agegroupId) {
+                            <div class="matrix-hdr matrix-hdr-ag"
+                                 (click)="togglePopover(ag.agegroupId, $event)"
+                                 role="button"
+                                 tabindex="0"
+                                 [title]="ag.agegroupName">
+                                <span class="ag-col-badge"
+                                      [style.background]="ag.color || 'var(--bs-primary)'"
+                                      [style.color]="contrastText(ag.color || '')">
+                                    {{ ag.agegroupName }}
+                                </span>
+                                <span class="ag-col-count">
+                                    {{ agCheckedCount(ag.agegroupId) }}/{{ eventFields().length }}
+                                </span>
+
+                                <!-- Popover menu -->
+                                @if (popoverAgId() === ag.agegroupId) {
+                                    <div class="col-popover" (click)="$event.stopPropagation()">
+                                        <button class="col-popover-btn"
+                                                (click)="setColumn(ag.agegroupId, true)"
+                                                [disabled]="isColumnAllChecked(ag.agegroupId)">
+                                            <i class="bi bi-check-all"></i> All
+                                        </button>
+                                        <button class="col-popover-btn col-popover-btn-danger"
+                                                (click)="setColumn(ag.agegroupId, false)"
+                                                [disabled]="isColumnNoneChecked(ag.agegroupId)">
+                                            <i class="bi bi-x-lg"></i> None
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- ── Data rows: one per field ── -->
+                    @for (field of eventFields(); track field.fieldId) {
+                        <div class="matrix-row">
+                            <!-- Field name cell -->
+                            <div class="matrix-cell matrix-cell-field"
+                                 (click)="toggleRow(field.fieldId)"
+                                 role="button"
+                                 tabindex="0"
+                                 [title]="'Toggle ' + field.fieldName + ' for all agegroups'">
+                                {{ field.fieldName }}
+                            </div>
+
+                            <!-- Checkbox cells: one per agegroup -->
+                            @for (ag of agegroups(); track ag.agegroupId) {
+                                <div class="matrix-cell matrix-cell-check">
+                                    <label class="matrix-checkbox-label">
+                                        <input type="checkbox"
+                                               class="matrix-checkbox"
+                                               [checked]="getCellValue(field.fieldId, ag.agegroupId)"
+                                               (change)="toggleCell(field.fieldId, ag.agegroupId)">
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        } @else {
+            <div class="matrix-empty">
+                @if (eventFields().length === 0) {
+                    No fields assigned to this event.
+                    Use <strong>Manage Fields</strong> to assign fields first.
+                } @else {
+                    No agegroups available.
+                }
+            </div>
+        }
+
+        <!-- ── Actions ── -->
+        <div class="section-actions">
+            <button class="btn btn-sm btn-outline-secondary"
+                    (click)="onCancel()"
+                    [disabled]="isSaving()">
+                Cancel
+            </button>
+            <button class="btn btn-sm btn-primary"
+                    (click)="onSave()"
+                    [disabled]="!isDirty() || isSaving()">
+                @if (isSaving()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    Saving...
+                } @else {
+                    <i class="bi bi-check2"></i> Save
+                }
+            </button>
+        </div>
+    </div>
+}

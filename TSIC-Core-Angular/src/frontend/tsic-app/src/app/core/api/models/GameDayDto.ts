@@ -11,5 +11,6 @@ export type GameDayDto = {
     endTime: string;
     gsi: number;
     totalSlots: number;
+    roundCount: number;
 };
 

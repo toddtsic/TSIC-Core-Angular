@@ -26,6 +26,9 @@ public record LeagueSeasonFieldDto
 
     /// <summary>0 = Normal, 1 = Preferred, 2 = Avoid</summary>
     public int FieldPreference { get; init; }
+
+    /// <summary>Number of scheduled games on this field. 0 = safe to remove.</summary>
+    public int ScheduledGameCount { get; init; }
 }
 
 public record FieldManagementResponse

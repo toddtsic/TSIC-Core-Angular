@@ -8,6 +8,8 @@
     flex-direction: column;
     gap: var(--space-3);
     height: calc(100vh - 200px);
+    overflow: hidden;
+    position: relative;
 }
 
 .fields-header {
@@ -22,8 +24,9 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
+    overflow: hidden;
 }
 
 .field-panel {
@@ -206,6 +209,14 @@ thead .frozen {
     }
 }
 
+// ── Game count badge (in-use fields) ──
+
+.badge-game-count {
+    font-size: var(--font-size-xs);
+    min-width: 20px;
+    cursor: help;
+}
+
 // ── Sortable column headers ──
 
 .sortable {
@@ -231,10 +242,15 @@ thead .frozen {
 // ── Detail editor ──
 
 .field-detail {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
     border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     background: var(--bs-body-bg);
-    flex-shrink: 0;
+    box-shadow: var(--shadow-lg);
 }
 
 .detail-header {

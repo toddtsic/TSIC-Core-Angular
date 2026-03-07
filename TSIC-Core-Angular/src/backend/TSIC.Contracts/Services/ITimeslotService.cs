@@ -76,4 +76,24 @@ public interface ITimeslotService
 
     Task<BulkDateAssignResponse> BulkAssignDateAsync(
         Guid jobId, string userId, BulkDateAssignRequest request, CancellationToken ct = default);
+
+    // ── Field config update ──
+
+    /// <summary>
+    /// Bulk-update GSI, StartTime, and/or MaxGamesPerField on existing field timeslot rows.
+    /// Handles wave-adjusted start time recalculation in uniform mode.
+    /// Does NOT touch TimeslotsLeagueSeasonDates — preserves R/day and wave assignments.
+    /// </summary>
+    Task<UpdateFieldConfigResponse> UpdateFieldConfigAsync(
+        Guid jobId, string userId, UpdateFieldConfigRequest request, CancellationToken ct = default);
+
+    // ── Field assignment management ──
+
+    /// <summary>
+    /// Reconcile field assignments for agegroups. For each agegroup entry:
+    /// removes field-timeslot rows for fields NOT in the desired list, and
+    /// adds field-timeslot rows for new fields (cloned from existing row timing).
+    /// </summary>
+    Task<SaveFieldAssignmentsResponse> SaveFieldAssignmentsAsync(
+        Guid jobId, string userId, SaveFieldAssignmentsRequest request, CancellationToken ct = default);
 }

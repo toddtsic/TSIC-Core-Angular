@@ -31,11 +31,56 @@
     gap: var(--space-3);
 }
 
+.hero-title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
 .hero-title {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     margin: 0 0 var(--space-1);
     color: var(--bs-body-color);
+}
+
+// ── Event Type Badge ──
+
+.event-type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    color: var(--bs-primary);
+    white-space: nowrap;
+}
+
+.scenario-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    white-space: nowrap;
+
+    i { font-size: 11px; }
+
+    &.scenario-prior-year {
+        background: rgba(var(--bs-info-rgb), 0.1);
+        color: var(--bs-info);
+    }
+
+    &.scenario-saved {
+        background: rgba(var(--bs-success-rgb), 0.1);
+        color: var(--bs-success);
+    }
 }
 
 // ── Hero Status Pills (games + config — unified) ──
@@ -95,6 +140,51 @@
     overflow: hidden;
 }
 
+// ── Prerequisite row (external link, not a stepper section) ──
+
+.prereq-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    border-bottom: 1px solid var(--bs-border-color);
+    margin-bottom: var(--space-1);
+}
+
+.prereq-icon {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.prereq-status {
+    flex: 1;
+    color: var(--bs-secondary-color);
+    font-weight: var(--font-weight-medium);
+}
+
+.prereq-complete .prereq-status {
+    color: var(--bs-body-color);
+}
+
+.prereq-link {
+    font-size: var(--font-size-xs);
+    color: var(--bs-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+
+    i {
+        font-size: 10px;
+    }
+}
+
+// ── Stepper sections (inline expandable) ──
+
 .stepper-row {
     display: grid;
     grid-template-columns: 28px 72px 1fr auto;
@@ -126,6 +216,19 @@
         .step-status {
             color: var(--bs-secondary-color);
         }
+    }
+
+    &.stepper-row-expandable {
+        cursor: pointer;
+
+        &:hover {
+            background: rgba(var(--bs-primary-rgb), 0.04);
+        }
+    }
+
+    &.step-expanded {
+        padding: 0;
+        background: transparent;
     }
 }
 
@@ -235,6 +338,20 @@
 }
 
 // ══════════════════════════════════════════
+// ── DEV RESET CHECKLIST ──
+// ══════════════════════════════════════════
+
+.dev-reset-checklist {
+    font-size: var(--font-size-sm);
+    padding-left: var(--space-1);
+
+    .form-check {
+        padding-top: 1px;
+        padding-bottom: 1px;
+    }
+}
+
+// ══════════════════════════════════════════
 // ── EMPTY STATE ──
 // ══════════════════════════════════════════
 
@@ -308,6 +425,36 @@
         outline: none;
         box-shadow: var(--shadow-focus);
     }
+}
+
+// ══════════════════════════════════════════
+// ── TILES SECTION HEADER ──
+// ══════════════════════════════════════════
+
+.tiles-section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+}
+
+.tiles-section-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-body-color);
+    white-space: nowrap;
+
+    i {
+        color: var(--bs-primary);
+        margin-right: 2px;
+    }
+}
+
+.tiles-section-hint {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
 }
 
 // ══════════════════════════════════════════

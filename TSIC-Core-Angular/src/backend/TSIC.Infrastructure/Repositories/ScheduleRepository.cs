@@ -944,6 +944,18 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
     }
 
+    public async Task<Dictionary<Guid, int>> GetGameCountsByFieldIdsAsync(
+        Guid jobId, List<Guid> fieldIds, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.FieldId.HasValue
+                && fieldIds.Contains(s.FieldId.Value))
+            .GroupBy(s => s.FieldId!.Value)
+            .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
+    }
+
     // ── Private helpers ──
 
     /// <summary>
@@ -1014,5 +1026,22 @@ public sealed class ScheduleRepository : IScheduleRepository
                 g => g.Key,
                 g => g.Select(x => x.Name).OrderBy(n => n).ToList(),
                 ct);
+    }
+
+    public async Task<Dictionary<Guid, int>> GetMaxRoundByAgegroupAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
+    {
+        var rows = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.LeagueId == leagueId
+                && s.Season == season && s.Year == year
+                && s.T1Type == "T"
+                && s.Rnd != null
+                && s.AgegroupId != null)
+            .GroupBy(s => s.AgegroupId!.Value)
+            .Select(g => new { AgegroupId = g.Key, MaxRnd = g.Max(s => (int)s.Rnd!) })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => r.AgegroupId, r => r.MaxRnd);
     }
 }

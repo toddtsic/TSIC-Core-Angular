@@ -13,17 +13,20 @@ public sealed class FieldManagementService : IFieldManagementService
 {
     private readonly IFieldRepository _fieldRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IScheduleRepository _scheduleRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<FieldManagementService> _logger;
 
     public FieldManagementService(
         IFieldRepository fieldRepo,
         IJobRepository jobRepo,
+        IScheduleRepository scheduleRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<FieldManagementService> logger)
     {
         _fieldRepo = fieldRepo;
         _jobRepo = jobRepo;
+        _scheduleRepo = scheduleRepo;
         _contextResolver = contextResolver;
         _logger = logger;
     }
@@ -45,6 +48,17 @@ public sealed class FieldManagementService : IFieldManagementService
 
         var assignedRecords = await _fieldRepo.GetLeagueSeasonFieldsAsync(leagueId, season, ct);
 
+        // Enrich assigned fields with scheduled game counts
+        var assignedFieldIds = assignedRecords.Select(f => f.FieldId).ToList();
+        var gameCounts = assignedFieldIds.Count > 0
+            ? await _scheduleRepo.GetGameCountsByFieldIdsAsync(jobId, assignedFieldIds, ct)
+            : new Dictionary<Guid, int>();
+
+        var enrichedAssigned = assignedRecords.Select(f => f with
+        {
+            ScheduledGameCount = gameCounts.GetValueOrDefault(f.FieldId)
+        }).ToList();
+
         return new FieldManagementResponse
         {
             AvailableFields = availableFields.Select(f => new FieldDto
@@ -59,7 +73,7 @@ public sealed class FieldManagementService : IFieldManagementService
                 Latitude = f.Latitude,
                 Longitude = f.Longitude
             }).ToList(),
-            AssignedFields = assignedRecords
+            AssignedFields = enrichedAssigned
         };
     }
 
@@ -153,6 +167,26 @@ public sealed class FieldManagementService : IFieldManagementService
         Guid jobId, RemoveFieldsRequest request, CancellationToken ct = default)
     {
         var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Guard: block removal of fields that have scheduled games
+        var gameCounts = await _scheduleRepo.GetGameCountsByFieldIdsAsync(jobId, request.FieldIds, ct);
+        if (gameCounts.Count > 0)
+        {
+            // Resolve field names for a helpful error message
+            var fieldNames = await _fieldRepo.GetFieldNamesByIdsAsync(request.FieldIds, ct);
+            var details = gameCounts
+                .Select(kv =>
+                {
+                    var name = fieldNames.GetValueOrDefault(kv.Key, kv.Key.ToString());
+                    return $"{name} ({kv.Value} game{(kv.Value != 1 ? "s" : "")})";
+                })
+                .ToList();
+
+            throw new InvalidOperationException(
+                $"Cannot remove — games are scheduled on: {string.Join(", ", details)}. " +
+                "Delete the games first, then remove the field.");
+        }
+
         await _fieldRepo.RemoveFieldsFromLeagueSeasonAsync(leagueId, season, request.FieldIds, ct);
 
         _logger.LogInformation("Removed {Count} fields from league {LeagueId} season {Season}",

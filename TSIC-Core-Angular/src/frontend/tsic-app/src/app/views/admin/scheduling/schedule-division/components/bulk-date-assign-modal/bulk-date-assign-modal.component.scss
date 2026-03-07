@@ -1,14 +1,92 @@
-// ── Date Picker ──
+// ── Existing Dates ──
 
-.date-row {
+.existing-dates {
     margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.12);
+    border-radius: var(--radius-sm);
+}
 
-    .form-label {
+.existing-dates-label {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-secondary-color);
+    margin-bottom: var(--space-1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.existing-date-entry {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--bs-body-color);
+    padding: var(--space-1) var(--space-2);
+    margin: 0 calc(-1 * var(--space-2));
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.1s ease;
+
+    i {
         font-size: var(--font-size-sm);
-        margin-bottom: var(--space-1);
+        color: var(--bs-primary);
     }
 
-    input[type="date"] {
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.08);
+    }
+
+    &.existing-date-active {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        font-weight: var(--font-weight-semibold);
+
+        i {
+            color: var(--bs-primary);
+        }
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.existing-date-dow {
+    font-weight: var(--font-weight-semibold);
+    min-width: 28px;
+}
+
+.existing-date-count {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+    margin-left: auto;
+}
+
+// ── Add Date Row ──
+
+.add-date-row {
+    margin-bottom: var(--space-3);
+}
+
+.add-date-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border-style: dashed;
+}
+
+.date-input-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+
+    .date-input {
         max-width: 220px;
     }
 }
@@ -69,13 +147,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 .ag-section-label {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
     color: var(--bs-body-color);
+}
+
+.ag-instruction {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+    margin: 0 0 var(--space-2);
 }
 
 .ag-check-all {
@@ -87,6 +171,37 @@
     cursor: pointer;
 }
 
+.ag-col-header-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0 var(--space-3);
+    margin-bottom: 2px;
+}
+
+.ag-col-spacer {
+    flex: 1;
+}
+
+.ag-col-hdr {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-secondary-color);
+    text-align: center;
+}
+
+.ag-col-hdr-r {
+    width: 72px;
+}
+
+.ag-col-hdr-w {
+    width: 56px;
+}
+
+.ag-col-hdr-check {
+    width: 20px;
+}
+
 .ag-list {
     display: flex;
     flex-direction: column;
@@ -94,6 +209,14 @@
     border: 1px solid var(--bs-border-color);
     border-radius: var(--radius-sm);
     overflow: hidden;
+}
+
+.ag-rounds-select {
+    width: 72px;
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    padding: 2px var(--space-1);
+    cursor: pointer;
 }
 
 .ag-wave-select {
@@ -104,6 +227,18 @@
     cursor: pointer;
 }
 
+.ag-rounds-status {
+    font-weight: var(--font-weight-semibold);
+}
+
+.rounds-ok {
+    color: var(--bs-success);
+}
+
+.rounds-short {
+    color: var(--bs-warning);
+}
+
 .ag-row {
     display: flex;
     align-items: center;
@@ -111,7 +246,7 @@
     padding: var(--space-2) var(--space-3);
     background: var(--bs-body-bg);
     cursor: pointer;
-    transition: background 0.1s ease;
+    transition: background 0.1s ease, opacity 0.1s ease;
 
     &:hover {
         background: rgba(var(--bs-primary-rgb), 0.04);
@@ -121,8 +256,11 @@
         background: rgba(var(--bs-primary-rgb), 0.06);
     }
 
+    &.ag-row-unchecked {
+        opacity: 0.5;
+    }
+
     .form-check-input {
-        margin-left: auto;
         flex-shrink: 0;
         cursor: pointer;
     }
@@ -175,6 +313,7 @@
 // ── Applied Log ──
 
 .applied-log {
+    margin-bottom: var(--space-3);
     padding: var(--space-2) var(--space-3);
     background: rgba(var(--bs-success-rgb), 0.06);
     border: 1px solid rgba(var(--bs-success-rgb), 0.2);
@@ -204,7 +343,8 @@
     }
 }
 
-.applied-wave {
+.applied-wave,
+.applied-rounds {
     display: inline-block;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);

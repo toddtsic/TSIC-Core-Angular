@@ -201,4 +201,22 @@ public interface IScheduleRepository
     /// </summary>
     Task<Dictionary<int, List<string>>> GetRefereeAssignmentsForGamesAsync(
         List<int> gids, CancellationToken ct = default);
+
+    // ── Field Safety ──
+
+    /// <summary>
+    /// Count scheduled games per field for the given job.
+    /// Used to prevent removal of fields that have games on them.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetGameCountsByFieldIdsAsync(
+        Guid jobId, List<Guid> fieldIds, CancellationToken ct = default);
+
+    // ── Readiness ──
+
+    /// <summary>
+    /// Get the maximum round number from placed RR games per agegroup.
+    /// Only counts T1Type='T' (round-robin). Returns agegroupId → maxRound.
+    /// </summary>
+    Task<Dictionary<Guid, int>> GetMaxRoundByAgegroupAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
 }
