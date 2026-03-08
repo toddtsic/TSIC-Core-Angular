@@ -103,19 +103,27 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var divsWithGames = summaries.Count(s => s.GameCount > 0);
 
         // Derive effective game guarantee from pairing table round counts.
-        // For each pool size: even TCnt → guarantee = maxRound, odd → guarantee = maxRound - 1.
-        // The event-level guarantee is the minimum across all pool sizes.
+        // Only report a guarantee when at least one pool size has FEWER rounds
+        // than full RR (meaning pairings were explicitly capped).
+        // 4-team pool with 3 rounds = full RR, NOT a 3-game cap.
         int? derivedGameGuarantee = null;
         if (maxRoundByPoolSize.Count > 0)
         {
-            derivedGameGuarantee = maxRoundByPoolSize
+            var cappedGuarantees = maxRoundByPoolSize
                 .Select(kvp =>
                 {
                     var tCnt = kvp.Key;
                     var maxRound = kvp.Value;
+                    var fullRr = tCnt % 2 == 0 ? tCnt - 1 : tCnt;
+                    if (maxRound >= fullRr) return (int?)null; // full RR, no cap
                     return tCnt % 2 == 0 ? maxRound : maxRound - 1;
                 })
-                .Min();
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .ToList();
+
+            if (cappedGuarantees.Count > 0)
+                derivedGameGuarantee = cappedGuarantees.Min();
         }
 
         return new GameSummaryResponse
