@@ -122,6 +122,35 @@ public class AgeGroupRepository : IAgeGroupRepository
             .ToListAsync(ct);
     }
 
+    public async Task<Dictionary<Guid, int?>> GetGameGuaranteesForLeagueAsync(
+        Guid leagueId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.LeagueId == leagueId)
+            .Select(a => new { a.AgegroupId, a.GameGuarantee })
+            .ToDictionaryAsync(a => a.AgegroupId, a => a.GameGuarantee, cancellationToken);
+    }
+
+    public async Task<int> UpdateGameGuaranteesAsync(
+        Dictionary<Guid, int?> agegroupGuarantees, CancellationToken cancellationToken = default)
+    {
+        if (agegroupGuarantees.Count == 0) return 0;
+
+        var ids = agegroupGuarantees.Keys.ToList();
+        var agegroups = await _context.Agegroups
+            .Where(a => ids.Contains(a.AgegroupId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var ag in agegroups)
+        {
+            if (agegroupGuarantees.TryGetValue(ag.AgegroupId, out var guarantee))
+                ag.GameGuarantee = guarantee;
+        }
+
+        return await _context.SaveChangesAsync(cancellationToken);
+    }
+
     public void Add(Agegroups agegroup) => _context.Agegroups.Add(agegroup);
 
     public void Remove(Agegroups agegroup) => _context.Agegroups.Remove(agegroup);

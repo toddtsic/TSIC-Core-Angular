@@ -15,6 +15,7 @@ import type { QaInactiveTeamInGame } from './QaInactiveTeamInGame';
 import type { QaRankMismatch } from './QaRankMismatch';
 import type { QaRepeatedMatchup } from './QaRepeatedMatchup';
 import type { QaRrGamesPerDiv } from './QaRrGamesPerDiv';
+import type { QaTeamBelowGuarantee } from './QaTeamBelowGuarantee';
 import type { QaUnscheduledTeam } from './QaUnscheduledTeam';
 export type AutoBuildQaResult = {
     totalGames: number;
@@ -25,6 +26,7 @@ export type AutoBuildQaResult = {
     backToBackGames: Array<QaBackToBack>;
     repeatedMatchups: Array<QaRepeatedMatchup>;
     inactiveTeamsInGames: Array<QaInactiveTeamInGame>;
+    teamsBelowGuarantee: Array<QaTeamBelowGuarantee>;
     gamesPerDate: Array<QaGamesPerDate>;
     gamesPerTeam: Array<QaGamesPerTeam>;
     gamesPerTeamPerDay: Array<QaGamesPerTeamPerDay>;

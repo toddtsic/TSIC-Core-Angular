@@ -31,8 +31,36 @@
                             <i class="bi bi-clock"></i>
                         }
                         <strong>{{ totalGames() }}/{{ totalExpected() }}</strong> RR games scheduled
-                        @if (gameGuarantee()) {
-                            <span class="game-guarantee-badge">{{ gameGuarantee() }}-game guarantee</span>
+                        <span class="game-guarantee-badge game-guarantee-editable"
+                              (click)="openGuaranteeEditor($event)">
+                            @if (gameGuarantee()) {
+                                {{ gameGuarantee() }}-game guarantee
+                            } @else {
+                                Set guarantee
+                            }
+                            <i class="bi bi-pencil-fill guarantee-edit-icon"></i>
+                        </span>
+                        @if (guaranteeEditing()) {
+                            <div class="guarantee-popover" (click)="$event.stopPropagation()">
+                                <label class="guarantee-popover-label">Game guarantee</label>
+                                <div class="guarantee-popover-row">
+                                    <input type="number" class="form-control form-control-sm guarantee-input"
+                                           [ngModel]="guaranteeEditValue()"
+                                           (ngModelChange)="guaranteeEditValue.set($event)"
+                                           min="1" max="20" placeholder="e.g. 3">
+                                    <button class="btn btn-sm btn-primary" (click)="saveGuarantee()"
+                                            [disabled]="isSavingGuarantee()">
+                                        @if (isSavingGuarantee()) {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        } @else {
+                                            Save
+                                        }
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" (click)="cancelGuaranteeEdit()">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                </div>
+                            </div>
                         }
                     </div>
                 }

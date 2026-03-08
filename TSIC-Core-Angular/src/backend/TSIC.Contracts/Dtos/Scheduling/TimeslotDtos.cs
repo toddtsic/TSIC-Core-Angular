@@ -108,6 +108,9 @@ public record AgegroupCanvasReadinessDto
     /// <summary>Max round number from current RR pairings (T1Type='T'). 0 if no pairings.</summary>
     public required int MaxPairingRound { get; init; }
 
+    /// <summary>Resolved game guarantee: agegroup override ?? job default ?? null (full RR).</summary>
+    public int? GameGuarantee { get; init; }
+
     /// <summary>Distinct field IDs this agegroup has field-timeslot rows for. Empty = unconfigured.</summary>
     public required List<Guid> FieldIds { get; init; }
 }

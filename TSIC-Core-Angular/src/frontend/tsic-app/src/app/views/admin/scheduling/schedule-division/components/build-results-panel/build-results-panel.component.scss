@@ -379,6 +379,12 @@ details[open] > .division-summary-toggle > i {
     body.printing-unplaced .no-print { display: none !important; }
 }
 
+// ── Guarantee Violations ──
+.guarantee-shortfall {
+    color: var(--bs-danger);
+    font-weight: var(--font-weight-semibold);
+}
+
 // ── Responsive ──
 @media (max-width: 576px) {
     .results-action-bar { flex-direction: column; }

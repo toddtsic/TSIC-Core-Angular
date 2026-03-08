@@ -21,6 +21,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     private readonly IDivisionRepository _divisionRepo;
     private readonly IDivisionProfileRepository _divisionProfileRepo;
     private readonly IFieldRepository _fieldRepo;
+    private readonly IJobRepository _jobRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly IScheduleDivisionService _scheduleDivisionService;
     private readonly IScheduleQaService _qaService;
@@ -36,6 +37,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         IDivisionRepository divisionRepo,
         IDivisionProfileRepository divisionProfileRepo,
         IFieldRepository fieldRepo,
+        IJobRepository jobRepo,
         ISchedulingContextResolver contextResolver,
         IScheduleDivisionService scheduleDivisionService,
         IScheduleQaService qaService,
@@ -50,6 +52,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         _divisionRepo = divisionRepo;
         _divisionProfileRepo = divisionProfileRepo;
         _fieldRepo = fieldRepo;
+        _jobRepo = jobRepo;
         _contextResolver = contextResolver;
         _scheduleDivisionService = scheduleDivisionService;
         _qaService = qaService;
@@ -102,16 +105,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var totalGames = summaries.Sum(s => s.GameCount);
         var divsWithGames = summaries.Count(s => s.GameCount > 0);
 
-        // Derive game guarantee from pairing table round counts.
-        // The guarantee is a business promise (minimum games per team).
-        // It DRIVES pairing generation — not the other way around.
-        // For display: min games-per-team across all pool sizes in the pairing table.
-        // For even TCnt: each round = 1 game/team, so guarantee = maxRound.
-        // For odd TCnt: one bye per round, so guarantee = maxRound - 1.
-        int? derivedGameGuarantee = null;
-        if (maxRoundByPoolSize.Count > 0)
+        // Game guarantee: stored value takes priority, fall back to derived from pairings
+        var storedGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+        int? effectiveGuarantee = storedGuarantee;
+        if (effectiveGuarantee == null && maxRoundByPoolSize.Count > 0)
         {
-            derivedGameGuarantee = maxRoundByPoolSize
+            // Backward compat: derive from pairing table when not configured
+            effectiveGuarantee = maxRoundByPoolSize
                 .Select(kvp =>
                 {
                     var tCnt = kvp.Key;
@@ -128,7 +128,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             TotalDivisions = summaries.Count,
             DivisionsWithGames = divsWithGames,
             Divisions = summaries,
-            GameGuarantee = derivedGameGuarantee
+            GameGuarantee = effectiveGuarantee
         };
     }
 

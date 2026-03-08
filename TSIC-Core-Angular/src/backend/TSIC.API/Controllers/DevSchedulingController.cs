@@ -24,6 +24,8 @@ public class DevSchedulingController : ControllerBase
     private readonly IPairingsRepository _pairingsRepo;
     private readonly IDivisionProfileRepository _profileRepo;
     private readonly IFieldRepository _fieldRepo;
+    private readonly IJobRepository _jobRepo;
+    private readonly IAgeGroupRepository _agRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<DevSchedulingController> _logger;
 
@@ -35,6 +37,8 @@ public class DevSchedulingController : ControllerBase
         IPairingsRepository pairingsRepo,
         IDivisionProfileRepository profileRepo,
         IFieldRepository fieldRepo,
+        IJobRepository jobRepo,
+        IAgeGroupRepository agRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<DevSchedulingController> logger)
     {
@@ -45,6 +49,8 @@ public class DevSchedulingController : ControllerBase
         _pairingsRepo = pairingsRepo;
         _profileRepo = profileRepo;
         _fieldRepo = fieldRepo;
+        _jobRepo = jobRepo;
+        _agRepo = agRepo;
         _contextResolver = contextResolver;
         _logger = logger;
     }
@@ -180,5 +186,37 @@ public class DevSchedulingController : ControllerBase
             jobId.Value, userId, request.SourceJobId, ct);
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// PUT /api/dev-scheduling/game-guarantee — Set event-level and/or per-agegroup game guarantee.
+    /// </summary>
+    [HttpPut("game-guarantee")]
+    public async Task<ActionResult<SaveGameGuaranteeResponse>> SaveGameGuarantee(
+        [FromBody] SaveGameGuaranteeRequest request, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Scheduling context required" });
+
+        // 1. Update event-level default on Jobs
+        await _jobRepo.UpdateGameGuaranteeAsync(jobId.Value, request.EventDefault, ct);
+
+        // 2. Update per-agegroup overrides if provided
+        var agUpdated = 0;
+        if (request.AgegroupOverrides is { Count: > 0 })
+        {
+            var agDict = request.AgegroupOverrides
+                .ToDictionary(
+                    kvp => Guid.Parse(kvp.Key),
+                    kvp => kvp.Value);
+            agUpdated = await _agRepo.UpdateGameGuaranteesAsync(agDict, ct);
+        }
+
+        return Ok(new SaveGameGuaranteeResponse
+        {
+            EventDefault = request.EventDefault,
+            AgegroupsUpdated = agUpdated
+        });
     }
 }

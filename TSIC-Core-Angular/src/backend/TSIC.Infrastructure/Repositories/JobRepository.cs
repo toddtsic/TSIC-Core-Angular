@@ -409,4 +409,28 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<int?> GetGameGuaranteeAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.GameGuarantee)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task UpdateGameGuaranteeAsync(
+        Guid jobId, int? gameGuarantee, CancellationToken cancellationToken = default)
+    {
+        var job = await _context.Jobs
+            .Where(j => j.JobId == jobId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (job != null)
+        {
+            job.GameGuarantee = gameGuarantee;
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
 }

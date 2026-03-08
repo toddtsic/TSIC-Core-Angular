@@ -266,6 +266,9 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly isSavingFieldConfig = signal(false);
     readonly eventFields = signal<import('@core/api').EventFieldSummaryDto[]>([]);
 
+    // ── Game guarantee save state ──
+    readonly isSavingGuarantee = signal(false);
+
     // ── Bulk date assignment modal ──
     readonly showBulkDateModal = signal(false);
 
@@ -609,6 +612,22 @@ export class ScheduleDivisionComponent implements OnInit {
             error: () => {
                 this.isSavingFieldConfig.set(false);
                 this.toast.show('Failed to save field assignments', 'danger');
+            }
+        });
+    }
+
+    saveGameGuarantee(event: { eventDefault: number | null }): void {
+        this.isSavingGuarantee.set(true);
+        this.autoBuildSvc.saveGameGuarantee({ eventDefault: event.eventDefault ?? undefined }).subscribe({
+            next: () => {
+                this.isSavingGuarantee.set(false);
+                this.loadCanvasReadiness();
+                this.refreshGameSummary();
+                this.toast.show('Game guarantee saved', 'success');
+            },
+            error: () => {
+                this.isSavingGuarantee.set(false);
+                this.toast.show('Failed to save game guarantee', 'danger');
             }
         });
     }

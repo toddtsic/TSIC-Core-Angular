@@ -122,6 +122,7 @@ public record AutoBuildQaResult
     public required List<QaBackToBack> BackToBackGames { get; init; }
     public required List<QaRepeatedMatchup> RepeatedMatchups { get; init; }
     public required List<QaInactiveTeamInGame> InactiveTeamsInGames { get; init; }
+    public required List<QaTeamBelowGuarantee> TeamsBelowGuarantee { get; init; }
 
     // ── Informational ──
     public required List<QaGamesPerDate> GamesPerDate { get; init; }
@@ -265,6 +266,18 @@ public record QaInactiveTeamInGame
     public required string TeamName { get; init; }
     public required int DivRank { get; init; }
     public required bool Active { get; init; }
+}
+
+/// <summary>
+/// A team whose scheduled game count is below its resolved game guarantee.
+/// </summary>
+public record QaTeamBelowGuarantee
+{
+    public required string AgegroupName { get; init; }
+    public required string DivName { get; init; }
+    public required string TeamName { get; init; }
+    public required int GameCount { get; init; }
+    public required int Guarantee { get; init; }
 }
 
 /// <summary>

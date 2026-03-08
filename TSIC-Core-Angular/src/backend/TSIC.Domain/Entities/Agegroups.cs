@@ -69,6 +69,8 @@ public partial class Agegroups
 
     public decimal? PlayerFeeOverride { get; set; }
 
+    public int? GameGuarantee { get; set; }
+
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
 
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();

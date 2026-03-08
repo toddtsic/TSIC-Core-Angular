@@ -121,6 +121,7 @@
                             @if (qaResult()!.backToBackGames.length > 0) { games without a break }
                             @if (qaResult()!.repeatedMatchups.length > 0) { same teams playing twice }
                             @if (qaResult()!.unscheduledTeams.length > 0) { teams with no games }
+                            @if (qaResult()!.teamsBelowGuarantee.length > 0) { teams below game guarantee }
                         </span>
                     </div>
                 }
@@ -137,6 +138,42 @@
         </div>
     }
 </div>
+
+<!-- Teams Below Game Guarantee -->
+@if (qaResult()?.teamsBelowGuarantee?.length) {
+    <div class="inline-card guarantee-violations">
+        <div class="card-label">
+            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+            Teams Below Game Guarantee ({{ qaResult()!.teamsBelowGuarantee.length }})
+        </div>
+        <div class="results-table-scroll">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Agegroup</th>
+                        <th>Division</th>
+                        <th>Team</th>
+                        <th>Games</th>
+                        <th>Guarantee</th>
+                        <th>Short</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (t of qaResult()!.teamsBelowGuarantee; track $index) {
+                        <tr>
+                            <td>{{ t.agegroupName }}</td>
+                            <td>{{ t.divName }}</td>
+                            <td>{{ t.teamName }}</td>
+                            <td>{{ t.gameCount }}</td>
+                            <td>{{ t.guarantee }}</td>
+                            <td class="guarantee-shortfall">{{ t.guarantee - t.gameCount }}</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
 
 <!-- Adjustments from Last Year -->
 @if (sacrificeLog().length > 0) {

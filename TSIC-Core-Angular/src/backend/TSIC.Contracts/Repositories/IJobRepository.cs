@@ -198,6 +198,16 @@ public interface IJobRepository
     /// </summary>
     Task<PriorYearJobInfo?> GetPriorYearJobAsync(Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get the event-level game guarantee for a job (nullable).
+    /// </summary>
+    Task<int?> GetGameGuaranteeAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set the event-level game guarantee for a job.
+    /// </summary>
+    Task UpdateGameGuaranteeAsync(Guid jobId, int? gameGuarantee, CancellationToken cancellationToken = default);
+
 }
 
 public record JobAuthInfo

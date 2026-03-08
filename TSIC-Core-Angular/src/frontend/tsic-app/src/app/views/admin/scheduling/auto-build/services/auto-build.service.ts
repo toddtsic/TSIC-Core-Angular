@@ -12,6 +12,8 @@ import type {
     GameSummaryResponse,
     PrerequisiteCheckResponse,
     ProfileExtractionResponse,
+    SaveGameGuaranteeRequest,
+    SaveGameGuaranteeResponse,
 } from '@core/api';
 
 /** Inline type — DevSchedulingController returns this as part of an anonymous object, so Swagger doesn't generate it. */
@@ -77,6 +79,13 @@ export class AutoBuildService {
     ensurePairings(request: EnsurePairingsRequest): Observable<EnsurePairingsResponse> {
         return this.http.post<EnsurePairingsResponse>(
             `${this.apiUrl}/ensure-pairings`,
+            request
+        );
+    }
+
+    saveGameGuarantee(request: SaveGameGuaranteeRequest): Observable<SaveGameGuaranteeResponse> {
+        return this.http.put<SaveGameGuaranteeResponse>(
+            `${environment.apiUrl}/dev-scheduling/game-guarantee`,
             request
         );
     }

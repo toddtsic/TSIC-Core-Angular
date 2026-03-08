@@ -81,7 +81,8 @@ export class BuildResultsPanelComponent {
         return (qa.unscheduledTeams?.length ?? 0)
             + (qa.backToBackGames?.length ?? 0)
             + (qa.repeatedMatchups?.length ?? 0)
-            + (qa.inactiveTeamsInGames?.length ?? 0);
+            + (qa.inactiveTeamsInGames?.length ?? 0)
+            + (qa.teamsBelowGuarantee?.length ?? 0);
     });
 
     // ── Helpers ──

@@ -95,6 +95,7 @@ export class EventSummaryPanelComponent {
     readonly calendarApplyRequested = output<CalendarApplyEvent>();
     readonly timeConfigSaveRequested = output<TimeConfigSaveEvent>();
     readonly fieldConfigApplyRequested = output<FieldConfigApplyEvent>();
+    readonly gameGuaranteeSaveRequested = output<{ eventDefault: number | null }>();
 
     // ── Local state ──
     readonly deleteConfirmText = signal('');
@@ -112,6 +113,11 @@ export class EventSummaryPanelComponent {
         this.resetGames() || this.resetStrategyProfiles() || this.resetPairings() ||
         this.resetDates() || this.resetFieldTimeslots()
     );
+
+    // ── Game guarantee inline editor ──
+    readonly guaranteeEditing = signal(false);
+    readonly guaranteeEditValue = signal<number | null>(null);
+    readonly isSavingGuarantee = input(false);
 
     // ── Accordion: which section is expanded (null = all collapsed) ──
     readonly expandedSection = signal<StepperSection | null>(null);
@@ -368,6 +374,24 @@ export class EventSummaryPanelComponent {
             placement: this.effectivePlacement(),
             gapPattern: this.effectiveGapPattern()
         });
+    }
+
+    // ── Game guarantee actions ──
+
+    openGuaranteeEditor(event: Event): void {
+        event.stopPropagation();
+        this.guaranteeEditValue.set(this.gameGuarantee());
+        this.guaranteeEditing.set(true);
+    }
+
+    saveGuarantee(): void {
+        const val = this.guaranteeEditValue();
+        this.gameGuaranteeSaveRequested.emit({ eventDefault: val && val > 0 ? val : null });
+        this.guaranteeEditing.set(false);
+    }
+
+    cancelGuaranteeEdit(): void {
+        this.guaranteeEditing.set(false);
     }
 
     onStrategyCancelled(): void {

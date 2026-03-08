@@ -58,6 +58,16 @@ public interface IAgeGroupRepository
     Task<List<Dtos.Rankings.AgeGroupOptionDto>> GetActiveAgeGroupsForJobAsync(
         Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get game guarantees for all agegroups in a league, keyed by agegroupId.
+    /// </summary>
+    Task<Dictionary<Guid, int?>> GetGameGuaranteesForLeagueAsync(Guid leagueId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Update game guarantee values for specific agegroups. Returns count updated.
+    /// </summary>
+    Task<int> UpdateGameGuaranteesAsync(Dictionary<Guid, int?> agegroupGuarantees, CancellationToken cancellationToken = default);
+
     void Add(Agegroups agegroup);
     void Remove(Agegroups agegroup);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

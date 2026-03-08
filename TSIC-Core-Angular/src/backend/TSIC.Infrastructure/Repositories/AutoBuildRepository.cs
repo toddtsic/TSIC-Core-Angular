@@ -392,6 +392,9 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
         // 14) Bracket games listing
         var bracketGames = await GetBracketGamesAsync(jobId, ct);
 
+        // 15) Teams below game guarantee
+        var teamsBelowGuarantee = await GetTeamsBelowGuaranteeAsync(jobId, gamesPerTeam, ct);
+
         return new AutoBuildQaResult
         {
             TotalGames = totalGames,
@@ -402,6 +405,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             BackToBackGames = backToBackGames,
             RepeatedMatchups = repeatedMatchups,
             InactiveTeamsInGames = inactiveTeamsInGames,
+            TeamsBelowGuarantee = teamsBelowGuarantee,
             GamesPerDate = gamesPerDate,
             GamesPerTeam = gamesPerTeam,
             GamesPerTeamPerDay = gamesPerTeamPerDay,
@@ -464,6 +468,56 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             })
             .OrderBy(t => t.AgegroupName)
             .ThenBy(t => t.DivName)
+            .ToList();
+    }
+
+    private async Task<List<QaTeamBelowGuarantee>> GetTeamsBelowGuaranteeAsync(
+        Guid jobId, List<QaGamesPerTeam> gamesPerTeam, CancellationToken ct)
+    {
+        // Resolve guarantee cascade: agegroup.GameGuarantee ?? job.GameGuarantee
+        var jobGuarantee = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.GameGuarantee)
+            .FirstOrDefaultAsync(ct);
+
+        if (jobGuarantee == null)
+            return []; // No guarantee configured — nothing to check
+
+        // Build agegroup name → resolved guarantee map
+        var leagueId = await _context.JobLeagues
+            .AsNoTracking()
+            .Where(jl => jl.JobId == jobId)
+            .Select(jl => jl.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
+        var agOverrides = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.LeagueId == leagueId && a.GameGuarantee != null)
+            .Select(a => new { a.AgegroupName, a.GameGuarantee })
+            .ToListAsync(ct);
+
+        var agGuaranteeByName = agOverrides.ToDictionary(
+            a => a.AgegroupName ?? "", a => a.GameGuarantee!.Value);
+
+        return gamesPerTeam
+            .Select(t =>
+            {
+                var guarantee = agGuaranteeByName.GetValueOrDefault(t.AgegroupName, jobGuarantee.Value);
+                return new { t.AgegroupName, t.DivName, t.TeamName, t.GameCount, Guarantee = guarantee };
+            })
+            .Where(t => t.GameCount < t.Guarantee)
+            .Select(t => new QaTeamBelowGuarantee
+            {
+                AgegroupName = t.AgegroupName,
+                DivName = t.DivName,
+                TeamName = t.TeamName,
+                GameCount = t.GameCount,
+                Guarantee = t.Guarantee
+            })
+            .OrderBy(t => t.AgegroupName)
+            .ThenBy(t => t.DivName)
+            .ThenBy(t => t.TeamName)
             .ToList();
     }
 

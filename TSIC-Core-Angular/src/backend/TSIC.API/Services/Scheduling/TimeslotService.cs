@@ -15,6 +15,7 @@ public sealed class TimeslotService : ITimeslotService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IJobLeagueRepository _jobLeagueRepo;
+    private readonly IAgeGroupRepository _agRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<TimeslotService> _logger;
 
@@ -27,6 +28,7 @@ public sealed class TimeslotService : ITimeslotService
         IScheduleRepository scheduleRepo,
         IJobRepository jobRepo,
         IJobLeagueRepository jobLeagueRepo,
+        IAgeGroupRepository agRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<TimeslotService> logger)
     {
@@ -34,6 +36,7 @@ public sealed class TimeslotService : ITimeslotService
         _scheduleRepo = scheduleRepo;
         _jobRepo = jobRepo;
         _jobLeagueRepo = jobLeagueRepo;
+        _agRepo = agRepo;
         _contextResolver = contextResolver;
         _logger = logger;
     }
@@ -57,6 +60,10 @@ public sealed class TimeslotService : ITimeslotService
 
         // Per-agegroup field IDs for the field config section
         var fieldIdsPerAg = await _tsRepo.GetFieldIdsPerAgegroupAsync(leagueId, season, year, ct);
+
+        // Game guarantee: job-level default + per-agegroup overrides
+        var jobGameGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+        var agGameGuarantees = await _agRepo.GetGameGuaranteesForLeagueAsync(leagueId, ct);
 
         var agegroups = data.Select(kv =>
         {
@@ -92,6 +99,7 @@ public sealed class TimeslotService : ITimeslotService
                 GameDays = gameDays,
                 TotalRounds = d.RoundsPerDate.Values.Sum(),
                 MaxPairingRound = maxPairingRounds.GetValueOrDefault(kv.Key, 0),
+                GameGuarantee = agGameGuarantees.GetValueOrDefault(kv.Key) ?? jobGameGuarantee,
                 FieldIds = fieldIdsPerAg.GetValueOrDefault(kv.Key, [])
             };
         }).ToList();

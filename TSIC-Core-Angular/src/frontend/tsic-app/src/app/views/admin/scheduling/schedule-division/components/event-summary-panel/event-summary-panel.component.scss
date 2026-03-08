@@ -86,6 +86,7 @@
 // ── Hero Status Pills (games + config — unified) ──
 
 .hero-status-pill {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
@@ -126,6 +127,54 @@
         color: var(--bs-info);
         background: rgba(var(--bs-info-rgb), 0.1);
         border-radius: var(--radius-full);
+
+        &.game-guarantee-editable {
+            cursor: pointer;
+            transition: background 0.15s;
+
+            &:hover {
+                background: rgba(var(--bs-info-rgb), 0.2);
+            }
+        }
+
+        .guarantee-edit-icon {
+            font-size: 9px;
+            opacity: 0.5;
+            margin-left: 2px;
+        }
+    }
+
+    .guarantee-popover {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 10;
+        margin-top: var(--space-1);
+        padding: var(--space-2) var(--space-3);
+        background: var(--bs-card-bg, var(--neutral-0));
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        white-space: nowrap;
+
+        .guarantee-popover-label {
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            color: var(--brand-text-muted, var(--neutral-500));
+            margin-bottom: var(--space-1);
+            display: block;
+        }
+
+        .guarantee-popover-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+        }
+
+        .guarantee-input {
+            width: 64px;
+            text-align: center;
+        }
     }
 }
 

@@ -50,6 +50,8 @@
             (calendarApplyRequested)="onCalendarApply($event)"
             (timeConfigSaveRequested)="onTimeConfigSave($event)"
             (fieldConfigApplyRequested)="onFieldConfigApply($event)"
+            (gameGuaranteeSaveRequested)="saveGameGuarantee($event)"
+            [isSavingGuarantee]="isSavingGuarantee()"
             (resetConfirmed)="executeReset($event)" />
 
         <!-- ── Prerequisite Errors (event scope) ── -->

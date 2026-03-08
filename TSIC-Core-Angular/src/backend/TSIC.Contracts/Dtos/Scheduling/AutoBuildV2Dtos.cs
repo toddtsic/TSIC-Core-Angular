@@ -460,3 +460,28 @@ public record DivisionStrategyProfileResponse
     /// <summary>Differences between source schedule and current timeslot setup.</summary>
     public List<PreFlightDisconnect>? Disconnects { get; init; }
 }
+
+// ══════════════════════════════════════════════════════════
+// Game Guarantee Configuration
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Request to set event-level and/or per-agegroup game guarantee.
+/// </summary>
+public record SaveGameGuaranteeRequest
+{
+    /// <summary>Event-level default (null = clear).</summary>
+    public int? EventDefault { get; init; }
+
+    /// <summary>Per-agegroup overrides: agegroupId → guarantee. Null value = clear override (inherit event default).</summary>
+    public Dictionary<string, int?>? AgegroupOverrides { get; init; }
+}
+
+/// <summary>
+/// Result of saving game guarantee configuration.
+/// </summary>
+public record SaveGameGuaranteeResponse
+{
+    public required int? EventDefault { get; init; }
+    public required int AgegroupsUpdated { get; init; }
+}
