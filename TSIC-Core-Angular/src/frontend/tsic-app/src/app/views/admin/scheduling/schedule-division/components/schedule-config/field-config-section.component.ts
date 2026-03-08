@@ -48,15 +48,13 @@ export class FieldConfigSectionComponent {
     // ── Column popover (agegroupId of open popover, null = closed) ──
     readonly popoverAgId = signal<string | null>(null);
 
-    // ── Sync cellMap from readiness on first load ──
-    private cellMapInitialized = false;
-
     constructor() {
+        // Sync cellMap whenever backend data changes (inputs update → initialCellMap recomputes).
+        // Local checkbox edits don't trigger this because they only modify cellMap, not the inputs.
         effect(() => {
             const initial = this.initialCellMap();
-            if (!this.cellMapInitialized && Object.keys(initial).length > 0) {
+            if (Object.keys(initial).length > 0) {
                 this.cellMap.set(initial);
-                this.cellMapInitialized = true;
             }
         });
     }
