@@ -116,6 +116,9 @@ export class EventSummaryPanelComponent {
     // ── Accordion: which section is expanded (null = all collapsed) ──
     readonly expandedSection = signal<StepperSection | null>(null);
 
+    // ── Calendar modal ──
+    readonly showCalendarModal = signal(false);
+
     // ── Stepper: local strategy overrides (null = user hasn't touched it) ──
     readonly localPlacement = signal<number | null>(null);
     readonly localGapPattern = signal<number | null>(null);
@@ -133,6 +136,8 @@ export class EventSummaryPanelComponent {
     });
 
     readonly totalGames = computed(() => this.gameSummary()?.totalGames ?? 0);
+
+    readonly gameGuarantee = computed(() => this.gameSummary()?.gameGuarantee ?? null);
 
     readonly completionPct = computed(() => {
         const expected = this.totalExpected();
@@ -199,6 +204,15 @@ export class EventSummaryPanelComponent {
         this.expandedSection.set(
             this.expandedSection() === section ? null : section
         );
+    }
+
+    openCalendarModal(): void {
+        this.expandedSection.set(null); // collapse any expanded inline section
+        this.showCalendarModal.set(true);
+    }
+
+    closeCalendarModal(): void {
+        this.showCalendarModal.set(false);
     }
 
     onCalendarApply(event: CalendarApplyEvent): void {

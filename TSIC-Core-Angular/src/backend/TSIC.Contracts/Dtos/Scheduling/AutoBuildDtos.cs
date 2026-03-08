@@ -380,7 +380,7 @@ public record ScheduleGameSummaryDto
     public required Guid DivId { get; init; }
     public required int TeamCount { get; init; }
     public required int GameCount { get; init; }
-    /// <summary>Expected round-robin games: n*(n-1)/2 where n = TeamCount.</summary>
+    /// <summary>Expected games based on pairing table (reflects game guarantee, not necessarily full RR).</summary>
     public required int ExpectedRrGames { get; init; }
 }
 
@@ -394,6 +394,10 @@ public record GameSummaryResponse
     public required int TotalDivisions { get; init; }
     public required int DivisionsWithGames { get; init; }
     public required List<ScheduleGameSummaryDto> Divisions { get; init; }
+    /// <summary>Effective game guarantee derived from the pairing table.
+    /// Null when no pairings exist yet. Computed as min games any team plays
+    /// across all pool sizes (even TCnt = roundCount, odd = roundCount - 1).</summary>
+    public int? GameGuarantee { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

@@ -99,6 +99,20 @@ public class PairingsRepository : IPairingsRepository
             .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
     }
 
+    public async Task<Dictionary<int, int>> GetMaxRoundByPoolSizeAsync(
+        Guid leagueId, string season, CancellationToken ct = default)
+    {
+        return await _context.PairingsLeagueSeason
+            .AsNoTracking()
+            .Where(p => p.LeagueId == leagueId
+                && p.Season == season
+                && p.TCnt.HasValue
+                && p.T1Type == "T"
+                && p.T2Type == "T")
+            .GroupBy(p => p.TCnt!.Value)
+            .ToDictionaryAsync(g => g.Key, g => g.Max(p => p.Rnd), ct);
+    }
+
     // ── Read: Availability ──
 
     public async Task<HashSet<(int Rnd, int T1, int T2)>> GetScheduledPairingKeysAsync(

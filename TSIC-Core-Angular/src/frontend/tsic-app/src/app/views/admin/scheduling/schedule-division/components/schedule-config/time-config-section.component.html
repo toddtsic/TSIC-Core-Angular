@@ -45,7 +45,7 @@
 
         <!-- ── Guidance ── -->
         <div class="matrix-guidance">
-            Set start time and max games per field for each agegroup on each play day.
+            Set start time and number of rows (game slots per field) for each agegroup on each play day.
             Min Between Games is per-agegroup (same on all days).
         </div>
 
@@ -69,8 +69,8 @@
                        class="form-control form-control-sm bulk-input bulk-input-num"
                        [ngModel]="bulkMaxGames()"
                        (ngModelChange)="bulkMaxGames.set(safeInt($event))"
-                       placeholder="Max/field"
-                       min="1" max="20">
+                       placeholder="# Rows"
+                       min="1" max="30">
                 <button class="btn btn-sm btn-outline-primary"
                         [disabled]="!bulkStartTime() && bulkMaxGames() == null && bulkGsi() == null"
                         (click)="applyBulkFill()">
@@ -88,6 +88,10 @@
                             <span class="matrix-hdr matrix-hdr-date">
                                 <span class="matrix-date-dow">{{ d.dow }}</span>
                                 <span class="matrix-date-val">{{ d.dateFormatted }}</span>
+                                <span class="matrix-date-sublabels">
+                                    <span class="sublabel">Start Time</span>
+                                    <span class="sublabel"># Rows</span>
+                                </span>
                             </span>
                         }
                     </div>
@@ -128,7 +132,7 @@
                                                class="form-control form-control-sm cell-input cell-input-max"
                                                [ngModel]="row.cells[d.isoDate]?.maxGames ?? 0"
                                                (ngModelChange)="setCellMaxGames(row.agegroupId, d.isoDate, safeInt($event))"
-                                               min="1" max="20"
+                                               min="1" max="30"
                                                title="Max games per field">
                                     </div>
                                 </div>

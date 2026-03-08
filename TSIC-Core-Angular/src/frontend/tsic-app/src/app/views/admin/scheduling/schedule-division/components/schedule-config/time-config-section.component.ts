@@ -247,7 +247,7 @@ export class TimeConfigSectionComponent {
         if (fields === 0) return 'No fields assigned';
         const totalSlots = fields * maxGames;
         const hours = Math.round((maxGames * gsi) / 60 * 10) / 10;
-        return `${fields} field${fields !== 1 ? 's' : ''} × ${maxGames} games × ${gsi} min = ${totalSlots} slots/day (~${hours} hrs)`;
+        return `${fields} field${fields !== 1 ? 's' : ''} × ${maxGames} rows × ${gsi} min = ${totalSlots} slots/day (~${hours} hrs)`;
     });
 
     // ── Computed: dirty tracking ──

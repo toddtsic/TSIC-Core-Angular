@@ -14,6 +14,7 @@ import type { AgegroupCanvasReadinessDto, PriorYearFieldDefaults, BulkDateAgegro
 import type { AgegroupWithDivisionsDto } from '../../services/schedule-division.service';
 import type { CalendarApplyEvent, DateAssignment, ScheduleConfigValue } from './schedule-config.types';
 import { contrastText, agTeamCount } from '../../../shared/utils/scheduling-helpers';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 // ── Local types ──
 
@@ -42,7 +43,7 @@ type CellMap = Record<string, Record<string, boolean>>;
 @Component({
     selector: 'app-calendar-section',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, TsicDialogComponent],
     templateUrl: './calendar-section.component.html',
     styleUrl: './calendar-section.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -270,6 +271,7 @@ export class CalendarSectionComponent {
     }
 
     onAddDate(): void {
+        this.newDateValue.set('');
         this.showDatePicker.set(true);
     }
 
@@ -280,6 +282,11 @@ export class CalendarSectionComponent {
         if (!current.includes(val)) {
             this.managedDates.set([...current, val].sort());
         }
+        this.newDateValue.set('');
+        this.showDatePicker.set(false);
+    }
+
+    onDatePickerCancelled(): void {
         this.newDateValue.set('');
         this.showDatePicker.set(false);
     }

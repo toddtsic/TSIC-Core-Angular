@@ -203,6 +203,34 @@
     opacity: 0.7;
 }
 
+.matrix-date-sublabels {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: 2px;
+    width: 100%;
+    justify-content: center;
+
+    .sublabel {
+        font-size: 8px;
+        font-weight: var(--font-weight-medium);
+        text-transform: none;
+        letter-spacing: 0;
+        opacity: 0.6;
+        white-space: nowrap;
+
+        &:first-child {
+            flex: 1;
+            text-align: center;
+        }
+
+        &:last-child {
+            flex: 0 0 auto;
+            min-width: 36px;
+            text-align: center;
+        }
+    }
+}
+
 // ── Data cells ──
 
 .matrix-cell {

@@ -117,6 +117,16 @@
         background: rgba(var(--bs-danger-rgb), 0.1);
         font-weight: var(--font-weight-semibold);
     }
+
+    .game-guarantee-badge {
+        margin-left: var(--space-2);
+        padding: 1px var(--space-2);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--bs-info);
+        background: rgba(var(--bs-info-rgb), 0.1);
+        border-radius: var(--radius-full);
+    }
 }
 
 .hero-actions {
@@ -454,6 +464,8 @@
         padding-bottom: 1px;
     }
 }
+
+
 
 // ══════════════════════════════════════════
 // ── EMPTY STATE ──

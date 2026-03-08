@@ -11,5 +11,6 @@ export type AutoBuildRequest = {
     divisionStrategies?: any[] | null;
     saveProfiles?: boolean;
     existingGameMode?: string | null;
+    gameGuarantee?: number;
 };
 

@@ -9,5 +9,6 @@ export type GameSummaryResponse = {
     totalDivisions: number;
     divisionsWithGames: number;
     divisions: Array<ScheduleGameSummaryDto>;
+    gameGuarantee?: number;
 };
 

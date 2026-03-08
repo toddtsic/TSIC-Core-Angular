@@ -31,6 +31,9 @@
                             <i class="bi bi-clock"></i>
                         }
                         <strong>{{ totalGames() }}/{{ totalExpected() }}</strong> RR games scheduled
+                        @if (gameGuarantee()) {
+                            <span class="game-guarantee-badge">{{ gameGuarantee() }}-game guarantee</span>
+                        }
                     </div>
                 }
                 @if (agegroups().length === 0) {

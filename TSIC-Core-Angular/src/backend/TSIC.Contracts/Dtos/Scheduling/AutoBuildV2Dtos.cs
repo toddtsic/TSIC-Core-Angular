@@ -204,6 +204,12 @@ public record EnsurePairingsRequest
     /// Use this to change the number of rounds for already-generated pairings.
     /// </summary>
     public bool ForceRegenerate { get; init; }
+
+    /// <summary>
+    /// Minimum games each team must play. Used to compute round count per TCnt
+    /// when RoundsOverrides is not provided. Null = full round-robin.
+    /// </summary>
+    public int? GameGuarantee { get; init; }
 }
 
 /// <summary>
@@ -282,6 +288,11 @@ public record AutoBuildRequest
 
     /// <summary>"rebuild" (default) = delete existing games + rebuild. "keep" = skip divisions with existing games.</summary>
     public string? ExistingGameMode { get; init; }
+
+    /// <summary>Minimum games each team must play (e.g. 3 for a 3-game guarantee tournament).
+    /// Caps the number of rounds used from the pairing template.
+    /// Null = full round-robin (every team plays every other team). 0 = same as null.</summary>
+    public int? GameGuarantee { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

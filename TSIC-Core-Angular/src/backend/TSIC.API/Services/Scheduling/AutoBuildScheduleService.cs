@@ -73,6 +73,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var pairingsByPoolSize = await _pairingsRepo.GetRoundRobinPairingCountsByPoolSizeAsync(
             leagueId, season, ct);
 
+        // Get max round per pool size — this reflects the scheduler's game guarantee
+        var maxRoundByPoolSize = await _pairingsRepo.GetMaxRoundByPoolSizeAsync(
+            leagueId, season, ct);
+
         // Filter out inactive agegroups (WAITLIST, DROPPED) and placeholder/dropped divisions
         var activeDivisions = FilterSchedulableDivisions(divisions);
 
@@ -98,13 +102,30 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var totalGames = summaries.Sum(s => s.GameCount);
         var divsWithGames = summaries.Count(s => s.GameCount > 0);
 
+        // Derive effective game guarantee from pairing table round counts.
+        // For each pool size: even TCnt → guarantee = maxRound, odd → guarantee = maxRound - 1.
+        // The event-level guarantee is the minimum across all pool sizes.
+        int? derivedGameGuarantee = null;
+        if (maxRoundByPoolSize.Count > 0)
+        {
+            derivedGameGuarantee = maxRoundByPoolSize
+                .Select(kvp =>
+                {
+                    var tCnt = kvp.Key;
+                    var maxRound = kvp.Value;
+                    return tCnt % 2 == 0 ? maxRound : maxRound - 1;
+                })
+                .Min();
+        }
+
         return new GameSummaryResponse
         {
             JobName = jobName,
             TotalGames = totalGames,
             TotalDivisions = summaries.Count,
             DivisionsWithGames = divsWithGames,
-            Divisions = summaries
+            Divisions = summaries,
+            GameGuarantee = derivedGameGuarantee
         };
     }
 
@@ -454,8 +475,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             var pairings = await _pairingsRepo.GetPairingsAsync(
                 agCtx.AgLeagueId, agCtx.AgSeason, teamCount, ct);
+
+            // Cap rounds by game guarantee: if provided, only include rounds up to the computed round count.
+            // This ensures a 3-game guarantee in a 6-team pool only uses 3 rounds (9 games), not all 5 (15 games).
+            var maxAllowedRound = ComputeRoundCount(teamCount, request.GameGuarantee);
             var rrPairings = pairings
-                .Where(p => p.T1Type == "T" && p.T2Type == "T")
+                .Where(p => p.T1Type == "T" && p.T2Type == "T" && p.Rnd <= maxAllowedRound)
                 .OrderBy(p => p.Rnd)
                 .ThenBy(p => p.GameNumber)
                 .ToList();
@@ -573,19 +598,21 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             {
                 // Strategy-driven: translate user choices to profile
                 profile = BuildProfileFromStrategy(
-                    strategy, teamCount, effectiveDates, effectiveFields, currentGsi);
+                    strategy, teamCount, effectiveDates, effectiveFields, currentGsi,
+                    request.GameGuarantee);
             }
             else
             {
                 // Legacy TCnt-keyed path or clean sheet
                 profile = GetOrBuildDefaultProfile(
-                    profilesByTCnt, teamCount, effectiveDates, effectiveFields, currentGsi);
+                    profilesByTCnt, teamCount, effectiveDates, effectiveFields, currentGsi,
+                    request.GameGuarantee);
             }
 
             // Build PlacementState for this division (shares global occupiedSlots + field prefs)
             var state = new PlacementState(occupiedSlots, currentWindowStart, fieldPreferences);
 
-            // Group pairings by round
+            // Group pairings by round (already capped by game guarantee at load time)
             var roundsByNum = rrPairings
                 .GroupBy(p => p.Rnd)
                 .ToDictionary(g => g.Key, g => g.OrderBy(p => p.GameNumber).ToList());
@@ -1343,6 +1370,53 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
+    // Private: Game Guarantee Helpers
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Compute the number of rounds needed for a given pool size and game guarantee.
+    /// For even TCnt: guarantee rounds = gameGuarantee (each round, every team plays).
+    /// For odd TCnt: one team sits each round, so need gameGuarantee + 1 rounds
+    /// to ensure every team plays at least gameGuarantee games.
+    /// Returns full-RR round count when gameGuarantee is null/0 or >= full-RR.
+    /// </summary>
+    internal static int ComputeRoundCount(int teamCount, int? gameGuarantee)
+    {
+        var fullRr = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
+        if (gameGuarantee is null or 0)
+            return fullRr;
+
+        // For even team counts: every team plays every round, so rounds = gameGuarantee
+        // For odd team counts: one team has a bye each round, so need gameGuarantee + 1
+        // to guarantee every team gets at least gameGuarantee games.
+        // But never exceed full round-robin.
+        var needed = teamCount % 2 == 0
+            ? gameGuarantee.Value
+            : gameGuarantee.Value + 1;
+
+        return Math.Clamp(needed, 1, fullRr);
+    }
+
+    /// <summary>
+    /// Compute the expected game count for a pool given team count and game guarantee.
+    /// Uses the round count from ComputeRoundCount × games per round (teamCount/2).
+    /// </summary>
+    internal static int ComputeExpectedGames(int teamCount, int? gameGuarantee)
+    {
+        if (teamCount < 2) return 0;
+        var fullRr = teamCount * (teamCount - 1) / 2;
+        if (gameGuarantee is null or 0)
+            return fullRr;
+
+        var rounds = ComputeRoundCount(teamCount, gameGuarantee);
+        var gamesPerRound = teamCount / 2;
+        var expected = rounds * gamesPerRound;
+
+        // Never exceed full round-robin
+        return Math.Min(expected, fullRr);
+    }
+
+    // ══════════════════════════════════════════════════════════
     // Private: Agegroup Build Context
     // ══════════════════════════════════════════════════════════
 
@@ -1574,7 +1648,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         int teamCount,
         List<TimeslotDateDto> dates,
         List<TimeslotFieldDto> fields,
-        int currentGsi)
+        int currentGsi,
+        int? requestGameGuarantee = null)
     {
         if (profilesByTCnt.TryGetValue(teamCount, out var profile))
             return profile;
@@ -1614,9 +1689,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             timeRangeAbsolute[day] = new TimeRangeDto { Start = minStart, End = maxEnd };
         }
 
-        // Default round count: TCnt - 1 for even, TCnt for odd (round-robin)
-        var roundCount = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
-        var gameGuarantee = teamCount - 1;
+        // Round count: capped by game guarantee when provided
+        var roundCount = ComputeRoundCount(teamCount, requestGameGuarantee);
+        var gameGuarantee = requestGameGuarantee is > 0
+            ? Math.Min(requestGameGuarantee.Value, teamCount - 1)
+            : teamCount - 1;
 
         // Default interval from field config
         var gsi = currentGsi > 0 ? currentGsi : 60;
@@ -1690,7 +1767,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         int teamCount,
         List<TimeslotDateDto> dates,
         List<TimeslotFieldDto> fields,
-        int currentGsi)
+        int currentGsi,
+        int? requestGameGuarantee = null)
     {
         var playDays = dates
             .Select(d => d.GDate.DayOfWeek)
@@ -1726,8 +1804,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             timeRangeAbsolute[day] = new TimeRangeDto { Start = minStart, End = maxEnd };
         }
 
-        var roundCount = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
-        var gameGuarantee = teamCount - 1;
+        // Round count: capped by game guarantee when provided
+        var roundCount = ComputeRoundCount(teamCount, requestGameGuarantee);
+        var gameGuarantee = requestGameGuarantee is > 0
+            ? Math.Min(requestGameGuarantee.Value, teamCount - 1)
+            : teamCount - 1;
         var gsi = currentGsi > 0 ? currentGsi : 60;
         var gamesPerRound = teamCount / 2;
 
@@ -2129,11 +2210,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
             }
 
-            // Full round-robin: N-1 (even) or N (odd, due to bye round)
+            // Round count: respect explicit override, then game guarantee, then full RR
             var fullRr = tCnt % 2 == 0 ? tCnt - 1 : tCnt;
-            var noRounds = request.RoundsOverrides?.TryGetValue(tCnt, out var ovr) == true
-                ? Math.Clamp(ovr, 1, fullRr)
-                : fullRr;
+            int noRounds;
+            if (request.RoundsOverrides?.TryGetValue(tCnt, out var ovr) == true)
+                noRounds = Math.Clamp(ovr, 1, fullRr);
+            else
+                noRounds = ComputeRoundCount(tCnt, request.GameGuarantee);
             await _pairingsService.AddPairingBlockAsync(
                 jobId, userId,
                 new AddPairingBlockRequest { TeamCount = tCnt, NoRounds = noRounds },
@@ -2354,12 +2437,27 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                 foreach (var dow in usage.DaysUsed)
                 {
-                    var dowStr = dow.ToString()[..3]; // "Sat", "Sun", etc.
+                    var dowStr = dow.ToString(); // Full name: "Saturday", "Sunday", etc.
                     var startTimeRange = profile?.TimeRangeAbsolute.GetValueOrDefault(dow);
                     var startTimeStr = startTimeRange != null
                         ? DateTime.Today.Add(startTimeRange.Start).ToString("hh:mm tt")
                         : "08:00 AM";
-                    var maxGames = profile?.RoundsPerDay.GetValueOrDefault(dow, 2) ?? 2;
+                    // MaxGamesPerField = capacity ceiling (# rows the scheduler can use).
+                    // Derive from source time window; generous fallback for new jobs.
+                    // NEVER extend past end of day — cap at (midnight - startTime) / GSI.
+                    int maxGames;
+                    if (startTimeRange != null && defaultGsi > 0)
+                    {
+                        var windowMinutes = (startTimeRange.End - startTimeRange.Start).TotalMinutes;
+                        maxGames = Math.Max(2, (int)Math.Floor(windowMinutes / defaultGsi));
+                    }
+                    else
+                    {
+                        // No time window data — compute from start time to 10 PM hard cap
+                        var startMinutes = startTimeRange?.Start.TotalMinutes ?? 480; // 8 AM default
+                        var availableMinutes = Math.Min(660, 1320 - startMinutes); // 10 PM = 1320 min
+                        maxGames = defaultGsi > 0 ? Math.Max(2, (int)(availableMinutes / defaultGsi)) : 14;
+                    }
 
                     newTimeslots.Add(new TimeslotsLeagueSeasonFields
                     {

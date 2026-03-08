@@ -1359,6 +1359,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     divisionStrategies: event.strategies,
                     saveProfiles: true,
                     existingGameMode: mode,
+                    gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
                 };
             }
             case 'agegroup': {
@@ -1373,6 +1374,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     divisionStrategies: event.strategies,
                     saveProfiles: true,
                     existingGameMode: mode,
+                    gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
                 };
             }
             case 'event': {
@@ -1390,6 +1392,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     divisionStrategies: event.strategies,
                     saveProfiles: true,
                     existingGameMode: mode,
+                    gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
                 };
             }
         }

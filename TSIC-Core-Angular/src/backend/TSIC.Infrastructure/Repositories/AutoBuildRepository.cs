@@ -1192,13 +1192,37 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
         if (agIds.Count == 0)
             return new Dictionary<string, List<SourceDateEntry>>();
 
-        // Get TimeslotsLeagueSeasonDates for those agegroups
+        // Try TimeslotsLeagueSeasonDates first (configuration table)
         var dateRows = await _context.TimeslotsLeagueSeasonDates
             .AsNoTracking()
             .Where(d => agIds.Contains(d.AgegroupId)
                 && d.Season == job.Season && d.Year == job.Year)
             .Select(d => new { AgName = d.Agegroup.AgegroupName ?? "", d.GDate, d.Rnd })
             .ToListAsync(ct);
+
+        // Fallback: extract dates from actual schedule data (always populated for built schedules)
+        if (dateRows.Count == 0)
+        {
+            var scheduleRows = await _context.Schedule
+                .AsNoTracking()
+                .Where(s => s.JobId == sourceJobId
+                    && s.GDate != null && s.AgegroupId != null
+                    && s.T1Type == "T" && s.T2Type == "T")
+                .Select(s => new
+                {
+                    AgName = s.AgegroupName ?? "",
+                    GDate = s.GDate!.Value,
+                    Rnd = (int)(s.Rnd ?? 1)
+                })
+                .Distinct()
+                .ToListAsync(ct);
+
+            // Deduplicate: one entry per (AgName, GDate) — take max Rnd per date
+            dateRows = scheduleRows
+                .GroupBy(r => new { r.AgName, r.GDate })
+                .Select(g => new { g.Key.AgName, g.Key.GDate, Rnd = g.Max(x => x.Rnd) })
+                .ToList();
+        }
 
         return dateRows
             .GroupBy(d => d.AgName, StringComparer.OrdinalIgnoreCase)

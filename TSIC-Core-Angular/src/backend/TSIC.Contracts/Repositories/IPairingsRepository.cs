@@ -68,6 +68,13 @@ public interface IPairingsRepository
     Task<Dictionary<int, int>> GetRoundRobinPairingCountsByPoolSizeAsync(
         Guid leagueId, string season, CancellationToken ct = default);
 
+    /// <summary>
+    /// Get the max round number per pool size from the pairing table.
+    /// Key = TCnt, Value = max round. Reflects the actual game guarantee configuration.
+    /// </summary>
+    Task<Dictionary<int, int>> GetMaxRoundByPoolSizeAsync(
+        Guid leagueId, string season, CancellationToken ct = default);
+
     // ── Read: Agegroup/Division tree ──
 
     /// <summary>
