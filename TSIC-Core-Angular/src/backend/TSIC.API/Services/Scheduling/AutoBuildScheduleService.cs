@@ -102,28 +102,23 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var totalGames = summaries.Sum(s => s.GameCount);
         var divsWithGames = summaries.Count(s => s.GameCount > 0);
 
-        // Derive effective game guarantee from pairing table round counts.
-        // Only report a guarantee when at least one pool size has FEWER rounds
-        // than full RR (meaning pairings were explicitly capped).
-        // 4-team pool with 3 rounds = full RR, NOT a 3-game cap.
+        // Derive game guarantee from pairing table round counts.
+        // The guarantee is a business promise (minimum games per team).
+        // It DRIVES pairing generation — not the other way around.
+        // For display: min games-per-team across all pool sizes in the pairing table.
+        // For even TCnt: each round = 1 game/team, so guarantee = maxRound.
+        // For odd TCnt: one bye per round, so guarantee = maxRound - 1.
         int? derivedGameGuarantee = null;
         if (maxRoundByPoolSize.Count > 0)
         {
-            var cappedGuarantees = maxRoundByPoolSize
+            derivedGameGuarantee = maxRoundByPoolSize
                 .Select(kvp =>
                 {
                     var tCnt = kvp.Key;
                     var maxRound = kvp.Value;
-                    var fullRr = tCnt % 2 == 0 ? tCnt - 1 : tCnt;
-                    if (maxRound >= fullRr) return (int?)null; // full RR, no cap
                     return tCnt % 2 == 0 ? maxRound : maxRound - 1;
                 })
-                .Where(g => g.HasValue)
-                .Select(g => g!.Value)
-                .ToList();
-
-            if (cappedGuarantees.Count > 0)
-                derivedGameGuarantee = cappedGuarantees.Min();
+                .Min();
         }
 
         return new GameSummaryResponse
@@ -484,11 +479,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var pairings = await _pairingsRepo.GetPairingsAsync(
                 agCtx.AgLeagueId, agCtx.AgSeason, teamCount, ct);
 
-            // Cap rounds by game guarantee: if provided, only include rounds up to the computed round count.
-            // This ensures a 3-game guarantee in a 6-team pool only uses 3 rounds (9 games), not all 5 (15 games).
-            var maxAllowedRound = ComputeRoundCount(teamCount, request.GameGuarantee);
+            // Place ALL rounds present in the pairing table. The game guarantee
+            // is a minimum floor (business promise), not a ceiling — the scheduler
+            // should place as many games as fit. Pairing generation is where the
+            // guarantee is enforced (fewer rounds generated = fewer to place).
             var rrPairings = pairings
-                .Where(p => p.T1Type == "T" && p.T2Type == "T" && p.Rnd <= maxAllowedRound)
+                .Where(p => p.T1Type == "T" && p.T2Type == "T")
                 .OrderBy(p => p.Rnd)
                 .ThenBy(p => p.GameNumber)
                 .ToList();
@@ -620,7 +616,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             // Build PlacementState for this division (shares global occupiedSlots + field prefs)
             var state = new PlacementState(occupiedSlots, currentWindowStart, fieldPreferences);
 
-            // Group pairings by round (already capped by game guarantee at load time)
+            // Group pairings by round (full RR — place as many as fit)
             var roundsByNum = rrPairings
                 .GroupBy(p => p.Rnd)
                 .ToDictionary(g => g.Key, g => g.OrderBy(p => p.GameNumber).ToList());
@@ -1697,8 +1693,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             timeRangeAbsolute[day] = new TimeRangeDto { Start = minStart, End = maxEnd };
         }
 
-        // Round count: capped by game guarantee when provided
-        var roundCount = ComputeRoundCount(teamCount, requestGameGuarantee);
+        // Full RR round count — the scheduler places all rounds from the pairing table.
+        // Game guarantee is a minimum floor (business promise), not a round cap.
+        var fullRr = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
+        var roundCount = fullRr;
         var gameGuarantee = requestGameGuarantee is > 0
             ? Math.Min(requestGameGuarantee.Value, teamCount - 1)
             : teamCount - 1;
@@ -1812,8 +1810,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             timeRangeAbsolute[day] = new TimeRangeDto { Start = minStart, End = maxEnd };
         }
 
-        // Round count: capped by game guarantee when provided
-        var roundCount = ComputeRoundCount(teamCount, requestGameGuarantee);
+        // Full RR round count — game guarantee is a floor, not a cap
+        var fullRr = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
+        var roundCount = fullRr;
         var gameGuarantee = requestGameGuarantee is > 0
             ? Math.Min(requestGameGuarantee.Value, teamCount - 1)
             : teamCount - 1;
@@ -2218,13 +2217,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
             }
 
-            // Round count: respect explicit override, then game guarantee, then full RR
+            // Always generate full RR pairings — the game guarantee is a minimum
+            // floor, not a pairing cap. More pairings = more scheduling flexibility.
+            // Explicit round overrides are still honored (advanced user control).
             var fullRr = tCnt % 2 == 0 ? tCnt - 1 : tCnt;
             int noRounds;
             if (request.RoundsOverrides?.TryGetValue(tCnt, out var ovr) == true)
                 noRounds = Math.Clamp(ovr, 1, fullRr);
             else
-                noRounds = ComputeRoundCount(tCnt, request.GameGuarantee);
+                noRounds = fullRr;
             await _pairingsService.AddPairingBlockAsync(
                 jobId, userId,
                 new AddPairingBlockRequest { TeamCount = tCnt, NoRounds = noRounds },
