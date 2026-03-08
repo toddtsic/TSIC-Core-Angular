@@ -303,21 +303,24 @@
     flex-shrink: 0;
 }
 
-.ag-meta {
+.ag-count-badges {
     display: flex;
     gap: var(--space-1);
-    white-space: nowrap;
-    overflow: hidden;
+    flex-shrink: 0;
 }
 
-.ag-stat {
-    font-size: 10px;
+.ag-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
-    color: var(--bs-secondary-color);
-    background: rgba(var(--bs-secondary-rgb, 108, 117, 125), 0.1);
-    padding: 0 var(--space-1);
-    border-radius: var(--radius-sm);
-    line-height: 1.6;
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    color: var(--bs-body-color);
+    white-space: nowrap;
 }
 
 

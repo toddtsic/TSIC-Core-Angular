@@ -150,11 +150,11 @@
                                               [style.color]="contrastText(ag.color)">
                                             {{ ag.agegroupName }}
                                         </span>
-                                        <span class="ag-meta">
-                                            {{ agTeamCount(ag) }} teams &middot; {{ ag.divisions.length }} div
+                                        <span class="ag-count-badges">
+                                            <span class="ag-count-badge">{{ agTeamCount(ag) }}t</span>
+                                            <span class="ag-count-badge">{{ ag.divisions.length }}d</span>
                                             @if (needed > 0) {
-                                                &middot;
-                                                <span class="ag-rounds-status"
+                                                <span class="ag-count-badge"
                                                       [class.rounds-ok]="configured >= needed"
                                                       [class.rounds-short]="configured < needed">
                                                     {{ configured }}/{{ needed }}R

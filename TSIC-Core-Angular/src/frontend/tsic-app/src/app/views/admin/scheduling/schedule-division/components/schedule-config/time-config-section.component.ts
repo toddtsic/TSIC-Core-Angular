@@ -53,6 +53,8 @@ interface MatrixRow {
     agegroupId: string;
     agegroupName: string;
     color?: string | null;
+    teamCount: number;
+    divisionCount: number;
     gsi: number;
     gsiSource: string;
     /** Per-date cell values, keyed by ISO date */
@@ -216,6 +218,8 @@ export class TimeConfigSectionComponent {
                     agegroupId: ag.agegroupId,
                     agegroupName: ag.agegroupName,
                     color: ag.color,
+                    teamCount: ag.divisions.reduce((s, d) => s + d.teamCount, 0),
+                    divisionCount: ag.divisions.length,
                     gsi,
                     gsiSource,
                     cells

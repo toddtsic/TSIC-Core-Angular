@@ -27,12 +27,17 @@
                     @for (row of agegroupRows(); track row.agegroupId) {
                         <tr>
                             <td class="col-ag">
-                                @if (row.color) {
-                                    <span class="ag-color-dot"
-                                          [style.background]="row.color"></span>
-                                }
-                                {{ row.agegroupName }}
-                                <span class="ag-div-count">({{ row.divisionCount }} div{{ row.divisionCount !== 1 ? 's' : '' }})</span>
+                                <div class="ag-header-row">
+                                    <span class="ag-badge"
+                                          [style.background]="row.color ?? 'var(--bs-secondary)'"
+                                          [style.color]="contrastText(row.color)">
+                                        {{ row.agegroupName }}
+                                    </span>
+                                    <span class="ag-count-badges">
+                                        <span class="ag-count-badge">{{ row.totalTeams }}t</span>
+                                        <span class="ag-count-badge">{{ row.divisionCount }}d</span>
+                                    </span>
+                                </div>
                             </td>
                             <td class="col-guarantee">
                                 <select class="form-select form-select-sm guarantee-select"

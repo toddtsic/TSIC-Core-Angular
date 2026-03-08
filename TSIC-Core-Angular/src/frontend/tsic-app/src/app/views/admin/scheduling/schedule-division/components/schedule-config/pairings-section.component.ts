@@ -10,6 +10,7 @@ import { Component, ChangeDetectionStrategy, computed, input, output, signal } f
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { AgegroupWithDivisionsDto } from '@core/api';
+import { contrastText, agTeamCount } from '../../../shared/utils/scheduling-helpers';
 
 /** Payload emitted when the user wants to generate/regenerate pairings. */
 export interface PairingsGenerateEvent {
@@ -31,6 +32,7 @@ interface AgegroupRow {
     color: string | null;
     effectiveGuarantee: number;
     divisionCount: number;
+    totalTeams: number;
     teamCounts: number[];
 }
 
@@ -63,6 +65,9 @@ export class PairingsSectionComponent {
     /** Guarantee options: 2–8 games */
     readonly guaranteeOptions = [2, 3, 4, 5, 6, 7, 8];
 
+    /** Contrast text helper for agegroup badge. */
+    readonly contrastText = contrastText;
+
     // ── Computed: per-agegroup rows ──
 
     readonly agegroupRows = computed((): AgegroupRow[] => {
@@ -84,6 +89,7 @@ export class PairingsSectionComponent {
                     color: ag.color ?? null,
                     effectiveGuarantee,
                     divisionCount: activeDivs.length,
+                    totalTeams: agTeamCount(ag),
                     teamCounts: tCnts
                 };
             });

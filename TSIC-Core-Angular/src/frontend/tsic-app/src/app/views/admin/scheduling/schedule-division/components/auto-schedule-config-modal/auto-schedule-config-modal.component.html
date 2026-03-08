@@ -104,8 +104,9 @@
                                         {{ ag.agegroupName }}
                                     </span>
                                 </span>
-                                <span class="text-secondary" style="font-size: var(--font-size-xs)">
-                                    {{ ag.teamCount }} teams · {{ ag.divisionCount }} divisions
+                                <span class="ag-count-badges">
+                                    <span class="ag-count-badge">{{ ag.teamCount }}t</span>
+                                    <span class="ag-count-badge">{{ ag.divisionCount }}d</span>
                                 </span>
                                 <select class="form-select form-select-sm constraint-wave"
                                         [ngModel]="ag.wave"
