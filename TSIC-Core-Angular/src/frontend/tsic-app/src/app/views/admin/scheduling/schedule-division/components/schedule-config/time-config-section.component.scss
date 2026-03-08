@@ -205,10 +205,11 @@
 
 .matrix-date-sublabels {
     display: flex;
-    gap: var(--space-1);
+    flex-direction: column;
+    gap: 1px;
     margin-top: 2px;
     width: 100%;
-    justify-content: center;
+    align-items: center;
 
     .sublabel {
         font-size: 8px;
@@ -217,17 +218,7 @@
         letter-spacing: 0;
         opacity: 0.6;
         white-space: nowrap;
-
-        &:first-child {
-            flex: 1;
-            text-align: center;
-        }
-
-        &:last-child {
-            flex: 0 0 auto;
-            min-width: 36px;
-            text-align: center;
-        }
+        text-align: center;
     }
 }
 

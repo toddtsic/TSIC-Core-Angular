@@ -428,6 +428,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
 
         var scheduledSet = new HashSet<Guid>(scheduledTeamIds);
 
+        // Must match AutoBuildScheduleService.FilterSchedulableDivisions exclusions
         var allActiveTeams = await _context.Teams
             .AsNoTracking()
             .Where(t => t.JobId == jobId
@@ -435,9 +436,13 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && t.DivId != null
                         && t.Div != null
                         && t.Agegroup != null
-                        && t.Div!.DivName != "Unassigned"
+                        && !t.Div!.DivName!.Contains("Unassigned")
+                        && !t.Div!.DivName!.StartsWith("DROPPED")
+                        && !t.Div!.DivName!.Contains("Dropped")
                         && !t.Agegroup!.AgegroupName!.Contains("WAITLIST")
-                        && !t.Agegroup!.AgegroupName!.Contains("DROPPED"))
+                        && !t.Agegroup!.AgegroupName!.Contains("Waitlist")
+                        && !t.Agegroup!.AgegroupName!.Contains("DROPPED")
+                        && !t.Agegroup!.AgegroupName!.Contains("Dropped"))
             .Select(t => new
             {
                 t.TeamId,

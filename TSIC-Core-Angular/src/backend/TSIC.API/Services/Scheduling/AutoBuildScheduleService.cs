@@ -2443,21 +2443,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         ? DateTime.Today.Add(startTimeRange.Start).ToString("hh:mm tt")
                         : "08:00 AM";
                     // MaxGamesPerField = capacity ceiling (# rows the scheduler can use).
-                    // Derive from source time window; generous fallback for new jobs.
-                    // NEVER extend past end of day — cap at (midnight - startTime) / GSI.
-                    int maxGames;
-                    if (startTimeRange != null && defaultGsi > 0)
-                    {
-                        var windowMinutes = (startTimeRange.End - startTimeRange.Start).TotalMinutes;
-                        maxGames = Math.Max(2, (int)Math.Floor(windowMinutes / defaultGsi));
-                    }
-                    else
-                    {
-                        // No time window data — compute from start time to 10 PM hard cap
-                        var startMinutes = startTimeRange?.Start.TotalMinutes ?? 480; // 8 AM default
-                        var availableMinutes = Math.Min(660, 1320 - startMinutes); // 10 PM = 1320 min
-                        maxGames = defaultGsi > 0 ? Math.Max(2, (int)(availableMinutes / defaultGsi)) : 14;
-                    }
+                    // Always generous: startTime → 10 PM hard cap, regardless of how
+                    // many games the source agegroup actually used (small divisions had
+                    // short windows but the ceiling should be wide for flexibility).
+                    var startMinutes = startTimeRange?.Start.TotalMinutes ?? 480; // 8 AM default
+                    var availableMinutes = 1320 - startMinutes; // 10 PM = 22:00 = 1320 min
+                    var maxGames = defaultGsi > 0
+                        ? Math.Max(2, (int)Math.Floor(availableMinutes / defaultGsi))
+                        : 14;
 
                     newTimeslots.Add(new TimeslotsLeagueSeasonFields
                     {
