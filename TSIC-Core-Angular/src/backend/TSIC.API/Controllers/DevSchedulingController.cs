@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
@@ -49,16 +50,13 @@ public class DevSchedulingController : ControllerBase
     }
 
     /// <summary>
-    /// POST /api/dev-scheduling/reset — Clear all scheduling config for the current job.
+    /// POST /api/dev-scheduling/reset — Clear selected scheduling config for the current job,
+    /// then optionally preconfigure from a prior year source.
     /// Deletes: games, strategy profiles, timeslot config, pairings, field assignments.
-    /// Development environment ONLY.
     /// </summary>
     [HttpPost("reset")]
     public async Task<ActionResult> Reset([FromBody] DevResetRequest request, CancellationToken ct)
     {
-        if (!_env.IsDevelopment())
-            return NotFound();
-
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
             return BadRequest(new { message = "Scheduling context required" });
@@ -142,13 +140,45 @@ public class DevSchedulingController : ControllerBase
             "AgegroupsCleared={Ags}, PairingGroupsCleared={Pairings}, FieldsCleared={Fields}",
             jobId, gamesDeleted, agegroupsCleared, pairingGroupsCleared, fieldsCleared);
 
+        // 7. Preconfigure from source if requested
+        PreconfigureResult? preconfig = null;
+        if (request.SourceJobId.HasValue)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "dev-reset";
+            preconfig = await _autoBuildService.PreconfigureFromSourceAsync(
+                jobId.Value, userId, request.SourceJobId.Value, ct);
+        }
+
         return Ok(new
         {
             gamesDeleted,
             agegroupsCleared,
             pairingGroupsCleared,
             fieldsCleared,
-            profilesCleared = request.StrategyProfiles
+            profilesCleared = request.StrategyProfiles,
+            preconfig
         });
+    }
+
+    /// <summary>
+    /// POST /api/dev-scheduling/preconfigure-from-source — Seed colors, dates, and field
+    /// assignments from a prior year's tournament. Applies graduation-year agegroup mapping,
+    /// date carry-forward (+1 year, DOW matched), and field constraint learning from
+    /// historical game placements. Safe to call multiple times — only seeds data where
+    /// none exists yet.
+    /// </summary>
+    [HttpPost("preconfigure-from-source")]
+    public async Task<ActionResult> PreconfigureFromSource(
+        [FromBody] PreconfigureRequest request, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Scheduling context required" });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+        var result = await _autoBuildService.PreconfigureFromSourceAsync(
+            jobId.Value, userId, request.SourceJobId, ct);
+
+        return Ok(result);
     }
 }

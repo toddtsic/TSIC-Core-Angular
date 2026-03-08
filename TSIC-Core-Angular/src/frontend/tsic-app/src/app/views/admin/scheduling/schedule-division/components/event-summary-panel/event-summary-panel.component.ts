@@ -2,7 +2,8 @@ import { Component, ChangeDetectionStrategy, computed, input, output, signal } f
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { environment } from '@environments/environment';
+
+
 import type { AgegroupWithDivisionsDto } from '../../services/schedule-division.service';
 import { contrastText, agTeamCount } from '../../../shared/utils/scheduling-helpers';
 import type { AgegroupCanvasReadinessDto, DivisionStrategyEntry, EventFieldSummaryDto, GameDayDto, GameSummaryResponse, PriorYearFieldDefaults } from '@core/api';
@@ -12,6 +13,7 @@ import { BuildSectionComponent } from '../schedule-config/build-section.componen
 import { FieldConfigSectionComponent } from '../schedule-config/field-config-section.component';
 import { PairingsSectionComponent, type PairingsGenerateEvent } from '../schedule-config/pairings-section.component';
 import type { CalendarApplyEvent, FieldConfigApplyEvent, StepperSection } from '../schedule-config/schedule-config.types';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 export type AgStage = 'unconfigured' | 'configured' | 'scheduled-partial' | 'scheduled-complete';
 
@@ -23,6 +25,8 @@ export interface DevResetOptions {
     dates: boolean;
     /** Clear field-timeslot configuration (TimeslotsLeagueSeasonFields — start time, GSI, max games) */
     fieldTimeslots: boolean;
+    /** When set, preconfigure (colors, dates, fields, pairings) from this source job after reset. */
+    sourceJobId?: string;
 }
 
 /** Formatted game day line for hero display. */
@@ -41,7 +45,7 @@ export interface GameDayLine {
 @Component({
     selector: 'app-event-summary-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent],
+    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent, TsicDialogComponent],
     templateUrl: './event-summary-panel.component.html',
     styleUrl: './event-summary-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -59,7 +63,7 @@ export class EventSummaryPanelComponent {
     readonly isExecuting = input(false);
     readonly isDeletingGames = input(false);
     readonly showDeleteConfirm = input(false);
-    readonly isDevResetting = input(false);
+    readonly isResetting = input(false);
     readonly missingPairingTCnts = input<number[]>([]);
     readonly existingPairingRounds = input<Record<number, number>>({});
     readonly isGeneratingPairings = input(false);
@@ -87,16 +91,15 @@ export class EventSummaryPanelComponent {
     readonly generatePairingsWithRoundsRequested = output<PairingsGenerateEvent>();
     readonly bulkDateAssignRequested = output<void>();
     readonly saveStrategyRequested = output<{ placement: number; gapPattern: number }>();
-    readonly devResetConfirmed = output<DevResetOptions>();
+    readonly resetConfirmed = output<DevResetOptions>();
     readonly calendarApplyRequested = output<CalendarApplyEvent>();
     readonly timeConfigSaveRequested = output<TimeConfigSaveEvent>();
     readonly fieldConfigApplyRequested = output<FieldConfigApplyEvent>();
 
     // ── Local state ──
     readonly deleteConfirmText = signal('');
-    readonly showDevResetConfirm = signal(false);
-    readonly devResetConfirmText = signal('');
-    readonly isDevMode = !environment.production;
+    readonly showResetConfirm = signal(false);
+    readonly resetConfirmText = signal('');
 
     // ── Dev reset checklist ──
     readonly resetGames = signal(true);
@@ -143,9 +146,10 @@ export class EventSummaryPanelComponent {
 
     readonly totalAgegroups = computed(() => this.agegroups().length);
 
-    /** True when there's nothing for dev reset to clear. */
+    /** True when there's nothing to clear AND no prior year to preconfigure from. */
     readonly isResetEmpty = computed(() =>
         this.configuredCount() === 0 && this.totalGames() === 0
+        && !this.priorYearDefaults()?.priorJobId
     );
 
     // ── Stepper step completion ──
@@ -352,6 +356,12 @@ export class EventSummaryPanelComponent {
         });
     }
 
+    onStrategyCancelled(): void {
+        this.localPlacement.set(null);
+        this.localGapPattern.set(null);
+        this.toggleSection('strategy');
+    }
+
     // ── Per-agegroup helpers ──
 
     agGameCount(agegroupId: string): number {
@@ -411,14 +421,14 @@ export class EventSummaryPanelComponent {
     // ── Labels ──
 
     placementLabel(val: number): string {
-        return val === 1 ? 'Vertical' : 'Horizontal';
+        return val === 1 ? 'Fill fields first' : 'Spread across time slots';
     }
 
     gapLabel(val: number): string {
         switch (val) {
-            case 0: return 'Back-to-back';
-            case 2: return '1on/2off';
-            default: return '1on/1off';
+            case 0: return 'No rest';
+            case 2: return '2 game break';
+            default: return '1 game break';
         }
     }
 
@@ -459,9 +469,9 @@ export class EventSummaryPanelComponent {
         this.deleteConfirmText.set('');
     }
 
-    requestDevReset(): void {
-        this.showDevResetConfirm.set(true);
-        this.devResetConfirmText.set('');
+    requestReset(): void {
+        this.showResetConfirm.set(true);
+        this.resetConfirmText.set('');
         // Default: clear games + strategies + pairings but KEEP dates/field config
         this.resetGames.set(true);
         this.resetStrategyProfiles.set(true);
@@ -470,21 +480,22 @@ export class EventSummaryPanelComponent {
         this.resetFieldTimeslots.set(false);
     }
 
-    onDevResetConfirmed(): void {
+    onResetConfirmed(): void {
         const options: DevResetOptions = {
             games: this.resetGames(),
             strategyProfiles: this.resetStrategyProfiles(),
             pairings: this.resetPairings(),
             dates: this.resetDates(),
-            fieldTimeslots: this.resetFieldTimeslots()
+            fieldTimeslots: this.resetFieldTimeslots(),
+            sourceJobId: this.priorYearDefaults()?.priorJobId ?? undefined
         };
-        this.showDevResetConfirm.set(false);
-        this.devResetConfirmText.set('');
-        this.devResetConfirmed.emit(options);
+        this.showResetConfirm.set(false);
+        this.resetConfirmText.set('');
+        this.resetConfirmed.emit(options);
     }
 
-    onDevResetCancelled(): void {
-        this.showDevResetConfirm.set(false);
-        this.devResetConfirmText.set('');
+    onResetCancelled(): void {
+        this.showResetConfirm.set(false);
+        this.resetConfirmText.set('');
     }
 }

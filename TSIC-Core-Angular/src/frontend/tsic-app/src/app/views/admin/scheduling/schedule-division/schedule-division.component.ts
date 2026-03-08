@@ -211,7 +211,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly deleteConfirmText = signal('');
 
     // ── Dev reset ──
-    readonly isDevResetting = signal(false);
+    readonly isResetting = signal(false);
 
     // ── Auto-schedule config modal ──
     readonly showAutoScheduleModal = signal(false);
@@ -1002,39 +1002,50 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    // ── Dev reset (dev environment only) ──
+    // ── Reset (clear scheduling data + optionally preconfigure from source) ──
 
-    executeDevReset(options: DevResetOptions): void {
-        this.isDevResetting.set(true);
+    executeReset(options: DevResetOptions): void {
+        this.isResetting.set(true);
         const parts: string[] = [];
         if (options.games) parts.push('games');
         if (options.strategyProfiles) parts.push('strategy profiles');
         if (options.pairings) parts.push('pairings');
         if (options.dates) parts.push('dates');
         if (options.fieldTimeslots) parts.push('field timeslots');
-        this.openOperationModal('Resetting Scheduling Data', `Clearing ${parts.join(', ')}…`, 'bi-arrow-counterclockwise');
-        this.autoBuildSvc.devReset({
+        const hasSource = !!options.sourceJobId;
+        const modalMsg = hasSource
+            ? `Clearing ${parts.join(', ')}… then preconfiguring from source`
+            : `Clearing ${parts.join(', ')}…`;
+        this.openOperationModal('Resetting Scheduling Data', modalMsg, 'bi-arrow-counterclockwise');
+        this.autoBuildSvc.resetSchedule({
             games: options.games,
             strategyProfiles: options.strategyProfiles,
             pairings: options.pairings,
             dates: options.dates,
             fieldTimeslots: options.fieldTimeslots,
-            fieldAssignments: false
+            fieldAssignments: false,
+            sourceJobId: options.sourceJobId
         }).subscribe({
             next: (result) => {
                 this.showOperationModal.set(false);
-                this.isDevResetting.set(false);
+                this.isResetting.set(false);
                 const summary: string[] = [];
                 if (result.gamesDeleted) summary.push(`${result.gamesDeleted} games`);
                 if (result.agegroupsCleared) summary.push(`${result.agegroupsCleared} agegroups`);
                 if (result.pairingGroupsCleared) summary.push(`${result.pairingGroupsCleared} pairing groups`);
+                if (result.preconfig) {
+                    const p = result.preconfig;
+                    const seeded: string[] = [];
+                    if (p.colorsApplied) seeded.push(`${p.colorsApplied} colors`);
+                    if (p.datesSeeded) seeded.push(`${p.datesSeeded} ag dates`);
+                    if (p.fieldAssignmentsSeeded) seeded.push(`${p.fieldAssignmentsSeeded} ag fields`);
+                    if (p.pairingsGenerated?.length) seeded.push(`pairings for ${p.pairingsGenerated.join(', ')}-team`);
+                    if (seeded.length) summary.push(`seeded: ${seeded.join(', ')}`);
+                }
                 this.toast.show(
                     `Reset complete: ${summary.length > 0 ? summary.join(', ') + ' cleared' : 'nothing to clear'}`,
-                    'success', 5000
+                    'success', 8000
                 );
-                // Reset config service: clear localStorage + in-memory signal,
-                // then re-open the init gate so the refresh calls below
-                // trigger tryInitConfig() with fresh DB data.
                 this.configSvc.clearLocalStorage();
                 this.configSvc.reset();
                 this.configInitDone = false;
@@ -1047,8 +1058,8 @@ export class ScheduleDivisionComponent implements OnInit {
             },
             error: () => {
                 this.showOperationModal.set(false);
-                this.isDevResetting.set(false);
-                this.toast.show('Dev reset failed', 'danger', 3000);
+                this.isResetting.set(false);
+                this.toast.show('Reset failed', 'danger', 3000);
             }
         });
     }

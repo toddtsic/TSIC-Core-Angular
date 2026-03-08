@@ -14,6 +14,16 @@ import type {
     ProfileExtractionResponse,
 } from '@core/api';
 
+/** Inline type — DevSchedulingController returns this as part of an anonymous object, so Swagger doesn't generate it. */
+export interface DevResetPreconfigResult {
+    colorsApplied: number;
+    datesSeeded: number;
+    fieldAssignmentsSeeded: number;
+    fieldTimeslotRowsCreated: number;
+    pairingsGenerated: number[];
+    pairingsAlreadyExisted: number[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AutoBuildService {
     private readonly http = inject(HttpClient);
@@ -71,16 +81,31 @@ export class AutoBuildService {
         );
     }
 
-    /** Dev-only: clear selected scheduling config (games, timeslots, pairings, fields, profiles). */
-    devReset(options: {
+    /** Clear selected scheduling config, then optionally preconfigure from source. */
+    resetSchedule(options: {
         games: boolean;
         strategyProfiles: boolean;
         pairings: boolean;
         dates?: boolean;
         fieldTimeslots?: boolean;
         fieldAssignments: boolean;
-    }): Observable<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }> {
-        return this.http.post<{ gamesDeleted: number; agegroupsCleared: number; pairingGroupsCleared: number; fieldsCleared: number }>(
+        sourceJobId?: string;
+    }): Observable<{
+        gamesDeleted: number;
+        agegroupsCleared: number;
+        pairingGroupsCleared: number;
+        fieldsCleared: number;
+        profilesCleared: boolean;
+        preconfig: DevResetPreconfigResult | null;
+    }> {
+        return this.http.post<{
+            gamesDeleted: number;
+            agegroupsCleared: number;
+            pairingGroupsCleared: number;
+            fieldsCleared: number;
+            profilesCleared: boolean;
+            preconfig: DevResetPreconfigResult | null;
+        }>(
             `${environment.apiUrl}/dev-scheduling/reset`,
             options
         );

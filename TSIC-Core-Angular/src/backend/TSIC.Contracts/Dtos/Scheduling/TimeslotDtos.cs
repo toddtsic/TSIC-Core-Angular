@@ -118,6 +118,7 @@ public record AgegroupCanvasReadinessDto
 /// </summary>
 public record PriorYearFieldDefaults
 {
+    public required Guid PriorJobId { get; init; }
     public required string StartTime { get; init; }
     public required int GamestartInterval { get; init; }
     public required int MaxGamesPerField { get; init; }

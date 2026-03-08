@@ -73,6 +73,9 @@ public record SourceDivisionSummary
     public required string DivName { get; init; }
     public required int TeamCount { get; init; }
     public required int GameCount { get; init; }
+    public string? AgegroupColor { get; init; }
+    public int? GradYearMin { get; init; }
+    public int? GradYearMax { get; init; }
 }
 
 /// <summary>
@@ -391,4 +394,83 @@ public record GameSummaryResponse
     public required int TotalDivisions { get; init; }
     public required int DivisionsWithGames { get; init; }
     public required List<ScheduleGameSummaryDto> Divisions { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Source Preconfiguration (returning tournament carry-forward)
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Agegroup-level metadata from the source job — color and graduation year info.
+/// Used for color carry-forward and year-offset agegroup name mapping.
+/// </summary>
+public record SourceAgegroupMeta
+{
+    public required string AgegroupName { get; init; }
+    public string? Color { get; init; }
+    public int? GradYearMin { get; init; }
+    public int? GradYearMax { get; init; }
+}
+
+/// <summary>
+/// A single date+round entry from the source job's timeslot dates.
+/// Used for date carry-forward (advance by yearDelta, match DOW).
+/// </summary>
+public record SourceDateEntry
+{
+    public required DateTime GDate { get; init; }
+    public required int Rnd { get; init; }
+}
+
+/// <summary>
+/// Per-field usage pattern for a single agegroup from the source schedule.
+/// Derived from actual game placements — used for field constraint learning.
+/// </summary>
+public record SourceFieldUsage
+{
+    public required string FieldName { get; init; }
+    public required Guid FieldId { get; init; }
+    public required int GameCount { get; init; }
+    public required List<DayOfWeek> DaysUsed { get; init; }
+}
+
+/// <summary>
+/// Result of seeding dates from a source job.
+/// </summary>
+public record DateSeedResult
+{
+    public required int AgegroupsSeeded { get; init; }
+}
+
+/// <summary>
+/// Result of seeding field-timeslot assignments from source usage patterns.
+/// </summary>
+public record FieldSeedResult
+{
+    public required int AgegroupsSeeded { get; init; }
+    public required int TimeslotRowsCreated { get; init; }
+}
+
+/// <summary>
+/// Request to preconfigure a returning tournament from a source job.
+/// Runs color carry-forward, date seeding, and field constraint learning.
+/// </summary>
+public record PreconfigureRequest
+{
+    public required Guid SourceJobId { get; init; }
+}
+
+/// <summary>
+/// Result of the unified preconfiguration operation.
+/// </summary>
+public record PreconfigureResult
+{
+    public required int ColorsApplied { get; init; }
+    public required int DatesSeeded { get; init; }
+    public required int FieldAssignmentsSeeded { get; init; }
+    public required int FieldTimeslotRowsCreated { get; init; }
+    /// <summary>Team counts that had round-robin pairings generated.</summary>
+    public required List<int> PairingsGenerated { get; init; }
+    /// <summary>Team counts that already had pairings (skipped).</summary>
+    public required List<int> PairingsAlreadyExisted { get; init; }
 }

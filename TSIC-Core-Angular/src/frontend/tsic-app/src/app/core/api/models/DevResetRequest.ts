@@ -7,6 +7,9 @@ export type DevResetRequest = {
     strategyProfiles?: boolean;
     pairings?: boolean;
     timeslotConfig?: boolean;
+    dates?: boolean;
+    fieldTimeslots?: boolean;
     fieldAssignments?: boolean;
+    sourceJobId?: string | null;
 };
 

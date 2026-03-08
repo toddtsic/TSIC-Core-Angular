@@ -206,7 +206,7 @@ export class ScheduleConfigService {
     }
 
     /**
-     * Reset in-memory config state. Used after Dev Reset so the next
+     * Reset in-memory config state. Used after Reset so the next
      * initialize() call rebuilds from the (now-empty) DB state.
      */
     reset(): void {

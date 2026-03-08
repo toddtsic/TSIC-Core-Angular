@@ -55,18 +55,16 @@
                         Auto-Schedule All
                     }
                 </button>
-                @if (isDevMode) {
-                    <button class="btn btn-sm btn-outline-warning"
-                            (click)="requestDevReset()"
-                            [disabled]="isDevResetting() || isResetEmpty()">
-                        @if (isDevResetting()) {
-                            <span class="spinner-border spinner-border-sm"></span>
-                        } @else {
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                        }
-                        Dev Reset
-                    </button>
-                }
+                <button class="btn btn-sm btn-outline-warning"
+                        (click)="requestReset()"
+                        [disabled]="isResetting() || isResetEmpty()">
+                    @if (isResetting()) {
+                        <span class="spinner-border spinner-border-sm"></span>
+                    } @else {
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    }
+                    Reset
+                </button>
             </div>
         </div>
 
@@ -193,44 +191,137 @@
                         (saveRequested)="onTimeConfigSave($event)" />
                 }
 
-                <!-- Section ④ Strategy -->
-                <div class="stepper-row" [class.step-complete]="strategyComplete()" [class.step-incomplete]="!strategyComplete()">
-                    <span class="step-icon">
-                        @if (strategyComplete()) {
-                            <i class="bi bi-check-circle-fill"></i>
-                        } @else {
-                            <span class="step-number">4</span>
-                        }
-                    </span>
-                    <span class="step-label">Strategy</span>
-                    <span class="step-status">{{ strategyStatusLabel() }}</span>
-                    <span class="step-action step-action-controls">
-                        <select class="form-select form-select-sm step-select"
-                                [ngModel]="effectivePlacement()"
-                                (ngModelChange)="localPlacement.set(+$event)">
-                            <option [ngValue]="0">Horizontal</option>
-                            <option [ngValue]="1">Vertical</option>
-                        </select>
-                        <select class="form-select form-select-sm step-select"
-                                [ngModel]="effectiveGapPattern()"
-                                (ngModelChange)="localGapPattern.set(+$event)">
-                            <option [ngValue]="0">Back-to-back</option>
-                            <option [ngValue]="1">1on/1off</option>
-                            <option [ngValue]="2">1on/2off</option>
-                        </select>
-                        @if (strategyDirty()) {
-                            <button class="btn btn-sm btn-primary step-btn"
-                                    [disabled]="isSavingStrategy()"
+                <!-- Section ④ Strategy (expandable) -->
+                <div class="stepper-row stepper-row-expandable"
+                     [class.step-complete]="strategyComplete()"
+                     [class.step-incomplete]="!strategyComplete()"
+                     [class.step-expanded]="expandedSection() === 'strategy'">
+                    @if (expandedSection() !== 'strategy') {
+                        <span class="step-icon">
+                            @if (strategyComplete()) {
+                                <i class="bi bi-check-circle-fill"></i>
+                            } @else {
+                                <span class="step-number">4</span>
+                            }
+                        </span>
+                        <span class="step-label">Strategy</span>
+                        <span class="step-status">{{ strategyStatusLabel() }}</span>
+                        <span class="step-action">
+                            <button class="btn btn-sm btn-outline-primary step-btn"
+                                    (click)="toggleSection('strategy')">
+                                Edit <i class="bi bi-pencil"></i>
+                            </button>
+                        </span>
+                    }
+                </div>
+                @if (expandedSection() === 'strategy') {
+                    <div class="strategy-expanded">
+                        <div class="strategy-expanded-header">
+                            <h6 class="strategy-expanded-title">
+                                <i class="bi bi-sliders"></i> Scheduling Strategy
+                            </h6>
+                            <button class="btn btn-sm btn-link p-0" (click)="toggleSection('strategy')">
+                                <i class="bi bi-chevron-up"></i>
+                            </button>
+                        </div>
+                        <p class="strategy-intro">
+                            These settings control how the auto-scheduler places games on the grid.
+                            They apply to all agegroups unless overridden at the division level.
+                        </p>
+
+                        <!-- Game Placement Order -->
+                        <div class="strategy-field">
+                            <label class="strategy-field-label">Game placement order</label>
+                            <p class="strategy-field-help">
+                                Controls how games are distributed across available time slots and fields.
+                            </p>
+                            <div class="strategy-radio-group">
+                                <label class="strategy-radio" [class.selected]="effectivePlacement() === 0">
+                                    <input type="radio" name="placement" [value]="0"
+                                           [checked]="effectivePlacement() === 0"
+                                           (change)="localPlacement.set(0)">
+                                    <span class="strategy-radio-content">
+                                        <strong>Spread across time slots</strong>
+                                        <span class="strategy-radio-desc">
+                                            Each round's games are placed across different times before reusing a slot.
+                                            Teams play at varied times throughout the day.
+                                        </span>
+                                    </span>
+                                </label>
+                                <label class="strategy-radio" [class.selected]="effectivePlacement() === 1">
+                                    <input type="radio" name="placement" [value]="1"
+                                           [checked]="effectivePlacement() === 1"
+                                           (change)="localPlacement.set(1)">
+                                    <span class="strategy-radio-content">
+                                        <strong>Fill fields first</strong>
+                                        <span class="strategy-radio-desc">
+                                            Pack games onto each field before moving to the next.
+                                            Minimizes the number of fields needed at any one time.
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Rest Between Games -->
+                        <div class="strategy-field">
+                            <label class="strategy-field-label">Rest between games</label>
+                            <p class="strategy-field-help">
+                                Minimum gap between a team's consecutive games. Longer rest means more field-hours needed.
+                            </p>
+                            <div class="strategy-radio-group">
+                                <label class="strategy-radio" [class.selected]="effectiveGapPattern() === 0">
+                                    <input type="radio" name="gapPattern" [value]="0"
+                                           [checked]="effectiveGapPattern() === 0"
+                                           (change)="localGapPattern.set(0)">
+                                    <span class="strategy-radio-content">
+                                        <strong>No rest required</strong>
+                                        <span class="strategy-radio-desc">
+                                            Teams may play consecutive games with no break between them.
+                                        </span>
+                                    </span>
+                                </label>
+                                <label class="strategy-radio" [class.selected]="effectiveGapPattern() === 1">
+                                    <input type="radio" name="gapPattern" [value]="1"
+                                           [checked]="effectiveGapPattern() === 1"
+                                           (change)="localGapPattern.set(1)">
+                                    <span class="strategy-radio-content">
+                                        <strong>1 game break</strong>
+                                        <span class="strategy-radio-desc">
+                                            Each team gets at least 1 game slot of rest between their own games.
+                                        </span>
+                                    </span>
+                                </label>
+                                <label class="strategy-radio" [class.selected]="effectiveGapPattern() === 2">
+                                    <input type="radio" name="gapPattern" [value]="2"
+                                           [checked]="effectiveGapPattern() === 2"
+                                           (change)="localGapPattern.set(2)">
+                                    <span class="strategy-radio-content">
+                                        <strong>2 game break</strong>
+                                        <span class="strategy-radio-desc">
+                                            Each team gets at least 2 game slots of rest between their own games.
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="strategy-footer">
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    (click)="onStrategyCancelled()">
+                                Cancel
+                            </button>
+                            <button class="btn btn-sm btn-primary"
+                                    [disabled]="!strategyDirty() || isSavingStrategy()"
                                     (click)="onSaveStrategy()">
                                 @if (isSavingStrategy()) {
                                     <span class="spinner-border spinner-border-sm"></span>
-                                } @else {
-                                    Save
                                 }
+                                Save
                             </button>
-                        }
-                    </span>
-                </div>
+                        </div>
+                    </div>
+                }
 
                 <!-- Section ⑤ Pairings (expandable) -->
                 <div class="stepper-row stepper-row-expandable"
@@ -370,74 +461,91 @@
         </div>
     }
 
-    <!-- ── Dev Reset confirmation ── -->
-    @if (showDevResetConfirm()) {
-        <div class="alert alert-warning m-3 mb-0 py-2 px-3">
-            <div class="mb-2">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                <strong>Dev Reset</strong> — select what to clear:
+    <!-- ── Reset Modal ── -->
+    @if (showResetConfirm()) {
+        <tsic-dialog [open]="true" size="sm" (requestClose)="onResetCancelled()">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Reset Scheduling Data
+                    </h5>
+                    <button type="button" class="btn-close" (click)="onResetCancelled()"></button>
+                </div>
+                <div class="modal-body">
+                    @if (priorYearDefaults()?.priorJobId) {
+                        <p class="mb-3 text-secondary">
+                            Checked items will be cleared, then rebuilt from
+                            <strong>{{ priorYearDefaults()!.priorJobName }} {{ priorYearDefaults()!.priorYear }}</strong>
+                            (game dates, field assignments, matchup tables, and agegroup colors).
+                        </p>
+                    } @else {
+                        <p class="mb-3 text-secondary">Checked items will be permanently deleted.</p>
+                    }
+                    <div class="reset-checklist">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="resetGames"
+                                   [checked]="resetGames()"
+                                   (change)="resetGames.set($any($event.target).checked)">
+                            <label class="form-check-label" for="resetGames">
+                                <strong>Scheduled games</strong> — remove all games from the grid
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="resetStrategy"
+                                   [checked]="resetStrategyProfiles()"
+                                   (change)="resetStrategyProfiles.set($any($event.target).checked)">
+                            <label class="form-check-label" for="resetStrategy">
+                                <strong>Scheduling preferences</strong> — Horizontal/Vertical, gap patterns per division
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="resetPairings"
+                                   [checked]="resetPairings()"
+                                   (change)="resetPairings.set($any($event.target).checked)">
+                            <label class="form-check-label" for="resetPairings">
+                                <strong>Matchup tables</strong> — round-robin pairings (who plays who each round)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="resetDates"
+                                   [checked]="resetDates()"
+                                   (change)="resetDates.set($any($event.target).checked)">
+                            <label class="form-check-label" for="resetDates">
+                                <strong>Game dates</strong> — which days each agegroup plays and round assignments
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="resetFieldTimeslots"
+                                   [checked]="resetFieldTimeslots()"
+                                   (change)="resetFieldTimeslots.set($any($event.target).checked)">
+                            <label class="form-check-label" for="resetFieldTimeslots">
+                                <strong>Field setup</strong> — which fields each agegroup uses, start times, game length, capacity
+                            </label>
+                        </div>
+                        <div class="form-check disabled">
+                            <span class="form-check-label text-muted">
+                                Event field list —
+                                <a class="prereq-link" (click)="$event.stopPropagation(); manageFieldsClicked.emit()" role="button">
+                                    Manage Fields <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="d-flex gap-2 align-items-center w-100">
+                        <input type="text" class="form-control form-control-sm" style="max-width: 160px"
+                               placeholder="Type confirm"
+                               [ngModel]="resetConfirmText()"
+                               (ngModelChange)="resetConfirmText.set($event)">
+                        <button class="btn btn-sm btn-warning"
+                                [disabled]="resetConfirmText().toLowerCase() !== 'confirm' || !anyResetChecked()"
+                                (click)="onResetConfirmed()">Reset</button>
+                        <button class="btn btn-sm btn-outline-secondary" (click)="onResetCancelled()">Cancel</button>
+                    </div>
+                </div>
             </div>
-            <div class="dev-reset-checklist mb-2">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="resetGames"
-                           [checked]="resetGames()"
-                           (change)="resetGames.set($any($event.target).checked)">
-                    <label class="form-check-label" for="resetGames">
-                        Delete all <strong>scheduled games</strong>
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="resetStrategy"
-                           [checked]="resetStrategyProfiles()"
-                           (change)="resetStrategyProfiles.set($any($event.target).checked)">
-                    <label class="form-check-label" for="resetStrategy">
-                        Delete all <strong>strategy profiles</strong> (placement &amp; gap patterns)
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="resetPairings"
-                           [checked]="resetPairings()"
-                           (change)="resetPairings.set($any($event.target).checked)">
-                    <label class="form-check-label" for="resetPairings">
-                        Delete all <strong>pairings</strong>
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="resetDates"
-                           [checked]="resetDates()"
-                           (change)="resetDates.set($any($event.target).checked)">
-                    <label class="form-check-label" for="resetDates">
-                        Clear all <strong>date/round assignments</strong>
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="resetFieldTimeslots"
-                           [checked]="resetFieldTimeslots()"
-                           (change)="resetFieldTimeslots.set($any($event.target).checked)">
-                    <label class="form-check-label" for="resetFieldTimeslots">
-                        Clear all <strong>field-timeslot config</strong> (start time, GSI, max games)
-                    </label>
-                </div>
-                <div class="form-check disabled">
-                    <span class="form-check-label text-muted">
-                        Field assignments —
-                        <a class="prereq-link" (click)="$event.stopPropagation(); manageFieldsClicked.emit()" role="button">
-                            Manage Fields <i class="bi bi-box-arrow-up-right"></i>
-                        </a>
-                    </span>
-                </div>
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-                <input type="text" class="form-control form-control-sm" style="max-width: 160px"
-                       placeholder="Type confirm"
-                       [ngModel]="devResetConfirmText()"
-                       (ngModelChange)="devResetConfirmText.set($event)">
-                <button class="btn btn-sm btn-warning"
-                        [disabled]="devResetConfirmText().toLowerCase() !== 'confirm' || !anyResetChecked()"
-                        (click)="onDevResetConfirmed()">Reset</button>
-                <button class="btn btn-sm btn-outline-secondary" (click)="onDevResetCancelled()">Cancel</button>
-            </div>
-        </div>
+        </tsic-dialog>
     }
 
     <!-- ══════════════════════════════════════════════ -->

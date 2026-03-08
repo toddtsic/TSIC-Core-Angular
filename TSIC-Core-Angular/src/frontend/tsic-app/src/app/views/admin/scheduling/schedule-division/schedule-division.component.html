@@ -21,7 +21,7 @@
             [isExecuting]="isExecuting()"
             [isDeletingGames]="isDeletingGames()"
             [showDeleteConfirm]="showDeleteConfirm()"
-            [isDevResetting]="isDevResetting()"
+            [isResetting]="isResetting()"
             [missingPairingTCnts]="missingPairingTCnts()"
             [existingPairingRounds]="existingPairingRounds()"
             [isGeneratingPairings]="isGeneratingPairings()"
@@ -50,7 +50,7 @@
             (calendarApplyRequested)="onCalendarApply($event)"
             (timeConfigSaveRequested)="onTimeConfigSave($event)"
             (fieldConfigApplyRequested)="onFieldConfigApply($event)"
-            (devResetConfirmed)="executeDevReset($event)" />
+            (resetConfirmed)="executeReset($event)" />
 
         <!-- ── Prerequisite Errors (event scope) ── -->
         @if (prerequisiteErrors().length > 0) {

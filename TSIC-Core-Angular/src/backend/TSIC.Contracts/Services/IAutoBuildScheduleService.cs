@@ -63,4 +63,38 @@ public interface IAutoBuildScheduleService
     /// </summary>
     Task<EnsurePairingsResponse> EnsurePairingsAsync(
         Guid jobId, string userId, EnsurePairingsRequest request, CancellationToken ct = default);
+
+    // ── Source Preconfiguration (returning tournament carry-forward) ──
+
+    /// <summary>
+    /// Carry forward agegroup colors from the source job.
+    /// Maps graduation-year names (e.g., "2026 Boys" → "2027 Boys").
+    /// Only sets color on current agegroups that don't already have one.
+    /// Returns the number of colors applied.
+    /// </summary>
+    Task<int> ApplyColorSeedAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Seed game dates from the source job, advancing by year delta and matching DOW.
+    /// Only seeds agegroups that don't already have dates configured.
+    /// </summary>
+    Task<DateSeedResult> SeedDatesFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Learn field assignments from the source schedule and seed field-timeslot rows.
+    /// Observes which fields each agegroup used in prior year games and creates
+    /// TimeslotsLeagueSeasonFields rows with GSI/timing defaults.
+    /// Only seeds agegroups that don't already have field-timeslot config.
+    /// </summary>
+    Task<FieldSeedResult> SeedFieldAssignmentsFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Unified preconfiguration: colors, dates, fields, and pairings from a source job.
+    /// Auto-detects team counts from current divisions for pairing generation.
+    /// </summary>
+    Task<PreconfigureResult> PreconfigureFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default);
 }

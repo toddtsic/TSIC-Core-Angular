@@ -323,6 +323,7 @@ export type { PoolTransferPreviewRequest } from './models/PoolTransferPreviewReq
 export type { PoolTransferPreviewResponse } from './models/PoolTransferPreviewResponse';
 export type { PoolTransferRequest } from './models/PoolTransferRequest';
 export type { PoolTransferResultDto } from './models/PoolTransferResultDto';
+export type { PreconfigureRequest } from './models/PreconfigureRequest';
 export type { PreFlightDisconnect } from './models/PreFlightDisconnect';
 export type { PrerequisiteCheckResponse } from './models/PrerequisiteCheckResponse';
 export type { PreSubmitInsuranceDto } from './models/PreSubmitInsuranceDto';

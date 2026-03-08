@@ -12,4 +12,10 @@ public record DevResetRequest
     /// <summary>Clear field-timeslot config only (TimeslotsLeagueSeasonFields).</summary>
     public bool FieldTimeslots { get; init; }
     public bool FieldAssignments { get; init; }
+
+    /// <summary>
+    /// When set, run preconfiguration (colors, dates, fields, pairings) from this
+    /// source job after the reset completes. Null = no preconfig.
+    /// </summary>
+    public Guid? SourceJobId { get; init; }
 }

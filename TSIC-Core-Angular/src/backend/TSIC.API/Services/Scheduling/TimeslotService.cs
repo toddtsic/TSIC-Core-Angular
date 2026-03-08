@@ -116,6 +116,7 @@ public sealed class TimeslotService : ITimeslotService
                     {
                         priorYearDefaults = new PriorYearFieldDefaults
                         {
+                            PriorJobId = priorJob.JobId,
                             StartTime = defaults.StartTime,
                             GamestartInterval = defaults.GamestartInterval,
                             MaxGamesPerField = defaults.MaxGamesPerField,

@@ -58,6 +58,30 @@ public interface IAutoBuildRepository
     Task<Dictionary<Guid, int>> GetExistingGameCountsByDivisionAsync(
         Guid jobId, CancellationToken ct = default);
 
+    // ── Source Preconfiguration (returning tournament carry-forward) ──
+
+    /// <summary>
+    /// Get agegroup-level metadata (color, grad years) from the source job.
+    /// Joins Schedule → Agegroups to read structured fields not available in the denormalized schedule.
+    /// </summary>
+    Task<List<SourceAgegroupMeta>> GetSourceAgegroupMetaAsync(
+        Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get timeslot dates from the source job, grouped by agegroup name.
+    /// Used for date carry-forward — advance dates by yearDelta and map to matching DOW.
+    /// </summary>
+    Task<Dictionary<string, List<SourceDateEntry>>> GetSourceDatesAsync(
+        Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get per-agegroup field usage patterns from the source schedule (RR games only).
+    /// Returns field name, ID, game count, and DOWs used — grouped by agegroup name.
+    /// Used for field constraint learning.
+    /// </summary>
+    Task<Dictionary<string, List<SourceFieldUsage>>> GetSourceFieldUsageAsync(
+        Guid sourceJobId, CancellationToken ct = default);
+
     /// <summary>
     /// Get the job name for a job ID.
     /// </summary>

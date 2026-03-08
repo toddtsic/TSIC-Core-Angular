@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type PriorYearFieldDefaults = {
+    priorJobId: string;
     startTime: string;
     gamestartInterval: number;
     maxGamesPerField: number;

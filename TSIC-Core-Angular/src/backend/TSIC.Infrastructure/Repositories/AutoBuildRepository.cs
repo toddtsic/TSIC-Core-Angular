@@ -1132,4 +1132,114 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
 
         return matchups;
     }
+
+    // ── Source Preconfiguration (returning tournament carry-forward) ──
+
+    public async Task<List<SourceAgegroupMeta>> GetSourceAgegroupMetaAsync(
+        Guid sourceJobId, CancellationToken ct = default)
+    {
+        // Join Schedule → Agegroups to get structured fields (Color, GradYear)
+        // not available in the denormalized schedule table.
+        var raw = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == sourceJobId && s.AgegroupId != null && s.Agegroup != null)
+            .Select(s => new
+            {
+                s.AgegroupId,
+                AgName = s.AgegroupName ?? "",
+                s.Agegroup!.Color,
+                s.Agegroup!.GradYearMin,
+                s.Agegroup!.GradYearMax
+            })
+            .Distinct()
+            .ToListAsync(ct);
+
+        // Deduplicate by agegroup name (in case multiple AgegroupId rows have same name)
+        return raw
+            .GroupBy(r => r.AgName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .Select(r => new SourceAgegroupMeta
+            {
+                AgegroupName = r.AgName,
+                Color = r.Color,
+                GradYearMin = r.GradYearMin,
+                GradYearMax = r.GradYearMax
+            })
+            .ToList();
+    }
+
+    public async Task<Dictionary<string, List<SourceDateEntry>>> GetSourceDatesAsync(
+        Guid sourceJobId, CancellationToken ct = default)
+    {
+        // Get the source job's season/year
+        var job = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == sourceJobId)
+            .Select(j => new { j.Season, j.Year })
+            .FirstOrDefaultAsync(ct);
+
+        if (job?.Season == null || job.Year == null)
+            return new Dictionary<string, List<SourceDateEntry>>();
+
+        // Get agegroup IDs that were actually scheduled in the source job
+        var agIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == sourceJobId && s.AgegroupId != null)
+            .Select(s => s.AgegroupId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (agIds.Count == 0)
+            return new Dictionary<string, List<SourceDateEntry>>();
+
+        // Get TimeslotsLeagueSeasonDates for those agegroups
+        var dateRows = await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .Where(d => agIds.Contains(d.AgegroupId)
+                && d.Season == job.Season && d.Year == job.Year)
+            .Select(d => new { AgName = d.Agegroup.AgegroupName ?? "", d.GDate, d.Rnd })
+            .ToListAsync(ct);
+
+        return dateRows
+            .GroupBy(d => d.AgName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(d => new SourceDateEntry { GDate = d.GDate, Rnd = d.Rnd }).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<Dictionary<string, List<SourceFieldUsage>>> GetSourceFieldUsageAsync(
+        Guid sourceJobId, CancellationToken ct = default)
+    {
+        // Extract field usage from actual game placements (RR games only)
+        var raw = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == sourceJobId
+                && s.GDate != null && s.FieldId != null && s.FName != null
+                && s.T1Type == "T" && s.T2Type == "T")
+            .Select(s => new
+            {
+                AgName = s.AgegroupName ?? "",
+                FieldId = s.FieldId!.Value,
+                FName = s.FName!,
+                Dow = s.GDate!.Value.DayOfWeek
+            })
+            .ToListAsync(ct);
+
+        return raw
+            .GroupBy(r => r.AgName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(r => new { r.FieldId, r.FName })
+                    .Select(fg => new SourceFieldUsage
+                    {
+                        FieldName = fg.Key.FName,
+                        FieldId = fg.Key.FieldId,
+                        GameCount = fg.Count(),
+                        DaysUsed = fg.Select(r => r.Dow).Distinct().ToList()
+                    })
+                    .OrderByDescending(f => f.GameCount)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+    }
 }
