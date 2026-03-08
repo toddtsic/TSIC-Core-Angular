@@ -459,7 +459,7 @@ export class EventSummaryPanelComponent {
     // ── Labels ──
 
     placementLabel(val: number): string {
-        return val === 1 ? 'Fill fields first' : 'Spread across time slots';
+        return val === 1 ? 'Vertical' : 'Horizontal';
     }
 
     gapLabel(val: number): string {

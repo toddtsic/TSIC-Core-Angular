@@ -235,7 +235,7 @@
                                 <span class="step-number">4</span>
                             }
                         </span>
-                        <span class="step-label">Strategy</span>
+                        <span class="step-label">Game Placement & Rest Pattern</span>
                         <span class="step-status">{{ strategyStatusLabel() }}</span>
                         <span class="step-action">
                             <button class="btn btn-sm btn-outline-primary step-btn"
@@ -248,23 +248,16 @@
                 @if (expandedSection() === 'strategy') {
                     <div class="strategy-expanded">
                         <div class="strategy-expanded-header">
-                            <h6 class="strategy-expanded-title">
-                                <i class="bi bi-sliders"></i> Scheduling Strategy
-                            </h6>
                             <button class="btn btn-sm btn-link p-0" (click)="toggleSection('strategy')">
                                 <i class="bi bi-chevron-up"></i>
                             </button>
                         </div>
-                        <p class="strategy-intro">
-                            These settings control how the auto-scheduler places games on the grid.
-                            They apply to all agegroups unless overridden at the division level.
-                        </p>
 
                         <!-- Game Placement Order -->
                         <div class="strategy-field">
                             <label class="strategy-field-label">Game placement order</label>
                             <p class="strategy-field-help">
-                                Controls how games are distributed across available time slots and fields.
+                                Controls whether each round's games play simultaneously or back-to-back.
                             </p>
                             <div class="strategy-radio-group">
                                 <label class="strategy-radio" [class.selected]="effectivePlacement() === 0">
@@ -272,10 +265,10 @@
                                            [checked]="effectivePlacement() === 0"
                                            (change)="localPlacement.set(0)">
                                     <span class="strategy-radio-content">
-                                        <strong>Spread across time slots</strong>
+                                        <strong>Horizontal</strong>
                                         <span class="strategy-radio-desc">
-                                            Each round's games are placed across different times before reusing a slot.
-                                            Teams play at varied times throughout the day.
+                                            Each round's games kick off at the same time on different fields.
+                                            Uses more fields but finishes rounds faster.
                                         </span>
                                     </span>
                                 </label>
@@ -284,10 +277,10 @@
                                            [checked]="effectivePlacement() === 1"
                                            (change)="localPlacement.set(1)">
                                     <span class="strategy-radio-content">
-                                        <strong>Fill fields first</strong>
+                                        <strong>Vertical</strong>
                                         <span class="strategy-radio-desc">
-                                            Pack games onto each field before moving to the next.
-                                            Minimizes the number of fields needed at any one time.
+                                            Games play back-to-back on fewer fields. Great for showcase
+                                            events where spectators follow the action on one field.
                                         </span>
                                     </span>
                                 </label>
