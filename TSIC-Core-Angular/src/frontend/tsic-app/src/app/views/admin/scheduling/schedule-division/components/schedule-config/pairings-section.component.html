@@ -1,35 +1,13 @@
 <!-- ═════════════════════════════════════════════ -->
-<!-- Pairings Section — Stepper Section ⑤        -->
-<!-- Collapsed: summary + edit/generate button   -->
-<!-- Expanded: rounds-per-division-size table     -->
+<!-- Guaranteed Games Per Agegroup                -->
+<!-- Per-agegroup game guarantee with editing     -->
 <!-- ═════════════════════════════════════════════ -->
 
-<!-- ── Collapsed View ── -->
-@if (!isExpanded()) {
-    <div class="section-collapsed" (click)="onToggle()" role="button" tabindex="0">
-        <span class="section-status-icon">
-            @if (allComplete()) {
-                <i class="bi bi-check-circle-fill text-success"></i>
-            } @else {
-                <i class="bi bi-exclamation-circle text-warning"></i>
-            }
-        </span>
-        <span class="section-summary">
-            {{ summaryLabel() }}
-        </span>
-        <button class="btn btn-sm btn-outline-primary section-edit-btn"
-                (click)="$event.stopPropagation(); onToggle()">
-            <i class="bi bi-pencil"></i> Edit
-        </button>
-    </div>
-}
-
-<!-- ── Expanded View ── -->
 @if (isExpanded()) {
     <div class="section-expanded">
         <div class="section-header-row">
             <span class="section-title">
-                <i class="bi bi-diagram-3"></i> Rounds per Division Size
+                <i class="bi bi-trophy"></i> Guaranteed Games Per Agegroup
             </span>
             <button class="btn btn-sm btn-link section-collapse-btn"
                     (click)="onToggle()">
@@ -37,43 +15,33 @@
             </button>
         </div>
 
-        @if (sizeRows().length > 0) {
-            <table class="rounds-table">
+        @if (agegroupRows().length > 0) {
+            <table class="guarantee-table">
                 <thead>
                     <tr>
-                        <th class="col-teams">Teams</th>
-                        <th class="col-rounds">Rounds</th>
-                        <th class="col-fullrr">Full RR</th>
-                        <th class="col-status">Status</th>
+                        <th class="col-ag">Agegroup</th>
+                        <th class="col-guarantee">Games</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @for (row of sizeRows(); track row.tCnt) {
+                    @for (row of agegroupRows(); track row.agegroupId) {
                         <tr>
-                            <td class="col-teams">
-                                <strong>{{ row.tCnt }}</strong>
+                            <td class="col-ag">
+                                @if (row.color) {
+                                    <span class="ag-color-dot"
+                                          [style.background]="row.color"></span>
+                                }
+                                {{ row.agegroupName }}
+                                <span class="ag-div-count">({{ row.divisionCount }} div{{ row.divisionCount !== 1 ? 's' : '' }})</span>
                             </td>
-                            <td class="col-rounds">
-                                <select class="form-select form-select-sm rounds-select"
-                                        [ngModel]="effectiveRounds(row.tCnt)"
-                                        (ngModelChange)="setRounds(row.tCnt, +$event)"
-                                        [disabled]="isGenerating()">
-                                    @for (n of roundsOptions(row.tCnt); track n) {
+                            <td class="col-guarantee">
+                                <select class="form-select form-select-sm guarantee-select"
+                                        [ngModel]="getEffectiveValue(row)"
+                                        (ngModelChange)="setGuarantee(row.agegroupId, +$event)">
+                                    @for (n of guaranteeOptions; track n) {
                                         <option [ngValue]="n">{{ n }}</option>
                                     }
                                 </select>
-                            </td>
-                            <td class="col-fullrr">{{ row.fullRR }}</td>
-                            <td class="col-status">
-                                @if (row.hasPairings) {
-                                    <span class="status-generated">
-                                        <i class="bi bi-check-circle-fill"></i> {{ row.currentRounds }} rd{{ row.currentRounds !== 1 ? 's' : '' }}
-                                    </span>
-                                } @else {
-                                    <span class="status-missing">
-                                        <i class="bi bi-exclamation-circle"></i> Missing
-                                    </span>
-                                }
                             </td>
                         </tr>
                     }
@@ -81,7 +49,7 @@
             </table>
         } @else {
             <div class="empty-hint">
-                No divisions with 2+ teams found.
+                No agegroups with 2+ teams found.
             </div>
         }
 
@@ -89,21 +57,33 @@
         <div class="section-actions">
             <button class="btn btn-sm btn-outline-secondary"
                     (click)="onToggle()"
-                    [disabled]="isGenerating()">
+                    [disabled]="isGenerating() || isSaving()">
                 Close
             </button>
-            <button class="btn btn-sm btn-primary"
-                    (click)="onSave()"
-                    [disabled]="isGenerating() || (!hasMissing() && !isDirty())">
-                @if (isGenerating()) {
-                    <span class="spinner-border spinner-border-sm me-1"></span>
-                    Generating...
-                } @else if (hasMissing() && !isDirty()) {
-                    <i class="bi bi-play-fill"></i> Generate Missing
-                } @else {
-                    <i class="bi bi-check2"></i> Save
-                }
-            </button>
+            @if (isDirty()) {
+                <button class="btn btn-sm btn-primary"
+                        (click)="onSave()"
+                        [disabled]="isSaving()">
+                    @if (isSaving()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        Saving...
+                    } @else {
+                        <i class="bi bi-check2"></i> Save
+                    }
+                </button>
+            }
+            @if (hasMissing()) {
+                <button class="btn btn-sm btn-primary"
+                        (click)="onGenerate()"
+                        [disabled]="isGenerating()">
+                    @if (isGenerating()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        Generating...
+                    } @else {
+                        <i class="bi bi-play-fill"></i> Generate Pairings
+                    }
+                </button>
+            }
         </div>
     </div>
 }

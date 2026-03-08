@@ -11,7 +11,7 @@ import { CalendarSectionComponent } from '../schedule-config/calendar-section.co
 import { TimeConfigSectionComponent, type TimeConfigSaveEvent, type DateColumnInfo } from '../schedule-config/time-config-section.component';
 import { BuildSectionComponent } from '../schedule-config/build-section.component';
 import { FieldConfigSectionComponent } from '../schedule-config/field-config-section.component';
-import { PairingsSectionComponent, type PairingsGenerateEvent } from '../schedule-config/pairings-section.component';
+import { PairingsSectionComponent, type PairingsGenerateEvent, type GuaranteeSaveEvent } from '../schedule-config/pairings-section.component';
 import type { CalendarApplyEvent, FieldConfigApplyEvent, StepperSection } from '../schedule-config/schedule-config.types';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
@@ -235,6 +235,10 @@ export class EventSummaryPanelComponent {
 
     onPairingsGenerate(event: PairingsGenerateEvent): void {
         this.generatePairingsWithRoundsRequested.emit(event);
+    }
+
+    onGuaranteeSave(event: GuaranteeSaveEvent): void {
+        this.gameGuaranteeSaveRequested.emit({ eventDefault: event.eventDefault });
     }
 
     /** Uniform placement value across all strategies, or null if mixed */

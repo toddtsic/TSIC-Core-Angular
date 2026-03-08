@@ -323,6 +323,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             profilesByTCnt = new Dictionary<int, DivisionSizeProfile>();
         }
 
+        // ── 1b. Game guarantee: job-level + per-agegroup overrides ──
+        // Used by the placement loop to cap rounds per division.
+        var jobGameGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+
         // ── 2. Get current divisions and filter ──
         var allDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
         var activeDivisions = FilterSchedulableDivisions(allDivisions);
@@ -479,12 +483,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var pairings = await _pairingsRepo.GetPairingsAsync(
                 agCtx.AgLeagueId, agCtx.AgSeason, teamCount, ct);
 
-            // Place ALL rounds present in the pairing table. The game guarantee
-            // is a minimum floor (business promise), not a ceiling — the scheduler
-            // should place as many games as fit. Pairing generation is where the
-            // guarantee is enforced (fewer rounds generated = fewer to place).
+            // Resolve this agegroup's effective guarantee (ag override → job default).
+            // Cap rounds to only what this agegroup's guarantee requires.
+            // The pairing table may have more rounds (for other agegroups with
+            // higher guarantees), but this division only places what it needs.
+            var agGuarantee = agCtx.Agegroup?.GameGuarantee ?? jobGameGuarantee;
+            var guaranteeMaxRound = ComputeRoundCount(teamCount, agGuarantee);
+
             var rrPairings = pairings
-                .Where(p => p.T1Type == "T" && p.T2Type == "T")
+                .Where(p => p.T1Type == "T" && p.T2Type == "T" && p.Rnd <= guaranteeMaxRound)
                 .OrderBy(p => p.Rnd)
                 .ThenBy(p => p.GameNumber)
                 .ToList();
@@ -2196,6 +2203,16 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // Find which team counts already have pairings
         var existing = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
 
+        // Pairing table is a shared library — generate enough rounds for the
+        // HIGHEST guarantee across all agegroups sharing each pool size.
+        // The placement loop then caps per division based on its agegroup's guarantee.
+        var jobGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+        var agGuarantees = await _agegroupRepo.GetGameGuaranteesForLeagueAsync(leagueId, ct);
+        var maxGuarantee = new[] { jobGuarantee ?? 0 }
+            .Concat(agGuarantees.Values.Select(v => v ?? 0))
+            .Max();
+        int? gameGuarantee = maxGuarantee > 0 ? maxGuarantee : jobGuarantee;
+
         var generated = new List<int>();
         var alreadyExisted = new List<int>();
 
@@ -2217,15 +2234,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
             }
 
-            // Always generate full RR pairings — the game guarantee is a minimum
-            // floor, not a pairing cap. More pairings = more scheduling flexibility.
-            // Explicit round overrides are still honored (advanced user control).
+            // Explicit round overrides take priority (advanced user control).
+            // Otherwise, use guarantee-based round count (falls back to full RR
+            // when no guarantee is set).
             var fullRr = tCnt % 2 == 0 ? tCnt - 1 : tCnt;
             int noRounds;
             if (request.RoundsOverrides?.TryGetValue(tCnt, out var ovr) == true)
                 noRounds = Math.Clamp(ovr, 1, fullRr);
             else
-                noRounds = fullRr;
+                noRounds = ComputeRoundCount(tCnt, gameGuarantee);
             await _pairingsService.AddPairingBlockAsync(
                 jobId, userId,
                 new AddPairingBlockRequest { TeamCount = tCnt, NoRounds = noRounds },

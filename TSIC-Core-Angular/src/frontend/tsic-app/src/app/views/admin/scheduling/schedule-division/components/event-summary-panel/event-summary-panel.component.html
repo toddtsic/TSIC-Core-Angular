@@ -103,40 +103,37 @@
         @if (agegroups().length > 0) {
             <div class="readiness-stepper">
 
-                <!-- Section ① Fields (expandable) -->
+                <!-- Section ① Fields -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="fieldsComplete()"
                      [class.step-incomplete]="!fieldsComplete()"
-                     [class.step-expanded]="expandedSection() === 'fields'">
-                    @if (expandedSection() !== 'fields') {
-                        <span class="step-icon">
-                            @if (fieldsComplete()) {
-                                <i class="bi bi-check-circle-fill"></i>
-                            } @else {
-                                <span class="step-number">1</span>
-                            }
-                        </span>
-                        <span class="step-label">Fields</span>
-                        <span class="step-status">
-                            @if (fieldsComplete()) {
-                                {{ assignedFieldCount() }} field{{ assignedFieldCount() !== 1 ? 's' : '' }} assigned
-                            } @else {
-                                No fields assigned
-                            }
-                        </span>
-                        <span class="step-action">
-                            @if (assignedFieldCount() > 0) {
-                                <button class="btn btn-sm btn-outline-primary step-btn"
-                                        (click)="toggleSection('fields')">
-                                    Edit <i class="bi bi-pencil"></i>
-                                </button>
-                            } @else {
-                                <a class="prereq-link" (click)="manageFieldsClicked.emit()" role="button">
-                                    Manage Fields <i class="bi bi-box-arrow-up-right"></i>
-                                </a>
-                            }
-                        </span>
-                    }
+                     [class.step-active]="expandedSection() === 'fields'"
+                     (click)="toggleSection('fields')">
+                    <span class="step-icon">
+                        @if (fieldsComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">1</span>
+                        }
+                    </span>
+                    <span class="step-label">Fields</span>
+                    <span class="step-status">
+                        @if (fieldsComplete()) {
+                            {{ assignedFieldCount() }} field{{ assignedFieldCount() !== 1 ? 's' : '' }} assigned
+                        } @else {
+                            No fields assigned
+                        }
+                    </span>
+                    <span class="step-action">
+                        @if (assignedFieldCount() === 0) {
+                            <a class="prereq-link" (click)="$event.stopPropagation(); manageFieldsClicked.emit()" role="button">
+                                Manage Fields <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        }
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'fields'"
+                           [class.bi-chevron-right]="expandedSection() !== 'fields'"></i>
+                    </span>
                 </div>
                 @if (expandedSection() === 'fields') {
                     <app-field-config-section
@@ -149,30 +146,28 @@
                         (applyRequested)="onFieldConfigApply($event)" />
                 }
 
-                <!-- Section ② Calendar & Structure (expandable) -->
+                <!-- Section ② Calendar & Structure -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="datesComplete()"
                      [class.step-incomplete]="!datesComplete()"
-                     [class.step-expanded]="expandedSection() === 'calendar'">
-                    @if (expandedSection() !== 'calendar') {
-                        <span class="step-icon">
-                            @if (datesComplete()) {
-                                <i class="bi bi-check-circle-fill"></i>
-                            } @else {
-                                <span class="step-number">2</span>
-                            }
-                        </span>
-                        <span class="step-label">Calendar</span>
-                        <span class="step-status">
-                            <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong> agegroups configured
-                        </span>
-                        <span class="step-action">
-                            <button class="btn btn-sm btn-outline-primary step-btn"
-                                    (click)="toggleSection('calendar')">
-                                Edit <i class="bi bi-pencil"></i>
-                            </button>
-                        </span>
-                    }
+                     [class.step-active]="expandedSection() === 'calendar'"
+                     (click)="toggleSection('calendar')">
+                    <span class="step-icon">
+                        @if (datesComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">2</span>
+                        }
+                    </span>
+                    <span class="step-label">Calendar</span>
+                    <span class="step-status">
+                        <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong> agegroups configured
+                    </span>
+                    <span class="step-action">
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'calendar'"
+                           [class.bi-chevron-right]="expandedSection() !== 'calendar'"></i>
+                    </span>
                 </div>
                 @if (expandedSection() === 'calendar') {
                     <app-calendar-section
@@ -189,25 +184,23 @@
                         (applyRequested)="onCalendarApply($event)" />
                 }
 
-                <!-- Section ③ Time Config (expandable) -->
+                <!-- Section ③ Time Config -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="true"
-                     [class.step-expanded]="expandedSection() === 'timeConfig'">
-                    @if (expandedSection() !== 'timeConfig') {
-                        <span class="step-icon">
-                            <i class="bi bi-check-circle-fill"></i>
-                        </span>
-                        <span class="step-label">Time</span>
-                        <span class="step-status">
-                            {{ effectiveGsi() }} min · Start {{ effectiveStartTime() }} · Max {{ effectiveMaxGames() }}/field
-                        </span>
-                        <span class="step-action">
-                            <button class="btn btn-sm btn-outline-primary step-btn"
-                                    (click)="toggleSection('timeConfig')">
-                                Edit <i class="bi bi-pencil"></i>
-                            </button>
-                        </span>
-                    }
+                     [class.step-active]="expandedSection() === 'timeConfig'"
+                     (click)="toggleSection('timeConfig')">
+                    <span class="step-icon">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </span>
+                    <span class="step-label">Time</span>
+                    <span class="step-status">
+                        {{ effectiveGsi() }} min · Start {{ effectiveStartTime() }} · Max {{ effectiveMaxGames() }}/field
+                    </span>
+                    <span class="step-action">
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'timeConfig'"
+                           [class.bi-chevron-right]="expandedSection() !== 'timeConfig'"></i>
+                    </span>
                 </div>
                 @if (expandedSection() === 'timeConfig') {
                     <app-time-config-section
@@ -222,37 +215,29 @@
                         (saveRequested)="onTimeConfigSave($event)" />
                 }
 
-                <!-- Section ④ Strategy (expandable) -->
+                <!-- Section ④ Strategy -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="strategyComplete()"
                      [class.step-incomplete]="!strategyComplete()"
-                     [class.step-expanded]="expandedSection() === 'strategy'">
-                    @if (expandedSection() !== 'strategy') {
-                        <span class="step-icon">
-                            @if (strategyComplete()) {
-                                <i class="bi bi-check-circle-fill"></i>
-                            } @else {
-                                <span class="step-number">4</span>
-                            }
-                        </span>
-                        <span class="step-label">Game Placement & Rest Pattern</span>
-                        <span class="step-status">{{ strategyStatusLabel() }}</span>
-                        <span class="step-action">
-                            <button class="btn btn-sm btn-outline-primary step-btn"
-                                    (click)="toggleSection('strategy')">
-                                Edit <i class="bi bi-pencil"></i>
-                            </button>
-                        </span>
-                    }
+                     [class.step-active]="expandedSection() === 'strategy'"
+                     (click)="toggleSection('strategy')">
+                    <span class="step-icon">
+                        @if (strategyComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">4</span>
+                        }
+                    </span>
+                    <span class="step-label">Game Placement & Rest Pattern</span>
+                    <span class="step-status">{{ strategyStatusLabel() }}</span>
+                    <span class="step-action">
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'strategy'"
+                           [class.bi-chevron-right]="expandedSection() !== 'strategy'"></i>
+                    </span>
                 </div>
                 @if (expandedSection() === 'strategy') {
                     <div class="strategy-expanded">
-                        <div class="strategy-expanded-header">
-                            <button class="btn btn-sm btn-link p-0" (click)="toggleSection('strategy')">
-                                <i class="bi bi-chevron-up"></i>
-                            </button>
-                        </div>
-
                         <!-- Game Placement Order -->
                         <div class="strategy-field">
                             <label class="strategy-field-label">Game placement order</label>
@@ -347,81 +332,78 @@
                     </div>
                 }
 
-                <!-- Section ⑤ Pairings (expandable) -->
+                <!-- Section ⑤ Pairings -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="pairingsComplete()"
                      [class.step-incomplete]="!pairingsComplete()"
-                     [class.step-expanded]="expandedSection() === 'pairings'">
-                    @if (expandedSection() !== 'pairings') {
-                        <span class="step-icon">
-                            @if (pairingsComplete()) {
-                                <i class="bi bi-check-circle-fill"></i>
-                            } @else {
-                                <span class="step-number">5</span>
-                            }
-                        </span>
-                        <span class="step-label">Pairings</span>
-                        <span class="step-status">{{ pairingsStatusLabel() }}</span>
-                        <span class="step-action">
-                            <button class="btn btn-sm btn-outline-primary step-btn"
-                                    (click)="toggleSection('pairings')">
-                                Edit <i class="bi bi-pencil"></i>
-                            </button>
-                        </span>
-                    }
+                     [class.step-active]="expandedSection() === 'pairings'"
+                     (click)="toggleSection('pairings')">
+                    <span class="step-icon">
+                        @if (pairingsComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">5</span>
+                        }
+                    </span>
+                    <span class="step-label">Guaranteed Games Per Agegroup</span>
+                    <span class="step-status">{{ pairingsStatusLabel() }}</span>
+                    <span class="step-action">
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'pairings'"
+                           [class.bi-chevron-right]="expandedSection() !== 'pairings'"></i>
+                    </span>
                 </div>
                 @if (expandedSection() === 'pairings') {
                     <app-pairings-section
                         [agegroups]="agegroups()"
                         [missingPairingTCnts]="missingPairingTCnts()"
                         [existingPairingRounds]="existingPairingRounds()"
+                        [gameGuarantee]="gameGuarantee()"
                         [isExpanded]="true"
                         [isGenerating]="isGeneratingPairings()"
                         (toggleExpanded)="toggleSection('pairings')"
-                        (generateRequested)="onPairingsGenerate($event)" />
+                        (generateRequested)="onPairingsGenerate($event)"
+                        (guaranteeSaveRequested)="onGuaranteeSave($event)" />
                 }
 
-                <!-- Section ⑥ Build (expandable) -->
+                <!-- Section ⑥ Build -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="totalGames() > 0 && completionPct() >= 100"
                      [class.step-incomplete]="completionPct() < 100"
-                     [class.step-expanded]="expandedSection() === 'build'">
-                    @if (expandedSection() !== 'build') {
-                        <span class="step-icon">
-                            @if (completionPct() >= 100) {
-                                <i class="bi bi-check-circle-fill"></i>
-                            } @else if (datesComplete() && fieldsComplete() && pairingsComplete()) {
-                                <i class="bi bi-play-circle text-primary"></i>
-                            } @else {
-                                <span class="step-number">6</span>
-                            }
-                        </span>
-                        <span class="step-label">Build</span>
-                        <span class="step-status">
-                            @if (totalGames() > 0) {
-                                {{ totalGames() }}/{{ totalExpected() }} games
-                            } @else if (datesComplete() && fieldsComplete() && pairingsComplete()) {
-                                Ready to build
-                            } @else {
-                                Waiting for prerequisites
-                            }
-                        </span>
-                        <span class="step-action">
-                            @if (datesComplete() && fieldsComplete() && pairingsComplete()) {
-                                <button class="btn btn-sm btn-primary step-btn"
-                                        [disabled]="isExecuting()"
-                                        (click)="$event.stopPropagation(); autoScheduleRequested.emit()">
-                                    <i class="bi bi-lightning-fill"></i>
-                                    {{ hasGamesInScope() ? 'Re-Schedule' : 'Build' }}
-                                </button>
-                            } @else {
-                                <button class="btn btn-sm btn-outline-secondary step-btn"
-                                        (click)="toggleSection('build')">
-                                    Details
-                                </button>
-                            }
-                        </span>
-                    }
+                     [class.step-active]="expandedSection() === 'build'"
+                     (click)="toggleSection('build')">
+                    <span class="step-icon">
+                        @if (completionPct() >= 100) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else if (datesComplete() && fieldsComplete() && pairingsComplete()) {
+                            <i class="bi bi-play-circle text-primary"></i>
+                        } @else {
+                            <span class="step-number">6</span>
+                        }
+                    </span>
+                    <span class="step-label">Build</span>
+                    <span class="step-status">
+                        @if (totalGames() > 0) {
+                            {{ totalGames() }}/{{ totalExpected() }} games
+                        } @else if (datesComplete() && fieldsComplete() && pairingsComplete()) {
+                            Ready to build
+                        } @else {
+                            Waiting for prerequisites
+                        }
+                    </span>
+                    <span class="step-action">
+                        @if (datesComplete() && fieldsComplete() && pairingsComplete()) {
+                            <button class="btn btn-sm btn-primary step-btn"
+                                    [disabled]="isExecuting()"
+                                    (click)="$event.stopPropagation(); autoScheduleRequested.emit()">
+                                <i class="bi bi-lightning-fill"></i>
+                                {{ hasGamesInScope() ? 'Re-Schedule' : 'Build' }}
+                            </button>
+                        }
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'build'"
+                           [class.bi-chevron-right]="expandedSection() !== 'build'"></i>
+                    </span>
                 </div>
                 @if (expandedSection() === 'build') {
                     <app-build-section
