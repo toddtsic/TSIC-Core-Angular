@@ -146,7 +146,8 @@
                         (applyRequested)="onFieldConfigApply($event)" />
                 }
 
-                <!-- Section ② Calendar & Structure -->
+                <!-- Section ② Agegroup Day & Wave Assignments (requires fields) -->
+                @if (fieldsComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="datesComplete()"
                      [class.step-incomplete]="!datesComplete()"
@@ -159,7 +160,7 @@
                             <span class="step-number">2</span>
                         }
                     </span>
-                    <span class="step-label">Calendar</span>
+                    <span class="step-label">Agegroup Day & Wave Assignments</span>
                     <span class="step-status">
                         <strong>{{ configuredCount() }}/{{ totalAgegroups() }}</strong> agegroups configured
                     </span>
@@ -183,8 +184,10 @@
                         (toggleExpanded)="toggleSection('calendar')"
                         (applyRequested)="onCalendarApply($event)" />
                 }
+                }
 
-                <!-- Section ③ Time Config -->
+                <!-- Section ③ Agegroup Scheduling Parameters (requires dates) -->
+                @if (datesComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="true"
                      [class.step-active]="expandedSection() === 'timeConfig'"
@@ -192,7 +195,7 @@
                     <span class="step-icon">
                         <i class="bi bi-check-circle-fill"></i>
                     </span>
-                    <span class="step-label">Time</span>
+                    <span class="step-label">Agegroup Scheduling Parameters</span>
                     <span class="step-status">
                         {{ effectiveGsi() }} min · Start {{ effectiveStartTime() }} · Max {{ effectiveMaxGames() }}/field
                     </span>
@@ -214,8 +217,10 @@
                         (toggleExpanded)="toggleSection('timeConfig')"
                         (saveRequested)="onTimeConfigSave($event)" />
                 }
+                }
 
-                <!-- Section ④ Strategy -->
+                <!-- Section ④ Strategy (requires dates) -->
+                @if (datesComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="strategyComplete()"
                      [class.step-incomplete]="!strategyComplete()"
@@ -332,7 +337,10 @@
                     </div>
                 }
 
-                <!-- Section ⑤ Pairings -->
+                }
+
+                <!-- Section ⑤ Pairings (requires dates) -->
+                @if (datesComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="pairingsComplete()"
                      [class.step-incomplete]="!pairingsComplete()"
@@ -365,8 +373,10 @@
                         (generateRequested)="onPairingsGenerate($event)"
                         (guaranteeSaveRequested)="onGuaranteeSave($event)" />
                 }
+                }
 
-                <!-- Section ⑥ Build -->
+                <!-- Section ⑥ Build (requires fields + dates + pairings) -->
+                @if (fieldsComplete() && datesComplete() && pairingsComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="totalGames() > 0 && completionPct() >= 100"
                      [class.step-incomplete]="completionPct() < 100"
@@ -421,6 +431,7 @@
                         [isExpanded]="true"
                         (toggleExpanded)="toggleSection('build')"
                         (buildRequested)="autoScheduleRequested.emit()" />
+                }
                 }
             </div>
         }

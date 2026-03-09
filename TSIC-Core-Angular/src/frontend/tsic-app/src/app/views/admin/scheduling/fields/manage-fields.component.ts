@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
 import {
     FieldManagementService,
@@ -15,7 +16,7 @@ type AssignedSortCol = keyof LeagueSeasonFieldDto | null;
 @Component({
     selector: 'app-manage-fields',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, RouterLink],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './manage-fields.component.html',
     styleUrl: './manage-fields.component.scss'
