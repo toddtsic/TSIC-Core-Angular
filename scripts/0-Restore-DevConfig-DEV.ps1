@@ -90,6 +90,177 @@ function BitOrNull($val) {
     if ($val) { return '1' } else { return '0' }
 }
 
+function Invoke-SqlNonQuery {
+    param([string]$Query)
+    $conn = New-Object System.Data.SqlClient.SqlConnection($ConnectionString)
+    $conn.Open()
+    $cmd = $conn.CreateCommand()
+    $cmd.CommandText = $Query
+    $cmd.ExecuteNonQuery() | Out-Null
+    $conn.Close()
+}
+
+# ── Ensure schemas & tables exist in dev DB ──
+# After a prod restore, these schemas won't exist yet. Create them so the
+# export queries below don't fail. Data will be empty, which is fine —
+# the generated PROD script will just have 0 rows for those sections.
+Write-Host ""
+Write-Host "Ensuring schemas & tables exist in dev DB..." -ForegroundColor Cyan
+
+$ensureDdl = @"
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'widgets')
+    EXEC('CREATE SCHEMA [widgets] AUTHORIZATION [dbo]');
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'widgets' AND t.name = 'WidgetCategory')
+    CREATE TABLE [widgets].[WidgetCategory] (
+        [CategoryId]   INT IDENTITY(1,1) NOT NULL,
+        [Name]         NVARCHAR(100)     NOT NULL,
+        [Workspace]    NVARCHAR(20)      NOT NULL,
+        [Icon]         NVARCHAR(50)      NULL,
+        [DefaultOrder] INT               NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_widgets_WidgetCategory] PRIMARY KEY CLUSTERED ([CategoryId])
+    );
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'widgets' AND t.name = 'Widget')
+    CREATE TABLE [widgets].[Widget] (
+        [WidgetId]      INT IDENTITY(1,1) NOT NULL,
+        [Name]          NVARCHAR(100)     NOT NULL,
+        [WidgetType]    NVARCHAR(30)      NOT NULL,
+        [ComponentKey]  NVARCHAR(100)     NOT NULL,
+        [CategoryId]    INT               NOT NULL,
+        [Description]   NVARCHAR(500)     NULL,
+        [DefaultConfig] NVARCHAR(MAX)     NULL,
+        CONSTRAINT [PK_widgets_Widget] PRIMARY KEY CLUSTERED ([WidgetId]),
+        CONSTRAINT [FK_widgets_Widget_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
+        CONSTRAINT [CK_widgets_Widget_WidgetType] CHECK ([WidgetType] IN ('content','chart-tile','status-tile'))
+    );
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'widgets' AND t.name = 'WidgetDefault')
+    CREATE TABLE [widgets].[WidgetDefault] (
+        [WidgetDefaultId] INT IDENTITY(1,1) NOT NULL,
+        [JobTypeId]       INT               NOT NULL,
+        [RoleId]          NVARCHAR(450)     NOT NULL,
+        [WidgetId]        INT               NOT NULL,
+        [CategoryId]      INT               NOT NULL,
+        [DisplayOrder]    INT               NOT NULL DEFAULT 0,
+        [Config]          NVARCHAR(MAX)     NULL,
+        CONSTRAINT [PK_widgets_WidgetDefault] PRIMARY KEY CLUSTERED ([WidgetDefaultId]),
+        CONSTRAINT [FK_widgets_WidgetDefault_JobTypeId] FOREIGN KEY ([JobTypeId]) REFERENCES [reference].[JobTypes] ([JobTypeId]),
+        CONSTRAINT [FK_widgets_WidgetDefault_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[AspNetRoles] ([Id]),
+        CONSTRAINT [FK_widgets_WidgetDefault_WidgetId] FOREIGN KEY ([WidgetId]) REFERENCES [widgets].[Widget] ([WidgetId]),
+        CONSTRAINT [FK_widgets_WidgetDefault_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
+        CONSTRAINT [UQ_widgets_WidgetDefault_JobType_Role_Widget_Category] UNIQUE ([JobTypeId], [RoleId], [WidgetId], [CategoryId])
+    );
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'widgets' AND t.name = 'JobWidget')
+    CREATE TABLE [widgets].[JobWidget] (
+        [JobWidgetId]  INT IDENTITY(1,1)    NOT NULL,
+        [JobId]        UNIQUEIDENTIFIER     NOT NULL,
+        [WidgetId]     INT                  NOT NULL,
+        [RoleId]       NVARCHAR(450)        NOT NULL,
+        [CategoryId]   INT                  NOT NULL,
+        [DisplayOrder] INT                  NOT NULL DEFAULT 0,
+        [IsEnabled]    BIT                  NOT NULL DEFAULT 1,
+        [Config]       NVARCHAR(MAX)        NULL,
+        CONSTRAINT [PK_widgets_JobWidget] PRIMARY KEY CLUSTERED ([JobWidgetId]),
+        CONSTRAINT [FK_widgets_JobWidget_JobId] FOREIGN KEY ([JobId]) REFERENCES [Jobs].[Jobs] ([JobId]),
+        CONSTRAINT [FK_widgets_JobWidget_WidgetId] FOREIGN KEY ([WidgetId]) REFERENCES [widgets].[Widget] ([WidgetId]),
+        CONSTRAINT [FK_widgets_JobWidget_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[AspNetRoles] ([Id]),
+        CONSTRAINT [FK_widgets_JobWidget_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
+        CONSTRAINT [UQ_widgets_JobWidget_Job_Widget_Role] UNIQUE ([JobId], [WidgetId], [RoleId])
+    );
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'widgets' AND t.name = 'UserWidget')
+    CREATE TABLE [widgets].[UserWidget] (
+        [UserWidgetId]   INT IDENTITY(1,1)    NOT NULL,
+        [RegistrationId] UNIQUEIDENTIFIER     NOT NULL,
+        [WidgetId]       INT                  NOT NULL,
+        [CategoryId]     INT                  NOT NULL,
+        [DisplayOrder]   INT                  NOT NULL DEFAULT 0,
+        [IsHidden]       BIT                  NOT NULL DEFAULT 0,
+        [Config]         NVARCHAR(MAX)        NULL,
+        CONSTRAINT [PK_widgets_UserWidget] PRIMARY KEY CLUSTERED ([UserWidgetId]),
+        CONSTRAINT [FK_widgets_UserWidget_Widget] FOREIGN KEY ([WidgetId]) REFERENCES [widgets].[Widget] ([WidgetId]),
+        CONSTRAINT [FK_widgets_UserWidget_Category] FOREIGN KEY ([CategoryId]) REFERENCES [widgets].[WidgetCategory] ([CategoryId]),
+        CONSTRAINT [UQ_widgets_UserWidget_Reg_Widget] UNIQUE ([RegistrationId], [WidgetId])
+    );
+
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'nav')
+    EXEC('CREATE SCHEMA [nav] AUTHORIZATION [dbo]');
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'nav' AND t.name = 'Nav')
+BEGIN
+    CREATE TABLE [nav].[Nav] (
+        [NavId]      INT IDENTITY(1,1)  NOT NULL,
+        [RoleId]     NVARCHAR(450)      NOT NULL,
+        [JobId]      UNIQUEIDENTIFIER   NULL,
+        [Active]     BIT                NOT NULL DEFAULT 1,
+        [Modified]   DATETIME2          NOT NULL DEFAULT GETDATE(),
+        [ModifiedBy] NVARCHAR(450)      NULL,
+        CONSTRAINT [PK_nav_Nav] PRIMARY KEY CLUSTERED ([NavId]),
+        CONSTRAINT [FK_nav_Nav_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[AspNetRoles] ([Id]),
+        CONSTRAINT [FK_nav_Nav_JobId] FOREIGN KEY ([JobId]) REFERENCES [Jobs].[Jobs] ([JobId]),
+        CONSTRAINT [FK_nav_Nav_ModifiedBy] FOREIGN KEY ([ModifiedBy]) REFERENCES [dbo].[AspNetUsers] ([Id])
+    );
+    CREATE UNIQUE INDEX [UQ_nav_Nav_Role_Job] ON [nav].[Nav] ([RoleId], [JobId]) WHERE [JobId] IS NOT NULL;
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'nav' AND t.name = 'NavItem')
+    CREATE TABLE [nav].[NavItem] (
+        [NavItemId]       INT IDENTITY(1,1) NOT NULL,
+        [NavId]           INT               NOT NULL,
+        [ParentNavItemId] INT               NULL,
+        [Active]          BIT               NOT NULL DEFAULT 1,
+        [SortOrder]       INT               NOT NULL DEFAULT 0,
+        [Text]            NVARCHAR(200)     NOT NULL,
+        [IconName]        NVARCHAR(100)     NULL,
+        [RouterLink]      NVARCHAR(500)     NULL,
+        [NavigateUrl]     NVARCHAR(500)     NULL,
+        [Target]          NVARCHAR(20)      NULL,
+        [Modified]        DATETIME2         NOT NULL DEFAULT GETDATE(),
+        [ModifiedBy]      NVARCHAR(450)     NULL,
+        CONSTRAINT [PK_nav_NavItem] PRIMARY KEY CLUSTERED ([NavItemId]),
+        CONSTRAINT [FK_nav_NavItem_NavId] FOREIGN KEY ([NavId]) REFERENCES [nav].[Nav] ([NavId]) ON DELETE CASCADE,
+        CONSTRAINT [FK_nav_NavItem_ParentNavItemId] FOREIGN KEY ([ParentNavItemId]) REFERENCES [nav].[NavItem] ([NavItemId]),
+        CONSTRAINT [FK_nav_NavItem_ModifiedBy] FOREIGN KEY ([ModifiedBy]) REFERENCES [dbo].[AspNetUsers] ([Id])
+    );
+
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'logs')
+    EXEC('CREATE SCHEMA logs');
+
+IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'logs' AND t.name = 'AppLog')
+    CREATE TABLE logs.AppLog (
+        Id            bigint IDENTITY(1,1) NOT NULL PRIMARY KEY CLUSTERED,
+        TimeStamp     datetimeoffset(7)    NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+        Level         nvarchar(16)         NOT NULL,
+        Message       nvarchar(max)        NULL,
+        Exception     nvarchar(max)        NULL,
+        Properties    nvarchar(max)        NULL,
+        SourceContext  nvarchar(512)        NULL,
+        RequestPath   nvarchar(512)        NULL,
+        StatusCode    int                  NULL,
+        Elapsed       float                NULL
+    );
+
+IF NOT EXISTS (SELECT * FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'stores' AND t.name = 'StoreItemImage')
+    CREATE TABLE stores.StoreItemImage (
+        StoreItemImageId INT IDENTITY(1,1) PRIMARY KEY,
+        StoreItemId      INT NOT NULL,
+        ImageUrl         NVARCHAR(500) NOT NULL,
+        DisplayOrder     INT NOT NULL DEFAULT 0,
+        AltText          NVARCHAR(200) NULL,
+        Modified         DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        LebUserId        NVARCHAR(128) NOT NULL,
+        CONSTRAINT FK_StoreItemImage_StoreItem FOREIGN KEY (StoreItemId) REFERENCES stores.StoreItems(StoreItemId)
+    );
+
+IF COL_LENGTH('Jobs.Jobs', 'AdultProfileMetadataJson') IS NULL
+    ALTER TABLE Jobs.Jobs ADD AdultProfileMetadataJson NVARCHAR(MAX) NULL;
+"@
+
+Invoke-SqlNonQuery -Query $ensureDdl
+Write-Host "  Schemas & tables verified." -ForegroundColor Gray
+
 # ── Query dev DB ──
 Write-Host ""
 Write-Host "Querying dev database..." -ForegroundColor Cyan
@@ -106,7 +277,7 @@ Write-Host "  Widgets:     $($categories.Rows.Count) categories, $($widgets.Rows
 $navs     = Invoke-Sql "SELECT NavId, RoleId, JobId, Active FROM nav.Nav WHERE JobId IS NULL ORDER BY NavId"
 $navItems = Invoke-Sql "SELECT ni.NavItemId, ni.NavId, ni.ParentNavItemId, ni.Active, ni.SortOrder, ni.[Text], ni.IconName, ni.RouterLink, ni.NavigateUrl, ni.Target FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL ORDER BY ni.ParentNavItemId, ni.SortOrder"
 
-$parentCount = ($navItems.Rows | Where-Object { $_.ParentNavItemId -is [System.DBNull] }).Count
+$parentCount = @($navItems.Rows | Where-Object { $_.ParentNavItemId -is [System.DBNull] }).Count
 $childCount = $navItems.Rows.Count - $parentCount
 Write-Host "  Nav:         $($navs.Rows.Count) navs, $($navItems.Rows.Count) items ($parentCount parents, $childCount children)" -ForegroundColor Gray
 
@@ -499,8 +670,8 @@ $sb.AppendLine("PRINT '  Loaded $($navs.Rows.Count) platform default navs';") | 
 $sb.AppendLine("") | Out-Null
 
 # Parents first (ParentNavItemId IS NULL), then children
-$parents  = $navItems.Rows | Where-Object { $_.ParentNavItemId -is [System.DBNull] }
-$children = $navItems.Rows | Where-Object { -not ($_.ParentNavItemId -is [System.DBNull]) }
+$parents  = @($navItems.Rows | Where-Object { $_.ParentNavItemId -is [System.DBNull] })
+$children = @($navItems.Rows | Where-Object { -not ($_.ParentNavItemId -is [System.DBNull]) })
 
 $sb.AppendLine("SET IDENTITY_INSERT [nav].[NavItem] ON;") | Out-Null
 $sb.AppendLine("") | Out-Null
