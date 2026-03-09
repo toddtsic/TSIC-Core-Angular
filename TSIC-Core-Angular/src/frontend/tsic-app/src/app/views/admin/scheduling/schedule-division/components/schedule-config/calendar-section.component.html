@@ -2,6 +2,7 @@
 <!-- Calendar Section — Stepper Section ②        -->
 <!-- Collapsed: summary + edit button             -->
 <!-- Expanded: date chips + date×agegroup matrix  -->
+<!--   with rounds-per-day dropdowns              -->
 <!-- ═════════════════════════════════════════════ -->
 
 <!-- ── Collapsed View ── -->
@@ -72,7 +73,7 @@
 
         <!-- ── Guidance text ── -->
         <div class="matrix-guidance">
-            Check the days each agegroup plays. The system distributes rounds across checked dates.
+            Set rounds per day for each agegroup. One day must be "Remaining" to absorb round count changes.
         </div>
 
         <!-- ── Date × Agegroup Matrix ── -->
@@ -94,28 +95,43 @@
                     <!-- One row per agegroup -->
                     @for (row of agRows(); track row.agegroupId) {
                         <div class="matrix-row">
-                            <!-- AG info cell -->
+                            <!-- AG info cell with expand chevron -->
                             <div class="matrix-cell matrix-cell-ag">
-                                <span class="ag-badge"
-                                      [style.background]="row.color ?? 'var(--bs-secondary)'"
-                                      [style.color]="contrastText(row.color)">
-                                    {{ row.agegroupName }}
-                                </span>
-                                <span class="ag-count-badges">
-                                    <span class="ag-count-badge">{{ row.teamCount }}t</span>
-                                    <span class="ag-count-badge">{{ row.divisionCount }}d</span>
-                                </span>
+                                <div class="ag-cell-row">
+                                    @if (row.divisions.length > 1) {
+                                        <button class="ag-expand-btn"
+                                                (click)="$event.stopPropagation(); toggleAgExpand(row.agegroupId)"
+                                                title="Show per-division overrides">
+                                            <i class="bi"
+                                               [class.bi-chevron-down]="isAgExpanded(row.agegroupId)"
+                                               [class.bi-chevron-right]="!isAgExpanded(row.agegroupId)"></i>
+                                        </button>
+                                    }
+                                    <span class="ag-badge"
+                                          [style.background]="row.color ?? 'var(--bs-secondary)'"
+                                          [style.color]="contrastText(row.color)">
+                                        {{ row.agegroupName }}
+                                    </span>
+                                    <span class="ag-count-badges">
+                                        <span class="ag-count-badge">{{ row.teamCount }}t</span>
+                                        <span class="ag-count-badge">{{ row.divisionCount }}d</span>
+                                        <span class="ag-count-badge">{{ row.maxRounds }}r</span>
+                                    </span>
+                                </div>
                             </div>
 
-                            <!-- Per-date checkbox cells -->
+                            <!-- Per-date dropdown cells -->
                             @for (d of allDates(); track d.isoDate) {
                                 <div class="matrix-cell matrix-cell-date">
-                                    <label class="matrix-checkbox-label">
-                                        <input type="checkbox"
-                                               class="matrix-checkbox"
-                                               [checked]="isCellChecked(row.agegroupId, d.isoDate)"
-                                               (change)="toggleCell(row.agegroupId, d.isoDate)">
-                                    </label>
+                                    <select class="rpd-select"
+                                            [value]="getCellSelectValue(row.agegroupId, d.isoDate)"
+                                            (change)="onCellChange(row.agegroupId, d.isoDate, $any($event.target).value)">
+                                        <option value="off">—</option>
+                                        @for (i of [].constructor(row.maxRounds); track $index) {
+                                            <option [value]="$index + 1">{{ $index + 1 }}</option>
+                                        }
+                                        <option value="remaining">Rem</option>
+                                    </select>
                                 </div>
                             }
 
@@ -128,9 +144,63 @@
                                 </button>
                             </div>
                         </div>
+
+                        <!-- ── Per-division drill-down rows ── -->
+                        @if (isAgExpanded(row.agegroupId)) {
+                            @for (div of row.divisions; track div.divId) {
+                                <div class="matrix-row matrix-row-division">
+                                    <div class="matrix-cell matrix-cell-ag matrix-cell-div">
+                                        <div class="div-cell-row">
+                                            <span class="div-indent"></span>
+                                            <span class="div-name">{{ div.divName }}</span>
+                                            <span class="ag-count-badges">
+                                                <span class="ag-count-badge">{{ div.teamCount }}t</span>
+                                                <span class="ag-count-badge">{{ div.rounds }}r</span>
+                                            </span>
+                                            @if (isDivOverridden(div.divId)) {
+                                                <button class="div-reset-btn"
+                                                        (click)="resetDivOverride(div.divId)"
+                                                        title="Reset to agegroup default">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    @for (d of allDates(); track d.isoDate) {
+                                        <div class="matrix-cell matrix-cell-date">
+                                            <select class="rpd-select rpd-select-div"
+                                                    [class.rpd-inherited]="!isDivOverridden(div.divId)"
+                                                    [value]="getDivCellSelectValue(div.divId, row.agegroupId, d.isoDate)"
+                                                    (change)="onDivCellChange(div.divId, d.isoDate, $any($event.target).value)">
+                                                <option value="off">—</option>
+                                                @for (i of [].constructor(div.rounds); track $index) {
+                                                    <option [value]="$index + 1">{{ $index + 1 }}</option>
+                                                }
+                                                <option value="remaining">Rem</option>
+                                            </select>
+                                        </div>
+                                    }
+
+                                    <!-- Empty wave cell for alignment -->
+                                    <div class="matrix-cell matrix-cell-wave"></div>
+                                </div>
+                            }
+                        }
                     }
                 </div>
             </div>
+
+            <!-- ── Validation errors ── -->
+            @if (validationErrors().length > 0) {
+                <div class="validation-errors">
+                    @for (err of validationErrors(); track err) {
+                        <div class="validation-error">
+                            <i class="bi bi-exclamation-triangle-fill"></i> {{ err }}
+                        </div>
+                    }
+                </div>
+            }
         } @else if (dateCount() === 0) {
             <div class="matrix-empty">
                 Add game dates above to configure agegroup assignments.
@@ -144,7 +214,7 @@
                 Cancel
             </button>
             <button class="btn btn-sm btn-primary"
-                    [disabled]="isApplying() || dateCount() === 0 || !hasPendingChanges()"
+                    [disabled]="isApplying() || dateCount() === 0 || !hasPendingChanges() || !isValid()"
                     (click)="onApply()">
                 @if (isApplying()) {
                     <span class="spinner-border spinner-border-sm"></span>

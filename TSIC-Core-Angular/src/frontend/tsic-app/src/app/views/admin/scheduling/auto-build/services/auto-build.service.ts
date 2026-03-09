@@ -12,6 +12,7 @@ import type {
     GameSummaryResponse,
     PrerequisiteCheckResponse,
     ProfileExtractionResponse,
+    ProjectedScheduleConfigDto,
     SaveGameGuaranteeRequest,
     SaveGameGuaranteeResponse,
 } from '@core/api';
@@ -73,6 +74,12 @@ export class AutoBuildService {
         return this.http.put<DivisionStrategyProfileResponse>(
             `${this.apiUrl}/strategy-profiles`,
             strategies
+        );
+    }
+
+    getProjectedConfig(sourceJobId: string): Observable<ProjectedScheduleConfigDto> {
+        return this.http.get<ProjectedScheduleConfigDto>(
+            `${this.apiUrl}/projected-config?sourceJobId=${sourceJobId}`
         );
     }
 

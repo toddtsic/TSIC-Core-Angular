@@ -149,6 +149,25 @@ public class AutoBuildController : ControllerBase
     }
 
     /// <summary>
+    /// GET /api/auto-build/projected-config — Read-only projection of schedule config from prior year.
+    /// Returns projected dates, per-day field assignments, rounds-per-day, and timing defaults
+    /// derived from the source job's game records. No DB writes.
+    /// </summary>
+    [HttpGet("projected-config")]
+    public async Task<ActionResult<ProjectedScheduleConfigDto>> GetProjectedConfig(
+        [FromQuery] Guid sourceJobId, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.ProjectConfigFromSourceAsync(jobId!.Value, sourceJobId, ct);
+        if (result == null)
+            return NotFound(new { message = "Unable to project config from source job" });
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// POST /api/auto-build/ensure-pairings — Auto-generate round-robin pairings for missing team counts.
     /// </summary>
     [HttpPost("ensure-pairings")]

@@ -39,6 +39,37 @@
             </button>
         </div>
 
+        <!-- ── Prior Year Fields by Day (read-only reference) ── -->
+        @if (hasPriorFieldsByDay()) {
+            <div class="prior-fields-panel">
+                <div class="prior-fields-header">
+                    <i class="bi bi-clock-history"></i>
+                    Prior year field usage
+                    @if (priorYearLabel()) {
+                        <span class="prior-fields-source">({{ priorYearLabel() }})</span>
+                    }
+                </div>
+                <div class="prior-fields-list">
+                    @for (entry of priorFieldsByDay(); track entry.agegroupId) {
+                        <div class="prior-fields-ag">
+                            <span class="ag-col-badge"
+                                  [style.background]="entry.color ?? 'var(--bs-secondary)'"
+                                  [style.color]="contrastText(entry.color)">
+                                {{ entry.agegroupName }}
+                            </span>
+                            <div class="prior-fields-days">
+                                @for (day of entry.days; track day.dow) {
+                                    <span class="prior-field-day">
+                                        <strong>{{ day.dow }}:</strong> {{ day.fields.join(', ') }}
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
         <!-- ── Matrix ── -->
         @if (eventFields().length > 0 && agegroups().length > 0) {
             <div class="matrix-wrapper">

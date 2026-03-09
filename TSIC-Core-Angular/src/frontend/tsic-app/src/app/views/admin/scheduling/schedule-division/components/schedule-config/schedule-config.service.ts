@@ -20,7 +20,8 @@ import type {
     PriorYearFieldDefaults,
     DivisionStrategyEntry,
     BulkDateAssignRequest,
-    BulkDateAgegroupEntry
+    BulkDateAgegroupEntry,
+    ProjectedScheduleConfigDto
 } from '@core/api';
 import type {
     ScheduleConfig,
@@ -116,6 +117,10 @@ export class ScheduleConfigService {
     /**
      * Initialize config by merging all available sources.
      * Called once when schedule-division loads readiness data.
+     *
+     * When prior year exists and no saved/current config, fetches the
+     * read-only projected config from the backend to pre-populate
+     * dates, per-day fields, rounds-per-day, and timing defaults.
      */
     initialize(
         readiness: CanvasReadinessResponse,
@@ -135,33 +140,56 @@ export class ScheduleConfigService {
             this.priorYearLabel.set(label);
         }
 
-        // ── Check Scenario B: localStorage saved config ──
-        const saved = this.loadFromLocalStorage(jobId);
-        if (saved) {
-            this.scenario.set('saved');
-            this.config.set(saved);
-            this.isInitializing.set(false);
-            return;
-        }
-
-        // ── Check Scenario A: prior year exists ──
-        if (priorYear) {
-            this.scenario.set('prior-year');
-        } else {
-            this.scenario.set('new');
-        }
-
         // ── Filter readiness agegroups to only those in the schedulable agegroups list ──
-        // This excludes Dropped/Waitlist agegroups from wave inference, R/day inference,
-        // and GSI/StartTime derivation — preventing non-schedulable agegroups from
-        // polluting the config with stale or irrelevant data.
         const schedulableIds = new Set(agegroups.map(a => a.agegroupId));
         const filteredReadiness: CanvasReadinessResponse = {
             ...readiness,
             agegroups: readiness.agegroups.filter(a => schedulableIds.has(a.agegroupId))
         };
 
-        // ── Build config by merging sources ──
+        // ── Check: does DB already have config (dates/fields)? ──
+        const hasCurrentDbConfig = filteredReadiness.agegroups.some(a => a.isConfigured);
+
+        // ── localStorage cache: performance shortcut when DB already has config ──
+        const saved = this.loadFromLocalStorage(jobId);
+        if (saved && hasCurrentDbConfig) {
+            this.scenario.set('saved');
+            this.config.set(saved);
+            this.isInitializing.set(false);
+            return;
+        }
+
+        // ── Scenario A: prior year exists, no saved config, no current DB config ──
+        // Fetch projected config to pre-populate everything from prior year
+        if (priorYear?.priorJobId && !hasCurrentDbConfig) {
+            this.scenario.set('prior-year');
+            this.autoBuildSvc.getProjectedConfig(priorYear.priorJobId).subscribe({
+                next: (projected) => {
+                    const config = this.buildConfigFromProjection(
+                        jobId, eventType, projected, agegroups, strategies, strategySource
+                    );
+                    this.config.set(config);
+                    this.isInitializing.set(false);
+                },
+                error: () => {
+                    // Projection failed — fall back to default merge
+                    const config = this.buildConfig(
+                        jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
+                    );
+                    this.config.set(config);
+                    this.isInitializing.set(false);
+                }
+            });
+            return;
+        }
+
+        // ── Scenario C: no prior year or DB already configured ──
+        if (priorYear) {
+            this.scenario.set('prior-year');
+        } else {
+            this.scenario.set('new');
+        }
+
         const config = this.buildConfig(
             jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
         );
@@ -273,6 +301,140 @@ export class ScheduleConfigService {
             dates,
             fieldIds,
             fieldMappingScope,
+            gsiScope,
+            gsi,
+            startTimeScope,
+            startTime,
+            maxGamesPerField,
+            roundsPerAg,
+            waveAssignments,
+            roundsPerDay,
+            placement,
+            gapPattern
+        };
+    }
+
+    /**
+     * Build a fully pre-populated config from the projected prior year data.
+     * Every field gets source='prior-year' with the source job label.
+     */
+    private buildConfigFromProjection(
+        jobId: string,
+        eventType: 'league' | 'tournament',
+        projected: ProjectedScheduleConfigDto,
+        agegroups: { agegroupId: string; agegroupName: string; teamCount: number }[],
+        strategies: DivisionStrategyEntry[],
+        strategySource: string
+    ): ScheduleConfig {
+        const pyLabel = `${projected.sourceJobName} ${projected.sourceYear}`;
+
+        // ── Map projected agegroups by name for matching ──
+        const projByName = new Map(
+            projected.agegroups.map(pa => [pa.agegroupName.toLowerCase(), pa])
+        );
+
+        // ── Collect all unique dates across all projected agegroups ──
+        const allDates = new Set<string>();
+        const projectedDatesMap: Record<string, { date: string; rounds: number; dow: string }[]> = {};
+        const fieldsByDayMap: Record<string, Record<string, string[]>> = {};
+        const roundsPerDay: Record<string, number> = {};
+
+        for (const ag of agegroups) {
+            const proj = projByName.get(ag.agegroupName.toLowerCase());
+            if (proj) {
+                // Per-agegroup dates with rounds
+                projectedDatesMap[ag.agegroupId] = proj.gameDays.map(gd => ({
+                    date: gd.date.substring(0, 10),
+                    rounds: gd.rounds,
+                    dow: gd.dow
+                }));
+                for (const gd of proj.gameDays) {
+                    allDates.add(gd.date.substring(0, 10));
+                }
+
+                // Per-day field assignments
+                if (Object.keys(proj.fieldsByDay).length > 0) {
+                    fieldsByDayMap[ag.agegroupId] = proj.fieldsByDay;
+                }
+
+                // Rounds-per-day: use first game day's rounds as representative
+                if (proj.gameDays.length > 0) {
+                    roundsPerDay[ag.agegroupId] = proj.gameDays[0].rounds;
+                } else {
+                    roundsPerDay[ag.agegroupId] = 1;
+                }
+            } else {
+                roundsPerDay[ag.agegroupId] = 1;
+            }
+        }
+
+        const sortedDates = [...allDates].sort();
+
+        // ── Rounds per agegroup: sum of all game day rounds ──
+        const roundsPerAg: Record<string, ScheduleConfigValue<number>> = {};
+        for (const ag of agegroups) {
+            const proj = projByName.get(ag.agegroupName.toLowerCase());
+            if (proj && proj.gameDays.length > 0) {
+                const totalRounds = proj.gameDays.reduce((sum, gd) => sum + gd.rounds, 0);
+                roundsPerAg[ag.agegroupId] = wrap(totalRounds, 'prior-year', pyLabel);
+            } else {
+                roundsPerAg[ag.agegroupId] = wrap(rrRounds(ag.teamCount), 'default');
+            }
+        }
+
+        // ── Timing: from projected per-agegroup data → uniform or per-ag ──
+        const projTimings = agegroups
+            .map(ag => projByName.get(ag.agegroupName.toLowerCase()))
+            .filter((p): p is NonNullable<typeof p> => p != null);
+
+        const allGsiSame = projTimings.length > 0 && projTimings.every(p => p.gsi === projTimings[0].gsi);
+        const allStartSame = projTimings.length > 0 && projTimings.every(p => p.startTime === projTimings[0].startTime);
+
+        const gsiScope: ScheduleConfigValue<'same' | 'per-ag'> = wrap(
+            allGsiSame ? 'same' : 'per-ag', 'prior-year', pyLabel
+        );
+        const gsi: ScheduleConfigValue<number | Record<string, number>> = allGsiSame
+            ? wrap(projTimings[0]?.gsi ?? projected.timingDefaults.gsi, 'prior-year', pyLabel)
+            : wrap(
+                Object.fromEntries(
+                    agegroups
+                        .map(ag => [ag.agegroupId, projByName.get(ag.agegroupName.toLowerCase())?.gsi ?? projected.timingDefaults.gsi])
+                ),
+                'prior-year', pyLabel
+            );
+
+        const startTimeScope: ScheduleConfigValue<'same' | 'per-ag'> = wrap(
+            allStartSame ? 'same' : 'per-ag', 'prior-year', pyLabel
+        );
+        const startTime: ScheduleConfigValue<string | Record<string, string>> = allStartSame
+            ? wrap(projTimings[0]?.startTime ?? projected.timingDefaults.startTime, 'prior-year', pyLabel)
+            : wrap(
+                Object.fromEntries(
+                    agegroups
+                        .map(ag => [ag.agegroupId, projByName.get(ag.agegroupName.toLowerCase())?.startTime ?? projected.timingDefaults.startTime])
+                ),
+                'prior-year', pyLabel
+            );
+
+        const maxGamesPerField: ScheduleConfigValue<number> = wrap(
+            projected.timingDefaults.maxGamesPerField, 'prior-year', pyLabel
+        );
+
+        // ── Strategy ──
+        const { placement, gapPattern } = this.deriveStrategy(strategies, strategySource, pyLabel);
+
+        // ── Waves: default all to 1 (not derived from prior year) ──
+        const waveAssignments: Record<string, number> = {};
+        for (const ag of agegroups) waveAssignments[ag.agegroupId] = 1;
+
+        return {
+            jobId,
+            eventType,
+            dates: wrap(sortedDates, 'prior-year', pyLabel),
+            projectedDates: wrap(projectedDatesMap, 'prior-year', pyLabel),
+            fieldIds: wrap([], 'prior-year', pyLabel),
+            fieldMappingScope: wrap('per-ag', 'prior-year', pyLabel),
+            fieldsByDay: wrap(fieldsByDayMap, 'prior-year', pyLabel),
             gsiScope,
             gsi,
             startTimeScope,

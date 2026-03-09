@@ -2502,6 +2502,155 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         return new FieldSeedResult { AgegroupsSeeded = seeded, TimeslotRowsCreated = newTimeslots.Count };
     }
 
+    /// <summary>
+    /// Read-only projection of a complete schedule configuration derived from a prior year's
+    /// game records. Returns the same derived data that SeedDatesFromSourceAsync and
+    /// SeedFieldAssignmentsFromSourceAsync would write — but as a DTO, without touching the DB.
+    /// The frontend uses this to pre-populate the stepper for director review before committing.
+    /// </summary>
+    public async Task<ProjectedScheduleConfigDto?> ProjectConfigFromSourceAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+        var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
+        var yearDelta = ComputeYearDelta(sourceYear, year);
+
+        var sourceJobName = await _autoBuildRepo.GetJobNameAsync(sourceJobId, ct) ?? "Unknown";
+
+        // ── 1. Dates: derive projected game days per agegroup ──
+        var sourceDates = await _autoBuildRepo.GetSourceDatesAsync(sourceJobId, ct);
+        var dateNameMap = AgegroupNameMapper.BuildNameMap(sourceDates.Keys, yearDelta);
+
+        // ── 2. Field usage: derive per-day field assignments per agegroup ──
+        var sourceUsage = await _autoBuildRepo.GetSourceFieldUsageAsync(sourceJobId, ct);
+        var fieldNameMap = yearDelta != 0
+            ? AgegroupNameMapper.BuildNameMap(sourceUsage.Keys, yearDelta)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Map source field names → current field names (address-based)
+        var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
+        var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
+        var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
+        var currentFieldNames = currentFields.Select(f => f.FName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // ── 3. Timing: extract source profiles for GSI/start time defaults ──
+        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
+        if (yearDelta != 0)
+            sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yearDelta);
+        var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
+        var profiles = AttributeExtractor.ExtractProfiles(
+            patterns, sourceDivisions, null, sourceWindow);
+
+        // Event-level dominant timing from source
+        var (srcLeagueId, srcSeason, srcYear) = await _contextResolver.ResolveAsync(sourceJobId, ct);
+        var dominant = await _timeslotRepo.GetDominantFieldDefaultsAsync(srcLeagueId, srcSeason, srcYear, ct);
+
+        // ── 4. Current agegroups for name matching ──
+        var currentAgegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, ct);
+
+        // ── 5. Build projected config per agegroup ──
+        var projectedAgegroups = new List<ProjectedAgegroupConfig>();
+
+        // Merge date + field sources by mapped agegroup name
+        var allSourceNames = sourceDates.Keys
+            .Union(sourceUsage.Keys, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var srcAgName in allSourceNames)
+        {
+            var mappedName = dateNameMap.GetValueOrDefault(srcAgName,
+                fieldNameMap.GetValueOrDefault(srcAgName, srcAgName));
+            var currentAg = currentAgegroups.FirstOrDefault(
+                a => string.Equals(a.AgegroupName, mappedName, StringComparison.OrdinalIgnoreCase));
+
+            if (currentAg == null) continue;
+
+            // Dates
+            var gameDays = new List<ProjectedGameDay>();
+            if (sourceDates.TryGetValue(srcAgName, out var dateEntries))
+            {
+                foreach (var entry in dateEntries)
+                {
+                    var projectedDate = yearDelta != 0
+                        ? AdvanceDateToMatchDow(entry.GDate, yearDelta)
+                        : entry.GDate;
+                    gameDays.Add(new ProjectedGameDay
+                    {
+                        Date = projectedDate,
+                        Rounds = entry.Rnd,
+                        Dow = projectedDate.DayOfWeek.ToString()
+                    });
+                }
+            }
+
+            // Per-day field assignments
+            var fieldsByDay = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            if (sourceUsage.TryGetValue(srcAgName, out var fieldUsages))
+            {
+                foreach (var usage in fieldUsages)
+                {
+                    var resolvedName = fieldMap.GetValueOrDefault(usage.FieldName, usage.FieldName);
+                    // Only include fields that exist in the current event
+                    if (!currentFieldNames.Contains(resolvedName)) continue;
+
+                    foreach (var dow in usage.DaysUsed)
+                    {
+                        var dowStr = dow.ToString();
+                        if (!fieldsByDay.TryGetValue(dowStr, out var list))
+                        {
+                            list = new List<string>();
+                            fieldsByDay[dowStr] = list;
+                        }
+                        if (!list.Contains(resolvedName, StringComparer.OrdinalIgnoreCase))
+                            list.Add(resolvedName);
+                    }
+                }
+            }
+
+            // Per-agegroup timing from source profile
+            var srcDiv = sourceDivisions.FirstOrDefault(
+                d => string.Equals(d.AgegroupName, mappedName, StringComparison.OrdinalIgnoreCase));
+            var profile = srcDiv != null ? profiles.GetValueOrDefault(srcDiv.TeamCount) : null;
+            var agGsi = profile?.GsiMinutes ?? dominant?.GamestartInterval ?? 45;
+
+            var agStartTimeRange = profile?.TimeRangeAbsolute.Values.FirstOrDefault();
+            var agStartTime = agStartTimeRange != null
+                ? DateTime.Today.Add(agStartTimeRange.Start).ToString("hh:mm tt")
+                : dominant?.StartTime ?? "08:00 AM";
+
+            var startMinutes = agStartTimeRange?.Start.TotalMinutes ?? 480;
+            var availableMinutes = 1320 - startMinutes;
+            var agMaxGames = agGsi > 0
+                ? Math.Max(2, (int)Math.Floor(availableMinutes / agGsi))
+                : dominant?.MaxGamesPerField ?? 14;
+
+            projectedAgegroups.Add(new ProjectedAgegroupConfig
+            {
+                AgegroupId = currentAg.AgegroupId,
+                AgegroupName = currentAg.AgegroupName ?? mappedName,
+                GameDays = gameDays.OrderBy(d => d.Date).ToList(),
+                FieldsByDay = fieldsByDay,
+                Gsi = agGsi,
+                StartTime = agStartTime,
+                MaxGamesPerField = agMaxGames
+            });
+        }
+
+        return new ProjectedScheduleConfigDto
+        {
+            SourceJobId = sourceJobId,
+            SourceJobName = sourceJobName,
+            SourceYear = sourceYear ?? "",
+            Agegroups = projectedAgegroups,
+            TimingDefaults = new ProjectedTimingDefaults
+            {
+                Gsi = dominant?.GamestartInterval ?? 45,
+                StartTime = dominant?.StartTime ?? "08:00 AM",
+                MaxGamesPerField = dominant?.MaxGamesPerField ?? 14
+            }
+        };
+    }
+
     public async Task<PreconfigureResult> PreconfigureFromSourceAsync(
         Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default)
     {

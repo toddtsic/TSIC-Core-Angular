@@ -21,8 +21,12 @@ export interface ScheduleConfig {
     jobId: string;
     eventType: 'league' | 'tournament';
 
-    // ── Calendar (Section ②) ──
-    dates: ScheduleConfigValue<string[]>; // ISO dates
+    // ── Game Days (Section ①) ──
+    dates: ScheduleConfigValue<string[]>; // ISO dates (union of all agegroup dates)
+
+    // ── Per-agegroup projected dates (from prior year projection) ──
+    // agegroupId → { isoDate, rounds, dow }[]
+    projectedDates?: ScheduleConfigValue<Record<string, { date: string; rounds: number; dow: string }[]>>;
 
     // League-specific (Nodes 2L–5L)
     dow?: ScheduleConfigValue<string>;          // "Saturday"
@@ -38,6 +42,10 @@ export interface ScheduleConfig {
     fieldIds: ScheduleConfigValue<string[]>;
     fieldMappingScope: ScheduleConfigValue<'shared' | 'per-ag' | 'per-div'>;
     fieldMapping?: ScheduleConfigValue<Record<string, string[]>>; // agId or divId → fieldId[]
+
+    // ── Per-day field assignments (derived from prior year game records) ──
+    // agegroupId → { dow → fieldName[] } — e.g. { "Saturday": ["Field 1", "Field 2"] }
+    fieldsByDay?: ScheduleConfigValue<Record<string, Record<string, string[]>>>;
 
     // ── Time Config (Section ③, Nodes C3–C5) ──
     gsiScope: ScheduleConfigValue<'same' | 'per-ag'>;
@@ -67,7 +75,7 @@ export type Freshness = 'valid' | 'stale' | 'missing';
 
 // ── Stepper section expand/collapse state ──
 
-export type StepperSection = 'fields' | 'calendar' | 'timeConfig' | 'strategy' | 'pairings' | 'build';
+export type StepperSection = 'gameDays' | 'fields' | 'calendar' | 'timeConfig' | 'strategy' | 'pairings' | 'build';
 
 // ── Scope for scoped operations ──
 

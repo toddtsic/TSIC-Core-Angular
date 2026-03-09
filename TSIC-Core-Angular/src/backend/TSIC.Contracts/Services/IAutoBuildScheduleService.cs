@@ -64,7 +64,16 @@ public interface IAutoBuildScheduleService
     Task<EnsurePairingsResponse> EnsurePairingsAsync(
         Guid jobId, string userId, EnsurePairingsRequest request, CancellationToken ct = default);
 
-    // ── Source Preconfiguration (returning tournament carry-forward) ──
+    // ── Source Projection & Preconfiguration ──
+
+    /// <summary>
+    /// Read-only projection of a complete schedule configuration derived from the source job's
+    /// game records. Returns projected dates, per-day field assignments, rounds-per-day, and
+    /// timing defaults — without writing anything to the DB.
+    /// Used to pre-populate the stepper for director review before committing.
+    /// </summary>
+    Task<ProjectedScheduleConfigDto?> ProjectConfigFromSourceAsync(
+        Guid jobId, Guid sourceJobId, CancellationToken ct = default);
 
     /// <summary>
     /// Carry forward agegroup colors from the source job.

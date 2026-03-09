@@ -20,7 +20,12 @@
       "Bash(git pull)",
       "WebFetch(domain:www.usclublax.com)",
       "Read(//c/Websites/TSIC.App/**)",
-      "Read(//c/Users/Administrator/.claude/projects/c--Users-Administrator-source-TSIC-Core-Angular/f250af54-cf2e-439c-ba74-591e5043eb82/tool-results/**)"
+      "Read(//c/Users/Administrator/.claude/projects/c--Users-Administrator-source-TSIC-Core-Angular/f250af54-cf2e-439c-ba74-591e5043eb82/tool-results/**)",
+      "Bash(pip install openpyxl xlrd)",
+      "Bash(python3 -c \":*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File /tmp/read_excel.ps1 -FilePath \"docs/Scheduling/lbts2026MasterSchedule-PROD.xls\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File /tmp/read_excel.ps1 -FilePath \"docs/Scheduling/lbts2026MasterSchedule-DEV.xlsx\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \":*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

@@ -9,11 +9,12 @@
  * (AG names are short like U8, U10 → narrow columns; field names need width.)
  */
 
-import { Component, ChangeDetectionStrategy, computed, effect, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { AgegroupCanvasReadinessDto, EventFieldSummaryDto } from '@core/api';
 import type { AgegroupWithDivisionsDto } from '../../services/schedule-division.service';
 import type { FieldConfigApplyEvent } from './schedule-config.types';
+import { ScheduleConfigService } from './schedule-config.service';
 import { contrastText } from '../../../shared/utils/scheduling-helpers';
 
 /** 2D cell map: cellMap[fieldId][agegroupId] = checked */
@@ -28,6 +29,9 @@ type FieldCellMap = Record<string, Record<string, boolean>>;
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FieldConfigSectionComponent {
+    // ── Injected (provided at ScheduleDivisionComponent level) ──
+    private readonly configSvc = inject(ScheduleConfigService);
+
     // ── Inputs ──
     readonly agegroups = input<AgegroupWithDivisionsDto[]>([]);
     readonly readinessMap = input<Record<string, AgegroupCanvasReadinessDto>>({});
@@ -110,6 +114,42 @@ export class FieldConfigSectionComponent {
     // ── Computed: is complete (at least 1 field exists) ──
 
     readonly isComplete = computed(() => this.eventFields().length > 0);
+
+    // ── Prior year fields-by-day (read-only reference) ──
+
+    /** Per-agegroup field-by-day entries from prior year projection */
+    readonly priorFieldsByDay = computed(() => {
+        const cfg = this.configSvc.config();
+        const fbdMap = cfg?.fieldsByDay?.value;
+        if (!fbdMap || Object.keys(fbdMap).length === 0) return [];
+
+        const ags = this.agegroups();
+        const result: { agegroupId: string; agegroupName: string; color: string | null;
+            days: { dow: string; fields: string[] }[] }[] = [];
+
+        for (const ag of ags) {
+            const dayMap = fbdMap[ag.agegroupId];
+            if (!dayMap || Object.keys(dayMap).length === 0) continue;
+
+            const days = Object.entries(dayMap)
+                .map(([dow, fields]) => ({ dow, fields }))
+                .filter(d => d.fields.length > 0);
+
+            if (days.length > 0) {
+                result.push({
+                    agegroupId: ag.agegroupId,
+                    agegroupName: ag.agegroupName,
+                    color: ag.color ?? null,
+                    days
+                });
+            }
+        }
+        return result;
+    });
+
+    readonly hasPriorFieldsByDay = computed(() => this.priorFieldsByDay().length > 0);
+
+    readonly priorYearLabel = computed(() => this.configSvc.priorYearLabel());
 
     // ── Computed: dirty state (any cell differs from initial) ──
 

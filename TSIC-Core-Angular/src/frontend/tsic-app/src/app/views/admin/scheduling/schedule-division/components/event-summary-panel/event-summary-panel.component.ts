@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,6 +13,7 @@ import { BuildSectionComponent } from '../schedule-config/build-section.componen
 import { FieldConfigSectionComponent } from '../schedule-config/field-config-section.component';
 import { PairingsSectionComponent, type PairingsGenerateEvent, type GuaranteeSaveEvent } from '../schedule-config/pairings-section.component';
 import type { CalendarApplyEvent, FieldConfigApplyEvent, StepperSection } from '../schedule-config/schedule-config.types';
+import { ScheduleConfigService } from '../schedule-config/schedule-config.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 export type AgStage = 'unconfigured' | 'configured' | 'scheduled-partial' | 'scheduled-complete';
@@ -51,6 +52,9 @@ export interface GameDayLine {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EventSummaryPanelComponent {
+    // ── Injected (provided at ScheduleDivisionComponent level) ──
+    private readonly configSvc = inject(ScheduleConfigService);
+
     // ── Inputs ──
     readonly agegroups = input<AgegroupWithDivisionsDto[]>([]);
     readonly gameSummary = input<GameSummaryResponse | null>(null);
@@ -165,20 +169,91 @@ export class EventSummaryPanelComponent {
 
     // ── Stepper step completion ──
 
-    /** Step ①: At least one agegroup configured (dates+fields) */
+    /** Step ①: Game days available (projected from prior year OR configured in DB) */
+    readonly gameDaysComplete = computed(() => {
+        const cfg = this.configSvc.config();
+        if (cfg?.dates?.value?.length) return true;
+        return this.configuredCount() > 0;
+    });
+
+    /** Step ① status label */
+    readonly gameDaysStatusLabel = computed((): string => {
+        const cfg = this.configSvc.config();
+        if (!cfg) return 'Not configured';
+        const dates = cfg.dates?.value ?? [];
+        if (dates.length === 0) return 'No game days configured';
+        if (cfg.dates.source === 'prior-year') return `${dates.length} day${dates.length !== 1 ? 's' : ''} projected`;
+        return `${dates.length} day${dates.length !== 1 ? 's' : ''} configured`;
+    });
+
+    /** Whether game days came from prior year projection */
+    readonly gameDaysFromProjection = computed(() =>
+        this.configSvc.config()?.dates?.source === 'prior-year'
+    );
+
+    /** Prior year label for source hints */
+    readonly configPriorYearLabelFromSvc = computed(() =>
+        this.configSvc.priorYearLabel()
+    );
+
+    /** Per-agegroup game day entries for the Game Days expanded section */
+    readonly gameDayEntries = computed(() => {
+        const cfg = this.configSvc.config();
+        const ags = this.agegroups();
+        if (!cfg || ags.length === 0) return [];
+
+        const projDates = cfg.projectedDates?.value;
+        const result: { agegroupId: string; agegroupName: string; color: string | null;
+            gameDays: { date: string; dateFormatted: string; dow: string; rounds: number }[] }[] = [];
+
+        for (const ag of ags) {
+            const projected = projDates?.[ag.agegroupId];
+            if (projected && projected.length > 0) {
+                result.push({
+                    agegroupId: ag.agegroupId, agegroupName: ag.agegroupName,
+                    color: ag.color ?? null,
+                    gameDays: projected.map(gd => {
+                        const d = new Date(gd.date + 'T00:00:00');
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        return { date: gd.date, dateFormatted: `${mm}/${dd}/${d.getFullYear()}`, dow: gd.dow, rounds: gd.rounds };
+                    })
+                });
+            } else {
+                const r = this.readinessMap()[ag.agegroupId];
+                if (r?.isConfigured && r.gameDays?.length > 0) {
+                    result.push({
+                        agegroupId: ag.agegroupId, agegroupName: ag.agegroupName,
+                        color: ag.color ?? null,
+                        gameDays: [...r.gameDays]
+                            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                            .map(gd => {
+                                const d = new Date(gd.date);
+                                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                                const dd = String(d.getDate()).padStart(2, '0');
+                                return { date: gd.date.substring(0, 10), dateFormatted: `${mm}/${dd}/${d.getFullYear()}`, dow: gd.dow, rounds: gd.roundCount };
+                            })
+                    });
+                }
+            }
+        }
+        return result;
+    });
+
+    /** Step ②: At least one agegroup configured (dates+fields in DB) */
     readonly datesComplete = computed(() =>
         this.totalAgegroups() > 0 && this.configuredCount() === this.totalAgegroups()
     );
 
-    /** Step ②: Fields assigned */
+    /** Step ③: Fields assigned */
     readonly fieldsComplete = computed(() => this.assignedFieldCount() > 0);
 
-    /** Step ③: Pairings generated for all team counts */
+    /** Step ⑥: Pairings generated for all team counts */
     readonly pairingsComplete = computed(() =>
         this.missingPairingTCnts().length === 0
     );
 
-    /** Step ④: Strategy always has an effective value (defaults or saved) */
+    /** Step ⑤: Strategy always has an effective value (defaults or saved) */
     readonly strategyComplete = computed(() => true);
 
     // ── Time Config summary computed (current effective values from readiness or defaults) ──

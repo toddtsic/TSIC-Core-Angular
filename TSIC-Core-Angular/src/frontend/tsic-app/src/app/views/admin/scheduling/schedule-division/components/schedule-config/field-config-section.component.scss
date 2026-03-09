@@ -87,6 +87,73 @@
 }
 
 // ═══════════════════════════════════════
+// ── PRIOR YEAR FIELDS BY DAY ──
+// ═══════════════════════════════════════
+
+.prior-fields-panel {
+    padding: var(--space-2) var(--space-3);
+    background: rgba(var(--bs-info-rgb), 0.04);
+    border: 1px solid rgba(var(--bs-info-rgb), 0.15);
+    border-radius: var(--radius-sm);
+}
+
+.prior-fields-header {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-info);
+    margin-bottom: var(--space-2);
+
+    i {
+        margin-right: 2px;
+    }
+}
+
+.prior-fields-source {
+    font-weight: var(--font-weight-normal);
+    opacity: 0.8;
+}
+
+.prior-fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.prior-fields-ag {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    .ag-col-badge {
+        min-width: 60px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+}
+
+.prior-fields-days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    font-size: var(--font-size-xs);
+    color: var(--bs-body-color);
+}
+
+.prior-field-day {
+    white-space: nowrap;
+
+    strong {
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-secondary-color);
+    }
+
+    &:not(:last-child)::after {
+        content: ' · ';
+        color: var(--bs-secondary-color);
+    }
+}
+
+// ═══════════════════════════════════════
 // ── FIELD × AGEGROUP MATRIX ──
 // ═══════════════════════════════════════
 

@@ -2,9 +2,10 @@
  * CalendarSectionComponent — Stepper Section ②
  *
  * Inline expandable section for calendar & structure configuration.
- * Displays a date×agegroup matrix where each cell is a checkbox
- * (checked = agegroup plays on that date). The system computes
- * roundsPerDay from division structure when applying.
+ * Displays a date×agegroup matrix where each cell is a rounds-per-day
+ * dropdown (explicit round count, "Remaining" = null, or "—" = not playing).
+ *
+ * Per-division drill-down available for rare override scenarios.
  */
 
 import { Component, ChangeDetectionStrategy, computed, effect, input, output, signal, untracked } from '@angular/core';
@@ -32,13 +33,39 @@ interface AgRow {
     teamCount: number;
     divisionCount: number;
     color?: string | null;
-    /** Max rounds needed across all divisions (for roundsPerDay computation). */
+    /** Max rounds needed across all divisions (guarantee-driven). */
     maxRounds: number;
     wave: number;
+    divisions: DivisionRow[];
 }
 
-/** 2D cell map: cellMap[agegroupId][isoDate] = plays on that date. */
-type CellMap = Record<string, Record<string, boolean>>;
+interface DivisionRow {
+    divId: string;
+    divName: string;
+    teamCount: number;
+    /** Rounds for this division (guarantee-driven). */
+    rounds: number;
+}
+
+/**
+ * Cell value for the rounds-per-day matrix.
+ * - undefined: not playing this day (equivalent to old "unchecked")
+ * - null: "Remaining Rounds" — elastic day that absorbs leftover rounds
+ * - number: explicit round count for this day
+ */
+type CellValue = number | null | undefined;
+
+/** 2D cell map: cellMap[agegroupId][isoDate] = CellValue. */
+type CellMap = Record<string, Record<string, CellValue>>;
+
+/** Per-division override map: divOverrides[divisionId][isoDate] = CellValue. */
+type DivOverrideMap = Record<string, Record<string, CellValue>>;
+
+/** Dropdown option for round count selectors. */
+interface RoundOption {
+    value: CellValue;
+    label: string;
+}
 
 @Component({
     selector: 'app-calendar-section',
@@ -58,6 +85,7 @@ export class CalendarSectionComponent {
     readonly configDates = input<ScheduleConfigValue<string[]>>({ value: [], source: 'default' });
     readonly configWaves = input<Record<string, number>>({});
     readonly configRoundsPerDay = input<Record<string, number>>({});
+    readonly gameGuarantee = input<number | null>(null);
     readonly isExpanded = input(false);
 
     // ── Outputs ──
@@ -72,8 +100,14 @@ export class CalendarSectionComponent {
     // ── Per-agegroup wave editing (per-AG, not per-date) ──
     readonly agWaveMap = signal<Record<string, number>>({});
 
-    // ── 2D matrix editing state: checked dates per agegroup ──
+    // ── 2D matrix editing state: rounds per day per agegroup ──
     readonly cellMap = signal<CellMap>({});
+
+    // ── Per-division overrides (only populated when director explicitly overrides) ──
+    readonly divOverrides = signal<DivOverrideMap>({});
+
+    // ── Expanded agegroup drill-downs ──
+    readonly expandedAgIds = signal<Set<string>>(new Set());
 
     // ── Date chips (managed dates for this session) ──
     readonly managedDates = signal<string[]>([]);
@@ -83,8 +117,6 @@ export class CalendarSectionComponent {
 
     constructor() {
         // Re-sync cellMap from readiness whenever readiness data changes.
-        // This ensures the matrix reflects the latest DB state after each apply,
-        // and cleans managed dates that are now persisted.
         effect(() => {
             const initial = this.initialCellMap();
             this.cellMap.set(initial);
@@ -113,17 +145,28 @@ export class CalendarSectionComponent {
             const readiness = map[ag.agegroupId];
 
             if (readiness?.gameDays && readiness.gameDays.length > 0) {
-                // Existing readiness data: any date with rounds = checked
-                for (const gd of readiness.gameDays) {
+                // Existing readiness data: reconstruct cell values from round counts
+                const activeDays = readiness.gameDays.filter(gd => gd.roundCount > 0);
+                for (let i = 0; i < activeDays.length; i++) {
+                    const gd = activeDays[i];
                     const dateKey = gd.date.substring(0, 10);
-                    if (gd.roundCount > 0) {
-                        result[ag.agegroupId][dateKey] = true;
+                    // Last active day defaults to null (Remaining) for backward compatibility
+                    if (i === activeDays.length - 1) {
+                        result[ag.agegroupId][dateKey] = null;
+                    } else {
+                        result[ag.agegroupId][dateKey] = gd.roundCount;
                     }
                 }
             } else if (cfgRpd[ag.agegroupId] && cfgDates.value.length > 0) {
                 // No readiness yet (new event): seed from prior-year/config defaults
-                for (const isoDate of cfgDates.value) {
-                    result[ag.agegroupId][isoDate] = true;
+                for (let i = 0; i < cfgDates.value.length; i++) {
+                    const isoDate = cfgDates.value[i];
+                    // Last day = Remaining, others get even distribution
+                    if (i === cfgDates.value.length - 1) {
+                        result[ag.agegroupId][isoDate] = null;
+                    } else {
+                        result[ag.agegroupId][isoDate] = cfgRpd[ag.agegroupId] ?? 1;
+                    }
                 }
             }
         }
@@ -205,13 +248,21 @@ export class CalendarSectionComponent {
         const pyRounds = this.priorYearRounds();
         const waveMap = this.agWaveMap();
         const cfgWaves = this.configWaves();
+        const guarantee = this.gameGuarantee();
 
         return ags
             .slice()
             .sort((a, b) => (a.sortAge ?? 0) - (b.sortAge ?? 0))
             .map(ag => {
                 const teamCount = agTeamCount(ag);
-                const maxRounds = this.computeMaxDivisionRounds(ag, map[ag.agegroupId], pyRounds);
+                const maxRounds = this.computeMaxDivisionRounds(ag, map[ag.agegroupId], pyRounds, guarantee);
+
+                const divisions: DivisionRow[] = ag.divisions.map(div => ({
+                    divId: div.divId,
+                    divName: div.divName,
+                    teamCount: div.teamCount,
+                    rounds: this.computeDivisionRounds(div.teamCount, guarantee)
+                }));
 
                 return {
                     agegroupId: ag.agegroupId,
@@ -222,10 +273,24 @@ export class CalendarSectionComponent {
                     maxRounds,
                     wave: waveMap[ag.agegroupId]
                         ?? cfgWaves[ag.agegroupId]
-                        ?? 1
+                        ?? 1,
+                    divisions
                 };
             });
     });
+
+    // ── Computed: dropdown options per agegroup ──
+
+    roundOptions(maxRounds: number): RoundOption[] {
+        const opts: RoundOption[] = [
+            { value: undefined, label: '—' }
+        ];
+        for (let i = 1; i <= maxRounds; i++) {
+            opts.push({ value: i, label: String(i) });
+        }
+        opts.push({ value: null, label: 'Remaining' });
+        return opts;
+    }
 
     // ── Computed: true when any cell, date, or wave differs from the saved DB state ──
 
@@ -245,9 +310,9 @@ export class CalendarSectionComponent {
         // Cell changes per date
         for (const d of dates) {
             if (!existingIsos.has(d.isoDate)) {
-                // Managed (new) date: any checked cell = pending change
+                // Managed (new) date: any assigned cell = pending change
                 for (const agId of Object.keys(cells)) {
-                    if (cells[agId]?.[d.isoDate]) return true;
+                    if (cells[agId]?.[d.isoDate] !== undefined) return true;
                 }
                 continue;
             }
@@ -255,14 +320,52 @@ export class CalendarSectionComponent {
             // Existing date: check each agegroup for diff
             const allAgIds = new Set([...Object.keys(cells), ...Object.keys(initial)]);
             for (const agId of allAgIds) {
-                const current = !!cells[agId]?.[d.isoDate];
-                const was = !!initial[agId]?.[d.isoDate];
+                const current = cells[agId]?.[d.isoDate];
+                const was = initial[agId]?.[d.isoDate];
                 if (current !== was) return true;
             }
         }
 
+        // Division override changes
+        const overrides = this.divOverrides();
+        if (Object.keys(overrides).length > 0) return true;
+
         return false;
     });
+
+    // ── Validation: exactly one NULL day per agegroup that has assigned days ──
+
+    readonly validationErrors = computed((): string[] => {
+        const cells = this.cellMap();
+        const rows = this.agRows();
+        const errors: string[] = [];
+
+        for (const row of rows) {
+            const agCells = cells[row.agegroupId] ?? {};
+            const assignedDays = Object.entries(agCells).filter(([, v]) => v !== undefined);
+            if (assignedDays.length === 0) continue;
+
+            const nullDays = assignedDays.filter(([, v]) => v === null);
+            if (nullDays.length === 0) {
+                errors.push(`${row.agegroupName}: must have one "Remaining" day`);
+            } else if (nullDays.length > 1) {
+                errors.push(`${row.agegroupName}: only one day can be "Remaining"`);
+            }
+
+            // Check explicit rounds don't exceed minimum division rounds
+            const explicitSum = assignedDays
+                .filter(([, v]) => typeof v === 'number')
+                .reduce((sum, [, v]) => sum + (v as number), 0);
+            const minDivRounds = Math.min(...row.divisions.map(d => d.rounds));
+            if (explicitSum >= minDivRounds && nullDays.length > 0) {
+                errors.push(`${row.agegroupName}: explicit rounds (${explicitSum}) leave nothing for "Remaining" day`);
+            }
+        }
+
+        return errors;
+    });
+
+    readonly isValid = computed(() => this.validationErrors().length === 0);
 
     // ── Actions ──
 
@@ -304,23 +407,106 @@ export class CalendarSectionComponent {
         this.setWave(agId, next);
     }
 
-    isCellChecked(agId: string, isoDate: string): boolean {
-        return !!this.cellMap()[agId]?.[isoDate];
+    // ── Cell value access ──
+
+    getCellValue(agId: string, isoDate: string): CellValue {
+        return this.cellMap()[agId]?.[isoDate];
     }
 
-    toggleCell(agId: string, isoDate: string): void {
-        const cells = { ...this.cellMap() };
-        const current = !!cells[agId]?.[isoDate];
-        cells[agId] = { ...(cells[agId] ?? {}), [isoDate]: !current };
-        this.cellMap.set(cells);
+    /** Get string for binding to <select>. Converts undefined→'off', null→'remaining', number→string. */
+    getCellSelectValue(agId: string, isoDate: string): string {
+        const v = this.getCellValue(agId, isoDate);
+        if (v === undefined) return 'off';
+        if (v === null) return 'remaining';
+        return String(v);
     }
+
+    onCellChange(agId: string, isoDate: string, selectValue: string): void {
+        const cells = { ...this.cellMap() };
+        const agCells = { ...(cells[agId] ?? {}) };
+
+        if (selectValue === 'off') {
+            delete agCells[isoDate];
+        } else if (selectValue === 'remaining') {
+            agCells[isoDate] = null;
+            // If 2-day event, this is auto-enforced — clear any other NULL for this agegroup
+            this.enforceOneNull(agCells, isoDate);
+        } else {
+            agCells[isoDate] = Number(selectValue);
+        }
+
+        cells[agId] = agCells;
+        this.cellMap.set(cells);
+
+        // For 2-day events: if this was the first day assigned, auto-set the other to Remaining
+        this.autoAssignRemaining(cells, agId);
+    }
+
+    // ── Division drill-down ──
+
+    isAgExpanded(agId: string): boolean {
+        return this.expandedAgIds().has(agId);
+    }
+
+    toggleAgExpand(agId: string): void {
+        const current = new Set(this.expandedAgIds());
+        if (current.has(agId)) {
+            current.delete(agId);
+        } else {
+            current.add(agId);
+        }
+        this.expandedAgIds.set(current);
+    }
+
+    /** Get division cell value: override if set, otherwise inherited from agegroup. */
+    getDivCellValue(divId: string, agId: string, isoDate: string): CellValue {
+        const override = this.divOverrides()[divId]?.[isoDate];
+        if (override !== undefined || this.divOverrides()[divId]?.hasOwnProperty(isoDate)) {
+            return this.divOverrides()[divId][isoDate];
+        }
+        return this.getCellValue(agId, isoDate);
+    }
+
+    getDivCellSelectValue(divId: string, agId: string, isoDate: string): string {
+        const v = this.getDivCellValue(divId, agId, isoDate);
+        if (v === undefined) return 'off';
+        if (v === null) return 'remaining';
+        return String(v);
+    }
+
+    isDivOverridden(divId: string): boolean {
+        return Object.keys(this.divOverrides()[divId] ?? {}).length > 0;
+    }
+
+    onDivCellChange(divId: string, isoDate: string, selectValue: string): void {
+        const overrides = { ...this.divOverrides() };
+        const divCells = { ...(overrides[divId] ?? {}) };
+
+        if (selectValue === 'off') {
+            divCells[isoDate] = undefined;
+        } else if (selectValue === 'remaining') {
+            divCells[isoDate] = null;
+        } else {
+            divCells[isoDate] = Number(selectValue);
+        }
+
+        overrides[divId] = divCells;
+        this.divOverrides.set(overrides);
+    }
+
+    resetDivOverride(divId: string): void {
+        const overrides = { ...this.divOverrides() };
+        delete overrides[divId];
+        this.divOverrides.set(overrides);
+    }
+
+    // ── Apply ──
 
     onApply(): void {
         const cells = this.cellMap();
         const initial = this.initialCellMap();
         const dates = this.allDates();
         const rows = this.agRows();
-        const isLeague = this.eventType() === 'league';
 
         if (dates.length === 0 || rows.length === 0) return;
 
@@ -331,21 +517,29 @@ export class CalendarSectionComponent {
             const removedIds: string[] = [];
 
             for (const row of rows) {
-                const isChecked = !!cells[row.agegroupId]?.[d.isoDate];
-                const wasChecked = !!initial[row.agegroupId]?.[d.isoDate];
+                const cellVal = cells[row.agegroupId]?.[d.isoDate];
+                const wasAssigned = initial[row.agegroupId]?.[d.isoDate] !== undefined;
+                const isAssigned = cellVal !== undefined;
 
-                if (isChecked) {
-                    // Compute roundsPerDay: distribute max division rounds across checked dates.
-                    // Even distribution for now — per-day granularity comes from Time config.
-                    const checkedDates = dates.filter(dd => cells[row.agegroupId]?.[dd.isoDate]).length;
-                    const rpd = isLeague ? 1 : Math.max(1, Math.ceil(row.maxRounds / Math.max(1, checkedDates)));
+                if (isAssigned) {
+                    // Resolve roundsPerDay: explicit number, or compute for NULL (remaining)
+                    let rpd: number;
+                    if (typeof cellVal === 'number') {
+                        rpd = cellVal;
+                    } else {
+                        // NULL = remaining: total rounds minus sum of explicit days
+                        const explicitSum = Object.entries(cells[row.agegroupId] ?? {})
+                            .filter(([, v]) => typeof v === 'number')
+                            .reduce((sum, [, v]) => sum + (v as number), 0);
+                        rpd = Math.max(1, row.maxRounds - explicitSum);
+                    }
 
                     entries.push({
                         agegroupId: row.agegroupId,
                         wave: row.wave,
                         roundsPerDay: rpd
                     });
-                } else if (wasChecked) {
+                } else if (wasAssigned) {
                     removedIds.push(row.agegroupId);
                 }
             }
@@ -370,13 +564,24 @@ export class CalendarSectionComponent {
     // ── Private helpers ──
 
     /**
-     * Max rounds needed across all divisions in an agegroup.
-     * Priority: pairings (authoritative) → prior year → per-division formula.
+     * Guarantee-driven round count for a single division.
+     * Even teams: guarantee rounds. Odd teams: guarantee + 1 (bye tax).
+     */
+    private computeDivisionRounds(teamCount: number, guarantee: number | null): number {
+        const g = guarantee ?? 3;
+        if (teamCount <= 1) return 0;
+        return teamCount % 2 === 0 ? g : g + 1;
+    }
+
+    /**
+     * Max rounds needed across all divisions in an agegroup (guarantee-driven).
+     * Priority: pairings (authoritative) → prior year → guarantee formula.
      */
     private computeMaxDivisionRounds(
         ag: AgegroupWithDivisionsDto,
         readiness: AgegroupCanvasReadinessDto | undefined,
-        pyRounds: Record<string, number> | null
+        pyRounds: Record<string, number> | null,
+        guarantee: number | null
     ): number {
         // 1. Pairings — authoritative, already the max across divisions
         if (readiness && readiness.maxPairingRound > 0) {
@@ -386,13 +591,41 @@ export class CalendarSectionComponent {
         if (pyRounds && pyRounds[ag.agegroupName] != null) {
             return pyRounds[ag.agegroupName];
         }
-        // 3. Formula: max rounds across individual divisions
+        // 3. Guarantee-driven formula: max across individual divisions
         let maxRounds = 0;
         for (const div of ag.divisions) {
-            if (div.teamCount <= 1) continue;
-            const rounds = div.teamCount % 2 === 0 ? div.teamCount - 1 : div.teamCount;
+            const rounds = this.computeDivisionRounds(div.teamCount, guarantee);
             maxRounds = Math.max(maxRounds, rounds);
         }
         return maxRounds;
+    }
+
+    /** Ensure only one NULL (Remaining) day per agegroup. When setting a new NULL, clear any previous one. */
+    private enforceOneNull(agCells: Record<string, CellValue>, keepDate: string): void {
+        for (const [date, val] of Object.entries(agCells)) {
+            if (date !== keepDate && val === null) {
+                // Demote previous NULL to 1 round
+                agCells[date] = 1;
+            }
+        }
+    }
+
+    /** For 2-day events: when director sets the first day, auto-assign the other as Remaining. */
+    private autoAssignRemaining(cells: CellMap, agId: string): void {
+        const dates = this.allDates();
+        if (dates.length !== 2) return;
+
+        const agCells = cells[agId] ?? {};
+        const assigned = Object.entries(agCells).filter(([, v]) => v !== undefined);
+
+        // If exactly one day is set to a number (not null/remaining), auto-set the other as Remaining
+        if (assigned.length === 1 && typeof assigned[0][1] === 'number') {
+            const otherDate = dates.find(d => d.isoDate !== assigned[0][0]);
+            if (otherDate) {
+                const updated = { ...cells };
+                updated[agId] = { ...agCells, [otherDate.isoDate]: null };
+                this.cellMap.set(updated);
+            }
+        }
     }
 }

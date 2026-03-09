@@ -5,11 +5,16 @@
     <!-- ══════════════════════════════════════════════════════════ -->
     <div class="tournament-hero">
 
+        <div class="hero-section-title">
+            <i class="bi bi-clipboard2-check"></i>
+            Schedule Configuration
+        </div>
+
         <!-- Row 1: Title + Event Type Badge + Actions -->
         <div class="hero-header">
             <div>
                 <div class="hero-title-row">
-                    <h4 class="hero-title">{{ gameSummary()?.jobName ?? 'Event' }}</h4>
+                    <h3 class="hero-title">{{ gameSummary()?.jobName ?? 'Event' }}</h3>
                     <span class="event-type-badge">{{ eventTypeLabel() }}</span>
                     @if (configScenario() === 'prior-year' && configPriorYearLabel()) {
                         <span class="scenario-badge scenario-prior-year">
@@ -99,11 +104,70 @@
             </div>
         </div>
 
-        <!-- ── Readiness Stepper — 6 Sections ── -->
+        <!-- ── Readiness Stepper — 7 Sections ── -->
         @if (agegroups().length > 0) {
             <div class="readiness-stepper">
 
-                <!-- Section ① Fields -->
+                <!-- Section ① Game Days -->
+                <div class="stepper-row stepper-row-expandable"
+                     [class.step-complete]="gameDaysComplete()"
+                     [class.step-incomplete]="!gameDaysComplete()"
+                     [class.step-active]="expandedSection() === 'gameDays'"
+                     (click)="toggleSection('gameDays')">
+                    <span class="step-icon">
+                        @if (gameDaysComplete()) {
+                            <i class="bi bi-check-circle-fill"></i>
+                        } @else {
+                            <span class="step-number">1</span>
+                        }
+                    </span>
+                    <span class="step-label">Game Days</span>
+                    <span class="step-status">{{ gameDaysStatusLabel() }}</span>
+                    <span class="step-action">
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'gameDays'"
+                           [class.bi-chevron-right]="expandedSection() !== 'gameDays'"></i>
+                    </span>
+                </div>
+                @if (expandedSection() === 'gameDays') {
+                    <div class="game-days-expanded">
+                        @if (gameDayEntries().length > 0) {
+                            @if (gameDaysFromProjection()) {
+                                <p class="game-days-source-hint">
+                                    <i class="bi bi-info-circle"></i>
+                                    Projected from <strong>{{ configPriorYearLabelFromSvc() }}</strong>
+                                    — dates will be committed when you save the Calendar section.
+                                </p>
+                            }
+                            <div class="game-days-list">
+                                @for (entry of gameDayEntries(); track entry.agegroupId) {
+                                    <div class="game-days-ag-row">
+                                        <span class="ag-badge"
+                                              [style.background]="entry.color ?? 'var(--bs-secondary)'"
+                                              [style.color]="contrastText(entry.color)">
+                                            {{ entry.agegroupName }}
+                                        </span>
+                                        <div class="game-days-chips">
+                                            @for (gd of entry.gameDays; track gd.date) {
+                                                <span class="game-day-chip">
+                                                    {{ gd.dow }} {{ gd.dateFormatted }}
+                                                    <span class="game-day-rounds">{{ gd.rounds }}R</span>
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        } @else {
+                            <p class="game-days-empty">
+                                <i class="bi bi-calendar-x"></i>
+                                No game days available. Configure dates in the Calendar section below.
+                            </p>
+                        }
+                    </div>
+                }
+
+                <!-- Section ② Fields -->
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="fieldsComplete()"
                      [class.step-incomplete]="!fieldsComplete()"
@@ -113,7 +177,7 @@
                         @if (fieldsComplete()) {
                             <i class="bi bi-check-circle-fill"></i>
                         } @else {
-                            <span class="step-number">1</span>
+                            <span class="step-number">2</span>
                         }
                     </span>
                     <span class="step-label">Fields</span>
@@ -146,7 +210,7 @@
                         (applyRequested)="onFieldConfigApply($event)" />
                 }
 
-                <!-- Section ② Agegroup Day & Wave Assignments (requires fields) -->
+                <!-- Section ③ Agegroup Day & Wave Assignments (requires fields) -->
                 @if (fieldsComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="datesComplete()"
@@ -157,7 +221,7 @@
                         @if (datesComplete()) {
                             <i class="bi bi-check-circle-fill"></i>
                         } @else {
-                            <span class="step-number">2</span>
+                            <span class="step-number">3</span>
                         }
                     </span>
                     <span class="step-label">Agegroup Day & Wave Assignments</span>
@@ -179,6 +243,7 @@
                         [priorYearRounds]="priorYearRounds()"
                         [configWaves]="configWaves()"
                         [configRoundsPerDay]="configRoundsPerDay()"
+                        [gameGuarantee]="gameGuarantee()"
                         [isExpanded]="true"
                         [isApplying]="isApplyingCalendar()"
                         (toggleExpanded)="toggleSection('calendar')"
@@ -186,7 +251,7 @@
                 }
                 }
 
-                <!-- Section ③ Agegroup Scheduling Parameters (requires dates) -->
+                <!-- Section ④ Agegroup Scheduling Parameters (requires dates) -->
                 @if (datesComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="true"
@@ -219,7 +284,7 @@
                 }
                 }
 
-                <!-- Section ④ Strategy (requires dates) -->
+                <!-- Section ⑤ Strategy (requires dates) -->
                 @if (datesComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="strategyComplete()"
@@ -230,7 +295,7 @@
                         @if (strategyComplete()) {
                             <i class="bi bi-check-circle-fill"></i>
                         } @else {
-                            <span class="step-number">4</span>
+                            <span class="step-number">5</span>
                         }
                     </span>
                     <span class="step-label">Game Placement & Rest Pattern</span>
@@ -339,7 +404,7 @@
 
                 }
 
-                <!-- Section ⑤ Pairings (requires dates) -->
+                <!-- Section ⑥ Pairings (requires dates) -->
                 @if (datesComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="pairingsComplete()"
@@ -350,7 +415,7 @@
                         @if (pairingsComplete()) {
                             <i class="bi bi-check-circle-fill"></i>
                         } @else {
-                            <span class="step-number">5</span>
+                            <span class="step-number">6</span>
                         }
                     </span>
                     <span class="step-label">Guaranteed Games Per Agegroup</span>
@@ -375,7 +440,7 @@
                 }
                 }
 
-                <!-- Section ⑥ Build (requires fields + dates + pairings) -->
+                <!-- Section ⑦ Build (requires fields + dates + pairings) -->
                 @if (fieldsComplete() && datesComplete() && pairingsComplete()) {
                 <div class="stepper-row stepper-row-expandable"
                      [class.step-complete]="totalGames() > 0 && completionPct() >= 100"
@@ -388,7 +453,7 @@
                         } @else if (datesComplete() && fieldsComplete() && pairingsComplete()) {
                             <i class="bi bi-play-circle text-primary"></i>
                         } @else {
-                            <span class="step-number">6</span>
+                            <span class="step-number">7</span>
                         }
                     </span>
                     <span class="step-label">Build</span>

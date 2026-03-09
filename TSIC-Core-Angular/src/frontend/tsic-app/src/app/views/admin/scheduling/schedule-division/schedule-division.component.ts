@@ -1086,6 +1086,9 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Auto-schedule config modal ──
 
     openAutoScheduleConfig(): void {
+        // Commit current config to localStorage before build
+        this.configSvc.saveToLocalStorage();
+
         this.prerequisiteErrors.set([]);
         this.missingPairingTCnts.set([]);
         this.isCheckingPrereqs.set(true);

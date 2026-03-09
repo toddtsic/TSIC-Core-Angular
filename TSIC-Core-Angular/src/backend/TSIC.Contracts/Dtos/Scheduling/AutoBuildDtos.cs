@@ -491,3 +491,71 @@ public record PreconfigureResult
     /// <summary>Team counts that already had pairings (skipped).</summary>
     public required List<int> PairingsAlreadyExisted { get; init; }
 }
+
+// ══════════════════════════════════════════════════════════
+// Projected Config (read-only — no DB writes)
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Read-only projection of a complete schedule configuration derived from a prior year's
+/// game records. Used to pre-populate the stepper so the director can review and confirm
+/// before anything is written to the DB.
+/// </summary>
+public record ProjectedScheduleConfigDto
+{
+    public required Guid SourceJobId { get; init; }
+    public required string SourceJobName { get; init; }
+    public required string SourceYear { get; init; }
+
+    /// <summary>Per-agegroup projected dates and field assignments.</summary>
+    public required List<ProjectedAgegroupConfig> Agegroups { get; init; }
+
+    /// <summary>Event-level timing defaults derived from source (dominant GSI, start time, max games).</summary>
+    public required ProjectedTimingDefaults TimingDefaults { get; init; }
+}
+
+/// <summary>
+/// Projected configuration for a single agegroup: dates, rounds-per-day, and per-day field assignments.
+/// All dates have been advanced by yearDelta and adjusted to match the original DOW.
+/// </summary>
+public record ProjectedAgegroupConfig
+{
+    /// <summary>Current agegroup ID (mapped by name from source).</summary>
+    public required Guid AgegroupId { get; init; }
+    public required string AgegroupName { get; init; }
+
+    /// <summary>Projected game dates with round counts (derived from source dates + DOW shift).</summary>
+    public required List<ProjectedGameDay> GameDays { get; init; }
+
+    /// <summary>Per-day field assignments derived from source game records.
+    /// Key = DOW name ("Saturday"), Value = list of field names used on that day.</summary>
+    public required Dictionary<string, List<string>> FieldsByDay { get; init; }
+
+    /// <summary>GSI in minutes for this agegroup (from source profile or dominant default).</summary>
+    public required int Gsi { get; init; }
+
+    /// <summary>Start time string for this agegroup (e.g. "08:00 AM").</summary>
+    public required string StartTime { get; init; }
+
+    /// <summary>Max games per field for this agegroup.</summary>
+    public required int MaxGamesPerField { get; init; }
+}
+
+/// <summary>A single projected game day with its date and round count.</summary>
+public record ProjectedGameDay
+{
+    /// <summary>Projected date (advanced from source, DOW-matched).</summary>
+    public required DateTime Date { get; init; }
+    /// <summary>Number of rounds on this day (from source).</summary>
+    public required int Rounds { get; init; }
+    /// <summary>Day of week name (e.g. "Saturday").</summary>
+    public required string Dow { get; init; }
+}
+
+/// <summary>Event-level timing defaults from the source job (dominant values).</summary>
+public record ProjectedTimingDefaults
+{
+    public required int Gsi { get; init; }
+    public required string StartTime { get; init; }
+    public required int MaxGamesPerField { get; init; }
+}
