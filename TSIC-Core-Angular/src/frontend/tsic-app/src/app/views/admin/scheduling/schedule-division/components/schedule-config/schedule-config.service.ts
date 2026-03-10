@@ -184,12 +184,44 @@ export class ScheduleConfigService {
             return;
         }
 
-        // ── Scenario C: no prior year or DB already configured ──
-        if (priorYear) {
+        // ── Scenario B: DB has config, prior year exists (fetch projection for waves/order) ──
+        if (priorYear?.priorJobId && hasCurrentDbConfig) {
             this.scenario.set('prior-year');
-        } else {
-            this.scenario.set('new');
+            const baseConfig = this.buildConfig(
+                jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
+            );
+            // Fetch projection to overlay per-division waves + ordering
+            this.autoBuildSvc.getProjectedConfig(priorYear.priorJobId).subscribe({
+                next: (projected) => {
+                    const divWaves = projected.suggestedDivisionWaves as Record<string, number> | null;
+                    if (divWaves && Object.keys(divWaves).length > 0) {
+                        // Overlay per-division waves from source timing
+                        for (const ag of agegroups) {
+                            const agWave = projected.suggestedWaves?.[ag.agegroupId] ?? 1;
+                            if (ag.divisions?.length) {
+                                for (const div of ag.divisions) {
+                                    baseConfig.waveAssignments[div.divId] =
+                                        divWaves[div.divId] ?? agWave;
+                                }
+                            }
+                        }
+                    }
+                    baseConfig.suggestedDivisionOrder =
+                        projected.suggestedDivisionOrder as string[] | undefined;
+                    this.config.set(baseConfig);
+                    this.isInitializing.set(false);
+                },
+                error: () => {
+                    // Projection unavailable — use inferred waves (all wave 1)
+                    this.config.set(baseConfig);
+                    this.isInitializing.set(false);
+                }
+            });
+            return;
         }
+
+        // ── Scenario C: no prior year ──
+        this.scenario.set('new');
 
         const config = this.buildConfig(
             jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
