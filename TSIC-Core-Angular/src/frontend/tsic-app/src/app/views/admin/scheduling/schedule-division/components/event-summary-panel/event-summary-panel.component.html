@@ -131,7 +131,7 @@
                 </div>
                 @if (expandedSection() === 'gameDays') {
                     <div class="game-days-expanded">
-                        @if (gameDayEntries().length > 0) {
+                        @if (hasGameDays()) {
                             @if (gameDaysFromProjection()) {
                                 <p class="game-days-source-hint">
                                     <i class="bi bi-info-circle"></i>
@@ -139,20 +139,26 @@
                                     — dates will be committed when you save the Calendar section.
                                 </p>
                             }
-                            <div class="game-days-list">
-                                @for (entry of gameDayEntries(); track entry.agegroupId) {
-                                    <div class="game-days-ag-row">
-                                        <span class="ag-badge"
-                                              [style.background]="entry.color ?? 'var(--bs-secondary)'"
-                                              [style.color]="contrastText(entry.color)">
-                                            {{ entry.agegroupName }}
-                                        </span>
-                                        <div class="game-days-chips">
-                                            @for (gd of entry.gameDays; track gd.date) {
-                                                <span class="game-day-chip">
-                                                    {{ gd.dow }} {{ gd.dateFormatted }}
-                                                    <span class="game-day-rounds">{{ gd.rounds }}R</span>
-                                                </span>
+                            <div class="game-days-tree">
+                                @for (day of gameDayTree(); track day.isoDate) {
+                                    <div class="game-day-node">
+                                        <div class="game-day-header">
+                                            <i class="bi bi-calendar-event"></i>
+                                            <span class="game-day-date">{{ day.dow }} {{ day.dateFormatted }}</span>
+                                        </div>
+                                        <div class="game-day-ags">
+                                            @for (ag of day.agegroups; track ag.agegroupId) {
+                                                <div class="game-day-ag-row">
+                                                    <span class="ag-badge"
+                                                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
+                                                          [style.color]="contrastText(ag.color)">
+                                                        {{ ag.agegroupName }}
+                                                    </span>
+                                                    <span class="ag-count-badges">
+                                                        <span class="ag-count-badge">{{ ag.teamCount }}t</span>
+                                                        <span class="ag-count-badge">{{ ag.divisionCount }}d</span>
+                                                    </span>
+                                                </div>
                                             }
                                         </div>
                                     </div>

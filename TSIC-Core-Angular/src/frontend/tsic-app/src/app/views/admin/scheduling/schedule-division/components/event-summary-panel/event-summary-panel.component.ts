@@ -196,49 +196,75 @@ export class EventSummaryPanelComponent {
         this.configSvc.priorYearLabel()
     );
 
-    /** Per-agegroup game day entries for the Game Days expanded section */
-    readonly gameDayEntries = computed(() => {
+    /** Game day tree for the Game Days expanded section: grouped by date, then agegroups under each date */
+    readonly gameDayTree = computed((): { isoDate: string; dow: string; dateFormatted: string;
+        agegroups: { agegroupId: string; agegroupName: string; color: string | null;
+            teamCount: number; divisionCount: number }[] }[] => {
         const cfg = this.configSvc.config();
         const ags = this.agegroups();
         if (!cfg || ags.length === 0) return [];
 
         const projDates = cfg.projectedDates?.value;
-        const result: { agegroupId: string; agegroupName: string; color: string | null;
-            gameDays: { date: string; dateFormatted: string; dow: string; rounds: number }[] }[] = [];
+        // Map: isoDate → set of agegroup IDs playing that day
+        const dateAgMap = new Map<string, Set<string>>();
+        const dateInfo = new Map<string, { dow: string; dateFormatted: string }>();
 
         for (const ag of ags) {
             const projected = projDates?.[ag.agegroupId];
             if (projected && projected.length > 0) {
-                result.push({
-                    agegroupId: ag.agegroupId, agegroupName: ag.agegroupName,
-                    color: ag.color ?? null,
-                    gameDays: projected.map(gd => {
-                        const d = new Date(gd.date + 'T00:00:00');
+                for (const gd of projected) {
+                    const iso = gd.date.substring(0, 10);
+                    if (!dateAgMap.has(iso)) dateAgMap.set(iso, new Set());
+                    dateAgMap.get(iso)!.add(ag.agegroupId);
+                    if (!dateInfo.has(iso)) {
+                        const d = new Date(iso + 'T00:00:00');
                         const mm = String(d.getMonth() + 1).padStart(2, '0');
                         const dd = String(d.getDate()).padStart(2, '0');
-                        return { date: gd.date, dateFormatted: `${mm}/${dd}/${d.getFullYear()}`, dow: gd.dow, rounds: gd.rounds };
-                    })
-                });
+                        dateInfo.set(iso, { dow: gd.dow, dateFormatted: `${mm}/${dd}/${d.getFullYear()}` });
+                    }
+                }
             } else {
                 const r = this.readinessMap()[ag.agegroupId];
                 if (r?.isConfigured && r.gameDays?.length > 0) {
-                    result.push({
-                        agegroupId: ag.agegroupId, agegroupName: ag.agegroupName,
-                        color: ag.color ?? null,
-                        gameDays: [...r.gameDays]
-                            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                            .map(gd => {
-                                const d = new Date(gd.date);
-                                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                                const dd = String(d.getDate()).padStart(2, '0');
-                                return { date: gd.date.substring(0, 10), dateFormatted: `${mm}/${dd}/${d.getFullYear()}`, dow: gd.dow, rounds: gd.roundCount };
-                            })
-                    });
+                    for (const gd of r.gameDays) {
+                        const iso = gd.date.substring(0, 10);
+                        if (!dateAgMap.has(iso)) dateAgMap.set(iso, new Set());
+                        dateAgMap.get(iso)!.add(ag.agegroupId);
+                        if (!dateInfo.has(iso)) {
+                            const d = new Date(gd.date);
+                            const mm = String(d.getMonth() + 1).padStart(2, '0');
+                            const dd = String(d.getDate()).padStart(2, '0');
+                            dateInfo.set(iso, { dow: gd.dow, dateFormatted: `${mm}/${dd}/${d.getFullYear()}` });
+                        }
+                    }
                 }
             }
         }
-        return result;
+
+        // Build sorted AG lookup
+        const agMap = new Map(ags.map(ag => [ag.agegroupId, ag]));
+
+        return [...dateAgMap.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([iso, agIds]) => {
+                const info = dateInfo.get(iso)!;
+                const sortedAgs = [...agIds]
+                    .map(id => agMap.get(id)!)
+                    .filter(Boolean)
+                    .sort((a, b) => (a.agegroupName ?? '').localeCompare(b.agegroupName ?? ''))
+                    .map(ag => ({
+                        agegroupId: ag.agegroupId,
+                        agegroupName: ag.agegroupName,
+                        color: ag.color ?? null,
+                        teamCount: agTeamCount(ag),
+                        divisionCount: ag.divisions.length
+                    }));
+                return { isoDate: iso, dow: info.dow, dateFormatted: info.dateFormatted, agegroups: sortedAgs };
+            });
     });
+
+    /** Whether there are any game day entries (for empty state check) */
+    readonly hasGameDays = computed(() => this.gameDayTree().length > 0);
 
     /** Step ②: At least one agegroup configured (dates+fields in DB) */
     readonly datesComplete = computed(() =>

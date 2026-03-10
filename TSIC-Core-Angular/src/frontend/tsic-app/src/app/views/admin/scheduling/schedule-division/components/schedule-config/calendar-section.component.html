@@ -74,6 +74,7 @@
         <!-- ── Guidance text ── -->
         <div class="matrix-guidance">
             Set rounds per day for each agegroup. One day must be "Remaining" to absorb round count changes.
+            "—" means the agegroup does not play that day.
         </div>
 
         <!-- ── Date × Agegroup Matrix ── -->
@@ -115,7 +116,6 @@
                                     <span class="ag-count-badges">
                                         <span class="ag-count-badge">{{ row.teamCount }}t</span>
                                         <span class="ag-count-badge">{{ row.divisionCount }}d</span>
-                                        <span class="ag-count-badge">{{ row.maxRounds }}r</span>
                                     </span>
                                 </div>
                             </div>
@@ -155,7 +155,6 @@
                                             <span class="div-name">{{ div.divName }}</span>
                                             <span class="ag-count-badges">
                                                 <span class="ag-count-badge">{{ div.teamCount }}t</span>
-                                                <span class="ag-count-badge">{{ div.rounds }}r</span>
                                             </span>
                                             @if (isDivOverridden(div.divId)) {
                                                 <button class="div-reset-btn"

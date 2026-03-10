@@ -122,23 +122,28 @@
                                        title="Minutes between game starts">
                             </div>
 
-                            <!-- Per-date cells (start time + max games) -->
+                            <!-- Per-date cells (start time + max games) — only if agegroup plays this day -->
                             @for (d of allDates(); track d.isoDate) {
-                                <div class="matrix-cell matrix-cell-date">
-                                    <div class="cell-inputs">
-                                        <input type="text"
-                                               class="form-control form-control-sm cell-input cell-input-time"
-                                               [ngModel]="row.cells[d.isoDate]?.startTime ?? ''"
-                                               (ngModelChange)="setCellStartTime(row.agegroupId, d.isoDate, $event)"
-                                               placeholder="Start"
-                                               title="Start time">
-                                        <input type="number"
-                                               class="form-control form-control-sm cell-input cell-input-max"
-                                               [ngModel]="row.cells[d.isoDate]?.maxGames ?? 0"
-                                               (ngModelChange)="setCellMaxGames(row.agegroupId, d.isoDate, safeInt($event))"
-                                               min="1" max="30"
-                                               title="Max games per field">
-                                    </div>
+                                <div class="matrix-cell matrix-cell-date"
+                                     [class.cell-not-playing]="!isPlayingDay(row.agegroupId, d.isoDate)">
+                                    @if (isPlayingDay(row.agegroupId, d.isoDate)) {
+                                        <div class="cell-inputs">
+                                            <input type="text"
+                                                   class="form-control form-control-sm cell-input cell-input-time"
+                                                   [ngModel]="row.cells[d.isoDate]?.startTime ?? ''"
+                                                   (ngModelChange)="setCellStartTime(row.agegroupId, d.isoDate, $event)"
+                                                   placeholder="Start"
+                                                   title="Start time">
+                                            <input type="number"
+                                                   class="form-control form-control-sm cell-input cell-input-max"
+                                                   [ngModel]="row.cells[d.isoDate]?.maxGames ?? 0"
+                                                   (ngModelChange)="setCellMaxGames(row.agegroupId, d.isoDate, safeInt($event))"
+                                                   min="1" max="30"
+                                                   title="Max games per field">
+                                        </div>
+                                    } @else {
+                                        <span class="cell-not-playing-label">—</span>
+                                    }
                                 </div>
                             }
                         </div>

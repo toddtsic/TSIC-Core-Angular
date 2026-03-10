@@ -113,6 +113,24 @@ export class TimeConfigSectionComponent {
         Object.values(this.readinessMap()).filter(r => r.isConfigured)
     );
 
+    /** Set of "agId|isoDate" keys where the agegroup is playing that day */
+    readonly playingDayKeys = computed((): Set<string> => {
+        const keys = new Set<string>();
+        const map = this.readinessMap();
+        for (const [agId, r] of Object.entries(map)) {
+            if (!r?.isConfigured || !r.gameDays) continue;
+            for (const gd of r.gameDays) {
+                keys.add(`${agId}|${gd.date.substring(0, 10)}`);
+            }
+        }
+        return keys;
+    });
+
+    /** Check if an agegroup is playing on a given date */
+    isPlayingDay(agId: string, isoDate: string): boolean {
+        return this.playingDayKeys().has(`${agId}|${isoDate}`);
+    }
+
     // ── Computed: default values from DB or prior year ──
 
     readonly defaultGsi = computed((): number => {
@@ -311,12 +329,13 @@ export class TimeConfigSectionComponent {
             this.localAgGsiMap.set(gsiMap);
         }
 
-        // Apply start time / max games to all cells if set
+        // Apply start time / max games to all cells if set (only for playing days)
         if (st || max != null) {
             const map: Record<string, Record<string, MatrixCellValue>> = {};
             for (const row of rows) {
                 map[row.agegroupId] = {};
                 for (const d of dates) {
+                    if (!this.isPlayingDay(row.agegroupId, d.isoDate)) continue;
                     const current = row.cells[d.isoDate];
                     map[row.agegroupId][d.isoDate] = {
                         startTime: st || current?.startTime || this.defaultStartTime(),

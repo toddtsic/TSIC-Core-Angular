@@ -317,6 +317,21 @@
     margin: 0 auto;
 }
 
+// ── Not-playing day cell ──
+
+.cell-not-playing {
+    background: rgba(var(--bs-secondary-rgb, 120, 113, 108), 0.04);
+}
+
+.cell-not-playing-label {
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+    font-weight: var(--font-weight-medium);
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
 // ── Empty state ──
 
 .matrix-empty {
