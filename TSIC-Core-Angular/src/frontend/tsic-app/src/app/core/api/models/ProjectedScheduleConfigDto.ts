@@ -10,5 +10,7 @@ export type ProjectedScheduleConfigDto = {
     sourceYear: string;
     agegroups: Array<ProjectedAgegroupConfig>;
     timingDefaults: ProjectedTimingDefaults;
+    suggestedWaves?: any | null;
+    suggestedOrder?: any[] | null;
 };
 

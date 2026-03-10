@@ -452,6 +452,16 @@ public record SourceFieldUsage
 }
 
 /// <summary>
+/// Per-agegroup per-day earliest game time from source Schedule table.
+/// Used to derive correct per-agegroup start times, wave assignments, and ordering.
+/// </summary>
+public record SourceAgegroupTiming
+{
+    public required DayOfWeek DayOfWeek { get; init; }
+    public required TimeSpan EarliestTime { get; init; }
+}
+
+/// <summary>
 /// Result of seeding dates from a source job.
 /// </summary>
 public record DateSeedResult
@@ -512,6 +522,12 @@ public record ProjectedScheduleConfigDto
 
     /// <summary>Event-level timing defaults derived from source (dominant GSI, start time, max games).</summary>
     public required ProjectedTimingDefaults TimingDefaults { get; init; }
+
+    /// <summary>Suggested wave assignments derived from source game times (agegroupId → wave).</summary>
+    public Dictionary<Guid, int>? SuggestedWaves { get; init; }
+
+    /// <summary>Suggested agegroup processing order derived from source (day + start time sort).</summary>
+    public List<Guid>? SuggestedOrder { get; init; }
 }
 
 /// <summary>

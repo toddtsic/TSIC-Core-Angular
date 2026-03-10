@@ -65,6 +65,9 @@ export interface ScheduleConfig {
     placement: ScheduleConfigValue<number>;
     gapPattern: ScheduleConfigValue<number>;
 
+    // ── Agegroup ordering (derived from prior year source schedule) ──
+    suggestedOrder?: string[];  // agegroupIds in suggested processing order
+
     // ── League-specific rules (Node 5L) ──
     oddDivByeHandling?: ScheduleConfigValue<boolean>; // bPlayOddDivisionByeTeam
 }

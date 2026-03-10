@@ -83,6 +83,13 @@ public interface IAutoBuildRepository
         Guid sourceJobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Extract per-agegroup per-day earliest game time from the source Schedule table.
+    /// Used to derive correct per-agegroup start times, wave assignments, and chip-stack ordering.
+    /// </summary>
+    Task<Dictionary<string, List<SourceAgegroupTiming>>> GetSourceAgegroupTimingAsync(
+        Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get the job name for a job ID.
     /// </summary>
     Task<string?> GetJobNameAsync(Guid jobId, CancellationToken ct = default);

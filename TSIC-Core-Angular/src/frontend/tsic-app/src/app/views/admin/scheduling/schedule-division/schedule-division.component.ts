@@ -1407,8 +1407,17 @@ export class ScheduleDivisionComponent implements OnInit {
                         .flatMap(ag => ag.divisions.map(d => d.divId))
                 );
                 const excluded = allDivIds.filter(id => !includedDivIds.has(id));
+                // Sort agegroups by backend-derived source schedule order
+                const suggestedOrder = this.configSvc.config()?.suggestedOrder;
+                const sorted = suggestedOrder
+                    ? [...included].sort((a, b) => {
+                        const aIdx = suggestedOrder.indexOf(a.agegroupId);
+                        const bIdx = suggestedOrder.indexOf(b.agegroupId);
+                        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+                    })
+                    : included;
                 return {
-                    agegroupOrder: included.map(ag => ({ agegroupId: ag.agegroupId, wave: ag.wave })) satisfies AgegroupBuildEntry[],
+                    agegroupOrder: sorted.map(ag => ({ agegroupId: ag.agegroupId, wave: ag.wave })) satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,

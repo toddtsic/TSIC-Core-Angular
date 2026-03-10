@@ -423,9 +423,11 @@ export class ScheduleConfigService {
         // ── Strategy ──
         const { placement, gapPattern } = this.deriveStrategy(strategies, strategySource, pyLabel);
 
-        // ── Waves: default all to 1 (not derived from prior year) ──
+        // ── Waves: use backend-derived suggestions from source schedule ──
         const waveAssignments: Record<string, number> = {};
-        for (const ag of agegroups) waveAssignments[ag.agegroupId] = 1;
+        for (const ag of agegroups) {
+            waveAssignments[ag.agegroupId] = projected.suggestedWaves?.[ag.agegroupId] ?? 1;
+        }
 
         return {
             jobId,
@@ -444,7 +446,8 @@ export class ScheduleConfigService {
             waveAssignments,
             roundsPerDay,
             placement,
-            gapPattern
+            gapPattern,
+            suggestedOrder: projected.suggestedOrder as string[] | undefined
         };
     }
 

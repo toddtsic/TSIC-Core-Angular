@@ -83,12 +83,28 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // Filter out inactive agegroups (WAITLIST, DROPPED) and placeholder/dropped divisions
         var activeDivisions = FilterSchedulableDivisions(divisions);
 
+        // Game guarantee: stored value takes priority, fall back to derived from pairings.
+        // Must be computed BEFORE the summary loop so expected game counts respect the cap.
+        var storedGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+        int? effectiveGuarantee = storedGuarantee;
+        if (effectiveGuarantee == null && maxRoundByPoolSize.Count > 0)
+        {
+            // Backward compat: derive from pairing table when not configured
+            effectiveGuarantee = maxRoundByPoolSize
+                .Select(kvp =>
+                {
+                    var tCnt = kvp.Key;
+                    var maxRound = kvp.Value;
+                    return tCnt % 2 == 0 ? maxRound : maxRound - 1;
+                })
+                .Min();
+        }
+
         var summaries = activeDivisions.Select(d =>
         {
             var gameCount = gameCounts.GetValueOrDefault(d.DivId);
-            // Use actual pairing count from PairingsLeagueSeason, fall back to formula
-            var expectedGames = pairingsByPoolSize.GetValueOrDefault(
-                d.TeamCount, d.TeamCount * (d.TeamCount - 1) / 2);
+            // Expected games capped by game guarantee (respects odd/even team count)
+            var expectedGames = ComputeExpectedGames(d.TeamCount, effectiveGuarantee);
             return new ScheduleGameSummaryDto
             {
                 AgegroupName = d.AgegroupName,
@@ -104,22 +120,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         var totalGames = summaries.Sum(s => s.GameCount);
         var divsWithGames = summaries.Count(s => s.GameCount > 0);
-
-        // Game guarantee: stored value takes priority, fall back to derived from pairings
-        var storedGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
-        int? effectiveGuarantee = storedGuarantee;
-        if (effectiveGuarantee == null && maxRoundByPoolSize.Count > 0)
-        {
-            // Backward compat: derive from pairing table when not configured
-            effectiveGuarantee = maxRoundByPoolSize
-                .Select(kvp =>
-                {
-                    var tCnt = kvp.Key;
-                    var maxRound = kvp.Value;
-                    return tCnt % 2 == 0 ? maxRound : maxRound - 1;
-                })
-                .Min();
-        }
 
         return new GameSummaryResponse
         {
@@ -491,11 +491,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var pairings = await _pairingsRepo.GetPairingsAsync(
                 agCtx.AgLeagueId, agCtx.AgSeason, teamCount, ct);
 
-            // Resolve this agegroup's effective guarantee (ag override → job default).
+            // Resolve this agegroup's effective guarantee:
+            //   agegroup override → job DB default → request-level fallback.
             // Cap rounds to only what this agegroup's guarantee requires.
             // The pairing table may have more rounds (for other agegroups with
             // higher guarantees), but this division only places what it needs.
-            var agGuarantee = agCtx.Agegroup?.GameGuarantee ?? jobGameGuarantee;
+            var agGuarantee = agCtx.Agegroup?.GameGuarantee
+                ?? jobGameGuarantee
+                ?? request.GameGuarantee;
             var guaranteeMaxRound = ComputeRoundCount(teamCount, agGuarantee);
 
             var rrPairings = pairings
@@ -714,11 +717,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // (e.g., Friday divisions sort before Saturday ones). Usually matches
         // the agegroup default, but divisions with their own timeslot config
         // get their own FirstGameDay resolved at assembly time.
-        // Actual game dates are determined by capacity-driven placement: the
-        // scorer picks the best slot across ALL dates, filling each day until
-        // full. FirstGameDay is a sort hint, not a constraint.
-        // Round-before-Agegroup ensures every agegroup gets R1 placed
-        // before anyone gets R2 — fair distribution of prime time slots.
+        // Round-before-Agegroup interleaves agegroups across shared fields:
+        // within each round, all agegroups compete for slots, so 2030 takes
+        // some fields at 8:00 AM while 2031 and 2032 take the rest. Each
+        // agegroup's teams still get compact spans (rounds advance together)
+        // but no single agegroup monopolizes all fields at any timeslot.
+        // This matches the 2025 PROD pattern where 3+ agegroups share
+        // fields simultaneously at each time block.
         // Wave time floors separate early/late blocks on shared play days.
 
         // Per-division placement counters
@@ -735,22 +740,30 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // the FIRST division of each TCnt to match the source's start position.
         var tcntDayFirstPlaced = new HashSet<(int TCnt, DayOfWeek Day)>();
 
-        // Build agegroup order index for sorting within each (day, wave, round) group
+        // Build agegroup order index for sorting within each (day, wave) group
         var agOrderIndex = request.AgegroupOrder
             .Select((e, i) => (e.AgegroupId, Index: i))
             .ToDictionary(x => x.AgegroupId, x => x.Index);
 
+        // Build per-division ordinal within its agegroup (0-based).
+        // Used to interleave divisions across agegroups: div 0 from each AG,
+        // then div 1 from each AG, etc. Since divisions have different sizes,
+        // this produces the irregular color pattern seen in 2025 PROD.
+        var divOrdinalWithinAg = divContexts
+            .GroupBy(c => c.Div.AgegroupId)
+            .SelectMany(g => g
+                .OrderBy(c => c.Div.DivName)
+                .Select((c, i) => (c.Div.DivId, Ordinal: i)))
+            .ToDictionary(x => x.DivId, x => x.Ordinal);
+
         // ── Build the chip stack ──
         // Each chip is ONE GAME (one pairing row). A 6-team division with
-        // 5 rounds and 3 games/round produces 15 chips.
-        // Stack order: FirstGameDay → Wave → Round → Agegroup → Division → Game.
-        // FirstGameDay separates divisions by their earliest effective play
-        // date (Friday before Saturday). Usually inherited from the agegroup,
-        // but division-specific timeslot overrides produce a different value.
-        // Within a day-group, Round-before-Agegroup ensures every agegroup
-        // gets its R1 placed before anyone gets R2 — fair prime-slot distribution.
-        // Actual game dates are capacity-driven — the scorer picks the best
-        // slot across ALL dates. FirstGameDay is a sort hint, not a constraint.
+        // 3 rounds and 3 games/round produces 9 chips.
+        // Stack order: FirstGameDay → Wave → Round → DivOrdinal → Agegroup → Game.
+        // DivOrdinal-before-Agegroup interleaves divisions across agegroups:
+        // all "pool 0"s place first (one from each AG), then all "pool 1"s, etc.
+        // Because divisions vary in size, agegroup colors scatter irregularly
+        // across fields rather than forming uniform repeating blocks.
         //
         // Round-level capacity check and start-time computation happen on
         // the first game of each (division, round) — tracked via roundChecked.
@@ -766,14 +779,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         GameIndex = idx,
                         GamesInRound = kvp.Value.Count,
                         AgOrder = agOrderIndex.GetValueOrDefault(ctx.Div.AgegroupId, int.MaxValue),
+                        DivOrdinal = divOrdinalWithinAg.GetValueOrDefault(ctx.Div.DivId, 0),
                         Pairing = pairing,
                         Ctx = ctx
                     })))
             .OrderBy(c => c.FirstGameDay)
             .ThenBy(c => c.Wave)
             .ThenBy(c => c.RoundNum)
+            .ThenBy(c => c.DivOrdinal)
             .ThenBy(c => c.AgOrder)
-            .ThenBy(c => c.Ctx.Div.DivName)
             .ThenBy(c => c.GameIndex)
             .ToList();
 
@@ -2501,7 +2515,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var currentFieldByName = currentFields.ToDictionary(
             f => f.FName, f => f.FieldId, StringComparer.OrdinalIgnoreCase);
 
-        // 4. Extract source profiles for GSI/timing defaults
+        // 4. Extract per-agegroup actual game times from source Schedule
+        var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
+
+        // 5. Extract source profiles for GSI defaults (GSI IS correctly per-team-count)
         var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
         if (yearDelta != 0)
             sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yearDelta);
@@ -2536,15 +2553,17 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 foreach (var dow in usage.DaysUsed)
                 {
                     var dowStr = dow.ToString(); // Full name: "Saturday", "Sunday", etc.
-                    var startTimeRange = profile?.TimeRangeAbsolute.GetValueOrDefault(dow);
-                    var startTimeStr = startTimeRange != null
-                        ? DateTime.Today.Add(startTimeRange.Start).ToString("hh:mm tt")
+                    // Per-agegroup start time from actual source Schedule games
+                    var agTimings = sourceAgTiming.GetValueOrDefault(srcAgName);
+                    var dayTiming = agTimings?.FirstOrDefault(t => t.DayOfWeek == dow);
+                    var startTimeStr = dayTiming != null
+                        ? DateTime.Today.Add(dayTiming.EarliestTime).ToString("hh:mm tt")
                         : "08:00 AM";
                     // MaxGamesPerField = capacity ceiling (# rows the scheduler can use).
                     // Always generous: startTime → 10 PM hard cap, regardless of how
                     // many games the source agegroup actually used (small divisions had
                     // short windows but the ceiling should be wide for flexibility).
-                    var startMinutes = startTimeRange?.Start.TotalMinutes ?? 480; // 8 AM default
+                    var startMinutes = dayTiming?.EarliestTime.TotalMinutes ?? 480; // 8 AM default
                     var availableMinutes = 1320 - startMinutes; // 10 PM = 22:00 = 1320 min
                     var maxGames = defaultGsi > 0
                         ? Math.Max(2, (int)Math.Floor(availableMinutes / defaultGsi))
@@ -2605,7 +2624,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var currentFieldNames = currentFields.Select(f => f.FName).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // ── 3. Timing: extract source profiles for GSI/start time defaults ──
+        // ── 3. Per-agegroup actual game times from source Schedule ──
+        var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
+
+        // ── 4. Timing: extract source profiles for GSI defaults (GSI IS per-team-count) ──
         var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
         if (yearDelta != 0)
             sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yearDelta);
@@ -2679,18 +2701,20 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
             }
 
-            // Per-agegroup timing from source profile
+            // GSI from source profile (correctly per-team-count)
             var srcDiv = sourceDivisions.FirstOrDefault(
                 d => string.Equals(d.AgegroupName, mappedName, StringComparison.OrdinalIgnoreCase));
             var profile = srcDiv != null ? profiles.GetValueOrDefault(srcDiv.TeamCount) : null;
             var agGsi = profile?.GsiMinutes ?? dominant?.GamestartInterval ?? 45;
 
-            var agStartTimeRange = profile?.TimeRangeAbsolute.Values.FirstOrDefault();
-            var agStartTime = agStartTimeRange != null
-                ? DateTime.Today.Add(agStartTimeRange.Start).ToString("hh:mm tt")
+            // Start time from actual source Schedule games (per-agegroup, not per-team-count)
+            var agTimings = sourceAgTiming.GetValueOrDefault(srcAgName);
+            var firstTiming = agTimings?.OrderBy(t => t.EarliestTime).FirstOrDefault();
+            var agStartTime = firstTiming != null
+                ? DateTime.Today.Add(firstTiming.EarliestTime).ToString("hh:mm tt")
                 : dominant?.StartTime ?? "08:00 AM";
 
-            var startMinutes = agStartTimeRange?.Start.TotalMinutes ?? 480;
+            var startMinutes = firstTiming?.EarliestTime.TotalMinutes ?? 480;
             var availableMinutes = 1320 - startMinutes;
             var agMaxGames = agGsi > 0
                 ? Math.Max(2, (int)Math.Floor(availableMinutes / agGsi))
@@ -2708,6 +2732,56 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             });
         }
 
+        // ── 6. Derive suggested waves + agegroup order from per-agegroup timing ──
+        var suggestedWaves = new Dictionary<Guid, int>();
+        var orderEntries = new List<(Guid AgId, DateTime FirstDay, TimeSpan StartTime, string SrcName)>();
+
+        // Build a reverse name map: current agegroup name → source agegroup name
+        var reverseNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var srcName in allSourceNames)
+        {
+            var mapped = dateNameMap.GetValueOrDefault(srcName,
+                fieldNameMap.GetValueOrDefault(srcName, srcName));
+            reverseNameMap[mapped] = srcName;
+        }
+
+        foreach (var pa in projectedAgegroups)
+        {
+            var srcName = reverseNameMap.GetValueOrDefault(pa.AgegroupName, pa.AgegroupName);
+            var agTimings = sourceAgTiming.GetValueOrDefault(srcName);
+            var firstDay = pa.GameDays.OrderBy(d => d.Date).FirstOrDefault()?.Date ?? DateTime.MaxValue;
+            var startTime = agTimings?.OrderBy(t => t.EarliestTime).FirstOrDefault()?.EarliestTime
+                ?? TimeSpan.FromHours(8);
+            orderEntries.Add((pa.AgegroupId, firstDay, startTime, srcName));
+        }
+
+        // Wave derivation: within each day, cluster by start time gap
+        var defaultGsiForWaves = dominant?.GamestartInterval ?? 45;
+        var waveThreshold = TimeSpan.FromMinutes(defaultGsiForWaves * 4); // ~3-4 hour gap = new wave
+
+        foreach (var dayGroup in orderEntries.GroupBy(e => e.FirstDay.Date).OrderBy(g => g.Key))
+        {
+            var sorted = dayGroup.OrderBy(e => e.StartTime).ToList();
+            int wave = 1;
+            var prevStart = sorted[0].StartTime;
+
+            for (int i = 0; i < sorted.Count; i++)
+            {
+                if (i > 0 && (sorted[i].StartTime - prevStart) >= waveThreshold)
+                    wave++;
+                suggestedWaves[sorted[i].AgId] = wave;
+                prevStart = sorted[i].StartTime;
+            }
+        }
+
+        // Order: sort by (first day, wave, start time)
+        var suggestedOrder = orderEntries
+            .OrderBy(e => e.FirstDay)
+            .ThenBy(e => suggestedWaves.GetValueOrDefault(e.AgId, 1))
+            .ThenBy(e => e.StartTime)
+            .Select(e => e.AgId)
+            .ToList();
+
         return new ProjectedScheduleConfigDto
         {
             SourceJobId = sourceJobId,
@@ -2719,7 +2793,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 Gsi = dominant?.GamestartInterval ?? 45,
                 StartTime = dominant?.StartTime ?? "08:00 AM",
                 MaxGamesPerField = dominant?.MaxGamesPerField ?? 14
-            }
+            },
+            SuggestedWaves = suggestedWaves,
+            SuggestedOrder = suggestedOrder
         };
     }
 

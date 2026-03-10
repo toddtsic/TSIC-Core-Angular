@@ -1325,4 +1325,35 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                     .ToList(),
                 StringComparer.OrdinalIgnoreCase);
     }
+
+    public async Task<Dictionary<string, List<SourceAgegroupTiming>>> GetSourceAgegroupTimingAsync(
+        Guid sourceJobId, CancellationToken ct = default)
+    {
+        var raw = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == sourceJobId
+                && s.GDate != null
+                && s.T1Type == "T" && s.T2Type == "T")
+            .Select(s => new
+            {
+                AgName = s.AgegroupName ?? "",
+                Dow = s.GDate!.Value.DayOfWeek,
+                Time = s.GDate!.Value.TimeOfDay
+            })
+            .ToListAsync(ct);
+
+        return raw
+            .GroupBy(r => r.AgName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(r => r.Dow)
+                    .Select(dg => new SourceAgegroupTiming
+                    {
+                        DayOfWeek = dg.Key,
+                        EarliestTime = dg.Min(r => r.Time)
+                    })
+                    .OrderBy(t => t.EarliestTime)
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+    }
 }
