@@ -4,8 +4,8 @@ namespace TSIC.API.Services.Scheduling;
 
 /// <summary>
 /// Mutable state container passed through the build loop during V2 placement.
-/// Tracks occupied slots, round timing, field usage, and team game times.
-/// Used by PlacementScorer for distance-from-source scoring.
+/// Tracks occupied slots, round timing, and team game times.
+/// Used by PlacementScorer for hard-filter checks (time overlap detection).
 /// </summary>
 public sealed class PlacementState
 {
@@ -14,19 +14,13 @@ public sealed class PlacementState
 
     /// <summary>
     /// The time of the first game placed in each round, per division.
-    /// Used by the scorer for round layout enforcement (horizontal rounds must align).
+    /// Used by the placement loop for round start time computation.
     /// </summary>
     public Dictionary<(Guid DivId, int Round), TimeSpan> RoundTargetTimes { get; } = new();
 
     /// <summary>
-    /// Per-team per-field game count — used by the scorer for field distribution fairness.
-    /// Key: (DivId, TeamNo, FieldName) → game count on that field.
-    /// </summary>
-    public Dictionary<(Guid DivId, int TeamNo, string FieldName), int> TeamFieldCounts { get; } = new();
-
-    /// <summary>
     /// Per-team per-day game times — tracks when each team plays on a given day.
-    /// Used by the scorer for min-team-gap scoring (replaces BTB hard filter).
+    /// Used by PlacementScorer for time overlap hard filter (prevents double-booking a team).
     /// Key: (DivId, TeamNo, GameDay) → list of TimeOfDay values.
     /// </summary>
     public Dictionary<(Guid DivId, int TeamNo, DateTime GameDay), List<TimeSpan>> TeamDayGameTimes { get; } = new();
@@ -39,7 +33,7 @@ public sealed class PlacementState
 
     /// <summary>
     /// Per-field quality flags: FieldId → FieldPreference (0=Normal, 1=Preferred, 2=Avoid).
-    /// Used by PlacementScorer to penalize "Avoid" fields.
+    /// Used by PlacementScorer to skip Avoid fields in early cascade passes.
     /// </summary>
     public Dictionary<Guid, int> FieldPreferences { get; }
 
@@ -54,7 +48,7 @@ public sealed class PlacementState
     }
 
     /// <summary>
-    /// Record a game placement — updates all tracking state.
+    /// Record a game placement — updates occupied slots, round timing, and team game times.
     /// </summary>
     public void RecordPlacement(CandidateSlot slot, GameContext game)
     {
@@ -64,14 +58,7 @@ public sealed class PlacementState
         var roundKey = (game.DivId, game.Round);
         RoundTargetTimes.TryAdd(roundKey, slot.GDate.TimeOfDay);
 
-        // Track team-field counts for field distribution balance
-        var tfKey1 = (game.DivId, game.T1No, slot.FieldName);
-        TeamFieldCounts[tfKey1] = TeamFieldCounts.GetValueOrDefault(tfKey1) + 1;
-
-        var tfKey2 = (game.DivId, game.T2No, slot.FieldName);
-        TeamFieldCounts[tfKey2] = TeamFieldCounts.GetValueOrDefault(tfKey2) + 1;
-
-        // Track per-team per-day game times for min-team-gap scoring
+        // Track per-team per-day game times for time overlap detection
         var gameDay = slot.GDate.Date;
         var gameTime = slot.GDate.TimeOfDay;
 
@@ -84,40 +71,5 @@ public sealed class PlacementState
         if (!TeamDayGameTimes.TryGetValue(tdKey2, out var times2))
             TeamDayGameTimes[tdKey2] = times2 = [];
         times2.Add(gameTime);
-    }
-
-    /// <summary>
-    /// Undo a placement — reverses all tracking state changes from RecordPlacement.
-    /// Used when a round can't be fully placed and must be rolled back.
-    /// </summary>
-    public void UndoPlacement(CandidateSlot slot, GameContext game)
-    {
-        OccupiedSlots.Remove((slot.FieldId, slot.GDate));
-
-        var roundKey = (game.DivId, game.Round);
-        RoundTargetTimes.Remove(roundKey);
-
-        var tfKey1 = (game.DivId, game.T1No, slot.FieldName);
-        if (TeamFieldCounts.TryGetValue(tfKey1, out var c1) && c1 > 1)
-            TeamFieldCounts[tfKey1] = c1 - 1;
-        else
-            TeamFieldCounts.Remove(tfKey1);
-
-        var tfKey2 = (game.DivId, game.T2No, slot.FieldName);
-        if (TeamFieldCounts.TryGetValue(tfKey2, out var c2) && c2 > 1)
-            TeamFieldCounts[tfKey2] = c2 - 1;
-        else
-            TeamFieldCounts.Remove(tfKey2);
-
-        var gameDay = slot.GDate.Date;
-        var gameTime = slot.GDate.TimeOfDay;
-
-        var tdKey1 = (game.DivId, game.T1No, gameDay);
-        if (TeamDayGameTimes.TryGetValue(tdKey1, out var times1))
-            times1.Remove(gameTime);
-
-        var tdKey2 = (game.DivId, game.T2No, gameDay);
-        if (TeamDayGameTimes.TryGetValue(tdKey2, out var times2))
-            times2.Remove(gameTime);
     }
 }

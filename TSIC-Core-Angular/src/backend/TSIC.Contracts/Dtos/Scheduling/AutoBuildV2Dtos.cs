@@ -379,16 +379,15 @@ public record GameContext
 }
 
 /// <summary>
-/// A candidate slot with its distance-from-source penalty.
-/// Lower TotalPenalty = closer match to source schedule pattern.
+/// Result of greedy slot placement. Tracks which relaxation passes were used.
 /// </summary>
-public record ScoredCandidate
+public record PlacementResult
 {
     public required CandidateSlot Slot { get; init; }
-    /// <summary>Sum of all penalty components. 0 = perfect source match.</summary>
-    public required int TotalPenalty { get; init; }
-    /// <summary>Per-property penalty breakdown for diagnostics and sacrifice reporting.</summary>
-    public required Dictionary<string, int> PenaltyBreakdown { get; init; }
+    /// <summary>True if the game was placed before its computed target time (time floor relaxed).</summary>
+    public bool TimeFallback { get; init; }
+    /// <summary>True if the game was placed on a field flagged as 'Avoid'.</summary>
+    public bool AvoidField { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

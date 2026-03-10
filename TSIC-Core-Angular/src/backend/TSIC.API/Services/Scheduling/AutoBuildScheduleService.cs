@@ -357,7 +357,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // ── 5. Pre-compute per-division context (DB calls can't interleave) ──
         var divisionResults = new List<AutoBuildDivisionResult>();
         var unplacedGames = new List<UnplacedGameDto>();
-        var sacrificeCounts = new Dictionary<string, (int Count, List<string> Examples)>();
         var totalPlaced = 0;
         var totalFailed = 0;
 
@@ -447,6 +446,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                 var agWave = waveByAgId.GetValueOrDefault(div.AgegroupId, 1);
 
+                // Build round-to-day mapping from agegroup-level date config.
+                // Each TimeslotDateDto row carries (GDate, Rnd) — the user's
+                // intent for which round plays on which calendar day.
+                var agRoundToDay = agDates
+                    .Where(d => d.Rnd > 0)
+                    .GroupBy(d => d.Rnd)
+                    .ToDictionary(g => g.Key, g => g.First().GDate.DayOfWeek);
+
                 agCtx = new AgegroupBuildContext
                 {
                     Agegroup = agegroup,
@@ -459,7 +466,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     DefaultWindowStart = defaultWindowStart,
                     DefaultFirstGameDay = defaultCandidates.Count > 0
                         ? defaultCandidates.Min(c => c.GDate.Date)
-                        : DateTime.MaxValue
+                        : DateTime.MaxValue,
+                    DefaultRoundToDay = agRoundToDay
                 };
                 agContextCache[div.AgegroupId] = agCtx;
             }
@@ -652,6 +660,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 ? candidates.Min(c => c.GDate.Date)
                 : DateTime.MaxValue;
 
+            // Round-to-day: use division-specific dates if they exist,
+            // otherwise inherit the agegroup-level mapping.
+            var roundToDay = divDates.Count > 0
+                ? divDates
+                    .Where(d => d.Rnd > 0)
+                    .GroupBy(d => d.Rnd)
+                    .ToDictionary(g => g.Key, g => g.First().GDate.DayOfWeek)
+                : agCtx.DefaultRoundToDay;
+
             divContexts.Add(new DivisionBuildContext
             {
                 AgContext = agCtx,
@@ -665,7 +682,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 RoundsByNum = roundsByNum,
                 MaxRound = maxRound,
                 EffectivePlayDays = effectivePlayDays,
-                FirstGameDay = firstGameDay
+                FirstGameDay = firstGameDay,
+                RoundToDay = roundToDay
             });
         }
 
@@ -799,6 +817,24 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var roundChecked = new HashSet<(Guid DivId, int Round)>();
         var skippedRounds = new HashSet<(Guid DivId, int Round)>();
         var roundStartTimes = new Dictionary<(Guid DivId, int Round), TimeSpan?>();
+        var roundSelectedDate = new Dictionary<(Guid DivId, int Round), DateTime>();
+        var roundDayFallback = new Dictionary<(Guid DivId, int Round), bool>();
+
+        // Factual diagnostic tracking (replaces penalty-based sacrifice reporting)
+        var diagnosticCounts = new Dictionary<string, (int Count, List<string> Examples)>();
+        void RecordDiagnostic(string key, string example)
+        {
+            if (!diagnosticCounts.TryGetValue(key, out var entry))
+            {
+                entry = (0, new List<string>());
+                diagnosticCounts[key] = entry;
+            }
+            var count = entry.Count + 1;
+            var examples = entry.Examples;
+            if (examples.Count < 3)
+                examples.Add(example);
+            diagnosticCounts[key] = (count, examples);
+        }
 
         foreach (var chip in allChips)
         {
@@ -827,25 +863,48 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (skippedRounds.Contains(divRoundKey))
                 continue;
 
-            // ── First game of a new (division, round): capacity check + start time ──
+            // ── First game of a new (division, round): date selection + start time ──
             if (roundChecked.Add(divRoundKey))
             {
-                // Capacity check across ALL dates — if the canvas can't fit
-                // the entire round, skip it. No partial rounds.
-                var openSlots = ctx.Candidates.Count(c =>
-                    !ctx.State.OccupiedSlots.Contains((c.FieldId, c.GDate))
-                    && !(waveFloorByDay.TryGetValue(c.GDate.Date, out var flr) && c.GDate < flr));
+                // ── Round-level date selection ──
+                // Try the configured target day first; if insufficient capacity,
+                // try other dates in chronological order. The entire round goes
+                // on one date — no splitting across days.
+                var targetDay = ctx.RoundToDay.TryGetValue(roundNum, out var tdow)
+                    ? tdow : (DayOfWeek?)null;
+                var candidateDates = ctx.Candidates
+                    .Select(c => c.GDate.Date).Distinct().OrderBy(d => d).ToList();
 
-                if (openSlots < chip.GamesInRound)
+                // Sort dates: target day dates first, then the rest chronologically
+                var orderedDates = targetDay.HasValue
+                    ? candidateDates.Where(d => d.DayOfWeek == targetDay.Value)
+                        .Concat(candidateDates.Where(d => d.DayOfWeek != targetDay.Value))
+                        .ToList()
+                    : candidateDates;
+
+                DateTime? selectedDate = null;
+                foreach (var date in orderedDates)
+                {
+                    var slotsOnDate = ctx.Candidates.Count(c =>
+                        c.GDate.Date == date
+                        && !ctx.State.OccupiedSlots.Contains((c.FieldId, c.GDate))
+                        && !(waveFloorByDay.TryGetValue(c.GDate.Date, out var flr) && c.GDate < flr));
+                    if (slotsOnDate >= chip.GamesInRound)
+                    {
+                        selectedDate = date;
+                        break;
+                    }
+                }
+
+                if (selectedDate == null)
                 {
                     _logger.LogWarning(
-                        "Round NOT placed: {AgName}/{DivName} R{Round} — needs {Need} slots, only {Open} open across all dates",
-                        ctx.Div.AgegroupName, ctx.Div.DivName, roundNum, chip.GamesInRound, openSlots);
+                        "Round NOT placed: {AgName}/{DivName} R{Round} — needs {Need} slots, no date has capacity",
+                        ctx.Div.AgegroupName, ctx.Div.DivName, roundNum, chip.GamesInRound);
 
                     skippedRounds.Add(divRoundKey);
                     divFailedCounts[ctx.Div.DivId] += chip.GamesInRound;
 
-                    // Report all games in this round as unplaced
                     foreach (var skipPairing in ctx.RoundsByNum[roundNum])
                     {
                         unplacedGames.Add(new UnplacedGameDto
@@ -855,13 +914,25 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                             Round = roundNum,
                             T1No = skipPairing.T1,
                             T2No = skipPairing.T2,
-                            Reason = $"Canvas full: {openSlots} open slots across all dates < {chip.GamesInRound} games needed"
+                            Reason = $"No date has {chip.GamesInRound} open slots for this round"
                         });
                     }
                     continue;
                 }
 
-                // Compute round start time hint for the scorer
+                roundSelectedDate[divRoundKey] = selectedDate.Value;
+                roundDayFallback[divRoundKey] = targetDay.HasValue
+                    && selectedDate.Value.DayOfWeek != targetDay.Value;
+
+                if (roundDayFallback[divRoundKey])
+                {
+                    _logger.LogInformation(
+                        "Day fallback: {AgName}/{DivName} R{Round} — target {Target} → placed on {Actual}",
+                        ctx.Div.AgegroupName, ctx.Div.DivName, roundNum,
+                        targetDay, selectedDate.Value.DayOfWeek);
+                }
+
+                // ── Compute round start time (time floor for greedy scan) ──
                 TimeSpan? roundStartTime = null;
 
                 if (ctx.State.RoundTargetTimes.TryGetValue(divRoundKey, out var existingTarget))
@@ -932,7 +1003,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             // ── Place this game (chip) ──
             var rst = roundStartTimes.GetValueOrDefault(divRoundKey);
 
-            // Per-game target time: for sequential rounds, each game advances by 1 GSI tick
+            // Per-game target time: for sequential rounds, each game advances by 1 GSI tick.
+            // Used as a hard time floor in the greedy scanner.
             var gameTargetTime = rst;
             if (ctx.Profile.RoundLayout == RoundLayout.Sequential
                 && rst.HasValue && ctx.Profile.GsiMinutes > 0 && chip.GameIndex > 0)
@@ -952,29 +1024,30 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 AgegroupName = ctx.Div.AgegroupName,
                 DivName = ctx.Div.DivName,
                 TCnt = ctx.TeamCount,
-                TargetDay = null,
+                TargetDay = ctx.RoundToDay.TryGetValue(roundNum, out var targetDow2) ? targetDow2 : null,
                 TargetTime = gameTargetTime
             };
 
-            var best = PlacementScorer.FindBestSlot(
-                ctx.Candidates, game, ctx.Profile, ctx.State,
+            // Filter candidates to the selected date for this round
+            var selDate = roundSelectedDate[divRoundKey];
+            var dateCandidates = ctx.Candidates
+                .Where(c => c.GDate.Date == selDate)
+                .ToList();
+
+            var result = PlacementScorer.FindFirstValidSlot(
+                dateCandidates, game, ctx.Profile, ctx.State,
                 waveFloorByDay.Count > 0 ? waveFloorByDay : null);
 
-            if (best == null)
+            // Safety fallback: if nothing found on the selected date, try all dates
+            if (result == null)
             {
-                var totalCandidates = ctx.Candidates.Count;
-                var occupied = ctx.Candidates.Count(c =>
-                    ctx.State.OccupiedSlots.Contains((c.FieldId, c.GDate)));
-                var belowWaveFloor = waveFloorByDay.Count > 0
-                    ? ctx.Candidates.Count(c =>
-                        waveFloorByDay.TryGetValue(c.GDate.Date, out var flr) && c.GDate < flr)
-                    : 0;
-                var available = totalCandidates - occupied - belowWaveFloor;
+                result = PlacementScorer.FindFirstValidSlot(
+                    ctx.Candidates, game, ctx.Profile, ctx.State,
+                    waveFloorByDay.Count > 0 ? waveFloorByDay : null);
+            }
 
-                var reason = available <= 0
-                    ? $"All {totalCandidates} slots occupied ({occupied} taken, {belowWaveFloor} below wave floor)"
-                    : $"No feasible slot among {available} open candidates (all failed scoring)";
-
+            if (result == null)
+            {
                 divFailedCounts[ctx.Div.DivId]++;
                 unplacedGames.Add(new UnplacedGameDto
                 {
@@ -983,31 +1056,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     Round = roundNum,
                     T1No = pairing.T1,
                     T2No = pairing.T2,
-                    Reason = reason
+                    Reason = "No valid slot — all candidates have team time conflicts"
                 });
                 continue;
             }
 
-            // Track penalty breakdown for sacrifice reporting
-            if (best.PenaltyBreakdown.Count > 0)
-            {
-                foreach (var (penaltyName, penaltyValue) in best.PenaltyBreakdown)
-                {
-                    if (!sacrificeCounts.TryGetValue(penaltyName, out var entry))
-                    {
-                        entry = (0, new List<string>());
-                        sacrificeCounts[penaltyName] = entry;
-                    }
-                    var count = entry.Count + 1;
-                    var examples = entry.Examples;
-                    if (examples.Count < 3)
-                    {
-                        examples.Add(
-                            $"{ctx.Div.AgegroupName}/{ctx.Div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2}");
-                    }
-                    sacrificeCounts[penaltyName] = (count, examples);
-                }
-            }
+            // Track factual diagnostics
+            var gameLabel = $"{ctx.Div.AgegroupName}/{ctx.Div.DivName} R{roundNum} #{pairing.T1}v#{pairing.T2}";
+            if (roundDayFallback.GetValueOrDefault(divRoundKey))
+                RecordDiagnostic("day-fallback", gameLabel);
+            if (result.TimeFallback)
+                RecordDiagnostic("time-fallback", gameLabel);
+            if (result.AvoidField)
+                RecordDiagnostic("avoid-field", gameLabel);
 
             // Create the Schedule entity
             var scheduleGame = new Schedule
@@ -1021,9 +1082,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 DivId = ctx.Div.DivId,
                 DivName = ctx.Division?.DivName ?? "",
                 Div2Id = ctx.Div.DivId,
-                FieldId = best.Slot.FieldId,
-                FName = best.Slot.FieldName,
-                GDate = best.Slot.GDate,
+                FieldId = result.Slot.FieldId,
+                FName = result.Slot.FieldName,
+                GDate = result.Slot.GDate,
                 GNo = pairing.GameNumber,
                 GStatusCode = 1,
                 Rnd = (byte)pairing.Rnd,
@@ -1042,19 +1103,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             };
 
             _scheduleRepo.AddGame(scheduleGame);
-            ctx.State.RecordPlacement(best.Slot, game);
+            ctx.State.RecordPlacement(result.Slot, game);
             divPlacedCounts[ctx.Div.DivId]++;
 
             // Track latest placement per day for wave floor computation
-            var placedDay = best.Slot.GDate.Date;
+            var placedDay = result.Slot.GDate.Date;
             if (!waveLatestByDay.TryGetValue(placedDay, out var dayLatest)
-                || best.Slot.GDate > dayLatest)
+                || result.Slot.GDate > dayLatest)
             {
-                waveLatestByDay[placedDay] = best.Slot.GDate;
+                waveLatestByDay[placedDay] = result.Slot.GDate;
             }
 
             // Mark this TCnt+Day as having its first division placed.
-            var placedDow = best.Slot.GDate.DayOfWeek;
+            var placedDow = result.Slot.GDate.DayOfWeek;
             tcntDayFirstPlaced.Add((ctx.TeamCount, placedDow));
         }
 
@@ -1089,25 +1150,21 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             totalFailed += failed;
         }
 
-        // ── 8. Build sacrifice log from penalty breakdown ──
-        var penaltyImpactDescriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        // ── 8. Build diagnostic log from factual tracking ──
+        var diagnosticDescriptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["wrong-day"] = "Games placed on a different day than the source schedule used.",
-            ["team-span"] = "A team's first-to-last game span exceeds the source pattern — longer wait at the field.",
-            ["team-gap"] = "Teams have games closer together than the source schedule — potential back-to-back.",
-            ["target-time"] = "Games placed at a different time than the source pattern — drift from expected position.",
-            ["round-layout"] = "Horizontal round couldn't place all games at the same time — insufficient fields.",
-            ["field-balance"] = "Some teams play on the same field more often than ideal — field rotation imbalance.",
-            ["field-avoid"] = "Games placed on a field marked as 'Avoid' — no other slots available without worse trade-offs."
+            ["day-fallback"] = "Round placed on a different day than configured — target day lacked capacity.",
+            ["time-fallback"] = "Game placed earlier than its expected time — later slots were occupied.",
+            ["avoid-field"] = "Game placed on a field marked 'Avoid' — no preferred fields available."
         };
 
-        var sacrificeLog = sacrificeCounts
+        var sacrificeLog = diagnosticCounts
             .Select(kvp => new ConstraintSacrificeDto
             {
                 ConstraintName = kvp.Key,
                 ViolationCount = kvp.Value.Count,
                 ExampleGames = kvp.Value.Examples,
-                ImpactDescription = penaltyImpactDescriptions.GetValueOrDefault(kvp.Key, "")
+                ImpactDescription = diagnosticDescriptions.GetValueOrDefault(kvp.Key, "")
             })
             .OrderByDescending(s => s.ViolationCount)
             .ToList();
@@ -1471,6 +1528,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         /// Divisions inherit this unless they have their own timeslots.
         /// </summary>
         public required DateTime DefaultFirstGameDay { get; init; }
+
+        /// <summary>
+        /// Round number → target DayOfWeek, built from agegroup-level
+        /// TimeslotsLeagueSeasonDates.Rnd. Divisions inherit this unless
+        /// they have their own date configuration.
+        /// </summary>
+        public required Dictionary<int, DayOfWeek> DefaultRoundToDay { get; init; }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1523,6 +1587,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         /// determined by capacity-driven placement.
         /// </summary>
         public required DateTime FirstGameDay { get; init; }
+
+        /// <summary>
+        /// Round number → target DayOfWeek, built from TimeslotsLeagueSeasonDates.Rnd.
+        /// Used to set GameContext.TargetDay so the scorer pins rounds to their
+        /// configured days. Inherits from AgContext.DefaultRoundToDay when division
+        /// has no date overrides. Unmapped rounds get TargetDay=null (float freely).
+        /// </summary>
+        public required Dictionary<int, DayOfWeek> RoundToDay { get; init; }
     }
 
     // ══════════════════════════════════════════════════════════
