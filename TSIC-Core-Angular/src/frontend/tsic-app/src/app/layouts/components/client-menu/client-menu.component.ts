@@ -124,13 +124,28 @@ export class ClientMenuComponent {
     ]);
 
     /**
-     * Get the link for a nav item.
-     * Nav items have explicit routerLink or navigateUrl — no controller/action translation needed.
+     * Get the path portion of a nav item's link (strips query string if present).
      */
     getLink(item: NavItemDto): string | null {
         if (item.navigateUrl) return item.navigateUrl;
-        if (item.routerLink) return item.routerLink;
+        if (item.routerLink) return item.routerLink.split('?')[0];
         return null;
+    }
+
+    /**
+     * Parse query params from a routerLink string (e.g. "reporting/export-sp?spName=foo&bUseJobId=true").
+     * Returns null if no query string present.
+     */
+    getQueryParams(item: NavItemDto): Record<string, string> | null {
+        if (!item.routerLink || !item.routerLink.includes('?')) return null;
+        const qs = item.routerLink.split('?')[1];
+        if (!qs) return null;
+        const params: Record<string, string> = {};
+        for (const pair of qs.split('&')) {
+            const [key, value] = pair.split('=');
+            if (key) params[decodeURIComponent(key)] = decodeURIComponent(value ?? '');
+        }
+        return params;
     }
 
     /**
@@ -142,7 +157,7 @@ export class ClientMenuComponent {
     isRouteImplemented(item: NavItemDto): boolean {
         if (item.navigateUrl) return true;
         if (item.routerLink) {
-            const link = item.routerLink.replace(/^\/+/, '').toLowerCase();
+            const link = item.routerLink.split('?')[0].replace(/^\/+/, '').toLowerCase();
             if (this.knownRoutes.has(link)) return true;
             return this.wildcardPrefixes.some(prefix => link.startsWith(prefix + '/'));
         }

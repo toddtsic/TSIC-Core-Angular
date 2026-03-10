@@ -37,8 +37,8 @@
                             {{ child.text }}
                         </a>
                         } @else if (getLink(child)) {
-                        <a class="dropdown-item" [routerLink]="getLink(child)" routerLinkActive="active"
-                            (click)="collapseAll()">
+                        <a class="dropdown-item" [routerLink]="getLink(child)" [queryParams]="getQueryParams(child)"
+                            routerLinkActive="active" (click)="collapseAll()">
                             @if (child.iconName) {
                             <i class="bi bi-{{ child.iconName }} me-2"></i>
                             }
@@ -71,7 +71,8 @@
                     {{ item.text }}
                 </a>
                 } @else if (getLink(item)) {
-                <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active" (click)="collapseAll()">
+                <a class="nav-link" [routerLink]="getLink(item)" [queryParams]="getQueryParams(item)"
+                    routerLinkActive="active" (click)="collapseAll()">
                     <i class="bi bi-{{ getMenuIcon(item) }} me-1"></i>
                     {{ item.text }}
                 </a>
@@ -141,8 +142,8 @@
                                     {{ child.text }}
                                 </a>
                                 } @else if (getLink(child)) {
-                                <a class="nav-link" [routerLink]="getLink(child)" routerLinkActive="active"
-                                    (click)="closeOffcanvas()">
+                                <a class="nav-link" [routerLink]="getLink(child)" [queryParams]="getQueryParams(child)"
+                                    routerLinkActive="active" (click)="closeOffcanvas()">
                                     <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                                     {{ child.text }}
                                 </a>
@@ -174,8 +175,8 @@
                         {{ item.text }}
                     </a>
                     } @else if (getLink(item)) {
-                    <a class="nav-link" [routerLink]="getLink(item)" routerLinkActive="active"
-                        (click)="closeOffcanvas()">
+                    <a class="nav-link" [routerLink]="getLink(item)" [queryParams]="getQueryParams(item)"
+                        routerLinkActive="active" (click)="closeOffcanvas()">
                         <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                         {{ item.text }}
                     </a>
