@@ -756,15 +756,25 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
         else
         {
-            // Fallback: agegroup order + alphabetical division within agegroup
+            // Fallback: recreate old DivOrdinal→AgOrder interleaving.
+            // All "position 0" divisions across agegroups first, then "position 1", etc.
+            // This distributes field pressure across agegroups — no single agegroup
+            // monopolizes all fields at any timeslot.
             var agOrderFallback = request.AgegroupOrder
                 .Select((e, i) => (e.AgegroupId, Index: i))
                 .ToDictionary(x => x.AgegroupId, x => x.Index);
 
+            var divOrdinalWithinAg = divContexts
+                .GroupBy(c => c.Div.AgegroupId)
+                .SelectMany(g => g
+                    .OrderBy(c => c.Div.DivName)
+                    .Select((c, i) => (c.Div.DivId, Ordinal: i)))
+                .ToDictionary(x => x.DivId, x => x.Ordinal);
+
             int idx = 0;
             foreach (var ctx in divContexts
-                .OrderBy(c => agOrderFallback.GetValueOrDefault(c.Div.AgegroupId, int.MaxValue))
-                .ThenBy(c => c.Div.DivName))
+                .OrderBy(c => divOrdinalWithinAg.GetValueOrDefault(c.Div.DivId, 0))
+                .ThenBy(c => agOrderFallback.GetValueOrDefault(c.Div.AgegroupId, int.MaxValue)))
             {
                 divOrderIndex[ctx.Div.DivId] = idx++;
             }
