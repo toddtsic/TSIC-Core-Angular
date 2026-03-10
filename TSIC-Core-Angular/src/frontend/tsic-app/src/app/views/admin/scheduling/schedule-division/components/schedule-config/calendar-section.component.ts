@@ -45,6 +45,8 @@ interface DivisionRow {
     teamCount: number;
     /** Rounds for this division (guarantee-driven). */
     rounds: number;
+    /** Per-division wave (1-3). */
+    wave: number;
 }
 
 /**
@@ -97,8 +99,8 @@ export class CalendarSectionComponent {
     readonly showDatePicker = signal(false);
     readonly newDateValue = signal('');
 
-    // ── Per-agegroup wave editing (per-AG, not per-date) ──
-    readonly agWaveMap = signal<Record<string, number>>({});
+    // ── Per-division wave editing (divisionId → wave) ──
+    readonly divWaveMap = signal<Record<string, number>>({});
 
     // ── 2D matrix editing state: rounds per day per agegroup ──
     readonly cellMap = signal<CellMap>({});
@@ -246,7 +248,7 @@ export class CalendarSectionComponent {
         const ags = this.agegroups();
         const map = this.readinessMap();
         const pyRounds = this.priorYearRounds();
-        const waveMap = this.agWaveMap();
+        const dwMap = this.divWaveMap();
         const cfgWaves = this.configWaves();
         const guarantee = this.gameGuarantee();
 
@@ -261,8 +263,20 @@ export class CalendarSectionComponent {
                     divId: div.divId,
                     divName: div.divName,
                     teamCount: div.teamCount,
-                    rounds: this.computeDivisionRounds(div.teamCount, guarantee)
+                    rounds: this.computeDivisionRounds(div.teamCount, guarantee),
+                    wave: dwMap[div.divId] ?? cfgWaves[div.divId] ?? 1
                 }));
+
+                // Agegroup wave = most common wave among its divisions (display only)
+                const waveCounts = new Map<number, number>();
+                for (const div of divisions) {
+                    waveCounts.set(div.wave, (waveCounts.get(div.wave) ?? 0) + 1);
+                }
+                let agWave = 1;
+                let maxCount = 0;
+                for (const [w, c] of waveCounts) {
+                    if (c > maxCount) { maxCount = c; agWave = w; }
+                }
 
                 return {
                     agegroupId: ag.agegroupId,
@@ -271,9 +285,7 @@ export class CalendarSectionComponent {
                     divisionCount: ag.divisions.length,
                     color: ag.color,
                     maxRounds,
-                    wave: waveMap[ag.agegroupId]
-                        ?? cfgWaves[ag.agegroupId]
-                        ?? 1,
+                    wave: agWave,
                     divisions
                 };
             });
@@ -300,11 +312,11 @@ export class CalendarSectionComponent {
         const dates = this.allDates();
         const existingIsos = new Set(this.existingDates().map(d => d.isoDate));
 
-        // Wave changes
-        const waveMap = this.agWaveMap();
+        // Wave changes (per-division)
+        const waveMap = this.divWaveMap();
         const cfgWaves = this.configWaves();
-        for (const agId of Object.keys(waveMap)) {
-            if (waveMap[agId] !== (cfgWaves[agId] ?? 1)) return true;
+        for (const divId of Object.keys(waveMap)) {
+            if (waveMap[divId] !== (cfgWaves[divId] ?? 1)) return true;
         }
 
         // Cell changes per date
@@ -398,13 +410,25 @@ export class CalendarSectionComponent {
         this.managedDates.set(this.managedDates().filter(d => d !== isoDate));
     }
 
-    setWave(agId: string, wave: number): void {
-        this.agWaveMap.set({ ...this.agWaveMap(), [agId]: wave });
+    /** Set a single division's wave. */
+    setDivWave(divId: string, wave: number): void {
+        this.divWaveMap.set({ ...this.divWaveMap(), [divId]: wave });
     }
 
-    cycleWave(agId: string, current: number): void {
+    /** Cycle a single division's wave (1→2→3→1). */
+    cycleDivWave(divId: string, current: number): void {
         const next = current >= 3 ? 1 : current + 1;
-        this.setWave(agId, next);
+        this.setDivWave(divId, next);
+    }
+
+    /** Set ALL divisions in an agegroup to the next wave (set-all shortcut). */
+    cycleAgWave(row: AgRow): void {
+        const next = row.wave >= 3 ? 1 : row.wave + 1;
+        const updated = { ...this.divWaveMap() };
+        for (const div of row.divisions) {
+            updated[div.divId] = next;
+        }
+        this.divWaveMap.set(updated);
     }
 
     // ── Cell value access ──
@@ -552,10 +576,12 @@ export class CalendarSectionComponent {
             }
         }
 
-        // Build waveMap from current state
+        // Build waveMap from current state (keyed by divisionId)
         const waveMap: Record<string, number> = {};
         for (const row of rows) {
-            waveMap[row.agegroupId] = row.wave;
+            for (const div of row.divisions) {
+                waveMap[div.divId] = div.wave;
+            }
         }
 
         this.applyRequested.emit({ assignments, waveMap });

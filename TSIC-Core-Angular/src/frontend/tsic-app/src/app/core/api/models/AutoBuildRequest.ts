@@ -12,5 +12,7 @@ export type AutoBuildRequest = {
     saveProfiles?: boolean;
     existingGameMode?: string | null;
     gameGuarantee?: number;
+    divisionWaves?: any | null;
+    divisionOrder?: any[] | null;
 };
 

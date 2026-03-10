@@ -12,5 +12,7 @@ export type ProjectedScheduleConfigDto = {
     timingDefaults: ProjectedTimingDefaults;
     suggestedWaves?: any | null;
     suggestedOrder?: any[] | null;
+    suggestedDivisionWaves?: any | null;
+    suggestedDivisionOrder?: any[] | null;
 };
 

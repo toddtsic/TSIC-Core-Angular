@@ -124,7 +124,8 @@ export class ScheduleConfigService {
      */
     initialize(
         readiness: CanvasReadinessResponse,
-        agegroups: { agegroupId: string; agegroupName: string; teamCount: number }[],
+        agegroups: { agegroupId: string; agegroupName: string; teamCount: number;
+                     divisions?: { divId: string; divName: string }[] }[],
         strategies: DivisionStrategyEntry[],
         strategySource: string
     ): void {
@@ -251,7 +252,8 @@ export class ScheduleConfigService {
         jobId: string,
         eventType: 'league' | 'tournament',
         readiness: CanvasReadinessResponse,
-        agegroups: { agegroupId: string; agegroupName: string; teamCount: number }[],
+        agegroups: { agegroupId: string; agegroupName: string; teamCount: number;
+                     divisions?: { divId: string; divName: string }[] }[],
         priorYear: PriorYearFieldDefaults | null,
         priorRounds: Record<string, number> | null,
         strategies: DivisionStrategyEntry[],
@@ -286,8 +288,17 @@ export class ScheduleConfigService {
         // ── Rounds per AG: maxPairingRound → prior year → RR formula ──
         const roundsPerAg = this.deriveRoundsPerAg(agegroups, agMap, priorRounds, pyLabel);
 
-        // ── Wave assignments: infer from start time offsets ──
-        const waveAssignments = this.inferWaves(readiness.agegroups);
+        // ── Wave assignments: infer agegroup-level then expand to per-division ──
+        const agWaves = this.inferWaves(readiness.agegroups);
+        const waveAssignments: Record<string, number> = {};
+        for (const ag of agegroups) {
+            const agWave = agWaves[ag.agegroupId] ?? 1;
+            if (ag.divisions?.length) {
+                for (const div of ag.divisions) {
+                    waveAssignments[div.divId] = agWave;
+                }
+            }
+        }
 
         // ── R/day per AG: infer from readiness data ──
         const roundsPerDay = this.inferRoundsPerDay(readiness.agegroups);
@@ -322,7 +333,8 @@ export class ScheduleConfigService {
         jobId: string,
         eventType: 'league' | 'tournament',
         projected: ProjectedScheduleConfigDto,
-        agegroups: { agegroupId: string; agegroupName: string; teamCount: number }[],
+        agegroups: { agegroupId: string; agegroupName: string; teamCount: number;
+                     divisions?: { divId: string; divName: string }[] }[],
         strategies: DivisionStrategyEntry[],
         strategySource: string
     ): ScheduleConfig {
@@ -423,10 +435,16 @@ export class ScheduleConfigService {
         // ── Strategy ──
         const { placement, gapPattern } = this.deriveStrategy(strategies, strategySource, pyLabel);
 
-        // ── Waves: use backend-derived suggestions from source schedule ──
+        // ── Waves: per-division from backend, falling back to agegroup wave ──
         const waveAssignments: Record<string, number> = {};
+        const divWaves = projected.suggestedDivisionWaves as Record<string, number> | null;
         for (const ag of agegroups) {
-            waveAssignments[ag.agegroupId] = projected.suggestedWaves?.[ag.agegroupId] ?? 1;
+            const agWave = projected.suggestedWaves?.[ag.agegroupId] ?? 1;
+            if (ag.divisions?.length) {
+                for (const div of ag.divisions) {
+                    waveAssignments[div.divId] = divWaves?.[div.divId] ?? agWave;
+                }
+            }
         }
 
         return {
@@ -447,7 +465,8 @@ export class ScheduleConfigService {
             roundsPerDay,
             placement,
             gapPattern,
-            suggestedOrder: projected.suggestedOrder as string[] | undefined
+            suggestedOrder: projected.suggestedOrder as string[] | undefined,
+            suggestedDivisionOrder: projected.suggestedDivisionOrder as string[] | undefined
         };
     }
 

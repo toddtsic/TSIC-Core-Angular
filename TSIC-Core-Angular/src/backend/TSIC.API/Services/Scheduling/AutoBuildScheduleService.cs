@@ -347,9 +347,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var existingCounts = await _autoBuildRepo.GetExistingGameCountsByDivisionAsync(jobId, ct);
 
         // ── 4. Build processing order: agegroups → divisions ──
-        // Build wave lookup: agegroupId → wave number
+        // Build wave lookup: agegroupId → wave number (agegroup default)
         var waveByAgId = request.AgegroupOrder
             .ToDictionary(e => e.AgegroupId, e => e.Wave);
+
+        // Per-division wave override (divisionId → wave). Falls back to agegroup wave.
+        var waveByDivId = request.DivisionWaves ?? new Dictionary<Guid, int>();
+
+        // Division-level ordering from request (divisionId → sort index)
+        var divOrderIndex = new Dictionary<Guid, int>();
 
         var orderedDivisions = BuildProcessingOrder(
             activeDivisions, request.AgegroupOrder, request.DivisionOrderStrategy, excludedIds);
@@ -672,9 +678,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     .ToDictionary(g => g.Key, g => g.First().GDate.DayOfWeek)
                 : agCtx.DefaultRoundToDay;
 
+            // Resolve effective wave: per-division override → agegroup default
+            var divWave = waveByDivId.GetValueOrDefault(div.DivId, agCtx.Wave);
+
             divContexts.Add(new DivisionBuildContext
             {
                 AgContext = agCtx,
+                Wave = divWave,
                 Div = div,
                 Division = division,
                 TeamCount = teamCount,
@@ -710,21 +720,17 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
 
         // ── 7. Chip-stack placement ──
-        // Ordering: FirstGameDay → Wave → Round → Agegroup → Division → Game
+        // Ordering: FirstGameDay → Wave → Round → DivOrder → Game
         //
         // Each "chip" is one game (one pairing row).
         // FirstGameDay groups divisions by their earliest effective play date
-        // (e.g., Friday divisions sort before Saturday ones). Usually matches
-        // the agegroup default, but divisions with their own timeslot config
-        // get their own FirstGameDay resolved at assembly time.
-        // Round-before-Agegroup interleaves agegroups across shared fields:
-        // within each round, all agegroups compete for slots, so 2030 takes
-        // some fields at 8:00 AM while 2031 and 2032 take the rest. Each
-        // agegroup's teams still get compact spans (rounds advance together)
-        // but no single agegroup monopolizes all fields at any timeslot.
-        // This matches the 2025 PROD pattern where 3+ agegroups share
-        // fields simultaneously at each time block.
-        // Wave time floors separate early/late blocks on shared play days.
+        // (e.g., Friday divisions sort before Saturday ones).
+        // Wave is per-division (per day): divisions within the same agegroup
+        // can have different waves (e.g., 2030:Hobie morning, 2030:Reef afternoon).
+        // DivOrder is a single sort key derived from source timing (returning jobs)
+        // or alphabetical within agegroup (new jobs). It replaces the old
+        // DivOrdinal + AgOrder interleaving.
+        // Wave floor separates time blocks — wave 1 completes before wave 2 starts.
 
         // Per-division placement counters
         var divPlacedCounts = new Dictionary<Guid, int>();
@@ -740,30 +746,39 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // the FIRST division of each TCnt to match the source's start position.
         var tcntDayFirstPlaced = new HashSet<(int TCnt, DayOfWeek Day)>();
 
-        // Build agegroup order index for sorting within each (day, wave) group
-        var agOrderIndex = request.AgegroupOrder
-            .Select((e, i) => (e.AgegroupId, Index: i))
-            .ToDictionary(x => x.AgegroupId, x => x.Index);
+        // Build division-level order index for chip-stack sorting.
+        // When DivisionOrder is provided (from source timing or manual config),
+        // use it directly. Otherwise fall back to interleaving by DivOrdinal + AgOrder.
+        if (request.DivisionOrder?.Count > 0)
+        {
+            for (int i = 0; i < request.DivisionOrder.Count; i++)
+                divOrderIndex[request.DivisionOrder[i]] = i;
+        }
+        else
+        {
+            // Fallback: agegroup order + alphabetical division within agegroup
+            var agOrderFallback = request.AgegroupOrder
+                .Select((e, i) => (e.AgegroupId, Index: i))
+                .ToDictionary(x => x.AgegroupId, x => x.Index);
 
-        // Build per-division ordinal within its agegroup (0-based).
-        // Used to interleave divisions across agegroups: div 0 from each AG,
-        // then div 1 from each AG, etc. Since divisions have different sizes,
-        // this produces the irregular color pattern seen in 2025 PROD.
-        var divOrdinalWithinAg = divContexts
-            .GroupBy(c => c.Div.AgegroupId)
-            .SelectMany(g => g
-                .OrderBy(c => c.Div.DivName)
-                .Select((c, i) => (c.Div.DivId, Ordinal: i)))
-            .ToDictionary(x => x.DivId, x => x.Ordinal);
+            int idx = 0;
+            foreach (var ctx in divContexts
+                .OrderBy(c => agOrderFallback.GetValueOrDefault(c.Div.AgegroupId, int.MaxValue))
+                .ThenBy(c => c.Div.DivName))
+            {
+                divOrderIndex[ctx.Div.DivId] = idx++;
+            }
+        }
 
         // ── Build the chip stack ──
         // Each chip is ONE GAME (one pairing row). A 6-team division with
         // 3 rounds and 3 games/round produces 9 chips.
-        // Stack order: FirstGameDay → Wave → Round → DivOrdinal → Agegroup → Game.
-        // DivOrdinal-before-Agegroup interleaves divisions across agegroups:
-        // all "pool 0"s place first (one from each AG), then all "pool 1"s, etc.
-        // Because divisions vary in size, agegroup colors scatter irregularly
-        // across fields rather than forming uniform repeating blocks.
+        // Stack order: FirstGameDay → Wave → Round → DivOrder → Game.
+        // DivOrder is a single sort key that replaces the old DivOrdinal + AgOrder
+        // interleaving. For returning jobs, derived from source timing (morning
+        // divisions before afternoon). For new jobs, alphabetical within agegroup.
+        // Per-division wave separates time blocks (morning vs afternoon) within
+        // the same agegroup — the wave floor ensures no overlap.
         //
         // Round-level capacity check and start-time computation happen on
         // the first game of each (division, round) — tracked via roundChecked.
@@ -774,20 +789,18 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     .SelectMany(kvp => kvp.Value.Select((pairing, idx) => new
                     {
                         ctx.FirstGameDay,
-                        Wave = ctx.AgContext.Wave,
+                        ctx.Wave,
                         RoundNum = kvp.Key,
                         GameIndex = idx,
                         GamesInRound = kvp.Value.Count,
-                        AgOrder = agOrderIndex.GetValueOrDefault(ctx.Div.AgegroupId, int.MaxValue),
-                        DivOrdinal = divOrdinalWithinAg.GetValueOrDefault(ctx.Div.DivId, 0),
+                        DivOrder = divOrderIndex.GetValueOrDefault(ctx.Div.DivId, int.MaxValue),
                         Pairing = pairing,
                         Ctx = ctx
                     })))
             .OrderBy(c => c.FirstGameDay)
             .ThenBy(c => c.Wave)
             .ThenBy(c => c.RoundNum)
-            .ThenBy(c => c.DivOrdinal)
-            .ThenBy(c => c.AgOrder)
+            .ThenBy(c => c.DivOrder)
             .ThenBy(c => c.GameIndex)
             .ToList();
 
@@ -1565,6 +1578,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     {
         /// <summary>Shared agegroup-level data (dates, fields, candidates, wave, etc.).</summary>
         public required AgegroupBuildContext AgContext { get; init; }
+
+        /// <summary>Effective wave for this division (per-division override → agegroup default).</summary>
+        public required int Wave { get; init; }
 
         public required CurrentDivisionSummary Div { get; init; }
         public Divisions? Division { get; init; }
@@ -2624,8 +2640,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var currentFieldNames = currentFields.Select(f => f.FName).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // ── 3. Per-agegroup actual game times from source Schedule ──
+        // ── 3. Per-agegroup and per-division actual game times from source Schedule ──
         var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
+        var sourceDivTiming = await _autoBuildRepo.GetSourceDivisionTimingAsync(sourceJobId, ct);
 
         // ── 4. Timing: extract source profiles for GSI defaults (GSI IS per-team-count) ──
         var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
@@ -2782,6 +2799,130 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             .Select(e => e.AgId)
             .ToList();
 
+        // ── 7. Derive per-division waves + division-level order from source ──
+        var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var suggestedDivisionWaves = new Dictionary<Guid, int>();
+        var divOrderEntries = new List<(Guid DivId, int Wave, DateTime FirstDay, TimeSpan StartTime)>();
+
+        foreach (var pa in projectedAgegroups)
+        {
+            var srcName = reverseNameMap.GetValueOrDefault(pa.AgegroupName, pa.AgegroupName);
+            var srcDivTimings = sourceDivTiming.GetValueOrDefault(srcName);
+            var targetDivs = currentDivisions
+                .Where(d => d.AgegroupId == pa.AgegroupId)
+                .OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (srcDivTimings == null || targetDivs.Count == 0)
+            {
+                // No source division timing — all divisions get agegroup's wave
+                var agWave = suggestedWaves.GetValueOrDefault(pa.AgegroupId, 1);
+                var firstDay = pa.GameDays.OrderBy(d => d.Date).FirstOrDefault()?.Date ?? DateTime.MaxValue;
+                foreach (var td in targetDivs)
+                {
+                    suggestedDivisionWaves[td.DivId] = agWave;
+                    divOrderEntries.Add((td.DivId, agWave, firstDay,
+                        orderEntries.FirstOrDefault(e => e.AgId == pa.AgegroupId).StartTime));
+                }
+                continue;
+            }
+
+            // Cluster source divisions by (day, start time) into waves
+            // Group by day first, then within each day sort by earliest time
+            var srcDivsByDay = srcDivTimings
+                .GroupBy(t => t.DayOfWeek)
+                .ToDictionary(g => g.Key, g => g
+                    .GroupBy(t => t.DivName, StringComparer.OrdinalIgnoreCase)
+                    .Select(dg => new { DivName = dg.Key, EarliestTime = dg.Min(t => t.EarliestTime) })
+                    .OrderBy(d => d.EarliestTime)
+                    .ToList());
+
+            // Use the day with the most divisions as the canonical clustering day
+            var canonicalDay = srcDivsByDay
+                .OrderByDescending(kvp => kvp.Value.Count)
+                .First();
+
+            var sortedSrcDivs = canonicalDay.Value;
+            var srcDivWaves = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            int wave = 1;
+            var prevTime = sortedSrcDivs[0].EarliestTime;
+
+            for (int i = 0; i < sortedSrcDivs.Count; i++)
+            {
+                if (i > 0 && (sortedSrcDivs[i].EarliestTime - prevTime) >= waveThreshold)
+                    wave++;
+                srcDivWaves[sortedSrcDivs[i].DivName] = wave;
+                prevTime = sortedSrcDivs[i].EarliestTime;
+            }
+
+            // Map source division names → target division IDs
+            // Strategy: exact name match first, then ordinal fallback
+            var srcDivNamesOrdered = sortedSrcDivs.Select(d => d.DivName).ToList();
+            var matchedTargets = new HashSet<Guid>();
+            var srcToTarget = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+
+            // Pass 1: exact name match
+            foreach (var srcDiv in srcDivNamesOrdered)
+            {
+                var target = targetDivs.FirstOrDefault(
+                    td => !matchedTargets.Contains(td.DivId)
+                        && string.Equals(td.DivName, srcDiv, StringComparison.OrdinalIgnoreCase));
+                if (target != null)
+                {
+                    srcToTarget[srcDiv] = target.DivId;
+                    matchedTargets.Add(target.DivId);
+                }
+            }
+
+            // Pass 2: ordinal fallback for unmatched
+            var unmatchedSrc = srcDivNamesOrdered.Where(n => !srcToTarget.ContainsKey(n)).ToList();
+            var unmatchedTarget = targetDivs.Where(td => !matchedTargets.Contains(td.DivId)).ToList();
+            for (int i = 0; i < Math.Min(unmatchedSrc.Count, unmatchedTarget.Count); i++)
+            {
+                srcToTarget[unmatchedSrc[i]] = unmatchedTarget[i].DivId;
+                matchedTargets.Add(unmatchedTarget[i].DivId);
+            }
+
+            // Assign waves to matched target divisions
+            foreach (var (srcDiv, targetDivId) in srcToTarget)
+            {
+                var divWave = srcDivWaves.GetValueOrDefault(srcDiv, 1);
+                suggestedDivisionWaves[targetDivId] = divWave;
+            }
+
+            // Unmatched target divisions get the dominant wave (most common among matched siblings)
+            var dominantWave = srcDivWaves.Values.GroupBy(w => w)
+                .OrderByDescending(g => g.Count()).First().Key;
+            foreach (var td in targetDivs.Where(td => !matchedTargets.Contains(td.DivId)))
+            {
+                suggestedDivisionWaves[td.DivId] = dominantWave;
+                matchedTargets.Add(td.DivId);
+            }
+
+            // Build order entries for all target divisions in this agegroup
+            var firstDay2 = pa.GameDays.OrderBy(d => d.Date).FirstOrDefault()?.Date ?? DateTime.MaxValue;
+            foreach (var td in targetDivs)
+            {
+                var divWave = suggestedDivisionWaves.GetValueOrDefault(td.DivId, 1);
+                // Find source timing for this division (by name match or ordinal)
+                var srcDivName = srcToTarget.FirstOrDefault(kvp => kvp.Value == td.DivId).Key;
+                var srcTiming = srcDivName != null
+                    ? sortedSrcDivs.FirstOrDefault(d =>
+                        string.Equals(d.DivName, srcDivName, StringComparison.OrdinalIgnoreCase))
+                    : null;
+                var startTime = srcTiming?.EarliestTime ?? TimeSpan.FromHours(8);
+                divOrderEntries.Add((td.DivId, divWave, firstDay2, startTime));
+            }
+        }
+
+        // Division-level order: day → wave → start time
+        var suggestedDivisionOrder = divOrderEntries
+            .OrderBy(e => e.FirstDay)
+            .ThenBy(e => e.Wave)
+            .ThenBy(e => e.StartTime)
+            .Select(e => e.DivId)
+            .ToList();
+
         return new ProjectedScheduleConfigDto
         {
             SourceJobId = sourceJobId,
@@ -2795,7 +2936,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 MaxGamesPerField = dominant?.MaxGamesPerField ?? 14
             },
             SuggestedWaves = suggestedWaves,
-            SuggestedOrder = suggestedOrder
+            SuggestedOrder = suggestedOrder,
+            SuggestedDivisionWaves = suggestedDivisionWaves,
+            SuggestedDivisionOrder = suggestedDivisionOrder
         };
     }
 

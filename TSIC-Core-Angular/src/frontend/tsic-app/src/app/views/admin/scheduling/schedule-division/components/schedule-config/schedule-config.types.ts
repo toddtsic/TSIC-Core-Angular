@@ -58,7 +58,7 @@ export interface ScheduleConfig {
     roundsPerAg: Record<string, ScheduleConfigValue<number>>; // agId → rounds needed
 
     // ── Wave & R/day (Calendar section state, persisted across sections) ──
-    waveAssignments: Record<string, number>;   // agegroupId → wave (1-3)
+    waveAssignments: Record<string, number>;   // divisionId → wave (1-3)
     roundsPerDay: Record<string, number>;      // agegroupId → R/day
 
     // ── Strategy (Section ④) ──
@@ -67,6 +67,9 @@ export interface ScheduleConfig {
 
     // ── Agegroup ordering (derived from prior year source schedule) ──
     suggestedOrder?: string[];  // agegroupIds in suggested processing order
+
+    // ── Division-level ordering (derived from per-division source timing) ──
+    suggestedDivisionOrder?: string[];  // divisionIds in suggested processing order
 
     // ── League-specific rules (Node 5L) ──
     oddDivByeHandling?: ScheduleConfigValue<boolean>; // bPlayOddDivisionByeTeam
@@ -119,6 +122,6 @@ export interface FieldConfigApplyEvent {
 export interface CalendarApplyEvent {
     /** ISO date key → per-date entries + removals. Only dates with changes included. */
     assignments: Record<string, DateAssignment>;
-    /** agegroupId → wave (1-3). Per-agegroup, not per-date. */
+    /** divisionId → wave (1-3). Per-division, not per-date. */
     waveMap: Record<string, number>;
 }

@@ -440,7 +440,8 @@ export class ScheduleDivisionComponent implements OnInit {
             this.agegroups().map(ag => ({
                 agegroupId: ag.agegroupId,
                 agegroupName: ag.agegroupName,
-                teamCount: agTeamCount(ag)
+                teamCount: agTeamCount(ag),
+                divisions: ag.divisions.map(d => ({ divId: d.divId, divName: d.divName }))
             })),
             this.strategyProfiles(),
             this.strategySource()
@@ -1145,15 +1146,25 @@ export class ScheduleDivisionComponent implements OnInit {
         // Populate modal agegroup list (only relevant at event scope)
         if (this.scope().level === 'event') {
             const waveAssignments = this.configSvc.config()?.waveAssignments ?? {};
-            this.modalAgegroups.set(this.agegroups().map(ag => ({
-                agegroupId: ag.agegroupId,
-                agegroupName: ag.agegroupName,
-                color: ag.color ?? null,
-                teamCount: agTeamCount(ag),
-                divisionCount: ag.divisions.length,
-                included: true,
-                wave: waveAssignments[ag.agegroupId] ?? 1,
-            })));
+            this.modalAgegroups.set(this.agegroups().map(ag => {
+                // Derive agegroup-level wave as dominant wave among its divisions
+                const divWaves = ag.divisions.map(d => waveAssignments[d.divId] ?? 1);
+                const waveCounts = new Map<number, number>();
+                for (const w of divWaves) waveCounts.set(w, (waveCounts.get(w) ?? 0) + 1);
+                let agWave = 1;
+                let maxCount = 0;
+                for (const [w, c] of waveCounts) { if (c > maxCount) { maxCount = c; agWave = w; } }
+
+                return {
+                    agegroupId: ag.agegroupId,
+                    agegroupName: ag.agegroupName,
+                    color: ag.color ?? null,
+                    teamCount: agTeamCount(ag),
+                    divisionCount: ag.divisions.length,
+                    included: true,
+                    wave: agWave,
+                };
+            }));
         }
         this.showAutoScheduleModal.set(true);
     }
@@ -1370,15 +1381,31 @@ export class ScheduleDivisionComponent implements OnInit {
         const mode = event.config.existingGameMode ?? 'rebuild';
 
         const waveAssignments = this.configSvc.config()?.waveAssignments ?? {};
+        const divisionOrder = this.configSvc.config()?.suggestedDivisionOrder ?? undefined;
+
+        // Helper: derive agegroup wave as dominant division wave
+        const deriveAgWave = (agId: string): number => {
+            const ag = this.agegroups().find(a => a.agegroupId === agId);
+            if (!ag) return 1;
+            const divWaves = ag.divisions.map(d => waveAssignments[d.divId] ?? 1);
+            if (divWaves.length === 0) return 1;
+            const counts = new Map<number, number>();
+            for (const w of divWaves) counts.set(w, (counts.get(w) ?? 0) + 1);
+            let best = 1; let max = 0;
+            for (const [w, c] of counts) { if (c > max) { max = c; best = w; } }
+            return best;
+        };
 
         switch (s.level) {
             case 'division': {
                 const excluded = allDivIds.filter(id => id !== s.divId);
                 return {
-                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: waveAssignments[s.agegroupId] ?? 1 }] satisfies AgegroupBuildEntry[],
+                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: deriveAgWave(s.agegroupId) }] satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
+                    divisionWaves: waveAssignments,
+                    divisionOrder,
                     saveProfiles: true,
                     existingGameMode: mode,
                     gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
@@ -1390,10 +1417,12 @@ export class ScheduleDivisionComponent implements OnInit {
                     .divisions.map(d => d.divId);
                 const excluded = allDivIds.filter(id => !agDivIds.includes(id));
                 return {
-                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: waveAssignments[s.agegroupId] ?? 1 }] satisfies AgegroupBuildEntry[],
+                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: deriveAgWave(s.agegroupId) }] satisfies AgegroupBuildEntry[],
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
+                    divisionWaves: waveAssignments,
+                    divisionOrder,
                     saveProfiles: true,
                     existingGameMode: mode,
                     gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
@@ -1421,6 +1450,8 @@ export class ScheduleDivisionComponent implements OnInit {
                     divisionOrderStrategy: event.config.divisionOrderStrategy,
                     excludedDivisionIds: excluded,
                     divisionStrategies: event.strategies,
+                    divisionWaves: waveAssignments,
+                    divisionOrder,
                     saveProfiles: true,
                     existingGameMode: mode,
                     gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,

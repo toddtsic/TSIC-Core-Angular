@@ -90,6 +90,14 @@ public interface IAutoBuildRepository
         Guid sourceJobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Extract per-division per-day earliest game time from the source Schedule table.
+    /// Groups by (AgegroupName, DivName, DayOfWeek) for per-division wave derivation.
+    /// Returns agegroupName → list of (agegroupName, divName, dayOfWeek, earliestTime).
+    /// </summary>
+    Task<Dictionary<string, List<SourceDivisionTiming>>> GetSourceDivisionTimingAsync(
+        Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get the job name for a job ID.
     /// </summary>
     Task<string?> GetJobNameAsync(Guid jobId, CancellationToken ct = default);

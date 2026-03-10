@@ -461,6 +461,16 @@ public record SourceAgegroupTiming
     public required TimeSpan EarliestTime { get; init; }
 }
 
+/// <summary>Per-division per-day earliest game time from source Schedule table.
+/// Groups by (AgegroupName, DivName, DayOfWeek) for per-division wave derivation.</summary>
+public record SourceDivisionTiming
+{
+    public required string AgegroupName { get; init; }
+    public required string DivName { get; init; }
+    public required DayOfWeek DayOfWeek { get; init; }
+    public required TimeSpan EarliestTime { get; init; }
+}
+
 /// <summary>
 /// Result of seeding dates from a source job.
 /// </summary>
@@ -523,11 +533,21 @@ public record ProjectedScheduleConfigDto
     /// <summary>Event-level timing defaults derived from source (dominant GSI, start time, max games).</summary>
     public required ProjectedTimingDefaults TimingDefaults { get; init; }
 
-    /// <summary>Suggested wave assignments derived from source game times (agegroupId → wave).</summary>
+    /// <summary>Suggested wave assignments derived from source game times (agegroupId → wave).
+    /// Summary/fallback — see SuggestedDivisionWaves for per-division granularity.</summary>
     public Dictionary<Guid, int>? SuggestedWaves { get; init; }
 
-    /// <summary>Suggested agegroup processing order derived from source (day + start time sort).</summary>
+    /// <summary>Suggested agegroup processing order derived from source (day + start time sort).
+    /// Summary/fallback — see SuggestedDivisionOrder for division-level granularity.</summary>
     public List<Guid>? SuggestedOrder { get; init; }
+
+    /// <summary>Per-division wave assignment (divisionId → wave). Overrides SuggestedWaves.
+    /// Derived from per-(agegroupName, divName, day) source timing clusters.</summary>
+    public Dictionary<Guid, int>? SuggestedDivisionWaves { get; init; }
+
+    /// <summary>Division-level processing order (divisionIds sorted by source timing).
+    /// Wave 1 divisions first, then wave 2, within each wave sorted by earliest start time.</summary>
+    public List<Guid>? SuggestedDivisionOrder { get; init; }
 }
 
 /// <summary>

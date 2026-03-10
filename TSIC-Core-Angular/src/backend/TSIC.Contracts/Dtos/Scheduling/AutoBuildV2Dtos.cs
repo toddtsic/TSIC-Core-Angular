@@ -293,6 +293,16 @@ public record AutoBuildRequest
     /// Caps the number of rounds used from the pairing template.
     /// Null = full round-robin (every team plays every other team). 0 = same as null.</summary>
     public int? GameGuarantee { get; init; }
+
+    /// <summary>Per-division wave override (divisionId → wave).
+    /// When present, overrides the per-agegroup wave from AgegroupOrder.
+    /// Wave is a per-day time-block concept: wave 1 completes before wave 2 starts.</summary>
+    public Dictionary<Guid, int>? DivisionWaves { get; init; }
+
+    /// <summary>Division-level processing order (divisionIds).
+    /// When present, replaces DivOrdinal + AgOrder interleaving in chip stack.
+    /// Derived from source timing or set manually.</summary>
+    public List<Guid>? DivisionOrder { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

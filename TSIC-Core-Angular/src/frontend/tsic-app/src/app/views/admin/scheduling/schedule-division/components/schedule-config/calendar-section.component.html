@@ -135,11 +135,11 @@
                                 </div>
                             }
 
-                            <!-- Wave cell (click to cycle 1→2→3→1) -->
+                            <!-- Wave cell — sets ALL divisions in AG (click to cycle 1→2→3→1) -->
                             <div class="matrix-cell matrix-cell-wave">
                                 <button class="wave-badge"
-                                        (click)="cycleWave(row.agegroupId, row.wave)"
-                                        title="Click to change wave">
+                                        (click)="cycleAgWave(row)"
+                                        title="Set all divisions to next wave">
                                     {{ row.wave }}
                                 </button>
                             </div>
@@ -181,8 +181,14 @@
                                         </div>
                                     }
 
-                                    <!-- Empty wave cell for alignment -->
-                                    <div class="matrix-cell matrix-cell-wave"></div>
+                                    <!-- Per-division wave (click to cycle) -->
+                                    <div class="matrix-cell matrix-cell-wave">
+                                        <button class="wave-badge wave-badge-div"
+                                                (click)="cycleDivWave(div.divId, div.wave)"
+                                                title="Click to change this division's wave">
+                                            {{ div.wave }}
+                                        </button>
+                                    </div>
                                 </div>
                             }
                         }
