@@ -18,7 +18,6 @@ import type {
     CanvasReadinessResponse,
     AgegroupCanvasReadinessDto,
     PriorYearFieldDefaults,
-    DivisionStrategyEntry,
     BulkDateAssignRequest,
     BulkDateAgegroupEntry,
     ProjectedScheduleConfigDto
@@ -38,9 +37,7 @@ const STORAGE_PREFIX = 'schedule-config:';
 const GLOBAL_DEFAULTS = {
     gsi: 60,
     startTime: '8:00 AM',
-    maxGamesPerField: 8,
-    placement: 0,   // Horizontal
-    gapPattern: 1    // 1on/1off
+    maxGamesPerField: 8
 } as const;
 
 // ── Helper: wrap a value with provenance ──
@@ -56,30 +53,6 @@ function rrRounds(teamCount: number): number {
     return teamCount % 2 === 0 ? teamCount - 1 : teamCount;
 }
 
-// ── Helper: parse time string to minutes from midnight ──
-
-function parseTimeToMinutes(timeStr: string | null | undefined): number {
-    if (!timeStr) return 480; // 8:00 AM default
-
-    // Try "h:mm AM/PM" or "hh:mm AM/PM" format
-    const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (amPmMatch) {
-        let hours = parseInt(amPmMatch[1], 10);
-        const minutes = parseInt(amPmMatch[2], 10);
-        const isPm = amPmMatch[3].toUpperCase() === 'PM';
-        if (isPm && hours < 12) hours += 12;
-        if (!isPm && hours === 12) hours = 0;
-        return hours * 60 + minutes;
-    }
-
-    // Try 24-hour "H:mm" or "HH:mm" format
-    const h24Match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-    if (h24Match) {
-        return parseInt(h24Match[1], 10) * 60 + parseInt(h24Match[2], 10);
-    }
-
-    return 480; // fallback
-}
 
 @Injectable()
 export class ScheduleConfigService {
@@ -125,9 +98,7 @@ export class ScheduleConfigService {
     initialize(
         readiness: CanvasReadinessResponse,
         agegroups: { agegroupId: string; agegroupName: string; teamCount: number;
-                     divisions?: { divId: string; divName: string }[] }[],
-        strategies: DivisionStrategyEntry[],
-        strategySource: string
+                     divisions?: { divId: string; divName: string }[] }[]
     ): void {
         this.isInitializing.set(true);
 
@@ -167,7 +138,7 @@ export class ScheduleConfigService {
             this.autoBuildSvc.getProjectedConfig(priorYear.priorJobId).subscribe({
                 next: (projected) => {
                     const config = this.buildConfigFromProjection(
-                        jobId, eventType, projected, agegroups, strategies, strategySource
+                        jobId, eventType, projected, agegroups
                     );
                     this.config.set(config);
                     this.isInitializing.set(false);
@@ -175,7 +146,7 @@ export class ScheduleConfigService {
                 error: () => {
                     // Projection failed — fall back to default merge
                     const config = this.buildConfig(
-                        jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
+                        jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds
                     );
                     this.config.set(config);
                     this.isInitializing.set(false);
@@ -184,35 +155,21 @@ export class ScheduleConfigService {
             return;
         }
 
-        // ── Scenario B: DB has config, prior year exists (fetch projection for waves/order) ──
+        // ── Scenario B: DB has config, prior year exists (fetch projection for ordering) ──
         if (priorYear?.priorJobId && hasCurrentDbConfig) {
             this.scenario.set('prior-year');
             const baseConfig = this.buildConfig(
-                jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
+                jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds
             );
-            // Fetch projection to overlay per-division waves + ordering
+            // Fetch projection to overlay division ordering (waves now come from cascade DB)
             this.autoBuildSvc.getProjectedConfig(priorYear.priorJobId).subscribe({
                 next: (projected) => {
-                    const divWaves = projected.suggestedDivisionWaves as Record<string, number> | null;
-                    if (divWaves && Object.keys(divWaves).length > 0) {
-                        // Overlay per-division waves from source timing
-                        for (const ag of agegroups) {
-                            const agWave = projected.suggestedWaves?.[ag.agegroupId] ?? 1;
-                            if (ag.divisions?.length) {
-                                for (const div of ag.divisions) {
-                                    baseConfig.waveAssignments[div.divId] =
-                                        divWaves[div.divId] ?? agWave;
-                                }
-                            }
-                        }
-                    }
                     baseConfig.suggestedDivisionOrder =
                         projected.suggestedDivisionOrder as string[] | undefined;
                     this.config.set(baseConfig);
                     this.isInitializing.set(false);
                 },
                 error: () => {
-                    // Projection unavailable — use inferred waves (all wave 1)
                     this.config.set(baseConfig);
                     this.isInitializing.set(false);
                 }
@@ -224,7 +181,7 @@ export class ScheduleConfigService {
         this.scenario.set('new');
 
         const config = this.buildConfig(
-            jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds, strategies, strategySource
+            jobId, eventType, filteredReadiness, agegroups, priorYear, priorRounds
         );
 
         this.config.set(config);
@@ -287,9 +244,7 @@ export class ScheduleConfigService {
         agegroups: { agegroupId: string; agegroupName: string; teamCount: number;
                      divisions?: { divId: string; divName: string }[] }[],
         priorYear: PriorYearFieldDefaults | null,
-        priorRounds: Record<string, number> | null,
-        strategies: DivisionStrategyEntry[],
-        strategySource: string
+        priorRounds: Record<string, number> | null
     ): ScheduleConfig {
         const pyLabel = priorYear ? `${priorYear.priorJobName} ${priorYear.priorYear}` : undefined;
         const agMap = new Map(readiness.agegroups.map(a => [a.agegroupId, a]));
@@ -320,23 +275,8 @@ export class ScheduleConfigService {
         // ── Rounds per AG: maxPairingRound → prior year → RR formula ──
         const roundsPerAg = this.deriveRoundsPerAg(agegroups, agMap, priorRounds, pyLabel);
 
-        // ── Wave assignments: infer agegroup-level then expand to per-division ──
-        const agWaves = this.inferWaves(readiness.agegroups);
-        const waveAssignments: Record<string, number> = {};
-        for (const ag of agegroups) {
-            const agWave = agWaves[ag.agegroupId] ?? 1;
-            if (ag.divisions?.length) {
-                for (const div of ag.divisions) {
-                    waveAssignments[div.divId] = agWave;
-                }
-            }
-        }
-
         // ── R/day per AG: infer from readiness data ──
         const roundsPerDay = this.inferRoundsPerDay(readiness.agegroups);
-
-        // ── Strategy: saved → defaults ──
-        const { placement, gapPattern } = this.deriveStrategy(strategies, strategySource, pyLabel);
 
         return {
             jobId,
@@ -350,10 +290,7 @@ export class ScheduleConfigService {
             startTime,
             maxGamesPerField,
             roundsPerAg,
-            waveAssignments,
-            roundsPerDay,
-            placement,
-            gapPattern
+            roundsPerDay
         };
     }
 
@@ -366,9 +303,7 @@ export class ScheduleConfigService {
         eventType: 'league' | 'tournament',
         projected: ProjectedScheduleConfigDto,
         agegroups: { agegroupId: string; agegroupName: string; teamCount: number;
-                     divisions?: { divId: string; divName: string }[] }[],
-        strategies: DivisionStrategyEntry[],
-        strategySource: string
+                     divisions?: { divId: string; divName: string }[] }[]
     ): ScheduleConfig {
         const pyLabel = `${projected.sourceJobName} ${projected.sourceYear}`;
 
@@ -464,21 +399,6 @@ export class ScheduleConfigService {
             projected.timingDefaults.maxGamesPerField, 'prior-year', pyLabel
         );
 
-        // ── Strategy ──
-        const { placement, gapPattern } = this.deriveStrategy(strategies, strategySource, pyLabel);
-
-        // ── Waves: per-division from backend, falling back to agegroup wave ──
-        const waveAssignments: Record<string, number> = {};
-        const divWaves = projected.suggestedDivisionWaves as Record<string, number> | null;
-        for (const ag of agegroups) {
-            const agWave = projected.suggestedWaves?.[ag.agegroupId] ?? 1;
-            if (ag.divisions?.length) {
-                for (const div of ag.divisions) {
-                    waveAssignments[div.divId] = divWaves?.[div.divId] ?? agWave;
-                }
-            }
-        }
-
         return {
             jobId,
             eventType,
@@ -493,10 +413,7 @@ export class ScheduleConfigService {
             startTime,
             maxGamesPerField,
             roundsPerAg,
-            waveAssignments,
             roundsPerDay,
-            placement,
-            gapPattern,
             suggestedOrder: projected.suggestedOrder as string[] | undefined,
             suggestedDivisionOrder: projected.suggestedDivisionOrder as string[] | undefined
         };
@@ -673,92 +590,7 @@ export class ScheduleConfigService {
 
     // ── Strategy derivation ──
 
-    private deriveStrategy(
-        strategies: DivisionStrategyEntry[],
-        source: string,
-        pyLabel?: string
-    ): { placement: ScheduleConfigValue<number>; gapPattern: ScheduleConfigValue<number> } {
-        if (strategies.length > 0 && source !== 'defaults') {
-            // Use uniform value if all divisions agree, else take first
-            const p = strategies.every(s => s.placement === strategies[0].placement)
-                ? strategies[0].placement
-                : strategies[0].placement;
-            const g = strategies.every(s => s.gapPattern === strategies[0].gapPattern)
-                ? strategies[0].gapPattern
-                : strategies[0].gapPattern;
-
-            const configSource: ConfigSource = source === 'inferred' ? 'prior-year' : 'saved';
-            const label = source === 'inferred' ? pyLabel : undefined;
-
-            return {
-                placement: wrap(p, configSource, label),
-                gapPattern: wrap(g, configSource, label)
-            };
-        }
-
-        return {
-            placement: wrap(GLOBAL_DEFAULTS.placement, 'default'),
-            gapPattern: wrap(GLOBAL_DEFAULTS.gapPattern, 'default')
-        };
-    }
-
-    // ── Wave inference from readiness data ──
-
-    /**
-     * Infer wave assignments from existing timeslot start time offsets.
-     * Wave 1 = earliest start time; Wave 2+ = offset by (maxGames × gsi) minutes.
-     * Returns agegroupId → wave (1-based). Defaults all to 1 if no data.
-     */
-    private inferWaves(agegroups: AgegroupCanvasReadinessDto[]): Record<string, number> {
-        const waves: Record<string, number> = {};
-        const configured = agegroups.filter(a => a.isConfigured && a.gameDays?.length > 0);
-
-        if (configured.length === 0) {
-            // Default all to wave 1
-            for (const ag of agegroups) waves[ag.agegroupId] = 1;
-            return waves;
-        }
-
-        // Find earliest start time per agegroup (in minutes from midnight)
-        let baseMinutes = Infinity;
-        const agStartMinutes: Record<string, number> = {};
-
-        for (const ag of configured) {
-            let earliest = Infinity;
-            for (const gd of ag.gameDays) {
-                const mins = parseTimeToMinutes(gd.startTime);
-                if (mins < earliest) earliest = mins;
-            }
-            agStartMinutes[ag.agegroupId] = earliest;
-            if (earliest < baseMinutes) baseMinutes = earliest;
-        }
-
-        if (baseMinutes === Infinity) baseMinutes = 480; // 8:00 AM
-
-        // Calculate wave size from first configured AG
-        const gsi = configured[0].gamestartInterval ?? 60;
-        const maxGames = configured[0].maxGamesPerField ?? 8;
-        const waveSize = maxGames * gsi;
-
-        // Assign waves using tolerance-based rounding.
-        // An offset within 15% of a wave boundary snaps to the nearest wave,
-        // preventing 1-minute time drift from pushing an AG into the wrong wave.
-        for (const ag of agegroups) {
-            const startMins = agStartMinutes[ag.agegroupId];
-            if (startMins == null) {
-                waves[ag.agegroupId] = 1; // unconfigured → wave 1
-                continue;
-            }
-            const offset = startMins - baseMinutes;
-            let wave = 1;
-            if (waveSize > 0) {
-                wave = 1 + Math.round(offset / waveSize);
-            }
-            waves[ag.agegroupId] = Math.max(1, wave);
-        }
-
-        return waves;
-    }
+    // (deriveStrategy and inferWaves removed — now handled by ScheduleCascadeService)
 
     // ── R/day inference from readiness data ──
 

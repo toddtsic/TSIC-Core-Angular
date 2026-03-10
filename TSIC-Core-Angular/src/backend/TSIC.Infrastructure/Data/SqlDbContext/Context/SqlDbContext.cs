@@ -22,6 +22,10 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<AdntripleThreatData> AdntripleThreatData { get; set; }
 
+    public virtual DbSet<AgegroupScheduleProfile> AgegroupScheduleProfile { get; set; }
+
+    public virtual DbSet<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; }
+
     public virtual DbSet<Agegroups> Agegroups { get; set; }
 
     public virtual DbSet<ApiClaims> ApiClaims { get; set; }
@@ -118,6 +122,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<DivisionScheduleProfile> DivisionScheduleProfile { get; set; }
 
+    public virtual DbSet<DivisionWaveAssignment> DivisionWaveAssignment { get; set; }
+
     public virtual DbSet<Divisions> Divisions { get; set; }
 
     public virtual DbSet<EmailFailures> EmailFailures { get; set; }
@@ -125,6 +131,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<EmailLast100> EmailLast100 { get; set; }
 
     public virtual DbSet<EmailLogs> EmailLogs { get; set; }
+
+    public virtual DbSet<EventScheduleDefaults> EventScheduleDefaults { get; set; }
 
     public virtual DbSet<Families> Families { get; set; }
 
@@ -1122,6 +1130,55 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("ZIP");
         });
 
+        modelBuilder.Entity<AgegroupScheduleProfile>(entity =>
+        {
+            entity.HasKey(e => e.AgegroupId).HasName("PK_scheduling_AgegroupScheduleProfile");
+
+            entity.ToTable("AgegroupScheduleProfile", "scheduling");
+
+            entity.Property(e => e.AgegroupId).ValueGeneratedNever();
+            entity.Property(e => e.GamePlacement)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Agegroup).WithOne(p => p.AgegroupScheduleProfile)
+                .HasForeignKey<AgegroupScheduleProfile>(d => d.AgegroupId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_AgegroupScheduleProfile_Agegroup");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.AgegroupScheduleProfile)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_AgegroupScheduleProfile_User");
+        });
+
+        modelBuilder.Entity<AgegroupWaveAssignment>(entity =>
+        {
+            entity.HasKey(e => new { e.AgegroupId, e.GameDate }).HasName("PK_scheduling_AgegroupWaveAssignment");
+
+            entity.ToTable("AgegroupWaveAssignment", "scheduling");
+
+            entity.Property(e => e.GameDate).HasColumnType("datetime");
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Wave).HasDefaultValue((byte)1);
+
+            entity.HasOne(d => d.Agegroup).WithMany(p => p.AgegroupWaveAssignment)
+                .HasForeignKey(d => d.AgegroupId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_AgegroupWaveAssignment_Agegroup");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.AgegroupWaveAssignment)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_AgegroupWaveAssignment_User");
+        });
+
         modelBuilder.Entity<Agegroups>(entity =>
         {
             entity.HasKey(e => e.AgegroupId).HasName("PK_Leagues.agegroups");
@@ -2053,17 +2110,51 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<DivisionScheduleProfile>(entity =>
         {
-            entity.HasKey(e => e.ProfileId).HasName("PK_scheduling_DivisionScheduleProfile");
+            entity.HasKey(e => e.DivisionId).HasName("PK_scheduling_DivisionScheduleProfile");
 
             entity.ToTable("DivisionScheduleProfile", "scheduling");
 
-            entity.HasIndex(e => new { e.JobId, e.DivisionName }, "UQ_DivScheduleProfile_Job_DivName").IsUnique();
+            entity.Property(e => e.DivisionId).ValueGeneratedNever();
+            entity.Property(e => e.GamePlacement)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
 
-            entity.Property(e => e.ProfileId).HasDefaultValueSql("(newid())");
-            entity.Property(e => e.CreatedUtc).HasDefaultValueSql("(sysutcdatetime())");
-            entity.Property(e => e.DivisionName).HasMaxLength(100);
-            entity.Property(e => e.GapPattern).HasDefaultValue((byte)1);
-            entity.Property(e => e.ModifiedUtc).HasDefaultValueSql("(sysutcdatetime())");
+            entity.HasOne(d => d.Division).WithOne(p => p.DivisionScheduleProfile)
+                .HasForeignKey<DivisionScheduleProfile>(d => d.DivisionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DivisionScheduleProfile_Division");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.DivisionScheduleProfile)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_DivisionScheduleProfile_User");
+        });
+
+        modelBuilder.Entity<DivisionWaveAssignment>(entity =>
+        {
+            entity.HasKey(e => new { e.DivisionId, e.GameDate }).HasName("PK_scheduling_DivisionWaveAssignment");
+
+            entity.ToTable("DivisionWaveAssignment", "scheduling");
+
+            entity.Property(e => e.GameDate).HasColumnType("datetime");
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Wave).HasDefaultValue((byte)1);
+
+            entity.HasOne(d => d.Division).WithMany(p => p.DivisionWaveAssignment)
+                .HasForeignKey(d => d.DivisionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DivisionWaveAssignment_Division");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.DivisionWaveAssignment)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_DivisionWaveAssignment_User");
         });
 
         modelBuilder.Entity<Divisions>(entity =>
@@ -2172,6 +2263,34 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.SenderUser).WithMany(p => p.EmailLogs)
                 .HasForeignKey(d => d.SenderUserId)
                 .HasConstraintName("FK_Jobs.emailLogs_AspNetUsers_senderUserID");
+        });
+
+        modelBuilder.Entity<EventScheduleDefaults>(entity =>
+        {
+            entity.HasKey(e => e.JobId).HasName("PK_scheduling_EventScheduleDefaults");
+
+            entity.ToTable("EventScheduleDefaults", "scheduling");
+
+            entity.Property(e => e.JobId).ValueGeneratedNever();
+            entity.Property(e => e.BetweenRoundRows).HasDefaultValue((byte)1);
+            entity.Property(e => e.GamePlacement)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .HasDefaultValue("H")
+                .IsFixedLength();
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Job).WithOne(p => p.EventScheduleDefaults)
+                .HasForeignKey<EventScheduleDefaults>(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_EventScheduleDefaults_Job");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.EventScheduleDefaults)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_EventScheduleDefaults_User");
         });
 
         modelBuilder.Entity<Families>(entity =>

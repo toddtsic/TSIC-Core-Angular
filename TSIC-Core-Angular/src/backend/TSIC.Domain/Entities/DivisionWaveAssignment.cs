@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 namespace TSIC.Domain.Entities;
 
-public partial class DivisionScheduleProfile
+public partial class DivisionWaveAssignment
 {
     public Guid DivisionId { get; set; }
 
-    public string? GamePlacement { get; set; }
+    public DateTime GameDate { get; set; }
 
-    public byte? BetweenRoundRows { get; set; }
+    public byte Wave { get; set; }
 
     public DateTime Modified { get; set; }
 

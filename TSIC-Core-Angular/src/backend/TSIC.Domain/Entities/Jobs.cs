@@ -243,6 +243,8 @@ public partial class Jobs
 
     public virtual ICollection<EmailLogs> EmailLogs { get; set; } = new List<EmailLogs>();
 
+    public virtual EventScheduleDefaults? EventScheduleDefaults { get; set; }
+
     public virtual ICollection<GameClockParams> GameClockParams { get; set; } = new List<GameClockParams>();
 
     public virtual ICollection<JobAdminCharges> JobAdminCharges { get; set; } = new List<JobAdminCharges>();

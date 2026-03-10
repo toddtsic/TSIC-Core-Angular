@@ -57,13 +57,8 @@ export interface ScheduleConfig {
     // ── Rounds ──
     roundsPerAg: Record<string, ScheduleConfigValue<number>>; // agId → rounds needed
 
-    // ── Wave & R/day (Calendar section state, persisted across sections) ──
-    waveAssignments: Record<string, number>;   // divisionId → wave (1-3)
+    // ── Rounds per day (Calendar section state, persisted across sections) ──
     roundsPerDay: Record<string, number>;      // agegroupId → R/day
-
-    // ── Strategy (Section ④) ──
-    placement: ScheduleConfigValue<number>;
-    gapPattern: ScheduleConfigValue<number>;
 
     // ── Agegroup ordering (derived from prior year source schedule) ──
     suggestedOrder?: string[];  // agegroupIds in suggested processing order
@@ -81,7 +76,7 @@ export type Freshness = 'valid' | 'stale' | 'missing';
 
 // ── Stepper section expand/collapse state ──
 
-export type StepperSection = 'gameDays' | 'fields' | 'calendar' | 'timeConfig' | 'strategy' | 'pairings' | 'build';
+export type StepperSection = 'gameDays' | 'fields' | 'calendar' | 'timeConfig' | 'strategy' | 'pairings' | 'processingOrder' | 'build';
 
 // ── Scope for scoped operations ──
 
@@ -118,10 +113,10 @@ export interface FieldConfigApplyEvent {
 
 /** Emitted when user clicks "Save & Apply" in the calendar section.
  *  GSI/StartTime/MaxGames are NOT included — the parent reads current effective
- *  values from readiness data or config service when calling bulkAssignDate. */
+ *  values from readiness data or config service when calling bulkAssignDate.
+ *  Wave assignments are now persisted via the cascade API (ScheduleCascadeService),
+ *  not carried in this event. */
 export interface CalendarApplyEvent {
     /** ISO date key → per-date entries + removals. Only dates with changes included. */
     assignments: Record<string, DateAssignment>;
-    /** divisionId → wave (1-3). Per-division, not per-date. */
-    waveMap: Record<string, number>;
 }

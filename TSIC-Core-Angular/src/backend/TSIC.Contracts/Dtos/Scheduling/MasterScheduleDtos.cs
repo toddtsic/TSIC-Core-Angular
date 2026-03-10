@@ -25,6 +25,7 @@ public record MasterScheduleRow
 public record MasterScheduleCell
 {
     public required int Gid { get; init; }
+    public required int Round { get; init; }
     public required string T1Name { get; init; }
     public required string T2Name { get; init; }
     public required string AgDiv { get; init; }

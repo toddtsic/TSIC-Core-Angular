@@ -576,15 +576,8 @@ export class CalendarSectionComponent {
             }
         }
 
-        // Build waveMap from current state (keyed by divisionId)
-        const waveMap: Record<string, number> = {};
-        for (const row of rows) {
-            for (const div of row.divisions) {
-                waveMap[div.divId] = div.wave;
-            }
-        }
-
-        this.applyRequested.emit({ assignments, waveMap });
+        // Wave assignments are now persisted via cascade API, not carried in this event.
+        this.applyRequested.emit({ assignments });
     }
 
     // ── Private helpers ──

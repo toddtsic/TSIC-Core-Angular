@@ -19,7 +19,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     private readonly IPairingsRepository _pairingsRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
-    private readonly IDivisionProfileRepository _divisionProfileRepo;
+    private readonly IScheduleCascadeRepository _cascadeRepo;
+    private readonly IScheduleCascadeService _cascadeService;
     private readonly IFieldRepository _fieldRepo;
     private readonly IJobRepository _jobRepo;
     private readonly ISchedulingContextResolver _contextResolver;
@@ -35,7 +36,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         IPairingsRepository pairingsRepo,
         IAgeGroupRepository agegroupRepo,
         IDivisionRepository divisionRepo,
-        IDivisionProfileRepository divisionProfileRepo,
+        IScheduleCascadeRepository cascadeRepo,
+        IScheduleCascadeService cascadeService,
         IFieldRepository fieldRepo,
         IJobRepository jobRepo,
         ISchedulingContextResolver contextResolver,
@@ -50,7 +52,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         _pairingsRepo = pairingsRepo;
         _agegroupRepo = agegroupRepo;
         _divisionRepo = divisionRepo;
-        _divisionProfileRepo = divisionProfileRepo;
+        _cascadeRepo = cascadeRepo;
+        _cascadeService = cascadeService;
         _fieldRepo = fieldRepo;
         _jobRepo = jobRepo;
         _contextResolver = contextResolver;
@@ -756,10 +759,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         }
         else
         {
-            // Fallback: recreate old DivOrdinal→AgOrder interleaving.
-            // All "position 0" divisions across agegroups first, then "position 1", etc.
-            // This distributes field pressure across agegroups — no single agegroup
-            // monopolizes all fields at any timeslot.
+            // Fallback: agegroup order from the request (UI stepper / config),
+            // then divisions alphabetically within each agegroup. All divisions
+            // of one agegroup are contiguous — in Horizontal mode this fills
+            // complete timeslots per agegroup before moving to the next.
             var agOrderFallback = request.AgegroupOrder
                 .Select((e, i) => (e.AgegroupId, Index: i))
                 .ToDictionary(x => x.AgegroupId, x => x.Index);
@@ -773,8 +776,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             int idx = 0;
             foreach (var ctx in divContexts
-                .OrderBy(c => divOrdinalWithinAg.GetValueOrDefault(c.Div.DivId, 0))
-                .ThenBy(c => agOrderFallback.GetValueOrDefault(c.Div.AgegroupId, int.MaxValue)))
+                .OrderBy(c => agOrderFallback.GetValueOrDefault(c.Div.AgegroupId, int.MaxValue))
+                .ThenBy(c => divOrdinalWithinAg.GetValueOrDefault(c.Div.DivId, 0)))
             {
                 divOrderIndex[ctx.Div.DivId] = idx++;
             }
@@ -841,10 +844,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             allChips.Count, divContexts.Select(c => c.Div.AgegroupId).Distinct().Count());
 
         // ── Distribute chips onto the canvas ──
-        // Wave floors are tracked per calendar day so Saturday's boundary
-        // doesn't bleed into Sunday's placements.
-        var waveFloorByDay = new Dictionary<DateTime, DateTime>();
-        var waveLatestByDay = new Dictionary<DateTime, DateTime>();
+        // Wave floors are tracked per FIELD per day. When wave 1's tail only
+        // needs a few fields, the remaining fields are freed for wave 2
+        // immediately — no point blocking 10 empty fields for hours while
+        // 5 fields finish their last wave-1 round.
+        var waveFloorByFieldDay = new Dictionary<(Guid FieldId, DateTime Day), DateTime>();
+        var waveLatestByFieldDay = new Dictionary<(Guid FieldId, DateTime Day), DateTime>();
         var currentWave = 0;
         var hasMultipleWaves = allChips.Select(c => c.Wave).Distinct().Count() > 1;
 
@@ -878,16 +883,16 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             // ── Wave transition: set per-day floors from previous wave ──
             if (chip.Wave != currentWave)
             {
-                if (currentWave > 0 && hasMultipleWaves && waveLatestByDay.Count > 0)
+                if (currentWave > 0 && hasMultipleWaves && waveLatestByFieldDay.Count > 0)
                 {
                     var gsiMinutes = chip.Ctx.Profile.GsiMinutes > 0
                         ? chip.Ctx.Profile.GsiMinutes : 60;
-                    foreach (var (day, latest) in waveLatestByDay)
+                    foreach (var (fieldDay, latest) in waveLatestByFieldDay)
                     {
-                        waveFloorByDay[day] = latest.AddMinutes(gsiMinutes);
+                        waveFloorByFieldDay[fieldDay] = latest.AddMinutes(gsiMinutes);
                     }
                 }
-                waveLatestByDay.Clear();
+                waveLatestByFieldDay.Clear();
                 currentWave = chip.Wave;
             }
 
@@ -925,7 +930,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     var slotsOnDate = ctx.Candidates.Count(c =>
                         c.GDate.Date == date
                         && !ctx.State.OccupiedSlots.Contains((c.FieldId, c.GDate))
-                        && !(waveFloorByDay.TryGetValue(c.GDate.Date, out var flr) && c.GDate < flr));
+                        && !(waveFloorByFieldDay.TryGetValue((c.FieldId, c.GDate.Date), out var flr) && c.GDate < flr));
                     if (slotsOnDate >= chip.GamesInRound)
                     {
                         selectedDate = date;
@@ -1073,14 +1078,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             var result = PlacementScorer.FindFirstValidSlot(
                 dateCandidates, game, ctx.Profile, ctx.State,
-                waveFloorByDay.Count > 0 ? waveFloorByDay : null);
+                waveFloorByFieldDay.Count > 0 ? waveFloorByFieldDay : null);
 
             // Safety fallback: if nothing found on the selected date, try all dates
             if (result == null)
             {
                 result = PlacementScorer.FindFirstValidSlot(
                     ctx.Candidates, game, ctx.Profile, ctx.State,
-                    waveFloorByDay.Count > 0 ? waveFloorByDay : null);
+                    waveFloorByFieldDay.Count > 0 ? waveFloorByFieldDay : null);
             }
 
             if (result == null)
@@ -1136,19 +1141,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 T2CalcType = pairing.T2CalcType,
                 T2GnoRef = pairing.T2GnoRef,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.UtcNow,
             };
 
             _scheduleRepo.AddGame(scheduleGame);
             ctx.State.RecordPlacement(result.Slot, game);
             divPlacedCounts[ctx.Div.DivId]++;
 
-            // Track latest placement per day for wave floor computation
-            var placedDay = result.Slot.GDate.Date;
-            if (!waveLatestByDay.TryGetValue(placedDay, out var dayLatest)
-                || result.Slot.GDate > dayLatest)
+            // Track latest placement per field+day for wave floor computation
+            var placedFieldDay = (result.Slot.FieldId, result.Slot.GDate.Date);
+            if (!waveLatestByFieldDay.TryGetValue(placedFieldDay, out var fieldDayLatest)
+                || result.Slot.GDate > fieldDayLatest)
             {
-                waveLatestByDay[placedDay] = result.Slot.GDate;
+                waveLatestByFieldDay[placedFieldDay] = result.Slot.GDate;
             }
 
             // Mark this TCnt+Day as having its first division placed.
@@ -1218,23 +1223,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // ── 9. Save strategy profiles to DB if requested ──
         if (useStrategyPath && request.SaveProfiles && totalPlaced > 0)
         {
-            var profilesToSave = request.DivisionStrategies!
-                .Select(s => new Domain.Entities.DivisionScheduleProfile
-                {
-                    ProfileId = Guid.NewGuid(),
-                    JobId = jobId,
-                    DivisionName = s.DivisionName,
-                    Placement = (byte)s.Placement,
-                    GapPattern = (byte)s.GapPattern
-                })
-                .ToList();
-
-            await _divisionProfileRepo.UpsertBatchAsync(jobId, profilesToSave, ct);
-            await _divisionProfileRepo.SaveChangesAsync(ct);
+            await SaveStrategyProfilesAsync(jobId, request.DivisionStrategies!, ct);
 
             _logger.LogInformation(
-                "AutoBuild: Saved {Count} strategy profiles for Job={JobId}",
-                profilesToSave.Count, jobId);
+                "AutoBuild: Saved strategy profiles via cascade for Job={JobId}",
+                jobId);
         }
 
         _logger.LogInformation(
@@ -1258,103 +1251,67 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
-    // Load Strategy Profiles (three-layer resolution)
+    // Load Strategy Profiles (cascade resolution)
     // ══════════════════════════════════════════════════════════
 
     public async Task<DivisionStrategyProfileResponse> LoadStrategyProfilesAsync(
         Guid jobId, Guid? sourceJobId, CancellationToken ct = default)
     {
-        // Layer 1: Check for saved profiles in DB
-        var saved = await _divisionProfileRepo.GetByJobIdAsync(jobId, ct);
-        if (saved.Count > 0)
+        // Layer 1: Check cascade tables for saved config
+        var eventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
+        if (eventDefaults != null)
         {
-            // Cross-reference saved profiles against current active divisions
-            // to detect orphans (divisions renamed via sync pools, teams moved, etc.)
-            var activeDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
-            var activeDivNames = FilterSchedulableDivisions(activeDivisions)
-                .Select(d => d.DivName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            var validSaved = saved
-                .Where(p => activeDivNames.Contains(p.DivisionName))
+            // Cascade has data — resolve and flatten to per-division-name entries
+            var snapshot = await _cascadeService.ResolveAsync(jobId, ct);
+            var strategies = snapshot.Agegroups
+                .SelectMany(ag => ag.Divisions)
+                .GroupBy(d => d.DivisionName, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First()) // one entry per name (same name = same strategy)
+                .Select(d => new DivisionStrategyEntry
+                {
+                    DivisionName = d.DivisionName,
+                    Placement = d.EffectiveGamePlacement == "V" ? 1 : 0,
+                    GapPattern = d.EffectiveBetweenRoundRows
+                })
+                .OrderBy(s => s.DivisionName)
                 .ToList();
-            var orphanedNames = saved
-                .Where(p => !activeDivNames.Contains(p.DivisionName))
-                .Select(p => p.DivisionName)
-                .ToList();
 
-            // Clean up orphaned rows from DB so they don't accumulate
-            if (orphanedNames.Count > 0)
+            // Compute disconnects if we have a source job to compare against
+            List<PreFlightDisconnect>? disconnects = null;
+            if (sourceJobId.HasValue)
             {
-                await _divisionProfileRepo.DeleteOrphansByNamesAsync(jobId, orphanedNames, ct);
-            }
-
-            if (validSaved.Count > 0)
-            {
-                // Some saved profiles survived — use them, fill gaps with defaults
-                var missingDivNames = activeDivNames
-                    .Where(n => !validSaved.Any(p =>
-                        string.Equals(p.DivisionName, n, StringComparison.OrdinalIgnoreCase)))
-                    .OrderBy(n => n)
-                    .ToList();
-
-                var strategies = validSaved.Select(p => new DivisionStrategyEntry
+                var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId.Value, ct);
+                if (patterns.Count > 0)
                 {
-                    DivisionName = p.DivisionName,
-                    Placement = p.Placement,
-                    GapPattern = p.GapPattern
-                }).ToList();
+                    var activeDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+                    var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId.Value, ct);
+                    var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
+                    var currentDivCountByTCnt = FilterSchedulableDivisions(activeDivisions)
+                        .GroupBy(d => d.TeamCount)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    var profilesByTCnt = AttributeExtractor.ExtractProfiles(
+                        patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
 
-                // Fill gaps for new division names (post-sync) with defaults
-                foreach (var name in missingDivNames)
-                {
-                    strategies.Add(new DivisionStrategyEntry
+                    var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+                    var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
+                    if (fieldMap.Count > 0)
                     {
-                        DivisionName = name,
-                        Placement = 0,  // Horizontal
-                        GapPattern = 1  // OneOnOneOff
-                    });
-                }
-
-                // Compute disconnects if we have a source job to compare against
-                List<PreFlightDisconnect>? disconnects = null;
-                if (sourceJobId.HasValue)
-                {
-                    var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId.Value, ct);
-                    if (patterns.Count > 0)
-                    {
-                        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId.Value, ct);
-                        var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId.Value, ct);
-                        var currentDivCountByTCnt = FilterSchedulableDivisions(activeDivisions)
-                            .GroupBy(d => d.TeamCount)
-                            .ToDictionary(g => g.Key, g => g.Count());
-                        var profilesByTCnt = AttributeExtractor.ExtractProfiles(
-                            patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
-
-                        // Translate source field names → current names before disconnect check
-                        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
-                        var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
-                        if (fieldMap.Count > 0)
-                        {
-                            profilesByTCnt = profilesByTCnt.ToDictionary(
-                                kvp => kvp.Key,
-                                kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
-                        }
-
-                        var disc = await CheckDisconnectsAsync(jobId, profilesByTCnt, sourceJobId.Value, ct);
-                        if (disc.Count > 0) disconnects = disc;
+                        profilesByTCnt = profilesByTCnt.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => ApplyFieldNameMap(kvp.Value, fieldMap));
                     }
-                }
 
-                return new DivisionStrategyProfileResponse
-                {
-                    Strategies = strategies.OrderBy(s => s.DivisionName).ToList(),
-                    Source = orphanedNames.Count > 0 ? "saved-cleaned" : "saved",
-                    Disconnects = disconnects
-                };
+                    var disc = await CheckDisconnectsAsync(jobId, profilesByTCnt, sourceJobId.Value, ct);
+                    if (disc.Count > 0) disconnects = disc;
+                }
             }
-            // All saved profiles were orphaned — fall through to Layer 2/3
+
+            return new DivisionStrategyProfileResponse
+            {
+                Strategies = strategies,
+                Source = "saved",
+                Disconnects = disconnects
+            };
         }
 
         // Layer 2: Infer from source job via AttributeExtractor
@@ -1397,7 +1354,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     }
                     else
                     {
-                        // Default: Horizontal + OneOnOneOff
                         strategies.Add(new DivisionStrategyEntry
                         {
                             DivisionName = divName,
@@ -1407,7 +1363,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     }
                 }
 
-                // Translate source field names → current names before disconnect check
                 var (leagueId2, season2, _) = await _contextResolver.ResolveAsync(jobId, ct);
                 var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId2, season2, ct);
                 if (fieldMap.Count > 0)
@@ -2282,23 +2237,67 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     public async Task<DivisionStrategyProfileResponse> SaveStrategyProfilesAsync(
         Guid jobId, List<DivisionStrategyEntry> strategies, CancellationToken ct = default)
     {
-        var profilesToSave = strategies
-            .Select(s => new Domain.Entities.DivisionScheduleProfile
-            {
-                ProfileId = Guid.NewGuid(),
-                JobId = jobId,
-                DivisionName = s.DivisionName,
-                Placement = (byte)s.Placement,
-                GapPattern = (byte)s.GapPattern
-            })
-            .ToList();
+        // Convert int-based Placement/GapPattern to cascade string/byte values
+        static string ToGamePlacement(int placement) => placement == 1 ? "V" : "H";
+        static byte ToBetweenRoundRows(int gapPattern) => (byte)Math.Clamp(gapPattern, 0, 2);
 
-        await _divisionProfileRepo.UpsertBatchAsync(jobId, profilesToSave, ct);
-        await _divisionProfileRepo.SaveChangesAsync(ct);
+        // Determine if all strategies are uniform → save as event defaults only
+        var first = strategies.FirstOrDefault();
+        var gamePlacement = first != null ? ToGamePlacement(first.Placement) : "H";
+        var betweenRoundRows = first != null ? ToBetweenRoundRows(first.GapPattern) : (byte)1;
+        var isUniform = strategies.All(s =>
+            ToGamePlacement(s.Placement) == gamePlacement &&
+            ToBetweenRoundRows(s.GapPattern) == betweenRoundRows);
+
+        // Upsert event defaults
+        await _cascadeRepo.UpsertEventDefaultsAsync(new Domain.Entities.EventScheduleDefaults
+        {
+            JobId = jobId,
+            GamePlacement = gamePlacement,
+            BetweenRoundRows = betweenRoundRows,
+            Modified = DateTime.UtcNow
+        }, ct);
+
+        // For non-uniform strategies, save per-division overrides
+        if (!isUniform)
+        {
+            var allDivisions = FilterSchedulableDivisions(
+                await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct));
+            var divsByName = allDivisions
+                .GroupBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in strategies)
+            {
+                var entryGp = ToGamePlacement(entry.Placement);
+                var entryBrr = ToBetweenRoundRows(entry.GapPattern);
+
+                // Skip divisions matching event defaults (they inherit)
+                if (entryGp == gamePlacement && entryBrr == betweenRoundRows)
+                    continue;
+
+                if (!divsByName.TryGetValue(entry.DivisionName, out var matchingDivs))
+                    continue;
+
+                foreach (var div in matchingDivs)
+                {
+                    await _cascadeRepo.UpsertDivisionProfileAsync(
+                        new Domain.Entities.DivisionScheduleProfile
+                        {
+                            DivisionId = div.DivId,
+                            GamePlacement = entryGp,
+                            BetweenRoundRows = entryBrr,
+                            Modified = DateTime.UtcNow
+                        }, ct);
+                }
+            }
+        }
+
+        await _cascadeRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "SaveStrategyProfiles: Saved {Count} profiles for Job={JobId}",
-            profilesToSave.Count, jobId);
+            "SaveStrategyProfiles: Saved cascade for Job={JobId} (uniform={IsUniform}, entries={Count})",
+            jobId, isUniform, strategies.Count);
 
         // Reload and return the updated response
         return await LoadStrategyProfilesAsync(jobId, null, ct);
@@ -2925,7 +2924,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }
         }
 
-        // Division-level order: day → wave → start time
+        // Division-level order: day → wave → start time.
+        // StartTime comes from the source schedule — it already encodes which
+        // agegroup fills first (biggest agegroup naturally occupied the earliest
+        // slots in the manually-built source). No artificial re-ordering needed.
         var suggestedDivisionOrder = divOrderEntries
             .OrderBy(e => e.FirstDay)
             .ThenBy(e => e.Wave)

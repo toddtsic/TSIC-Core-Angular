@@ -83,6 +83,10 @@ public partial class AspNetUsers
 
     public virtual ICollection<AccountingPaymentMethods> AccountingPaymentMethods { get; set; } = new List<AccountingPaymentMethods>();
 
+    public virtual ICollection<AgegroupScheduleProfile> AgegroupScheduleProfile { get; set; } = new List<AgegroupScheduleProfile>();
+
+    public virtual ICollection<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; } = new List<AgegroupWaveAssignment>();
+
     public virtual ICollection<Agegroups> Agegroups { get; set; } = new List<Agegroups>();
 
     public virtual ICollection<ApiRosterPlayersAccessed> ApiRosterPlayersAccessed { get; set; } = new List<ApiRosterPlayersAccessed>();
@@ -119,11 +123,17 @@ public partial class AspNetUsers
 
     public virtual ICollection<Customers> Customers { get; set; } = new List<Customers>();
 
+    public virtual ICollection<DivisionScheduleProfile> DivisionScheduleProfile { get; set; } = new List<DivisionScheduleProfile>();
+
+    public virtual ICollection<DivisionWaveAssignment> DivisionWaveAssignment { get; set; } = new List<DivisionWaveAssignment>();
+
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();
 
     public virtual ICollection<EmailFailures> EmailFailures { get; set; } = new List<EmailFailures>();
 
     public virtual ICollection<EmailLogs> EmailLogs { get; set; } = new List<EmailLogs>();
+
+    public virtual ICollection<EventScheduleDefaults> EventScheduleDefaults { get; set; } = new List<EventScheduleDefaults>();
 
     public virtual Families? FamiliesFamilyUser { get; set; }
 

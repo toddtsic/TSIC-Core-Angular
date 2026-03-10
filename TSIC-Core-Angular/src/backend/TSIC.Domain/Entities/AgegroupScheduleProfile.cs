@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace TSIC.Domain.Entities;
 
-public partial class DivisionScheduleProfile
+public partial class AgegroupScheduleProfile
 {
-    public Guid DivisionId { get; set; }
+    public Guid AgegroupId { get; set; }
 
     public string? GamePlacement { get; set; }
 
@@ -15,7 +15,7 @@ public partial class DivisionScheduleProfile
 
     public string? LebUserId { get; set; }
 
-    public virtual Divisions Division { get; set; } = null!;
+    public virtual Agegroups Agegroup { get; set; } = null!;
 
     public virtual AspNetUsers? LebUser { get; set; }
 }

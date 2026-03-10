@@ -23,6 +23,10 @@ public partial class Divisions
 
     public virtual ICollection<BracketSeeds> BracketSeedsT2SeedDiv { get; set; } = new List<BracketSeeds>();
 
+    public virtual DivisionScheduleProfile? DivisionScheduleProfile { get; set; }
+
+    public virtual ICollection<DivisionWaveAssignment> DivisionWaveAssignment { get; set; } = new List<DivisionWaveAssignment>();
+
     public virtual AspNetUsers? LebUser { get; set; }
 
     public virtual ICollection<PushNotifications> PushNotifications { get; set; } = new List<PushNotifications>();

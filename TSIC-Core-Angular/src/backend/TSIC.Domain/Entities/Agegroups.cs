@@ -71,6 +71,10 @@ public partial class Agegroups
 
     public int? GameGuarantee { get; set; }
 
+    public virtual AgegroupScheduleProfile? AgegroupScheduleProfile { get; set; }
+
+    public virtual ICollection<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; } = new List<AgegroupWaveAssignment>();
+
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
 
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();

@@ -446,6 +446,35 @@
                 }
                 }
 
+                <!-- Section ⑥.5 Division Processing Order (requires dates) -->
+                @if (datesComplete()) {
+                <div class="stepper-row stepper-row-expandable"
+                     [class.step-complete]="true"
+                     [class.step-active]="expandedSection() === 'processingOrder'"
+                     (click)="toggleSection('processingOrder')">
+                    <span class="step-icon">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </span>
+                    <span class="step-label">Division Processing Order</span>
+                    <span class="step-status">{{ processingOrderStatusLabel() }}</span>
+                    <span class="step-action">
+                        <i class="bi step-chevron"
+                           [class.bi-chevron-down]="expandedSection() === 'processingOrder'"
+                           [class.bi-chevron-right]="expandedSection() !== 'processingOrder'"></i>
+                    </span>
+                </div>
+                @if (expandedSection() === 'processingOrder') {
+                    <app-processing-order-section
+                        [agegroups]="agegroups()"
+                        [suggestedDivisionOrder]="configDivisionOrder()"
+                        [waveAssignments]="configWaves()"
+                        [readinessMap]="readinessMap()"
+                        [isExpanded]="true"
+                        (toggleExpanded)="toggleSection('processingOrder')"
+                        (orderChanged)="onProcessingOrderChanged($event)" />
+                }
+                }
+
                 <!-- Section ⑦ Build (requires fields + dates + pairings) -->
                 @if (fieldsComplete() && datesComplete() && pairingsComplete()) {
                 <div class="stepper-row stepper-row-expandable"

@@ -12,6 +12,7 @@ import { TimeConfigSectionComponent, type TimeConfigSaveEvent, type DateColumnIn
 import { BuildSectionComponent } from '../schedule-config/build-section.component';
 import { FieldConfigSectionComponent } from '../schedule-config/field-config-section.component';
 import { PairingsSectionComponent, type PairingsGenerateEvent, type GuaranteeSaveEvent } from '../schedule-config/pairings-section.component';
+import { ProcessingOrderSectionComponent } from '../schedule-config/processing-order-section.component';
 import type { CalendarApplyEvent, FieldConfigApplyEvent, StepperSection } from '../schedule-config/schedule-config.types';
 import { ScheduleConfigService } from '../schedule-config/schedule-config.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -46,7 +47,7 @@ export interface GameDayLine {
 @Component({
     selector: 'app-event-summary-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent, ProcessingOrderSectionComponent, TsicDialogComponent],
     templateUrl: './event-summary-panel.component.html',
     styleUrl: './event-summary-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -100,6 +101,7 @@ export class EventSummaryPanelComponent {
     readonly timeConfigSaveRequested = output<TimeConfigSaveEvent>();
     readonly fieldConfigApplyRequested = output<FieldConfigApplyEvent>();
     readonly gameGuaranteeSaveRequested = output<{ eventDefault: number | null }>();
+    readonly processingOrderChanged = output<string[]>();
 
     // ── Local state ──
     readonly deleteConfirmText = signal('');
@@ -473,6 +475,26 @@ export class EventSummaryPanelComponent {
         if (missing.length === 0) return 'All generated';
         return `Missing for ${missing.join(', ')} teams`;
     });
+
+    /** Division order from config (for template binding) */
+    readonly configDivisionOrder = computed((): string[] =>
+        this.configSvc.config()?.suggestedDivisionOrder ?? []
+    );
+
+    /** Processing order status label */
+    readonly processingOrderStatusLabel = computed((): string => {
+        const cfg = this.configSvc.config();
+        const order = cfg?.suggestedDivisionOrder;
+        if (!order || order.length === 0) return 'Default (alphabetical)';
+        const waves = this.configWaves();
+        const waveCount = new Set(Object.values(waves)).size;
+        if (waveCount <= 1) return `${order.length} divisions ordered`;
+        return `${order.length} divisions across ${waveCount} waves`;
+    });
+
+    onProcessingOrderChanged(order: string[]): void {
+        this.processingOrderChanged.emit(order);
+    }
 
     onSaveStrategy(): void {
         this.saveStrategyRequested.emit({

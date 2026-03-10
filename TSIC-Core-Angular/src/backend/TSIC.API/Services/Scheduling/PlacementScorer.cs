@@ -12,13 +12,13 @@ namespace TSIC.API.Services.Scheduling;
 /// Three hard filters:
 ///   1. Occupied slot (can't double-book)
 ///   2. Wave time floor (wave 2+ can't bleed into wave 1's window)
-///   3. Team time overlap (a team can't play two games simultaneously)
+///   3. Team rest gap (teams need MinTeamGapTicks between games)
 ///
 /// Four-pass cascade (progressively relaxed):
-///   Pass 1: at-or-after target time + skip Avoid fields (ideal)
-///   Pass 2: at-or-after target time + any fields (relax field preference)
-///   Pass 3: any time + skip Avoid fields (relax time floor)
-///   Pass 4: any time + any fields (last resort)
+///   Pass 1: time floor ✓ + skip Avoid fields ✓ + full team gap ✓   (ideal)
+///   Pass 2: time floor ✓ + any fields          + full team gap ✓   (relax field preference)
+///   Pass 3: any time     + skip Avoid fields    + overlap-only gap  (relax time floor + gap)
+///   Pass 4: any time     + any fields           + overlap-only gap  (last resort)
 /// </summary>
 public static class PlacementScorer
 {
@@ -32,45 +32,50 @@ public static class PlacementScorer
         GameContext game,
         DivisionSizeProfile profile,
         PlacementState state,
-        Dictionary<DateTime, DateTime>? waveFloorByDay = null)
+        Dictionary<(Guid FieldId, DateTime Day), DateTime>? waveFloorByFieldDay = null)
     {
         if (candidates.Count == 0)
             return null;
 
         var hasTimeFloor = game.TargetTime.HasValue;
         var hasAvoidFields = state.FieldPreferences.Count > 0;
+        var fullGap = profile.MinTeamGapTicks;
 
-        // Pass 1: target time floor + skip Avoid fields
+        // Pass 1: target time floor + skip Avoid fields + full team gap
         if (hasTimeFloor || hasAvoidFields)
         {
-            var slot = TryScan(candidates, game, profile, state, waveFloorByDay,
-                useTimeFloor: hasTimeFloor, skipAvoidFields: hasAvoidFields);
+            var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
+                useTimeFloor: hasTimeFloor, skipAvoidFields: hasAvoidFields,
+                minGapTicks: fullGap);
             if (slot != null)
                 return new PlacementResult { Slot = slot };
         }
 
-        // Pass 2: target time floor + any fields
+        // Pass 2: target time floor + any fields + full team gap
         if (hasTimeFloor && hasAvoidFields)
         {
-            var slot = TryScan(candidates, game, profile, state, waveFloorByDay,
-                useTimeFloor: true, skipAvoidFields: false);
+            var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
+                useTimeFloor: true, skipAvoidFields: false,
+                minGapTicks: fullGap);
             if (slot != null)
                 return new PlacementResult { Slot = slot, AvoidField = true };
         }
 
-        // Pass 3: any time + skip Avoid fields
+        // Pass 3: any time + skip Avoid fields + overlap-only gap
         if (hasAvoidFields)
         {
-            var slot = TryScan(candidates, game, profile, state, waveFloorByDay,
-                useTimeFloor: false, skipAvoidFields: true);
+            var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
+                useTimeFloor: false, skipAvoidFields: true,
+                minGapTicks: 1);
             if (slot != null)
                 return new PlacementResult { Slot = slot, TimeFallback = hasTimeFloor };
         }
 
-        // Pass 4: any time + any fields (no constraints beyond hard filters)
+        // Pass 4: any time + any fields + overlap-only gap (last resort)
         {
-            var slot = TryScan(candidates, game, profile, state, waveFloorByDay,
-                useTimeFloor: false, skipAvoidFields: false);
+            var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
+                useTimeFloor: false, skipAvoidFields: false,
+                minGapTicks: 1);
             if (slot != null)
                 return new PlacementResult
                 {
@@ -97,9 +102,10 @@ public static class PlacementScorer
         GameContext game,
         DivisionSizeProfile profile,
         PlacementState state,
-        Dictionary<DateTime, DateTime>? waveFloorByDay,
+        Dictionary<(Guid FieldId, DateTime Day), DateTime>? waveFloorByFieldDay,
         bool useTimeFloor,
-        bool skipAvoidFields)
+        bool skipAvoidFields,
+        int minGapTicks)
     {
         foreach (var c in candidates)
         {
@@ -107,14 +113,15 @@ public static class PlacementScorer
             if (state.OccupiedSlots.Contains((c.FieldId, c.GDate)))
                 continue;
 
-            // ═══ Hard filter: wave time floor (per-day) ═══
-            if (waveFloorByDay != null
-                && waveFloorByDay.TryGetValue(c.GDate.Date, out var dayFloor)
-                && c.GDate < dayFloor)
+            // ═══ Hard filter: wave time floor (per field+day) ═══
+            if (waveFloorByFieldDay != null
+                && waveFloorByFieldDay.TryGetValue((c.FieldId, c.GDate.Date), out var fieldFloor)
+                && c.GDate < fieldFloor)
                 continue;
 
-            // ═══ Hard filter: team time overlap ═══
-            if (profile.GsiMinutes > 0 && IsTimeOverlap(c, game, profile, state))
+            // ═══ Hard filter: team rest gap ═══
+            if (profile.GsiMinutes > 0
+                && HasInsufficientGap(c, game, profile, state, minGapTicks))
                 continue;
 
             // ═══ Optional: target time floor ═══
@@ -139,12 +146,13 @@ public static class PlacementScorer
     // ══════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Hard filter: would placing this game here cause either team to be in two
-    /// games at the same time? Returns true if the gap to any existing game for
-    /// either team is less than 1 GSI tick (i.e. games overlap in real time).
+    /// Hard filter: would placing this game here violate the team rest gap?
+    /// Returns true if either team's nearest existing game is fewer than
+    /// <paramref name="minGapTicks"/> GSI ticks away.
     /// </summary>
-    private static bool IsTimeOverlap(
-        CandidateSlot candidate, GameContext game, DivisionSizeProfile profile, PlacementState state)
+    private static bool HasInsufficientGap(
+        CandidateSlot candidate, GameContext game, DivisionSizeProfile profile,
+        PlacementState state, int minGapTicks)
     {
         var gameDay = candidate.GDate.Date;
         var gameTime = candidate.GDate.TimeOfDay;
@@ -152,7 +160,7 @@ public static class PlacementScorer
         var gap1 = ComputeMinGapTicks(state, game.DivId, game.T1No, gameDay, gameTime, profile.GsiMinutes);
         var gap2 = ComputeMinGapTicks(state, game.DivId, game.T2No, gameDay, gameTime, profile.GsiMinutes);
 
-        return gap1 < 1 || gap2 < 1;
+        return gap1 < minGapTicks || gap2 < minGapTicks;
     }
 
     /// <summary>

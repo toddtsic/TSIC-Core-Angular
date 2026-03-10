@@ -79,6 +79,7 @@ public class MasterScheduleService : IMasterScheduleService
                             return new MasterScheduleCell
                             {
                                 Gid = game.Gid,
+                                Round = game.Rnd ?? 0,
                                 T1Name = game.T1Name ?? "",
                                 T2Name = game.T2Name ?? "",
                                 AgDiv = $"{game.AgegroupName}:{game.DivName}",

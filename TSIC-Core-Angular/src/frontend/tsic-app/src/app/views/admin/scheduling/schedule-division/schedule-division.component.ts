@@ -38,6 +38,7 @@ import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoB
 import type { CalendarApplyEvent, FieldConfigApplyEvent } from './components/schedule-config/schedule-config.types';
 import type { TimeConfigSaveEvent } from './components/schedule-config/time-config-section.component';
 import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
+import { ScheduleCascadeService } from './components/schedule-config/schedule-cascade.service';
 import type { CanvasReadinessResponse } from '@core/api';
 
 @Component({
@@ -59,12 +60,12 @@ export class ScheduleDivisionComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     readonly configSvc = inject(ScheduleConfigService);
+    readonly cascadeSvc = inject(ScheduleCascadeService);
 
     // ── Config service init tracking ──
     private configInitDone = false;
     private fullReadinessResponse: CanvasReadinessResponse | null = null;
     private agegroupsLoaded = false;
-    private strategiesLoaded = false;
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
@@ -409,30 +410,37 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     loadStrategyProfiles(): void {
-        this.autoBuildSvc.getStrategyProfiles().subscribe({
-            next: (res) => {
-                this.strategyProfiles.set(res.strategies);
-                this.strategySource.set(res.source);
-                this.strategiesLoaded = true;
-                this.tryInitConfig();
+        // Load via cascade service (replaces old strategy-profiles endpoint for display)
+        this.cascadeSvc.loadCascade().subscribe({
+            next: () => {
+                // Derive strategy entries from cascade for backward-compat display
+                this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]);
+                this.strategySource.set('saved');
             },
             error: () => {
-                this.strategyProfiles.set([]);
-                this.strategySource.set('defaults');
-                this.strategiesLoaded = true;
-                this.tryInitConfig();
+                // No cascade data — load from legacy endpoint as fallback
+                this.autoBuildSvc.getStrategyProfiles().subscribe({
+                    next: (res) => {
+                        this.strategyProfiles.set(res.strategies);
+                        this.strategySource.set(res.source);
+                    },
+                    error: () => {
+                        this.strategyProfiles.set([]);
+                        this.strategySource.set('defaults');
+                    }
+                });
             }
         });
     }
 
     /**
-     * Try to initialize the ScheduleConfigService once all three
-     * parallel loads (readiness, agegroups, strategies) are done.
-     * Only runs once — subsequent data refreshes don't re-derive config.
+     * Try to initialize the ScheduleConfigService once both
+     * parallel loads (readiness + agegroups) are done.
+     * Strategies/waves now come from the cascade service, not from config.
      */
     private tryInitConfig(): void {
         if (this.configInitDone) return;
-        if (!this.fullReadinessResponse || !this.agegroupsLoaded || !this.strategiesLoaded) return;
+        if (!this.fullReadinessResponse || !this.agegroupsLoaded) return;
 
         this.configInitDone = true;
         this.configSvc.initialize(
@@ -442,9 +450,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 agegroupName: ag.agegroupName,
                 teamCount: agTeamCount(ag),
                 divisions: ag.divisions.map(d => ({ divId: d.divId, divName: d.divName }))
-            })),
-            this.strategyProfiles(),
-            this.strategySource()
+            }))
         );
     }
 
@@ -491,9 +497,6 @@ export class ScheduleDivisionComponent implements OnInit {
         const applyNext = (): void => {
             if (completed >= dateKeys.length) {
                 this.isApplyingCalendar.set(false);
-
-                // Persist wave assignments
-                this.configSvc.updateValue('waveAssignments', event.waveMap);
 
                 // Persist representative R/day (first date's value per AG)
                 const rpdMap: Record<string, number> = {};
@@ -1069,7 +1072,6 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.configSvc.clearLocalStorage();
                 this.configSvc.reset();
                 this.configInitDone = false;
-                this.strategiesLoaded = false;
 
                 this.refreshAfterBulkOperation();
                 this.loadCanvasReadiness();
@@ -1145,10 +1147,10 @@ export class ScheduleDivisionComponent implements OnInit {
         });
         // Populate modal agegroup list (only relevant at event scope)
         if (this.scope().level === 'event') {
-            const waveAssignments = this.configSvc.config()?.waveAssignments ?? {};
+            const waveMap = this.cascadeSvc.getWaveMap();
             this.modalAgegroups.set(this.agegroups().map(ag => {
                 // Derive agegroup-level wave as dominant wave among its divisions
-                const divWaves = ag.divisions.map(d => waveAssignments[d.divId] ?? 1);
+                const divWaves = ag.divisions.map(d => waveMap[d.divId] ?? 1);
                 const waveCounts = new Map<number, number>();
                 for (const w of divWaves) waveCounts.set(w, (waveCounts.get(w) ?? 0) + 1);
                 let agWave = 1;
@@ -1246,38 +1248,17 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    /** Save inline strategy from stepper — applies uniform values to ALL divisions. */
+    /** Save inline strategy from stepper — applies uniform values as event defaults via cascade. */
     saveInlineStrategy(event: { placement: number; gapPattern: number }): void {
-        let entries = this.strategyProfiles();
-
-        // When on defaults (no saved profiles), build entries from unique division names
-        if (entries.length === 0) {
-            const divNames = new Set<string>();
-            for (const ag of this.agegroups()) {
-                for (const div of ag.divisions) {
-                    divNames.add(div.divName);
-                }
-            }
-            if (divNames.size === 0) return;
-            entries = [...divNames].map(name => ({
-                divisionName: name,
-                placement: event.placement,
-                gapPattern: event.gapPattern
-            }));
-        }
-
-        const updated = entries.map(s => ({
-            ...s,
-            placement: event.placement,
-            gapPattern: event.gapPattern
-        }));
+        const gamePlacement = event.placement === 1 ? 'V' : 'H';
+        const betweenRoundRows = Math.min(event.gapPattern, 2);
 
         this.isSavingStrategy.set(true);
-        this.autoBuildSvc.saveStrategyProfiles(updated).subscribe({
-            next: (res) => {
+        this.cascadeSvc.saveEventDefaults({ gamePlacement, betweenRoundRows }).subscribe({
+            next: () => {
                 this.isSavingStrategy.set(false);
-                this.strategyProfiles.set(res.strategies);
-                this.strategySource.set(res.source);
+                this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]);
+                this.strategySource.set('saved');
                 this.toast.show('Strategy saved', 'success');
             },
             error: () => {
@@ -1285,6 +1266,11 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.toast.show('Failed to save strategy', 'danger');
             }
         });
+    }
+
+    /** Update division processing order on config. */
+    onProcessingOrderChanged(order: string[]): void {
+        this.configSvc.updateValue('suggestedDivisionOrder', order);
     }
 
     closeAutoScheduleModal(): void {
@@ -1380,7 +1366,7 @@ export class ScheduleDivisionComponent implements OnInit {
         const allDivIds = this.agegroups().flatMap(ag => ag.divisions.map(d => d.divId));
         const mode = event.config.existingGameMode ?? 'rebuild';
 
-        const waveAssignments = this.configSvc.config()?.waveAssignments ?? {};
+        const waveAssignments = this.cascadeSvc.getWaveMap();
         const divisionOrder = this.configSvc.config()?.suggestedDivisionOrder ?? undefined;
 
         // Helper: derive agegroup wave as dominant division wave

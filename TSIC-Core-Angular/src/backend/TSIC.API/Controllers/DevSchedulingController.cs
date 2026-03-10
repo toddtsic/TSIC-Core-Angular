@@ -22,7 +22,7 @@ public class DevSchedulingController : ControllerBase
     private readonly IAutoBuildScheduleService _autoBuildService;
     private readonly ITimeslotRepository _tsRepo;
     private readonly IPairingsRepository _pairingsRepo;
-    private readonly IDivisionProfileRepository _profileRepo;
+    private readonly IScheduleCascadeRepository _cascadeRepo;
     private readonly IFieldRepository _fieldRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IAgeGroupRepository _agRepo;
@@ -35,7 +35,7 @@ public class DevSchedulingController : ControllerBase
         IAutoBuildScheduleService autoBuildService,
         ITimeslotRepository tsRepo,
         IPairingsRepository pairingsRepo,
-        IDivisionProfileRepository profileRepo,
+        IScheduleCascadeRepository cascadeRepo,
         IFieldRepository fieldRepo,
         IJobRepository jobRepo,
         IAgeGroupRepository agRepo,
@@ -47,7 +47,7 @@ public class DevSchedulingController : ControllerBase
         _autoBuildService = autoBuildService;
         _tsRepo = tsRepo;
         _pairingsRepo = pairingsRepo;
-        _profileRepo = profileRepo;
+        _cascadeRepo = cascadeRepo;
         _fieldRepo = fieldRepo;
         _jobRepo = jobRepo;
         _agRepo = agRepo;
@@ -89,8 +89,8 @@ public class DevSchedulingController : ControllerBase
         // 2. Delete strategy profiles
         if (request.StrategyProfiles)
         {
-            await _profileRepo.DeleteByJobIdAsync(jobId.Value, ct);
-            await _profileRepo.SaveChangesAsync(ct);
+            await _cascadeRepo.DeleteAllForJobAsync(jobId.Value, ct);
+            await _cascadeRepo.SaveChangesAsync(ct);
         }
 
         // 3–4. Clear timeslot configuration (dates and/or field-timeslots independently)

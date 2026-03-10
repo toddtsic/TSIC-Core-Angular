@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type MasterScheduleCell = {
     gid: number;
+    round: number;
     t1Name: string;
     t2Name: string;
     agDiv: string;
