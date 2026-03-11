@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, signal, output, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ViewChild, computed, signal, output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobService } from '@infrastructure/services/job.service';
@@ -50,6 +50,17 @@ interface TabDef {
 export class ScheduleConfigPanelComponent {
   private readonly jobSvc = inject(JobService);
   private readonly cascadeSvc = inject(ScheduleCascadeService);
+
+  /** Expose cascade signal for template guard (defer tabs until loaded). */
+  readonly cascade = this.cascadeSvc.cascade;
+
+  // ── Tab ViewChild refs (only active tab is resolved at a time) ──
+  @ViewChild(DatesTabComponent) private datesTab?: DatesTabComponent;
+  @ViewChild(FieldsTabComponent) private fieldsTab?: FieldsTabComponent;
+  @ViewChild(BuildRulesTabComponent) private buildRulesTab?: BuildRulesTabComponent;
+  @ViewChild(RoundsTabComponent) private roundsTab?: RoundsTabComponent;
+  @ViewChild(BuildOrderTabComponent) private buildOrderTab?: BuildOrderTabComponent;
+  @ViewChild(GridTabComponent) private gridTab?: GridTabComponent;
 
   // ── Derived state ──
   readonly eventName = computed(() => this.jobSvc.currentJob()?.jobName ?? '');
@@ -114,6 +125,20 @@ export class ScheduleConfigPanelComponent {
       dates: this.resetDates(),
       fieldTimeslots: this.resetFieldTimeslots(),
     });
+  }
+
+  // ── Explicit reload (called by parent after reset / cascade reload) ──
+
+  reloadActiveTab(): void {
+    switch (this.activeTab()) {
+      case 'dates': this.datesTab?.reload(); break;
+      case 'fields': this.fieldsTab?.reload(); break;
+      case 'buildRules': this.buildRulesTab?.reload(); break;
+      case 'rounds': this.roundsTab?.reload(); break;
+      case 'buildOrder': this.buildOrderTab?.reload(); break;
+      case 'grid': this.gridTab?.reload(); break;
+      // waves tab uses computed signals — no reload needed
+    }
   }
 
   // ── Tab keyboard nav ──

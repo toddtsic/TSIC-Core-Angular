@@ -1,5 +1,5 @@
 import {
-  Component, ChangeDetectionStrategy, computed, effect, inject, signal
+  Component, ChangeDetectionStrategy, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -27,7 +27,7 @@ import type {
   templateUrl: './build-rules-tab.component.html',
   styleUrl: './build-rules-tab.component.scss',
 })
-export class BuildRulesTabComponent {
+export class BuildRulesTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly toast = inject(ToastService);
 
@@ -52,16 +52,18 @@ export class BuildRulesTabComponent {
       || d.gameGuarantee !== this.eventGuarantee();
   });
 
-  constructor() {
-    // Sync form state when cascade loads/reloads
-    effect(() => {
-      const snap = this.cascade();
-      if (snap) {
-        this.eventPlacement.set(snap.eventDefaults.gamePlacement);
-        this.eventRest.set(snap.eventDefaults.betweenRoundRows);
-        this.eventGuarantee.set(snap.eventDefaults.gameGuarantee);
-      }
-    });
+  ngOnInit(): void {
+    this.reload();
+  }
+
+  /** Sync form state from cascade snapshot. Called on init and after reset. */
+  reload(): void {
+    const snap = this.cascade();
+    if (snap) {
+      this.eventPlacement.set(snap.eventDefaults.gamePlacement);
+      this.eventRest.set(snap.eventDefaults.betweenRoundRows);
+      this.eventGuarantee.set(snap.eventDefaults.gameGuarantee);
+    }
   }
 
   // ── Event defaults save ──

@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked
+  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -31,13 +31,12 @@ interface GridRow {
   templateUrl: './grid-tab.component.html',
   styleUrl: './grid-tab.component.scss',
 })
-export class GridTabComponent {
+export class GridTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
-  private loaded = false;
 
   private readonly readinessMap = signal<Record<string, AgegroupCanvasReadinessDto>>({});
 
@@ -78,17 +77,13 @@ export class GridTabComponent {
     return this.rows().reduce((sum, r) => sum + r.totalGameSlots, 0);
   });
 
-  constructor() {
-    effect(() => {
-      const cascade = this.cascadeSvc.cascade();
-      if (!cascade || this.loaded) return;
-      untracked(() => this.loadReadiness());
-    });
+  ngOnInit(): void {
+    this.reload();
   }
 
   // ── Data loading ──
 
-  private loadReadiness(): void {
+  reload(): void {
     this.isLoading.set(true);
     this.timeslotSvc.getReadiness().subscribe({
       next: (response) => {
@@ -98,11 +93,9 @@ export class GridTabComponent {
         }
         this.readinessMap.set(map);
         this.isLoading.set(false);
-        this.loaded = true;
       },
       error: () => {
         this.isLoading.set(false);
-        this.loaded = true;
         this.toast.show('Failed to load grid data', 'danger');
       },
     });

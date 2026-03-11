@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked
+  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -28,14 +28,13 @@ interface AgRow {
   templateUrl: './dates-tab.component.html',
   styleUrl: './dates-tab.component.scss',
 })
-export class DatesTabComponent {
+export class DatesTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
-  private loaded = false;
 
   /** Readiness snapshot keyed by agegroupId */
   private readonly readinessMap = signal<Record<string, AgegroupCanvasReadinessDto>>({});
@@ -132,17 +131,13 @@ export class DatesTabComponent {
     return `${assigned} assignment${assigned !== 1 ? 's' : ''} across ${dates.length} date${dates.length !== 1 ? 's' : ''}`;
   });
 
-  constructor() {
-    effect(() => {
-      const cascade = this.cascadeSvc.cascade();
-      if (!cascade || this.loaded) return;
-      untracked(() => this.loadReadiness());
-    });
+  ngOnInit(): void {
+    this.reload();
   }
 
   // ── Data loading ──
 
-  private loadReadiness(): void {
+  reload(): void {
     this.isLoading.set(true);
     this.timeslotSvc.getReadiness().subscribe({
       next: (response) => {
@@ -164,11 +159,9 @@ export class DatesTabComponent {
         this.localAssignments.set(assignments);
         this.baselineAssignments.set(this.cloneAssignments(assignments));
         this.isLoading.set(false);
-        this.loaded = true;
       },
       error: () => {
         this.isLoading.set(false);
-        this.loaded = true;
         this.toast.show('Failed to load date assignments', 'danger');
       },
     });
@@ -341,9 +334,8 @@ export class DatesTabComponent {
             if (!hasError) {
               this.toast.show('Date assignments updated', 'success');
               // Reload to get fresh state
-              this.loaded = false;
               this.addedDates.set([]);
-              this.loadReadiness();
+              this.reload();
             }
           }
         },

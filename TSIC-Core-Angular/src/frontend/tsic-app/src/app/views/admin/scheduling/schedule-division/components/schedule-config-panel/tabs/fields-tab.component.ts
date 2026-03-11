@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked
+  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastService } from '@shared-ui/toast.service';
@@ -25,14 +25,13 @@ interface AgRow {
   templateUrl: './fields-tab.component.html',
   styleUrl: './fields-tab.component.scss',
 })
-export class FieldsTabComponent {
+export class FieldsTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
-  private loaded = false;
 
   /** Event fields (all available fields) */
   readonly eventFields = signal<FieldColumn[]>([]);
@@ -80,17 +79,13 @@ export class FieldsTabComponent {
     return `${assigned} assignment${assigned !== 1 ? 's' : ''} across ${fields.length} field${fields.length !== 1 ? 's' : ''}`;
   });
 
-  constructor() {
-    effect(() => {
-      const cascade = this.cascadeSvc.cascade();
-      if (!cascade || this.loaded) return;
-      untracked(() => this.loadReadiness());
-    });
+  ngOnInit(): void {
+    this.reload();
   }
 
   // ── Data loading ──
 
-  private loadReadiness(): void {
+  reload(): void {
     this.isLoading.set(true);
     this.timeslotSvc.getReadiness().subscribe({
       next: (response) => {
@@ -111,11 +106,9 @@ export class FieldsTabComponent {
         this.localAssignments.set(assignments);
         this.baselineAssignments.set(this.cloneAssignments(assignments));
         this.isLoading.set(false);
-        this.loaded = true;
       },
       error: () => {
         this.isLoading.set(false);
-        this.loaded = true;
         this.toast.show('Failed to load field assignments', 'danger');
       },
     });

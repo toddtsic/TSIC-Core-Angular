@@ -33,30 +33,37 @@
     }
   </nav>
 
-  <!-- Tab content -->
+  <!-- Tab content (deferred until cascade is loaded) -->
   <div class="tab-content">
-    @switch (activeTab()) {
-      @case ('dates') {
-        <app-dates-tab />
+    @if (cascade()) {
+      @switch (activeTab()) {
+        @case ('dates') {
+          <app-dates-tab />
+        }
+        @case ('fields') {
+          <app-fields-tab />
+        }
+        @case ('buildRules') {
+          <app-build-rules-tab />
+        }
+        @case ('rounds') {
+          <app-rounds-tab />
+        }
+        @case ('waves') {
+          <app-waves-tab />
+        }
+        @case ('buildOrder') {
+          <app-build-order-tab />
+        }
+        @case ('grid') {
+          <app-grid-tab />
+        }
       }
-      @case ('fields') {
-        <app-fields-tab />
-      }
-      @case ('buildRules') {
-        <app-build-rules-tab />
-      }
-      @case ('rounds') {
-        <app-rounds-tab />
-      }
-      @case ('waves') {
-        <app-waves-tab />
-      }
-      @case ('buildOrder') {
-        <app-build-order-tab />
-      }
-      @case ('grid') {
-        <app-grid-tab />
-      }
+    } @else {
+      <div class="p-4 text-center text-secondary">
+        <div class="spinner-border spinner-border-sm me-2"></div>
+        Loading configuration...
+      </div>
     }
   </div>
 </div>

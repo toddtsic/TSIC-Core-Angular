@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked
+  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -31,14 +31,13 @@ interface DateCol {
   templateUrl: './rounds-tab.component.html',
   styleUrl: './rounds-tab.component.scss',
 })
-export class RoundsTabComponent {
+export class RoundsTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
-  private loaded = false;
 
   /** Readiness per agegroup */
   private readonly readinessMap = signal<Record<string, AgegroupCanvasReadinessDto>>({});
@@ -105,17 +104,13 @@ export class RoundsTabComponent {
 
   readonly hasMultiDay = computed(() => this.rows().some(r => r.isMultiDay));
 
-  constructor() {
-    effect(() => {
-      const cascade = this.cascadeSvc.cascade();
-      if (!cascade || this.loaded) return;
-      untracked(() => this.loadReadiness());
-    });
+  ngOnInit(): void {
+    this.reload();
   }
 
   // ── Data loading ──
 
-  private loadReadiness(): void {
+  reload(): void {
     this.isLoading.set(true);
     this.timeslotSvc.getReadiness().subscribe({
       next: (response) => {
@@ -145,11 +140,9 @@ export class RoundsTabComponent {
         this.localRounds.set(rounds);
         this.baselineRounds.set(JSON.parse(JSON.stringify(rounds)));
         this.isLoading.set(false);
-        this.loaded = true;
       },
       error: () => {
         this.isLoading.set(false);
-        this.loaded = true;
         this.toast.show('Failed to load round distribution', 'danger');
       },
     });
@@ -248,9 +241,7 @@ export class RoundsTabComponent {
       this.toast.show('Some round markers failed to save', 'danger');
     } else {
       this.toast.show('Round distribution saved', 'success');
-      // Reload
-      this.loaded = false;
-      this.loadReadiness();
+      this.reload();
     }
   }
 

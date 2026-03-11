@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked
+  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -39,7 +39,7 @@ interface DayGroup {
   templateUrl: './build-order-tab.component.html',
   styleUrl: './build-order-tab.component.scss',
 })
-export class BuildOrderTabComponent {
+export class BuildOrderTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
@@ -48,7 +48,6 @@ export class BuildOrderTabComponent {
   private readonly baselineOrder = signal<string[]>([]);
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
-  private loaded = false;
 
   readonly isDirty = computed(() => {
     const current = this.localOrder().map(i => i.divId);
@@ -104,29 +103,21 @@ export class BuildOrderTabComponent {
     return `${items.length} divisions across ${dayCount} days`;
   });
 
-  constructor() {
-    // Rebuild local order when cascade loads/changes
-    effect(() => {
-      const cascade = this.cascadeSvc.cascade();
-      if (!cascade || this.loaded) return;
-
-      untracked(() => this.loadFromDb());
-    });
+  ngOnInit(): void {
+    this.reload();
   }
 
-  private loadFromDb(): void {
+  reload(): void {
     this.isLoading.set(true);
 
     this.cascadeSvc.getProcessingOrder().subscribe({
       next: (entries) => {
         this.buildOrderFromEntries(entries);
         this.isLoading.set(false);
-        this.loaded = true;
       },
       error: () => {
         this.buildOrderFromEntries([]);
         this.isLoading.set(false);
-        this.loaded = true;
       },
     });
   }

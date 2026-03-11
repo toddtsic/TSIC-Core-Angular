@@ -68,6 +68,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
+    @ViewChild(ScheduleConfigPanelComponent) configPanel?: ScheduleConfigPanelComponent;
 
     // ── Scope selection model (replaces separate selectedDivision + selectedAgegroupId) ──
     readonly scope = signal<ScheduleScope>({ level: 'event' });
@@ -406,6 +407,9 @@ export class ScheduleDivisionComponent implements OnInit {
 
                 // Auto-seed waves from prior year projection if cascade has no waves
                 this.trySeedWavesFromProjection();
+
+                // Explicitly reload the active config tab (replaces effect()-based cascade watching)
+                this.configPanel?.reloadActiveTab();
             },
             error: () => {
                 // No cascade data — load from legacy endpoint as fallback
@@ -904,6 +908,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     if (p.datesSeeded) seeded.push(`${p.datesSeeded} ag dates`);
                     if (p.fieldAssignmentsSeeded) seeded.push(`${p.fieldAssignmentsSeeded} ag fields`);
                     if (p.pairingsGenerated?.length) seeded.push(`pairings for ${p.pairingsGenerated.join(', ')}-team`);
+                    if (p.cascadeSeeded) seeded.push('build rules');
                     if (seeded.length) summary.push(`seeded: ${seeded.join(', ')}`);
                 }
                 this.toast.show(

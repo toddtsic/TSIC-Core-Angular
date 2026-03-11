@@ -510,6 +510,8 @@ public record PreconfigureResult
     public required List<int> PairingsGenerated { get; init; }
     /// <summary>Team counts that already had pairings (skipped).</summary>
     public required List<int> PairingsAlreadyExisted { get; init; }
+    /// <summary>Whether cascade config (GameGuarantee, placement, rest) was seeded from source.</summary>
+    public bool CascadeSeeded { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

@@ -25,6 +25,7 @@ export interface DevResetPreconfigResult {
     fieldTimeslotRowsCreated: number;
     pairingsGenerated: number[];
     pairingsAlreadyExisted: number[];
+    cascadeSeeded: boolean;
 }
 
 @Injectable({ providedIn: 'root' })

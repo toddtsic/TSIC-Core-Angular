@@ -38,7 +38,7 @@ export class ScheduleCascadeService {
         this.isLoading.set(true);
         return this.http.get<ScheduleCascadeSnapshot>(this.apiUrl).pipe(
             tap(snapshot => {
-                this.cascade.set(snapshot);
+                this.setCascade(snapshot);
                 this.isLoading.set(false);
             })
         );
@@ -68,7 +68,7 @@ export class ScheduleCascadeService {
     seedWaves(request: SeedWavesRequest): Observable<ScheduleCascadeSnapshot> {
         return this.http.post<ScheduleCascadeSnapshot>(
             `${this.apiUrl}/seed-waves`, request
-        ).pipe(tap(snapshot => this.cascade.set(snapshot)));
+        ).pipe(tap(snapshot => this.setCascade(snapshot)));
     }
 
     // ── Processing Order ──
@@ -114,6 +114,20 @@ export class ScheduleCascadeService {
             }
         }
         return result;
+    }
+
+    /** Filter non-schedulable agegroups and set the cascade signal. */
+    private setCascade(snapshot: ScheduleCascadeSnapshot): void {
+        const filtered: ScheduleCascadeSnapshot = {
+            ...snapshot,
+            agegroups: snapshot.agegroups.filter(ag => this.isSchedulable(ag.agegroupName)),
+        };
+        this.cascade.set(filtered);
+    }
+
+    private isSchedulable(name: string): boolean {
+        const upper = name.toUpperCase();
+        return !upper.startsWith('WAITLIST') && !upper.startsWith('DROPPED');
     }
 
     /** Get effective placement and gap for all divisions (name-keyed for backward compat). */

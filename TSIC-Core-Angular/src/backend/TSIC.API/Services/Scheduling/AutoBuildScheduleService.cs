@@ -3031,6 +3031,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }, ct);
         }
 
+        // 5. Cascade config (GameGuarantee, GamePlacement, BetweenRoundRows, waves)
+        var cascadeSeeded = await SeedCascadeFromSourceAsync(
+            jobId, userId, sourceJobId, currentDivisions, ct);
+
         return new PreconfigureResult
         {
             ColorsApplied = colorsApplied,
@@ -3038,8 +3042,103 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             FieldAssignmentsSeeded = fieldResult.AgegroupsSeeded,
             FieldTimeslotRowsCreated = fieldResult.TimeslotRowsCreated,
             PairingsGenerated = pairingsResult.Generated,
-            PairingsAlreadyExisted = pairingsResult.AlreadyExisted
+            PairingsAlreadyExisted = pairingsResult.AlreadyExisted,
+            CascadeSeeded = cascadeSeeded
         };
+    }
+
+    /// <summary>
+    /// Copy cascade config (EventScheduleDefaults + agegroup/division profiles + waves)
+    /// from the source job to the target job, mapping entities by name.
+    /// </summary>
+    private async Task<bool> SeedCascadeFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId,
+        List<CurrentDivisionSummary> currentDivisions,
+        CancellationToken ct = default)
+    {
+        // ── Event defaults ──
+        var sourceDefaults = await _cascadeRepo.GetEventDefaultsAsync(sourceJobId, ct);
+        if (sourceDefaults == null)
+            return false;
+
+        await _cascadeRepo.UpsertEventDefaultsAsync(new EventScheduleDefaults
+        {
+            JobId = jobId,
+            GamePlacement = sourceDefaults.GamePlacement,
+            BetweenRoundRows = sourceDefaults.BetweenRoundRows,
+            GameGuarantee = sourceDefaults.GameGuarantee,
+            LebUserId = userId
+        }, ct);
+
+        // ── Build name maps (source → target) ──
+        var sourceDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(sourceJobId, ct);
+
+        var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
+        var targetYear = await _autoBuildRepo.GetJobYearAsync(jobId, ct);
+        var yearDelta = ComputeYearDelta(sourceYear, targetYear);
+
+        // Map source agegroup names (year-shifted) → target agegroup IDs
+        var targetAgByName = currentDivisions
+            .GroupBy(d => d.AgegroupName.ToLowerInvariant())
+            .ToDictionary(g => g.Key, g => g.First().AgegroupId);
+
+        // Map (agegroupName, divName) → target division ID
+        var targetDivByKey = currentDivisions
+            .ToDictionary(
+                d => $"{d.AgegroupName.ToLowerInvariant()}|{d.DivName.ToLowerInvariant()}",
+                d => d.DivId);
+
+        // ── Agegroup profiles ──
+        var sourceAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(sourceJobId, ct);
+        foreach (var srcProfile in sourceAgProfiles)
+        {
+            var srcAg = sourceDivisions.FirstOrDefault(d => d.AgegroupId == srcProfile.AgegroupId);
+            if (srcAg == null) continue;
+
+            var mappedName = AgegroupNameMapper.OffsetName(srcAg.AgegroupName, yearDelta);
+            if (!targetAgByName.TryGetValue(mappedName.ToLowerInvariant(), out var targetAgId))
+                continue;
+
+            await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+            {
+                AgegroupId = targetAgId,
+                GamePlacement = srcProfile.GamePlacement,
+                BetweenRoundRows = srcProfile.BetweenRoundRows,
+                GameGuarantee = srcProfile.GameGuarantee,
+                LebUserId = userId
+            }, ct);
+        }
+
+        // ── Division profiles ──
+        var sourceDivProfiles = await _cascadeRepo.GetDivisionProfilesAsync(sourceJobId, ct);
+        foreach (var srcProfile in sourceDivProfiles)
+        {
+            var srcDiv = sourceDivisions.FirstOrDefault(d => d.DivId == srcProfile.DivisionId);
+            if (srcDiv == null) continue;
+
+            var mappedAgName = AgegroupNameMapper.OffsetName(srcDiv.AgegroupName, yearDelta);
+            var key = $"{mappedAgName.ToLowerInvariant()}|{srcDiv.DivName.ToLowerInvariant()}";
+            if (!targetDivByKey.TryGetValue(key, out var targetDivId))
+                continue;
+
+            await _cascadeRepo.UpsertDivisionProfileAsync(new DivisionScheduleProfile
+            {
+                DivisionId = targetDivId,
+                GamePlacement = srcProfile.GamePlacement,
+                BetweenRoundRows = srcProfile.BetweenRoundRows,
+                GameGuarantee = srcProfile.GameGuarantee,
+                LebUserId = userId
+            }, ct);
+        }
+
+        await _cascadeRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Seeded cascade from source: JobId={JobId}, SourceJobId={SourceJobId}, " +
+            "AgProfiles={AgCount}, DivProfiles={DivCount}",
+            jobId, sourceJobId, sourceAgProfiles.Count, sourceDivProfiles.Count);
+
+        return true;
     }
 
 }
