@@ -1,8 +1,9 @@
 /**
  * Schedule Configuration Types
  *
- * These types match the flowchart's ScheduleAgentConfig 1:1.
- * Every flowchart node maps to a config field with provenance tracking.
+ * These types support the ScheduleConfigService (localStorage-backed build config).
+ * The config service is slated for removal once the engine reads DivisionProcessingOrder
+ * from DB directly — at that point, these types can be deleted too.
  */
 
 // ── Provenance wrapper ──
@@ -70,15 +71,7 @@ export interface ScheduleConfig {
     oddDivByeHandling?: ScheduleConfigValue<boolean>; // bPlayOddDivisionByeTeam
 }
 
-// ── Freshness tracking for cascading invalidation ──
-
-export type Freshness = 'valid' | 'stale' | 'missing';
-
-// ── Stepper section expand/collapse state ──
-
-export type StepperSection = 'gameDays' | 'fields' | 'calendar' | 'timeConfig' | 'strategy' | 'pairings' | 'processingOrder' | 'build';
-
-// ── Scope for scoped operations ──
+// ── Scope for scoped operations (used by ScheduleConfigService) ──
 
 export type SchedulingScope = {
     level: 'event' | 'agegroup' | 'division';
@@ -86,42 +79,14 @@ export type SchedulingScope = {
     divisionId?: string;
 };
 
-// ── localStorage schema for Scenario B ──
+// ── localStorage schema ──
 
 export interface SavedScheduleConfig extends ScheduleConfig {
     savedAt: string; // ISO timestamp
 }
 
-// ── Calendar Apply Event (emitted by CalendarSectionComponent) ──
+// ── Reset dialog options (used by schedule-config-panel + parent) ──
 
-import type { BulkDateAgegroupEntry } from '@core/api';
-
-/** Per-date assignment payload for a single game date. */
-export interface DateAssignment {
-    /** Agegroups to assign/update on this date (rounds > 0). */
-    entries: BulkDateAgegroupEntry[];
-    /** Agegroups to UN-assign from this date (cell changed to "—"). */
-    removedAgegroupIds?: string[];
-}
-
-/** Emitted when user clicks "Save" in the field config section.
- *  Contains only agegroups with fewer than all event fields (overrides). */
-export interface FieldConfigApplyEvent {
-    /** agegroupId → fieldId[]. Only AGs with overrides (fewer than all event fields). */
-    overrides: Record<string, string[]>;
-}
-
-/** Emitted when user clicks "Save & Apply" in the calendar section.
- *  GSI/StartTime/MaxGames are NOT included — the parent reads current effective
- *  values from readiness data or config service when calling bulkAssignDate.
- *  Wave assignments are now persisted via the cascade API (ScheduleCascadeService),
- *  not carried in this event. */
-export interface CalendarApplyEvent {
-    /** ISO date key → per-date entries + removals. Only dates with changes included. */
-    assignments: Record<string, DateAssignment>;
-}
-
-/** Options for the dev-reset dialog. Used by both old and new config panels. */
 export interface DevResetOptions {
     games: boolean;
     strategyProfiles: boolean;

@@ -36,8 +36,6 @@ import { ScheduleConfigPanelComponent } from './components/schedule-config-panel
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
-import type { CalendarApplyEvent, FieldConfigApplyEvent } from './components/schedule-config/schedule-config.types';
-import type { TimeConfigSaveEvent } from './components/schedule-config/time-config-section.component';
 import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
 import { ScheduleCascadeService } from './components/schedule-config/schedule-cascade.service';
 import type { CanvasReadinessResponse } from '@core/api';
@@ -96,7 +94,6 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
     readonly strategySource = signal<string>('defaults');
     readonly isSavingStrategy = signal(false);
-    readonly isApplyingCalendar = signal(false);
 
     /** Auto-detected event type label for the stepper badge. */
     readonly eventTypeLabel = computed(() => {
@@ -261,16 +258,6 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly existingPairingRounds = signal<Record<number, number>>({});
     readonly isGeneratingPairings = signal(false);
 
-    // ── Time Config save state ──
-    readonly isSavingTimeConfig = signal(false);
-
-    // ── Field Config save state ──
-    readonly isSavingFieldConfig = signal(false);
-    readonly eventFields = signal<import('@core/api').EventFieldSummaryDto[]>([]);
-
-    // ── Game guarantee save state ──
-    readonly isSavingGuarantee = signal(false);
-
     // ── Bulk date assignment modal ──
     readonly showBulkDateModal = signal(false);
 
@@ -397,7 +384,6 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.assignedFieldCount.set(res.assignedFieldCount);
                 this.priorYearDefaults.set(res.priorYearDefaults ?? null);
                 this.priorYearRounds.set(res.priorYearRounds ?? null);
-                this.eventFields.set(res.eventFields ?? []);
                 this.fullReadinessResponse = res;
                 this.tryInitConfig();
             },
@@ -514,189 +500,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     onBulkDateApplied(): void {
         this.loadCanvasReadiness();
-    }
-
-    /**
-     * Handle calendar section "Save & Apply" — calls bulkAssignDate per date sequentially.
-     * GSI/StartTime/MaxGames are read from the CURRENT effective values (readiness or defaults),
-     * NOT from the calendar event (Calendar section no longer owns these).
-     */
-    onCalendarApply(event: CalendarApplyEvent): void {
-        const dateKeys = Object.keys(event.assignments).sort();
-        if (dateKeys.length === 0) return;
-
-        this.isApplyingCalendar.set(true);
-
-        // Derive current effective GSI/Start/Max from readiness or defaults
-        const { startTime, gsi, maxGamesPerField } = this.resolveEffectiveFieldDefaults();
-
-        let completed = 0;
-
-        const applyNext = (): void => {
-            if (completed >= dateKeys.length) {
-                this.isApplyingCalendar.set(false);
-
-                // Persist representative R/day (first date's value per AG)
-                const rpdMap: Record<string, number> = {};
-                for (const dk of dateKeys) {
-                    for (const entry of event.assignments[dk].entries) {
-                        rpdMap[entry.agegroupId] ??= entry.roundsPerDay ?? 1;
-                    }
-                }
-                this.configSvc.updateValue('roundsPerDay', rpdMap);
-
-                this.loadCanvasReadiness();
-                this.configSvc.saveToLocalStorage();
-                this.toast.show(`Applied ${dateKeys.length} date(s) successfully`, 'success');
-                return;
-            }
-
-            const isoDate = dateKeys[completed];
-            const assignment = event.assignments[isoDate];
-            const gDate = new Date(isoDate + 'T00:00:00');
-
-            this.timeslotSvc.bulkAssignDate({
-                gDate: gDate.toISOString(),
-                startTime,
-                gamestartInterval: gsi,
-                maxGamesPerField,
-                entries: assignment.entries,
-                removedAgegroupIds: assignment.removedAgegroupIds
-            }).subscribe({
-                next: () => {
-                    completed++;
-                    applyNext();
-                },
-                error: () => {
-                    this.isApplyingCalendar.set(false);
-                    this.toast.show(`Failed on date ${isoDate}`, 'danger');
-                    if (completed > 0) this.loadCanvasReadiness();
-                }
-            });
-        };
-
-        applyNext();
-    }
-
-    /**
-     * Time Config save: uses updateFieldConfig to update GSI/StartTime/MaxGames
-     * on existing field timeslot rows. Sends per-AG-per-DOW overrides from the matrix.
-     */
-    onTimeConfigSave(event: TimeConfigSaveEvent): void {
-        this.isSavingTimeConfig.set(true);
-
-        // When per-AG-per-DOW overrides are present, send GSI via per-AG entries
-        // and let overrides handle StartTime + MaxGamesPerField.
-        // Do NOT send baseStartTime/maxGamesPerField as uniform values — that would
-        // trigger ApplyUniformConfig which recalculates ALL wave offsets destructively.
-        const hasOverrides = (event.agDowOverrides?.length ?? 0) > 0;
-
-        // Always send GSI as per-AG entries so each agegroup gets its value
-        // without triggering the uniform config path for StartTime/MaxGames
-        let entries: Array<{ agegroupId: string; gamestartInterval?: number }> | undefined;
-        if (hasOverrides) {
-            // Send GSI for every agegroup as per-AG entries (not uniform)
-            const rows = typeof event.gsi === 'object' ? event.gsi : {};
-            const uniformGsi = typeof event.gsi === 'number' ? event.gsi : undefined;
-            const ags = this.agegroups();
-            entries = ags.map(ag => ({
-                agegroupId: ag.agegroupId,
-                gamestartInterval: rows[ag.agegroupId] ?? uniformGsi
-            }));
-        } else if (event.gsiScope === 'per-ag' && typeof event.gsi === 'object') {
-            entries = Object.entries(event.gsi).map(([agId, gsi]) => ({
-                agegroupId: agId,
-                gamestartInterval: gsi
-            }));
-        }
-
-        this.timeslotSvc.updateFieldConfig({
-            // Only send uniform start/max when there are NO per-DOW overrides
-            baseStartTime: hasOverrides ? undefined : event.startTime,
-            gamestartInterval: hasOverrides ? undefined : (typeof event.gsi === 'number' ? event.gsi : undefined),
-            maxGamesPerField: hasOverrides ? undefined : event.maxGamesPerField,
-            entries,
-            agDowOverrides: hasOverrides ? event.agDowOverrides : undefined
-        }).subscribe({
-            next: (result) => {
-                this.isSavingTimeConfig.set(false);
-                this.loadCanvasReadiness();
-                this.configSvc.saveToLocalStorage();
-                this.toast.show(`Time config updated (${result.rowsUpdated} rows)`, 'success');
-            },
-            error: () => {
-                this.isSavingTimeConfig.set(false);
-                this.toast.show('Failed to update time config', 'danger');
-            }
-        });
-    }
-
-    onFieldConfigApply(event: FieldConfigApplyEvent): void {
-        this.isSavingFieldConfig.set(true);
-
-        // Build entries: for AGs with overrides, send their field list.
-        // For AGs NOT in overrides, send all event fields (= full set, no restriction).
-        const allFieldIds = this.eventFields().map(f => f.fieldId);
-        const entries = this.agegroups().map(ag => ({
-            agegroupId: ag.agegroupId,
-            fieldIds: event.overrides[ag.agegroupId] ?? allFieldIds
-        }));
-
-        this.timeslotSvc.saveFieldAssignments({ entries }).subscribe({
-            next: (result) => {
-                this.isSavingFieldConfig.set(false);
-                this.loadCanvasReadiness();
-                const msg = result.rowsCreated + result.rowsDeleted > 0
-                    ? `Field assignments updated (+${result.rowsCreated} / -${result.rowsDeleted} rows)`
-                    : 'Field assignments saved (no changes)';
-                this.toast.show(msg, 'success');
-            },
-            error: () => {
-                this.isSavingFieldConfig.set(false);
-                this.toast.show('Failed to save field assignments', 'danger');
-            }
-        });
-    }
-
-    saveGameGuarantee(event: { eventDefault: number | null }): void {
-        this.isSavingGuarantee.set(true);
-        this.autoBuildSvc.saveGameGuarantee({ eventDefault: event.eventDefault ?? undefined }).subscribe({
-            next: () => {
-                this.isSavingGuarantee.set(false);
-                this.loadCanvasReadiness();
-                this.refreshGameSummary();
-                this.toast.show('Game guarantee saved', 'success');
-            },
-            error: () => {
-                this.isSavingGuarantee.set(false);
-                this.toast.show('Failed to save game guarantee', 'danger');
-            }
-        });
-    }
-
-    /**
-     * Resolve current effective GSI/StartTime/MaxGames from readiness data or defaults.
-     * Used by onCalendarApply to create new field timeslots with the right values.
-     */
-    private resolveEffectiveFieldDefaults(): { startTime: string; gsi: number; maxGamesPerField: number } {
-        const map = this.canvasReadiness();
-        const configured = Object.values(map).find(a => a.isConfigured && a.gamestartInterval != null);
-        if (configured) {
-            return {
-                startTime: configured.startTime ?? '8:00 AM',
-                gsi: configured.gamestartInterval ?? 60,
-                maxGamesPerField: configured.maxGamesPerField ?? 8
-            };
-        }
-        const py = this.priorYearDefaults();
-        if (py) {
-            return {
-                startTime: py.startTime ?? '8:00 AM',
-                gsi: py.gamestartInterval ?? 60,
-                maxGamesPerField: py.maxGamesPerField ?? 8
-            };
-        }
-        return { startTime: '8:00 AM', gsi: 60, maxGamesPerField: 8 };
     }
 
     closeBulkDateModal(): void {
@@ -1307,10 +1110,6 @@ export class ScheduleDivisionComponent implements OnInit {
         });
     }
 
-    /** Update division processing order on config. */
-    onProcessingOrderChanged(order: string[]): void {
-        this.configSvc.updateValue('suggestedDivisionOrder', order);
-    }
 
     closeAutoScheduleModal(): void {
         this.showAutoScheduleModal.set(false);
