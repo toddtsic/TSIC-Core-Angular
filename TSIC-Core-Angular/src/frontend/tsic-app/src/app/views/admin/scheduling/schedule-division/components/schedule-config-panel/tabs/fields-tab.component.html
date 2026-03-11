@@ -1,0 +1,100 @@
+<div class="fields-tab">
+
+  @if (isLoading()) {
+    <div class="loading-placeholder">
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Loading field assignments...
+    </div>
+  } @else {
+
+    <!-- Guidance -->
+    <div class="tab-guidance">
+      <i class="bi bi-info-circle me-1"></i>
+      Toggle which fields each agegroup can use.
+      Click a column header to toggle all agegroups for that field.
+      Click a row header to toggle all fields for that agegroup.
+    </div>
+
+    <!-- Summary -->
+    <div class="tab-summary">
+      <span>{{ summaryLabel() }}</span>
+      @if (isDirty()) {
+        <span class="dirty-badge">Unsaved changes</span>
+      }
+    </div>
+
+    @if (eventFields().length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-grid-3x3 stub-icon"></i>
+        <p>No fields configured for this event. Add fields in the Manage Fields page first.</p>
+      </div>
+    }
+
+    @if (eventFields().length > 0 && agegroups().length > 0) {
+      <!-- Matrix -->
+      <div class="matrix-wrapper">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="ag-header-cell">Agegroup</th>
+              @for (field of eventFields(); track field.fieldId) {
+                <th class="field-header-cell"
+                    (click)="toggleFieldColumn(field.fieldId)">
+                  <div class="field-header-content">
+                    <span class="field-name">{{ field.fieldName }}</span>
+                    <i class="bi header-check"
+                       [ngClass]="{
+                         'bi-check-square-fill': fieldColumnState(field.fieldId) === 'all',
+                         'bi-dash-square': fieldColumnState(field.fieldId) === 'some',
+                         'bi-square': fieldColumnState(field.fieldId) === 'none'
+                       }"></i>
+                  </div>
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (ag of agegroups(); track ag.agegroupId) {
+              <tr>
+                <td class="ag-name-cell" (click)="toggleAgRow(ag.agegroupId)">
+                  <div class="ag-name-content">
+                    <i class="bi row-check"
+                       [ngClass]="{
+                         'bi-check-square-fill': agRowState(ag.agegroupId) === 'all',
+                         'bi-dash-square': agRowState(ag.agegroupId) === 'some',
+                         'bi-square': agRowState(ag.agegroupId) === 'none'
+                       }"></i>
+                    <span>{{ ag.agegroupName }}</span>
+                  </div>
+                </td>
+                @for (field of eventFields(); track field.fieldId) {
+                  <td class="check-cell"
+                      [class.checked]="isChecked(ag.agegroupId, field.fieldId)"
+                      (click)="toggleAssignment(ag.agegroupId, field.fieldId)">
+                    @if (isChecked(ag.agegroupId, field.fieldId)) {
+                      <i class="bi bi-check-lg check-icon"></i>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Actions -->
+    @if (eventFields().length > 0) {
+      <div class="tab-actions">
+        <button class="btn btn-sm btn-primary"
+                [disabled]="!isDirty() || isSaving()"
+                (click)="save()">
+          @if (isSaving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          <i class="bi bi-check2"></i> Save Assignments
+        </button>
+      </div>
+    }
+  }
+</div>

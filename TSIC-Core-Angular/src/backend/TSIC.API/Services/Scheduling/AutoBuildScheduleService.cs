@@ -86,9 +86,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // Filter out inactive agegroups (WAITLIST, DROPPED) and placeholder/dropped divisions
         var activeDivisions = FilterSchedulableDivisions(divisions);
 
-        // Game guarantee: stored value takes priority, fall back to derived from pairings.
+        // Game guarantee: cascade event default takes priority, fall back to derived from pairings.
         // Must be computed BEFORE the summary loop so expected game counts respect the cap.
-        var storedGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+        var eventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
+        int? storedGuarantee = eventDefaults?.GameGuarantee;
         int? effectiveGuarantee = storedGuarantee;
         if (effectiveGuarantee == null && maxRoundByPoolSize.Count > 0)
         {
@@ -326,9 +327,29 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             profilesByTCnt = new Dictionary<int, DivisionSizeProfile>();
         }
 
-        // ── 1b. Game guarantee: job-level + per-agegroup overrides ──
+        // ── 1b. Game guarantee from cascade: Event → Agegroup → Division ──
         // Used by the placement loop to cap rounds per division.
-        var jobGameGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
+        var cascadeEventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
+        var cascadeAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
+        var cascadeDivProfiles = await _cascadeRepo.GetDivisionProfilesAsync(jobId, ct);
+        var eventGameGuarantee = cascadeEventDefaults?.GameGuarantee ?? 0;
+        var agGuaranteeMap = cascadeAgProfiles.ToDictionary(p => p.AgegroupId, p => p.GameGuarantee);
+        var divGuaranteeMap = cascadeDivProfiles.ToDictionary(p => p.DivisionId, p => p.GameGuarantee);
+
+        // ── 1c. Per-date wave assignments from cascade tables ──
+        // Cascade: divWaveByDate[(divId, date)] ?? agWaveByDate[(agId, date)] ?? 1
+        var cascadeAgWaves = await _cascadeRepo.GetAgegroupWavesAsync(jobId, ct);
+        var cascadeDivWaves = await _cascadeRepo.GetDivisionWavesAsync(jobId, ct);
+        var agWaveByDate = cascadeAgWaves
+            .GroupBy(w => (w.AgegroupId, Date: w.GameDate.Date))
+            .ToDictionary(g => g.Key, g => (int)g.First().Wave);
+        var divWaveByDate = cascadeDivWaves
+            .GroupBy(w => (w.DivisionId, Date: w.GameDate.Date))
+            .ToDictionary(g => g.Key, g => (int)g.First().Wave);
+
+        // ── 1d. Persisted division processing order ──
+        // Read from DB; empty = fallback to alphabetical within agegroup.
+        var persistedOrder = await _cascadeRepo.GetProcessingOrderAsync(jobId, ct);
 
         // ── 2. Get current divisions and filter ──
         var allDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
@@ -348,14 +369,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             : new HashSet<(Guid fieldId, DateTime gDate)>();
 
         var existingCounts = await _autoBuildRepo.GetExistingGameCountsByDivisionAsync(jobId, ct);
-
-        // ── 4. Build processing order: agegroups → divisions ──
-        // Build wave lookup: agegroupId → wave number (agegroup default)
-        var waveByAgId = request.AgegroupOrder
-            .ToDictionary(e => e.AgegroupId, e => e.Wave);
-
-        // Per-division wave override (divisionId → wave). Falls back to agegroup wave.
-        var waveByDivId = request.DivisionWaves ?? new Dictionary<Guid, int>();
 
         // Division-level ordering from request (divisionId → sort index)
         var divOrderIndex = new Dictionary<Guid, int>();
@@ -453,22 +466,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     defaultCandidates = [];
                 }
 
-                var agWave = waveByAgId.GetValueOrDefault(div.AgegroupId, 1);
-
-                // Build round-to-day mapping from agegroup-level date config.
-                // Each TimeslotDateDto row carries (GDate, Rnd) — the user's
-                // intent for which round plays on which calendar day.
-                var agRoundToDay = agDates
-                    .Where(d => d.Rnd > 0)
-                    .GroupBy(d => d.Rnd)
-                    .ToDictionary(g => g.Key, g => g.First().GDate.DayOfWeek);
+                // Store raw agegroup-level TLSD start-round markers.
+                // Expansion into round→day happens per-division once maxRound is known.
+                var agDateMarkers = agDates.Where(d => d.Rnd > 0).ToList();
 
                 agCtx = new AgegroupBuildContext
                 {
                     Agegroup = agegroup,
                     AgSeason = agSeason,
                     AgLeagueId = agLeagueId,
-                    Wave = agWave,
                     Dates = allDates,
                     Fields = allFields,
                     DefaultCandidates = defaultCandidates,
@@ -476,7 +482,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     DefaultFirstGameDay = defaultCandidates.Count > 0
                         ? defaultCandidates.Min(c => c.GDate.Date)
                         : DateTime.MaxValue,
-                    DefaultRoundToDay = agRoundToDay
+                    DefaultDateMarkers = agDateMarkers
                 };
                 agContextCache[div.AgegroupId] = agCtx;
             }
@@ -500,14 +506,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var pairings = await _pairingsRepo.GetPairingsAsync(
                 agCtx.AgLeagueId, agCtx.AgSeason, teamCount, ct);
 
-            // Resolve this agegroup's effective guarantee:
-            //   agegroup override → job DB default → request-level fallback.
-            // Cap rounds to only what this agegroup's guarantee requires.
-            // The pairing table may have more rounds (for other agegroups with
+            // Resolve this division's effective guarantee via cascade:
+            //   division override → agegroup override → event default → request fallback.
+            // Cap rounds to only what this division's guarantee requires.
+            // The pairing table may have more rounds (for other divisions with
             // higher guarantees), but this division only places what it needs.
-            var agGuarantee = agCtx.Agegroup?.GameGuarantee
-                ?? jobGameGuarantee
-                ?? request.GameGuarantee;
+            var agGuarantee = divGuaranteeMap.GetValueOrDefault(div.DivId)
+                ?? agGuaranteeMap.GetValueOrDefault(div.AgegroupId)
+                ?? eventGameGuarantee;
             var guaranteeMaxRound = ComputeRoundCount(teamCount, agGuarantee);
 
             var rrPairings = pairings
@@ -672,22 +678,16 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 ? candidates.Min(c => c.GDate.Date)
                 : DateTime.MaxValue;
 
-            // Round-to-day: use division-specific dates if they exist,
-            // otherwise inherit the agegroup-level mapping.
-            var roundToDay = divDates.Count > 0
-                ? divDates
-                    .Where(d => d.Rnd > 0)
-                    .GroupBy(d => d.Rnd)
-                    .ToDictionary(g => g.Key, g => g.First().GDate.DayOfWeek)
-                : agCtx.DefaultRoundToDay;
-
-            // Resolve effective wave: per-division override → agegroup default
-            var divWave = waveByDivId.GetValueOrDefault(div.DivId, agCtx.Wave);
+            // Round-to-day: expand start-round markers into full round → DayOfWeek mapping.
+            // Use division-specific markers if they exist, otherwise agegroup-level markers.
+            var divDateMarkers = divDates.Count > 0
+                ? divDates.Where(d => d.Rnd > 0).ToList()
+                : agCtx.DefaultDateMarkers;
+            var roundToDay = ExpandStartRoundMarkers(divDateMarkers, maxRound);
 
             divContexts.Add(new DivisionBuildContext
             {
                 AgContext = agCtx,
-                Wave = divWave,
                 Div = div,
                 Division = division,
                 TeamCount = teamCount,
@@ -750,12 +750,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var tcntDayFirstPlaced = new HashSet<(int TCnt, DayOfWeek Day)>();
 
         // Build division-level order index for chip-stack sorting.
-        // When DivisionOrder is provided (from source timing or manual config),
-        // use it directly. Otherwise fall back to interleaving by DivOrdinal + AgOrder.
-        if (request.DivisionOrder?.Count > 0)
+        // When persisted order exists in DB, use it. Otherwise fall back to
+        // agegroup order + alphabetical within each agegroup.
+        if (persistedOrder.Count > 0)
         {
-            for (int i = 0; i < request.DivisionOrder.Count; i++)
-                divOrderIndex[request.DivisionOrder[i]] = i;
+            for (int i = 0; i < persistedOrder.Count; i++)
+                divOrderIndex[persistedOrder[i].DivisionId] = i;
         }
         else
         {
@@ -790,8 +790,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // DivOrder is a single sort key that replaces the old DivOrdinal + AgOrder
         // interleaving. For returning jobs, derived from source timing (morning
         // divisions before afternoon). For new jobs, alphabetical within agegroup.
-        // Per-division wave separates time blocks (morning vs afternoon) within
-        // the same agegroup — the wave floor ensures no overlap.
+        // Per-date waves from cascade tables: each chip resolves its wave from
+        // the round's target date via divWaveByDate → agWaveByDate → 1.
+        // This replaces the old flat per-division wave. A division can be
+        // Wave 1 on Friday and Wave 2 on Saturday.
         //
         // Round-level capacity check and start-time computation happen on
         // the first game of each (division, round) — tracked via roundChecked.
@@ -799,17 +801,26 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             .SelectMany(ctx =>
                 ctx.RoundsByNum
                     .Where(kvp => kvp.Key <= ctx.MaxRound)
-                    .SelectMany(kvp => kvp.Value.Select((pairing, idx) => new
+                    .SelectMany(kvp =>
                     {
-                        ctx.FirstGameDay,
-                        ctx.Wave,
-                        RoundNum = kvp.Key,
-                        GameIndex = idx,
-                        GamesInRound = kvp.Value.Count,
-                        DivOrder = divOrderIndex.GetValueOrDefault(ctx.Div.DivId, int.MaxValue),
-                        Pairing = pairing,
-                        Ctx = ctx
-                    })))
+                        // Resolve per-date wave for this round
+                        var chipDate = ctx.RoundToDay.TryGetValue(kvp.Key, out var rDate)
+                            ? rDate : ctx.FirstGameDay;
+                        var wave = divWaveByDate.TryGetValue((ctx.Div.DivId, chipDate.Date), out var dw) ? dw
+                            : agWaveByDate.TryGetValue((ctx.Div.AgegroupId, chipDate.Date), out var aw) ? aw
+                            : 1;
+                        return kvp.Value.Select((pairing, idx) => new
+                        {
+                            ctx.FirstGameDay,
+                            Wave = wave,
+                            RoundNum = kvp.Key,
+                            GameIndex = idx,
+                            GamesInRound = kvp.Value.Count,
+                            DivOrder = divOrderIndex.GetValueOrDefault(ctx.Div.DivId, int.MaxValue),
+                            Pairing = pairing,
+                            Ctx = ctx
+                        });
+                    }))
             .OrderBy(c => c.FirstGameDay)
             .ThenBy(c => c.Wave)
             .ThenBy(c => c.RoundNum)
@@ -909,18 +920,18 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             if (roundChecked.Add(divRoundKey))
             {
                 // ── Round-level date selection ──
-                // Try the configured target day first; if insufficient capacity,
+                // Try the configured target date first; if insufficient capacity,
                 // try other dates in chronological order. The entire round goes
                 // on one date — no splitting across days.
-                var targetDay = ctx.RoundToDay.TryGetValue(roundNum, out var tdow)
-                    ? tdow : (DayOfWeek?)null;
+                var targetDate = ctx.RoundToDay.TryGetValue(roundNum, out var tDate)
+                    ? tDate : (DateTime?)null;
                 var candidateDates = ctx.Candidates
                     .Select(c => c.GDate.Date).Distinct().OrderBy(d => d).ToList();
 
-                // Sort dates: target day dates first, then the rest chronologically
-                var orderedDates = targetDay.HasValue
-                    ? candidateDates.Where(d => d.DayOfWeek == targetDay.Value)
-                        .Concat(candidateDates.Where(d => d.DayOfWeek != targetDay.Value))
+                // Sort dates: target date first, then the rest chronologically
+                var orderedDates = targetDate.HasValue
+                    ? candidateDates.Where(d => d == targetDate.Value)
+                        .Concat(candidateDates.Where(d => d != targetDate.Value))
                         .ToList()
                     : candidateDates;
 
@@ -963,15 +974,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
 
                 roundSelectedDate[divRoundKey] = selectedDate.Value;
-                roundDayFallback[divRoundKey] = targetDay.HasValue
-                    && selectedDate.Value.DayOfWeek != targetDay.Value;
+                roundDayFallback[divRoundKey] = targetDate.HasValue
+                    && selectedDate.Value != targetDate.Value;
 
                 if (roundDayFallback[divRoundKey])
                 {
                     _logger.LogInformation(
                         "Day fallback: {AgName}/{DivName} R{Round} — target {Target} → placed on {Actual}",
                         ctx.Div.AgegroupName, ctx.Div.DivName, roundNum,
-                        targetDay, selectedDate.Value.DayOfWeek);
+                        targetDate?.ToString("MM/dd ddd"), selectedDate.Value.ToString("MM/dd ddd"));
                 }
 
                 // ── Compute round start time (time floor for greedy scan) ──
@@ -1066,7 +1077,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 AgegroupName = ctx.Div.AgegroupName,
                 DivName = ctx.Div.DivName,
                 TCnt = ctx.TeamCount,
-                TargetDay = ctx.RoundToDay.TryGetValue(roundNum, out var targetDow2) ? targetDow2 : null,
+                TargetDay = ctx.RoundToDay.TryGetValue(roundNum, out var targetDate2) ? targetDate2.DayOfWeek : null,
                 TargetTime = gameTargetTime
             };
 
@@ -1438,13 +1449,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     /// For even TCnt: guarantee rounds = gameGuarantee (each round, every team plays).
     /// For odd TCnt: one team sits each round, so need gameGuarantee + 1 rounds
     /// to ensure every team plays at least gameGuarantee games.
-    /// Returns full-RR round count when gameGuarantee is null/0 or >= full-RR.
+    /// Returns 0 when gameGuarantee is null/0 — caller should skip this division
+    /// (not configured). Never assume full round-robin.
     /// </summary>
     internal static int ComputeRoundCount(int teamCount, int? gameGuarantee)
     {
-        var fullRr = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
         if (gameGuarantee is null or 0)
-            return fullRr;
+            return 0;
+
+        var fullRr = teamCount % 2 == 0 ? teamCount - 1 : teamCount;
 
         // For even team counts: every team plays every round, so rounds = gameGuarantee
         // For odd team counts: one team has a bye each round, so need gameGuarantee + 1
@@ -1455,6 +1468,42 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             : gameGuarantee.Value + 1;
 
         return Math.Clamp(needed, 1, fullRr);
+    }
+
+    /// <summary>
+    /// Expand TLSD start-round markers into a full round → game date mapping.
+    /// Each TLSD row is a marker: "rounds starting at Rnd play on GDate."
+    /// The range is [marker.Rnd, nextMarker.Rnd). The last marker gets all remaining rounds.
+    /// <paramref name="maxRound"/> caps how many rounds to expand (from pairings/guarantee).
+    /// Returns empty dictionary if markers is empty or maxRound is 0.
+    /// </summary>
+    internal static Dictionary<int, DateTime> ExpandStartRoundMarkers(
+        List<TimeslotDateDto> markers, int maxRound)
+    {
+        var result = new Dictionary<int, DateTime>();
+        if (markers.Count == 0 || maxRound <= 0) return result;
+
+        // Sort markers by Rnd ascending, deduplicate by taking distinct Rnd values
+        var sorted = markers
+            .Where(m => m.Rnd > 0)
+            .OrderBy(m => m.Rnd)
+            .GroupBy(m => m.Rnd)
+            .Select(g => g.First())
+            .ToList();
+
+        if (sorted.Count == 0) return result;
+
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            var startRnd = sorted[i].Rnd;
+            var endRnd = i + 1 < sorted.Count ? sorted[i + 1].Rnd : maxRound + 1;
+            var gDate = sorted[i].GDate.Date;
+
+            for (var rnd = startRnd; rnd < endRnd && rnd <= maxRound; rnd++)
+                result[rnd] = gDate;
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -1491,12 +1540,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         public required string AgSeason { get; init; }
         public required Guid AgLeagueId { get; init; }
 
-        /// <summary>
-        /// Wave group (1-based). Engine completes all Wave 1 agegroups on a day
-        /// before starting Wave 2 on the same day.
-        /// </summary>
-        public required int Wave { get; init; }
-
         /// <summary>Agegroup-level dates (DivId == null).</summary>
         public required List<TimeslotDateDto> Dates { get; init; }
 
@@ -1522,11 +1565,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         public required DateTime DefaultFirstGameDay { get; init; }
 
         /// <summary>
-        /// Round number → target DayOfWeek, built from agegroup-level
-        /// TimeslotsLeagueSeasonDates.Rnd. Divisions inherit this unless
-        /// they have their own date configuration.
+        /// Raw agegroup-level TLSD start-round markers (Rnd, GDate).
+        /// Expanded into a full round → DateTime map per-division using
+        /// ExpandStartRoundMarkers once the division's maxRound is known.
         /// </summary>
-        public required Dictionary<int, DayOfWeek> DefaultRoundToDay { get; init; }
+        public required List<TimeslotDateDto> DefaultDateMarkers { get; init; }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1541,11 +1584,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     /// </summary>
     private sealed class DivisionBuildContext
     {
-        /// <summary>Shared agegroup-level data (dates, fields, candidates, wave, etc.).</summary>
+        /// <summary>Shared agegroup-level data (dates, fields, candidates, etc.).</summary>
         public required AgegroupBuildContext AgContext { get; init; }
-
-        /// <summary>Effective wave for this division (per-division override → agegroup default).</summary>
-        public required int Wave { get; init; }
 
         public required CurrentDivisionSummary Div { get; init; }
         public Divisions? Division { get; init; }
@@ -1584,12 +1624,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         public required DateTime FirstGameDay { get; init; }
 
         /// <summary>
-        /// Round number → target DayOfWeek, built from TimeslotsLeagueSeasonDates.Rnd.
-        /// Used to set GameContext.TargetDay so the scorer pins rounds to their
-        /// configured days. Inherits from AgContext.DefaultRoundToDay when division
-        /// has no date overrides. Unmapped rounds get TargetDay=null (float freely).
+        /// Round number → target date, built from TimeslotsLeagueSeasonDates start-round
+        /// markers via ExpandStartRoundMarkers. Used for date-pinned round placement and
+        /// per-date wave resolution. Inherits from AgContext.DefaultDateMarkers when
+        /// division has no date overrides. Unmapped rounds float freely.
         /// </summary>
-        public required Dictionary<int, DayOfWeek> RoundToDay { get; init; }
+        public required Dictionary<int, DateTime> RoundToDay { get; init; }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -2315,14 +2355,16 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var existing = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(leagueId, season, ct);
 
         // Pairing table is a shared library — generate enough rounds for the
-        // HIGHEST guarantee across all agegroups sharing each pool size.
-        // The placement loop then caps per division based on its agegroup's guarantee.
-        var jobGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
-        var agGuarantees = await _agegroupRepo.GetGameGuaranteesForLeagueAsync(leagueId, ct);
-        var maxGuarantee = new[] { jobGuarantee ?? 0 }
-            .Concat(agGuarantees.Values.Select(v => v ?? 0))
+        // HIGHEST guarantee across all levels sharing each pool size.
+        // The placement loop then caps per division based on its cascade-resolved guarantee.
+        var epEventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
+        var epAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
+        var epDivProfiles = await _cascadeRepo.GetDivisionProfilesAsync(jobId, ct);
+        var maxGuarantee = new[] { epEventDefaults?.GameGuarantee ?? 0 }
+            .Concat(epAgProfiles.Select(p => p.GameGuarantee ?? 0))
+            .Concat(epDivProfiles.Select(p => p.GameGuarantee ?? 0))
             .Max();
-        int? gameGuarantee = maxGuarantee > 0 ? maxGuarantee : jobGuarantee;
+        int? gameGuarantee = maxGuarantee > 0 ? maxGuarantee : epEventDefaults?.GameGuarantee;
 
         var generated = new List<int>();
         var alreadyExisted = new List<int>();

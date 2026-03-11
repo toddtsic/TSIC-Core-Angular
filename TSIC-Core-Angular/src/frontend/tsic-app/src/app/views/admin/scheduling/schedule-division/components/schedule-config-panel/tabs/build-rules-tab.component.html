@@ -1,0 +1,239 @@
+<div class="build-rules">
+
+  @if (!cascade()) {
+    <div class="loading-placeholder">
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Loading cascade...
+    </div>
+  } @else {
+
+    <!-- ══════════ Event Defaults ══════════ -->
+    <div class="cascade-section">
+      <div class="section-header">
+        <i class="bi bi-globe2 me-2"></i>
+        <span class="fw-semibold">Event Defaults</span>
+        <span class="section-hint">Base values inherited by all agegroups</span>
+      </div>
+
+      <div class="defaults-row">
+        <!-- Game Guarantee -->
+        <div class="rule-cell">
+          <label class="rule-label">Game Guarantee</label>
+          <div class="d-flex align-items-center gap-2">
+            <input type="number" class="form-control form-control-sm rule-input"
+                   [ngModel]="eventGuarantee()"
+                   (ngModelChange)="eventGuarantee.set($event)"
+                   min="1" max="20" step="1" />
+            <span class="rule-unit">games</span>
+          </div>
+        </div>
+
+        <!-- Game Placement -->
+        <div class="rule-cell">
+          <label class="rule-label">Placement</label>
+          <div class="btn-group btn-group-sm">
+            <button class="btn"
+                    [class.btn-primary]="eventPlacement() === 'H'"
+                    [class.btn-outline-secondary]="eventPlacement() !== 'H'"
+                    (click)="eventPlacement.set('H')">
+              Horizontal
+            </button>
+            <button class="btn"
+                    [class.btn-primary]="eventPlacement() === 'V'"
+                    [class.btn-outline-secondary]="eventPlacement() !== 'V'"
+                    (click)="eventPlacement.set('V')">
+              Vertical
+            </button>
+          </div>
+        </div>
+
+        <!-- Between Round Rest -->
+        <div class="rule-cell">
+          <label class="rule-label">Between Round Rest</label>
+          <select class="form-select form-select-sm rule-input"
+                  [ngModel]="eventRest()"
+                  (ngModelChange)="eventRest.set(+$event)">
+            <option [ngValue]="0">None (back-to-back)</option>
+            <option [ngValue]="1">1 game break</option>
+            <option [ngValue]="2">2 game break</option>
+          </select>
+        </div>
+
+        <!-- Save button -->
+        <div class="rule-cell rule-cell-action">
+          @if (eventDirty()) {
+            <button class="btn btn-sm btn-primary"
+                    [disabled]="isSaving()"
+                    (click)="saveEventDefaults()">
+              @if (isSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Save
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ Agegroup / Division Overrides ══════════ -->
+    @if (cascade()!.agegroups.length > 0) {
+      <div class="cascade-section">
+        <div class="section-header">
+          <i class="bi bi-diagram-3 me-2"></i>
+          <span class="fw-semibold">Overrides</span>
+          <span class="section-hint">Override event defaults per agegroup or division</span>
+        </div>
+
+        <div class="cascade-table">
+          <!-- Header -->
+          <div class="cascade-row cascade-header-row">
+            <div class="cascade-cell cascade-cell-name">Agegroup / Division</div>
+            <div class="cascade-cell">Guarantee</div>
+            <div class="cascade-cell">Placement</div>
+            <div class="cascade-cell">Rest</div>
+            <div class="cascade-cell cascade-cell-action"></div>
+          </div>
+
+          @for (ag of cascade()!.agegroups; track ag.agegroupId) {
+            <!-- Agegroup row -->
+            <div class="cascade-row cascade-ag-row"
+                 [class.has-override]="hasAgOverride(ag)"
+                 [class.is-expanded]="isAgExpanded(ag.agegroupId)">
+
+              <div class="cascade-cell cascade-cell-name">
+                <button class="expand-toggle" (click)="toggleAg(ag.agegroupId)"
+                        [attr.aria-expanded]="isAgExpanded(ag.agegroupId)">
+                  <i class="bi" [class.bi-chevron-right]="!isAgExpanded(ag.agegroupId)"
+                     [class.bi-chevron-down]="isAgExpanded(ag.agegroupId)"></i>
+                </button>
+                <span class="ag-name">{{ ag.agegroupName }}</span>
+                @if (ag.divisions.length > 0) {
+                  <span class="div-count">{{ ag.divisions.length }} div</span>
+                }
+              </div>
+
+              <!-- Guarantee -->
+              <div class="cascade-cell">
+                @if (ag.gameGuaranteeOverride != null) {
+                  <span class="override-value">{{ ag.gameGuaranteeOverride }}</span>
+                } @else {
+                  <span class="inherited-value">{{ cascade()!.eventDefaults.gameGuarantee }}</span>
+                }
+                <button class="inline-edit-btn" title="Set override"
+                        (click)="saveAgOverride(ag, 'guarantee', ag.gameGuaranteeOverride != null ? null : ag.effectiveGameGuarantee)">
+                  <i class="bi" [class.bi-pencil]="ag.gameGuaranteeOverride == null"
+                     [class.bi-x-circle]="ag.gameGuaranteeOverride != null"></i>
+                </button>
+              </div>
+
+              <!-- Placement -->
+              <div class="cascade-cell">
+                @if (ag.gamePlacementOverride != null) {
+                  <span class="override-value">{{ placementLabel(ag.gamePlacementOverride) }}</span>
+                } @else {
+                  <span class="inherited-value">{{ placementLabel(cascade()!.eventDefaults.gamePlacement) }}</span>
+                }
+                <button class="inline-edit-btn" title="Toggle placement"
+                        (click)="saveAgOverride(ag, 'placement', ag.gamePlacementOverride != null ? null : (ag.effectiveGamePlacement === 'H' ? 'V' : 'H'))">
+                  <i class="bi" [class.bi-arrow-left-right]="ag.gamePlacementOverride == null"
+                     [class.bi-x-circle]="ag.gamePlacementOverride != null"></i>
+                </button>
+              </div>
+
+              <!-- Rest -->
+              <div class="cascade-cell">
+                @if (ag.betweenRoundRowsOverride != null) {
+                  <span class="override-value">{{ restLabel(ag.betweenRoundRowsOverride) }}</span>
+                } @else {
+                  <span class="inherited-value">{{ restLabel(cascade()!.eventDefaults.betweenRoundRows) }}</span>
+                }
+                <button class="inline-edit-btn" title="Cycle rest"
+                        (click)="saveAgOverride(ag, 'rest', ag.betweenRoundRowsOverride != null ? null : ((ag.effectiveBetweenRoundRows + 1) % 3))">
+                  <i class="bi" [class.bi-pencil]="ag.betweenRoundRowsOverride == null"
+                     [class.bi-x-circle]="ag.betweenRoundRowsOverride != null"></i>
+                </button>
+              </div>
+
+              <!-- Clear all -->
+              <div class="cascade-cell cascade-cell-action">
+                @if (hasAgOverride(ag)) {
+                  <button class="btn btn-sm btn-outline-secondary" title="Clear all overrides"
+                          [disabled]="isSaving()"
+                          (click)="clearAgOverride(ag)">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Division rows (expanded) -->
+            @if (isAgExpanded(ag.agegroupId)) {
+              @for (div of ag.divisions; track div.divisionId) {
+                <div class="cascade-row cascade-div-row"
+                     [class.has-override]="hasDivOverride(div)">
+
+                  <div class="cascade-cell cascade-cell-name cascade-cell-indent">
+                    <span class="div-name">{{ div.divisionName }}</span>
+                  </div>
+
+                  <!-- Guarantee -->
+                  <div class="cascade-cell">
+                    @if (div.gameGuaranteeOverride != null) {
+                      <span class="override-value">{{ div.gameGuaranteeOverride }}</span>
+                    } @else {
+                      <span class="inherited-value">{{ ag.effectiveGameGuarantee }}</span>
+                    }
+                    <button class="inline-edit-btn" title="Set override"
+                            (click)="saveDivOverride(div, 'guarantee', div.gameGuaranteeOverride != null ? null : div.effectiveGameGuarantee)">
+                      <i class="bi" [class.bi-pencil]="div.gameGuaranteeOverride == null"
+                         [class.bi-x-circle]="div.gameGuaranteeOverride != null"></i>
+                    </button>
+                  </div>
+
+                  <!-- Placement -->
+                  <div class="cascade-cell">
+                    @if (div.gamePlacementOverride != null) {
+                      <span class="override-value">{{ placementLabel(div.gamePlacementOverride) }}</span>
+                    } @else {
+                      <span class="inherited-value">{{ placementLabel(ag.effectiveGamePlacement) }}</span>
+                    }
+                    <button class="inline-edit-btn" title="Toggle placement"
+                            (click)="saveDivOverride(div, 'placement', div.gamePlacementOverride != null ? null : (div.effectiveGamePlacement === 'H' ? 'V' : 'H'))">
+                      <i class="bi" [class.bi-arrow-left-right]="div.gamePlacementOverride == null"
+                         [class.bi-x-circle]="div.gamePlacementOverride != null"></i>
+                    </button>
+                  </div>
+
+                  <!-- Rest -->
+                  <div class="cascade-cell">
+                    @if (div.betweenRoundRowsOverride != null) {
+                      <span class="override-value">{{ restLabel(div.betweenRoundRowsOverride) }}</span>
+                    } @else {
+                      <span class="inherited-value">{{ restLabel(ag.effectiveBetweenRoundRows) }}</span>
+                    }
+                    <button class="inline-edit-btn" title="Cycle rest"
+                            (click)="saveDivOverride(div, 'rest', div.betweenRoundRowsOverride != null ? null : ((div.effectiveBetweenRoundRows + 1) % 3))">
+                      <i class="bi" [class.bi-pencil]="div.betweenRoundRowsOverride == null"
+                         [class.bi-x-circle]="div.betweenRoundRowsOverride != null"></i>
+                    </button>
+                  </div>
+
+                  <!-- Clear all -->
+                  <div class="cascade-cell cascade-cell-action">
+                    @if (hasDivOverride(div)) {
+                      <button class="btn btn-sm btn-outline-secondary" title="Clear all overrides"
+                              [disabled]="isSaving()"
+                              (click)="clearDivOverride(div)">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          }
+        </div>
+      </div>
+    }
+  }
+</div>

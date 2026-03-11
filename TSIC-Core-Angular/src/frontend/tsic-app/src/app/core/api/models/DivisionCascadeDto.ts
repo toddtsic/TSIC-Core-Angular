@@ -7,8 +7,10 @@ export type DivisionCascadeDto = {
     divisionName: string;
     gamePlacementOverride?: string | null;
     betweenRoundRowsOverride?: number;
+    gameGuaranteeOverride?: number;
     effectiveGamePlacement: string;
     effectiveBetweenRoundRows: number;
+    effectiveGameGuarantee: number;
     effectiveWavesByDate: Record<string, number>;
 };
 

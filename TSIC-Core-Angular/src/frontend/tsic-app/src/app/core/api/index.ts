@@ -338,6 +338,7 @@ export type { PreSubmitTeamSelectionDto } from './models/PreSubmitTeamSelectionD
 export type { PreSubmitValidationErrorDto } from './models/PreSubmitValidationErrorDto';
 export type { PriorYearFieldDefaults } from './models/PriorYearFieldDefaults';
 export type { ProblemDetails } from './models/ProblemDetails';
+export type { ProcessingOrderEntryDto } from './models/ProcessingOrderEntryDto';
 export type { ProfileBatchMigrationReport } from './models/ProfileBatchMigrationReport';
 export type { ProfileExtractionResponse } from './models/ProfileExtractionResponse';
 export type { ProfileFieldOption } from './models/ProfileFieldOption';
@@ -427,6 +428,7 @@ export type { SaveFieldAssignmentsResponse } from './models/SaveFieldAssignments
 export type { SaveGameGuaranteeRequest } from './models/SaveGameGuaranteeRequest';
 export type { SaveGameGuaranteeResponse } from './models/SaveGameGuaranteeResponse';
 export type { SaveJobOverridesRequest } from './models/SaveJobOverridesRequest';
+export type { SaveProcessingOrderRequest } from './models/SaveProcessingOrderRequest';
 export type { SaveUserWidgetsRequest } from './models/SaveUserWidgetsRequest';
 export type { SaveWidgetAssignmentsRequest } from './models/SaveWidgetAssignmentsRequest';
 export type { SaveWidgetDefaultsRequest } from './models/SaveWidgetDefaultsRequest';
@@ -445,6 +447,7 @@ export type { SchedulingDashboardStatusDto } from './models/SchedulingDashboardS
 export type { SchedulingMetrics } from './models/SchedulingMetrics';
 export type { ScrapeResultDto } from './models/ScrapeResultDto';
 export type { SeedTestRefsRequest } from './models/SeedTestRefsRequest';
+export type { SeedWavesRequest } from './models/SeedWavesRequest';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
 export type { SendPushNotificationRequest } from './models/SendPushNotificationRequest';
 export type { SendPushNotificationResponse } from './models/SendPushNotificationResponse';

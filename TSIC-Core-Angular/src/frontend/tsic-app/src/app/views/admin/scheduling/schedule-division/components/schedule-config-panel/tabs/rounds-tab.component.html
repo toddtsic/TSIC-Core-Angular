@@ -1,0 +1,96 @@
+<div class="rounds-tab">
+
+  @if (isLoading()) {
+    <div class="loading-placeholder">
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Loading round distribution...
+    </div>
+  } @else {
+
+    <!-- Guidance -->
+    <div class="tab-guidance">
+      <i class="bi bi-info-circle me-1"></i>
+      Set the <strong>starting round number</strong> for each date.
+      Example: Friday=1, Saturday=3 means rounds 1–2 play Friday, rounds 3+ play Saturday.
+      Single-day agegroups are always round 1 (no input needed).
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-arrow-repeat stub-icon"></i>
+        <p>No agegroups with dates configured. Assign dates first.</p>
+      </div>
+    }
+
+    @if (rows().length > 0) {
+      @if (!hasMultiDay()) {
+        <div class="all-single-day">
+          <i class="bi bi-check-circle me-2"></i>
+          All agegroups play on a single day — no round distribution needed.
+        </div>
+      } @else {
+        <!-- Matrix -->
+        <div class="matrix-wrapper">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th class="ag-header-cell">Agegroup</th>
+                <th class="rounds-header-cell">Rounds</th>
+                @for (col of dateColumns(); track col.isoDate) {
+                  <th class="date-header-cell">
+                    <div class="date-header-content">
+                      <span class="date-dow">{{ col.dow.substring(0, 3) }}</span>
+                      <span class="date-value">{{ col.label.split(' ')[1] }}</span>
+                    </div>
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.agegroupId) {
+                <tr [class.single-day]="!row.isMultiDay">
+                  <td class="ag-name-cell">
+                    <span>{{ row.agegroupName }}</span>
+                  </td>
+                  <td class="rounds-count-cell">
+                    <span class="rounds-badge">{{ row.totalRounds }}</span>
+                  </td>
+                  @for (col of dateColumns(); track col.isoDate) {
+                    <td class="round-cell">
+                      @if (hasDate(row.agegroupId, col.isoDate)) {
+                        @if (row.isMultiDay) {
+                          <input type="number"
+                                 class="round-input"
+                                 [value]="getStartRound(row.agegroupId, col.isoDate)"
+                                 (change)="setStartRound(row.agegroupId, col.isoDate, $any($event.target).valueAsNumber)"
+                                 min="1"
+                                 [max]="row.totalRounds">
+                        } @else {
+                          <span class="round-fixed">1</span>
+                        }
+                      } @else {
+                        <span class="round-na">—</span>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Actions -->
+        <div class="tab-actions">
+          <button class="btn btn-sm btn-primary"
+                  [disabled]="!isDirty() || isSaving()"
+                  (click)="save()">
+            @if (isSaving()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            <i class="bi bi-check2"></i> Save Rounds
+          </button>
+        </div>
+      }
+    }
+  }
+</div>

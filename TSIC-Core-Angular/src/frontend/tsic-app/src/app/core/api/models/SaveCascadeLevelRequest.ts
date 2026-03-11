@@ -5,6 +5,7 @@
 export type SaveCascadeLevelRequest = {
     gamePlacement?: string | null;
     betweenRoundRows?: number;
+    gameGuarantee?: number;
     wavesByDate?: any | null;
 };
 

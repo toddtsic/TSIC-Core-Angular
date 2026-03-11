@@ -1,0 +1,129 @@
+<div class="grid-tab">
+
+  @if (isLoading()) {
+    <div class="loading-placeholder">
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Loading agegroup grid...
+    </div>
+  } @else {
+
+    <!-- Guidance -->
+    <div class="tab-guidance">
+      <i class="bi bi-info-circle me-1"></i>
+      Overview of each agegroup's scheduling canvas — GSI (game start interval), start time,
+      and max games per field. Configure values per-agegroup through the agegroup navigator.
+    </div>
+
+    <!-- Summary -->
+    <div class="tab-summary">
+      <span>{{ summaryLabel() }}</span>
+      @if (totalCapacity() > 0) {
+        <span class="capacity-badge">
+          <i class="bi bi-grid-3x3-gap me-1"></i>{{ totalCapacity() }} total slots
+        </span>
+      }
+    </div>
+
+    @if (rows().length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-table stub-icon"></i>
+        <p>No agegroups configured.</p>
+      </div>
+    }
+
+    @if (rows().length > 0) {
+      <div class="grid-wrapper">
+        <table class="grid-table">
+          <thead>
+            <tr>
+              <th class="col-ag">Agegroup</th>
+              <th class="col-status">Status</th>
+              <th class="col-val">GSI</th>
+              <th class="col-val">Start</th>
+              <th class="col-val">Max Games</th>
+              <th class="col-val">Fields</th>
+              <th class="col-val">Days</th>
+              <th class="col-val">Rounds</th>
+              <th class="col-val">Slots</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.agegroupId) {
+              <tr [class.unconfigured]="!row.isConfigured">
+                <td class="ag-name-cell">{{ row.agegroupName }}</td>
+
+                <td class="status-cell">
+                  @if (row.isConfigured) {
+                    <span class="status-badge configured">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </span>
+                  } @else {
+                    <span class="status-badge unconfigured">
+                      <i class="bi bi-dash-circle"></i>
+                    </span>
+                  }
+                </td>
+
+                <td class="val-cell">
+                  @if (row.gsi != null) {
+                    <span class="val-text">{{ row.gsi }}m</span>
+                  } @else {
+                    <span class="val-na">—</span>
+                  }
+                </td>
+
+                <td class="val-cell">
+                  @if (row.startTime) {
+                    <span class="val-text">{{ row.startTime }}</span>
+                  } @else {
+                    <span class="val-na">—</span>
+                  }
+                </td>
+
+                <td class="val-cell">
+                  @if (row.maxGamesPerField != null) {
+                    <span class="val-text">{{ row.maxGamesPerField }}</span>
+                  } @else {
+                    <span class="val-na">—</span>
+                  }
+                </td>
+
+                <td class="val-cell">
+                  <span class="val-text">{{ row.fieldCount }}</span>
+                </td>
+
+                <td class="val-cell">
+                  <span class="val-text">{{ row.dateCount }}</span>
+                </td>
+
+                <td class="val-cell">
+                  <span class="val-text">{{ row.totalRounds }}</span>
+                </td>
+
+                <td class="val-cell" [ngClass]="capacityClass(row)">
+                  @if (row.totalGameSlots > 0) {
+                    <span class="val-text val-bold">{{ row.totalGameSlots }}</span>
+                  } @else {
+                    <span class="val-na">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- DOW breakdown (informational) -->
+      @for (row of rows(); track row.agegroupId) {
+        @if (row.daysOfWeek.length > 1) {
+          <div class="dow-detail">
+            <span class="dow-label">{{ row.agegroupName }}:</span>
+            @for (dow of row.daysOfWeek; track dow) {
+              <span class="dow-chip">{{ dow }}</span>
+            }
+          </div>
+        }
+      }
+    }
+  }
+</div>

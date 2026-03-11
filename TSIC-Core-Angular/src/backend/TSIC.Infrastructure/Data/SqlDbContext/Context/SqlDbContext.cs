@@ -120,6 +120,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<Devices> Devices { get; set; }
 
+    public virtual DbSet<DivisionProcessingOrder> DivisionProcessingOrder { get; set; }
+
     public virtual DbSet<DivisionScheduleProfile> DivisionScheduleProfile { get; set; }
 
     public virtual DbSet<DivisionWaveAssignment> DivisionWaveAssignment { get; set; }
@@ -2106,6 +2108,21 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Type)
                 .HasMaxLength(100)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<DivisionProcessingOrder>(entity =>
+        {
+            entity.HasKey(e => e.Aid);
+
+            entity.ToTable("DivisionProcessingOrder", "scheduling");
+
+            entity.HasIndex(e => new { e.JobId, e.DivisionId }, "UQ_DivisionProcessingOrder").IsUnique();
+
+            entity.Property(e => e.Aid).HasColumnName("AId");
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasColumnType("datetime");
         });
 
         modelBuilder.Entity<DivisionScheduleProfile>(entity =>

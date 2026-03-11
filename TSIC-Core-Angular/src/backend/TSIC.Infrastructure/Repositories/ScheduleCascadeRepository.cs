@@ -38,6 +38,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         {
             existing.GamePlacement = defaults.GamePlacement;
             existing.BetweenRoundRows = defaults.BetweenRoundRows;
+            existing.GameGuarantee = defaults.GameGuarantee;
             existing.Modified = DateTime.UtcNow;
             existing.LebUserId = defaults.LebUserId;
         }
@@ -74,6 +75,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         {
             existing.GamePlacement = profile.GamePlacement;
             existing.BetweenRoundRows = profile.BetweenRoundRows;
+            existing.GameGuarantee = profile.GameGuarantee;
             existing.Modified = DateTime.UtcNow;
             existing.LebUserId = profile.LebUserId;
         }
@@ -123,6 +125,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         {
             existing.GamePlacement = profile.GamePlacement;
             existing.BetweenRoundRows = profile.BetweenRoundRows;
+            existing.GameGuarantee = profile.GameGuarantee;
             existing.Modified = DateTime.UtcNow;
             existing.LebUserId = profile.LebUserId;
         }
@@ -241,6 +244,49 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         _context.DivisionWaveAssignment.RemoveRange(existing);
     }
 
+    // ── Division Processing Order ──
+
+    public async Task<List<DivisionProcessingOrder>> GetProcessingOrderAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.DivisionProcessingOrder
+            .AsNoTracking()
+            .Where(p => p.JobId == jobId)
+            .OrderBy(p => p.SortOrder)
+            .ToListAsync(ct);
+    }
+
+    public async Task UpsertProcessingOrderAsync(
+        Guid jobId, List<DivisionProcessingOrder> entries, CancellationToken ct = default)
+    {
+        var existing = await _context.DivisionProcessingOrder
+            .Where(p => p.JobId == jobId)
+            .ToListAsync(ct);
+
+        _context.DivisionProcessingOrder.RemoveRange(existing);
+
+        if (entries.Count > 0)
+        {
+            var now = DateTime.UtcNow;
+            foreach (var e in entries)
+            {
+                e.JobId = jobId;
+                e.Modified = now;
+            }
+            _context.DivisionProcessingOrder.AddRange(entries);
+        }
+    }
+
+    public async Task DeleteProcessingOrderAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var existing = await _context.DivisionProcessingOrder
+            .Where(p => p.JobId == jobId)
+            .ToListAsync(ct);
+
+        _context.DivisionProcessingOrder.RemoveRange(existing);
+    }
+
     // ── Bulk Delete ──
 
     public async Task DeleteAllForJobAsync(Guid jobId, CancellationToken ct = default)
@@ -257,7 +303,12 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
             .Select(d => d.DivId)
             .ToListAsync(ct);
 
-        // Delete in dependency order: waves first, then profiles, then event defaults
+        // Delete in dependency order: processing order, waves, profiles, event defaults
+        var procOrder = await _context.DivisionProcessingOrder
+            .Where(p => p.JobId == jobId)
+            .ToListAsync(ct);
+        _context.DivisionProcessingOrder.RemoveRange(procOrder);
+
         var divWaves = await _context.DivisionWaveAssignment
             .Where(w => divisionIds.Contains(w.DivisionId))
             .ToListAsync(ct);

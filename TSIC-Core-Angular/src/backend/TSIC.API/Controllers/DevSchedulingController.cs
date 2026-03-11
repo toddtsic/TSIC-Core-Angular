@@ -23,6 +23,7 @@ public class DevSchedulingController : ControllerBase
     private readonly ITimeslotRepository _tsRepo;
     private readonly IPairingsRepository _pairingsRepo;
     private readonly IScheduleCascadeRepository _cascadeRepo;
+    private readonly IScheduleCascadeService _cascadeService;
     private readonly IFieldRepository _fieldRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IAgeGroupRepository _agRepo;
@@ -36,6 +37,7 @@ public class DevSchedulingController : ControllerBase
         ITimeslotRepository tsRepo,
         IPairingsRepository pairingsRepo,
         IScheduleCascadeRepository cascadeRepo,
+        IScheduleCascadeService cascadeService,
         IFieldRepository fieldRepo,
         IJobRepository jobRepo,
         IAgeGroupRepository agRepo,
@@ -48,6 +50,7 @@ public class DevSchedulingController : ControllerBase
         _tsRepo = tsRepo;
         _pairingsRepo = pairingsRepo;
         _cascadeRepo = cascadeRepo;
+        _cascadeService = cascadeService;
         _fieldRepo = fieldRepo;
         _jobRepo = jobRepo;
         _agRepo = agRepo;
@@ -190,6 +193,7 @@ public class DevSchedulingController : ControllerBase
 
     /// <summary>
     /// PUT /api/dev-scheduling/game-guarantee — Set event-level and/or per-agegroup game guarantee.
+    /// Writes to the scheduling cascade tables (Event → Agegroup → Division).
     /// </summary>
     [HttpPut("game-guarantee")]
     public async Task<ActionResult<SaveGameGuaranteeResponse>> SaveGameGuarantee(
@@ -199,18 +203,31 @@ public class DevSchedulingController : ControllerBase
         if (jobId == null)
             return BadRequest(new { message = "Scheduling context required" });
 
-        // 1. Update event-level default on Jobs
-        await _jobRepo.UpdateGameGuaranteeAsync(jobId.Value, request.EventDefault, ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        // 1. Update event-level default in cascade (merge with existing non-guarantee fields)
+        if (request.EventDefault != null)
+        {
+            var existing = await _cascadeRepo.GetEventDefaultsAsync(jobId.Value, ct);
+            await _cascadeService.SaveEventDefaultsAsync(
+                jobId.Value,
+                existing?.GamePlacement ?? "H",
+                existing?.BetweenRoundRows ?? 1,
+                request.EventDefault.Value,
+                userId, ct);
+        }
 
         // 2. Update per-agegroup overrides if provided
         var agUpdated = 0;
         if (request.AgegroupOverrides is { Count: > 0 })
         {
-            var agDict = request.AgegroupOverrides
-                .ToDictionary(
-                    kvp => Guid.Parse(kvp.Key),
-                    kvp => kvp.Value);
-            agUpdated = await _agRepo.UpdateGameGuaranteesAsync(agDict, ct);
+            foreach (var (key, value) in request.AgegroupOverrides)
+            {
+                if (!Guid.TryParse(key, out var agId)) continue;
+                await _cascadeService.SaveAgegroupOverrideAsync(
+                    agId, null, null, value, null, userId, ct);
+                agUpdated++;
+            }
         }
 
         return Ok(new SaveGameGuaranteeResponse

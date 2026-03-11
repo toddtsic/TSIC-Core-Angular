@@ -135,11 +135,11 @@ public interface IAutoBuildRepository
     // ── Cross-Event Analysis ──────────────────────────────────
 
     /// <summary>
-    /// Find jobs whose name contains any of the given patterns and that have
-    /// at least one scheduled RR game. Returns JobId + JobName pairs.
+    /// Find jobs whose name contains any of the given patterns, matching the given year,
+    /// and that have at least one scheduled RR game. Returns JobId + JobName pairs.
     /// </summary>
     Task<List<(Guid JobId, string JobName)>> FindJobsByNamePatternsAsync(
-        IEnumerable<string> namePatterns, CancellationToken ct = default);
+        IEnumerable<string> namePatterns, string year, CancellationToken ct = default);
 
     /// <summary>
     /// Get all RR matchup records across multiple jobs for cross-event analysis.

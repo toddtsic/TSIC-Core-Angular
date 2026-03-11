@@ -8,8 +8,10 @@ export type AgegroupCascadeDto = {
     agegroupName: string;
     gamePlacementOverride?: string | null;
     betweenRoundRowsOverride?: number;
+    gameGuaranteeOverride?: number;
     effectiveGamePlacement: string;
     effectiveBetweenRoundRows: number;
+    effectiveGameGuarantee: number;
     wavesByDate: Record<string, number>;
     divisions: Array<DivisionCascadeDto>;
 };

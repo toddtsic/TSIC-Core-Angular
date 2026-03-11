@@ -69,8 +69,6 @@ public partial class Agegroups
 
     public decimal? PlayerFeeOverride { get; set; }
 
-    public int? GameGuarantee { get; set; }
-
     public virtual AgegroupScheduleProfile? AgegroupScheduleProfile { get; set; }
 
     public virtual ICollection<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; } = new List<AgegroupWaveAssignment>();

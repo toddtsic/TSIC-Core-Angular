@@ -1,0 +1,271 @@
+:host {
+  display: block;
+}
+
+.waves-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.loading-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  color: var(--brand-text-muted);
+}
+
+// ── Guidance ──
+
+.wave-guidance {
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  line-height: var(--line-height-normal);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(var(--bs-info-rgb), 0.06);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--bs-info);
+}
+
+// ── Summary (all wave 1) ──
+
+.wave-summary {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4);
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+// ── Wave grid ──
+
+.wave-grid-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+}
+
+.wave-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+
+  th, td {
+    padding: var(--space-1) var(--space-2);
+    text-align: center;
+    border-bottom: 1px solid var(--bs-border-color);
+    white-space: nowrap;
+  }
+
+  thead th {
+    background: var(--bs-secondary-bg);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--brand-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.name-col {
+  text-align: left !important;
+  min-width: 160px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date-col {
+  min-width: 80px;
+}
+
+// ── Row types ──
+
+.ag-row {
+  background: rgba(var(--bs-primary-rgb), 0.04);
+
+  td {
+    border-bottom-color: var(--bs-border-color);
+  }
+}
+
+.div-row {
+  background: var(--bs-card-bg);
+
+  &.has-override {
+    background: rgba(var(--bs-warning-rgb), 0.04);
+  }
+
+  .name-col {
+    padding-left: var(--space-6);
+  }
+}
+
+.ag-name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text);
+
+  i {
+    color: var(--bs-primary);
+  }
+}
+
+.div-name {
+  color: var(--brand-text-muted);
+}
+
+// ── Wave cells ──
+
+.wave-cell {
+  position: relative;
+  padding: var(--space-1) !important;
+
+  &.inherited {
+    opacity: 0.6;
+  }
+
+  &.saving {
+    pointer-events: none;
+    opacity: 0.5;
+  }
+}
+
+.wave-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+
+  &:hover {
+    transform: scale(1.15);
+    box-shadow: var(--shadow-sm);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none;
+  }
+}
+
+// Wave color coding
+.wave-1 .wave-btn {
+  background: rgba(var(--bs-primary-rgb), 0.12);
+  color: var(--bs-primary);
+}
+
+.wave-2 .wave-btn {
+  background: rgba(var(--bs-warning-rgb), 0.15);
+  color: var(--bs-warning);
+}
+
+.wave-3 .wave-btn {
+  background: rgba(var(--bs-success-rgb), 0.15);
+  color: var(--bs-success);
+}
+
+// ── Clear override button ──
+
+.clear-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--bs-danger);
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+
+  .wave-cell:hover & {
+    opacity: 0.7;
+  }
+
+  &:hover {
+    opacity: 1 !important;
+  }
+}
+
+// ── Empty state ──
+
+.wave-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--brand-text-muted);
+}
+
+.stub-icon {
+  font-size: 2rem;
+  opacity: 0.3;
+  margin-bottom: var(--space-2);
+}
+
+// ── Legend ──
+
+.wave-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+
+  &.wave-1 {
+    background: rgba(var(--bs-primary-rgb), 0.12);
+  }
+
+  &.wave-2 {
+    background: rgba(var(--bs-warning-rgb), 0.15);
+  }
+
+  &.wave-3 {
+    background: rgba(var(--bs-success-rgb), 0.15);
+  }
+}
+
+.legend-inherited {
+  font-style: italic;
+}

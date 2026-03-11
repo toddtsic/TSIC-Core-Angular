@@ -17,24 +17,36 @@ public interface IScheduleCascadeService
 
     /// <summary>Save event-level defaults (non-nullable — always has values).</summary>
     Task SaveEventDefaultsAsync(
-        Guid jobId, string gamePlacement, byte betweenRoundRows,
+        Guid jobId, string gamePlacement, byte betweenRoundRows, int gameGuarantee,
         string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Save agegroup-level overrides. Null property values = inherit from event.
-    /// If both are null AND no waves, deletes the profile row entirely.
+    /// If all profile properties are null AND no waves, deletes the profile row entirely.
     /// </summary>
     Task SaveAgegroupOverrideAsync(
-        Guid agegroupId, string? gamePlacement, byte? betweenRoundRows,
+        Guid agegroupId, string? gamePlacement, byte? betweenRoundRows, int? gameGuarantee,
         Dictionary<DateTime, byte>? wavesByDate,
         string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Save division-level overrides. Null property values = inherit from agegroup.
-    /// If both are null AND no waves, deletes the profile row entirely.
+    /// If all profile properties are null AND no waves, deletes the profile row entirely.
     /// </summary>
     Task SaveDivisionOverrideAsync(
-        Guid divisionId, string? gamePlacement, byte? betweenRoundRows,
+        Guid divisionId, string? gamePlacement, byte? betweenRoundRows, int? gameGuarantee,
         Dictionary<DateTime, byte>? wavesByDate,
+        string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk-seed division wave assignments from projected config.
+    /// For each (divisionId, wave) pair, creates wave assignment rows
+    /// for all dates the division's agegroup plays on.
+    /// Skips divisions that already have wave assignments.
+    /// </summary>
+    Task SeedDivisionWavesAsync(
+        Guid jobId,
+        Dictionary<Guid, int> divisionWaves,
+        Dictionary<Guid, List<DateTime>> agegroupDates,
         string userId, CancellationToken ct = default);
 }

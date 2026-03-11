@@ -16,6 +16,7 @@ public sealed class TimeslotService : ITimeslotService
     private readonly IJobRepository _jobRepo;
     private readonly IJobLeagueRepository _jobLeagueRepo;
     private readonly IAgeGroupRepository _agRepo;
+    private readonly IScheduleCascadeRepository _cascadeRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<TimeslotService> _logger;
 
@@ -29,6 +30,7 @@ public sealed class TimeslotService : ITimeslotService
         IJobRepository jobRepo,
         IJobLeagueRepository jobLeagueRepo,
         IAgeGroupRepository agRepo,
+        IScheduleCascadeRepository cascadeRepo,
         ISchedulingContextResolver contextResolver,
         ILogger<TimeslotService> logger)
     {
@@ -37,6 +39,7 @@ public sealed class TimeslotService : ITimeslotService
         _jobRepo = jobRepo;
         _jobLeagueRepo = jobLeagueRepo;
         _agRepo = agRepo;
+        _cascadeRepo = cascadeRepo;
         _contextResolver = contextResolver;
         _logger = logger;
     }
@@ -61,9 +64,11 @@ public sealed class TimeslotService : ITimeslotService
         // Per-agegroup field IDs for the field config section
         var fieldIdsPerAg = await _tsRepo.GetFieldIdsPerAgegroupAsync(leagueId, season, year, ct);
 
-        // Game guarantee: job-level default + per-agegroup overrides
-        var jobGameGuarantee = await _jobRepo.GetGameGuaranteeAsync(jobId, ct);
-        var agGameGuarantees = await _agRepo.GetGameGuaranteesForLeagueAsync(leagueId, ct);
+        // Game guarantee from cascade: event default + per-agegroup overrides
+        var cascadeEventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
+        int? eventGameGuarantee = cascadeEventDefaults?.GameGuarantee;
+        var cascadeAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
+        var agGuaranteeMap = cascadeAgProfiles.ToDictionary(p => p.AgegroupId, p => p.GameGuarantee);
 
         var agegroups = data.Select(kv =>
         {
@@ -99,7 +104,7 @@ public sealed class TimeslotService : ITimeslotService
                 GameDays = gameDays,
                 TotalRounds = d.RoundsPerDate.Values.Sum(),
                 MaxPairingRound = maxPairingRounds.GetValueOrDefault(kv.Key, 0),
-                GameGuarantee = agGameGuarantees.GetValueOrDefault(kv.Key) ?? jobGameGuarantee,
+                GameGuarantee = agGuaranteeMap.GetValueOrDefault(kv.Key) ?? eventGameGuarantee,
                 FieldIds = fieldIdsPerAg.GetValueOrDefault(kv.Key, [])
             };
         }).ToList();
@@ -729,32 +734,27 @@ public sealed class TimeslotService : ITimeslotService
             var startTime = CalculateWaveStartTime(
                 request.StartTime, entry.Wave, request.GamestartInterval, request.MaxGamesPerField);
 
-            // ① Additive round fill: create only the missing rounds for this date
+            // ① Start-round marker: one TLSD row per AG-date with Rnd = starting round.
+            // For a new date assignment, default Rnd = 1. The Rounds Per Day tab
+            // handles multi-day break points (e.g., Friday=1, Saturday=3).
             var existingDates = await _tsRepo.GetDatesByAgegroupAsync(agegroupId, season, year, ct);
-            var existingRoundsForDate = existingDates.Count(d => d.GDate.Date == request.GDate.Date);
-            var roundsPerDay = Math.Max(1, entry.RoundsPerDay ?? request.RoundsPerDay);
-            var roundsToAdd = roundsPerDay - existingRoundsForDate;
+            var alreadyHasDate = existingDates.Any(d => d.GDate.Date == request.GDate.Date && d.DivId == null);
 
-            if (roundsToAdd > 0)
+            if (!alreadyHasDate)
             {
-                var maxRnd = existingDates.Count > 0 ? existingDates.Max(d => d.Rnd) : 0;
-
-                for (var i = 0; i < roundsToAdd; i++)
+                _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
                 {
-                    _tsRepo.AddDate(new TimeslotsLeagueSeasonDates
-                    {
-                        AgegroupId = agegroupId,
-                        GDate = request.GDate,
-                        Rnd = maxRnd + 1 + i,
-                        Season = season,
-                        Year = year,
-                        LebUserId = userId,
-                        Modified = DateTime.UtcNow
-                    });
-                }
+                    AgegroupId = agegroupId,
+                    GDate = request.GDate,
+                    Rnd = 1,
+                    Season = season,
+                    Year = year,
+                    LebUserId = userId,
+                    Modified = DateTime.UtcNow
+                });
 
                 dateCreated = true;
-                roundsCreated = roundsToAdd;
+                roundsCreated = 1;
             }
 
             // ② Check if field timeslots exist for this DOW

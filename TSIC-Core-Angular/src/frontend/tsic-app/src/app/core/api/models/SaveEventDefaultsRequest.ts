@@ -5,5 +5,6 @@
 export type SaveEventDefaultsRequest = {
     gamePlacement: string;
     betweenRoundRows: number;
+    gameGuarantee: number;
 };
 

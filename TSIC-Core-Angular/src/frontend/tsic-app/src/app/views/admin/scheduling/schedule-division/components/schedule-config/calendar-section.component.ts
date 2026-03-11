@@ -365,12 +365,18 @@ export class CalendarSectionComponent {
             }
 
             // Check explicit rounds don't exceed minimum division rounds
+            // Filter out divisions with ≤1 team (rounds=0) to avoid false positives
             const explicitSum = assignedDays
                 .filter(([, v]) => typeof v === 'number')
                 .reduce((sum, [, v]) => sum + (v as number), 0);
-            const minDivRounds = Math.min(...row.divisions.map(d => d.rounds));
-            if (explicitSum >= minDivRounds && nullDays.length > 0) {
-                errors.push(`${row.agegroupName}: explicit rounds (${explicitSum}) leave nothing for "Remaining" day`);
+            const schedulableDivRounds = row.divisions
+                .map(d => d.rounds)
+                .filter(r => r > 0);
+            if (schedulableDivRounds.length > 0) {
+                const minDivRounds = Math.min(...schedulableDivRounds);
+                if (explicitSum >= minDivRounds && nullDays.length > 0) {
+                    errors.push(`${row.agegroupName}: explicit rounds (${explicitSum}) leave nothing for "Remaining" day`);
+                }
             }
         }
 

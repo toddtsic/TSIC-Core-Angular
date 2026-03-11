@@ -1,0 +1,133 @@
+<div class="config-panel-shell">
+  <!-- Persistent header -->
+  <div class="config-header">
+    <div class="config-header-left">
+      <h3 class="config-title">Schedule Configuration</h3>
+      @if (eventName()) {
+        <span class="event-badge">{{ eventName() }}</span>
+      }
+    </div>
+    <div class="config-header-actions">
+      <button class="btn btn-outline-danger btn-sm" (click)="openResetDialog()">
+        <i class="bi bi-arrow-counterclockwise"></i> Reset
+      </button>
+      <button class="btn btn-primary btn-sm" (click)="buildRequested.emit()">
+        <i class="bi bi-play-fill"></i> Build Schedule
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar" role="tablist" (keydown)="onTabKeydown($event)">
+    @for (tab of tabs; track tab.key) {
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === tab.key"
+        (click)="selectTab(tab.key)"
+        role="tab"
+        [attr.aria-selected]="activeTab() === tab.key"
+        [attr.tabindex]="activeTab() === tab.key ? 0 : -1">
+        <i class="bi" [ngClass]="tab.icon"></i>
+        <span class="tab-label">{{ tab.label }}</span>
+      </button>
+    }
+  </nav>
+
+  <!-- Tab content -->
+  <div class="tab-content">
+    @switch (activeTab()) {
+      @case ('dates') {
+        <app-dates-tab />
+      }
+      @case ('fields') {
+        <app-fields-tab />
+      }
+      @case ('buildRules') {
+        <app-build-rules-tab />
+      }
+      @case ('rounds') {
+        <app-rounds-tab />
+      }
+      @case ('waves') {
+        <app-waves-tab />
+      }
+      @case ('buildOrder') {
+        <app-build-order-tab />
+      }
+      @case ('grid') {
+        <app-grid-tab />
+      }
+    }
+  </div>
+</div>
+
+<!-- ── Reset Confirmation Dialog ── -->
+@if (showResetDialog()) {
+  <tsic-dialog [open]="true" size="sm" (requestClose)="onResetCancelled()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-arrow-counterclockwise me-2"></i>Reset Scheduling Data
+        </h5>
+        <button type="button" class="btn-close" (click)="onResetCancelled()"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3 text-secondary">Checked items will be permanently deleted.</p>
+        <div class="reset-checklist">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="resetGames"
+                   [checked]="resetGames()"
+                   (change)="resetGames.set($any($event.target).checked)">
+            <label class="form-check-label" for="resetGames">
+              <strong>Scheduled games</strong> — remove all games from the grid
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="resetStrategy"
+                   [checked]="resetStrategyProfiles()"
+                   (change)="resetStrategyProfiles.set($any($event.target).checked)">
+            <label class="form-check-label" for="resetStrategy">
+              <strong>Scheduling preferences</strong> — Horizontal/Vertical, gap patterns per division
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="resetPairings"
+                   [checked]="resetPairings()"
+                   (change)="resetPairings.set($any($event.target).checked)">
+            <label class="form-check-label" for="resetPairings">
+              <strong>Matchup tables</strong> — round-robin pairings (who plays who each round)
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="resetDates"
+                   [checked]="resetDates()"
+                   (change)="resetDates.set($any($event.target).checked)">
+            <label class="form-check-label" for="resetDates">
+              <strong>Game dates</strong> — which days each agegroup plays and round assignments
+            </label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="resetFieldTimeslots"
+                   [checked]="resetFieldTimeslots()"
+                   (change)="resetFieldTimeslots.set($any($event.target).checked)">
+            <label class="form-check-label" for="resetFieldTimeslots">
+              <strong>Field setup</strong> — which fields each agegroup uses, start times, game length, capacity
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="d-flex gap-2 align-items-center w-100">
+          <input type="text" class="form-control form-control-sm" style="max-width: 160px"
+                 placeholder="Type confirm"
+                 [ngModel]="resetConfirmText()"
+                 (ngModelChange)="resetConfirmText.set($event)">
+          <button class="btn btn-sm btn-warning"
+                  [disabled]="resetConfirmText().toLowerCase() !== 'confirm' || !anyResetChecked()"
+                  (click)="onResetConfirmed()">Reset</button>
+          <button class="btn btn-sm btn-outline-secondary" (click)="onResetCancelled()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </tsic-dialog>
+}

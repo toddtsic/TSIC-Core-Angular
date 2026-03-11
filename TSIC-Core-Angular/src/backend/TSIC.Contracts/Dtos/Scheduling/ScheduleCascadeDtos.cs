@@ -24,6 +24,7 @@ public record EventScheduleDefaultsDto
 {
     public required string GamePlacement { get; init; }
     public required byte BetweenRoundRows { get; init; }
+    public required int GameGuarantee { get; init; }
 }
 
 /// <summary>
@@ -40,11 +41,17 @@ public record AgegroupCascadeDto
     /// <summary>Null = inheriting BetweenRoundRows from event.</summary>
     public byte? BetweenRoundRowsOverride { get; init; }
 
+    /// <summary>Null = inheriting GameGuarantee from event.</summary>
+    public int? GameGuaranteeOverride { get; init; }
+
     /// <summary>Resolved: override ?? event default.</summary>
     public required string EffectiveGamePlacement { get; init; }
 
     /// <summary>Resolved: override ?? event default.</summary>
     public required byte EffectiveBetweenRoundRows { get; init; }
+
+    /// <summary>Resolved: override ?? event default.</summary>
+    public required int EffectiveGameGuarantee { get; init; }
 
     /// <summary>Per-date agegroup wave (date → wave). Empty = no agegroup-level waves set.</summary>
     public required Dictionary<DateTime, byte> WavesByDate { get; init; }
@@ -66,11 +73,17 @@ public record DivisionCascadeDto
     /// <summary>Null = inheriting BetweenRoundRows from agegroup.</summary>
     public byte? BetweenRoundRowsOverride { get; init; }
 
+    /// <summary>Null = inheriting GameGuarantee from agegroup.</summary>
+    public int? GameGuaranteeOverride { get; init; }
+
     /// <summary>Resolved: div.Override ?? ag.Override ?? event default.</summary>
     public required string EffectiveGamePlacement { get; init; }
 
     /// <summary>Resolved: div.Override ?? ag.Override ?? event default.</summary>
     public required byte EffectiveBetweenRoundRows { get; init; }
+
+    /// <summary>Resolved: div.Override ?? ag.Override ?? event default.</summary>
+    public required int EffectiveGameGuarantee { get; init; }
 
     /// <summary>
     /// Per-date effective wave (date → wave).
@@ -94,6 +107,25 @@ public record SaveEventDefaultsRequest
 
     /// <summary>0, 1, or 2</summary>
     public required byte BetweenRoundRows { get; init; }
+
+    /// <summary>Minimum games each team must play (e.g. 3 for a 3-game guarantee).</summary>
+    public required int GameGuarantee { get; init; }
+}
+
+/// <summary>
+/// Request to bulk-seed division wave assignments from projected config.
+/// Used when cascade DB has no waves but projection data is available.
+/// </summary>
+public record SeedWavesRequest
+{
+    /// <summary>Per-division wave assignment (divisionId → wave 1-3).</summary>
+    public required Dictionary<string, int> DivisionWaves { get; init; }
+
+    /// <summary>
+    /// Per-agegroup game dates (agegroupId → list of ISO date strings).
+    /// Each division inherits its agegroup's dates for wave assignment rows.
+    /// </summary>
+    public required Dictionary<string, List<string>> AgegroupDates { get; init; }
 }
 
 /// <summary>
@@ -108,9 +140,35 @@ public record SaveCascadeLevelRequest
     /// <summary>0, 1, 2, or null (inherit from parent).</summary>
     public byte? BetweenRoundRows { get; init; }
 
+    /// <summary>Game guarantee override, or null (inherit from parent).</summary>
+    public int? GameGuarantee { get; init; }
+
     /// <summary>
     /// Per-date wave assignments (ISO date string → wave 1-3).
     /// Empty/null = clear all wave assignments for this level.
     /// </summary>
     public Dictionary<string, byte>? WavesByDate { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Division Processing Order DTOs
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Single entry in the persisted division processing order.
+/// </summary>
+public record ProcessingOrderEntryDto
+{
+    public required Guid DivisionId { get; init; }
+    public required int SortOrder { get; init; }
+}
+
+/// <summary>
+/// Request to save the full division processing order for a job.
+/// Replaces all existing entries.
+/// </summary>
+public record SaveProcessingOrderRequest
+{
+    /// <summary>Ordered list of division IDs with sequential sort order.</summary>
+    public required List<ProcessingOrderEntryDto> Entries { get; init; }
 }

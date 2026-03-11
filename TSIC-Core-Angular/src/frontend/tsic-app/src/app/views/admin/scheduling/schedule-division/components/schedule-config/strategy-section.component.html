@@ -1,0 +1,93 @@
+<div class="strategy-expanded">
+    <!-- Game Placement Order -->
+    <div class="strategy-field">
+        <label class="strategy-field-label">Game placement order</label>
+        <p class="strategy-field-help">
+            Controls whether each round's games play simultaneously or back-to-back.
+        </p>
+        <div class="strategy-radio-group">
+            <label class="strategy-radio" [class.selected]="effectivePlacement() === 0">
+                <input type="radio" name="placement" [value]="0"
+                       [checked]="effectivePlacement() === 0"
+                       (change)="localPlacement.set(0)">
+                <span class="strategy-radio-content">
+                    <strong>Horizontal</strong>
+                    <span class="strategy-radio-desc">
+                        Each round's games kick off at the same time on different fields.
+                        Uses more fields but finishes rounds faster.
+                    </span>
+                </span>
+            </label>
+            <label class="strategy-radio" [class.selected]="effectivePlacement() === 1">
+                <input type="radio" name="placement" [value]="1"
+                       [checked]="effectivePlacement() === 1"
+                       (change)="localPlacement.set(1)">
+                <span class="strategy-radio-content">
+                    <strong>Vertical</strong>
+                    <span class="strategy-radio-desc">
+                        Games play back-to-back on fewer fields. Great for showcase
+                        events where spectators follow the action on one field.
+                    </span>
+                </span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Rest Between Games -->
+    <div class="strategy-field">
+        <label class="strategy-field-label">Rest between games</label>
+        <p class="strategy-field-help">
+            Minimum gap between a team's consecutive games. Longer rest means more field-hours needed.
+        </p>
+        <div class="strategy-radio-group">
+            <label class="strategy-radio" [class.selected]="effectiveGapPattern() === 0">
+                <input type="radio" name="gapPattern" [value]="0"
+                       [checked]="effectiveGapPattern() === 0"
+                       (change)="localGapPattern.set(0)">
+                <span class="strategy-radio-content">
+                    <strong>No rest required</strong>
+                    <span class="strategy-radio-desc">
+                        Teams may play consecutive games with no break between them.
+                    </span>
+                </span>
+            </label>
+            <label class="strategy-radio" [class.selected]="effectiveGapPattern() === 1">
+                <input type="radio" name="gapPattern" [value]="1"
+                       [checked]="effectiveGapPattern() === 1"
+                       (change)="localGapPattern.set(1)">
+                <span class="strategy-radio-content">
+                    <strong>1 game break</strong>
+                    <span class="strategy-radio-desc">
+                        Each team gets at least 1 game slot of rest between their own games.
+                    </span>
+                </span>
+            </label>
+            <label class="strategy-radio" [class.selected]="effectiveGapPattern() === 2">
+                <input type="radio" name="gapPattern" [value]="2"
+                       [checked]="effectiveGapPattern() === 2"
+                       (change)="localGapPattern.set(2)">
+                <span class="strategy-radio-content">
+                    <strong>2 game break</strong>
+                    <span class="strategy-radio-desc">
+                        Each team gets at least 2 game slots of rest between their own games.
+                    </span>
+                </span>
+            </label>
+        </div>
+    </div>
+
+    <div class="strategy-footer">
+        <button class="btn btn-sm btn-outline-secondary"
+                (click)="onCancel()">
+            Cancel
+        </button>
+        <button class="btn btn-sm btn-primary"
+                [disabled]="!strategyDirty() || isSaving()"
+                (click)="onSave()">
+            @if (isSaving()) {
+                <span class="spinner-border spinner-border-sm"></span>
+            }
+            Save
+        </button>
+    </div>
+</div>

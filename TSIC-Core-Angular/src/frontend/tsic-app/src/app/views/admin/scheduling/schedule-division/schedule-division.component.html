@@ -8,52 +8,10 @@
     <!-- ══════════ EVENT SCOPE: Full-width stacked layout ══════════ -->
     @if (scope().level === 'event') {
 
-        <!-- ── Event Dashboard (full-width, first) ── -->
-        <app-event-summary-panel
-            [agegroups]="agegroups()"
-            [gameSummary]="gameSummary()"
-            [readinessMap]="canvasReadiness()"
-            [strategies]="strategyProfiles()"
-            [strategySource]="strategySource()"
-            [assignedFieldCount]="assignedFieldCount()"
-            [hasGamesInScope]="hasGamesInScope()"
-            [scopeGameCount]="scopeGameCount()"
-            [isExecuting]="isExecuting()"
-            [isDeletingGames]="isDeletingGames()"
-            [showDeleteConfirm]="showDeleteConfirm()"
-            [isResetting]="isResetting()"
-            [missingPairingTCnts]="missingPairingTCnts()"
-            [existingPairingRounds]="existingPairingRounds()"
-            [isGeneratingPairings]="isGeneratingPairings()"
-            [isSavingStrategy]="isSavingStrategy()"
-            [isSavingTimeConfig]="isSavingTimeConfig()"
-            [isSavingFieldConfig]="isSavingFieldConfig()"
-            [isApplyingCalendar]="isApplyingCalendar()"
-            [eventFields]="eventFields()"
-            [priorYearDefaults]="priorYearDefaults()"
-            [priorYearRounds]="priorYearRounds()"
-            [eventTypeLabel]="eventTypeLabel()"
-            [configScenario]="configSvc.scenario()"
-            [configPriorYearLabel]="configSvc.priorYearLabel()"
-            [configWaves]="cascadeSvc.getWaveMap()"
-            [configRoundsPerDay]="configSvc.config()?.roundsPerDay ?? {}"
-            (autoScheduleRequested)="openAutoScheduleConfig()"
-            (deleteRequested)="confirmDeleteGames()"
-            (deleteConfirmed)="executeDelete()"
-            (deleteCancelled)="cancelDeleteGames()"
-            (agegroupClicked)="onAgegroupSelected({ agegroupId: $event })"
-            (manageFieldsClicked)="navigateToManageFields()"
-            (generatePairingsRequested)="generateMissingPairings()"
-            (generatePairingsWithRoundsRequested)="generatePairingsWithRounds($event)"
-            (bulkDateAssignRequested)="openBulkDateModal()"
-            (saveStrategyRequested)="saveInlineStrategy($event)"
-            (calendarApplyRequested)="onCalendarApply($event)"
-            (timeConfigSaveRequested)="onTimeConfigSave($event)"
-            (fieldConfigApplyRequested)="onFieldConfigApply($event)"
-            (gameGuaranteeSaveRequested)="saveGameGuarantee($event)"
-            [isSavingGuarantee]="isSavingGuarantee()"
-            (resetConfirmed)="executeReset($event)"
-            (processingOrderChanged)="onProcessingOrderChanged($event)" />
+        <!-- ── Schedule Config Panel (tabbed configuration surface) ── -->
+        <app-schedule-config-panel
+            (buildRequested)="openAutoScheduleConfig()"
+            (resetConfirmed)="executeReset($event)" />
 
         <!-- ── Prerequisite Errors (event scope) ── -->
         @if (prerequisiteErrors().length > 0) {

@@ -5,5 +5,6 @@
 export type EventScheduleDefaultsDto = {
     gamePlacement: string;
     betweenRoundRows: number;
+    gameGuarantee: number;
 };
 

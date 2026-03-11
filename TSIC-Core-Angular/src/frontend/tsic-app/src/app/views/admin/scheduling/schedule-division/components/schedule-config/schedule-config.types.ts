@@ -120,3 +120,16 @@ export interface CalendarApplyEvent {
     /** ISO date key → per-date entries + removals. Only dates with changes included. */
     assignments: Record<string, DateAssignment>;
 }
+
+/** Options for the dev-reset dialog. Used by both old and new config panels. */
+export interface DevResetOptions {
+    games: boolean;
+    strategyProfiles: boolean;
+    pairings: boolean;
+    /** Clear date/round assignments (TimeslotsLeagueSeasonDates) */
+    dates: boolean;
+    /** Clear field timeslot assignments (TimeslotsLeagueSeasonFields) */
+    fieldTimeslots: boolean;
+    /** When set, preconfigure (colors, dates, fields, pairings) from this source job after reset. */
+    sourceJobId?: string;
+}

@@ -15,6 +15,8 @@ public partial class EventScheduleDefaults
 
     public string? LebUserId { get; set; }
 
+    public int? GameGuarantee { get; set; }
+
     public virtual Jobs Job { get; set; } = null!;
 
     public virtual AspNetUsers? LebUser { get; set; }

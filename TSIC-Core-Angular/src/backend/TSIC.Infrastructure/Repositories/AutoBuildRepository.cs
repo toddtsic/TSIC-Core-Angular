@@ -474,36 +474,43 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     private async Task<List<QaTeamBelowGuarantee>> GetTeamsBelowGuaranteeAsync(
         Guid jobId, List<QaGamesPerTeam> gamesPerTeam, CancellationToken ct)
     {
-        // Resolve guarantee cascade: agegroup.GameGuarantee ?? job.GameGuarantee
-        var jobGuarantee = await _context.Jobs
+        // Resolve guarantee from cascade tables: Event → Agegroup → Division
+        var eventDefaults = await _context.EventScheduleDefaults
             .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.GameGuarantee)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(e => e.JobId == jobId, ct);
 
-        if (jobGuarantee == null)
+        var eventGuarantee = eventDefaults?.GameGuarantee;
+        if (eventGuarantee == null)
             return []; // No guarantee configured — nothing to check
 
-        // Build agegroup name → resolved guarantee map
+        // Build agegroup-level guarantee overrides
         var leagueId = await _context.JobLeagues
             .AsNoTracking()
             .Where(jl => jl.JobId == jobId)
             .Select(jl => jl.LeagueId)
             .FirstOrDefaultAsync(ct);
 
-        var agOverrides = await _context.Agegroups
+        var agegroupIds = await _context.Agegroups
             .AsNoTracking()
-            .Where(a => a.LeagueId == leagueId && a.GameGuarantee != null)
-            .Select(a => new { a.AgegroupName, a.GameGuarantee })
+            .Where(a => a.LeagueId == leagueId)
+            .Select(a => new { a.AgegroupId, a.AgegroupName })
             .ToListAsync(ct);
 
-        var agGuaranteeByName = agOverrides.ToDictionary(
-            a => a.AgegroupName ?? "", a => a.GameGuarantee!.Value);
+        var agProfileMap = await _context.AgegroupScheduleProfile
+            .AsNoTracking()
+            .Where(p => agegroupIds.Select(a => a.AgegroupId).Contains(p.AgegroupId)
+                        && p.GameGuarantee != null)
+            .ToDictionaryAsync(p => p.AgegroupId, p => p.GameGuarantee!.Value, ct);
+
+        // Map agegroupName → resolved guarantee (ag override ?? event default)
+        var agGuaranteeByName = agegroupIds.ToDictionary(
+            a => a.AgegroupName ?? "",
+            a => agProfileMap.GetValueOrDefault(a.AgegroupId, eventGuarantee.Value));
 
         return gamesPerTeam
             .Select(t =>
             {
-                var guarantee = agGuaranteeByName.GetValueOrDefault(t.AgegroupName, jobGuarantee.Value);
+                var guarantee = agGuaranteeByName.GetValueOrDefault(t.AgegroupName, eventGuarantee.Value);
                 return new { t.AgegroupName, t.DivName, t.TeamName, t.GameCount, Guarantee = guarantee };
             })
             .Where(t => t.GameCount < t.Guarantee)
@@ -1107,7 +1114,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     // ── Cross-Event Analysis ──────────────────────────────────
 
     public async Task<List<(Guid JobId, string JobName)>> FindJobsByNamePatternsAsync(
-        IEnumerable<string> namePatterns, CancellationToken ct = default)
+        IEnumerable<string> namePatterns, string year, CancellationToken ct = default)
     {
         var patterns = namePatterns.ToList();
 
@@ -1120,7 +1127,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
 
         var jobs = await _context.Jobs
             .AsNoTracking()
-            .Where(j => jobsWithGames.Contains(j.JobId))
+            .Where(j => jobsWithGames.Contains(j.JobId) && j.Year == year)
             .Select(j => new { j.JobId, j.JobName })
             .ToListAsync(ct);
 

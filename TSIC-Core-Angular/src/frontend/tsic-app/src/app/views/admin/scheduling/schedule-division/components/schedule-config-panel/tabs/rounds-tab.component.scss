@@ -1,0 +1,211 @@
+:host {
+  display: block;
+}
+
+.rounds-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.loading-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  color: var(--brand-text-muted);
+}
+
+// ── Guidance ──
+
+.tab-guidance {
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  line-height: var(--line-height-normal);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(var(--bs-info-rgb), 0.06);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--bs-info);
+
+  strong {
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+// ── All single-day message ──
+
+.all-single-day {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--bs-success);
+  background: rgba(var(--bs-success-rgb), 0.06);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--bs-success-rgb), 0.15);
+}
+
+// ── Matrix ──
+
+.matrix-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.ag-header-cell {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(var(--bs-primary-rgb), 0.04);
+  border-bottom: 2px solid var(--bs-border-color);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rounds-header-cell {
+  padding: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(var(--bs-primary-rgb), 0.04);
+  border-bottom: 2px solid var(--bs-border-color);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.date-header-cell {
+  padding: var(--space-2);
+  background: rgba(var(--bs-primary-rgb), 0.04);
+  border-bottom: 2px solid var(--bs-border-color);
+  text-align: center;
+  min-width: 70px;
+}
+
+.date-header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.date-dow {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text);
+}
+
+.date-value {
+  font-size: 10px;
+  color: var(--brand-text-muted);
+}
+
+// ── Body cells ──
+
+.ag-name-cell {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--brand-text);
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.06);
+}
+
+.rounds-count-cell {
+  padding: var(--space-2);
+  text-align: center;
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.06);
+}
+
+.rounds-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+  color: var(--brand-text);
+}
+
+.round-cell {
+  padding: var(--space-1) var(--space-2);
+  text-align: center;
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.06);
+  vertical-align: middle;
+}
+
+.round-input {
+  width: 52px;
+  padding: var(--space-1);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text);
+  background: var(--bs-body-bg);
+
+  &:focus {
+    outline: none;
+    border-color: var(--bs-primary);
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.round-fixed {
+  font-size: var(--font-size-sm);
+  color: var(--brand-text-muted);
+  font-style: italic;
+}
+
+.round-na {
+  font-size: var(--font-size-sm);
+  color: var(--brand-text-muted);
+  opacity: 0.4;
+}
+
+tr.single-day {
+  opacity: 0.6;
+}
+
+// ── Empty state ──
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--brand-text-muted);
+}
+
+.stub-icon {
+  font-size: 2rem;
+  opacity: 0.3;
+  margin-bottom: var(--space-2);
+}
+
+// ── Actions ──
+
+.tab-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--bs-border-color);
+}

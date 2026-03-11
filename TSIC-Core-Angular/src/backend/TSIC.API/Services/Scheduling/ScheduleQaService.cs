@@ -65,18 +65,21 @@ public sealed class ScheduleQaService : IScheduleQaService
     private async Task<CrossEventQaResult?> TryBuildCrossEventAnalysisAsync(
         Guid jobId, CancellationToken ct)
     {
-        // Resolve this job's name
+        // Resolve this job's name and year
         var jobName = await _repo.GetJobNameAsync(jobId, ct);
         if (string.IsNullOrEmpty(jobName)) return null;
+
+        var jobYear = await _repo.GetJobYearAsync(jobId, ct);
+        if (string.IsNullOrEmpty(jobYear)) return null;
 
         // Find which comparison group this job belongs to
         var group = ComparisonGroups.FirstOrDefault(g =>
             g.Events.Any(e => jobName.Contains(e.NamePattern, StringComparison.OrdinalIgnoreCase)));
         if (group == null) return null;
 
-        // Find all jobs matching any pattern in this group (that have games)
+        // Find all jobs matching any pattern in this group for the same year (that have games)
         var namePatterns = group.Events.Select(e => e.NamePattern).ToList();
-        var matchedJobs = await _repo.FindJobsByNamePatternsAsync(namePatterns, ct);
+        var matchedJobs = await _repo.FindJobsByNamePatternsAsync(namePatterns, jobYear, ct);
 
         if (matchedJobs.Count < 2) return null; // Need at least 2 events to compare
 

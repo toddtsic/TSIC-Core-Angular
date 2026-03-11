@@ -1,4 +1,13 @@
 /**
+ * @deprecated — SCHEDULED FOR REMOVAL.
+ * The new schedule-config-panel tabs (Dates, Fields, Build Rules, Rounds, Waves,
+ * Build Order, AG Grid) now handle all configuration via ScheduleCascadeService
+ * and direct TimeslotService calls. This service is retained only for:
+ *   - suggestedOrder / suggestedDivisionOrder (prior year ordering)
+ *   - localStorage caching for quick re-build scenarios
+ * These will be migrated to the cascade/processing-order DB tables, then this
+ * service can be deleted entirely.
+ *
  * ScheduleConfigService — Defaults Engine + Config State
  *
  * Merges 4 priority sources into a single ScheduleConfig:

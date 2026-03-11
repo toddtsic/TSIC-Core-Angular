@@ -13,6 +13,7 @@ import { BuildSectionComponent } from '../schedule-config/build-section.componen
 import { FieldConfigSectionComponent } from '../schedule-config/field-config-section.component';
 import { PairingsSectionComponent, type PairingsGenerateEvent, type GuaranteeSaveEvent } from '../schedule-config/pairings-section.component';
 import { ProcessingOrderSectionComponent } from '../schedule-config/processing-order-section.component';
+import { StrategySectionComponent } from '../schedule-config/strategy-section.component';
 import type { CalendarApplyEvent, FieldConfigApplyEvent, StepperSection } from '../schedule-config/schedule-config.types';
 import { ScheduleConfigService } from '../schedule-config/schedule-config.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -47,7 +48,7 @@ export interface GameDayLine {
 @Component({
     selector: 'app-event-summary-panel',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent, ProcessingOrderSectionComponent, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, RouterLink, CalendarSectionComponent, TimeConfigSectionComponent, BuildSectionComponent, FieldConfigSectionComponent, PairingsSectionComponent, ProcessingOrderSectionComponent, StrategySectionComponent, TsicDialogComponent],
     templateUrl: './event-summary-panel.component.html',
     styleUrl: './event-summary-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -130,10 +131,6 @@ export class EventSummaryPanelComponent {
 
     // ── Calendar modal ──
     readonly showCalendarModal = signal(false);
-
-    // ── Stepper: local strategy overrides (null = user hasn't touched it) ──
-    readonly localPlacement = signal<number | null>(null);
-    readonly localGapPattern = signal<number | null>(null);
 
     // ── Helpers ──
     readonly contrastText = contrastText;
@@ -344,41 +341,6 @@ export class EventSummaryPanelComponent {
         this.gameGuaranteeSaveRequested.emit({ eventDefault: event.eventDefault });
     }
 
-    /** Uniform placement value across all strategies, or null if mixed */
-    readonly uniformPlacement = computed((): number | null => {
-        const strats = this.strategies();
-        if (strats.length === 0) return null;
-        const val = this.uniformValue(strats, s => s.placement.toString());
-        return val !== null ? Number(val) : null;
-    });
-
-    /** Uniform gap pattern value across all strategies, or null if mixed */
-    readonly uniformGap = computed((): number | null => {
-        const strats = this.strategies();
-        if (strats.length === 0) return null;
-        const val = this.uniformValue(strats, s => s.gapPattern.toString());
-        return val !== null ? Number(val) : null;
-    });
-
-    /** Effective placement: local override → server value → default */
-    readonly effectivePlacement = computed(() =>
-        this.localPlacement() ?? this.uniformPlacement() ?? 0
-    );
-
-    /** Effective gap pattern: local override → server value → default */
-    readonly effectiveGapPattern = computed(() =>
-        this.localGapPattern() ?? this.uniformGap() ?? 1
-    );
-
-    /** True when effective strategy differs from server/default values */
-    readonly strategyDirty = computed(() => {
-        // No override = user hasn't touched anything
-        if (this.localPlacement() === null && this.localGapPattern() === null) return false;
-        const sp = this.uniformPlacement() ?? 0;
-        const sg = this.uniformGap() ?? 1;
-        return this.effectivePlacement() !== sp || this.effectiveGapPattern() !== sg;
-    });
-
     // ── Tournament-level game days (union of ALL dates across agegroups) ──
 
     readonly eventGameDays = computed((): GameDayLine[] => {
@@ -457,15 +419,18 @@ export class EventSummaryPanelComponent {
         return `Plays: ${gameDayList.join(' & ')}`;
     });
 
-    /** Strategy status label for step ④ */
+    /** Strategy status label for step ⑤ */
     readonly strategyStatusLabel = computed((): string => {
         const strats = this.strategies();
         if (strats.length === 0 || this.strategySource() === 'defaults') return 'Using defaults';
-        const p = this.uniformPlacement();
-        const g = this.uniformGap();
+        const allSamePlacement = strats.every(s => s.placement === strats[0].placement);
+        const allSameGap = strats.every(s => s.gapPattern === strats[0].gapPattern);
         const parts: string[] = [];
-        if (p !== null) parts.push(this.placementLabel(p));
-        if (g !== null) parts.push(this.gapLabel(g));
+        if (allSamePlacement) parts.push(strats[0].placement === 1 ? 'Vertical' : 'Horizontal');
+        if (allSameGap) {
+            const g = strats[0].gapPattern;
+            parts.push(g === 0 ? 'No rest' : g === 2 ? '2 game break' : '1 game break');
+        }
         return parts.length > 0 ? parts.join(' · ') : 'Mixed per-division';
     });
 
@@ -496,11 +461,8 @@ export class EventSummaryPanelComponent {
         this.processingOrderChanged.emit(order);
     }
 
-    onSaveStrategy(): void {
-        this.saveStrategyRequested.emit({
-            placement: this.effectivePlacement(),
-            gapPattern: this.effectiveGapPattern()
-        });
+    onStrategySave(event: { placement: number; gapPattern: number }): void {
+        this.saveStrategyRequested.emit(event);
     }
 
     // ── Game guarantee actions ──
@@ -519,12 +481,6 @@ export class EventSummaryPanelComponent {
 
     cancelGuaranteeEdit(): void {
         this.guaranteeEditing.set(false);
-    }
-
-    onStrategyCancelled(): void {
-        this.localPlacement.set(null);
-        this.localGapPattern.set(null);
-        this.toggleSection('strategy');
     }
 
     // ── Per-agegroup helpers ──
@@ -583,27 +539,7 @@ export class EventSummaryPanelComponent {
         return this.agGameDayList(agegroupId);
     }
 
-    // ── Labels ──
-
-    placementLabel(val: number): string {
-        return val === 1 ? 'Vertical' : 'Horizontal';
-    }
-
-    gapLabel(val: number): string {
-        switch (val) {
-            case 0: return 'No rest';
-            case 2: return '2 game break';
-            default: return '1 game break';
-        }
-    }
-
     // ── Private helpers ──
-
-    private uniformValue<T>(items: T[], extract: (item: T) => string): string | null {
-        if (items.length === 0) return null;
-        const first = extract(items[0]);
-        return items.every(item => extract(item) === first) ? first : null;
-    }
 
     /** Convert API GameDayDto to display-ready GameDayLine. */
     private toGameDayLine(gd: GameDayDto): GameDayLine {

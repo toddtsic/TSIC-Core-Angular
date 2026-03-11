@@ -1,0 +1,122 @@
+<div class="dates-tab">
+
+  @if (isLoading()) {
+    <div class="loading-placeholder">
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Loading date assignments...
+    </div>
+  } @else {
+
+    <!-- Guidance -->
+    <div class="tab-guidance">
+      <i class="bi bi-info-circle me-1"></i>
+      Assign which dates each agegroup plays.
+      Click a column header to toggle all agegroups for that date.
+      Click a row header to toggle all dates for that agegroup.
+    </div>
+
+    <!-- Add date -->
+    <div class="add-date-row">
+      <label class="add-date-label">Add date:</label>
+      <input type="date" class="form-control form-control-sm date-input"
+             [(ngModel)]="newDate"
+             (keydown.enter)="addDate()">
+      <button class="btn btn-sm btn-outline-primary"
+              [disabled]="!newDate"
+              (click)="addDate()">
+        <i class="bi bi-plus-lg"></i> Add
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="tab-summary">
+      <span>{{ summaryLabel() }}</span>
+      @if (isDirty()) {
+        <span class="dirty-badge">Unsaved changes</span>
+      }
+    </div>
+
+    @if (dateColumns().length === 0 && agegroups().length > 0) {
+      <div class="empty-state">
+        <i class="bi bi-calendar-plus stub-icon"></i>
+        <p>No dates configured yet. Add a date above to get started.</p>
+      </div>
+    }
+
+    @if (dateColumns().length > 0 && agegroups().length > 0) {
+      <!-- Matrix -->
+      <div class="matrix-wrapper">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="ag-header-cell">Agegroup</th>
+              @for (col of dateColumns(); track col.isoDate) {
+                <th class="date-header-cell"
+                    [class.new-date]="col.isNew"
+                    (click)="toggleDateColumn(col.isoDate)">
+                  <div class="date-header-content">
+                    <span class="date-dow">{{ col.dow.substring(0, 3) }}</span>
+                    <span class="date-value">{{ col.label.split(' ')[1] }}</span>
+                    <i class="bi header-check"
+                       [ngClass]="{
+                         'bi-check-square-fill': dateColumnState(col.isoDate) === 'all',
+                         'bi-dash-square': dateColumnState(col.isoDate) === 'some',
+                         'bi-square': dateColumnState(col.isoDate) === 'none'
+                       }"></i>
+                    @if (col.isNew) {
+                      <button class="btn-remove-date"
+                              title="Remove this date"
+                              (click)="removeNewDate(col.isoDate); $event.stopPropagation()">
+                        <i class="bi bi-x-circle-fill"></i>
+                      </button>
+                    }
+                  </div>
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (ag of agegroups(); track ag.agegroupId) {
+              <tr>
+                <td class="ag-name-cell" (click)="toggleAgRow(ag.agegroupId)">
+                  <div class="ag-name-content">
+                    <i class="bi row-check"
+                       [ngClass]="{
+                         'bi-check-square-fill': agRowState(ag.agegroupId) === 'all',
+                         'bi-dash-square': agRowState(ag.agegroupId) === 'some',
+                         'bi-square': agRowState(ag.agegroupId) === 'none'
+                       }"></i>
+                    <span>{{ ag.agegroupName }}</span>
+                  </div>
+                </td>
+                @for (col of dateColumns(); track col.isoDate) {
+                  <td class="check-cell"
+                      [class.checked]="isChecked(ag.agegroupId, col.isoDate)"
+                      (click)="toggleAssignment(ag.agegroupId, col.isoDate)">
+                    @if (isChecked(ag.agegroupId, col.isoDate)) {
+                      <i class="bi bi-check-lg check-icon"></i>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Actions -->
+    @if (dateColumns().length > 0) {
+      <div class="tab-actions">
+        <button class="btn btn-sm btn-primary"
+                [disabled]="!isDirty() || isSaving()"
+                (click)="apply()">
+          @if (isSaving()) {
+            <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          <i class="bi bi-check2"></i> Apply
+        </button>
+      </div>
+    }
+  }
+</div>

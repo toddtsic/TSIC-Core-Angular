@@ -27,11 +27,12 @@ import { DivisionNavigatorComponent } from '../shared/components/division-naviga
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { OperationSpinnerModalComponent } from '../shared/components/operation-spinner-modal/operation-spinner-modal.component';
 import { PairingsPanelComponent } from './components/pairings-panel/pairings-panel.component';
-import { EventSummaryPanelComponent, type DevResetOptions } from './components/event-summary-panel/event-summary-panel.component';
+import type { DevResetOptions } from './components/schedule-config/schedule-config.types';
 import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
+import { ScheduleConfigPanelComponent } from './components/schedule-config-panel/schedule-config-panel.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
@@ -44,7 +45,7 @@ import type { CanvasReadinessResponse } from '@core/api';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, EventSummaryPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -416,6 +417,9 @@ export class ScheduleDivisionComponent implements OnInit {
                 // Derive strategy entries from cascade for backward-compat display
                 this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]);
                 this.strategySource.set('saved');
+
+                // Auto-seed waves from prior year projection if cascade has no waves
+                this.trySeedWavesFromProjection();
             },
             error: () => {
                 // No cascade data — load from legacy endpoint as fallback
@@ -427,6 +431,40 @@ export class ScheduleDivisionComponent implements OnInit {
                     error: () => {
                         this.strategyProfiles.set([]);
                         this.strategySource.set('defaults');
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * If the cascade DB has no wave assignments but a prior year exists,
+     * fetch the projected config and seed the cascade with suggested waves.
+     * This bridges the gap between projection (computed) and cascade (persisted).
+     */
+    private trySeedWavesFromProjection(): void {
+        if (!this.cascadeSvc.hasNoWaves()) return;
+
+        const py = this.priorYearDefaults();
+        if (!py?.priorJobId) return;
+
+        this.autoBuildSvc.getProjectedConfig(py.priorJobId).subscribe({
+            next: (projected) => {
+                const divWaves = projected.suggestedDivisionWaves as Record<string, number> | null;
+                if (!divWaves || Object.keys(divWaves).length === 0) return;
+
+                // Build agegroupDates: agegroupId → list of ISO date strings
+                const agegroupDates: Record<string, string[]> = {};
+                for (const ag of projected.agegroups) {
+                    agegroupDates[ag.agegroupId] = ag.gameDays.map(gd => gd.date);
+                }
+
+                this.cascadeSvc.seedWaves({ divisionWaves: divWaves, agegroupDates }).subscribe({
+                    next: () => {
+                        // Refresh strategy entries with new wave data
+                        this.strategyProfiles.set(
+                            this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]
+                        );
                     }
                 });
             }
@@ -1252,9 +1290,10 @@ export class ScheduleDivisionComponent implements OnInit {
     saveInlineStrategy(event: { placement: number; gapPattern: number }): void {
         const gamePlacement = event.placement === 1 ? 'V' : 'H';
         const betweenRoundRows = Math.min(event.gapPattern, 2);
+        const gameGuarantee = this.cascadeSvc.cascade()?.eventDefaults.gameGuarantee ?? 3;
 
         this.isSavingStrategy.set(true);
-        this.cascadeSvc.saveEventDefaults({ gamePlacement, betweenRoundRows }).subscribe({
+        this.cascadeSvc.saveEventDefaults({ gamePlacement, betweenRoundRows, gameGuarantee }).subscribe({
             next: () => {
                 this.isSavingStrategy.set(false);
                 this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]);

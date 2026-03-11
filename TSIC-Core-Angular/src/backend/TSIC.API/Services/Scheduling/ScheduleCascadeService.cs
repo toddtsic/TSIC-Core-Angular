@@ -41,6 +41,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
         // Event defaults (floor values)
         var eventGamePlacement = eventDefaults?.GamePlacement ?? "H";
         var eventBetweenRoundRows = eventDefaults?.BetweenRoundRows ?? (byte)1;
+        var eventGameGuarantee = eventDefaults?.GameGuarantee ?? 0;
 
         // Index lookup tables
         var agProfileMap = agProfiles.ToDictionary(p => p.AgegroupId);
@@ -68,6 +69,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
             // Resolve agegroup-level effective values
             var agEffectivePlacement = agProfile?.GamePlacement ?? eventGamePlacement;
             var agEffectiveBetweenRoundRows = agProfile?.BetweenRoundRows ?? eventBetweenRoundRows;
+            var agEffectiveGameGuarantee = agProfile?.GameGuarantee ?? eventGameGuarantee;
 
             var divisionDtos = new List<DivisionCascadeDto>();
 
@@ -81,6 +83,8 @@ public class ScheduleCascadeService : IScheduleCascadeService
                     ?? agEffectivePlacement;
                 var divEffectiveBetweenRoundRows = divProfile?.BetweenRoundRows
                     ?? agEffectiveBetweenRoundRows;
+                var divEffectiveGameGuarantee = divProfile?.GameGuarantee
+                    ?? agEffectiveGameGuarantee;
 
                 // Resolve per-date effective waves:
                 // Collect all dates from both agegroup and division wave tables
@@ -109,8 +113,10 @@ public class ScheduleCascadeService : IScheduleCascadeService
                     DivisionName = div.DivName,
                     GamePlacementOverride = divProfile?.GamePlacement,
                     BetweenRoundRowsOverride = divProfile?.BetweenRoundRows,
+                    GameGuaranteeOverride = divProfile?.GameGuarantee,
                     EffectiveGamePlacement = divEffectivePlacement,
                     EffectiveBetweenRoundRows = divEffectiveBetweenRoundRows,
+                    EffectiveGameGuarantee = divEffectiveGameGuarantee,
                     EffectiveWavesByDate = effectiveWaves
                 });
             }
@@ -121,8 +127,10 @@ public class ScheduleCascadeService : IScheduleCascadeService
                 AgegroupName = agGroup.Key.AgegroupName,
                 GamePlacementOverride = agProfile?.GamePlacement,
                 BetweenRoundRowsOverride = agProfile?.BetweenRoundRows,
+                GameGuaranteeOverride = agProfile?.GameGuarantee,
                 EffectiveGamePlacement = agEffectivePlacement,
                 EffectiveBetweenRoundRows = agEffectiveBetweenRoundRows,
+                EffectiveGameGuarantee = agEffectiveGameGuarantee,
                 WavesByDate = agWavesByDate ?? new Dictionary<DateTime, byte>(),
                 Divisions = divisionDtos
             });
@@ -133,14 +141,15 @@ public class ScheduleCascadeService : IScheduleCascadeService
             EventDefaults = new EventScheduleDefaultsDto
             {
                 GamePlacement = eventGamePlacement,
-                BetweenRoundRows = eventBetweenRoundRows
+                BetweenRoundRows = eventBetweenRoundRows,
+                GameGuarantee = eventGameGuarantee
             },
             Agegroups = agegroupDtos
         };
     }
 
     public async Task SaveEventDefaultsAsync(
-        Guid jobId, string gamePlacement, byte betweenRoundRows,
+        Guid jobId, string gamePlacement, byte betweenRoundRows, int gameGuarantee,
         string userId, CancellationToken ct = default)
     {
         var entity = new EventScheduleDefaults
@@ -148,6 +157,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
             JobId = jobId,
             GamePlacement = gamePlacement,
             BetweenRoundRows = betweenRoundRows,
+            GameGuarantee = gameGuarantee,
             LebUserId = userId
         };
 
@@ -155,17 +165,17 @@ public class ScheduleCascadeService : IScheduleCascadeService
         await _cascadeRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Saved event defaults: JobId={JobId}, GamePlacement={GamePlacement}, BetweenRoundRows={BetweenRoundRows}",
-            jobId, gamePlacement, betweenRoundRows);
+            "Saved event defaults: JobId={JobId}, GamePlacement={GamePlacement}, BetweenRoundRows={BetweenRoundRows}, GameGuarantee={GameGuarantee}",
+            jobId, gamePlacement, betweenRoundRows, gameGuarantee);
     }
 
     public async Task SaveAgegroupOverrideAsync(
-        Guid agegroupId, string? gamePlacement, byte? betweenRoundRows,
+        Guid agegroupId, string? gamePlacement, byte? betweenRoundRows, int? gameGuarantee,
         Dictionary<DateTime, byte>? wavesByDate,
         string userId, CancellationToken ct = default)
     {
-        // Profile: if both null, delete the override row
-        if (gamePlacement == null && betweenRoundRows == null)
+        // Profile: if all null, delete the override row
+        if (gamePlacement == null && betweenRoundRows == null && gameGuarantee == null)
         {
             await _cascadeRepo.DeleteAgegroupProfileAsync(agegroupId, ct);
         }
@@ -176,6 +186,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
                 AgegroupId = agegroupId,
                 GamePlacement = gamePlacement,
                 BetweenRoundRows = betweenRoundRows,
+                GameGuarantee = gameGuarantee,
                 LebUserId = userId
             };
             await _cascadeRepo.UpsertAgegroupProfileAsync(entity, ct);
@@ -206,12 +217,12 @@ public class ScheduleCascadeService : IScheduleCascadeService
     }
 
     public async Task SaveDivisionOverrideAsync(
-        Guid divisionId, string? gamePlacement, byte? betweenRoundRows,
+        Guid divisionId, string? gamePlacement, byte? betweenRoundRows, int? gameGuarantee,
         Dictionary<DateTime, byte>? wavesByDate,
         string userId, CancellationToken ct = default)
     {
-        // Profile: if both null, delete the override row
-        if (gamePlacement == null && betweenRoundRows == null)
+        // Profile: if all null, delete the override row
+        if (gamePlacement == null && betweenRoundRows == null && gameGuarantee == null)
         {
             await _cascadeRepo.DeleteDivisionProfileAsync(divisionId, ct);
         }
@@ -222,6 +233,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
                 DivisionId = divisionId,
                 GamePlacement = gamePlacement,
                 BetweenRoundRows = betweenRoundRows,
+                GameGuarantee = gameGuarantee,
                 LebUserId = userId
             };
             await _cascadeRepo.UpsertDivisionProfileAsync(entity, ct);
@@ -249,5 +261,50 @@ public class ScheduleCascadeService : IScheduleCascadeService
             "BetweenRoundRows={BetweenRoundRows}, WaveDates={WaveDateCount}",
             divisionId, gamePlacement ?? "(inherit)", betweenRoundRows?.ToString() ?? "(inherit)",
             wavesByDate?.Count ?? 0);
+    }
+
+    public async Task SeedDivisionWavesAsync(
+        Guid jobId,
+        Dictionary<Guid, int> divisionWaves,
+        Dictionary<Guid, List<DateTime>> agegroupDates,
+        string userId, CancellationToken ct = default)
+    {
+        // Get current division structure to map divisionId → agegroupId
+        var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
+        var divToAg = divisions.ToDictionary(d => d.DivId, d => d.AgegroupId);
+
+        // Check which divisions already have wave assignments (skip those)
+        var existingDivWaves = await _cascadeRepo.GetDivisionWavesAsync(jobId, ct);
+        var divsWithWaves = existingDivWaves
+            .Select(w => w.DivisionId)
+            .ToHashSet();
+
+        var seeded = 0;
+        foreach (var (divId, wave) in divisionWaves)
+        {
+            if (divsWithWaves.Contains(divId)) continue;
+            if (!divToAg.TryGetValue(divId, out var agId)) continue;
+            if (!agegroupDates.TryGetValue(agId, out var dates) || dates.Count == 0) continue;
+
+            var waveEntries = dates
+                .Select(d => new DivisionWaveAssignment
+                {
+                    DivisionId = divId,
+                    GameDate = d.Date,
+                    Wave = (byte)Math.Clamp(wave, 1, 3),
+                    LebUserId = userId
+                })
+                .ToList();
+
+            await _cascadeRepo.UpsertDivisionWavesAsync(divId, waveEntries, ct);
+            seeded++;
+        }
+
+        await _cascadeRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Seeded division waves from projection: JobId={JobId}, " +
+            "DivisionsSeeded={Seeded}, DivisionsSkipped={Skipped}",
+            jobId, seeded, divisionWaves.Count - seeded);
     }
 }

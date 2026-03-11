@@ -15,6 +15,8 @@ public partial class DivisionScheduleProfile
 
     public string? LebUserId { get; set; }
 
+    public int? GameGuarantee { get; set; }
+
     public virtual Divisions Division { get; set; } = null!;
 
     public virtual AspNetUsers? LebUser { get; set; }

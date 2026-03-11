@@ -1,0 +1,111 @@
+<div class="waves-tab">
+
+  @if (!cascade()) {
+    <div class="loading-placeholder">
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Loading wave assignments...
+    </div>
+  } @else {
+
+    <!-- Guidance -->
+    <div class="wave-guidance">
+      <i class="bi bi-info-circle me-1"></i>
+      Waves split your event into time blocks (e.g., Wave 1 = morning, Wave 2 = afternoon).
+      Most events use a single wave. Use multiple waves when you have more divisions than
+      field slots in a single time block. Click a cell to cycle through waves (1 → 2 → 3).
+    </div>
+
+    <!-- All Wave 1 summary -->
+    @if (allWaveOne() && !isEditing()) {
+      <div class="wave-summary">
+        <i class="bi bi-check-circle text-success me-2"></i>
+        <span>All divisions are in <strong>Wave 1</strong> (single time block).</span>
+        <button class="btn btn-sm btn-outline-primary ms-auto"
+                (click)="isEditing.set(true)">
+          <i class="bi bi-pencil me-1"></i> Edit Waves
+        </button>
+      </div>
+    } @else {
+
+      <!-- Wave grid -->
+      @if (playDates().length > 0 && rows().length > 0) {
+        <div class="wave-grid-wrapper">
+          <table class="wave-grid">
+            <thead>
+              <tr>
+                <th class="name-col">Division</th>
+                @for (date of playDates(); track date.iso) {
+                  <th class="date-col">{{ date.label }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.id) {
+                <tr [class.ag-row]="row.level === 'agegroup'"
+                    [class.div-row]="row.level === 'division'"
+                    [class.has-override]="row.hasOverride">
+
+                  <!-- Name cell -->
+                  <td class="name-col">
+                    @if (row.level === 'agegroup') {
+                      <span class="ag-name">
+                        <i class="bi bi-diagram-3 me-1"></i>
+                        {{ row.name }}
+                      </span>
+                    } @else {
+                      <span class="div-name">{{ row.name }}</span>
+                    }
+                  </td>
+
+                  <!-- Wave cells -->
+                  @for (date of playDates(); track date.iso) {
+                    <td class="wave-cell"
+                        [class]="waveClass(getWave(row, date.iso))"
+                        [class.inherited]="isInherited(row, date.iso)"
+                        [class.saving]="isSaving()">
+                      <button class="wave-btn"
+                              [disabled]="isSaving()"
+                              (click)="cycleWave(row, date.iso)"
+                              [title]="'Wave ' + getWave(row, date.iso) + ' — click to cycle'">
+                        {{ getWave(row, date.iso) }}
+                      </button>
+                      @if (row.level === 'division' && !isInherited(row, date.iso)) {
+                        <button class="clear-btn"
+                                title="Clear override (inherit from agegroup)"
+                                [disabled]="isSaving()"
+                                (click)="$event.stopPropagation(); clearDivWave(row, date.iso)">
+                          <i class="bi bi-x-circle-fill"></i>
+                        </button>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="wave-empty">
+          <i class="bi bi-water stub-icon"></i>
+          <p>No play dates configured. Set up dates in the Dates tab first.</p>
+        </div>
+      }
+
+      <!-- Legend -->
+      <div class="wave-legend">
+        <span class="legend-item">
+          <span class="legend-swatch wave-1"></span> Wave 1
+        </span>
+        <span class="legend-item">
+          <span class="legend-swatch wave-2"></span> Wave 2
+        </span>
+        <span class="legend-item">
+          <span class="legend-swatch wave-3"></span> Wave 3
+        </span>
+        <span class="legend-item legend-inherited">
+          <i class="bi bi-arrow-down-short"></i> Inherited from agegroup
+        </span>
+      </div>
+    }
+  }
+</div>

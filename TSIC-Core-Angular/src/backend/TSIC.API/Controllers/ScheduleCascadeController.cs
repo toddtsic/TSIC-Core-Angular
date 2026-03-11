@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Entities;
 
 namespace TSIC.API.Controllers;
 
@@ -18,15 +20,18 @@ namespace TSIC.API.Controllers;
 public class ScheduleCascadeController : ControllerBase
 {
     private readonly IScheduleCascadeService _service;
+    private readonly IScheduleCascadeRepository _cascadeRepo;
     private readonly IJobLookupService _jobLookupService;
     private readonly ILogger<ScheduleCascadeController> _logger;
 
     public ScheduleCascadeController(
         IScheduleCascadeService service,
+        IScheduleCascadeRepository cascadeRepo,
         IJobLookupService jobLookupService,
         ILogger<ScheduleCascadeController> logger)
     {
         _service = service;
+        _cascadeRepo = cascadeRepo;
         _jobLookupService = jobLookupService;
         _logger = logger;
     }
@@ -75,8 +80,12 @@ public class ScheduleCascadeController : ControllerBase
         if (request.BetweenRoundRows > 2)
             return BadRequest(new { message = "BetweenRoundRows must be 0, 1, or 2" });
 
+        if (request.GameGuarantee < 1)
+            return BadRequest(new { message = "GameGuarantee must be at least 1" });
+
         await _service.SaveEventDefaultsAsync(
-            jobId!.Value, request.GamePlacement, request.BetweenRoundRows, userId!, ct);
+            jobId!.Value, request.GamePlacement, request.BetweenRoundRows,
+            request.GameGuarantee, userId!, ct);
 
         return Ok(new { message = "Event defaults saved" });
     }
@@ -102,7 +111,7 @@ public class ScheduleCascadeController : ControllerBase
 
         await _service.SaveAgegroupOverrideAsync(
             agegroupId, request.GamePlacement, request.BetweenRoundRows,
-            wavesByDate, userId!, ct);
+            request.GameGuarantee, wavesByDate, userId!, ct);
 
         return Ok(new { message = "Agegroup override saved" });
     }
@@ -128,9 +137,118 @@ public class ScheduleCascadeController : ControllerBase
 
         await _service.SaveDivisionOverrideAsync(
             divisionId, request.GamePlacement, request.BetweenRoundRows,
-            wavesByDate, userId!, ct);
+            request.GameGuarantee, wavesByDate, userId!, ct);
 
         return Ok(new { message = "Division override saved" });
+    }
+
+    /// <summary>
+    /// POST /api/schedule-cascade/seed-waves — Bulk-seed division wave assignments
+    /// from projected config. Only seeds divisions that don't already have waves.
+    /// </summary>
+    [HttpPost("seed-waves")]
+    public async Task<ActionResult<ScheduleCascadeSnapshot>> SeedWaves(
+        [FromBody] SeedWavesRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        // Parse string keys to Guids
+        var divisionWaves = new Dictionary<Guid, int>();
+        foreach (var (key, wave) in request.DivisionWaves)
+        {
+            if (Guid.TryParse(key, out var divId))
+                divisionWaves[divId] = wave;
+        }
+
+        var agegroupDates = new Dictionary<Guid, List<DateTime>>();
+        foreach (var (key, dateStrings) in request.AgegroupDates)
+        {
+            if (!Guid.TryParse(key, out var agId)) continue;
+            var dates = dateStrings
+                .Select(s => DateTime.TryParse(s, out var d) ? d.Date : (DateTime?)null)
+                .Where(d => d.HasValue)
+                .Select(d => d!.Value)
+                .ToList();
+            if (dates.Count > 0)
+                agegroupDates[agId] = dates;
+        }
+
+        await _service.SeedDivisionWavesAsync(
+            jobId!.Value, divisionWaves, agegroupDates, userId!, ct);
+
+        // Return updated snapshot
+        var snapshot = await _service.ResolveAsync(jobId!.Value, ct);
+        return Ok(snapshot);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Division Processing Order
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// GET /api/schedule-cascade/processing-order — Get persisted division build order.
+    /// Returns empty list when no order has been saved.
+    /// </summary>
+    [HttpGet("processing-order")]
+    public async Task<ActionResult<List<ProcessingOrderEntryDto>>> GetProcessingOrder(
+        CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var entries = await _cascadeRepo.GetProcessingOrderAsync(jobId!.Value, ct);
+        var dtos = entries
+            .Select(e => new ProcessingOrderEntryDto
+            {
+                DivisionId = e.DivisionId,
+                SortOrder = e.SortOrder
+            })
+            .ToList();
+
+        return Ok(dtos);
+    }
+
+    /// <summary>
+    /// PUT /api/schedule-cascade/processing-order — Save division build order.
+    /// Replaces all existing entries for the job.
+    /// </summary>
+    [HttpPut("processing-order")]
+    public async Task<ActionResult> SaveProcessingOrder(
+        [FromBody] SaveProcessingOrderRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var entities = request.Entries
+            .Select(e => new DivisionProcessingOrder
+            {
+                DivisionId = e.DivisionId,
+                SortOrder = e.SortOrder,
+                LebUserId = userId
+            })
+            .ToList();
+
+        await _cascadeRepo.UpsertProcessingOrderAsync(jobId!.Value, entities, ct);
+        await _cascadeRepo.SaveChangesAsync(ct);
+
+        return Ok(new { message = "Processing order saved" });
+    }
+
+    /// <summary>
+    /// DELETE /api/schedule-cascade/processing-order — Clear all processing order entries.
+    /// Engine will fall back to alphabetical ordering.
+    /// </summary>
+    [HttpDelete("processing-order")]
+    public async Task<ActionResult> DeleteProcessingOrder(CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        await _cascadeRepo.DeleteProcessingOrderAsync(jobId!.Value, ct);
+        await _cascadeRepo.SaveChangesAsync(ct);
+
+        return Ok(new { message = "Processing order cleared" });
     }
 
     /// <summary>

@@ -94,10 +94,29 @@ public interface IScheduleCascadeRepository
     Task DeleteDivisionWavesAsync(
         Guid divisionId, CancellationToken ct = default);
 
+    // ── Division Processing Order (keyed by JobId + DivisionId) ──
+
+    /// <summary>
+    /// Get persisted division build ordering for this job, sorted by SortOrder.
+    /// Returns empty list when no ordering has been saved.
+    /// </summary>
+    Task<List<DivisionProcessingOrder>> GetProcessingOrderAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replace all processing order rows for a job (delete + insert batch).
+    /// Does NOT call SaveChanges.
+    /// </summary>
+    Task UpsertProcessingOrderAsync(
+        Guid jobId, List<DivisionProcessingOrder> entries, CancellationToken ct = default);
+
+    Task DeleteProcessingOrderAsync(
+        Guid jobId, CancellationToken ct = default);
+
     // ── Bulk operations ──
 
     /// <summary>
-    /// Delete ALL cascade data for a job (all 5 tables).
+    /// Delete ALL cascade data for a job (all tables).
     /// Calls SaveChanges internally.
     /// </summary>
     Task DeleteAllForJobAsync(Guid jobId, CancellationToken ct = default);
