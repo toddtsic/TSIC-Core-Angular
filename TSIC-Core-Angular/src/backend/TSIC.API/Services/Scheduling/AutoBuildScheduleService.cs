@@ -219,13 +219,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
         // Extract raw patterns and division summaries from source
         var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
-        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
+        var sourceDivisionsRaw = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
 
         // Apply graduation year offset so source "2026 Boys" matches current "2027 Boys"
         var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
         var yearDelta = ComputeYearDelta(sourceYear, year);
-        if (yearDelta != 0)
-            sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yearDelta);
 
         // Get source job's timeslot window (earliest field start per DOW)
         var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
@@ -237,8 +235,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             .ToDictionary(g => g.Key, g => g.Count());
 
         // Compute Q1–Q10 profiles (pure computation, no DB)
+        // NOTE: pass original source names — ExtractProfiles joins patterns to summaries by name
         var profiles = AttributeExtractor.ExtractProfiles(
-            patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
+            patterns, sourceDivisionsRaw, currentDivCountByTCnt, sourceWindow);
+        var sourceDivisions = yearDelta != 0
+            ? RemapSourceDivisionNames(sourceDivisionsRaw, yearDelta)
+            : sourceDivisionsRaw;
 
         // Translate source field names → current field names (address-based mapping)
         var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
@@ -294,14 +296,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         {
             // Legacy TCnt-keyed extraction path (backward compatibility)
             var patterns = await _autoBuildRepo.ExtractPatternAsync(request.SourceJobId.Value, ct);
-            var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(
+            var sourceDivisionsRaw = await _autoBuildRepo.GetSourceDivisionSummariesAsync(
                 request.SourceJobId.Value, ct);
-
-            // Apply graduation year offset so source "2026 Boys" matches current "2027 Boys"
-            var srcYear = await _autoBuildRepo.GetJobYearAsync(request.SourceJobId.Value, ct);
-            var yrDelta = ComputeYearDelta(srcYear, year);
-            if (yrDelta != 0)
-                sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yrDelta);
 
             sourceTimeslotWindow = await GetSourceTimeslotWindowAsync(request.SourceJobId.Value, ct);
             var currentDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
@@ -309,8 +305,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 .GroupBy(d => d.TeamCount)
                 .ToDictionary(g => g.Key, g => g.Count());
 
+            // NOTE: pass original source names — ExtractProfiles joins patterns to summaries by name
             profilesByTCnt = AttributeExtractor.ExtractProfiles(
-                patterns, sourceDivisions, currentDivCountByTCnt, sourceTimeslotWindow);
+                patterns, sourceDivisionsRaw, currentDivCountByTCnt, sourceTimeslotWindow);
 
             // Translate source field names → current field names (address-based mapping)
             var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
@@ -2581,17 +2578,21 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var currentFieldByName = currentFields.ToDictionary(
             f => f.FName, f => f.FieldId, StringComparer.OrdinalIgnoreCase);
+        var currentFieldIds = currentFields.Select(f => f.FieldId).ToHashSet();
 
         // 4. Extract per-agegroup actual game times from source Schedule
         var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
 
         // 5. Extract source profiles for GSI defaults (GSI IS correctly per-team-count)
-        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
-        if (yearDelta != 0)
-            sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yearDelta);
+        // NOTE: ExtractProfiles joins patterns→summaries by (AgegroupName, DivName),
+        // so pass original names. Remap separately for target name lookups below.
+        var sourceDivisionsRaw = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
         var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
         var profiles = AttributeExtractor.ExtractProfiles(
-            patterns, sourceDivisions, null, sourceWindow);
+            patterns, sourceDivisionsRaw, null, sourceWindow);
+        var sourceDivisions = yearDelta != 0
+            ? RemapSourceDivisionNames(sourceDivisionsRaw, yearDelta)
+            : sourceDivisionsRaw;
 
         var seeded = 0;
         var newTimeslots = new List<TimeslotsLeagueSeasonFields>();
@@ -2611,11 +2612,20 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var profile = srcDiv != null ? profiles.GetValueOrDefault(srcDiv.TeamCount) : null;
             var defaultGsi = profile?.GsiMinutes ?? 45;
 
+            var rowsBefore = newTimeslots.Count;
+
             foreach (var usage in fieldUsages)
             {
-                // Map source field name → current field ID
+                // Map source field name → current field ID (name-based, with address fallback)
                 var resolvedName = fieldMap.GetValueOrDefault(usage.FieldName, usage.FieldName);
-                if (!currentFieldByName.TryGetValue(resolvedName, out var fieldId)) continue;
+                Guid fieldId;
+                if (!currentFieldByName.TryGetValue(resolvedName, out fieldId))
+                {
+                    // Fallback: same physical field (same FieldId) may have been renamed
+                    if (!currentFieldIds.Contains(usage.FieldId))
+                        continue;
+                    fieldId = usage.FieldId;
+                }
 
                 foreach (var dow in usage.DaysUsed)
                 {
@@ -2651,7 +2661,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     });
                 }
             }
-            seeded++;
+
+            // Only count as seeded if at least one timeslot row was created
+            if (newTimeslots.Count > rowsBefore)
+                seeded++;
         }
 
         if (newTimeslots.Count > 0)
@@ -2690,18 +2703,22 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
         var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
         var currentFieldNames = currentFields.Select(f => f.FName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var currentFieldIdToName = currentFields.ToDictionary(f => f.FieldId, f => f.FName);
 
         // ── 3. Per-agegroup and per-division actual game times from source Schedule ──
         var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
         var sourceDivTiming = await _autoBuildRepo.GetSourceDivisionTimingAsync(sourceJobId, ct);
 
         // ── 4. Timing: extract source profiles for GSI defaults (GSI IS per-team-count) ──
-        var sourceDivisions = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
-        if (yearDelta != 0)
-            sourceDivisions = RemapSourceDivisionNames(sourceDivisions, yearDelta);
+        // NOTE: ExtractProfiles joins patterns→summaries by (AgegroupName, DivName),
+        // so pass original names. Remap separately for target name lookups below.
+        var sourceDivisionsRaw = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
         var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
         var profiles = AttributeExtractor.ExtractProfiles(
-            patterns, sourceDivisions, null, sourceWindow);
+            patterns, sourceDivisionsRaw, null, sourceWindow);
+        var sourceDivisions = yearDelta != 0
+            ? RemapSourceDivisionNames(sourceDivisionsRaw, yearDelta)
+            : sourceDivisionsRaw;
 
         // Event-level dominant timing from source
         var (srcLeagueId, srcSeason, srcYear) = await _contextResolver.ResolveAsync(sourceJobId, ct);
@@ -2753,7 +2770,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 {
                     var resolvedName = fieldMap.GetValueOrDefault(usage.FieldName, usage.FieldName);
                     // Only include fields that exist in the current event
-                    if (!currentFieldNames.Contains(resolvedName)) continue;
+                    // Fallback: same physical field (same FieldId) may have been renamed
+                    if (!currentFieldNames.Contains(resolvedName))
+                    {
+                        if (!currentFieldIdToName.TryGetValue(usage.FieldId, out var nameById))
+                            continue;
+                        resolvedName = nameById;
+                    }
 
                     foreach (var dow in usage.DaysUsed)
                     {
@@ -3056,23 +3079,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         List<CurrentDivisionSummary> currentDivisions,
         CancellationToken ct = default)
     {
-        // ── Event defaults ──
-        var sourceDefaults = await _cascadeRepo.GetEventDefaultsAsync(sourceJobId, ct);
-        if (sourceDefaults == null)
-            return false;
-
-        await _cascadeRepo.UpsertEventDefaultsAsync(new EventScheduleDefaults
-        {
-            JobId = jobId,
-            GamePlacement = sourceDefaults.GamePlacement,
-            BetweenRoundRows = sourceDefaults.BetweenRoundRows,
-            GameGuarantee = sourceDefaults.GameGuarantee,
-            LebUserId = userId
-        }, ct);
-
-        // ── Build name maps (source → target) ──
+        // ── Shared name-mapping data ──
         var sourceDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(sourceJobId, ct);
-
         var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
         var targetYear = await _autoBuildRepo.GetJobYearAsync(jobId, ct);
         var yearDelta = ComputeYearDelta(sourceYear, targetYear);
@@ -3088,55 +3096,223 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 d => $"{d.AgegroupName.ToLowerInvariant()}|{d.DivName.ToLowerInvariant()}",
                 d => d.DivId);
 
-        // ── Agegroup profiles ──
-        var sourceAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(sourceJobId, ct);
-        foreach (var srcProfile in sourceAgProfiles)
+        // ── Event defaults ──
+        var sourceDefaults = await _cascadeRepo.GetEventDefaultsAsync(sourceJobId, ct);
+        var sourceHasCascade = sourceDefaults != null;
+        int agProfilesSeeded = 0;
+        int divProfilesSeeded = 0;
+
+        if (sourceHasCascade)
         {
-            var srcAg = sourceDivisions.FirstOrDefault(d => d.AgegroupId == srcProfile.AgegroupId);
-            if (srcAg == null) continue;
-
-            var mappedName = AgegroupNameMapper.OffsetName(srcAg.AgegroupName, yearDelta);
-            if (!targetAgByName.TryGetValue(mappedName.ToLowerInvariant(), out var targetAgId))
-                continue;
-
-            await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+            // Source has cascade data — copy event defaults directly
+            await _cascadeRepo.UpsertEventDefaultsAsync(new EventScheduleDefaults
             {
-                AgegroupId = targetAgId,
-                GamePlacement = srcProfile.GamePlacement,
-                BetweenRoundRows = srcProfile.BetweenRoundRows,
-                GameGuarantee = srcProfile.GameGuarantee,
+                JobId = jobId,
+                GamePlacement = sourceDefaults!.GamePlacement,
+                BetweenRoundRows = sourceDefaults.BetweenRoundRows,
+                GameGuarantee = sourceDefaults.GameGuarantee,
                 LebUserId = userId
             }, ct);
+
+            // ── Copy agegroup profiles ──
+            var sourceAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(sourceJobId, ct);
+            foreach (var srcProfile in sourceAgProfiles)
+            {
+                var srcAg = sourceDivisions.FirstOrDefault(d => d.AgegroupId == srcProfile.AgegroupId);
+                if (srcAg == null) continue;
+
+                var mappedName = AgegroupNameMapper.OffsetName(srcAg.AgegroupName, yearDelta);
+                if (!targetAgByName.TryGetValue(mappedName.ToLowerInvariant(), out var targetAgId))
+                    continue;
+
+                await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+                {
+                    AgegroupId = targetAgId,
+                    GamePlacement = srcProfile.GamePlacement,
+                    BetweenRoundRows = srcProfile.BetweenRoundRows,
+                    GameGuarantee = srcProfile.GameGuarantee,
+                    LebUserId = userId
+                }, ct);
+                agProfilesSeeded++;
+            }
+
+            // ── Copy division profiles ──
+            var sourceDivProfiles = await _cascadeRepo.GetDivisionProfilesAsync(sourceJobId, ct);
+            foreach (var srcProfile in sourceDivProfiles)
+            {
+                var srcDiv = sourceDivisions.FirstOrDefault(d => d.DivId == srcProfile.DivisionId);
+                if (srcDiv == null) continue;
+
+                var mappedAgName = AgegroupNameMapper.OffsetName(srcDiv.AgegroupName, yearDelta);
+                var key = $"{mappedAgName.ToLowerInvariant()}|{srcDiv.DivName.ToLowerInvariant()}";
+                if (!targetDivByKey.TryGetValue(key, out var targetDivId))
+                    continue;
+
+                await _cascadeRepo.UpsertDivisionProfileAsync(new DivisionScheduleProfile
+                {
+                    DivisionId = targetDivId,
+                    GamePlacement = srcProfile.GamePlacement,
+                    BetweenRoundRows = srcProfile.BetweenRoundRows,
+                    GameGuarantee = srcProfile.GameGuarantee,
+                    LebUserId = userId
+                }, ct);
+                divProfilesSeeded++;
+            }
         }
-
-        // ── Division profiles ──
-        var sourceDivProfiles = await _cascadeRepo.GetDivisionProfilesAsync(sourceJobId, ct);
-        foreach (var srcProfile in sourceDivProfiles)
+        else
         {
-            var srcDiv = sourceDivisions.FirstOrDefault(d => d.DivId == srcProfile.DivisionId);
-            if (srcDiv == null) continue;
+            // Source predates cascade tables — derive everything from actual schedule games
+            // NOTE: do NOT remap sourceDivSummaries here — patterns use original source names,
+            // and ExtractProfiles joins patterns to summaries by (AgegroupName, DivName).
+            // Year-offset mapping is applied later when mapping to target entities.
+            var sourceDivSummaries = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
 
-            var mappedAgName = AgegroupNameMapper.OffsetName(srcDiv.AgegroupName, yearDelta);
-            var key = $"{mappedAgName.ToLowerInvariant()}|{srcDiv.DivName.ToLowerInvariant()}";
-            if (!targetDivByKey.TryGetValue(key, out var targetDivId))
-                continue;
+            var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
+            var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
+            var profiles = AttributeExtractor.ExtractProfiles(
+                patterns, sourceDivSummaries, null, sourceWindow);
 
-            await _cascadeRepo.UpsertDivisionProfileAsync(new DivisionScheduleProfile
+            // ── Per-division derived values (from source game patterns) ──
+            // Group source patterns by (agegroupName, divName) for per-division analysis
+            var patternsByDiv = patterns
+                .Where(p => p.T1Type == "T" && p.T2Type == "T") // RR only
+                .GroupBy(p => (p.AgegroupName, p.DivName))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // Derive per-division: placement, gap rows, game guarantee
+            var divDerived = new Dictionary<(string AgegroupName, string DivName),
+                (string Placement, byte GapRows, int Guarantee)>();
+
+            foreach (var (key, divPatterns) in patternsByDiv)
             {
-                DivisionId = targetDivId,
-                GamePlacement = srcProfile.GamePlacement,
-                BetweenRoundRows = srcProfile.BetweenRoundRows,
-                GameGuarantee = srcProfile.GameGuarantee,
+                var divSummary = sourceDivSummaries.FirstOrDefault(
+                    d => string.Equals(d.AgegroupName, key.AgegroupName, StringComparison.OrdinalIgnoreCase)
+                      && string.Equals(d.DivName, key.DivName, StringComparison.OrdinalIgnoreCase));
+                if (divSummary == null || divSummary.TeamCount < 2) continue;
+
+                // Placement from verticality of this division's rounds
+                var divRounds = divPatterns
+                    .GroupBy(p => p.Rnd)
+                    .Select(rg =>
+                    {
+                        var distinctTimes = rg.Select(g => g.TimeOfDay).Distinct().Count();
+                        var gameCount = rg.Count();
+                        return gameCount > 1
+                            ? 1.0 - ((double)(distinctTimes - 1) / (gameCount - 1))
+                            : 0.0; // single-game round → treat as H
+                    })
+                    .ToList();
+                var divPlacement = divRounds.Count > 0 && divRounds.Average() >= 0.5 ? "V" : "H";
+
+                // Gap rows from inter-round interval
+                var divProfile = profiles.GetValueOrDefault(divSummary.TeamCount);
+                var divGsi = divProfile?.GsiMinutes ?? 60;
+                var divIri = divProfile?.InterRoundInterval.TotalMinutes ?? divGsi;
+                var divGapRows = divGsi > 0
+                    ? (byte)Math.Clamp((int)Math.Round(divIri / divGsi) - 1, 0, 2)
+                    : (byte)1;
+
+                // Game guarantee: 2 * games / teams (RR only — patterns already filtered)
+                var divGuarantee = 2 * divSummary.GameCount / divSummary.TeamCount;
+
+                divDerived[key] = (divPlacement, divGapRows, divGuarantee);
+            }
+
+            // ── Compute event-level defaults (majority across all divisions) ──
+            var allPlacements = divDerived.Values.Select(v => v.Placement).ToList();
+            var eventPlacement = allPlacements.Count(p => p == "V") > allPlacements.Count / 2 ? "V" : "H";
+
+            var allGapRows = divDerived.Values.Select(v => (int)v.GapRows).ToList();
+            var eventGapRows = allGapRows.Count > 0
+                ? (byte)allGapRows.GroupBy(g => g).OrderByDescending(g => g.Count()).First().Key
+                : (byte)1;
+
+            var allGuarantees = divDerived.Values.Select(v => v.Guarantee).Where(g => g > 0).ToList();
+            var eventGuarantee = allGuarantees.Count > 0 ? allGuarantees.Min() : 0;
+
+            await _cascadeRepo.UpsertEventDefaultsAsync(new EventScheduleDefaults
+            {
+                JobId = jobId,
+                GamePlacement = eventPlacement,
+                BetweenRoundRows = eventGapRows,
+                GameGuarantee = eventGuarantee,
                 LebUserId = userId
             }, ct);
+
+            // ── Seed per-division overrides (only where they differ from event default) ──
+            foreach (var (srcKey, derived) in divDerived)
+            {
+                // Map source agegroup name to target (year-shifted)
+                var mappedAgName = yearDelta != 0
+                    ? AgegroupNameMapper.OffsetName(srcKey.AgegroupName, yearDelta)
+                    : srcKey.AgegroupName;
+                var targetKey = $"{mappedAgName.ToLowerInvariant()}|{srcKey.DivName.ToLowerInvariant()}";
+                if (!targetDivByKey.TryGetValue(targetKey, out var targetDivId))
+                    continue;
+
+                // Only write override if this division differs from event default
+                if (derived.Placement == eventPlacement
+                    && derived.GapRows == eventGapRows
+                    && derived.Guarantee == eventGuarantee)
+                    continue;
+
+                await _cascadeRepo.UpsertDivisionProfileAsync(new DivisionScheduleProfile
+                {
+                    DivisionId = targetDivId,
+                    GamePlacement = derived.Placement,
+                    BetweenRoundRows = derived.GapRows,
+                    GameGuarantee = derived.Guarantee,
+                    LebUserId = userId
+                }, ct);
+                divProfilesSeeded++;
+            }
+
+            // ── Seed per-agegroup overrides (only where uniform within agegroup but different from event) ──
+            var divsByAgegroup = divDerived
+                .GroupBy(kv => kv.Key.AgegroupName, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var agGroup in divsByAgegroup)
+            {
+                var agDivs = agGroup.ToList();
+                if (agDivs.Count == 0) continue;
+
+                // Check if all divisions in this agegroup share the same values
+                var agPlacement = agDivs[0].Value.Placement;
+                var agGapRows = agDivs[0].Value.GapRows;
+                var agGuarantees = agDivs.Select(d => d.Value.Guarantee).Where(g => g > 0).ToList();
+                var agGuarantee = agGuarantees.Count > 0 ? agGuarantees.Min() : eventGuarantee;
+                var isUniform = agDivs.All(d =>
+                    d.Value.Placement == agPlacement && d.Value.GapRows == agGapRows);
+
+                // Only write agegroup override if uniform across its divisions AND different from event
+                if (!isUniform) continue;
+                if (agPlacement == eventPlacement && agGapRows == eventGapRows && agGuarantee == eventGuarantee)
+                    continue;
+
+                var mappedName = yearDelta != 0
+                    ? AgegroupNameMapper.OffsetName(agGroup.Key, yearDelta)
+                    : agGroup.Key;
+                if (!targetAgByName.TryGetValue(mappedName.ToLowerInvariant(), out var targetAgId))
+                    continue;
+
+                await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+                {
+                    AgegroupId = targetAgId,
+                    GamePlacement = agPlacement,
+                    BetweenRoundRows = agGapRows,
+                    GameGuarantee = agGuarantee,
+                    LebUserId = userId
+                }, ct);
+                agProfilesSeeded++;
+            }
         }
 
         await _cascadeRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
             "Seeded cascade from source: JobId={JobId}, SourceJobId={SourceJobId}, " +
-            "AgProfiles={AgCount}, DivProfiles={DivCount}",
-            jobId, sourceJobId, sourceAgProfiles.Count, sourceDivProfiles.Count);
+            "HasCascade={HasCascade}, AgProfiles={AgCount}, DivProfiles={DivCount}",
+            jobId, sourceJobId, sourceHasCascade, agProfilesSeeded, divProfilesSeeded);
 
         return true;
     }

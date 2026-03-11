@@ -880,7 +880,10 @@ export class ScheduleDivisionComponent implements OnInit {
         if (options.pairings) parts.push('pairings');
         if (options.dates) parts.push('dates');
         if (options.fieldTimeslots) parts.push('field timeslots');
-        const hasSource = !!options.sourceJobId;
+
+        // Always preconfigure from prior year if available
+        const sourceJobId = options.sourceJobId ?? this.priorYearDefaults()?.priorJobId ?? undefined;
+        const hasSource = !!sourceJobId;
         const modalMsg = hasSource
             ? `Clearing ${parts.join(', ')}… then preconfiguring from source`
             : `Clearing ${parts.join(', ')}…`;
@@ -892,7 +895,7 @@ export class ScheduleDivisionComponent implements OnInit {
             dates: options.dates,
             fieldTimeslots: options.fieldTimeslots,
             fieldAssignments: false,
-            sourceJobId: options.sourceJobId
+            sourceJobId
         }).subscribe({
             next: (result) => {
                 this.showOperationModal.set(false);
@@ -923,6 +926,10 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.loadCanvasReadiness();
                 this.loadStrategyProfiles();
                 this.checkPairingStatus();
+
+                // Force config panel to Dates tab (logical starting point after reset).
+                // The tab switch creates a new DatesTabComponent whose ngOnInit() loads fresh data.
+                this.configPanel?.selectTab('dates');
             },
             error: () => {
                 this.showOperationModal.set(false);
