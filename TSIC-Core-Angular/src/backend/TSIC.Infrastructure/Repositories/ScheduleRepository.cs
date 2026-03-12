@@ -312,6 +312,52 @@ public sealed class ScheduleRepository : IScheduleRepository
         _context.Schedule.RemoveRange(games);
     }
 
+    // ── Cascade date operations ──
+
+    public async Task<int> UpdateGameDatesAsync(
+        Guid jobId, DateTime oldDate, DateTime newDate, CancellationToken ct = default)
+    {
+        var games = await _context.Schedule
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.GDate.Value.Date == oldDate.Date)
+            .ToListAsync(ct);
+
+        foreach (var g in games)
+            g.GDate = newDate.Date + g.GDate!.Value.TimeOfDay;
+
+        return games.Count;
+    }
+
+    public async Task<int> DeleteGamesByDateAsync(
+        Guid jobId, DateTime date, CancellationToken ct = default)
+    {
+        var gids = await _context.Schedule
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.GDate.Value.Date == date.Date)
+            .Select(s => s.Gid)
+            .ToListAsync(ct);
+
+        if (gids.Count == 0) return 0;
+
+        // Cascade order: DeviceGids → BracketSeeds → Schedule
+        var deviceGids = await _context.DeviceGids
+            .Where(dg => gids.Contains(dg.Gid))
+            .ToListAsync(ct);
+        if (deviceGids.Count > 0)
+            _context.DeviceGids.RemoveRange(deviceGids);
+
+        var bracketSeeds = await _context.BracketSeeds
+            .Where(bs => gids.Contains(bs.Gid))
+            .ToListAsync(ct);
+        if (bracketSeeds.Count > 0)
+            _context.BracketSeeds.RemoveRange(bracketSeeds);
+
+        var games = await _context.Schedule
+            .Where(s => gids.Contains(s.Gid))
+            .ToListAsync(ct);
+        _context.Schedule.RemoveRange(games);
+
+        return gids.Count;
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         return await _context.SaveChangesAsync(ct);

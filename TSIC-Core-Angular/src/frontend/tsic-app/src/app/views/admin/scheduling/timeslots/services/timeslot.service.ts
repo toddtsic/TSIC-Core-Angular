@@ -24,7 +24,11 @@ import type {
     UpdateFieldConfigRequest,
     UpdateFieldConfigResponse,
     SaveFieldAssignmentsRequest,
-    SaveFieldAssignmentsResponse
+    SaveFieldAssignmentsResponse,
+    CascadeDateChangeRequest,
+    CascadeDateChangeResponse,
+    CascadeDateDeleteRequest,
+    CascadeDateDeleteResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -50,7 +54,11 @@ export type {
     UpdateFieldConfigRequest,
     UpdateFieldConfigResponse,
     SaveFieldAssignmentsRequest,
-    SaveFieldAssignmentsResponse
+    SaveFieldAssignmentsResponse,
+    CascadeDateChangeRequest,
+    CascadeDateChangeResponse,
+    CascadeDateDeleteRequest,
+    CascadeDateDeleteResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -144,6 +152,16 @@ export class TimeslotService {
 
     bulkAssignDate(request: BulkDateAssignRequest): Observable<BulkDateAssignResponse> {
         return this.http.post<BulkDateAssignResponse>(`${this.apiUrl}/bulk-assign`, request);
+    }
+
+    // ── Cascade date operations ──
+
+    cascadeEditDate(request: CascadeDateChangeRequest): Observable<CascadeDateChangeResponse> {
+        return this.http.put<CascadeDateChangeResponse>(`${this.apiUrl}/date/cascade`, request);
+    }
+
+    cascadeDeleteDate(request: CascadeDateDeleteRequest): Observable<CascadeDateDeleteResponse> {
+        return this.http.post<CascadeDateDeleteResponse>(`${this.apiUrl}/date/cascade-delete`, request);
     }
 
     // ── Field config update ──

@@ -26,6 +26,10 @@
     gap: var(--space-3);
     flex: 1;
     min-height: 0;
+
+    &--full {
+        grid-template-columns: 1fr;
+    }
 }
 
 // ── Sidebar ──
@@ -259,6 +263,20 @@ app-pairings-panel {
     flex-direction: column;
     flex: 1;
     min-height: 0;
+}
+
+// ── Rescheduler embed: fill available space, strip standalone padding/height ──
+
+app-rescheduler {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 0;
+
+    ::ng-deep .rescheduler-container {
+        height: 100%;
+    }
 }
 
 // ── Scope Name Emphasis (Build buttons & modal titles) ──

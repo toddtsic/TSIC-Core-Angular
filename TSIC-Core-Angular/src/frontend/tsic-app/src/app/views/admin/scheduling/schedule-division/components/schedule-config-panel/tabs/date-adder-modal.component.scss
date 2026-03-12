@@ -1,0 +1,109 @@
+.manual-entry {
+  margin-bottom: var(--space-4);
+}
+
+.manual-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.quick-add-section {
+  margin-bottom: var(--space-4);
+}
+
+.quick-add-buttons {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+// ── Date list ──
+
+.date-list-section {
+  margin-bottom: var(--space-2);
+}
+
+.pending-count {
+  font-size: var(--font-size-xs);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: rgba(var(--bs-success-rgb), 0.15);
+  color: var(--bs-success);
+  font-weight: var(--font-weight-medium);
+  margin-left: var(--space-1);
+}
+
+.date-list {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+}
+
+.date-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.04);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: rgba(var(--bs-primary-rgb), 0.04);
+  }
+
+  &.selected {
+    background: rgba(var(--bs-primary-rgb), 0.10);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  &.pending {
+    color: var(--bs-success);
+  }
+
+  &.pending.selected {
+    background: rgba(var(--bs-success-rgb), 0.12);
+  }
+}
+
+.date-list-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.new-icon {
+  font-size: var(--font-size-xs);
+}
+
+.date-list-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-xs);
+  opacity: 0.5;
+
+  &:hover {
+    color: var(--bs-danger);
+    opacity: 1;
+  }
+}
+
+.date-list-empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-sm);
+}

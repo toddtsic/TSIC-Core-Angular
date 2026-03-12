@@ -274,8 +274,8 @@ public record AutoBuildRequest
     /// First entry gets best slots. Wave groups agegroups into time blocks.</summary>
     public required List<AgegroupBuildEntry> AgegroupOrder { get; init; }
 
-    /// <summary>"alpha" | "odd-first" | "custom"</summary>
-    public required string DivisionOrderStrategy { get; init; }
+    /// <summary>DEPRECATED — now read from EventScheduleDefaults cascade. Retained for API compatibility.</summary>
+    public string? DivisionOrderStrategy { get; init; }
 
     /// <summary>Division IDs to exclude from scheduling.</summary>
     public required List<Guid> ExcludedDivisionIds { get; init; }

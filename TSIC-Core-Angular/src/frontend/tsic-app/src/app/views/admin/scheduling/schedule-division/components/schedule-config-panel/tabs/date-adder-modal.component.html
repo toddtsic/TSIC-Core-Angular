@@ -1,0 +1,102 @@
+<tsic-dialog [open]="true" size="sm" (requestClose)="cancelled.emit()">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title">
+        <i class="bi bi-calendar-plus me-1"></i> Add Game Dates
+      </h5>
+      <button type="button" class="btn-close" (click)="cancelled.emit()"></button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Manual date picker -->
+      <div class="manual-entry">
+        <label class="form-label form-label-sm fw-semibold mb-1">New Date</label>
+        <div class="manual-row">
+          <input type="date" class="form-control form-control-sm"
+                 [(ngModel)]="newDate"
+                 (keydown.enter)="addManualDate()">
+          <button class="btn btn-sm btn-primary"
+                  [disabled]="!newDate"
+                  (click)="addManualDate()">
+            <i class="bi bi-plus-lg"></i> Add
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick-add buttons -->
+      <div class="quick-add-section">
+        <label class="form-label form-label-sm fw-semibold mb-1">Quick Add from Selected</label>
+        <div class="quick-add-buttons">
+          <button class="btn btn-sm btn-outline-primary"
+                  [disabled]="!selectedDate()"
+                  (click)="addRelative(1)"
+                  title="Add next day">
+            +1 Day
+          </button>
+          <button class="btn btn-sm btn-outline-primary"
+                  [disabled]="!selectedDate()"
+                  (click)="addRelative(7)"
+                  title="Add same day next week">
+            +7 Days
+          </button>
+        </div>
+        @if (!selectedDate()) {
+          <small class="text-secondary">Select a date below to enable quick-add.</small>
+        } @else {
+          <small class="text-secondary">
+            Selected: <strong>{{ selectedDate() }}</strong> — click a button to add relative to it.
+          </small>
+        }
+      </div>
+
+      <!-- Date list -->
+      <div class="date-list-section">
+        <label class="form-label form-label-sm fw-semibold mb-1">
+          All Dates
+          @if (pendingCount() > 0) {
+            <span class="pending-count">{{ pendingCount() }} new</span>
+          }
+        </label>
+        <div class="date-list">
+          @for (entry of allDates(); track entry.isoDate) {
+            <div class="date-list-item"
+                 [class.selected]="selectedDate() === entry.isoDate"
+                 [class.pending]="isPending(entry.isoDate)"
+                 (click)="selectDate(entry.isoDate)">
+              <span class="date-list-label">
+                @if (isPending(entry.isoDate)) {
+                  <i class="bi bi-plus-circle-fill new-icon"></i>
+                }
+                {{ entry.label }}
+              </span>
+              @if (isPending(entry.isoDate)) {
+                <button class="date-list-remove"
+                        title="Remove"
+                        (click)="removePending(entry.isoDate); $event.stopPropagation()">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              }
+            </div>
+          }
+          @if (allDates().length === 0) {
+            <div class="date-list-empty">
+              No dates yet. Add one above to get started.
+            </div>
+          }
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline-secondary" (click)="cancelled.emit()">Cancel</button>
+      <button class="btn btn-sm btn-primary"
+              [disabled]="pendingCount() === 0"
+              (click)="onDone()">
+        <i class="bi bi-check2 me-1"></i>
+        Add {{ pendingCount() }} Date{{ pendingCount() !== 1 ? 's' : '' }}
+      </button>
+    </div>
+  </div>
+</tsic-dialog>

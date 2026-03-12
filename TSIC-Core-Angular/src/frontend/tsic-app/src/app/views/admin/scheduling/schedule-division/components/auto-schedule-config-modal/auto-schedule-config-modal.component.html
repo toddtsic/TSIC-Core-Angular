@@ -5,9 +5,8 @@
             <button type="button" class="btn-close" (click)="cancelled.emit()"></button>
         </div>
         <div class="modal-body">
-            <!-- Existing Game Mode Toggle (only shown when games exist in scope) -->
             @if (hasGamesInScope()) {
-                <div class="mb-3 mode-toggle-section">
+                <div class="mode-toggle-section">
                     <label class="form-label form-label-sm fw-semibold mb-1">Existing Games</label>
                     <div class="mode-toggle">
                         <button class="mode-btn"
@@ -33,132 +32,17 @@
                         </small>
                     }
                 </div>
-            }
-
-            <!-- Strategy Grid -->
-            @if (strategyLoading()) {
-                <div class="text-center py-3">
-                    <span class="spinner-border spinner-border-sm text-primary"></span>
-                    <small class="d-block text-secondary mt-1">Loading preferences...</small>
-                </div>
-            } @else if (displayStrategies().length > 0) {
-                <div class="mb-3">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <label class="form-label form-label-sm fw-semibold mb-0">Division Strategy</label>
-                        <span class="badge"
-                              [class.bg-primary-subtle]="strategySource() !== 'saved-cleaned'"
-                              [class.text-primary]="strategySource() !== 'saved-cleaned'"
-                              [class.bg-warning-subtle]="strategySource() === 'saved-cleaned'"
-                              [class.text-warning-emphasis]="strategySource() === 'saved-cleaned'"
-                              style="font-size: var(--font-size-xs)">{{ strategySourceLabel() }}</span>
-                    </div>
-                    <small class="d-block text-secondary mb-2">Click to change placement or gap pattern per division.</small>
-                    <div class="modal-strategy-grid">
-                        <div class="msg-row msg-header">
-                            <span class="msg-name">Division</span>
-                            <span class="msg-placement">Placement</span>
-                            <span class="msg-gap">Gap</span>
-                        </div>
-                        @for (entry of displayStrategies(); track entry.divisionName) {
-                            @if (keptDivisionNames().has(entry.divisionName)) {
-                                <div class="msg-row msg-row-kept">
-                                    <span class="msg-name">{{ entry.divisionName }}</span>
-                                    <span class="msg-kept-badge">
-                                        <i class="bi bi-lock-fill"></i> Keeping existing games
-                                    </span>
-                                </div>
-                            } @else {
-                                <div class="msg-row">
-                                    <span class="msg-name">{{ entry.divisionName }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                            (click)="togglePlacement(entry.divisionName)">
-                                        {{ placementLabel(entry.placement) }}
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary msg-btn"
-                                            (click)="cycleGapPattern(entry.divisionName)">
-                                        {{ gapLabel(entry.gapPattern) }}
-                                    </button>
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-            }
-
-            <!-- Agegroup order (event scope only) -->
-            @if (scope().level === 'event') {
-                <div class="mb-3">
-                    <label class="form-label form-label-sm fw-semibold">Which agegroups should I schedule, and in what order?</label>
-                    <small class="d-block text-secondary mb-2">I'll process these top-to-bottom. Uncheck any you want to skip.</small>
-                    <div class="constraint-list">
-                        @for (ag of localAgegroups(); track ag.agegroupId; let i = $index) {
-                            <div class="constraint-row">
-                                <span class="constraint-rank">{{ i + 1 }}</span>
-                                <input class="form-check-input me-1" type="checkbox"
-                                       [checked]="ag.included"
-                                       (change)="toggleAgegroup(i)">
-                                <span class="constraint-name">
-                                    <span class="ag-badge"
-                                          [style.background]="ag.color ?? 'var(--bs-secondary)'"
-                                          [style.color]="contrastText(ag.color)">
-                                        {{ ag.agegroupName }}
-                                    </span>
-                                </span>
-                                <span class="ag-count-badges">
-                                    <span class="ag-count-badge">{{ ag.teamCount }}t</span>
-                                    <span class="ag-count-badge">{{ ag.divisionCount }}d</span>
-                                </span>
-                                <select class="form-select form-select-sm constraint-wave"
-                                        [ngModel]="ag.wave"
-                                        (ngModelChange)="setWave(ag.agegroupId, +$event)">
-                                    <option [ngValue]="1">Wave 1</option>
-                                    <option [ngValue]="2">Wave 2</option>
-                                    <option [ngValue]="3">Wave 3</option>
-                                </select>
-                                <div class="constraint-arrows">
-                                    <button class="btn-arrow" [disabled]="i === 0" (click)="moveAgegroupUp(i)">
-                                        <i class="bi bi-chevron-up"></i>
-                                    </button>
-                                    <button class="btn-arrow"
-                                            [disabled]="i === localAgegroups().length - 1"
-                                            (click)="moveAgegroupDown(i)">
-                                        <i class="bi bi-chevron-down"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
-
-            <!-- Division sort strategy (agegroup + event scope) -->
-            @if (scope().level !== 'division') {
-                <div class="mb-0">
-                    <label class="form-label form-label-sm fw-semibold">Within each agegroup, in what order should I schedule their divisions?</label>
-                    <small class="d-block text-secondary mb-2">Divisions are scheduled one at a time. The order can affect how cleanly games fit into the remaining timeslots.</small>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="divOrder" id="divOrderAlpha"
-                               [checked]="localConfig().divisionOrderStrategy === 'alpha'"
-                               (change)="setDivisionOrderStrategy('alpha')">
-                        <label class="form-check-label" for="divOrderAlpha">Alphabetical</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="radio" name="divOrder" id="divOrderOdd"
-                               [checked]="localConfig().divisionOrderStrategy === 'odd-first'"
-                               (change)="setDivisionOrderStrategy('odd-first')">
-                        <label class="form-check-label" for="divOrderOdd">
-                            Odd-sized divisions first, then alphabetically
-                            <small class="text-secondary d-block">(odd divisions need more vertical room)</small>
-                        </label>
-                    </div>
-                </div>
+            } @else {
+                <p class="text-secondary mb-0">
+                    Build the schedule for <span class="scope-name">{{ scopeLabel() }}</span> using the current configuration.
+                </p>
             }
         </div>
         <div class="modal-footer">
             <button class="btn btn-sm btn-outline-secondary" (click)="cancelled.emit()">Cancel</button>
             <button class="btn btn-sm btn-primary" (click)="onBuild()">
                 <i class="bi bi-lightning-fill me-1"></i>
-                {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span> Schedule
+                {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Schedule
             </button>
         </div>
     </div>

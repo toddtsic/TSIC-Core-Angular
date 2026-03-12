@@ -127,10 +127,10 @@
                 }
             </div>
         }
-        <a routerLink="../qa-results" class="qa-details-link">
+        <button class="qa-details-link btn btn-link p-0" (click)="reviewRequested.emit()">
             <i class="bi bi-clipboard-check"></i>
             View full details
-        </a>
+        </button>
     } @else {
         <div class="qa-verdict qa-verdict-warn">
             <i class="bi bi-info-circle-fill"></i>
@@ -282,21 +282,8 @@
         <i class="bi bi-calendar3"></i>
         View Schedule
     </button>
-    <a routerLink="../qa-results" class="btn btn-outline-secondary btn-lg">
+    <button class="btn btn-outline-secondary btn-lg" (click)="reviewRequested.emit()">
         <i class="bi bi-clipboard-check"></i>
         Review Details
-    </a>
-    <button class="btn btn-outline-secondary btn-lg" (click)="runAgainRequested.emit()">
-        <i class="bi bi-arrow-repeat"></i>
-        Run Again
-    </button>
-</div>
-
-<!-- Danger Zone -->
-<div class="results-danger-zone">
-    <button class="btn btn-outline-danger"
-            (click)="undoRequested.emit()">
-        <i class="bi bi-arrow-counterclockwise"></i>
-        Undo All Games
     </button>
 </div>

@@ -427,3 +427,36 @@ public record SaveFieldAssignmentsResponse
     public required int RowsCreated { get; init; }
     public required int RowsDeleted { get; init; }
 }
+
+// ── Cascade Date Operations ──
+
+/// <summary>Change a game date for ALL agegroups in the league-season-year,
+/// cascading to wave assignments and scheduled games.</summary>
+public record CascadeDateChangeRequest
+{
+    public required DateTime OldDate { get; init; }
+    public required DateTime NewDate { get; init; }
+}
+
+public record CascadeDateChangeResponse
+{
+    public required int DateRowsUpdated { get; init; }
+    public required int WavesMigrated { get; init; }
+    public required int GamesUpdated { get; init; }
+    public required int FieldTimeslotsCreated { get; init; }
+    public required bool DowChanged { get; init; }
+}
+
+/// <summary>Delete a game date for ALL agegroups in the league-season-year,
+/// cascading to wave assignments and scheduled games.</summary>
+public record CascadeDateDeleteRequest
+{
+    public required DateTime Date { get; init; }
+}
+
+public record CascadeDateDeleteResponse
+{
+    public required int DateRowsDeleted { get; init; }
+    public required int WavesDeleted { get; init; }
+    public required int GamesDeleted { get; init; }
+}

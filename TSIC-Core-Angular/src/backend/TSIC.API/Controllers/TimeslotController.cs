@@ -256,6 +256,37 @@ public class TimeslotController : ControllerBase
         return NoContent();
     }
 
+    // ── Cascade date operations ──
+
+    [HttpPut("date/cascade")]
+    public async Task<ActionResult<CascadeDateChangeResponse>> CascadeEditDate(
+        [FromBody] CascadeDateChangeRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _timeslotService.CascadeEditDateAsync(jobId!.Value, userId!, request, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("date/cascade-delete")]
+    public async Task<ActionResult<CascadeDateDeleteResponse>> CascadeDeleteDate(
+        [FromBody] CascadeDateDeleteRequest request, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _timeslotService.CascadeDeleteDateAsync(jobId!.Value, request, ct);
+        return Ok(result);
+    }
+
     // ── Field config update ──
 
     [HttpPut("field-config")]

@@ -3,9 +3,11 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
+import { DateAdderModalComponent } from './date-adder-modal.component';
 import type { AgegroupCanvasReadinessDto, BulkDateAgegroupEntry } from '@core/api';
 
 interface DateColumn {
@@ -23,7 +25,7 @@ interface AgRow {
 @Component({
   selector: 'app-dates-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DateAdderModalComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dates-tab.component.html',
   styleUrl: './dates-tab.component.scss',
@@ -48,11 +50,14 @@ export class DatesTabComponent implements OnInit {
   /** Manually added dates not yet in readiness */
   readonly addedDates = signal<string[]>([]);
 
-  /** Whether the inline Add Date picker is visible */
-  readonly showAddDate = signal(false);
+  /** Whether the date adder modal is open */
+  readonly showDateAdder = signal(false);
 
-  /** Date picker value */
-  newDate = '';
+  /** Which date column is being edited (null = none) */
+  readonly editingDate = signal<string | null>(null);
+
+  /** New date value during inline edit */
+  editNewDate = '';
 
   // ── Derived ──
 
@@ -254,20 +259,18 @@ export class DatesTabComponent implements OnInit {
     return 'some';
   }
 
-  addDate(): void {
-    if (!this.newDate) return;
-    const iso = this.newDate;
+  /** Existing date ISO strings for the modal's duplicate prevention. */
+  readonly existingDateIsos = computed(() =>
+    this.dateColumns().map(d => d.isoDate)
+  );
 
-    // Check if already exists
-    if (this.dateColumns().some(d => d.isoDate === iso)) {
-      this.toast.show('Date already exists', 'warning');
-      this.newDate = '';
+  onDatesAdded(newDates: string[]): void {
+    if (newDates.length === 0) {
+      this.showDateAdder.set(false);
       return;
     }
-
-    this.addedDates.set([...this.addedDates(), iso]);
-    this.newDate = '';
-    this.showAddDate.set(false);
+    this.addedDates.set([...this.addedDates(), ...newDates]);
+    this.showDateAdder.set(false);
   }
 
   removeNewDate(isoDate: string): void {
@@ -284,27 +287,96 @@ export class DatesTabComponent implements OnInit {
     this.localAssignments.set(updated);
   }
 
-  // TODO: Open date picker pre-populated with current date.
-  // On change: update GDate on TimeslotsLeagueSeasonDates rows,
-  // migrate wave assignments (AgegroupWaveAssignment/DivisionWaveAssignment) from old GameDate to new,
-  // and if DOW changes, ensure field timeslots exist for the new DOW.
   editDate(isoDate: string): void {
-    this.toast.show('Edit date — not yet implemented', 'info');
+    this.editingDate.set(isoDate);
+    this.editNewDate = isoDate;
   }
 
-  // TODO: TsicConfirm guard → "Remove {dow} {date}? All agegroup assignments for this date will be cleared."
-  // On confirm: delete TimeslotsLeagueSeasonDates rows for this date,
-  // clean up wave assignments keyed by this GameDate,
-  // then reload.
+  confirmEditDate(): void {
+    const oldDate = this.editingDate();
+    if (!oldDate || !this.editNewDate) return;
+
+    // No-op if same date
+    if (this.editNewDate === oldDate) {
+      this.editingDate.set(null);
+      return;
+    }
+
+    // Client-side duplicate check
+    if (this.dateColumns().some(d => d.isoDate === this.editNewDate)) {
+      this.toast.show('Date already exists', 'warning');
+      return;
+    }
+
+    this.isSaving.set(true);
+    this.timeslotSvc.cascadeEditDate({
+      oldDate: oldDate,
+      newDate: this.editNewDate,
+    }).subscribe({
+      next: (result) => {
+        this.isSaving.set(false);
+        this.editingDate.set(null);
+        const parts: string[] = [];
+        if (result.dateRowsUpdated) parts.push(`${result.dateRowsUpdated} date rows`);
+        if (result.wavesMigrated) parts.push(`${result.wavesMigrated} waves`);
+        if (result.gamesUpdated) parts.push(`${result.gamesUpdated} games`);
+        if (result.fieldTimeslotsCreated) parts.push(`${result.fieldTimeslotsCreated} field timeslots created`);
+        this.toast.show(
+          parts.length > 0
+            ? `Date changed — ${parts.join(', ')} updated`
+            : 'Date changed',
+          'success'
+        );
+        this.reload();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isSaving.set(false);
+        if (err.status === 409) {
+          this.toast.show(err.error?.message ?? 'Date already exists', 'warning');
+        } else {
+          this.toast.show('Failed to change date', 'danger');
+        }
+      },
+    });
+  }
+
+  cancelEditDate(): void {
+    this.editingDate.set(null);
+  }
+
   deleteDate(isoDate: string): void {
-    this.toast.show('Delete date — not yet implemented', 'info');
+    const dow = this.getDowForDate(isoDate);
+    const label = this.formatDateLabel(isoDate, dow);
+    if (!confirm(`Remove ${label}?\n\nAll agegroup assignments, wave configurations, and scheduled games for this date will be permanently deleted.`)) {
+      return;
+    }
+
+    this.isSaving.set(true);
+    this.timeslotSvc.cascadeDeleteDate({ date: isoDate }).subscribe({
+      next: (result) => {
+        this.isSaving.set(false);
+        const parts: string[] = [];
+        if (result.dateRowsDeleted) parts.push(`${result.dateRowsDeleted} date rows`);
+        if (result.gamesDeleted) parts.push(`${result.gamesDeleted} games`);
+        this.toast.show(
+          parts.length > 0
+            ? `Date removed — ${parts.join(', ')} deleted`
+            : 'Date removed',
+          'success'
+        );
+        this.reload();
+      },
+      error: () => {
+        this.isSaving.set(false);
+        this.toast.show('Failed to remove date', 'danger');
+      },
+    });
   }
 
   discard(): void {
     this.localAssignments.set(this.cloneAssignments(this.baselineAssignments()));
     this.addedDates.set([]);
-    this.newDate = '';
-    this.showAddDate.set(false);
+    this.showDateAdder.set(false);
   }
 
   // ── Save ──

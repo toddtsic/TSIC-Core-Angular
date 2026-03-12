@@ -79,61 +79,27 @@
         <button type="button" class="btn-close" (click)="onResetCancelled()"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-3 text-secondary">Checked items will be permanently deleted.</p>
-        <div class="reset-checklist">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="resetGames"
-                   [checked]="resetGames()"
-                   (change)="resetGames.set($any($event.target).checked)">
-            <label class="form-check-label" for="resetGames">
-              <strong>Scheduled games</strong> — remove all games from the grid
-            </label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="resetStrategy"
-                   [checked]="resetStrategyProfiles()"
-                   (change)="resetStrategyProfiles.set($any($event.target).checked)">
-            <label class="form-check-label" for="resetStrategy">
-              <strong>Scheduling preferences</strong> — Horizontal/Vertical, gap patterns per division
-            </label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="resetPairings"
-                   [checked]="resetPairings()"
-                   (change)="resetPairings.set($any($event.target).checked)">
-            <label class="form-check-label" for="resetPairings">
-              <strong>Matchup tables</strong> — round-robin pairings (who plays who each round)
-            </label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="resetDates"
-                   [checked]="resetDates()"
-                   (change)="resetDates.set($any($event.target).checked)">
-            <label class="form-check-label" for="resetDates">
-              <strong>Game dates</strong> — which days each agegroup plays and round assignments
-            </label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="resetFieldTimeslots"
-                   [checked]="resetFieldTimeslots()"
-                   (change)="resetFieldTimeslots.set($any($event.target).checked)">
-            <label class="form-check-label" for="resetFieldTimeslots">
-              <strong>Field setup</strong> — which fields each agegroup uses, start times, game length, capacity
-            </label>
-          </div>
+        <p class="mb-2 fw-semibold">Delete all scheduled games?</p>
+        <p class="text-danger mb-3">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          This action cannot be undone. All games will be permanently removed.
+        </p>
+
+        <div class="alert alert-light border mb-0">
+          <i class="bi bi-lightbulb me-1"></i>
+          <strong>Tip:</strong> To change placement, rest, guarantee, or waves,
+          use the <strong>Build Rules</strong> tab. To update dates or fields,
+          use the <strong>Dates</strong> and <strong>Fields</strong> tabs directly.
+          No reset needed.
         </div>
       </div>
       <div class="modal-footer">
-        <div class="d-flex gap-2 align-items-center w-100">
-          <input type="text" class="form-control form-control-sm" style="max-width: 160px"
-                 placeholder="Type confirm"
-                 [ngModel]="resetConfirmText()"
-                 (ngModelChange)="resetConfirmText.set($event)">
-          <button class="btn btn-sm btn-warning"
-                  [disabled]="resetConfirmText().toLowerCase() !== 'confirm' || !anyResetChecked()"
-                  (click)="onResetConfirmed()">Reset</button>
-          <button class="btn btn-sm btn-outline-secondary" (click)="onResetCancelled()">Cancel</button>
-        </div>
+        <button class="btn btn-sm btn-outline-secondary"
+                (click)="onResetCancelled()">Cancel</button>
+        <button class="btn btn-sm btn-danger"
+                (click)="onResetConfirmed()">
+          <i class="bi bi-trash me-1"></i>Delete All Games
+        </button>
       </div>
     </div>
   </tsic-dialog>

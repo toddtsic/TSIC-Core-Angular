@@ -18,37 +18,40 @@
     <!-- Date badges + Add -->
     <div class="date-badge-strip">
       @for (col of dateColumns(); track col.isoDate) {
-        <span class="date-badge">
-          <span class="date-badge-text" (click)="editDate(col.isoDate)"
-                title="Click to change date">{{ col.isoDate | date:'EEE M/d/yyyy' }}</span>
-          <button class="date-badge-remove" (click)="deleteDate(col.isoDate)"
-                  title="Remove this date">
-            <i class="bi bi-x"></i>
-          </button>
-        </span>
+        @if (editingDate() === col.isoDate) {
+          <span class="date-badge editing">
+            <input type="date" class="form-control form-control-sm date-input"
+                   [(ngModel)]="editNewDate"
+                   (keydown.enter)="confirmEditDate()"
+                   (keydown.escape)="cancelEditDate()">
+            <button class="btn btn-sm btn-outline-primary"
+                    [disabled]="!editNewDate || isSaving()"
+                    (click)="confirmEditDate()"
+                    title="Confirm date change">
+              <i class="bi bi-check-lg"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary"
+                    (click)="cancelEditDate()"
+                    title="Cancel">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </span>
+        } @else {
+          <span class="date-badge">
+            <span class="date-badge-text" (click)="editDate(col.isoDate)"
+                  title="Click to change date">{{ col.isoDate | date:'EEE M/d/yyyy' }}</span>
+            <button class="date-badge-remove" (click)="deleteDate(col.isoDate)"
+                    title="Remove this date"
+                    [disabled]="isSaving()">
+              <i class="bi bi-x"></i>
+            </button>
+          </span>
+        }
       }
-      @if (!showAddDate()) {
-        <button class="btn btn-sm btn-outline-primary add-date-btn"
-                (click)="showAddDate.set(true)">
-          <i class="bi bi-plus-lg"></i> Add Date
-        </button>
-      } @else {
-        <div class="add-date-inline">
-          <input type="date" class="form-control form-control-sm date-input"
-                 [(ngModel)]="newDate"
-                 (keydown.enter)="addDate()"
-                 (keydown.escape)="showAddDate.set(false)">
-          <button class="btn btn-sm btn-outline-primary"
-                  [disabled]="!newDate"
-                  (click)="addDate()">
-            <i class="bi bi-check-lg"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-secondary"
-                  (click)="showAddDate.set(false); newDate = ''">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-      }
+      <button class="btn btn-sm btn-outline-primary add-date-btn"
+              (click)="showDateAdder.set(true)">
+        <i class="bi bi-plus-lg"></i> Add Dates
+      </button>
     </div>
 
     <!-- Summary -->
@@ -148,5 +151,13 @@
         </button>
       </div>
     }
+  }
+
+  @if (showDateAdder()) {
+    <app-date-adder-modal
+      [existingDates]="existingDateIsos()"
+      (datesAdded)="onDatesAdded($event)"
+      (cancelled)="showDateAdder.set(false)">
+    </app-date-adder-modal>
   }
 </div>

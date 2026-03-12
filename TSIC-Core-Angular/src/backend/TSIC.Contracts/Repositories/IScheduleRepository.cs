@@ -88,6 +88,23 @@ public interface IScheduleRepository
     /// </summary>
     Task DeleteDivisionGamesAsync(Guid divId, Guid leagueId, string season, string year, CancellationToken ct = default);
 
+    // ── Cascade date operations ──
+
+    /// <summary>
+    /// Update GDate on all Schedule rows for a job where GDate falls on oldDate.
+    /// Preserves time component, only changes the date portion.
+    /// Returns count of updated rows.
+    /// </summary>
+    Task<int> UpdateGameDatesAsync(
+        Guid jobId, DateTime oldDate, DateTime newDate, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete all Schedule rows (with DeviceGids/BracketSeeds cascade) for a job
+    /// where GDate falls on a specific date. Returns count of deleted games.
+    /// </summary>
+    Task<int> DeleteGamesByDateAsync(
+        Guid jobId, DateTime date, CancellationToken ct = default);
+
     /// <summary>Persist pending changes.</summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 

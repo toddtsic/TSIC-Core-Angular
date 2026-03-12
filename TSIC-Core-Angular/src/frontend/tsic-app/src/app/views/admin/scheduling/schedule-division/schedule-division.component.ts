@@ -39,6 +39,7 @@ import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.componen
 import { PoolAssignmentComponent } from '../../pool-assignment/pool-assignment.component';
 import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
 import { QaResultsComponent } from '../qa-results/qa-results.component';
+import { ReschedulerComponent } from '../rescheduler/rescheduler.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
@@ -49,7 +50,7 @@ import type { CanvasReadinessResponse } from '@core/api';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, MasterScheduleComponent, QaResultsComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, MasterScheduleComponent, QaResultsComponent, ReschedulerComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,7 +79,7 @@ export class ScheduleDivisionComponent implements OnInit {
     @ViewChild(DivisionNavigatorComponent) navigator?: DivisionNavigatorComponent;
 
     // ── Hub mode ──
-    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa'>('schedule');
+    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('schedule');
     readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | null>(null);
     readonly showToolsSection = signal(true);
 
@@ -547,7 +548,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Hub mode switching ──
 
-    setMode(mode: 'configure' | 'schedule' | 'master' | 'qa'): void {
+    setMode(mode: 'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'): void {
         this.activeTool.set(null);
         this.mode.set(mode);
 

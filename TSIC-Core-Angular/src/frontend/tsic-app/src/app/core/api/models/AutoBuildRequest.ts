@@ -6,7 +6,7 @@ import type { AgegroupBuildEntry } from './AgegroupBuildEntry';
 export type AutoBuildRequest = {
     sourceJobId?: string | null;
     agegroupOrder: Array<AgegroupBuildEntry>;
-    divisionOrderStrategy: string;
+    divisionOrderStrategy?: string | null;
     excludedDivisionIds: Array<string>;
     divisionStrategies?: any[] | null;
     saveProfiles?: boolean;

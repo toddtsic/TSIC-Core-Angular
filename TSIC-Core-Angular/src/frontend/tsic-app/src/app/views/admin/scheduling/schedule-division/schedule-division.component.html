@@ -1,10 +1,10 @@
 <div class="hub-container">
 
     <!-- ── Hub Layout: Sidebar + Main ── -->
-    <div class="hub-layout">
+    <div class="hub-layout" [class.hub-layout--full]="mode() === 'reschedule'">
 
-        <!-- ══════════ SIDEBAR ══════════ -->
-        <div class="hub-sidebar">
+        <!-- ══════════ SIDEBAR (hidden in reschedule mode — rescheduler has its own filter panel) ══════════ -->
+        <div class="hub-sidebar" [class.d-none]="mode() === 'reschedule'">
 
             <!-- Navigator Tree -->
             <div class="sidebar-nav">
@@ -91,6 +91,10 @@
                     <button class="mode-seg" [class.active]="!activeTool() && mode() === 'qa'"
                             (click)="setMode('qa')" role="tab">
                         <i class="bi bi-clipboard-check"></i><span>QA</span>
+                    </button>
+                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'reschedule'"
+                            (click)="setMode('reschedule')" role="tab">
+                        <i class="bi bi-arrow-repeat"></i><span>Reschedule</span>
                     </button>
                 </div>
 
@@ -447,6 +451,11 @@
                         <!-- ══════════ QA MODE ══════════ -->
                         @case ('qa') {
                             <app-qa-results />
+                        }
+
+                        <!-- ══════════ RESCHEDULE MODE ══════════ -->
+                        @case ('reschedule') {
+                            <app-rescheduler />
                         }
                     }
                 }

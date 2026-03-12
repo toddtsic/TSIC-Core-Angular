@@ -370,8 +370,28 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // Division-level ordering from request (divisionId → sort index)
         var divOrderIndex = new Dictionary<Guid, int>();
 
+        // If a persisted processing order exists (source-derived or manually set),
+        // use it to sort divisions — preserves prior year placement order.
+        // Otherwise fall back to alphabetical within each agegroup.
+        var divisionOrderStrategy = persistedOrder.Count > 0
+            ? "custom"
+            : "alpha";
+
+        // Build a sort-index map so BuildProcessingOrder can respect persisted order
+        if (persistedOrder.Count > 0)
+        {
+            foreach (var entry in persistedOrder)
+                divOrderIndex[entry.DivisionId] = entry.SortOrder;
+
+            // Pre-sort activeDivisions by persisted order so "custom" branch preserves it
+            activeDivisions = activeDivisions
+                .OrderBy(d => divOrderIndex.TryGetValue(d.DivId, out var idx) ? idx : int.MaxValue)
+                .ThenBy(d => d.DivName)
+                .ToList();
+        }
+
         var orderedDivisions = BuildProcessingOrder(
-            activeDivisions, request.AgegroupOrder, request.DivisionOrderStrategy, excludedIds);
+            activeDivisions, request.AgegroupOrder, divisionOrderStrategy, excludedIds);
 
         // ── 5. Pre-compute per-division context (DB calls can't interleave) ──
         var divisionResults = new List<AutoBuildDivisionResult>();

@@ -1,40 +1,22 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
-import type { DivisionStrategyEntry } from '@core/api';
-import { contrastText } from '../../../shared/utils/scheduling-helpers';
 import type { ScheduleScope } from '../../../shared/utils/scheduling-helpers';
 
-/** Auto-schedule configuration persisted in localStorage. */
+/** Build-time config emitted when the user confirms. */
 export interface AutoScheduleConfig {
-    divisionOrderStrategy: 'alpha' | 'odd-first';
     existingGameMode: 'rebuild' | 'keep';
-}
-
-/** Modal-local agegroup entry for reordering/excluding at event scope. */
-export interface ModalAgegroup {
-    agegroupId: string;
-    agegroupName: string;
-    color: string | null;
-    teamCount: number;
-    divisionCount: number;
-    included: boolean;
-    /** Time block for this agegroup. 1 = morning (first), 2 = afternoon, 3 = evening. */
-    wave: number;
 }
 
 /** Emitted when the user clicks "Build Schedule". */
 export interface AutoScheduleBuildEvent {
-    strategies: DivisionStrategyEntry[];
-    agegroups: ModalAgegroup[];
     config: AutoScheduleConfig;
 }
 
 @Component({
     selector: 'app-auto-schedule-config-modal',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent],
+    imports: [CommonModule, TsicDialogComponent],
     templateUrl: './auto-schedule-config-modal.component.html',
     styleUrl: './auto-schedule-config-modal.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -43,149 +25,22 @@ export class AutoScheduleConfigModalComponent {
     // ── Inputs ──
     readonly scope = input.required<ScheduleScope>();
     readonly scopeLabel = input('');
-    readonly strategies = input<DivisionStrategyEntry[]>([]);
-    readonly strategySource = input('defaults');
-    readonly strategySourceName = input('');
-    readonly strategyLoading = input(false);
-    readonly agegroups = input<ModalAgegroup[]>([]);
-    readonly config = input<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha', existingGameMode: 'rebuild' });
-    /** Division names relevant to the current scope (empty = show all). */
-    readonly scopeDivisionNames = input<string[]>([]);
     /** Whether games already exist in the current scope (controls mode toggle visibility). */
     readonly hasGamesInScope = input(false);
-    /** Per-division-name game counts — used to mark kept divisions in "keep" mode. */
-    readonly divisionGameCounts = input<Record<string, number>>({});
 
     // ── Outputs ──
     readonly buildRequested = output<AutoScheduleBuildEvent>();
     readonly cancelled = output<void>();
 
-    // ── Helpers ──
-    readonly contrastText = contrastText;
-
-    // ── Local mutable copies (initialized from inputs via ngOnInit or setter) ──
-    readonly localStrategies = signal<DivisionStrategyEntry[]>([]);
-    readonly localAgegroups = signal<ModalAgegroup[]>([]);
-    readonly localConfig = signal<AutoScheduleConfig>({ divisionOrderStrategy: 'alpha', existingGameMode: 'rebuild' });
-
-    /** Strategies filtered to current scope for display only. Full list is still emitted on build. */
-    readonly displayStrategies = computed(() => {
-        const all = this.localStrategies();
-        const names = this.scopeDivisionNames();
-        if (names.length === 0) return all;
-        const nameSet = new Set(names);
-        return all.filter(s => nameSet.has(s.divisionName));
-    });
-
-    /** In "keep" mode, division names that have existing games and will be kept in place. */
-    readonly keptDivisionNames = computed(() => {
-        if (this.localConfig().existingGameMode !== 'keep') return new Set<string>();
-        const counts = this.divisionGameCounts();
-        return new Set(Object.entries(counts).filter(([_, c]) => c > 0).map(([n]) => n));
-    });
-
-    private initialized = false;
-
-    ngOnChanges(): void {
-        // Sync local state from inputs on first load
-        if (!this.initialized) {
-            this.localStrategies.set(this.strategies().map(s => ({ ...s })));
-            this.localAgegroups.set(this.agegroups().map(a => ({ ...a })));
-            this.localConfig.set({ ...this.config() });
-            this.initialized = true;
-        }
-        // Keep strategies in sync when loading completes
-        if (this.strategies().length > 0 && this.localStrategies().length === 0) {
-            this.localStrategies.set(this.strategies().map(s => ({ ...s })));
-        }
-    }
-
-    // ── Strategy manipulation ──
-
-    togglePlacement(divisionName: string): void {
-        this.localStrategies.update(list =>
-            list.map(s => s.divisionName === divisionName
-                ? { ...s, placement: s.placement === 0 ? 1 : 0 } : s)
-        );
-    }
-
-    cycleGapPattern(divisionName: string): void {
-        this.localStrategies.update(list =>
-            list.map(s => s.divisionName === divisionName
-                ? { ...s, gapPattern: (s.gapPattern + 1) % 3 } : s)
-        );
-    }
-
-    setWave(agegroupId: string, wave: number): void {
-        this.localAgegroups.update(list =>
-            list.map(ag => ag.agegroupId === agegroupId ? { ...ag, wave } : ag)
-        );
-    }
-
-    placementLabel(placement: number): string {
-        return placement === 1 ? 'Vertical' : 'Horizontal';
-    }
-
-    gapLabel(gapPattern: number): string {
-        switch (gapPattern) {
-            case 0: return 'Back-to-back';
-            case 1: return 'One on, one off';
-            case 2: return 'One on, two off';
-            default: return 'Unknown';
-        }
-    }
-
-    strategySourceLabel(): string {
-        switch (this.strategySource()) {
-            case 'saved': return 'Saved';
-            case 'saved-cleaned': return 'Saved — updated after division rename';
-            case 'inferred': return `Based on ${this.strategySourceName() || 'prior year'}`;
-            default: return 'Defaults';
-        }
-    }
-
-    // ── Division order strategy ──
-
-    setDivisionOrderStrategy(strategy: 'alpha' | 'odd-first'): void {
-        this.localConfig.update(c => ({ ...c, divisionOrderStrategy: strategy }));
-    }
+    // ── Local state ──
+    readonly localConfig = signal<AutoScheduleConfig>({ existingGameMode: 'rebuild' });
 
     setExistingGameMode(mode: 'rebuild' | 'keep'): void {
         this.localConfig.update(c => ({ ...c, existingGameMode: mode }));
     }
 
-    // ── Agegroup ordering ──
-
-    toggleAgegroup(index: number): void {
-        this.localAgegroups.update(list => list.map((ag, i) =>
-            i === index ? { ...ag, included: !ag.included } : ag
-        ));
-    }
-
-    moveAgegroupUp(index: number): void {
-        if (index <= 0) return;
-        this.localAgegroups.update(list => {
-            const updated = [...list];
-            [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-            return updated;
-        });
-    }
-
-    moveAgegroupDown(index: number): void {
-        this.localAgegroups.update(list => {
-            if (index >= list.length - 1) return list;
-            const updated = [...list];
-            [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-            return updated;
-        });
-    }
-
-    // ── Build ──
-
     onBuild(): void {
         this.buildRequested.emit({
-            strategies: this.localStrategies(),
-            agegroups: this.localAgegroups(),
             config: this.localConfig(),
         });
     }

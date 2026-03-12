@@ -368,6 +368,222 @@ public sealed class TimeslotService : ITimeslotService
         await _tsRepo.SaveChangesAsync(ct);
     }
 
+    // ── Cascade date operations ──
+
+    public async Task<CascadeDateChangeResponse> CascadeEditDateAsync(
+        Guid jobId, string userId, CascadeDateChangeRequest request, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // ① Duplicate check
+        if (await _tsRepo.DateExistsAsync(leagueId, request.NewDate, season, year, ct))
+            throw new InvalidOperationException(
+                $"A game date already exists for {request.NewDate:yyyy-MM-dd}.");
+
+        // ② Update TimeslotsLeagueSeasonDates rows (tracked)
+        var dateRows = await _tsRepo.GetDatesByDateTrackedAsync(
+            leagueId, request.OldDate, season, year, ct);
+
+        var now = DateTime.UtcNow;
+        foreach (var row in dateRows)
+        {
+            row.GDate = request.NewDate;
+            row.LebUserId = userId;
+            row.Modified = now;
+        }
+
+        // ③ Migrate agegroup wave assignments (composite PK includes GameDate — must delete+insert)
+        var agWaves = await _cascadeRepo.GetAgegroupWavesByDateAsync(jobId, request.OldDate, ct);
+        var agWavesMigrated = agWaves.Count;
+        if (agWaves.Count > 0)
+        {
+            // Snapshot values before deletion (tracked entities will be removed)
+            var snapshots = agWaves.Select(w => (w.AgegroupId, w.Wave)).ToList();
+            await _cascadeRepo.DeleteAgegroupWavesByDateAsync(jobId, request.OldDate, ct);
+
+            // Insert new rows with updated GameDate
+            foreach (var (agId, wave) in snapshots)
+            {
+                _cascadeRepo.AddAgegroupWave(new AgegroupWaveAssignment
+                {
+                    AgegroupId = agId,
+                    GameDate = request.NewDate,
+                    Wave = wave,
+                    LebUserId = userId,
+                    Modified = now
+                });
+            }
+        }
+
+        // ④ Migrate division wave assignments
+        var divWaves = await _cascadeRepo.GetDivisionWavesByDateAsync(jobId, request.OldDate, ct);
+        var divWavesMigrated = divWaves.Count;
+        if (divWaves.Count > 0)
+        {
+            var snapshots = divWaves.Select(w => (w.DivisionId, w.Wave)).ToList();
+            await _cascadeRepo.DeleteDivisionWavesByDateAsync(jobId, request.OldDate, ct);
+
+            foreach (var (divId, wave) in snapshots)
+            {
+                _cascadeRepo.AddDivisionWave(new DivisionWaveAssignment
+                {
+                    DivisionId = divId,
+                    GameDate = request.NewDate,
+                    Wave = wave,
+                    LebUserId = userId,
+                    Modified = now
+                });
+            }
+        }
+
+        // ⑤ Update scheduled games
+        var gamesUpdated = await _scheduleRepo.UpdateGameDatesAsync(
+            jobId, request.OldDate, request.NewDate, ct);
+
+        // ⑥ Handle DOW change — stage field timeslots for new DOW if needed
+        var oldDow = request.OldDate.DayOfWeek.ToString();
+        var newDow = request.NewDate.DayOfWeek.ToString();
+        var dowChanged = !string.Equals(oldDow, newDow, StringComparison.OrdinalIgnoreCase);
+        var fieldTimeslotsCreated = 0;
+
+        if (dowChanged)
+        {
+            var affectedAgIds = dateRows.Select(r => r.AgegroupId).Distinct().ToList();
+            var assignedFieldIds = await _tsRepo.GetAssignedFieldIdsAsync(leagueId, season, ct);
+
+            foreach (var agId in affectedAgIds)
+            {
+                // Check if field timeslots exist for the new DOW
+                var existingNewDow = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                    agId, season, year, dow: newDow, ct: ct);
+
+                if (existingNewDow.Count == 0 && assignedFieldIds.Count > 0)
+                {
+                    // Try to copy from old DOW as template
+                    var oldDowTimeslots = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                        agId, season, year, dow: oldDow, ct: ct);
+
+                    if (oldDowTimeslots.Count > 0)
+                    {
+                        // Clone structure from old DOW
+                        var newTimeslots = oldDowTimeslots.Select(t => new TimeslotsLeagueSeasonFields
+                        {
+                            AgegroupId = agId,
+                            FieldId = t.FieldId,
+                            DivId = t.DivId,
+                            StartTime = t.StartTime,
+                            GamestartInterval = t.GamestartInterval,
+                            MaxGamesPerField = t.MaxGamesPerField,
+                            Dow = newDow,
+                            Season = season,
+                            Year = year,
+                            LebUserId = userId,
+                            Modified = now
+                        }).ToList();
+
+                        await _tsRepo.AddFieldTimeslotsRangeAsync(newTimeslots, ct);
+                        fieldTimeslotsCreated += newTimeslots.Count;
+                    }
+                    else
+                    {
+                        // Fallback: use dominant defaults + cartesian product
+                        var defaults = await _tsRepo.GetDominantFieldDefaultsAsync(
+                            leagueId, season, year, ct);
+                        var divIds = await _tsRepo.GetActiveDivisionIdsAsync(agId, jobId, ct);
+
+                        var newTimeslots = new List<TimeslotsLeagueSeasonFields>();
+                        foreach (var fId in assignedFieldIds)
+                        {
+                            foreach (var dId in divIds)
+                            {
+                                newTimeslots.Add(new TimeslotsLeagueSeasonFields
+                                {
+                                    AgegroupId = agId,
+                                    FieldId = fId,
+                                    DivId = dId,
+                                    StartTime = defaults?.StartTime ?? "08:00 AM",
+                                    GamestartInterval = defaults?.GamestartInterval ?? 60,
+                                    MaxGamesPerField = defaults?.MaxGamesPerField ?? 5,
+                                    Dow = newDow,
+                                    Season = season,
+                                    Year = year,
+                                    LebUserId = userId,
+                                    Modified = now
+                                });
+                            }
+                        }
+
+                        if (newTimeslots.Count > 0)
+                        {
+                            await _tsRepo.AddFieldTimeslotsRangeAsync(newTimeslots, ct);
+                            fieldTimeslotsCreated += newTimeslots.Count;
+                        }
+                    }
+                }
+            }
+        }
+
+        await _tsRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Cascade date edit: {OldDate:yyyy-MM-dd} → {NewDate:yyyy-MM-dd} — " +
+            "{DateRows} date rows, {Waves} waves migrated, {Games} games updated, " +
+            "{Fields} field timeslots created, DOW changed: {DowChanged}",
+            request.OldDate, request.NewDate,
+            dateRows.Count, agWavesMigrated + divWavesMigrated,
+            gamesUpdated, fieldTimeslotsCreated, dowChanged);
+
+        return new CascadeDateChangeResponse
+        {
+            DateRowsUpdated = dateRows.Count,
+            WavesMigrated = agWavesMigrated + divWavesMigrated,
+            GamesUpdated = gamesUpdated,
+            FieldTimeslotsCreated = fieldTimeslotsCreated,
+            DowChanged = dowChanged
+        };
+    }
+
+    public async Task<CascadeDateDeleteResponse> CascadeDeleteDateAsync(
+        Guid jobId, CascadeDateDeleteRequest request, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // ① Get and delete TimeslotsLeagueSeasonDates rows
+        var dateRows = await _tsRepo.GetDatesByDateTrackedAsync(
+            leagueId, request.Date, season, year, ct);
+        var dateRowCount = dateRows.Count;
+
+        if (dateRows.Count > 0)
+        {
+            foreach (var row in dateRows)
+                _tsRepo.RemoveDate(row);
+        }
+
+        // ② Delete agegroup wave assignments for this date
+        await _cascadeRepo.DeleteAgegroupWavesByDateAsync(jobId, request.Date, ct);
+
+        // ③ Delete division wave assignments for this date
+        await _cascadeRepo.DeleteDivisionWavesByDateAsync(jobId, request.Date, ct);
+
+        // ④ Delete scheduled games for this date (with cascade to DeviceGids/BracketSeeds)
+        var gamesDeleted = await _scheduleRepo.DeleteGamesByDateAsync(jobId, request.Date, ct);
+
+        // Field timeslots are DOW-scoped — do NOT delete (other dates may share the DOW)
+
+        await _tsRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Cascade date delete: {Date:yyyy-MM-dd} — {DateRows} date rows, {Games} games deleted",
+            request.Date, dateRowCount, gamesDeleted);
+
+        return new CascadeDateDeleteResponse
+        {
+            DateRowsDeleted = dateRowCount,
+            WavesDeleted = 0, // Wave delete methods don't return counts currently
+            GamesDeleted = gamesDeleted
+        };
+    }
+
     // ── Date cloning ──
 
     public async Task<TimeslotDateDto> CloneDateRecordAsync(

@@ -1,6 +1,5 @@
 import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
 import type { AutoBuildResult, AutoBuildQaResult } from '@core/api';
 
 const CONSTRAINT_LABELS: Record<string, string> = {
@@ -17,7 +16,7 @@ const CONSTRAINT_LABELS: Record<string, string> = {
 @Component({
     selector: 'app-build-results-panel',
     standalone: true,
-    imports: [CommonModule, RouterModule],
+    imports: [CommonModule],
     templateUrl: './build-results-panel.component.html',
     styleUrl: './build-results-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -32,8 +31,7 @@ export class BuildResultsPanelComponent {
 
     // ── Outputs ──
     readonly dismissed = output<void>();
-    readonly undoRequested = output<void>();
-    readonly runAgainRequested = output<void>();
+    readonly reviewRequested = output<void>();
 
     // ── Computed signals ──
 

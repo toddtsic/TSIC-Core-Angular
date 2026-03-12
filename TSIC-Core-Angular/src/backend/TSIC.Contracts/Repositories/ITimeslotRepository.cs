@@ -178,6 +178,16 @@ public interface ITimeslotRepository
     /// <summary>Count pairings for team count (to compute games needed).</summary>
     Task<int> GetPairingCountAsync(Guid leagueId, string season, int teamCount, CancellationToken ct = default);
 
+    // ── Cascade date support ──
+
+    /// <summary>Get ALL date rows for a specific GDate across all agegroups in a league-season-year (tracked for update).</summary>
+    Task<List<TimeslotsLeagueSeasonDates>> GetDatesByDateTrackedAsync(
+        Guid leagueId, DateTime gDate, string season, string year, CancellationToken ct = default);
+
+    /// <summary>Check if any date row exists for a specific GDate in a league-season-year.</summary>
+    Task<bool> DateExistsAsync(
+        Guid leagueId, DateTime gDate, string season, string year, CancellationToken ct = default);
+
     // ── Persist ──
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);

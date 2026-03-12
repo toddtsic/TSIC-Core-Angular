@@ -94,6 +94,29 @@ public interface IScheduleCascadeRepository
     Task DeleteDivisionWavesAsync(
         Guid divisionId, CancellationToken ct = default);
 
+    // ── Single-entity wave add (for cascade date migration) ──
+
+    void AddAgegroupWave(AgegroupWaveAssignment wave);
+    void AddDivisionWave(DivisionWaveAssignment wave);
+
+    // ── Date-scoped wave queries (for cascade date operations) ──
+
+    /// <summary>Get agegroup wave assignments for a specific date across all agegroups in the job.</summary>
+    Task<List<AgegroupWaveAssignment>> GetAgegroupWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default);
+
+    /// <summary>Delete agegroup wave assignments for a specific date across all agegroups in the job.</summary>
+    Task DeleteAgegroupWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default);
+
+    /// <summary>Get division wave assignments for a specific date across all divisions in the job.</summary>
+    Task<List<DivisionWaveAssignment>> GetDivisionWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default);
+
+    /// <summary>Delete division wave assignments for a specific date across all divisions in the job.</summary>
+    Task DeleteDivisionWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default);
+
     // ── Division Processing Order (keyed by JobId + DivisionId) ──
 
     /// <summary>

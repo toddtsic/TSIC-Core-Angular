@@ -249,6 +249,86 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         _context.DivisionWaveAssignment.RemoveRange(existing);
     }
 
+    // ── Single-entity wave add ──
+
+    public void AddAgegroupWave(AgegroupWaveAssignment wave)
+    {
+        _context.AgegroupWaveAssignment.Add(wave);
+    }
+
+    public void AddDivisionWave(DivisionWaveAssignment wave)
+    {
+        _context.DivisionWaveAssignment.Add(wave);
+    }
+
+    // ── Date-scoped wave queries (for cascade date operations) ──
+
+    public async Task<List<AgegroupWaveAssignment>> GetAgegroupWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default)
+    {
+        var leagueIds = await GetLeagueIdsAsync(jobId, ct);
+
+        return await _context.AgegroupWaveAssignment
+            .Where(w => w.GameDate.Date == gameDate.Date
+                && _context.Agegroups
+                    .Where(a => leagueIds.Contains(a.LeagueId))
+                    .Select(a => a.AgegroupId)
+                    .Contains(w.AgegroupId))
+            .ToListAsync(ct);
+    }
+
+    public async Task DeleteAgegroupWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default)
+    {
+        var leagueIds = await GetLeagueIdsAsync(jobId, ct);
+
+        var existing = await _context.AgegroupWaveAssignment
+            .Where(w => w.GameDate.Date == gameDate.Date
+                && _context.Agegroups
+                    .Where(a => leagueIds.Contains(a.LeagueId))
+                    .Select(a => a.AgegroupId)
+                    .Contains(w.AgegroupId))
+            .ToListAsync(ct);
+
+        _context.AgegroupWaveAssignment.RemoveRange(existing);
+    }
+
+    public async Task<List<DivisionWaveAssignment>> GetDivisionWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default)
+    {
+        var leagueIds = await GetLeagueIdsAsync(jobId, ct);
+
+        return await _context.DivisionWaveAssignment
+            .Where(w => w.GameDate.Date == gameDate.Date
+                && _context.Divisions
+                    .Where(d => _context.Agegroups
+                        .Where(a => leagueIds.Contains(a.LeagueId))
+                        .Select(a => a.AgegroupId)
+                        .Contains(d.AgegroupId))
+                    .Select(d => d.DivId)
+                    .Contains(w.DivisionId))
+            .ToListAsync(ct);
+    }
+
+    public async Task DeleteDivisionWavesByDateAsync(
+        Guid jobId, DateTime gameDate, CancellationToken ct = default)
+    {
+        var leagueIds = await GetLeagueIdsAsync(jobId, ct);
+
+        var existing = await _context.DivisionWaveAssignment
+            .Where(w => w.GameDate.Date == gameDate.Date
+                && _context.Divisions
+                    .Where(d => _context.Agegroups
+                        .Where(a => leagueIds.Contains(a.LeagueId))
+                        .Select(a => a.AgegroupId)
+                        .Contains(d.AgegroupId))
+                    .Select(d => d.DivId)
+                    .Contains(w.DivisionId))
+            .ToListAsync(ct);
+
+        _context.DivisionWaveAssignment.RemoveRange(existing);
+    }
+
     // ── Division Processing Order ──
 
     public async Task<List<DivisionProcessingOrder>> GetProcessingOrderAsync(

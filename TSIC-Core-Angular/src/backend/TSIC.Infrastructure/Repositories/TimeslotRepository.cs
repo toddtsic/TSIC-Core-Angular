@@ -450,6 +450,32 @@ public class TimeslotRepository : ITimeslotRepository
             .CountAsync(p => p.LeagueId == leagueId && p.Season == season && p.TCnt == teamCount, ct);
     }
 
+    // ── Cascade date support ──
+
+    public async Task<List<TimeslotsLeagueSeasonDates>> GetDatesByDateTrackedAsync(
+        Guid leagueId, DateTime gDate, string season, string year, CancellationToken ct = default)
+    {
+        return await _context.TimeslotsLeagueSeasonDates
+            .Where(d => d.GDate.Date == gDate.Date && d.Season == season && d.Year == year
+                && _context.Agegroups
+                    .Where(a => a.LeagueId == leagueId)
+                    .Select(a => a.AgegroupId)
+                    .Contains(d.AgegroupId))
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> DateExistsAsync(
+        Guid leagueId, DateTime gDate, string season, string year, CancellationToken ct = default)
+    {
+        return await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .AnyAsync(d => d.GDate.Date == gDate.Date && d.Season == season && d.Year == year
+                && _context.Agegroups
+                    .Where(a => a.LeagueId == leagueId)
+                    .Select(a => a.AgegroupId)
+                    .Contains(d.AgegroupId), ct);
+    }
+
     // ── Persist ──
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)

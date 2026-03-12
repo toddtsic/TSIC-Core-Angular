@@ -34,6 +34,16 @@ public interface ITimeslotService
     Task DeleteAllDatesAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default);
 
+    // ── Cascade date operations ──
+
+    /// <summary>Change a game date for all agegroups, cascading to waves and games.</summary>
+    Task<CascadeDateChangeResponse> CascadeEditDateAsync(
+        Guid jobId, string userId, CascadeDateChangeRequest request, CancellationToken ct = default);
+
+    /// <summary>Delete a game date for all agegroups, cascading to waves and games.</summary>
+    Task<CascadeDateDeleteResponse> CascadeDeleteDateAsync(
+        Guid jobId, CascadeDateDeleteRequest request, CancellationToken ct = default);
+
     // ── Date cloning ──
 
     Task<TimeslotDateDto> CloneDateRecordAsync(
