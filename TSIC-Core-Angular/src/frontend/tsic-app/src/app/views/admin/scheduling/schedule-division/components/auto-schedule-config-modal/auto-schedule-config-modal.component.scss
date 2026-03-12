@@ -1,3 +1,10 @@
+// ── Scope Name Emphasis ──
+
+.scope-name {
+    font-weight: var(--font-weight-bold);
+    font-style: italic;
+}
+
 // ── Modal Strategy Grid ──
 .modal-strategy-grid {
     border: 1px solid var(--bs-border-color);

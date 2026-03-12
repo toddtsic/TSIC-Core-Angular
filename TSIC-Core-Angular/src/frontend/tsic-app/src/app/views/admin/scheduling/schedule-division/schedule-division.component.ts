@@ -156,9 +156,13 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly scopeLabel = computed(() => {
         const s = this.scope();
         switch (s.level) {
-            case 'event': return 'All';
+            case 'event': return 'Entire';
             case 'agegroup': return this.selectedAgegroup()?.agegroupName ?? '';
-            case 'division': return this.selectedDivision()?.divName ?? '';
+            case 'division': {
+                const ag = this.selectedAgegroup()?.agegroupName ?? '';
+                const div = this.selectedDivision()?.divName ?? '';
+                return `${ag}:${div}`;
+            }
         }
     });
 

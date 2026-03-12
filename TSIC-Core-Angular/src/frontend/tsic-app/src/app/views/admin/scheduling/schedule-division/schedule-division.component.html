@@ -1,15 +1,5 @@
 <div class="hub-container">
 
-    <!-- ── Hub Header ── -->
-    <div class="hub-header">
-        <h5 class="mb-0">Schedule Hub</h5>
-        @if (gameSummary()?.jobName) {
-            <span class="badge bg-primary-subtle text-primary-emphasis">
-                {{ gameSummary()!.jobName }}
-            </span>
-        }
-    </div>
-
     <!-- ── Hub Layout: Sidebar + Main ── -->
     <div class="hub-layout">
 
@@ -81,29 +71,204 @@
         <!-- ══════════ MAIN PANE ══════════ -->
         <div class="hub-main">
 
-            <!-- Mode Tab Bar -->
-            <nav class="hub-mode-bar" role="tablist">
-                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'configure'"
-                        (click)="setMode('configure')" role="tab">
-                    <i class="bi bi-gear"></i>
-                    <span>Configure</span>
-                </button>
-                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'schedule'"
-                        (click)="setMode('schedule')" role="tab">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>Schedule</span>
-                </button>
-                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'master'"
-                        (click)="setMode('master')" role="tab">
-                    <i class="bi bi-grid-3x3-gap"></i>
-                    <span>Master</span>
-                </button>
-                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'qa'"
-                        (click)="setMode('qa')" role="tab">
-                    <i class="bi bi-clipboard-check"></i>
-                    <span>QA</span>
-                </button>
-            </nav>
+            <!-- ── Unified Toolbar: mode segments + breadcrumbs + scope actions ── -->
+            <div class="hub-toolbar">
+
+                <!-- Left: mode segments -->
+                <div class="toolbar-modes" role="tablist">
+                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'configure'"
+                            (click)="setMode('configure')" role="tab">
+                        <i class="bi bi-gear"></i><span>Configure</span>
+                    </button>
+                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'schedule'"
+                            (click)="setMode('schedule')" role="tab">
+                        <i class="bi bi-calendar-check"></i><span>Schedule</span>
+                    </button>
+                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'master'"
+                            (click)="setMode('master')" role="tab">
+                        <i class="bi bi-grid-3x3-gap"></i><span>Master</span>
+                    </button>
+                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'qa'"
+                            (click)="setMode('qa')" role="tab">
+                        <i class="bi bi-clipboard-check"></i><span>QA</span>
+                    </button>
+                </div>
+
+                <!-- Center: breadcrumbs (Schedule), Back (tool), or empty -->
+                <div class="toolbar-center">
+                    @if (activeTool()) {
+                        <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
+                            <i class="bi bi-arrow-left me-1"></i>Back
+                        </button>
+                    } @else if (mode() === 'schedule') {
+                        @if (scope().level === 'event') {
+                            <span class="crumb-current">Event</span>
+                            <i class="bi bi-chevron-right crumb-sep"></i>
+                            <div class="crumb-dropdown-wrapper">
+                                <button class="crumb-dropdown-trigger"
+                                        (click)="toggleCrumbDropdown('agegroup')">
+                                    Go to agegroup
+                                    <i class="bi bi-chevron-down crumb-chevron"></i>
+                                </button>
+                                @if (openCrumbDropdown() === 'agegroup') {
+                                    <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
+                                    <div class="crumb-dropdown-panel">
+                                        @for (opt of crumbAgegroupOptions(); track opt.agegroupId) {
+                                            <button class="crumb-dropdown-item"
+                                                    (click)="selectCrumbAgegroup(opt.agegroupId)">
+                                                @if (opt.color) {
+                                                    <span class="crumb-color-dot" [style.background-color]="opt.color"></span>
+                                                }
+                                                <span class="crumb-item-name">{{ opt.name }}</span>
+                                                <span class="crumb-item-count">{{ opt.teamCount }}</span>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        } @else {
+                            <span class="crumb-link"
+                                  role="button"
+                                  tabindex="0"
+                                  (click)="onEventSelected()"
+                                  (keydown.enter)="onEventSelected()">Event</span>
+                            <i class="bi bi-chevron-right crumb-sep"></i>
+
+                            @if (scope().level === 'division') {
+                                <div class="crumb-dropdown-wrapper">
+                                    <button class="crumb-dropdown-trigger"
+                                            (click)="toggleCrumbDropdown('agegroup')">
+                                        @if (selectedAgegroupColor()) {
+                                            <span class="crumb-color-dot" [style.background-color]="selectedAgegroupColor()"></span>
+                                        }
+                                        {{ selectedAgegroup()?.agegroupName }}
+                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                    </button>
+                                    @if (openCrumbDropdown() === 'agegroup') {
+                                        <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
+                                        <div class="crumb-dropdown-panel">
+                                            @for (opt of crumbAgegroupOptions(); track opt.agegroupId) {
+                                                <button class="crumb-dropdown-item"
+                                                        [class.active]="opt.active"
+                                                        (click)="selectCrumbAgegroup(opt.agegroupId)">
+                                                    @if (opt.color) {
+                                                        <span class="crumb-color-dot" [style.background-color]="opt.color"></span>
+                                                    }
+                                                    <span class="crumb-item-name">{{ opt.name }}</span>
+                                                    <span class="crumb-item-count">{{ opt.teamCount }}</span>
+                                                    @if (opt.active) {
+                                                        <i class="bi bi-check2"></i>
+                                                    }
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <i class="bi bi-chevron-right crumb-sep"></i>
+                                <div class="crumb-dropdown-wrapper">
+                                    <button class="crumb-dropdown-trigger crumb-current"
+                                            (click)="toggleCrumbDropdown('division')">
+                                        {{ selectedDivision()?.divName }}
+                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                    </button>
+                                    @if (openCrumbDropdown() === 'division') {
+                                        <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
+                                        <div class="crumb-dropdown-panel">
+                                            @for (opt of crumbDivisionOptions(); track opt.divId) {
+                                                <button class="crumb-dropdown-item"
+                                                        [class.active]="opt.active"
+                                                        (click)="selectCrumbDivision(opt.divId)">
+                                                    <span class="crumb-item-name">{{ opt.name }}</span>
+                                                    <span class="crumb-item-count">{{ opt.teamCount }}</span>
+                                                    @if (opt.active) {
+                                                        <i class="bi bi-check2"></i>
+                                                    }
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            } @else if (scope().level === 'agegroup') {
+                                <div class="crumb-dropdown-wrapper">
+                                    <button class="crumb-dropdown-trigger crumb-current"
+                                            (click)="toggleCrumbDropdown('agegroup')">
+                                        @if (selectedAgegroupColor()) {
+                                            <span class="crumb-color-dot" [style.background-color]="selectedAgegroupColor()"></span>
+                                        }
+                                        {{ selectedAgegroup()?.agegroupName }}
+                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                    </button>
+                                    @if (openCrumbDropdown() === 'agegroup') {
+                                        <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
+                                        <div class="crumb-dropdown-panel">
+                                            @for (opt of crumbAgegroupOptions(); track opt.agegroupId) {
+                                                <button class="crumb-dropdown-item"
+                                                        [class.active]="opt.active"
+                                                        (click)="selectCrumbAgegroup(opt.agegroupId)">
+                                                    @if (opt.color) {
+                                                        <span class="crumb-color-dot" [style.background-color]="opt.color"></span>
+                                                    }
+                                                    <span class="crumb-item-name">{{ opt.name }}</span>
+                                                    <span class="crumb-item-count">{{ opt.teamCount }}</span>
+                                                    @if (opt.active) {
+                                                        <i class="bi bi-check2"></i>
+                                                    }
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+
+                <!-- Right: scope info + actions (Schedule mode only) -->
+                <div class="toolbar-right">
+                    @if (mode() === 'schedule' && !activeTool()) {
+                        @switch (scope().level) {
+                            @case ('event') {
+                                @if (gameSummary()) {
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                        {{ gameSummary()!.totalGames }} games
+                                    </span>
+                                }
+                                <button class="btn btn-primary btn-sm"
+                                        (click)="openAutoScheduleConfig()"
+                                        [disabled]="isExecuting()">
+                                    @if (isExecuting()) {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                    }
+                                    <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
+                                </button>
+                            }
+                            @case ('agegroup') {
+                                @if (isAgegroupConfigured()) {
+                                    <span class="badge"
+                                          [style.background-color]="selectedAgegroupColor()"
+                                          [style.color]="selectedAgegroupTextColor()"
+                                          [class.bg-secondary]="!selectedAgegroupColor()">
+                                        {{ selectedAgegroupName() }}
+                                    </span>
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                        {{ scopeGameCount() }} games
+                                    </span>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            (click)="openAutoScheduleConfig()"
+                                            [disabled]="isExecuting()">
+                                        @if (isExecuting()) {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        } @else {
+                                            <i class="bi bi-lightning-fill"></i>
+                                        }
+                                        {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span>
+                                    </button>
+                                }
+                            }
+                        }
+                    }
+                </div>
+            </div>
 
             <!-- ── Content Area ── -->
             <div class="hub-content">
@@ -111,11 +276,6 @@
                 <!-- Tool Embedding (overrides mode content) -->
                 @if (activeTool()) {
                     <div class="tool-embedded">
-                        <div class="tool-back-bar">
-                            <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
-                                <i class="bi bi-arrow-left me-1"></i>Back
-                            </button>
-                        </div>
                         @switch (activeTool()) {
                             @case ('fields') { <app-manage-fields /> }
                             @case ('pairings') { <app-manage-pairings /> }
@@ -138,174 +298,6 @@
 
                         <!-- ══════════ SCHEDULE MODE ══════════ -->
                         @case ('schedule') {
-
-                            <!-- Combined breadcrumb + scope bar (always visible in Schedule mode) -->
-                            <nav class="scope-breadcrumb" aria-label="Scope navigation">
-                                <div class="scope-breadcrumb-left">
-                                    @if (scope().level === 'event') {
-                                        <!-- Event scope: "Event" label + agegroup jump dropdown -->
-                                        <span class="crumb-current">Event</span>
-                                        <i class="bi bi-chevron-right crumb-sep"></i>
-                                        <div class="crumb-dropdown-wrapper">
-                                            <button class="crumb-dropdown-trigger"
-                                                    (click)="toggleCrumbDropdown('agegroup')">
-                                                Go to agegroup
-                                                <i class="bi bi-chevron-down crumb-chevron"></i>
-                                            </button>
-                                            @if (openCrumbDropdown() === 'agegroup') {
-                                                <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
-                                                <div class="crumb-dropdown-panel">
-                                                    @for (opt of crumbAgegroupOptions(); track opt.agegroupId) {
-                                                        <button class="crumb-dropdown-item"
-                                                                (click)="selectCrumbAgegroup(opt.agegroupId)">
-                                                            @if (opt.color) {
-                                                                <span class="crumb-color-dot" [style.background-color]="opt.color"></span>
-                                                            }
-                                                            <span class="crumb-item-name">{{ opt.name }}</span>
-                                                            <span class="crumb-item-count">{{ opt.teamCount }}</span>
-                                                        </button>
-                                                    }
-                                                </div>
-                                            }
-                                        </div>
-                                    } @else {
-                                        <!-- Drilled below event: clickable "Event" link -->
-                                        <span class="crumb-link"
-                                              role="button"
-                                              tabindex="0"
-                                              (click)="onEventSelected()"
-                                              (keydown.enter)="onEventSelected()">Event</span>
-                                        <i class="bi bi-chevron-right crumb-sep"></i>
-
-                                        @if (scope().level === 'division') {
-                                            <!-- Middle crumb: agegroup dropdown -->
-                                            <div class="crumb-dropdown-wrapper">
-                                                <button class="crumb-dropdown-trigger"
-                                                        (click)="toggleCrumbDropdown('agegroup')">
-                                                    {{ selectedAgegroup()?.agegroupName }}
-                                                    <i class="bi bi-chevron-down crumb-chevron"></i>
-                                                </button>
-                                                @if (openCrumbDropdown() === 'agegroup') {
-                                                    <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
-                                                    <div class="crumb-dropdown-panel">
-                                                        @for (opt of crumbAgegroupOptions(); track opt.agegroupId) {
-                                                            <button class="crumb-dropdown-item"
-                                                                    [class.active]="opt.active"
-                                                                    (click)="selectCrumbAgegroup(opt.agegroupId)">
-                                                                @if (opt.color) {
-                                                                    <span class="crumb-color-dot" [style.background-color]="opt.color"></span>
-                                                                }
-                                                                <span class="crumb-item-name">{{ opt.name }}</span>
-                                                                <span class="crumb-item-count">{{ opt.teamCount }}</span>
-                                                                @if (opt.active) {
-                                                                    <i class="bi bi-check2"></i>
-                                                                }
-                                                            </button>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
-                                            <i class="bi bi-chevron-right crumb-sep"></i>
-                                            <!-- Current crumb: division dropdown -->
-                                            <div class="crumb-dropdown-wrapper">
-                                                <button class="crumb-dropdown-trigger crumb-current"
-                                                        (click)="toggleCrumbDropdown('division')">
-                                                    {{ selectedDivision()?.divName }}
-                                                    <i class="bi bi-chevron-down crumb-chevron"></i>
-                                                </button>
-                                                @if (openCrumbDropdown() === 'division') {
-                                                    <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
-                                                    <div class="crumb-dropdown-panel">
-                                                        @for (opt of crumbDivisionOptions(); track opt.divId) {
-                                                            <button class="crumb-dropdown-item"
-                                                                    [class.active]="opt.active"
-                                                                    (click)="selectCrumbDivision(opt.divId)">
-                                                                <span class="crumb-item-name">{{ opt.name }}</span>
-                                                                <span class="crumb-item-count">{{ opt.teamCount }}</span>
-                                                                @if (opt.active) {
-                                                                    <i class="bi bi-check2"></i>
-                                                                }
-                                                            </button>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
-                                        } @else if (scope().level === 'agegroup') {
-                                            <!-- Current crumb: agegroup dropdown -->
-                                            <div class="crumb-dropdown-wrapper">
-                                                <button class="crumb-dropdown-trigger crumb-current"
-                                                        (click)="toggleCrumbDropdown('agegroup')">
-                                                    {{ selectedAgegroup()?.agegroupName }}
-                                                    <i class="bi bi-chevron-down crumb-chevron"></i>
-                                                </button>
-                                                @if (openCrumbDropdown() === 'agegroup') {
-                                                    <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
-                                                    <div class="crumb-dropdown-panel">
-                                                        @for (opt of crumbAgegroupOptions(); track opt.agegroupId) {
-                                                            <button class="crumb-dropdown-item"
-                                                                    [class.active]="opt.active"
-                                                                    (click)="selectCrumbAgegroup(opt.agegroupId)">
-                                                                @if (opt.color) {
-                                                                    <span class="crumb-color-dot" [style.background-color]="opt.color"></span>
-                                                                }
-                                                                <span class="crumb-item-name">{{ opt.name }}</span>
-                                                                <span class="crumb-item-count">{{ opt.teamCount }}</span>
-                                                                @if (opt.active) {
-                                                                    <i class="bi bi-check2"></i>
-                                                                }
-                                                            </button>
-                                                        }
-                                                    </div>
-                                                }
-                                            </div>
-                                        }
-                                    }
-                                </div>
-
-                                <!-- Right side: scope info + actions -->
-                                <div class="scope-breadcrumb-right">
-                                    @switch (scope().level) {
-                                        @case ('event') {
-                                            @if (gameSummary()) {
-                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                    {{ gameSummary()!.totalGames }} games
-                                                </span>
-                                            }
-                                            <button class="btn btn-primary btn-sm"
-                                                    (click)="openAutoScheduleConfig()"
-                                                    [disabled]="isExecuting()">
-                                                @if (isExecuting()) {
-                                                    <span class="spinner-border spinner-border-sm me-1"></span>
-                                                }
-                                                <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
-                                            </button>
-                                        }
-                                        @case ('agegroup') {
-                                            @if (isAgegroupConfigured()) {
-                                                <span class="badge"
-                                                      [style.background-color]="selectedAgegroupColor()"
-                                                      [style.color]="selectedAgegroupTextColor()"
-                                                      [class.bg-secondary]="!selectedAgegroupColor()">
-                                                    {{ selectedAgegroupName() }}
-                                                </span>
-                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                                    {{ scopeGameCount() }} games
-                                                </span>
-                                                <button class="btn btn-sm btn-outline-primary"
-                                                        (click)="openAutoScheduleConfig()"
-                                                        [disabled]="isExecuting()">
-                                                    @if (isExecuting()) {
-                                                        <span class="spinner-border spinner-border-sm"></span>
-                                                    } @else {
-                                                        <i class="bi bi-lightning-fill"></i>
-                                                    }
-                                                    {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span> Schedule
-                                                </button>
-                                            }
-                                        }
-                                    }
-                                </div>
-                            </nav>
 
                             <!-- Prerequisite Errors (all scope levels in Schedule mode) -->
                             @if (prerequisiteErrors().length > 0) {

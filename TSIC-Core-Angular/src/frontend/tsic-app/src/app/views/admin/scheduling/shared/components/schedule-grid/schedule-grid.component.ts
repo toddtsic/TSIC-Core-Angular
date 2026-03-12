@@ -70,7 +70,7 @@ export class ScheduleGridComponent {
             if (!seen.has(key)) seen.set(key, i);
         });
         return Array.from(seen.entries()).map(([day, rowIndex]) => ({
-            label: new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            label: new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
             rowIndex
         }));
     });

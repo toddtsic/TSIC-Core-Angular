@@ -13,21 +13,7 @@
     display: flex;
     flex-direction: column;
     height: calc(100vh - 200px);
-    gap: var(--space-3);
-}
-
-// ── Hub Header ──
-
-.hub-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    flex-shrink: 0;
-
-    h5 {
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-    }
+    gap: 0;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -166,24 +152,31 @@ app-pairings-panel {
     overflow: hidden;
 }
 
-// ── Mode Tab Bar ──
+// ── Unified Toolbar (modes + breadcrumbs + actions in one row) ──
 
-.hub-mode-bar {
+.hub-toolbar {
     display: flex;
-    gap: var(--space-1);
+    align-items: center;
+    gap: var(--space-3);
     padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid var(--bs-border-color);
     background: var(--bs-tertiary-bg);
     flex-shrink: 0;
+    min-height: 40px;
 }
 
-.hub-mode-tab {
+.toolbar-modes {
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+}
+
+.mode-seg {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    padding: var(--space-1) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
     background: var(--bs-body-bg);
     color: var(--brand-text-muted);
     font-size: var(--font-size-sm);
@@ -192,21 +185,61 @@ app-pairings-panel {
     cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 
+    // Segment-group feel: shared borders
+    margin-left: -1px;
+
+    &:first-child {
+        margin-left: 0;
+        border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    }
+
+    &:last-child {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+
+    &:not(:first-child):not(:last-child) {
+        border-radius: 0;
+    }
+
     &:hover {
         background: var(--bs-secondary-bg);
         color: var(--brand-text);
+        z-index: 1;
     }
 
     &.active {
         background: var(--bs-primary);
         color: var(--bs-light);
         border-color: var(--bs-primary);
+        z-index: 2;
     }
 
     &:focus-visible {
         outline: none;
         box-shadow: var(--shadow-focus);
+        z-index: 3;
     }
+
+    i {
+        font-size: var(--font-size-sm);
+    }
+}
+
+.toolbar-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
 }
 
 // ── Content Area ──
@@ -228,49 +261,11 @@ app-pairings-panel {
     min-height: 0;
 }
 
-.tool-back-bar {
-    display: flex;
-    align-items: center;
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
-    flex-shrink: 0;
-}
-
 // ── Scope Name Emphasis (Build buttons & modal titles) ──
 
 .scope-name {
     font-weight: var(--font-weight-bold);
     font-style: italic;
-}
-
-// ══════════════════════════════════════════════════════════════
-// Scope Breadcrumb + Actions Bar (combined single row)
-// ══════════════════════════════════════════════════════════════
-
-.scope-breadcrumb {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    font-size: var(--font-size-sm);
-    border-bottom: 1px solid var(--bs-border-color);
-    background: rgba(var(--bs-primary-rgb), 0.03);
-    flex-shrink: 0;
-}
-
-.scope-breadcrumb-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-}
-
-.scope-breadcrumb-right {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-shrink: 0;
 }
 
 .crumb-back {
@@ -436,8 +431,6 @@ app-pairings-panel {
     margin-left: auto;
 }
 
-// (.agegroup-header removed — merged into .scope-breadcrumb-right)
-
 // ══════════════════════════════════════════════════════════════
 // Prerequisite Errors
 // ══════════════════════════════════════════════════════════════
@@ -475,8 +468,23 @@ app-pairings-panel {
         max-height: 300px;
     }
 
-    .hub-mode-tab span {
+    .mode-seg span {
         display: none;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .hub-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .toolbar-right {
+        margin-left: auto;
+    }
+
+    .toolbar-center {
+        order: 3;
+        flex-basis: 100%;
     }
 }
 

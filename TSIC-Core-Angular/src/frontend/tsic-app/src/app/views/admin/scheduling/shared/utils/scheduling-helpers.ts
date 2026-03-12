@@ -24,13 +24,14 @@ export function agBg(hex: string | null | undefined): string {
     return `linear-gradient(rgba(${r}, ${g}, ${b}, 0.12), rgba(${r}, ${g}, ${b}, 0.12)), var(--bs-body-bg)`;
 }
 
-/** Format date for display: "Sat, Feb 15" */
+/** Format date for display: "Sat, Feb 15, 2027" */
 export function formatDate(gDate: string | Date): string {
     const d = new Date(gDate);
     return d.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        year: 'numeric'
     });
 }
 
@@ -43,13 +44,14 @@ export function formatTimeOnly(gDate: string | Date): string {
     });
 }
 
-/** Format full date+time: "Sat, Feb 15, 8:00 AM" */
+/** Format full date+time: "Sat, Feb 15, 2027, 8:00 AM" */
 export function formatTime(gDate: string | Date): string {
     const d = new Date(gDate);
     return d.toLocaleString('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
+        year: 'numeric',
         hour: 'numeric',
         minute: '2-digit'
     });

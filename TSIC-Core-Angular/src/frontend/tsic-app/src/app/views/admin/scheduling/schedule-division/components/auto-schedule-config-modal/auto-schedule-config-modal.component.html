@@ -1,7 +1,7 @@
 <tsic-dialog [open]="true" size="sm" (requestClose)="cancelled.emit()">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title">Auto-Schedule {{ scopeLabel() }}</h5>
+            <h5 class="modal-title">{{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span> Schedule</h5>
             <button type="button" class="btn-close" (click)="cancelled.emit()"></button>
         </div>
         <div class="modal-body">
@@ -158,7 +158,7 @@
             <button class="btn btn-sm btn-outline-secondary" (click)="cancelled.emit()">Cancel</button>
             <button class="btn btn-sm btn-primary" (click)="onBuild()">
                 <i class="bi bi-lightning-fill me-1"></i>
-                Build Schedule
+                {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span> Schedule
             </button>
         </div>
     </div>

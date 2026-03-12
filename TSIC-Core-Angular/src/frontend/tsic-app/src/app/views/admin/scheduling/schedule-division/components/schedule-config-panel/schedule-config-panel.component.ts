@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, ViewChild, computed, signal, output, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ViewChild, computed, signal, output, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobService } from '@infrastructure/services/job.service';
@@ -50,6 +50,9 @@ interface TabDef {
 export class ScheduleConfigPanelComponent {
   private readonly jobSvc = inject(JobService);
   private readonly cascadeSvc = inject(ScheduleCascadeService);
+
+  /** Whether games already exist at event level (controls Build vs Re-Build label). */
+  readonly hasGames = input(false);
 
   /** Expose cascade signal for template guard (defer tabs until loaded). */
   readonly cascade = this.cascadeSvc.cascade;
