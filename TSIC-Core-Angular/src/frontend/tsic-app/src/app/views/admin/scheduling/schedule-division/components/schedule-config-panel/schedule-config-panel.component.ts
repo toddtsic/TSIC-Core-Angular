@@ -106,8 +106,8 @@ export class ScheduleConfigPanelComponent {
       games: true,
       strategyProfiles: false,
       pairings: false,
-      dates: false,
-      fieldTimeslots: false,
+      dates: true,
+      fieldTimeslots: true,
     });
   }
 

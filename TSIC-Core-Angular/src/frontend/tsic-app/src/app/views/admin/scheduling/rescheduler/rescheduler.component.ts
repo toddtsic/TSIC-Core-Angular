@@ -54,23 +54,10 @@ export class ReschedulerComponent implements OnInit {
     readonly ladtDivisionIds = signal<string[]>([]);
     readonly ladtTeamIds = signal<string[]>([]);
 
-    // CADT multi-select
-    readonly selectedClubNames = signal<string[]>([]);
-    readonly selectedAgegroupIds = signal<string[]>([]);
-    readonly selectedDivisionIds = signal<string[]>([]);
-    readonly selectedTeamIds = signal<string[]>([]);
+    // CADT multi-select (raw node IDs from tree, e.g. "ag:ClubA|guid", "div:ClubA|guid")
+    readonly cadtCheckedIds = signal<Set<string>>(new Set());
     readonly selectedGameDays = signal<string[]>([]);
     readonly selectedFieldIds = signal<string[]>([]);
-
-    // CADT tree: bridge between selection signals and shared component
-    readonly cadtCheckedIds = computed(() => {
-        const ids = new Set<string>();
-        for (const n of this.selectedClubNames()) ids.add(`club:${n}`);
-        for (const n of this.selectedAgegroupIds()) ids.add(`ag:${n}`);
-        for (const n of this.selectedDivisionIds()) ids.add(`div:${n}`);
-        for (const n of this.selectedTeamIds()) ids.add(`team:${n}`);
-        return ids;
-    });
 
     // ── Grid state ──
     readonly gridResponse = signal<ScheduleGridResponse | null>(null);
@@ -122,10 +109,7 @@ export class ReschedulerComponent implements OnInit {
 
     readonly hasActiveFilters = computed(() =>
         this.ladtCheckedIds().size > 0 ||
-        this.selectedClubNames().length > 0 ||
-        this.selectedAgegroupIds().length > 0 ||
-        this.selectedDivisionIds().length > 0 ||
-        this.selectedTeamIds().length > 0 ||
+        this.cadtCheckedIds().size > 0 ||
         this.selectedGameDays().length > 0 ||
         this.selectedFieldIds().length > 0
     );
@@ -227,20 +211,7 @@ export class ReschedulerComponent implements OnInit {
     // ── CADT tree selection handler ──
 
     onCadtSelectionChange(checked: Set<string>): void {
-        const clubNames: string[] = [];
-        const agegroupIds: string[] = [];
-        const divisionIds: string[] = [];
-        const teamIds: string[] = [];
-        for (const id of checked) {
-            if (id.startsWith('club:')) clubNames.push(id.substring(5));
-            else if (id.startsWith('ag:')) agegroupIds.push(id.substring(3));
-            else if (id.startsWith('div:')) divisionIds.push(id.substring(4));
-            else if (id.startsWith('team:')) teamIds.push(id.substring(5));
-        }
-        this.selectedClubNames.set(clubNames);
-        this.selectedAgegroupIds.set(agegroupIds);
-        this.selectedDivisionIds.set(divisionIds);
-        this.selectedTeamIds.set(teamIds);
+        this.cadtCheckedIds.set(checked);
         this.scheduleGridLoad();
     }
 
@@ -270,10 +241,7 @@ export class ReschedulerComponent implements OnInit {
         this.ladtAgegroupIds.set([]);
         this.ladtDivisionIds.set([]);
         this.ladtTeamIds.set([]);
-        this.selectedClubNames.set([]);
-        this.selectedAgegroupIds.set([]);
-        this.selectedDivisionIds.set([]);
-        this.selectedTeamIds.set([]);
+        this.cadtCheckedIds.set(new Set());
         this.selectedGameDays.set([]);
         this.selectedFieldIds.set([]);
         this.scheduleGridLoad();
@@ -285,12 +253,34 @@ export class ReschedulerComponent implements OnInit {
 
     private buildGridRequest(): ReschedulerGridRequest {
         const request: ReschedulerGridRequest = {};
-        if (this.selectedClubNames().length) request.clubNames = this.selectedClubNames();
+
+        // Parse CADT node IDs (club-scoped: ag:{clubName}|{guid}, div:{clubName}|{guid})
+        const cadtClubs: string[] = [];
+        const cadtAgs: string[] = [];
+        const cadtDivs: string[] = [];
+        const cadtTeams: string[] = [];
+        for (const id of this.cadtCheckedIds()) {
+            if (id.startsWith('club:')) {
+                cadtClubs.push(id.substring(5));
+            } else if (id.startsWith('ag:')) {
+                const raw = id.substring(3);
+                const pipe = raw.indexOf('|');
+                cadtAgs.push(pipe >= 0 ? raw.substring(pipe + 1) : raw);
+            } else if (id.startsWith('div:')) {
+                const raw = id.substring(4);
+                const pipe = raw.indexOf('|');
+                cadtDivs.push(pipe >= 0 ? raw.substring(pipe + 1) : raw);
+            } else if (id.startsWith('team:')) {
+                cadtTeams.push(id.substring(5));
+            }
+        }
+
+        if (cadtClubs.length) request.clubNames = cadtClubs;
 
         // Merge LADT + CADT agegroup/division/team selections (OR-union)
-        const agIds = [...new Set([...this.ladtAgegroupIds(), ...this.selectedAgegroupIds()])];
-        const divIds = [...new Set([...this.ladtDivisionIds(), ...this.selectedDivisionIds()])];
-        const teamIds = [...new Set([...this.ladtTeamIds(), ...this.selectedTeamIds()])];
+        const agIds = [...new Set([...this.ladtAgegroupIds(), ...cadtAgs])];
+        const divIds = [...new Set([...this.ladtDivisionIds(), ...cadtDivs])];
+        const teamIds = [...new Set([...this.ladtTeamIds(), ...cadtTeams])];
         if (agIds.length) request.agegroupIds = agIds;
         if (divIds.length) request.divisionIds = divIds;
         if (teamIds.length) request.teamIds = teamIds;
@@ -310,6 +300,11 @@ export class ReschedulerComponent implements OnInit {
     }
 
     loadGrid(): void {
+        if (!this.hasActiveFilters()) {
+            this.gridResponse.set(null);
+            this.selectedGame.set(null);
+            return;
+        }
         this.isGridLoading.set(true);
         this.selectedGame.set(null);
 
