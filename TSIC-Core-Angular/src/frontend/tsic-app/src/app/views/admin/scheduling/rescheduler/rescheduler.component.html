@@ -38,13 +38,37 @@
                         </div>
                     } @else {
 
-                        <!-- CADT Tree -->
+                        <!-- LADT Tree (open by default) -->
                         <div class="filter-section">
-                            <div class="filter-section-label">Clubs / Agegroups / Divisions / Teams</div>
-                            <app-cadt-tree-filter
-                                [treeData]="clubs()"
-                                [checkedIds]="cadtCheckedIds()"
-                                (checkedIdsChange)="onCadtSelectionChange($event)" />
+                            <div class="filter-section-label collapsible" (click)="toggleLadtSection()">
+                                <i class="bi bi-chevron-right collapse-chevron" [class.expanded]="ladtExpanded()"></i>
+                                Leagues / Agegroups / Divisions / Teams
+                            </div>
+                            @if (ladtExpanded()) {
+                                <div class="filter-section-body">
+                                    <app-ladt-tree-filter
+                                        [treeData]="ladtTree()"
+                                        [checkedIds]="ladtCheckedIds()"
+                                        [initialExpandLevel]="0"
+                                        (checkedIdsChange)="onLadtSelectionChange($event)" />
+                                </div>
+                            }
+                        </div>
+
+                        <!-- CADT Tree (collapsed by default) -->
+                        <div class="filter-section">
+                            <div class="filter-section-label collapsible" (click)="toggleCadtSection()">
+                                <i class="bi bi-chevron-right collapse-chevron" [class.expanded]="cadtExpanded()"></i>
+                                Clubs / Agegroups / Divisions / Teams
+                            </div>
+                            @if (cadtExpanded()) {
+                                <div class="filter-section-body">
+                                    <app-cadt-tree-filter
+                                        [treeData]="clubs()"
+                                        [checkedIds]="cadtCheckedIds()"
+                                        (checkedIdsChange)="onCadtSelectionChange($event)" />
+                                </div>
+                            }
                         </div>
 
                         <!-- Game Days -->

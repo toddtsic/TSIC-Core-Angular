@@ -15,6 +15,8 @@ interface TreeFlatNode {
   playerCount: number;
   expandable: boolean;
   isSpecial: boolean;
+  /** Agegroup hex color (level 1 only) */
+  color: string | null;
   /** All descendant IDs (for cascade check/uncheck) */
   descendantIds: string[];
 }
@@ -49,6 +51,11 @@ interface TreeFlatNode {
                  [checked]="checkedIds.has(node.id)"
                  [indeterminate]="checkState().get(node.id) === 'some'"
                  (change)="onCheck(node, $event)" />
+
+          <!-- Color dot (agegroups) -->
+          @if (node.color) {
+            <span class="tree-color-dot" [style.background]="node.color"></span>
+          }
 
           <!-- Name -->
           <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
@@ -148,6 +155,14 @@ interface TreeFlatNode {
       cursor: pointer;
     }
 
+    .tree-color-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-full);
+      flex-shrink: 0;
+    }
+
     .tree-name {
       flex: 1;
       overflow: hidden;
@@ -161,6 +176,8 @@ interface TreeFlatNode {
 export class LadtTreeFilterComponent implements OnChanges {
   @Input() treeData: LadtTreeNodeDto[] = [];
   @Input() checkedIds = new Set<string>();
+  /** Auto-expand nodes at levels < this value on data load. -1 = all collapsed, 0 = expand root (shows L1). */
+  @Input() initialExpandLevel = -1;
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
   // Internal state
@@ -272,6 +289,7 @@ export class LadtTreeFilterComponent implements OnChanges {
           expandable: children.length > 0,
           isSpecial: (node.level === 1 && this.isSpecialAgegroup(node.name)) ||
                      (node.level === 2 && node.name.toUpperCase() === 'UNASSIGNED'),
+          color: node.level === 1 ? (node.color ?? null) : null,
           descendantIds
         });
 
@@ -284,8 +302,18 @@ export class LadtTreeFilterComponent implements OnChanges {
     recurse(this.treeData);
     this.flatNodes.set(result);
 
-    // Default: start fully collapsed — user expands as needed
-    this.expandedIds.set(new Set());
+    // Auto-expand nodes at levels <= initialExpandLevel
+    if (this.initialExpandLevel >= 0) {
+      const expanded = new Set<string>();
+      for (const node of result) {
+        if (node.expandable && node.level <= this.initialExpandLevel) {
+          expanded.add(node.id);
+        }
+      }
+      this.expandedIds.set(expanded);
+    } else {
+      this.expandedIds.set(new Set());
+    }
   }
 
   private isSpecialAgegroup(name: string): boolean {

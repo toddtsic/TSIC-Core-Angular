@@ -16,18 +16,22 @@ import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { LadtTreeFilterComponent } from '../../registration-search/components/ladt-tree-filter.component';
+import { LadtService } from '../../ladt-editor/services/ladt.service';
+import type { LadtTreeNodeDto } from '@core/api';
 import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 @Component({
     selector: 'app-rescheduler',
     standalone: true,
-    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent, TsicDialogComponent],
+    imports: [CommonModule, FormsModule, RichTextEditorModule, ScheduleGridComponent, CadtTreeFilterComponent, LadtTreeFilterComponent, TsicDialogComponent],
     templateUrl: './rescheduler.component.html',
     styleUrl: './rescheduler.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReschedulerComponent implements OnInit {
     private readonly svc = inject(ReschedulerService);
+    private readonly ladtSvc = inject(LadtService);
     private readonly toast = inject(ToastService);
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
@@ -35,6 +39,20 @@ export class ReschedulerComponent implements OnInit {
     // ── Filter state ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
     readonly isFiltersLoading = signal(false);
+
+    // ── Collapsible filter sections ──
+    readonly ladtExpanded = signal(true);
+    readonly cadtExpanded = signal(false);
+
+    // LADT tree data + selection
+    readonly ladtTree = signal<LadtTreeNodeDto[]>([]);
+    readonly ladtCheckedIds = signal<Set<string>>(new Set());
+    private ladtLevelMap = new Map<string, number>(); // nodeId → level (0=League,1=AG,2=Div,3=Team)
+
+    // LADT-derived filter values
+    readonly ladtAgegroupIds = signal<string[]>([]);
+    readonly ladtDivisionIds = signal<string[]>([]);
+    readonly ladtTeamIds = signal<string[]>([]);
 
     // CADT multi-select
     readonly selectedClubNames = signal<string[]>([]);
@@ -99,6 +117,7 @@ export class ReschedulerComponent implements OnInit {
     readonly fields = computed(() => this.filterOptions()?.fields ?? []);
 
     readonly hasActiveFilters = computed(() =>
+        this.ladtCheckedIds().size > 0 ||
         this.selectedClubNames().length > 0 ||
         this.selectedAgegroupIds().length > 0 ||
         this.selectedDivisionIds().length > 0 ||
@@ -119,6 +138,7 @@ export class ReschedulerComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadFilterOptions();
+        this.loadLadtTree();
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -135,6 +155,69 @@ export class ReschedulerComponent implements OnInit {
             error: () => this.isFiltersLoading.set(false)
         });
     }
+
+    // ── LADT tree ──
+
+    private loadLadtTree(): void {
+        this.ladtSvc.getTree().subscribe({
+            next: (root) => {
+                const filtered = this.filterLadtTree(root.leagues);
+                this.ladtTree.set(filtered);
+                this.buildLadtLevelMap(filtered);
+            }
+        });
+    }
+
+    /** Strip scheduling-irrelevant nodes: Dropped/Waitlist agegroups, Unassigned divisions, empty divisions */
+    private filterLadtTree(leagues: LadtTreeNodeDto[]): LadtTreeNodeDto[] {
+        return leagues.map(league => {
+            const agegroups = ((league.children ?? []) as LadtTreeNodeDto[])
+                .filter(ag => {
+                    const upper = ag.name.toUpperCase();
+                    return !upper.startsWith('DROPPED') && !upper.startsWith('WAITLIST');
+                })
+                .map(ag => {
+                    const divisions = ((ag.children ?? []) as LadtTreeNodeDto[])
+                        .filter(div =>
+                            div.name.toUpperCase() !== 'UNASSIGNED' && div.teamCount > 0
+                        );
+                    return { ...ag, children: divisions } as LadtTreeNodeDto;
+                })
+                .filter(ag => ((ag.children ?? []) as LadtTreeNodeDto[]).length > 0);
+            return { ...league, children: agegroups } as LadtTreeNodeDto;
+        }).filter(league => ((league.children ?? []) as LadtTreeNodeDto[]).length > 0);
+    }
+
+    private buildLadtLevelMap(nodes: LadtTreeNodeDto[]): void {
+        this.ladtLevelMap.clear();
+        const recurse = (items: LadtTreeNodeDto[]) => {
+            for (const node of items) {
+                this.ladtLevelMap.set(node.id, node.level);
+                if (node.children?.length) recurse(node.children as LadtTreeNodeDto[]);
+            }
+        };
+        recurse(nodes);
+    }
+
+    onLadtSelectionChange(checked: Set<string>): void {
+        this.ladtCheckedIds.set(checked);
+        const agIds: string[] = [];
+        const divIds: string[] = [];
+        const teamIds: string[] = [];
+        for (const id of checked) {
+            const level = this.ladtLevelMap.get(id);
+            if (level === 1) agIds.push(id);
+            else if (level === 2) divIds.push(id);
+            else if (level === 3) teamIds.push(id);
+            // level 0 (league) is ignored — its agegroups are already checked via cascade
+        }
+        this.ladtAgegroupIds.set(agIds);
+        this.ladtDivisionIds.set(divIds);
+        this.ladtTeamIds.set(teamIds);
+    }
+
+    toggleLadtSection(): void { this.ladtExpanded.update(v => !v); }
+    toggleCadtSection(): void { this.cadtExpanded.update(v => !v); }
 
     // ── CADT tree selection handler ──
 
@@ -175,6 +258,10 @@ export class ReschedulerComponent implements OnInit {
     isFieldSelected(id: string): boolean { return this.selectedFieldIds().includes(id); }
 
     clearFilters(): void {
+        this.ladtCheckedIds.set(new Set());
+        this.ladtAgegroupIds.set([]);
+        this.ladtDivisionIds.set([]);
+        this.ladtTeamIds.set([]);
         this.selectedClubNames.set([]);
         this.selectedAgegroupIds.set([]);
         this.selectedDivisionIds.set([]);
@@ -190,9 +277,15 @@ export class ReschedulerComponent implements OnInit {
     private buildGridRequest(): ReschedulerGridRequest {
         const request: ReschedulerGridRequest = {};
         if (this.selectedClubNames().length) request.clubNames = this.selectedClubNames();
-        if (this.selectedAgegroupIds().length) request.agegroupIds = this.selectedAgegroupIds();
-        if (this.selectedDivisionIds().length) request.divisionIds = this.selectedDivisionIds();
-        if (this.selectedTeamIds().length) request.teamIds = this.selectedTeamIds();
+
+        // Merge LADT + CADT agegroup/division/team selections (OR-union)
+        const agIds = [...new Set([...this.ladtAgegroupIds(), ...this.selectedAgegroupIds()])];
+        const divIds = [...new Set([...this.ladtDivisionIds(), ...this.selectedDivisionIds()])];
+        const teamIds = [...new Set([...this.ladtTeamIds(), ...this.selectedTeamIds()])];
+        if (agIds.length) request.agegroupIds = agIds;
+        if (divIds.length) request.divisionIds = divIds;
+        if (teamIds.length) request.teamIds = teamIds;
+
         if (this.selectedGameDays().length) request.gameDays = this.selectedGameDays();
         if (this.selectedFieldIds().length) request.fieldIds = this.selectedFieldIds();
         if (this.showAddTimeslot() && this.newTimeslotDate() && this.newTimeslotTime()) {

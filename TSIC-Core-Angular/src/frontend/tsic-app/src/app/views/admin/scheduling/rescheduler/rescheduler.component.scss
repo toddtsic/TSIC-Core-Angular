@@ -71,6 +71,31 @@
     letter-spacing: 0.05em;
     color: var(--bs-secondary-color);
     padding: var(--space-1) var(--space-2);
+
+    &.collapsible {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        user-select: none;
+
+        &:hover {
+            color: var(--bs-body-color);
+        }
+    }
+}
+
+.collapse-chevron {
+    font-size: 0.625rem;
+    transition: transform 0.15s;
+
+    &.expanded {
+        transform: rotate(90deg);
+    }
+}
+
+.filter-section-body {
+    padding: 0 var(--space-1) var(--space-1);
 }
 
 // ── Filter chips (game days) ──
