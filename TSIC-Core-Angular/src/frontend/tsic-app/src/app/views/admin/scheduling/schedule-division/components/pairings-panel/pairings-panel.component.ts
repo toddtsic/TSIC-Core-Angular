@@ -1,12 +1,14 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { PairingDto, DivisionTeamDto } from '../../services/schedule-division.service';
 import { teamDes } from '../../../shared/utils/scheduling-helpers';
+import { WpwMatrixComponent } from '../../../shared/components/wpw-matrix/wpw-matrix.component';
+import { DivisionTeamsTableComponent } from '../../../shared/components/division-teams-table/division-teams-table.component';
 
 @Component({
     selector: 'app-pairings-panel',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, WpwMatrixComponent, DivisionTeamsTableComponent],
     templateUrl: './pairings-panel.component.html',
     styleUrl: './pairings-panel.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -30,10 +32,6 @@ export class PairingsPanelComponent {
     // ── Local UI state ──
     readonly whoPlaysWhoOpen = signal(false);
     readonly divisionTeamsOpen = signal(false);
-
-    // ── Computed ──
-    readonly teamRange = computed(() => Array.from({ length: this.teamCount() }, (_, i) => i + 1));
-    readonly rankOptions = computed(() => Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1));
 
     // ── Helpers ──
     readonly teamDes = teamDes;

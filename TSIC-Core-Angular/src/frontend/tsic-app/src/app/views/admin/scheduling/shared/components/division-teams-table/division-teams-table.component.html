@@ -1,0 +1,34 @@
+@if (isLoading()) {
+    <div class="text-center p-2">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+    </div>
+} @else if (teams().length > 0) {
+    <div class="teams-table-scroll">
+        <table class="table table-sm table-hover teams-table mb-0">
+            <thead>
+                <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-club">Club</th>
+                    <th class="col-teamname">Team</th>
+                    <th class="col-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (team of teams(); track team.teamId) {
+                    <tr (dblclick)="teamEditRequested.emit(team)">
+                        <td class="col-rank fw-semibold">{{ team.divRank }}</td>
+                        <td class="col-club text-secondary">{{ team.clubName }}</td>
+                        <td class="col-teamname">{{ team.teamName }}</td>
+                        <td class="col-actions">
+                            <button class="edit-trigger"
+                                    (click)="teamEditRequested.emit(team); $event.stopPropagation()"
+                                    title="Edit team">
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

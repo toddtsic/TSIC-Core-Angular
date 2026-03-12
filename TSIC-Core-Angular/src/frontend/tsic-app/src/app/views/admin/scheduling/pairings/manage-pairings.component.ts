@@ -10,6 +10,9 @@ import {
     type DivisionTeamDto
 } from './services/pairings.service';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
+import { WpwMatrixComponent } from '../shared/components/wpw-matrix/wpw-matrix.component';
+import { DivisionTeamsTableComponent } from '../shared/components/division-teams-table/division-teams-table.component';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 
 /** Team-type code legend for tooltips. */
@@ -30,12 +33,10 @@ const BRACKET_OPTIONS = [
     { key: 'F', label: 'F (Finals only)' }
 ];
 
-type TabId = 'pairings' | 'teams' | 'wpw';
-
 @Component({
     selector: 'app-manage-pairings',
     standalone: true,
-    imports: [CommonModule, FormsModule, DivisionNavigatorComponent],
+    imports: [CommonModule, FormsModule, DivisionNavigatorComponent, WpwMatrixComponent, DivisionTeamsTableComponent, TsicDialogComponent],
     templateUrl: './manage-pairings.component.html',
     styleUrl: './manage-pairings.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -55,8 +56,9 @@ export class ManagePairingsComponent implements OnInit {
         return { level: 'event' };
     });
 
-    // ── Tab state ──
-    readonly activeTab = signal<TabId>('pairings');
+    // ── Collapsible nav-panel sections ──
+    readonly wpwOpen = signal(false);
+    readonly teamsOpen = signal(false);
 
     // ── Pairings state ──
     readonly divisionResponse = signal<DivisionPairingsResponse | null>(null);
@@ -93,8 +95,11 @@ export class ManagePairingsComponent implements OnInit {
 
     // ── Division Teams ──
     readonly divisionTeams = signal<DivisionTeamDto[]>([]);
-    readonly editingTeamId = signal<string | null>(null);
     readonly isSavingTeam = signal(false);
+    readonly editingTeam = signal<{ teamId: string; divRank: number; teamName: string; clubName: string } | null>(null);
+    readonly rankOptions = computed(() =>
+        Array.from({ length: this.divisionTeams().length }, (_, i) => i + 1)
+    );
 
     // ── Computed: separate round-robin from bracket pairings ──
     readonly roundRobinPairings = computed(() =>
@@ -106,16 +111,6 @@ export class ManagePairingsComponent implements OnInit {
     );
 
     readonly teamCount = computed(() => this.divisionResponse()?.teamCount ?? 0);
-
-    readonly teamRange = computed(() => {
-        const tc = this.teamCount();
-        return Array.from({ length: tc }, (_, i) => i + 1);
-    });
-
-    readonly rankOptions = computed(() => {
-        const count = this.divisionTeams().length;
-        return Array.from({ length: count }, (_, i) => i + 1);
-    });
 
     ngOnInit(): void {
         this.loadAgegroups();
@@ -159,8 +154,6 @@ export class ManagePairingsComponent implements OnInit {
         this.selectedDivision.set(event.division);
         this.selectedAgegroupId.set(event.agegroupId);
         this.editingAi.set(null);
-        this.editingTeamId.set(null);
-        this.activeTab.set('pairings');
         this.whoPlaysWhoMatrix.set(null);
         this.divisionTeams.set([]);
         this.loadDivisionPairings(event.division.divId);
@@ -185,23 +178,29 @@ export class ManagePairingsComponent implements OnInit {
         });
     }
 
-    // ── Tabs ──
+    // ── Collapsible section toggles (lazy-load on first open) ──
 
-    setActiveTab(tab: TabId): void {
-        this.activeTab.set(tab);
+    toggleWpw(): void {
+        const opening = !this.wpwOpen();
+        this.wpwOpen.set(opening);
 
-        if (tab === 'teams' && this.divisionTeams().length === 0) {
-            const div = this.selectedDivision();
-            if (div) this.loadDivisionTeams(div.divId);
-        }
-
-        if (tab === 'wpw' && !this.whoPlaysWhoMatrix()) {
+        if (opening && !this.whoPlaysWhoMatrix()) {
             const tc = this.teamCount();
             if (tc > 0) {
                 this.svc.getWhoPlaysWho(tc).subscribe({
                     next: (resp) => this.whoPlaysWhoMatrix.set(resp.matrix)
                 });
             }
+        }
+    }
+
+    toggleTeams(): void {
+        const opening = !this.teamsOpen();
+        this.teamsOpen.set(opening);
+
+        if (opening && this.divisionTeams().length === 0) {
+            const div = this.selectedDivision();
+            if (div) this.loadDivisionTeams(div.divId);
         }
     }
 
@@ -338,29 +337,40 @@ export class ManagePairingsComponent implements OnInit {
         });
     }
 
-    // ── Division Teams ──
+    // ── Division Teams modal ──
 
-    startTeamEdit(teamId: string): void {
-        this.editingTeamId.set(teamId);
+    openTeamEdit(team: DivisionTeamDto): void {
+        this.editingTeam.set({
+            teamId: team.teamId,
+            divRank: team.divRank,
+            teamName: team.teamName ?? '',
+            clubName: team.clubName ?? ''
+        });
     }
 
     cancelTeamEdit(): void {
-        this.editingTeamId.set(null);
-        // Reload to discard unsaved changes
-        const div = this.selectedDivision();
-        if (div) this.loadDivisionTeams(div.divId);
+        this.editingTeam.set(null);
     }
 
-    saveTeamEdit(team: DivisionTeamDto): void {
+    updateTeamField(field: 'teamName' | 'divRank', value: string | number): void {
+        const t = this.editingTeam();
+        if (!t) return;
+        this.editingTeam.set({ ...t, [field]: value });
+    }
+
+    saveTeamEdit(): void {
+        const t = this.editingTeam();
+        if (!t) return;
+
         this.isSavingTeam.set(true);
         this.svc.editDivisionTeam({
-            teamId: team.teamId,
-            divRank: team.divRank,
-            teamName: team.teamName
+            teamId: t.teamId,
+            divRank: t.divRank,
+            teamName: t.teamName
         }).subscribe({
             next: (updatedTeams) => {
                 this.divisionTeams.set(updatedTeams);
-                this.editingTeamId.set(null);
+                this.editingTeam.set(null);
                 this.isSavingTeam.set(false);
             },
             error: () => this.isSavingTeam.set(false)

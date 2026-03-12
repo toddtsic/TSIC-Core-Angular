@@ -65,38 +65,10 @@
             Who Plays Who
         </div>
         @if (whoPlaysWhoOpen()) {
-            @if (whoPlaysWhoMatrix()) {
-                <div class="matrix-scroll">
-                    <table class="table table-sm matrix-table mb-0">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                @for (t of teamRange(); track t) {
-                                    <th class="text-center">T{{ t }}</th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (row of whoPlaysWhoMatrix()!; track $index; let i = $index) {
-                                <tr>
-                                    <th>T{{ i + 1 }}</th>
-                                    @for (val of row; track $index; let j = $index) {
-                                        <td class="text-center"
-                                            [class.matrix-diagonal]="i === j"
-                                            [class.matrix-zero]="val === 0 && i !== j">
-                                            @if (i === j) { — } @else { {{ val }} }
-                                        </td>
-                                    }
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            } @else {
-                <div class="text-center p-2">
-                    <div class="spinner-border spinner-border-sm text-secondary"></div>
-                </div>
-            }
+            <app-wpw-matrix
+                [matrix]="whoPlaysWhoMatrix()"
+                [teamCount]="teamCount()"
+                [isLoading]="!whoPlaysWhoMatrix()" />
         }
     }
 
@@ -107,34 +79,9 @@
             Division Teams
         </div>
         @if (divisionTeamsOpen()) {
-            <div class="teams-table-scroll">
-                <table class="table table-sm table-hover teams-table mb-0">
-                    <thead>
-                        <tr>
-                            <th class="col-rank">#</th>
-                            <th class="col-club">Club</th>
-                            <th class="col-teamname">Team</th>
-                            <th class="col-actions"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (team of divisionTeams(); track team.teamId) {
-                            <tr (dblclick)="teamEditRequested.emit(team)">
-                                <td class="col-rank fw-semibold">{{ team.divRank }}</td>
-                                <td class="col-club text-secondary" [title]="team.clubName">{{ team.clubName }}</td>
-                                <td class="col-teamname" [title]="team.teamName">{{ team.teamName }}</td>
-                                <td class="col-actions">
-                                    <button class="edit-trigger"
-                                            (click)="teamEditRequested.emit(team); $event.stopPropagation()"
-                                            title="Edit team">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <app-division-teams-table
+                [teams]="divisionTeams()"
+                (teamEditRequested)="teamEditRequested.emit($event)" />
         }
     }
 </div>

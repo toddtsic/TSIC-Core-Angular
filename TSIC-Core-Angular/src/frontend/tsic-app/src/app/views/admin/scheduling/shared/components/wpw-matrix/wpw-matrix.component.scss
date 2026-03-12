@@ -1,0 +1,41 @@
+.matrix-scroll {
+    overflow: auto;
+    max-height: 200px;
+}
+
+.matrix-table {
+    font-size: var(--font-size-2xs);
+
+    th, td {
+        padding: var(--space-1);
+        min-width: 32px;
+        vertical-align: middle;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        background: var(--bs-body-bg);
+        z-index: 1;
+        font-weight: 700;
+    }
+
+    tbody th {
+        font-weight: 700;
+        background: var(--bs-body-bg);
+        position: sticky;
+        left: 0;
+        z-index: 1;
+    }
+}
+
+.matrix-diagonal {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+}
+
+.matrix-zero {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    font-weight: 600;
+}
