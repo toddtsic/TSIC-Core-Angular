@@ -150,6 +150,21 @@ public record SaveCascadeLevelRequest
     public Dictionary<string, byte>? WavesByDate { get; init; }
 }
 
+/// <summary>
+/// Batch-save all wave assignments for a job in a single request.
+/// Agegroup waves set the per-date default; division waves override specific divisions.
+/// Dates with wave 1 can be omitted (1 is the implicit default).
+/// </summary>
+public record SaveBatchWavesRequest
+{
+    /// <summary>Per-agegroup wave assignments: agegroupId → (ISO date string → wave).</summary>
+    public required Dictionary<string, Dictionary<string, byte>> AgegroupWaves { get; init; }
+
+    /// <summary>Per-division wave overrides: divisionId → (ISO date string → wave).
+    /// Only include dates where division differs from its agegroup.</summary>
+    public required Dictionary<string, Dictionary<string, byte>> DivisionWaves { get; init; }
+}
+
 // ══════════════════════════════════════════════════════════
 // Division Processing Order DTOs
 // ══════════════════════════════════════════════════════════

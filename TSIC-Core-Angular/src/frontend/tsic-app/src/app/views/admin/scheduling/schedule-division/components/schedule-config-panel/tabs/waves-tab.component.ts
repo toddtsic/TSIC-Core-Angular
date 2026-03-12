@@ -1,35 +1,36 @@
 import {
   Component, ChangeDetectionStrategy, computed, inject, signal
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
+import type { SaveBatchWavesRequest } from '@core/api';
 
 interface WaveRow {
   id: string;
   name: string;
   level: 'agegroup' | 'division';
   agegroupId: string;
-  /** Per-date wave values (ISO date string → wave number) */
-  waves: Record<string, number>;
-  /** Whether this row has any explicit overrides */
-  hasOverride: boolean;
+}
+
+/**
+ * Per-entity wave state: entityId → (isoDate → waveNumber).
+ * Agegroup waves set defaults; division waves override specific divisions.
+ */
+interface WaveState {
+  agegroups: Record<string, Record<string, number>>;
+  divisions: Record<string, Record<string, number>>;
 }
 
 /**
  * Waves tab — per-date wave assignments for divisions, grouped by agegroup.
  *
- * Layout:
- * - Summary when all divisions are Wave 1 (most common)
- * - Grid: divisions as rows (grouped by agegroup), play-dates as columns
- * - Agegroup header row sets default for all divisions in that AG
- * - Division rows override specific divisions
- * - Color-coded cells by wave number
+ * UX: native `<select>` dropdowns per cell, dirty-tracked batch save.
+ * Max wave option per date column = current max for that column + 1 (no hard ceiling).
  */
 @Component({
   selector: 'app-waves-tab',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './waves-tab.component.html',
   styleUrl: './waves-tab.component.scss',
@@ -42,7 +43,45 @@ export class WavesTabComponent {
   readonly isSaving = signal(false);
   readonly isEditing = signal(false);
 
-  /** All unique play dates across all agegroups, sorted chronologically */
+  // ── Dirty State Tracking ──
+
+  /** Baseline (server) wave state — recomputed whenever cascade reloads.
+   *  Divisions store OVERRIDES only (dates where div differs from AG). */
+  readonly baselineWaves = computed((): WaveState => {
+    const snap = this.cascade();
+    if (!snap) return { agegroups: {}, divisions: {} };
+
+    const agegroups: Record<string, Record<string, number>> = {};
+    const divisions: Record<string, Record<string, number>> = {};
+
+    for (const ag of snap.agegroups) {
+      agegroups[ag.agegroupId] = { ...ag.wavesByDate };
+      for (const div of ag.divisions) {
+        const overrides: Record<string, number> = {};
+        for (const [date, wave] of Object.entries(div.effectiveWavesByDate)) {
+          const agWave = ag.wavesByDate[date] ?? 1;
+          if (wave !== agWave) overrides[date] = wave;
+        }
+        divisions[div.divisionId] = overrides;
+      }
+    }
+    return { agegroups, divisions };
+  });
+
+  /** Pending (local) edits — null when clean. */
+  readonly pendingWaves = signal<WaveState | null>(null);
+
+  /** Effective wave state: pending if dirty, otherwise baseline. */
+  readonly effectiveWaves = computed((): WaveState => {
+    return this.pendingWaves() ?? this.baselineWaves();
+  });
+
+  /** Whether there are unsaved changes. */
+  readonly isDirty = computed(() => this.pendingWaves() !== null);
+
+  // ── Derived Data ──
+
+  /** All unique play dates across all agegroups, sorted chronologically. */
   readonly playDates = computed((): { iso: string; label: string }[] => {
     const snap = this.cascade();
     if (!snap) return [];
@@ -64,212 +103,176 @@ export class WavesTabComponent {
       .map(iso => ({ iso, label: this.formatDateLabel(iso) }));
   });
 
-  /** Whether all divisions have Wave 1 on all dates */
+  /** Whether all divisions have Wave 1 on all dates. */
   readonly allWaveOne = computed(() => this.cascadeSvc.hasNoWaves());
 
-  /** Rows for the wave grid: agegroup headers + division rows */
+  /** Rows for the wave grid: agegroup headers + division rows. */
   readonly rows = computed((): WaveRow[] => {
     const snap = this.cascade();
     if (!snap) return [];
 
     const result: WaveRow[] = [];
-
     for (const ag of snap.agegroups) {
-      // Agegroup header row
       result.push({
         id: ag.agegroupId,
         name: ag.agegroupName,
         level: 'agegroup',
         agegroupId: ag.agegroupId,
-        waves: ag.wavesByDate,
-        hasOverride: Object.keys(ag.wavesByDate).length > 0,
       });
-
-      // Division rows
       for (const div of ag.divisions) {
-        // Determine if division has its own override (not just inherited from AG)
-        const divOverrideWaves: Record<string, number> = {};
-        let hasDivOverride = false;
-
-        for (const [dateKey, wave] of Object.entries(div.effectiveWavesByDate)) {
-          divOverrideWaves[dateKey] = wave;
-          // It's an override if the division's effective wave differs from agegroup
-          const agWave = ag.wavesByDate[dateKey] ?? 1;
-          if (wave !== agWave) hasDivOverride = true;
-        }
-
         result.push({
           id: div.divisionId,
           name: div.divisionName,
           level: 'division',
           agegroupId: ag.agegroupId,
-          waves: div.effectiveWavesByDate,
-          hasOverride: hasDivOverride,
         });
       }
     }
-
     return result;
   });
 
-  /** Get wave for a row + date. Returns 1 as default. */
+  /** Per-date max wave across all resolved values (reactive to pending edits). */
+  readonly maxWaveByDate = computed((): Record<string, number> => {
+    const result: Record<string, number> = {};
+    const dates = this.playDates();
+    const allRows = this.rows();
+
+    for (const row of allRows) {
+      for (const date of dates) {
+        const wave = this.getWave(row, date.iso);
+        result[date.iso] = Math.max(result[date.iso] ?? 1, wave);
+      }
+    }
+    return result;
+  });
+
+  // ── Accessors ──
+
+  /** Get wave for a row + date. Divisions fall through: override → AG → 1. */
   getWave(row: WaveRow, dateIso: string): number {
-    return row.waves[dateIso] ?? 1;
+    const waves = this.effectiveWaves();
+    if (row.level === 'agegroup') {
+      return waves.agegroups[row.id]?.[dateIso] ?? 1;
+    }
+    const override = waves.divisions[row.id]?.[dateIso];
+    if (override !== undefined) return override;
+    return waves.agegroups[row.agegroupId]?.[dateIso] ?? 1;
   }
 
-  /** Whether a division's wave is inherited from agegroup (not overridden) */
+  /** Whether a division's wave is inherited (no override for that date). */
   isInherited(row: WaveRow, dateIso: string): boolean {
     if (row.level === 'agegroup') return false;
-
-    const snap = this.cascade();
-    if (!snap) return true;
-
-    const ag = snap.agegroups.find(a => a.agegroupId === row.agegroupId);
-    if (!ag) return true;
-
-    const div = ag.divisions.find(d => d.divisionId === row.id);
-    if (!div) return true;
-
-    // Find the raw division wave data — check if there's a division-level override
-    // If effectiveWavesByDate matches agWave, it's inherited
-    const agWave = ag.wavesByDate[dateIso] ?? 1;
-    const divWave = div.effectiveWavesByDate[dateIso] ?? 1;
-    return divWave === agWave;
+    return this.effectiveWaves().divisions[row.id]?.[dateIso] === undefined;
   }
 
-  /** Cycle wave value for a cell: 1 → 2 → 3 → 1 */
-  cycleWave(row: WaveRow, dateIso: string): void {
-    const current = this.getWave(row, dateIso);
-    const next = current >= 3 ? 1 : current + 1;
+  /** Whether a division row has any overrides. */
+  hasOverride(row: WaveRow): boolean {
+    if (row.level === 'agegroup') return false;
+    const overrides = this.effectiveWaves().divisions[row.id];
+    return !!overrides && Object.keys(overrides).length > 0;
+  }
 
-    this.isSaving.set(true);
+  /**
+   * Dropdown options for a date column: [1..max+1].
+   * max+1 so there's always room to grow one tier beyond current usage.
+   */
+  getWaveOptions(dateIso: string): number[] {
+    const max = this.maxWaveByDate()[dateIso] ?? 1;
+    return Array.from({ length: max + 1 }, (_, i) => i + 1);
+  }
+
+  /** CSS class for wave-number coloring. */
+  waveClass(wave: number): string {
+    if (wave <= 3) return `wave-${wave}`;
+    return 'wave-high';
+  }
+
+  // ── Mutations (local only — no API call) ──
+
+  onWaveChange(row: WaveRow, dateIso: string, newValue: number): void {
+    const current = structuredClone(this.effectiveWaves());
 
     if (row.level === 'agegroup') {
-      // Update agegroup wave for this date
-      const snap = this.cascade();
-      const ag = snap?.agegroups.find(a => a.agegroupId === row.id);
-      if (!ag) return;
-
-      const wavesByDate: Record<string, number> = { ...ag.wavesByDate };
-      if (next === 1) {
-        delete wavesByDate[dateIso]; // Wave 1 = default, no need to store
-      } else {
-        wavesByDate[dateIso] = next;
-      }
-
-      // Convert to string-keyed byte dict for API
-      const apiWaves: Record<string, number> = {};
-      for (const [k, v] of Object.entries(wavesByDate)) {
-        apiWaves[k] = v;
-      }
-
-      this.cascadeSvc.saveAgegroupOverride(row.id, {
-        gamePlacement: ag.gamePlacementOverride ?? undefined,
-        betweenRoundRows: ag.betweenRoundRowsOverride ?? undefined,
-        gameGuarantee: ag.gameGuaranteeOverride ?? undefined,
-        wavesByDate: Object.keys(apiWaves).length > 0 ? apiWaves : undefined,
-      }).subscribe({
-        next: () => {
-          this.isSaving.set(false);
-        },
-        error: () => {
-          this.isSaving.set(false);
-          this.toast.show('Failed to save wave assignment', 'danger');
-        },
-      });
+      if (!current.agegroups[row.id]) current.agegroups[row.id] = {};
+      current.agegroups[row.id][dateIso] = newValue;
     } else {
-      // Update division wave for this date
-      const snap = this.cascade();
-      const ag = snap?.agegroups.find(a => a.agegroupId === row.agegroupId);
-      const div = ag?.divisions.find(d => d.divisionId === row.id);
-      if (!div) return;
-
-      // Build division-level wave overrides
-      // We need to figure out which dates have division-specific overrides
-      const wavesByDate: Record<string, number> = {};
-
-      // Start with existing effective waves that differ from AG
-      for (const [dateKey, wave] of Object.entries(div.effectiveWavesByDate)) {
-        const agWave = ag!.wavesByDate[dateKey] ?? 1;
-        if (wave !== agWave) {
-          wavesByDate[dateKey] = wave;
-        }
-      }
-
-      // Apply the new change
-      const agWave = ag!.wavesByDate[dateIso] ?? 1;
-      if (next !== agWave) {
-        wavesByDate[dateIso] = next;
+      // Division: if matches AG value, remove override (= inherit)
+      const agWave = current.agegroups[row.agegroupId]?.[dateIso] ?? 1;
+      if (!current.divisions[row.id]) current.divisions[row.id] = {};
+      if (newValue === agWave) {
+        delete current.divisions[row.id][dateIso];
       } else {
-        delete wavesByDate[dateIso]; // Matches AG = inherit
+        current.divisions[row.id][dateIso] = newValue;
       }
-
-      this.cascadeSvc.saveDivisionOverride(row.id, {
-        gamePlacement: div.gamePlacementOverride ?? undefined,
-        betweenRoundRows: div.betweenRoundRowsOverride ?? undefined,
-        gameGuarantee: div.gameGuaranteeOverride ?? undefined,
-        wavesByDate: Object.keys(wavesByDate).length > 0 ? wavesByDate : undefined,
-      }).subscribe({
-        next: () => {
-          this.isSaving.set(false);
-        },
-        error: () => {
-          this.isSaving.set(false);
-          this.toast.show('Failed to save wave assignment', 'danger');
-        },
-      });
     }
+
+    this.pendingWaves.set(current);
   }
 
-  /** Clear a division's wave override for a date (revert to agegroup) */
-  clearDivWave(row: WaveRow, dateIso: string): void {
-    if (row.level !== 'division') return;
+  // ── Save / Discard ──
 
-    const snap = this.cascade();
-    const ag = snap?.agegroups.find(a => a.agegroupId === row.agegroupId);
-    const div = ag?.divisions.find(d => d.divisionId === row.id);
-    if (!div) return;
-
-    // Build wave overrides without this date
-    const wavesByDate: Record<string, number> = {};
-    for (const [dateKey, wave] of Object.entries(div.effectiveWavesByDate)) {
-      if (dateKey === dateIso) continue;
-      const agWave = ag!.wavesByDate[dateKey] ?? 1;
-      if (wave !== agWave) {
-        wavesByDate[dateKey] = wave;
-      }
-    }
+  saveAll(): void {
+    const pending = this.effectiveWaves();
+    const request = this.buildSaveRequest(pending);
 
     this.isSaving.set(true);
-    this.cascadeSvc.saveDivisionOverride(row.id, {
-      gamePlacement: div.gamePlacementOverride ?? undefined,
-      betweenRoundRows: div.betweenRoundRowsOverride ?? undefined,
-      gameGuarantee: div.gameGuaranteeOverride ?? undefined,
-      wavesByDate: Object.keys(wavesByDate).length > 0 ? wavesByDate : undefined,
-    }).subscribe({
+    this.cascadeSvc.saveBatchWaves(request).subscribe({
       next: () => {
         this.isSaving.set(false);
+        this.pendingWaves.set(null);
+        this.toast.show('Wave assignments saved', 'success');
       },
       error: () => {
         this.isSaving.set(false);
-        this.toast.show('Failed to clear wave override', 'danger');
+        this.toast.show('Failed to save wave assignments', 'danger');
       },
     });
   }
 
-  /** CSS class for wave badge */
-  waveClass(wave: number): string {
-    switch (wave) {
-      case 1: return 'wave-1';
-      case 2: return 'wave-2';
-      case 3: return 'wave-3';
-      default: return 'wave-1';
+  discard(): void {
+    this.pendingWaves.set(null);
+  }
+
+  // ── Private Helpers ──
+
+  /**
+   * Build API request from effective wave state.
+   * - AG waves: omit wave-1 entries (1 is default, no need to store)
+   * - Div waves: only include dates where division differs from its agegroup
+   */
+  private buildSaveRequest(state: WaveState): SaveBatchWavesRequest {
+    const agegroupWaves: Record<string, Record<string, number>> = {};
+    for (const [agId, dateWaves] of Object.entries(state.agegroups)) {
+      const filtered: Record<string, number> = {};
+      for (const [date, wave] of Object.entries(dateWaves)) {
+        if (wave !== 1) filtered[date] = wave;
+      }
+      agegroupWaves[agId] = filtered;
     }
+
+    const divisionWaves: Record<string, Record<string, number>> = {};
+    for (const [divId, dateWaves] of Object.entries(state.divisions)) {
+      // Find this division's agegroup from rows
+      const row = this.rows().find(r => r.id === divId);
+      const agId = row?.agegroupId;
+      const agWaves = agId ? state.agegroups[agId] ?? {} : {};
+
+      const filtered: Record<string, number> = {};
+      for (const [date, wave] of Object.entries(dateWaves)) {
+        const agWave = agWaves[date] ?? 1;
+        if (wave !== agWave) filtered[date] = wave;
+      }
+      divisionWaves[divId] = filtered;
+    }
+
+    return { agegroupWaves, divisionWaves };
   }
 
   private formatDateLabel(iso: string): string {
-    // Parse ISO date and format as "Mon 06/07"
-    const d = new Date(iso + 'T12:00:00');
+    // Backend DateTime keys may include time component (e.g. "2026-06-15T00:00:00")
+    const dateOnly = iso.includes('T') ? iso.split('T')[0] : iso;
+    const d = new Date(dateOnly + 'T12:00:00');
+    if (isNaN(d.getTime())) return iso; // fallback: show raw string
     const dow = d.toLocaleDateString('en-US', { weekday: 'short' });
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');

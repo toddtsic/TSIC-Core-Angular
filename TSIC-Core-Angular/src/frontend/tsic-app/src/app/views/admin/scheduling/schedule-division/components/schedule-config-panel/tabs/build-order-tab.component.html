@@ -93,23 +93,24 @@
       </div>
     }
 
-    <!-- Actions -->
-    @if (localOrder().length > 0) {
-      <div class="order-actions">
-        <button class="btn btn-sm btn-outline-secondary"
-                [disabled]="isSaving()"
-                (click)="resetToDefault()">
-          <i class="bi bi-arrow-counterclockwise"></i> Reset to Default
-        </button>
-        <button class="btn btn-sm btn-primary"
-                [disabled]="!isDirty() || isSaving()"
-                (click)="save()">
-          @if (isSaving()) {
-            <span class="spinner-border spinner-border-sm me-1"></span>
-          }
-          <i class="bi bi-check2"></i> Save Order
-        </button>
-      </div>
-    }
+  }
+
+  <!-- FAB — fixed bottom-right, visible only when dirty -->
+  @if (isDirty()) {
+    <div class="order-fab">
+      <button class="btn btn-outline-secondary"
+              [disabled]="isSaving()"
+              (click)="discard()">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Discard
+      </button>
+      <button class="btn btn-primary"
+              [disabled]="isSaving()"
+              (click)="save()">
+        @if (isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        <i class="bi bi-check2 me-1"></i>Save Order
+      </button>
+    </div>
   }
 </div>

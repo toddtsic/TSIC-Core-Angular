@@ -263,6 +263,63 @@ public class ScheduleCascadeService : IScheduleCascadeService
             wavesByDate?.Count ?? 0);
     }
 
+    public async Task SaveBatchWavesAsync(
+        Guid jobId, SaveBatchWavesRequest request, string userId,
+        CancellationToken ct = default)
+    {
+        // Agegroup waves — sequential to avoid DbContext concurrency
+        foreach (var (agIdStr, dateWaves) in request.AgegroupWaves)
+        {
+            if (!Guid.TryParse(agIdStr, out var agId)) continue;
+
+            var waves = dateWaves
+                .Select(kvp =>
+                {
+                    if (!DateTime.TryParse(kvp.Key, out var date)) return null;
+                    return new AgegroupWaveAssignment
+                    {
+                        AgegroupId = agId,
+                        GameDate = date.Date,
+                        Wave = kvp.Value,
+                        LebUserId = userId
+                    };
+                })
+                .Where(w => w != null)
+                .ToList()!;
+
+            await _cascadeRepo.UpsertAgegroupWavesAsync(agId, waves!, ct);
+        }
+
+        // Division waves — sequential
+        foreach (var (divIdStr, dateWaves) in request.DivisionWaves)
+        {
+            if (!Guid.TryParse(divIdStr, out var divId)) continue;
+
+            var waves = dateWaves
+                .Select(kvp =>
+                {
+                    if (!DateTime.TryParse(kvp.Key, out var date)) return null;
+                    return new DivisionWaveAssignment
+                    {
+                        DivisionId = divId,
+                        GameDate = date.Date,
+                        Wave = kvp.Value,
+                        LebUserId = userId
+                    };
+                })
+                .Where(w => w != null)
+                .ToList()!;
+
+            await _cascadeRepo.UpsertDivisionWavesAsync(divId, waves!, ct);
+        }
+
+        await _cascadeRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Batch-saved wave assignments: {AgCount} agegroups, {DivCount} divisions",
+            request.AgegroupWaves.Count, request.DivisionWaves.Count);
+    }
+
     public async Task SeedDivisionWavesAsync(
         Guid jobId,
         Dictionary<Guid, int> divisionWaves,

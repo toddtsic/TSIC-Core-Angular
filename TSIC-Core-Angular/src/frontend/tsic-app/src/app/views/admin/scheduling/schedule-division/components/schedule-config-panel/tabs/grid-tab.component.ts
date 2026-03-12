@@ -73,10 +73,6 @@ export class GridTabComponent implements OnInit {
     return `${configured}/${r.length} agegroups configured`;
   });
 
-  readonly totalCapacity = computed(() => {
-    return this.rows().reduce((sum, r) => sum + r.totalGameSlots, 0);
-  });
-
   ngOnInit(): void {
     this.reload();
   }

@@ -143,6 +143,21 @@ public class ScheduleCascadeController : ControllerBase
     }
 
     /// <summary>
+    /// PUT /api/schedule-cascade/waves — Batch-save all wave assignments for a job.
+    /// Replaces agegroup + division wave assignments atomically.
+    /// </summary>
+    [HttpPut("waves")]
+    public async Task<ActionResult> SaveBatchWaves(
+        [FromBody] SaveBatchWavesRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        await _service.SaveBatchWavesAsync(jobId!.Value, request, userId!, ct);
+        return Ok(new { message = "Wave assignments saved" });
+    }
+
+    /// <summary>
     /// POST /api/schedule-cascade/seed-waves — Bulk-seed division wave assignments
     /// from projected config. Only seeds divisions that don't already have waves.
     /// </summary>

@@ -6,6 +6,7 @@ import type {
     ScheduleCascadeSnapshot,
     SaveEventDefaultsRequest,
     SaveCascadeLevelRequest,
+    SaveBatchWavesRequest,
     SeedWavesRequest,
     ProcessingOrderEntryDto,
     SaveProcessingOrderRequest,
@@ -61,6 +62,13 @@ export class ScheduleCascadeService {
     saveDivisionOverride(divisionId: string, request: SaveCascadeLevelRequest): Observable<ScheduleCascadeSnapshot> {
         return this.http.put<unknown>(
             `${this.apiUrl}/division/${divisionId}`, request
+        ).pipe(switchMap(() => this.loadCascade()));
+    }
+
+    /** Batch-save all wave assignments (agegroup + division) in a single request. */
+    saveBatchWaves(request: SaveBatchWavesRequest): Observable<ScheduleCascadeSnapshot> {
+        return this.http.put<unknown>(
+            `${this.apiUrl}/waves`, request
         ).pipe(switchMap(() => this.loadCascade()));
     }
 

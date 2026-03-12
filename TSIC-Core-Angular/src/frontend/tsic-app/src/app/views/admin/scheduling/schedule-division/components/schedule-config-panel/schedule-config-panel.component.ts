@@ -1,6 +1,5 @@
 import { Component, ChangeDetectionStrategy, ViewChild, computed, signal, output, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { JobService } from '@infrastructure/services/job.service';
 import { ScheduleCascadeService } from '../schedule-config/schedule-cascade.service';
 import type { DevResetOptions } from '../schedule-config/schedule-config.types';
@@ -33,7 +32,6 @@ interface TabDef {
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     TsicDialogComponent,
     BuildRulesTabComponent,
     BuildOrderTabComponent,
@@ -80,24 +78,13 @@ export class ScheduleConfigPanelComponent {
     { key: 'rounds', label: 'Rounds / Day', icon: 'bi-arrow-repeat' },
     { key: 'waves', label: 'Waves', icon: 'bi-water' },
     { key: 'buildOrder', label: 'Build Order', icon: 'bi-sort-numeric-down' },
-    { key: 'grid', label: 'AG Grid', icon: 'bi-table' },
+    { key: 'grid', label: 'Config Summary', icon: 'bi-table' },
   ];
 
   activeTab = signal<ScheduleConfigTab>('dates');
 
   // ── Reset dialog state ──
   readonly showResetDialog = signal(false);
-  readonly resetGames = signal(true);
-  readonly resetStrategyProfiles = signal(false);
-  readonly resetPairings = signal(true);
-  readonly resetDates = signal(false);
-  readonly resetFieldTimeslots = signal(false);
-  readonly resetConfirmText = signal('');
-
-  readonly anyResetChecked = computed(() =>
-    this.resetGames() || this.resetStrategyProfiles() || this.resetPairings()
-    || this.resetDates() || this.resetFieldTimeslots()
-  );
 
   selectTab(key: ScheduleConfigTab): void {
     this.activeTab.set(key);
@@ -106,12 +93,6 @@ export class ScheduleConfigPanelComponent {
   // ── Reset dialog ──
 
   openResetDialog(): void {
-    this.resetGames.set(true);
-    this.resetStrategyProfiles.set(false);
-    this.resetPairings.set(true);
-    this.resetDates.set(false);
-    this.resetFieldTimeslots.set(false);
-    this.resetConfirmText.set('');
     this.showResetDialog.set(true);
   }
 
@@ -122,11 +103,11 @@ export class ScheduleConfigPanelComponent {
   onResetConfirmed(): void {
     this.showResetDialog.set(false);
     this.resetConfirmed.emit({
-      games: this.resetGames(),
-      strategyProfiles: this.resetStrategyProfiles(),
-      pairings: this.resetPairings(),
-      dates: this.resetDates(),
-      fieldTimeslots: this.resetFieldTimeslots(),
+      games: true,
+      strategyProfiles: false,
+      pairings: false,
+      dates: false,
+      fieldTimeslots: false,
     });
   }
 

@@ -28,7 +28,7 @@ import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedu
 import { OperationSpinnerModalComponent } from '../shared/components/operation-spinner-modal/operation-spinner-modal.component';
 import { PairingsPanelComponent } from './components/pairings-panel/pairings-panel.component';
 import type { DevResetOptions } from './components/schedule-config/schedule-config.types';
-import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent, type AutoScheduleConfig, type ModalAgegroup } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
+import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
@@ -134,24 +134,6 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     });
     readonly hasGamesInScope = computed(() => this.scopeGameCount() > 0);
-
-    /** Per-division-name game counts within the current scope. Used by config modal for "keep" mode. */
-    readonly scopeDivisionGameCounts = computed<Record<string, number>>(() => {
-        const summary = this.gameSummary();
-        if (!summary) return {};
-        const s = this.scope();
-        let divisions = summary.divisions;
-        if (s.level === 'agegroup') {
-            divisions = divisions.filter(d => d.agegroupId === s.agegroupId);
-        } else if (s.level === 'division') {
-            divisions = divisions.filter(d => d.divId === s.divId);
-        }
-        const map: Record<string, number> = {};
-        for (const d of divisions) {
-            map[d.divName] = (map[d.divName] ?? 0) + d.gameCount;
-        }
-        return map;
-    });
 
     readonly scopeLabel = computed(() => {
         const s = this.scope();
@@ -284,28 +266,8 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Auto-schedule config modal ──
     readonly showAutoScheduleModal = signal(false);
-    readonly autoScheduleConfig = signal<AutoScheduleConfig>(this.loadAutoScheduleConfig());
-    readonly modalAgegroups = signal<ModalAgegroup[]>([]);
+    readonly showEventBuildConfirm = signal(false);
     readonly isExecuting = signal(false);
-    readonly modalStrategies = signal<DivisionStrategyEntry[]>([]);
-    readonly modalStrategySource = signal<string>('defaults');
-    readonly modalStrategySourceName = signal<string>('');
-    readonly modalStrategyLoading = signal(false);
-
-    /** Division names relevant to the current scope — passed to modal for display filtering. */
-    readonly modalScopeDivisionNames = computed<string[]>(() => {
-        const s = this.scope();
-        if (s.level === 'event') return [];
-        if (s.level === 'division') {
-            const div = this.agegroups()
-                .find(ag => ag.agegroupId === s.agegroupId)
-                ?.divisions.find(d => d.divId === s.divId);
-            return div ? [div.divName] : [];
-        }
-        // agegroup scope: all division names in that agegroup
-        const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
-        return ag ? ag.divisions.map(d => d.divName) : [];
-    });
 
     // ── Build results ──
     readonly buildResult = signal<AutoBuildResult | null>(null);
@@ -980,19 +942,13 @@ export class ScheduleDivisionComponent implements OnInit {
 
     executeReset(options: DevResetOptions): void {
         this.isResetting.set(true);
-        const parts: string[] = [];
-        if (options.games) parts.push('games');
-        if (options.strategyProfiles) parts.push('strategy profiles');
-        if (options.pairings) parts.push('pairings');
-        if (options.dates) parts.push('dates');
-        if (options.fieldTimeslots) parts.push('field timeslots');
 
         // Always preconfigure from prior year if available
         const sourceJobId = options.sourceJobId ?? this.priorYearDefaults()?.priorJobId ?? undefined;
         const hasSource = !!sourceJobId;
         const modalMsg = hasSource
-            ? `Clearing ${parts.join(', ')}… then preconfiguring from source`
-            : `Clearing ${parts.join(', ')}…`;
+            ? 'Clearing games… then preconfiguring from source'
+            : 'Clearing games…';
         this.openOperationModal('Resetting Scheduling Data', modalMsg, 'bi-arrow-counterclockwise');
         this.autoBuildSvc.resetSchedule({
             games: options.games,
@@ -1006,22 +962,26 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (result) => {
                 this.showOperationModal.set(false);
                 this.isResetting.set(false);
-                const summary: string[] = [];
-                if (result.gamesDeleted) summary.push(`${result.gamesDeleted} games`);
-                if (result.agegroupsCleared) summary.push(`${result.agegroupsCleared} agegroups`);
-                if (result.pairingGroupsCleared) summary.push(`${result.pairingGroupsCleared} pairing groups`);
+                const cleared: string[] = [];
+                if (result.gamesDeleted) cleared.push(`${result.gamesDeleted} games deleted`);
+                if (result.agegroupsCleared) cleared.push(`${result.agegroupsCleared} agegroups cleared`);
+                if (result.pairingGroupsCleared) cleared.push(`${result.pairingGroupsCleared} pairing groups cleared`);
+
+                const seeded: string[] = [];
                 if (result.preconfig) {
                     const p = result.preconfig;
-                    const seeded: string[] = [];
                     if (p.colorsApplied) seeded.push(`${p.colorsApplied} colors`);
                     if (p.datesSeeded) seeded.push(`${p.datesSeeded} ag dates`);
                     if (p.fieldAssignmentsSeeded) seeded.push(`${p.fieldAssignmentsSeeded} ag fields`);
                     if (p.pairingsGenerated?.length) seeded.push(`pairings for ${p.pairingsGenerated.join(', ')}-team`);
                     if (p.cascadeSeeded) seeded.push('build rules');
-                    if (seeded.length) summary.push(`seeded: ${seeded.join(', ')}`);
                 }
+
+                const parts: string[] = [];
+                if (cleared.length) parts.push(cleared.join(', '));
+                if (seeded.length) parts.push(`seeded: ${seeded.join(', ')}`);
                 this.toast.show(
-                    `Reset complete: ${summary.length > 0 ? summary.join(', ') + ' cleared' : 'nothing to clear'}`,
+                    parts.length > 0 ? `Reset complete — ${parts.join('; ')}` : 'Reset complete — nothing to clear',
                     'success', 8000
                 );
                 this.configSvc.clearLocalStorage();
@@ -1108,50 +1068,16 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     private openAutoScheduleModal(): void {
-        const config = this.loadAutoScheduleConfig();
-        // Default to "keep" when games exist in scope — protect hand-tweaked work
-        if (this.hasGamesInScope()) {
-            config.existingGameMode = 'keep';
-        }
-        this.autoScheduleConfig.set(config);
-        // Load strategy profiles from backend (three-layer resolution)
-        this.modalStrategyLoading.set(true);
-        this.autoBuildSvc.getStrategyProfiles().subscribe({
-            next: (response) => {
-                this.modalStrategies.set(response.strategies.map(s => ({ ...s })));
-                this.modalStrategySource.set(response.source);
-                this.modalStrategySourceName.set(response.inferredFromJobName ?? '');
-                this.modalStrategyLoading.set(false);
-            },
-            error: () => {
-                this.modalStrategies.set([]);
-                this.modalStrategyLoading.set(false);
-            }
-        });
-        // Populate modal agegroup list (only relevant at event scope)
         if (this.scope().level === 'event') {
-            const waveMap = this.cascadeSvc.getWaveMap();
-            this.modalAgegroups.set(this.agegroups().map(ag => {
-                // Derive agegroup-level wave as dominant wave among its divisions
-                const divWaves = ag.divisions.map(d => waveMap[d.divId] ?? 1);
-                const waveCounts = new Map<number, number>();
-                for (const w of divWaves) waveCounts.set(w, (waveCounts.get(w) ?? 0) + 1);
-                let agWave = 1;
-                let maxCount = 0;
-                for (const [w, c] of waveCounts) { if (c > maxCount) { maxCount = c; agWave = w; } }
-
-                return {
-                    agegroupId: ag.agegroupId,
-                    agegroupName: ag.agegroupName,
-                    color: ag.color ?? null,
-                    teamCount: agTeamCount(ag),
-                    divisionCount: ag.divisions.length,
-                    included: true,
-                    wave: agWave,
-                };
-            }));
+            this.showEventBuildConfirm.set(true);
+        } else {
+            this.showAutoScheduleModal.set(true);
         }
-        this.showAutoScheduleModal.set(true);
+    }
+
+    onEventBuildConfirmed(): void {
+        this.showEventBuildConfirm.set(false);
+        this.onAutoScheduleBuild({ config: { existingGameMode: 'rebuild' } });
     }
 
     /** Lightweight pairing status check — populates missingPairingTCnts for stepper step ④. */
@@ -1259,10 +1185,6 @@ export class ScheduleDivisionComponent implements OnInit {
 
     /** Handle build event from the auto-schedule config modal child. */
     onAutoScheduleBuild(event: AutoScheduleBuildEvent): void {
-        // Persist the config choice to localStorage
-        this.saveAutoScheduleConfig(event.config);
-        this.autoScheduleConfig.set(event.config);
-
         this.isExecuting.set(true);
         this.showAutoScheduleModal.set(false);
         this.openOperationModal('Building Your Schedule', 'Placing games and checking constraints...', 'bi-lightning-charge-fill');
@@ -1313,32 +1235,11 @@ export class ScheduleDivisionComponent implements OnInit {
         this.qaResult.set(null);
     }
 
-    onBuildRunAgain(): void {
+    onBuildReviewDetails(): void {
         this.showBuildResults.set(false);
         this.buildResult.set(null);
-        this.qaResult.set(null);
-        this.openAutoScheduleConfig();
-    }
-
-    onBuildUndo(): void {
-        this.isUndoing.set(true);
-        this.openOperationModal('Removing Games', 'Undoing all placed games...', 'bi-arrow-counterclockwise');
-        this.autoBuildSvc.undo().subscribe({
-            next: (result) => {
-                this.isUndoing.set(false);
-                this.showOperationModal.set(false);
-                this.showBuildResults.set(false);
-                this.buildResult.set(null);
-                this.qaResult.set(null);
-                this.refreshAfterBulkOperation();
-                this.toast.show(`Removed ${result.gamesDeleted} games`, 'success', 3000);
-            },
-            error: () => {
-                this.isUndoing.set(false);
-                this.showOperationModal.set(false);
-                this.toast.show('Undo failed', 'danger', 5000);
-            }
-        });
+        // Keep qaResult — QA mode will use it
+        this.setMode('qa');
     }
 
     private buildAutoScheduleRequest(event: AutoScheduleBuildEvent) {
@@ -1362,87 +1263,53 @@ export class ScheduleDivisionComponent implements OnInit {
             return best;
         };
 
+        // Build agegroup order based on scope
+        let agegroupOrder: AgegroupBuildEntry[];
+        let excludedDivisionIds: string[];
+
         switch (s.level) {
             case 'division': {
-                const excluded = allDivIds.filter(id => id !== s.divId);
-                return {
-                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: deriveAgWave(s.agegroupId) }] satisfies AgegroupBuildEntry[],
-                    divisionOrderStrategy: event.config.divisionOrderStrategy,
-                    excludedDivisionIds: excluded,
-                    divisionStrategies: event.strategies,
-                    divisionWaves: waveAssignments,
-                    divisionOrder,
-                    saveProfiles: true,
-                    existingGameMode: mode,
-                    gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
-                };
+                agegroupOrder = [{ agegroupId: s.agegroupId, wave: deriveAgWave(s.agegroupId) }];
+                excludedDivisionIds = allDivIds.filter(id => id !== s.divId);
+                break;
             }
             case 'agegroup': {
+                agegroupOrder = [{ agegroupId: s.agegroupId, wave: deriveAgWave(s.agegroupId) }];
                 const agDivIds = this.agegroups()
                     .find(ag => ag.agegroupId === s.agegroupId)!
                     .divisions.map(d => d.divId);
-                const excluded = allDivIds.filter(id => !agDivIds.includes(id));
-                return {
-                    agegroupOrder: [{ agegroupId: s.agegroupId, wave: deriveAgWave(s.agegroupId) }] satisfies AgegroupBuildEntry[],
-                    divisionOrderStrategy: event.config.divisionOrderStrategy,
-                    excludedDivisionIds: excluded,
-                    divisionStrategies: event.strategies,
-                    divisionWaves: waveAssignments,
-                    divisionOrder,
-                    saveProfiles: true,
-                    existingGameMode: mode,
-                    gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
-                };
+                excludedDivisionIds = allDivIds.filter(id => !agDivIds.includes(id));
+                break;
             }
             case 'event': {
-                const included = event.agegroups.filter(ag => ag.included);
-                const includedDivIds = new Set(
-                    this.agegroups()
-                        .filter(ag => included.some(m => m.agegroupId === ag.agegroupId))
-                        .flatMap(ag => ag.divisions.map(d => d.divId))
-                );
-                const excluded = allDivIds.filter(id => !includedDivIds.has(id));
-                // Sort agegroups by backend-derived source schedule order
+                // All agegroups, ordered by suggested processing order if available
+                agegroupOrder = this.agegroups().map(ag => ({
+                    agegroupId: ag.agegroupId,
+                    wave: deriveAgWave(ag.agegroupId),
+                }));
                 const suggestedOrder = this.configSvc.config()?.suggestedOrder;
-                const sorted = suggestedOrder
-                    ? [...included].sort((a, b) => {
-                        const aIdx = suggestedOrder.indexOf(a.agegroupId);
-                        const bIdx = suggestedOrder.indexOf(b.agegroupId);
-                        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
-                    })
-                    : included;
-                return {
-                    agegroupOrder: sorted.map(ag => ({ agegroupId: ag.agegroupId, wave: ag.wave })) satisfies AgegroupBuildEntry[],
-                    divisionOrderStrategy: event.config.divisionOrderStrategy,
-                    excludedDivisionIds: excluded,
-                    divisionStrategies: event.strategies,
-                    divisionWaves: waveAssignments,
-                    divisionOrder,
-                    saveProfiles: true,
-                    existingGameMode: mode,
-                    gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
-                };
+                if (suggestedOrder && suggestedOrder.length > 0) {
+                    const orderMap = new Map(suggestedOrder.map((id, i) => [id, i]));
+                    agegroupOrder.sort((a, b) =>
+                        (orderMap.get(a.agegroupId) ?? 999) - (orderMap.get(b.agegroupId) ?? 999)
+                    );
+                }
+                excludedDivisionIds = [];
+                break;
             }
         }
+
+        return {
+            agegroupOrder,
+            excludedDivisionIds,
+            divisionWaves: waveAssignments,
+            divisionOrder,
+            saveProfiles: true,
+            existingGameMode: mode,
+            gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
+        };
     }
 
-    private loadAutoScheduleConfig(): AutoScheduleConfig {
-        try {
-            const raw = localStorage.getItem(LocalStorageKey.AutoScheduleConfig);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                return {
-                    divisionOrderStrategy: parsed.divisionOrderStrategy === 'odd-first' ? 'odd-first' : 'alpha',
-                    existingGameMode: parsed.existingGameMode === 'keep' ? 'keep' : 'rebuild',
-                };
-            }
-        } catch { /* ignore parse errors */ }
-        return { divisionOrderStrategy: 'alpha', existingGameMode: 'rebuild' };
-    }
-
-    private saveAutoScheduleConfig(config: AutoScheduleConfig): void {
-        localStorage.setItem(LocalStorageKey.AutoScheduleConfig, JSON.stringify(config));
-    }
 
     // ── Refresh after bulk operations ──
 

@@ -12,11 +12,11 @@
       <i class="bi bi-info-circle me-1"></i>
       Waves split your event into time blocks (e.g., Wave 1 = morning, Wave 2 = afternoon).
       Most events use a single wave. Use multiple waves when you have more divisions than
-      field slots in a single time block. Click a cell to cycle through waves (1 → 2 → 3).
+      field slots in a single time block.
     </div>
 
     <!-- All Wave 1 summary -->
-    @if (allWaveOne() && !isEditing()) {
+    @if (allWaveOne() && !isEditing() && !isDirty()) {
       <div class="wave-summary">
         <i class="bi bi-check-circle text-success me-2"></i>
         <span>All divisions are in <strong>Wave 1</strong> (single time block).</span>
@@ -43,7 +43,7 @@
               @for (row of rows(); track row.id) {
                 <tr [class.ag-row]="row.level === 'agegroup'"
                     [class.div-row]="row.level === 'division'"
-                    [class.has-override]="row.hasOverride">
+                    [class.has-override]="hasOverride(row)">
 
                   <!-- Name cell -->
                   <td class="name-col">
@@ -61,22 +61,14 @@
                   @for (date of playDates(); track date.iso) {
                     <td class="wave-cell"
                         [class]="waveClass(getWave(row, date.iso))"
-                        [class.inherited]="isInherited(row, date.iso)"
-                        [class.saving]="isSaving()">
-                      <button class="wave-btn"
-                              [disabled]="isSaving()"
-                              (click)="cycleWave(row, date.iso)"
-                              [title]="'Wave ' + getWave(row, date.iso) + ' — click to cycle'">
-                        {{ getWave(row, date.iso) }}
-                      </button>
-                      @if (row.level === 'division' && !isInherited(row, date.iso)) {
-                        <button class="clear-btn"
-                                title="Clear override (inherit from agegroup)"
-                                [disabled]="isSaving()"
-                                (click)="$event.stopPropagation(); clearDivWave(row, date.iso)">
-                          <i class="bi bi-x-circle-fill"></i>
-                        </button>
-                      }
+                        [class.inherited]="isInherited(row, date.iso)">
+                      <select class="wave-select"
+                              [value]="getWave(row, date.iso)"
+                              (change)="onWaveChange(row, date.iso, +$any($event.target).value)">
+                        @for (opt of getWaveOptions(date.iso); track opt) {
+                          <option [value]="opt" [selected]="opt === getWave(row, date.iso)">{{ opt }}</option>
+                        }
+                      </select>
                     </td>
                   }
                 </tr>
@@ -100,12 +92,32 @@
           <span class="legend-swatch wave-2"></span> Wave 2
         </span>
         <span class="legend-item">
-          <span class="legend-swatch wave-3"></span> Wave 3
+          <span class="legend-swatch wave-3"></span> Wave 3+
         </span>
         <span class="legend-item legend-inherited">
           <i class="bi bi-arrow-down-short"></i> Inherited from agegroup
         </span>
       </div>
+
     }
+  }
+
+  <!-- FAB — fixed bottom-right, visible only when dirty -->
+  @if (isDirty()) {
+    <div class="wave-fab">
+      <button class="btn btn-outline-secondary"
+              [disabled]="isSaving()"
+              (click)="discard()">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Discard
+      </button>
+      <button class="btn btn-primary"
+              [disabled]="isSaving()"
+              (click)="saveAll()">
+        @if (isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        }
+        <i class="bi bi-check2 me-1"></i>Save Waves
+      </button>
+    </div>
   }
 </div>

@@ -17,11 +17,6 @@
     <!-- Summary -->
     <div class="tab-summary">
       <span>{{ summaryLabel() }}</span>
-      @if (totalCapacity() > 0) {
-        <span class="capacity-badge">
-          <i class="bi bi-grid-3x3-gap me-1"></i>{{ totalCapacity() }} total slots
-        </span>
-      }
     </div>
 
     @if (rows().length === 0) {

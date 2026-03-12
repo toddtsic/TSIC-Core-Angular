@@ -52,7 +52,7 @@ export class BuildOrderTabComponent implements OnInit {
   readonly isDirty = computed(() => {
     const current = this.localOrder().map(i => i.divId);
     const baseline = this.baselineOrder();
-    if (current.length !== baseline.length) return false;
+    if (current.length !== baseline.length) return true;
     return current.some((id, i) => id !== baseline[i]);
   });
 
@@ -214,7 +214,7 @@ export class BuildOrderTabComponent implements OnInit {
     this.cascadeSvc.saveProcessingOrder(entries).subscribe({
       next: () => {
         this.isSaving.set(false);
-        this.baselineOrder.set(entries.map(e => e.divisionId));
+        this.baselineOrder.set(this.localOrder().map(i => i.divId));
         this.toast.show('Processing order saved', 'success');
       },
       error: () => {
@@ -222,6 +222,15 @@ export class BuildOrderTabComponent implements OnInit {
         this.toast.show('Failed to save processing order', 'danger');
       },
     });
+  }
+
+  discard(): void {
+    const baseline = this.baselineOrder();
+    const idxMap = new Map(baseline.map((id, i) => [id, i]));
+    const sorted = this.localOrder().slice().sort(
+      (a, b) => (idxMap.get(a.divId) ?? 9999) - (idxMap.get(b.divId) ?? 9999)
+    );
+    this.localOrder.set(sorted);
   }
 
   resetToDefault(): void {

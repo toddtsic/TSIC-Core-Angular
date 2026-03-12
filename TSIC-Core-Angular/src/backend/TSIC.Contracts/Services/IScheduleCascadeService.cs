@@ -39,6 +39,14 @@ public interface IScheduleCascadeService
         string userId, CancellationToken ct = default);
 
     /// <summary>
+    /// Batch-save all wave assignments for a job in a single request.
+    /// Replaces agegroup + division wave assignments atomically.
+    /// </summary>
+    Task SaveBatchWavesAsync(
+        Guid jobId, SaveBatchWavesRequest request, string userId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Bulk-seed division wave assignments from projected config.
     /// For each (divisionId, wave) pair, creates wave assignment rows
     /// for all dates the division's agegroup plays on.

@@ -420,6 +420,7 @@ export type { RosterTransferRequest } from './models/RosterTransferRequest';
 export type { RosterTransferResultDto } from './models/RosterTransferResultDto';
 export type { RoundLayout } from './models/RoundLayout';
 export type { RoundShapeDto } from './models/RoundShapeDto';
+export type { SaveBatchWavesRequest } from './models/SaveBatchWavesRequest';
 export type { SaveCascadeLevelRequest } from './models/SaveCascadeLevelRequest';
 export type { SaveCategoryOrderRequest } from './models/SaveCategoryOrderRequest';
 export type { SaveEventDefaultsRequest } from './models/SaveEventDefaultsRequest';

@@ -363,7 +363,7 @@
                                         <app-schedule-grid #scheduleGrid
                                             [gridResponse]="gridResponse()"
                                             [isLoading]="isGridLoading()"
-                                            [emptyMessage]="'No games scheduled yet. Use Build Entire Schedule to generate.'"
+                                            [emptyMessage]="'No games scheduled yet. Use Build Entire Schedule to auto-generate, or schedule a division by hand (click a division in the tree on the left to get started).'"
                                             [showMatchupCodes]="true"
                                             [showGameId]="true"
                                             [showTeamDesignators]="true"
@@ -465,20 +465,41 @@
         (closed)="closeBulkDateModal()" />
 }
 
-<!-- ══════════ Auto-Schedule Config Modal ══════════ -->
+<!-- ══════════ Event Scope Build Confirm ══════════ -->
+@if (showEventBuildConfirm()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="showEventBuildConfirm.set(false)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Build Schedule</h5>
+                <button type="button" class="btn-close" (click)="showEventBuildConfirm.set(false)"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Build schedule for <strong>{{ gameSummary()?.jobName ?? 'this event' }}</strong>?</p>
+                @if (hasGamesInScope()) {
+                    <p class="text-danger mt-2 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        All {{ scopeGameCount() }} existing games will be deleted and rebuilt.
+                    </p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary btn-sm" (click)="showEventBuildConfirm.set(false)">Cancel</button>
+                <button class="btn btn-sm" [class]="hasGamesInScope() ? 'btn-warning' : 'btn-primary'"
+                        (click)="onEventBuildConfirmed()">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>
+                    {{ hasGamesInScope() ? 'Re-Build Schedule' : 'Build Schedule' }}
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- ══════════ Auto-Schedule Config Modal (agegroup/division scope) ══════════ -->
 @if (showAutoScheduleModal()) {
     <app-auto-schedule-config-modal
         [scope]="scope()"
         [scopeLabel]="scopeLabel()"
-        [strategies]="modalStrategies()"
-        [strategySource]="modalStrategySource()"
-        [strategySourceName]="modalStrategySourceName()"
-        [strategyLoading]="modalStrategyLoading()"
-        [scopeDivisionNames]="modalScopeDivisionNames()"
-        [agegroups]="modalAgegroups()"
-        [config]="autoScheduleConfig()"
         [hasGamesInScope]="hasGamesInScope()"
-        [divisionGameCounts]="scopeDivisionGameCounts()"
         (buildRequested)="onAutoScheduleBuild($event)"
         (cancelled)="closeAutoScheduleModal()" />
 }
@@ -498,8 +519,7 @@
                     [qaLoading]="qaLoading()"
                     [buildElapsedMs]="buildElapsedMs()"
                     (dismissed)="onBuildDismissed()"
-                    (undoRequested)="onBuildUndo()"
-                    (runAgainRequested)="onBuildRunAgain()" />
+                    (reviewRequested)="onBuildReviewDetails()" />
             </div>
         </div>
     </tsic-dialog>
