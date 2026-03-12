@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal, ElementRef, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, input, output, signal, ElementRef, ViewChild, ChangeDetectionStrategy, NgZone, inject, OnDestroy } from '@angular/core';
 import type { ScheduleGridResponse, ScheduleGridRow, ScheduleGameDto } from '@core/api';
 import { GameCardComponent } from '../game-card/game-card.component';
 import { formatDate, formatTimeOnly } from '../../utils/scheduling-helpers';
@@ -15,9 +15,11 @@ import {
     styleUrl: './schedule-grid.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ScheduleGridComponent {
+export class ScheduleGridComponent implements OnDestroy {
+    private readonly zone = inject(NgZone);
 
     @ViewChild('gridScroll') gridScrollEl?: ElementRef<HTMLElement>;
+    @ViewChild('minimapCanvas') minimapCanvasRef?: ElementRef<HTMLCanvasElement>;
 
     // ── Inputs ──
     readonly gridResponse = input<ScheduleGridResponse | null>(null);
@@ -187,5 +189,152 @@ export class ScheduleGridComponent {
                 return;
             }
         }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Minimap — bird's-eye grid navigator (SSMS diagram style)
+    // ══════════════════════════════════════════════════════════════
+
+    readonly minimapOpen = signal(false);
+    private isMinimapDragging = false;
+    private scrollHandler?: () => void;
+
+    private readonly onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && this.minimapOpen()) {
+            this.zone.run(() => this.closeMinimap());
+        }
+    };
+
+    toggleMinimap(): void {
+        if (this.minimapOpen()) {
+            this.closeMinimap();
+        } else {
+            this.minimapOpen.set(true);
+            setTimeout(() => this.openMinimap());
+        }
+    }
+
+    private openMinimap(): void {
+        this.renderMinimap();
+        const el = this.gridScrollEl?.nativeElement;
+        if (el) {
+            this.scrollHandler = () => this.renderMinimap();
+            el.addEventListener('scroll', this.scrollHandler, { passive: true });
+        }
+        this.zone.runOutsideAngular(() => {
+            document.addEventListener('keydown', this.onKeyDown);
+        });
+    }
+
+    private closeMinimap(): void {
+        this.minimapOpen.set(false);
+        if (this.scrollHandler && this.gridScrollEl) {
+            this.gridScrollEl.nativeElement.removeEventListener('scroll', this.scrollHandler);
+            this.scrollHandler = undefined;
+        }
+        document.removeEventListener('keydown', this.onKeyDown);
+    }
+
+    renderMinimap(): void {
+        const canvas = this.minimapCanvasRef?.nativeElement;
+        const el = this.gridScrollEl?.nativeElement;
+        if (!canvas || !el) return;
+
+        const gridW = el.scrollWidth;
+        const gridH = el.scrollHeight;
+
+        // Scale to fit in max 260x180 bounding box
+        const maxW = 260, maxH = 180;
+        const scale = Math.min(maxW / gridW, maxH / gridH);
+        canvas.width = Math.round(gridW * scale);
+        canvas.height = Math.round(gridH * scale);
+
+        const ctx = canvas.getContext('2d')!;
+        const style = getComputedStyle(document.documentElement);
+
+        // Background
+        ctx.fillStyle = style.getPropertyValue('--bs-tertiary-bg').trim() || '#f5f5f4';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw game cells
+        const rows = this.gridRows();
+        const cols = this.gridColumns();
+        if (rows.length === 0 || cols.length === 0) return;
+
+        const timeColW = 100 * scale;
+        const fieldColW = (canvas.width - timeColW) / cols.length;
+        const rowH = canvas.height / rows.length;
+
+        const clashIds = this.timeClashGameIds();
+        const b2bIds = this.backToBackGameIds();
+        const colorFallback = style.getPropertyValue('--bs-primary').trim() || '#0d6efd';
+        const colorDanger = style.getPropertyValue('--bs-danger').trim() || '#dc3545';
+        const colorWarning = style.getPropertyValue('--bs-warning').trim() || '#ffc107';
+
+        for (let ri = 0; ri < rows.length; ri++) {
+            const cells = rows[ri].cells;
+            for (let ci = 0; ci < cells.length; ci++) {
+                const cell = cells[ci];
+                if (!cell) continue;
+
+                if (cell.isSlotCollision || clashIds.has(cell.gid)) {
+                    ctx.fillStyle = colorDanger;
+                } else if (b2bIds.has(cell.gid)) {
+                    ctx.fillStyle = colorWarning;
+                } else {
+                    ctx.fillStyle = cell.color || colorFallback;
+                }
+
+                const x = timeColW + ci * fieldColW + 0.5;
+                const y = ri * rowH + 0.5;
+                ctx.fillRect(x, y, fieldColW - 1, rowH - 1);
+            }
+        }
+
+        // Viewport rectangle
+        const vpX = el.scrollLeft * scale;
+        const vpY = el.scrollTop * scale;
+        const vpW = el.clientWidth * scale;
+        const vpH = el.clientHeight * scale;
+
+        ctx.fillStyle = 'rgba(13, 110, 253, 0.1)';
+        ctx.fillRect(vpX, vpY, vpW, vpH);
+        ctx.strokeStyle = colorFallback;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(vpX, vpY, vpW, vpH);
+    }
+
+    onMinimapDown(e: MouseEvent): void {
+        this.isMinimapDragging = true;
+        this.scrollFromMinimap(e);
+        e.preventDefault();
+    }
+
+    onMinimapMove(e: MouseEvent): void {
+        if (!this.isMinimapDragging) return;
+        this.scrollFromMinimap(e);
+    }
+
+    onMinimapUp(): void {
+        this.isMinimapDragging = false;
+    }
+
+    private scrollFromMinimap(e: MouseEvent): void {
+        const canvas = this.minimapCanvasRef?.nativeElement;
+        const el = this.gridScrollEl?.nativeElement;
+        if (!canvas || !el) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const scale = canvas.width / el.scrollWidth;
+
+        // Center viewport on click position
+        el.scrollLeft = (x / scale) - (el.clientWidth / 2);
+        el.scrollTop = (y / scale) - (el.clientHeight / 2);
+    }
+
+    ngOnDestroy(): void {
+        this.closeMinimap();
     }
 }
