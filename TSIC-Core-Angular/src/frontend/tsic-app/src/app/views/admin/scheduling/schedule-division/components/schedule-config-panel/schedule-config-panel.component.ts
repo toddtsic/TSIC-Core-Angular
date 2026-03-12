@@ -80,7 +80,7 @@ export class ScheduleConfigPanelComponent {
     { key: 'grid', label: 'AG Grid', icon: 'bi-table' },
   ];
 
-  activeTab = signal<ScheduleConfigTab>('buildRules');
+  activeTab = signal<ScheduleConfigTab>('dates');
 
   // ── Reset dialog state ──
   readonly showResetDialog = signal(false);

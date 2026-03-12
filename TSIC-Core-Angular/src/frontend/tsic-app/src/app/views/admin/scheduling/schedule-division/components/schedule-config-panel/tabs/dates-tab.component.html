@@ -15,17 +15,40 @@
       Click a row header to toggle all dates for that agegroup.
     </div>
 
-    <!-- Add date -->
-    <div class="add-date-row">
-      <label class="add-date-label">Add date:</label>
-      <input type="date" class="form-control form-control-sm date-input"
-             [(ngModel)]="newDate"
-             (keydown.enter)="addDate()">
-      <button class="btn btn-sm btn-outline-primary"
-              [disabled]="!newDate"
-              (click)="addDate()">
-        <i class="bi bi-plus-lg"></i> Add
-      </button>
+    <!-- Date badges + Add -->
+    <div class="date-badge-strip">
+      @for (col of dateColumns(); track col.isoDate) {
+        <span class="date-badge">
+          <span class="date-badge-text" (click)="editDate(col.isoDate)"
+                title="Click to change date">{{ col.isoDate | date:'EEE M/d/yyyy' }}</span>
+          <button class="date-badge-remove" (click)="deleteDate(col.isoDate)"
+                  title="Remove this date">
+            <i class="bi bi-x"></i>
+          </button>
+        </span>
+      }
+      @if (!showAddDate()) {
+        <button class="btn btn-sm btn-outline-primary add-date-btn"
+                (click)="showAddDate.set(true)">
+          <i class="bi bi-plus-lg"></i> Add Date
+        </button>
+      } @else {
+        <div class="add-date-inline">
+          <input type="date" class="form-control form-control-sm date-input"
+                 [(ngModel)]="newDate"
+                 (keydown.enter)="addDate()"
+                 (keydown.escape)="showAddDate.set(false)">
+          <button class="btn btn-sm btn-outline-primary"
+                  [disabled]="!newDate"
+                  (click)="addDate()">
+            <i class="bi bi-check-lg"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-secondary"
+                  (click)="showAddDate.set(false); newDate = ''">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      }
     </div>
 
     <!-- Summary -->
@@ -55,8 +78,8 @@
                     [class.new-date]="col.isNew"
                     (click)="toggleDateColumn(col.isoDate)">
                   <div class="date-header-content">
-                    <span class="date-dow">{{ col.dow.substring(0, 3) }}</span>
-                    <span class="date-value">{{ col.label.split(' ')[1] }}</span>
+                    <span class="date-dow">{{ col.isoDate | date:'EEE' }}</span>
+                    <span class="date-value">{{ col.isoDate | date:'M/d/yyyy' }}</span>
                     <i class="bi header-check"
                        [ngClass]="{
                          'bi-check-square-fill': dateColumnState(col.isoDate) === 'all',
@@ -108,6 +131,13 @@
     <!-- Actions -->
     @if (dateColumns().length > 0) {
       <div class="tab-actions">
+        @if (isDirty()) {
+          <button class="btn btn-sm btn-outline-secondary"
+                  [disabled]="isSaving()"
+                  (click)="discard()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset Game Days
+          </button>
+        }
         <button class="btn btn-sm btn-primary"
                 [disabled]="!isDirty() || isSaving()"
                 (click)="apply()">

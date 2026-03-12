@@ -28,23 +28,68 @@
   border-left: 3px solid var(--bs-info);
 }
 
-// ── Add date row ──
+// ── Date badge strip ──
 
-.add-date-row {
+.date-badge-strip {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.add-date-label {
-  font-size: var(--font-size-sm);
+.date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--brand-text);
+  color: var(--bs-primary);
+  background: rgba(var(--bs-primary-rgb), 0.08);
+  border-radius: var(--radius-full);
   white-space: nowrap;
 }
 
+.date-badge-text {
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.date-badge-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--brand-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  opacity: 0.5;
+
+  &:hover {
+    color: var(--bs-danger);
+    opacity: 1;
+  }
+}
+
+.add-date-btn {
+  font-size: var(--font-size-xs);
+  padding: var(--space-1) var(--space-2);
+}
+
+.add-date-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .date-input {
-  max-width: 180px;
+  max-width: 160px;
 }
 
 // ── Summary ──
@@ -103,7 +148,7 @@
   text-align: center;
   cursor: pointer;
   user-select: none;
-  min-width: 70px;
+  min-width: 90px;
   position: relative;
 
   &:hover {

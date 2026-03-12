@@ -48,6 +48,9 @@ export class DatesTabComponent implements OnInit {
   /** Manually added dates not yet in readiness */
   readonly addedDates = signal<string[]>([]);
 
+  /** Whether the inline Add Date picker is visible */
+  readonly showAddDate = signal(false);
+
   /** Date picker value */
   newDate = '';
 
@@ -264,6 +267,7 @@ export class DatesTabComponent implements OnInit {
 
     this.addedDates.set([...this.addedDates(), iso]);
     this.newDate = '';
+    this.showAddDate.set(false);
   }
 
   removeNewDate(isoDate: string): void {
@@ -278,6 +282,29 @@ export class DatesTabComponent implements OnInit {
       updated[agId] = set;
     }
     this.localAssignments.set(updated);
+  }
+
+  // TODO: Open date picker pre-populated with current date.
+  // On change: update GDate on TimeslotsLeagueSeasonDates rows,
+  // migrate wave assignments (AgegroupWaveAssignment/DivisionWaveAssignment) from old GameDate to new,
+  // and if DOW changes, ensure field timeslots exist for the new DOW.
+  editDate(isoDate: string): void {
+    this.toast.show('Edit date — not yet implemented', 'info');
+  }
+
+  // TODO: TsicConfirm guard → "Remove {dow} {date}? All agegroup assignments for this date will be cleared."
+  // On confirm: delete TimeslotsLeagueSeasonDates rows for this date,
+  // clean up wave assignments keyed by this GameDate,
+  // then reload.
+  deleteDate(isoDate: string): void {
+    this.toast.show('Delete date — not yet implemented', 'info');
+  }
+
+  discard(): void {
+    this.localAssignments.set(this.cloneAssignments(this.baselineAssignments()));
+    this.addedDates.set([]);
+    this.newDate = '';
+    this.showAddDate.set(false);
   }
 
   // ── Save ──
@@ -374,7 +401,7 @@ export class DatesTabComponent implements OnInit {
   private formatDateLabel(isoDate: string, dow: string): string {
     const parts = isoDate.split('-');
     if (parts.length === 3) {
-      return `${dow.substring(0, 3)} ${parts[1]}/${parts[2]}`;
+      return `${dow.substring(0, 3)} ${parts[1]}/${parts[2]}/${parts[0]}`;
     }
     return `${dow.substring(0, 3)} ${isoDate}`;
   }
