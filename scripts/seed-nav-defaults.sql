@@ -148,7 +148,7 @@ VALUES (39, 1, 36, 1, 3, N'3) Manage Pairings', N'list', N'scheduling/pairings',
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (40, 1, 36, 1, 4, N'4) Manage Timeslots', N'clock', N'scheduling/timeslots', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (41, 1, 36, 1, 5, N'5) Schedule Games', N'grid', N'scheduling/schedule-division', NULL, NULL, GETDATE());
+VALUES (41, 1, 36, 1, 5, N'5) Schedule Games', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (42, 1, 36, 1, 6, N'View Schedule', N'list', N'scheduling/view-schedule', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -202,7 +202,7 @@ VALUES (30, 3, 26, 1, 3, N'3) Manage Pairings', N'list', N'scheduling/pairings',
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (31, 3, 26, 1, 4, N'4) Manage Timeslots', N'clock', N'scheduling/timeslots', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (32, 3, 26, 1, 5, N'5) Schedule Games', N'grid', N'scheduling/schedule-division', NULL, NULL, GETDATE());
+VALUES (32, 3, 26, 1, 5, N'5) Schedule Games', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (33, 3, 26, 1, 6, N'View Schedule', N'list', N'scheduling/view-schedule', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])

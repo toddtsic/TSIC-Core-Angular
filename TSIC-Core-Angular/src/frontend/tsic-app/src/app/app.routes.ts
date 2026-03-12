@@ -440,7 +440,7 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
 					},
 					{
-						path: 'schedule-division',
+						path: 'schedule-hub',
 						loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
 					},
 					{
@@ -469,7 +469,7 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
 			},
 			{
-				path: 'scheduling/scheduledivision',
+				path: 'scheduling/schedule-hub',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
 				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
