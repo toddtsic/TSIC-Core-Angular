@@ -34,6 +34,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
         var divProfiles = await _cascadeRepo.GetDivisionProfilesAsync(jobId, ct);
         var agWaves = await _cascadeRepo.GetAgegroupWavesAsync(jobId, ct);
         var divWaves = await _cascadeRepo.GetDivisionWavesAsync(jobId, ct);
+        var gameDatesByAgegroup = await _cascadeRepo.GetGameDatesByAgegroupAsync(jobId, ct);
 
         // Get current agegroup/division structure
         var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
@@ -87,12 +88,14 @@ public class ScheduleCascadeService : IScheduleCascadeService
                     ?? agEffectiveGameGuarantee;
 
                 // Resolve per-date effective waves:
-                // Collect all dates from both agegroup and division wave tables
+                // Collect dates from wave tables AND TLSD (game dates with no wave = wave 1)
                 var allDates = new HashSet<DateTime>();
                 if (agWavesByDate != null)
                     foreach (var d in agWavesByDate.Keys) allDates.Add(d);
                 if (divWavesByDate != null)
                     foreach (var d in divWavesByDate.Keys) allDates.Add(d);
+                if (gameDatesByAgegroup.TryGetValue(agId, out var tlsdDates))
+                    foreach (var d in tlsdDates) allDates.Add(d);
 
                 var effectiveWaves = new Dictionary<DateTime, byte>();
                 foreach (var date in allDates)
@@ -131,7 +134,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
                 EffectiveGamePlacement = agEffectivePlacement,
                 EffectiveBetweenRoundRows = agEffectiveBetweenRoundRows,
                 EffectiveGameGuarantee = agEffectiveGameGuarantee,
-                WavesByDate = agWavesByDate ?? new Dictionary<DateTime, byte>(),
+                WavesByDate = BuildAgWavesByDate(agWavesByDate, gameDatesByAgegroup.GetValueOrDefault(agId)),
                 Divisions = divisionDtos
             });
         }
@@ -363,5 +366,25 @@ public class ScheduleCascadeService : IScheduleCascadeService
             "Seeded division waves from projection: JobId={JobId}, " +
             "DivisionsSeeded={Seeded}, DivisionsSkipped={Skipped}",
             jobId, seeded, divisionWaves.Count - seeded);
+    }
+
+    /// <summary>
+    /// Merge explicit agegroup wave assignments with TLSD game dates.
+    /// Dates in TLSD that have no wave row default to wave 1.
+    /// </summary>
+    private static Dictionary<DateTime, byte> BuildAgWavesByDate(
+        Dictionary<DateTime, byte>? waveRows, HashSet<DateTime>? gameDates)
+    {
+        var result = new Dictionary<DateTime, byte>();
+
+        if (waveRows != null)
+            foreach (var kvp in waveRows)
+                result[kvp.Key] = kvp.Value;
+
+        if (gameDates != null)
+            foreach (var d in gameDates)
+                result.TryAdd(d, 1); // default wave 1 if no explicit assignment
+
+        return result;
     }
 }

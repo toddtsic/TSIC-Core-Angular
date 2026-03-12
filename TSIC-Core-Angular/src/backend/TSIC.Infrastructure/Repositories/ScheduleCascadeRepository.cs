@@ -329,6 +329,35 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         _context.DivisionWaveAssignment.RemoveRange(existing);
     }
 
+    // ── Game date queries ──
+
+    public async Task<Dictionary<Guid, HashSet<DateTime>>> GetGameDatesByAgegroupAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var leagueIds = await GetLeagueIdsAsync(jobId, ct);
+
+        var rows = await _context.TimeslotsLeagueSeasonDates
+            .AsNoTracking()
+            .Where(d => _context.Agegroups
+                .Where(a => leagueIds.Contains(a.LeagueId))
+                .Select(a => a.AgegroupId)
+                .Contains(d.AgegroupId))
+            .Select(d => new { d.AgegroupId, d.GDate })
+            .ToListAsync(ct);
+
+        var result = new Dictionary<Guid, HashSet<DateTime>>();
+        foreach (var row in rows)
+        {
+            if (!result.TryGetValue(row.AgegroupId, out var dates))
+            {
+                dates = new HashSet<DateTime>();
+                result[row.AgegroupId] = dates;
+            }
+            dates.Add(row.GDate.Date);
+        }
+        return result;
+    }
+
     // ── Division Processing Order ──
 
     public async Task<List<DivisionProcessingOrder>> GetProcessingOrderAsync(

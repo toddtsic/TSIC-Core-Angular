@@ -117,6 +117,15 @@ public interface IScheduleCascadeRepository
     Task DeleteDivisionWavesByDateAsync(
         Guid jobId, DateTime gameDate, CancellationToken ct = default);
 
+    // ── Game date queries (for cascade snapshot — includes dates with no wave rows) ──
+
+    /// <summary>
+    /// Get all distinct game dates per agegroup from TimeslotsLeagueSeasonDates.
+    /// Used by the cascade snapshot to include dates that have no wave assignments yet.
+    /// </summary>
+    Task<Dictionary<Guid, HashSet<DateTime>>> GetGameDatesByAgegroupAsync(
+        Guid jobId, CancellationToken ct = default);
+
     // ── Division Processing Order (keyed by JobId + DivisionId) ──
 
     /// <summary>
