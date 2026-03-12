@@ -28,6 +28,9 @@ dist/
 src/backend/TSIC.API/logs/
 *.log
 
+# Scratch / temp working files
+tmp/
+
 # OS files
 .DS_Store
 Thumbs.db

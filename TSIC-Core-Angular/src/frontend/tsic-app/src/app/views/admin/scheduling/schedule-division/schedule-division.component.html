@@ -265,6 +265,28 @@
                                     </button>
                                 }
                             }
+                            @case ('division') {
+                                <span class="badge"
+                                      [style.background-color]="selectedAgegroupColor()"
+                                      [style.color]="selectedAgegroupTextColor()"
+                                      [class.bg-secondary]="!selectedAgegroupColor()">
+                                    {{ selectedAgegroupName() }}
+                                </span>
+                                <span class="fw-semibold" style="font-size: var(--font-size-sm)">{{ selectedDivision()!.divName }}</span>
+                                <span class="badge bg-primary-subtle text-primary-emphasis">
+                                    {{ teamCount() }} teams
+                                </span>
+                                <button class="btn btn-sm btn-outline-primary"
+                                        (click)="openAutoScheduleConfig()"
+                                        [disabled]="isExecuting()">
+                                    @if (isExecuting()) {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    } @else {
+                                        <i class="bi bi-lightning-fill"></i>
+                                    }
+                                    {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span>
+                                </button>
+                            }
                         }
                     }
                 </div>
@@ -412,32 +434,6 @@
                                         (cellClicked)="onGridCellClick($event)"
                                         (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                         (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
-
-                                        <!-- Projected into grid header title area -->
-                                        <span gridTitle class="badge"
-                                              [style.background-color]="selectedAgegroupColor()"
-                                              [style.color]="selectedAgegroupTextColor()"
-                                              [class.bg-secondary]="!selectedAgegroupColor()">
-                                            {{ selectedAgegroupName() }}
-                                        </span>
-                                        <span gridTitle class="fw-semibold">{{ selectedDivision()!.divName }}</span>
-                                        <span gridTitle class="badge bg-primary-subtle text-primary-emphasis">
-                                            {{ teamCount() }} teams
-                                        </span>
-
-                                        <!-- Projected into grid header actions area -->
-                                        <div gridActions class="d-flex gap-1">
-                                            <button class="btn btn-sm btn-outline-primary"
-                                                    (click)="openAutoScheduleConfig()"
-                                                    [disabled]="isExecuting()">
-                                                @if (isExecuting()) {
-                                                    <span class="spinner-border spinner-border-sm"></span>
-                                                } @else {
-                                                    <i class="bi bi-lightning-fill"></i>
-                                                }
-                                                {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ selectedAgegroupName() }}:{{ selectedDivision()!.divName }}</span> Schedule
-                                            </button>
-                                        </div>
                                     </app-schedule-grid>
                                 }
                             }
