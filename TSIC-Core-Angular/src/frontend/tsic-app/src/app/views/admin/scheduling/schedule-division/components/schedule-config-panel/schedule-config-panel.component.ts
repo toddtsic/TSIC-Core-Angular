@@ -66,7 +66,6 @@ export class ScheduleConfigPanelComponent {
   readonly eventName = computed(() => this.jobSvc.currentJob()?.jobName ?? '');
 
   // ── Outputs ──
-  buildRequested = output<void>();
   resetConfirmed = output<DevResetOptions>();
 
   // ── Tab state ──

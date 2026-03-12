@@ -1,93 +1,23 @@
-<div class="schedule-div-container">
+<div class="hub-container">
 
-    <!-- ── Header ── -->
-    <div class="schedule-header">
-        <h5 class="mb-0">Schedule by Division</h5>
+    <!-- ── Hub Header ── -->
+    <div class="hub-header">
+        <h5 class="mb-0">Schedule Hub</h5>
+        @if (gameSummary()?.jobName) {
+            <span class="badge bg-primary-subtle text-primary-emphasis">
+                {{ gameSummary()!.jobName }}
+            </span>
+        }
     </div>
 
-    <!-- ══════════ EVENT SCOPE: Full-width stacked layout ══════════ -->
-    @if (scope().level === 'event') {
+    <!-- ── Hub Layout: Sidebar + Main ── -->
+    <div class="hub-layout">
 
-        <!-- ── Schedule Config Panel (tabbed configuration surface) ── -->
-        <app-schedule-config-panel
-            (buildRequested)="openAutoScheduleConfig()"
-            (resetConfirmed)="executeReset($event)" />
+        <!-- ══════════ SIDEBAR ══════════ -->
+        <div class="hub-sidebar">
 
-        <!-- ── Prerequisite Errors (event scope) ── -->
-        @if (prerequisiteErrors().length > 0) {
-            <div class="prerequisite-errors mx-0 mt-2">
-                <div class="alert alert-warning mb-0">
-                    <div class="d-flex align-items-start justify-content-between">
-                        <div>
-                            <strong><i class="bi bi-exclamation-triangle me-1"></i>Setup incomplete</strong>
-                            <p class="mb-1 mt-1">Fix these issues before auto-scheduling:</p>
-                            <ul class="mb-0 ps-3">
-                                @for (err of prerequisiteErrors(); track $index) {
-                                    <li>
-                                        {{ err }}
-                                        @if (missingPairingTCnts().length > 0 && err.startsWith('Pairings are missing')) {
-                                            <button class="btn btn-sm btn-outline-primary ms-2 py-0"
-                                                    [disabled]="isGeneratingPairings()"
-                                                    (click)="generateMissingPairings()">
-                                                @if (isGeneratingPairings()) {
-                                                    <span class="spinner-border spinner-border-sm me-1"></span>
-                                                    Generating...
-                                                } @else {
-                                                    <i class="bi bi-plus-circle me-1"></i>Generate
-                                                }
-                                            </button>
-                                        }
-                                    </li>
-                                }
-                            </ul>
-                        </div>
-                        <button class="btn-close ms-3" (click)="dismissPrerequisiteErrors()" aria-label="Dismiss"></button>
-                    </div>
-                </div>
-            </div>
-        }
-
-        <!-- ── Bulk Date Assignment Modal ── -->
-        @if (showBulkDateModal()) {
-            <app-bulk-date-assign-modal
-                [agegroups]="agegroups()"
-                [readinessMap]="canvasReadiness()"
-                [priorYearDefaults]="priorYearDefaults()"
-                (applied)="onBulkDateApplied()"
-                (closed)="closeBulkDateModal()" />
-        }
-
-        <!-- ── Navigator (full-width, below event dashboard) ── -->
-        <div class="nav-panel nav-panel-event">
-            <div class="panel-header">
-                <span class="fw-semibold">Schedule Controller</span>
-                <span class="panel-hint">Click at any level to view the grid and schedule or auto-schedule games</span>
-            </div>
-            <app-division-navigator
-                [agegroups]="agegroups()"
-                [selectedScope]="scope()"
-                [jobName]="gameSummary()?.jobName ?? 'Event'"
-                [isLoading]="isNavLoading()"
-                [showCollapseAll]="true"
-                [readinessMap]="canvasReadiness()"
-                (eventSelected)="onEventSelected()"
-                (agegroupSelected)="onAgegroupSelected($event)"
-                (divisionSelected)="onDivisionSelected($event)" />
-        </div>
-
-    } @else {
-
-    <!-- ══════════ AGEGROUP/DIVISION SCOPE: Two-column layout ══════════ -->
-    <div class="schedule-layout">
-
-        <!-- ══════════ LEFT PANEL: Navigator + Pairings ══════════ -->
-        <div class="left-panel">
-
-            <!-- ── Division Navigator ── -->
-            <div class="nav-panel">
-                <div class="panel-header">
-                    <span class="fw-semibold">Navigator</span>
-                </div>
+            <!-- Navigator Tree -->
+            <div class="sidebar-nav">
                 <app-division-navigator
                     [agegroups]="agegroups()"
                     [selectedScope]="scope()"
@@ -100,8 +30,8 @@
                     (divisionSelected)="onDivisionSelected($event)" />
             </div>
 
-            <!-- ── Pairings Panel (below navigator, division scope only) ── -->
-            @if (scope().level === 'division') {
+            <!-- Pairings Panel (Schedule mode + division scope only) -->
+            @if (mode() === 'schedule' && scope().level === 'division' && !activeTool()) {
                 <app-pairings-panel
                     [pairings]="pairings()"
                     [isPairingsLoading]="isPairingsLoading()"
@@ -115,239 +45,377 @@
                     (teamEditRequested)="openTeamEditModal($event)"
                     (pairingLocated)="locateScheduledGame($event)" />
             }
+
+            <!-- Tools Section (Configure mode only) -->
+            @if (mode() === 'configure') {
+                <div class="tools-section">
+                    <button class="tools-toggle" (click)="showToolsSection.set(!showToolsSection())">
+                        <i class="bi" [class.bi-chevron-down]="showToolsSection()"
+                                      [class.bi-chevron-right]="!showToolsSection()"></i>
+                        <span>Tools</span>
+                    </button>
+                    @if (showToolsSection()) {
+                        <div class="tools-list">
+                            <button class="tool-link" [class.active]="activeTool() === 'fields'"
+                                    (click)="setTool('fields')">
+                                <i class="bi bi-grid-3x3"></i> Manage Fields
+                            </button>
+                            <button class="tool-link" [class.active]="activeTool() === 'pairings'"
+                                    (click)="setTool('pairings')">
+                                <i class="bi bi-people"></i> Manage Pairings
+                            </button>
+                            <button class="tool-link" [class.active]="activeTool() === 'timeslots'"
+                                    (click)="setTool('timeslots')">
+                                <i class="bi bi-clock"></i> Manage Timeslots
+                            </button>
+                            <button class="tool-link" [class.active]="activeTool() === 'pools'"
+                                    (click)="setTool('pools')">
+                                <i class="bi bi-collection"></i> Pool Assignment
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
         </div>
 
-        <!-- ══════════ RIGHT PANEL: Agegroup Grid / Division Grid ══════════ -->
-        <div class="grid-panel">
+        <!-- ══════════ MAIN PANE ══════════ -->
+        <div class="hub-main">
 
-            <!-- ── Breadcrumb Trail ── -->
-            @if (breadcrumbs().length > 0) {
-                <nav class="scope-breadcrumb" aria-label="Scope navigation">
-                    <button class="crumb-back" (click)="onEventSelected()">
-                        <i class="bi bi-arrow-left"></i>
-                        Dashboard
-                    </button>
-                    <i class="bi bi-chevron-right crumb-sep"></i>
-                    @for (crumb of breadcrumbs(); track crumb.level) {
-                        @if (crumb.level !== 'event') {
-                            <span class="crumb-link"
-                                  role="button"
-                                  tabindex="0"
-                                  (click)="onBreadcrumbClick(crumb.level)"
-                                  (keydown.enter)="onBreadcrumbClick(crumb.level)">
-                                {{ crumb.label }}
-                            </span>
-                            <i class="bi bi-chevron-right crumb-sep"></i>
+            <!-- Mode Tab Bar -->
+            <nav class="hub-mode-bar" role="tablist">
+                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'configure'"
+                        (click)="setMode('configure')" role="tab">
+                    <i class="bi bi-gear"></i>
+                    <span>Configure</span>
+                </button>
+                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'schedule'"
+                        (click)="setMode('schedule')" role="tab">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Schedule</span>
+                </button>
+                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'master'"
+                        (click)="setMode('master')" role="tab">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <span>Master</span>
+                </button>
+                <button class="hub-mode-tab" [class.active]="!activeTool() && mode() === 'qa'"
+                        (click)="setMode('qa')" role="tab">
+                    <i class="bi bi-clipboard-check"></i>
+                    <span>QA</span>
+                </button>
+            </nav>
+
+            <!-- ── Content Area ── -->
+            <div class="hub-content">
+
+                <!-- Tool Embedding (overrides mode content) -->
+                @if (activeTool()) {
+                    <div class="tool-embedded">
+                        <div class="tool-back-bar">
+                            <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
+                                <i class="bi bi-arrow-left me-1"></i>Back
+                            </button>
+                        </div>
+                        @switch (activeTool()) {
+                            @case ('fields') { <app-manage-fields /> }
+                            @case ('pairings') { <app-manage-pairings /> }
+                            @case ('timeslots') { <app-manage-timeslots /> }
+                            @case ('pools') { <app-pool-assignment /> }
                         }
-                    }
-                    <span class="crumb-current">{{ breadcrumbCurrent() }}</span>
-                </nav>
-            }
+                    </div>
+                } @else {
 
-            <!-- ── Prerequisite Errors ── -->
-            @if (prerequisiteErrors().length > 0) {
-                <div class="prerequisite-errors">
-                    <div class="alert alert-warning mb-0">
-                        <div class="d-flex align-items-start justify-content-between">
-                            <div>
-                                <strong><i class="bi bi-exclamation-triangle me-1"></i>Setup incomplete</strong>
-                                <p class="mb-1 mt-1">Fix these issues before auto-scheduling:</p>
-                                <ul class="mb-0 ps-3">
-                                    @for (err of prerequisiteErrors(); track $index) {
-                                        <li>
-                                            {{ err }}
-                                            @if (missingPairingTCnts().length > 0 && err.startsWith('Pairings are missing')) {
-                                                <button class="btn btn-sm btn-outline-primary ms-2 py-0"
-                                                        [disabled]="isGeneratingPairings()"
-                                                        (click)="generateMissingPairings()">
-                                                    @if (isGeneratingPairings()) {
-                                                        <span class="spinner-border spinner-border-sm me-1"></span>
-                                                        Generating...
-                                                    } @else {
-                                                        <i class="bi bi-plus-circle me-1"></i>Generate
+                    <!-- Mode Content -->
+                    @switch (mode()) {
+
+                        <!-- ══════════ CONFIGURE MODE ══════════ -->
+                        @case ('configure') {
+                            <app-schedule-config-panel
+                                (resetConfirmed)="executeReset($event)" />
+                        }
+
+                        <!-- ══════════ SCHEDULE MODE ══════════ -->
+                        @case ('schedule') {
+
+                            <!-- Breadcrumb (when drilled below event) -->
+                            @if (breadcrumbs().length > 0) {
+                                <nav class="scope-breadcrumb" aria-label="Scope navigation">
+                                    <button class="crumb-back" (click)="onEventSelected()">
+                                        <i class="bi bi-arrow-left"></i>
+                                        Hub
+                                    </button>
+                                    <i class="bi bi-chevron-right crumb-sep"></i>
+                                    @for (crumb of breadcrumbs(); track crumb.level) {
+                                        @if (crumb.level !== 'event') {
+                                            <span class="crumb-link"
+                                                  role="button"
+                                                  tabindex="0"
+                                                  (click)="onBreadcrumbClick(crumb.level)"
+                                                  (keydown.enter)="onBreadcrumbClick(crumb.level)">
+                                                {{ crumb.label }}
+                                            </span>
+                                            <i class="bi bi-chevron-right crumb-sep"></i>
+                                        }
+                                    }
+                                    <span class="crumb-current">{{ breadcrumbCurrent() }}</span>
+                                </nav>
+                            }
+
+                            <!-- Prerequisite Errors (all scope levels in Schedule mode) -->
+                            @if (prerequisiteErrors().length > 0) {
+                                <div class="prerequisite-errors">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="d-flex align-items-start justify-content-between">
+                                            <div>
+                                                <strong><i class="bi bi-exclamation-triangle me-1"></i>Setup incomplete</strong>
+                                                <p class="mb-1 mt-1">Fix these issues before auto-scheduling:</p>
+                                                <ul class="mb-0 ps-3">
+                                                    @for (err of prerequisiteErrors(); track $index) {
+                                                        <li>
+                                                            {{ err }}
+                                                            @if (missingPairingTCnts().length > 0 && err.startsWith('Pairings are missing')) {
+                                                                <button class="btn btn-sm btn-outline-primary ms-2 py-0"
+                                                                        [disabled]="isGeneratingPairings()"
+                                                                        (click)="generateMissingPairings()">
+                                                                    @if (isGeneratingPairings()) {
+                                                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                                                        Generating...
+                                                                    } @else {
+                                                                        <i class="bi bi-plus-circle me-1"></i>Generate
+                                                                    }
+                                                                </button>
+                                                            }
+                                                        </li>
                                                     }
+                                                </ul>
+                                            </div>
+                                            <button class="btn-close ms-3" (click)="dismissPrerequisiteErrors()" aria-label="Dismiss"></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            @switch (scope().level) {
+
+                                <!-- Event Scope: Build controls -->
+                                @case ('event') {
+                                    <div class="schedule-event-controls">
+                                        <div class="d-flex align-items-center justify-content-between p-3">
+                                            <div>
+                                                <h6 class="mb-1">Build Schedule</h6>
+                                                <p class="text-secondary mb-0" style="font-size: var(--font-size-sm)">
+                                                    Auto-generate game placements for the entire event, or select an agegroup/division in the navigator.
+                                                </p>
+                                            </div>
+                                            <button class="btn btn-primary btn-sm"
+                                                    (click)="openAutoScheduleConfig()"
+                                                    [disabled]="isExecuting()">
+                                                @if (isExecuting()) {
+                                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                                }
+                                                <i class="bi bi-play-fill"></i> Build Schedule
+                                            </button>
+                                        </div>
+
+                                        @if (gameSummary()) {
+                                            <div class="px-3 pb-3">
+                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                    {{ gameSummary()!.totalGames }} games scheduled
+                                                </span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                <!-- Agegroup Scope -->
+                                @case ('agegroup') {
+                                    @if (!isAgegroupConfigured()) {
+                                        <app-canvas-config-panel
+                                            [agegroupId]="selectedAgegroupId()!"
+                                            [agegroupName]="selectedAgegroupName()"
+                                            [agegroupColor]="selectedAgegroupColor()"
+                                            [agegroups]="agegroups()"
+                                            [readinessMap]="canvasReadiness()"
+                                            [assignedFieldCount]="assignedFieldCount()"
+                                            (canvasConfigured)="onCanvasConfigured()" />
+                                    } @else {
+                                        <div class="agegroup-header">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge"
+                                                      [style.background-color]="selectedAgegroupColor()"
+                                                      [style.color]="selectedAgegroupTextColor()"
+                                                      [class.bg-secondary]="!selectedAgegroupColor()">
+                                                    {{ selectedAgegroupName() }}
+                                                </span>
+                                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                    {{ scopeGameCount() }} games
+                                                </span>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                @if (!hasGamesInScope()) {
+                                                    <button class="btn btn-sm btn-outline-primary"
+                                                            (click)="openAutoScheduleConfig()"
+                                                            [disabled]="isExecuting()">
+                                                        @if (isExecuting()) {
+                                                            <span class="spinner-border spinner-border-sm"></span>
+                                                        } @else {
+                                                            <i class="bi bi-lightning-fill"></i>
+                                                        }
+                                                        Auto-Schedule {{ scopeLabel() }}
+                                                    </button>
+                                                } @else {
+                                                    <button class="btn btn-sm btn-outline-danger"
+                                                            (click)="confirmDeleteGames()"
+                                                            [disabled]="isDeletingGames()">
+                                                        @if (isDeletingGames()) {
+                                                            <span class="spinner-border spinner-border-sm"></span>
+                                                        } @else {
+                                                            <i class="bi bi-trash"></i>
+                                                        }
+                                                        Delete {{ scopeLabel() }} Games
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        @if (showDeleteConfirm()) {
+                                            <div class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
+                                                <span>
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                    Delete <strong>{{ scopeGameCount() }} games</strong> across <strong>{{ selectedAgegroup()?.divisions?.length ?? 0 }} divisions</strong> in {{ scopeLabel() }}?
+                                                </span>
+                                                <div class="d-flex gap-1">
+                                                    <button class="btn btn-sm btn-danger" (click)="executeDelete()">Yes, Delete</button>
+                                                    <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (gridResponse()) {
+                                            <app-schedule-grid #scheduleGrid
+                                                [gridResponse]="gridResponse()"
+                                                [isLoading]="isGridLoading()"
+                                                [emptyMessage]="'No fields or timeslots configured for this agegroup'"
+                                                [showMatchupCodes]="true"
+                                                [showGameId]="true"
+                                                [showTeamDesignators]="true"
+                                                [showActionButtons]="false"
+                                                [highlightDivId]="null"
+                                                [highlightDivColor]="selectedAgegroupColor()"
+                                                [selectedGameGid]="null"
+                                                [highlightGameGid]="null"
+                                                [highlightAllDiv]="false"
+                                                [showOpenSlotHints]="false"
+                                                [showMoveSlotHints]="false"
+                                                (cellClicked)="onGridCellClick($event)">
+                                            </app-schedule-grid>
+                                        }
+                                    }
+                                }
+
+                                <!-- Division Scope -->
+                                @case ('division') {
+                                    <app-schedule-grid #scheduleGrid
+                                        [gridResponse]="gridResponse()"
+                                        [isLoading]="isGridLoading()"
+                                        [emptyMessage]="'No fields or timeslots configured for this division'"
+                                        [showMatchupCodes]="true"
+                                        [showGameId]="true"
+                                        [showTeamDesignators]="true"
+                                        [showActionButtons]="true"
+                                        [highlightDivId]="selectedDivision()?.divId ?? null"
+                                        [highlightDivColor]="selectedAgegroupColor()"
+                                        [selectedGameGid]="selectedGame()?.game?.gid ?? null"
+                                        [highlightGameGid]="highlightGameGid()"
+                                        [highlightAllDiv]="highlightAllDiv()"
+                                        [showOpenSlotHints]="!!selectedPairing()"
+                                        [showMoveSlotHints]="!!selectedGame()"
+                                        (cellClicked)="onGridCellClick($event)"
+                                        (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
+                                        (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
+
+                                        <!-- Projected into grid header title area -->
+                                        <span gridTitle class="badge"
+                                              [style.background-color]="selectedAgegroupColor()"
+                                              [style.color]="selectedAgegroupTextColor()"
+                                              [class.bg-secondary]="!selectedAgegroupColor()">
+                                            {{ selectedAgegroupName() }}
+                                        </span>
+                                        <span gridTitle class="fw-semibold">{{ selectedDivision()!.divName }}</span>
+                                        <span gridTitle class="badge bg-primary-subtle text-primary-emphasis">
+                                            {{ teamCount() }} teams
+                                        </span>
+
+                                        <!-- Projected into grid header actions area -->
+                                        <div gridActions class="d-flex gap-1">
+                                            @if (!hasGamesInScope()) {
+                                                <button class="btn btn-sm btn-outline-primary"
+                                                        (click)="openAutoScheduleConfig()"
+                                                        [disabled]="isExecuting()">
+                                                    @if (isExecuting()) {
+                                                        <span class="spinner-border spinner-border-sm"></span>
+                                                    } @else {
+                                                        <i class="bi bi-lightning-fill"></i>
+                                                    }
+                                                    Auto-Schedule {{ selectedAgegroupName() }}:{{ selectedDivision()!.divName }}
+                                                </button>
+                                            } @else {
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                        (click)="confirmDeleteGames()"
+                                                        [disabled]="isDeletingGames()">
+                                                    @if (isDeletingGames()) {
+                                                        <span class="spinner-border spinner-border-sm"></span>
+                                                    } @else {
+                                                        <i class="bi bi-trash"></i>
+                                                    }
+                                                    Delete {{ scopeLabel() }} Games
                                                 </button>
                                             }
-                                        </li>
-                                    }
-                                </ul>
-                            </div>
-                            <button class="btn-close ms-3" (click)="dismissPrerequisiteErrors()" aria-label="Dismiss"></button>
-                        </div>
-                    </div>
-                </div>
-            }
+                                        </div>
 
-            <!-- ── Agegroup View ── -->
-            @if (scope().level === 'agegroup') {
-
-                <!-- Dates & fields setup for unconfigured agegroups -->
-                @if (!isAgegroupConfigured()) {
-                    <app-canvas-config-panel
-                        [agegroupId]="selectedAgegroupId()!"
-                        [agegroupName]="selectedAgegroupName()"
-                        [agegroupColor]="selectedAgegroupColor()"
-                        [agegroups]="agegroups()"
-                        [readinessMap]="canvasReadiness()"
-                        [assignedFieldCount]="assignedFieldCount()"
-                        (canvasConfigured)="onCanvasConfigured()" />
-
-                <!-- Configured agegroup: show header + grid -->
-                } @else {
-                <div class="agegroup-header">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge"
-                              [style.background-color]="selectedAgegroupColor()"
-                              [style.color]="selectedAgegroupTextColor()"
-                              [class.bg-secondary]="!selectedAgegroupColor()">
-                            {{ selectedAgegroupName() }}
-                        </span>
-                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                            {{ scopeGameCount() }} games
-                        </span>
-                    </div>
-                    <div class="d-flex gap-2">
-                        @if (!hasGamesInScope()) {
-                            <button class="btn btn-sm btn-outline-primary"
-                                    (click)="openAutoScheduleConfig()"
-                                    [disabled]="isExecuting()">
-                                @if (isExecuting()) {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                } @else {
-                                    <i class="bi bi-lightning-fill"></i>
+                                        <!-- Projected below grid header -->
+                                        @if (showDeleteConfirm()) {
+                                            <div gridExtra class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
+                                                <span>
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                                    Delete <strong>all</strong> scheduled games for <strong>{{ selectedAgegroupName() }}:{{ selectedDivision()!.divName }}</strong>?
+                                                </span>
+                                                <div class="d-flex gap-1">
+                                                    <button class="btn btn-sm btn-danger" (click)="executeDelete()">Yes, Delete All</button>
+                                                    <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </app-schedule-grid>
                                 }
-                                Auto-Schedule {{ scopeLabel() }}
-                            </button>
-                        } @else {
-                            <button class="btn btn-sm btn-outline-danger"
-                                    (click)="confirmDeleteGames()"
-                                    [disabled]="isDeletingGames()">
-                                @if (isDeletingGames()) {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                } @else {
-                                    <i class="bi bi-trash"></i>
-                                }
-                                Delete {{ scopeLabel() }} Games
-                            </button>
+                            }
                         }
-                    </div>
-                </div>
 
-                <!-- Delete confirmation (agegroup level = modal-style inline) -->
-                @if (showDeleteConfirm()) {
-                    <div class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
-                        <span>
-                            <i class="bi bi-exclamation-triangle me-1"></i>
-                            Delete <strong>{{ scopeGameCount() }} games</strong> across <strong>{{ selectedAgegroup()?.divisions?.length ?? 0 }} divisions</strong> in {{ scopeLabel() }}?
-                        </span>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-danger" (click)="executeDelete()">Yes, Delete</button>
-                            <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
-                        </div>
-                    </div>
-                }
-
-                <!-- Grid (loaded for first division, scroll to agegroup's first game) -->
-                @if (gridResponse()) {
-                    <app-schedule-grid #scheduleGrid
-                        [gridResponse]="gridResponse()"
-                        [isLoading]="isGridLoading()"
-                        [emptyMessage]="'No fields or timeslots configured for this agegroup'"
-                        [showMatchupCodes]="true"
-                        [showGameId]="true"
-                        [showTeamDesignators]="true"
-                        [showActionButtons]="false"
-                        [highlightDivId]="null"
-                        [highlightDivColor]="selectedAgegroupColor()"
-                        [selectedGameGid]="null"
-                        [highlightGameGid]="null"
-                        [highlightAllDiv]="false"
-                        [showOpenSlotHints]="false"
-                        [showMoveSlotHints]="false"
-                        (cellClicked)="onGridCellClick($event)">
-                    </app-schedule-grid>
-                }
-                } <!-- end @else configured agegroup -->
-
-            <!-- ── Division View (existing behavior) ── -->
-            } @else {
-                <app-schedule-grid #scheduleGrid
-                    [gridResponse]="gridResponse()"
-                    [isLoading]="isGridLoading()"
-                    [emptyMessage]="'No fields or timeslots configured for this division'"
-                    [showMatchupCodes]="true"
-                    [showGameId]="true"
-                    [showTeamDesignators]="true"
-                    [showActionButtons]="true"
-                    [highlightDivId]="selectedDivision()?.divId ?? null"
-                    [highlightDivColor]="selectedAgegroupColor()"
-                    [selectedGameGid]="selectedGame()?.game?.gid ?? null"
-                    [highlightGameGid]="highlightGameGid()"
-                    [highlightAllDiv]="highlightAllDiv()"
-                    [showOpenSlotHints]="!!selectedPairing()"
-                    [showMoveSlotHints]="!!selectedGame()"
-                    (cellClicked)="onGridCellClick($event)"
-                    (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
-                    (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
-
-                    <!-- Projected into grid header title area -->
-                    <span gridTitle class="badge"
-                          [style.background-color]="selectedAgegroupColor()"
-                          [style.color]="selectedAgegroupTextColor()"
-                          [class.bg-secondary]="!selectedAgegroupColor()">
-                        {{ selectedAgegroupName() }}
-                    </span>
-                    <span gridTitle class="fw-semibold">{{ selectedDivision()!.divName }}</span>
-                    <span gridTitle class="badge bg-primary-subtle text-primary-emphasis">
-                        {{ teamCount() }} teams
-                    </span>
-
-                    <!-- Projected into grid header actions area -->
-                    <div gridActions class="d-flex gap-1">
-                        @if (!hasGamesInScope()) {
-                            <button class="btn btn-sm btn-outline-primary"
-                                    (click)="openAutoScheduleConfig()"
-                                    [disabled]="isExecuting()">
-                                @if (isExecuting()) {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                } @else {
-                                    <i class="bi bi-lightning-fill"></i>
-                                }
-                                Auto-Schedule {{ selectedAgegroupName() }}:{{ selectedDivision()!.divName }}
-                            </button>
-                        } @else {
-                            <button class="btn btn-sm btn-outline-danger"
-                                    (click)="confirmDeleteGames()"
-                                    [disabled]="isDeletingGames()">
-                                @if (isDeletingGames()) {
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                } @else {
-                                    <i class="bi bi-trash"></i>
-                                }
-                                Delete {{ scopeLabel() }} Games
-                            </button>
+                        <!-- ══════════ MASTER MODE ══════════ -->
+                        @case ('master') {
+                            <app-master-schedule />
                         }
-                    </div>
 
-                    <!-- Projected below grid header -->
-                    @if (showDeleteConfirm()) {
-                        <div gridExtra class="alert alert-danger m-2 mb-0 py-1 px-2 d-flex align-items-center justify-content-between">
-                            <span>
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                Delete <strong>all</strong> scheduled games for <strong>{{ selectedAgegroupName() }}:{{ selectedDivision()!.divName }}</strong>?
-                            </span>
-                            <div class="d-flex gap-1">
-                                <button class="btn btn-sm btn-danger" (click)="executeDelete()">Yes, Delete All</button>
-                                <button class="btn btn-sm btn-outline-secondary" (click)="cancelDeleteGames()">Cancel</button>
-                            </div>
-                        </div>
+                        <!-- ══════════ QA MODE ══════════ -->
+                        @case ('qa') {
+                            <app-qa-results />
+                        }
                     }
-                </app-schedule-grid>
-            }
+                }
+            </div>
         </div>
     </div>
-    } <!-- end @else agegroup/division scope -->
 </div>
+
+<!-- ══════════ Bulk Date Assignment Modal ══════════ -->
+@if (showBulkDateModal()) {
+    <app-bulk-date-assign-modal
+        [agegroups]="agegroups()"
+        [readinessMap]="canvasReadiness()"
+        [priorYearDefaults]="priorYearDefaults()"
+        (applied)="onBulkDateApplied()"
+        (closed)="closeBulkDateModal()" />
+}
 
 <!-- ══════════ Auto-Schedule Config Modal ══════════ -->
 @if (showAutoScheduleModal()) {

@@ -5,25 +5,36 @@
     padding: var(--space-4);
 }
 
-.schedule-div-container {
+// ══════════════════════════════════════════════════════════════
+// Hub Container — full-height shell
+// ══════════════════════════════════════════════════════════════
+
+.hub-container {
     display: flex;
     flex-direction: column;
+    height: calc(100vh - 200px);
     gap: var(--space-3);
+}
 
-    &:has(.schedule-layout) {
-        height: calc(100vh - 200px);
+// ── Hub Header ──
+
+.hub-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-shrink: 0;
+
+    h5 {
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
     }
 }
 
-.schedule-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
+// ══════════════════════════════════════════════════════════════
+// Hub Layout — sidebar + main pane grid
+// ══════════════════════════════════════════════════════════════
 
-// ── Main layout: left panel + grid ──
-
-.schedule-layout {
+.hub-layout {
     display: grid;
     grid-template-columns: 280px 1fr;
     gap: var(--space-3);
@@ -31,9 +42,9 @@
     min-height: 0;
 }
 
-// ── Left panel (navigator + pairings stacked) ──
+// ── Sidebar ──
 
-.left-panel {
+.hub-sidebar {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -41,61 +52,200 @@
     overflow: hidden;
 }
 
-// ── Shared panel styles ──
-
-.nav-panel,
-.grid-panel {
+.sidebar-nav {
     display: flex;
     flex-direction: column;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);
     background: var(--bs-body-bg);
     overflow: hidden;
-}
-
-.nav-panel {
-    flex: 0 0 40%;
+    flex: 1;
+    min-height: 0;
 
     app-division-navigator {
         flex: 1;
         min-height: 0;
     }
-}
-
-// ── Event-scope full-width navigator ──
-
-.nav-panel-event {
-    flex: none;
-    max-height: 280px;
-
-    app-division-navigator {
-        flex: 1;
-        min-height: 0;
-    }
-}
-
-.panel-hint {
-    font-size: var(--font-size-xs);
-    color: var(--bs-secondary-color);
-    font-weight: var(--font-weight-normal);
-    margin-left: var(--space-2);
-}
-
-.nav-panel-event > .panel-header {
-    display: flex;
-    align-items: center;
 }
 
 app-pairings-panel {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 40%;
+}
+
+// ── Tools Section ──
+
+.tools-section {
+    flex-shrink: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+.tools-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: var(--bs-tertiary-bg);
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    &:hover {
+        background: var(--bs-secondary-bg);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    i {
+        font-size: var(--font-size-xs);
+    }
+}
+
+.tools-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.tool-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: transparent;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    text-align: left;
+
+    &:hover {
+        background: var(--bs-secondary-bg);
+        color: var(--brand-text);
+    }
+
+    &.active {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-medium);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+
+    i {
+        width: 1.25em;
+        text-align: center;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Main Pane — mode bar + content
+// ══════════════════════════════════════════════════════════════
+
+.hub-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+    overflow: hidden;
+}
+
+// ── Mode Tab Bar ──
+
+.hub-mode-bar {
+    display: flex;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+}
+
+.hub-mode-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bs-body-bg);
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+        background: var(--bs-secondary-bg);
+        color: var(--brand-text);
+    }
+
+    &.active {
+        background: var(--bs-primary);
+        color: var(--bs-light);
+        border-color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+// ── Content Area ──
+
+.hub-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+// ── Tool Embedding ──
+
+.tool-embedded {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
 }
 
-.grid-panel {
-    min-height: 0;
+.tool-back-bar {
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
 }
 
-// ── Scope Breadcrumb ──
+// ── Schedule Mode: Event Controls ──
+
+.schedule-event-controls {
+    border-bottom: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Scope Breadcrumb (Schedule mode — drilled below event)
+// ══════════════════════════════════════════════════════════════
 
 .scope-breadcrumb {
     display: flex;
@@ -168,12 +318,9 @@ app-pairings-panel {
     font-weight: var(--font-weight-semibold);
 }
 
-// .panel-header, .panel-body → _scheduling-panels.scss
-// Pairings list, WPW matrix, division teams → pairings-panel child component
-
-// Event summary styles → event-summary-panel child component
-
-// ── Agegroup Scope Header ──
+// ══════════════════════════════════════════════════════════════
+// Agegroup Scope Header
+// ══════════════════════════════════════════════════════════════
 
 .agegroup-header {
     display: flex;
@@ -184,7 +331,9 @@ app-pairings-panel {
     flex-shrink: 0;
 }
 
-// ── Prerequisite errors ──
+// ══════════════════════════════════════════════════════════════
+// Prerequisite Errors
+// ══════════════════════════════════════════════════════════════
 
 .prerequisite-errors {
     padding: var(--space-2);
@@ -202,42 +351,34 @@ app-pairings-panel {
     }
 }
 
-// Auto-schedule config modal styles → auto-schedule-config-modal child component
-
-// ── Mobile: stack panels vertically ──
+// ══════════════════════════════════════════════════════════════
+// Mobile Responsive
+// ══════════════════════════════════════════════════════════════
 
 @media (max-width: 991.98px) {
-    .schedule-layout {
+    .hub-container {
+        height: auto;
+    }
+
+    .hub-layout {
         grid-template-columns: 1fr;
     }
 
-    .left-panel {
+    .hub-sidebar {
         max-height: 300px;
-        flex-direction: row;
-        gap: var(--space-2);
     }
 
-    .nav-panel {
-        flex: 1;
-        max-height: none;
-    }
-
-    app-pairings-panel {
-        flex: 1;
-    }
-
-    .schedule-div-container {
-        height: auto;
+    .hub-mode-tab span {
+        display: none;
     }
 }
 
 @media (max-width: 767.98px) {
-    .left-panel {
-        flex-direction: column;
+    .hub-sidebar {
         max-height: none;
     }
 
-    .nav-panel {
+    .sidebar-nav {
         max-height: 200px;
     }
 
@@ -246,15 +387,15 @@ app-pairings-panel {
     }
 }
 
-// ── Rapid-placement button ──
+// ══════════════════════════════════════════════════════════════
+// Rapid-Placement Modal
+// ══════════════════════════════════════════════════════════════
 
 .rapid-btn {
     padding: 0 var(--space-1);
     line-height: 1.4;
     font-size: var(--font-size-xs);
 }
-
-// ── Rapid-placement modal ──
 
 .rapid-pairing-label {
     padding: var(--space-1) var(--space-2);
@@ -280,7 +421,7 @@ app-pairings-panel {
     border: 1px solid var(--bs-border-color);
     border-top: none;
     border-radius: 0 0 var(--bs-border-radius-sm) var(--bs-border-radius-sm);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
 }
 
 .rapid-dropdown-item {

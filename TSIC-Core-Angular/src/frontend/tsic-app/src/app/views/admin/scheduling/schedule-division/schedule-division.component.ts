@@ -33,6 +33,12 @@ import { CanvasConfigPanelComponent } from './components/canvas-config-panel/can
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
 import { ScheduleConfigPanelComponent } from './components/schedule-config-panel/schedule-config-panel.component';
+import { ManageFieldsComponent } from '../fields/manage-fields.component';
+import { ManagePairingsComponent } from '../pairings/manage-pairings.component';
+import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.component';
+import { PoolAssignmentComponent } from '../../pool-assignment/pool-assignment.component';
+import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
+import { QaResultsComponent } from '../qa-results/qa-results.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
@@ -43,7 +49,7 @@ import type { CanvasReadinessResponse } from '@core/api';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, MasterScheduleComponent, QaResultsComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,6 +75,12 @@ export class ScheduleDivisionComponent implements OnInit {
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
     @ViewChild(ScheduleConfigPanelComponent) configPanel?: ScheduleConfigPanelComponent;
+    @ViewChild(DivisionNavigatorComponent) navigator?: DivisionNavigatorComponent;
+
+    // ── Hub mode ──
+    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa'>('schedule');
+    readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | null>(null);
+    readonly showToolsSection = signal(true);
 
     // ── Scope selection model (replaces separate selectedDivision + selectedAgegroupId) ──
     readonly scope = signal<ScheduleScope>({ level: 'event' });
@@ -510,16 +522,33 @@ export class ScheduleDivisionComponent implements OnInit {
         this.showBulkDateModal.set(false);
     }
 
+    // ── Hub mode switching ──
+
+    setMode(mode: 'configure' | 'schedule' | 'master' | 'qa'): void {
+        this.activeTool.set(null);
+        this.mode.set(mode);
+
+        // Auto-select first division when entering Schedule mode at event scope
+        if (mode === 'schedule' && this.scope().level === 'event') {
+            const firstAg = this.agegroups()[0];
+            const firstDiv = firstAg?.divisions[0];
+            if (firstAg && firstDiv) {
+                this.navigator?.expandedAgegroups.set(new Set([firstAg.agegroupId]));
+                this.onDivisionSelected({ division: firstDiv, agegroupId: firstAg.agegroupId });
+            }
+        }
+    }
+
+    setTool(tool: 'fields' | 'pairings' | 'timeslots' | 'pools'): void {
+        this.activeTool.set(this.activeTool() === tool ? null : tool);
+    }
+
     // ── Scope selection handlers (wired from navigator outputs) ──
 
     onEventSelected(): void {
         this.scope.set({ level: 'event' });
         this.dismissBuildResults();
         this.clearDivisionState();
-    }
-
-    navigateToManageFields(): void {
-        this.router.navigate(['../fields'], { relativeTo: this.route });
     }
 
     onBreadcrumbClick(level: 'event' | 'agegroup'): void {
