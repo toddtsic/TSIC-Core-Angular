@@ -4,9 +4,14 @@
     <div class="rescheduler-header">
         <h5 class="mb-0">Rescheduler</h5>
         <div class="d-flex gap-1">
-            <button class="btn btn-sm btn-outline-warning" (click)="openWeatherModal()">
-                <i class="bi bi-cloud-rain me-1"></i>Weather Adjust
+            <button class="btn btn-sm btn-primary" (click)="loadGrid()">
+                <i class="bi bi-funnel me-1"></i>Load Grid
             </button>
+            @if (isSingleDaySelected()) {
+                <button class="btn btn-sm btn-outline-warning" (click)="openWeatherModal()">
+                    <i class="bi bi-cloud-rain me-1"></i>Weather Adjust
+                </button>
+            }
             <button class="btn btn-sm btn-outline-primary" (click)="openEmailModal()">
                 <i class="bi bi-envelope me-1"></i>Email Participants
             </button>
@@ -77,12 +82,6 @@
                     }
                 </div>
 
-                <!-- Apply filters -->
-                <div class="panel-footer">
-                    <button class="btn btn-sm btn-primary w-100" (click)="loadGrid()">
-                        <i class="bi bi-funnel me-1"></i>Load Grid
-                    </button>
-                </div>
             </div>
         </div>
 
@@ -100,6 +99,7 @@
                     [emptyMessage]="'No games match the selected filters'"
                     [selectedGameGid]="selectedGame()?.gid ?? null"
                     [showMoveSlotHints]="!!selectedGame()"
+                    [highlightGameGid]="movedGameGid()"
                     (cellClicked)="onGridCellClick($event)">
 
                     <!-- Projected into grid header title area -->

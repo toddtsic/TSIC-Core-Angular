@@ -22,6 +22,7 @@ import { AutoBuildService } from '../auto-build/services/auto-build.service';
 import { ScheduleQaService } from '../qa-results/services/schedule-qa.service';
 import { TimeslotService } from '../timeslots/services/timeslot.service';
 import { formatTime, teamDes, contrastText, agTeamCount } from '../shared/utils/scheduling-helpers';
+import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import type { ScheduleScope } from '../shared/utils/scheduling-helpers';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
@@ -728,7 +729,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Schedule Grid ──
 
-    loadScheduleGrid(divId: string, agegroupId: string): void {
+    loadScheduleGrid(divId: string, agegroupId: string, highlightGid?: number): void {
         if (!this.gridResponse()) {
             this.isGridLoading.set(true);
         }
@@ -736,16 +737,25 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
-                const gid = this.findFirstGameGidInGrid(grid, divId);
-                this.highlightGameGid.set(null);
-                this.flashAllDiv();
-                setTimeout(() => {
-                    if (gid) {
-                        this.scheduleGrid?.scrollToGame(gid);
-                    } else {
-                        this.scheduleGrid?.scrollToFirstRelevant(divId);
-                    }
-                });
+
+                if (highlightGid != null) {
+                    // Post-move: scroll to moved game + temporary highlight
+                    this.highlightGameGid.set(highlightGid);
+                    setTimeout(() => this.scheduleGrid?.scrollToGame(highlightGid));
+                    setTimeout(() => this.highlightGameGid.set(null), 3000);
+                } else {
+                    // Normal load: scroll to first div game + flash division
+                    const gid = this.findFirstGameGidInGrid(grid, divId);
+                    this.highlightGameGid.set(null);
+                    this.flashAllDiv();
+                    setTimeout(() => {
+                        if (gid) {
+                            this.scheduleGrid?.scrollToGame(gid);
+                        } else {
+                            this.scheduleGrid?.scrollToFirstRelevant(divId);
+                        }
+                    });
+                }
             },
             error: () => {
                 this.gridResponse.set(null);
@@ -825,7 +835,7 @@ export class ScheduleDivisionComponent implements OnInit {
         }
 
         const teamIds = this.resolvePairingTeamIds(pairing);
-        const clash = this.findTimeClashInRow(row, teamIds);
+        const clash = this.findClashInRow(row, teamIds);
         if (clash) {
             this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
             return;
@@ -1392,15 +1402,16 @@ export class ScheduleDivisionComponent implements OnInit {
         const teamIds = [source.game.t1Id, source.game.t2Id].filter((id): id is string => !!id);
         const targetCell = targetRow.cells[targetColIndex];
         if (!targetCell) {
-            const clash = this.findTimeClashInRow(targetRow, teamIds, source.game.gid);
+            const clash = this.findClashInRow(targetRow, teamIds, source.game.gid);
             if (clash) {
                 this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
                 return;
             }
         }
 
+        const movedGid = source.game.gid;
         this.svc.moveGame({
-            gid: source.game.gid,
+            gid: movedGid,
             targetGDate: targetRow.gDate,
             targetFieldId: targetColumn.fieldId
         }).subscribe({
@@ -1408,7 +1419,9 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.selectedGame.set(null);
                 const div = this.selectedDivision();
                 const agId = this.selectedAgegroupId();
-                if (div && agId) this.loadScheduleGrid(div.divId, agId);
+                if (div && agId) {
+                    this.loadScheduleGrid(div.divId, agId, movedGid);
+                }
             }
         });
     }
@@ -1443,18 +1456,8 @@ export class ScheduleDivisionComponent implements OnInit {
         return ids;
     }
 
-    private findTimeClashInRow(row: ScheduleGridRow, teamIds: string[], excludeGid?: number): string | null {
-        for (const cell of row.cells) {
-            if (!cell) continue;
-            if (excludeGid != null && cell.gid === excludeGid) continue;
-            for (const tid of teamIds) {
-                if (cell.t1Id === tid || cell.t2Id === tid) {
-                    const team = this.divisionTeams().find(t => t.teamId === tid);
-                    return team?.teamName ?? 'A team';
-                }
-            }
-        }
-        return null;
+    private findClashInRow(row: ScheduleGridRow, teamIds: string[], excludeGid?: number): string | null {
+        return findTimeClashInRow(row, teamIds, excludeGid ?? -1);
     }
 
     // ── Bracket enforcement ──
@@ -1624,7 +1627,7 @@ export class ScheduleDivisionComponent implements OnInit {
         const row = this.gridRows().find(r => r.gDate === time.gDate);
         if (row) {
             const teamIds = this.resolvePairingTeamIds(pairing);
-            const clash = this.findTimeClashInRow(row, teamIds);
+            const clash = this.findClashInRow(row, teamIds);
             if (clash) {
                 this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
                 return;

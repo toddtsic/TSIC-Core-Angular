@@ -12,6 +12,8 @@ import {
     type AdjustWeatherResponse
 } from './services/rescheduler.service';
 import { formatGameDay } from '../shared/utils/scheduling-helpers';
+import { findTimeClashInRow } from '../shared/utils/conflict-detection';
+import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -26,6 +28,7 @@ import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialo
 })
 export class ReschedulerComponent implements OnInit {
     private readonly svc = inject(ReschedulerService);
+    private readonly toast = inject(ToastService);
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
 
@@ -57,6 +60,8 @@ export class ReschedulerComponent implements OnInit {
 
     // ── Move/Swap workflow ──
     readonly selectedGame = signal<ScheduleGameDto | null>(null);
+    readonly movedGameGid = signal<number | null>(null);
+    private movedHighlightTimer: ReturnType<typeof setTimeout> | null = null;
 
     // ── Add Timeslot ──
     readonly showAddTimeslot = signal(false);
@@ -101,6 +106,8 @@ export class ReschedulerComponent implements OnInit {
         this.selectedGameDays().length > 0 ||
         this.selectedFieldIds().length > 0
     );
+
+    readonly isSingleDaySelected = computed(() => this.selectedGameDays().length === 1);
 
     // ── RTE toolbar config ──
     readonly rteTools = {
@@ -180,10 +187,7 @@ export class ReschedulerComponent implements OnInit {
     // Grid Load
     // ══════════════════════════════════════════════════════════════
 
-    loadGrid(): void {
-        this.isGridLoading.set(true);
-        this.selectedGame.set(null);
-
+    private buildGridRequest(): ReschedulerGridRequest {
         const request: ReschedulerGridRequest = {};
         if (this.selectedClubNames().length) request.clubNames = this.selectedClubNames();
         if (this.selectedAgegroupIds().length) request.agegroupIds = this.selectedAgegroupIds();
@@ -191,13 +195,17 @@ export class ReschedulerComponent implements OnInit {
         if (this.selectedTeamIds().length) request.teamIds = this.selectedTeamIds();
         if (this.selectedGameDays().length) request.gameDays = this.selectedGameDays();
         if (this.selectedFieldIds().length) request.fieldIds = this.selectedFieldIds();
-
-        // Inject additional timeslot if configured
         if (this.showAddTimeslot() && this.newTimeslotDate() && this.newTimeslotTime()) {
             request.additionalTimeslot = `${this.newTimeslotDate()}T${this.newTimeslotTime()}`;
         }
+        return request;
+    }
 
-        this.svc.getGrid(request).subscribe({
+    loadGrid(): void {
+        this.isGridLoading.set(true);
+        this.selectedGame.set(null);
+
+        this.svc.getGrid(this.buildGridRequest()).subscribe({
             next: (data) => {
                 this.gridResponse.set(data);
                 this.isGridLoading.set(false);
@@ -232,14 +240,25 @@ export class ReschedulerComponent implements OnInit {
                 return;
             }
 
+            // Time clash check (empty target only — swaps vacate the slot)
+            if (!event.game) {
+                const teamIds = [moving.t1Id, moving.t2Id].filter((id): id is string => !!id);
+                const clash = findTimeClashInRow(event.row, teamIds, moving.gid);
+                if (clash) {
+                    this.toast.show(`Time clash: ${clash} is already playing at this timeslot`, 'danger', 4000);
+                    return;
+                }
+            }
+
+            const movedGid = moving.gid;
             this.svc.moveGame({
-                gid: moving.gid,
+                gid: movedGid,
                 targetGDate: event.row.gDate,
                 targetFieldId: col.fieldId
             }).subscribe({
                 next: () => {
                     this.selectedGame.set(null);
-                    this.loadGrid();
+                    this.highlightMovedGame(movedGid);
                 },
                 error: () => this.selectedGame.set(null)
             });
@@ -247,6 +266,22 @@ export class ReschedulerComponent implements OnInit {
             // No game selected — pick this game for move
             this.selectGameForMove(event.game);
         }
+    }
+
+    private highlightMovedGame(gid: number): void {
+        if (this.movedHighlightTimer) clearTimeout(this.movedHighlightTimer);
+        this.movedGameGid.set(gid);
+        this.isGridLoading.set(true);
+
+        this.svc.getGrid(this.buildGridRequest()).subscribe({
+            next: (data) => {
+                this.gridResponse.set(data);
+                this.isGridLoading.set(false);
+                this.scheduleGrid?.scrollToGame(gid);
+                this.movedHighlightTimer = setTimeout(() => this.movedGameGid.set(null), 3000);
+            },
+            error: () => this.isGridLoading.set(false)
+        });
     }
 
     // ══════════════════════════════════════════════════════════════

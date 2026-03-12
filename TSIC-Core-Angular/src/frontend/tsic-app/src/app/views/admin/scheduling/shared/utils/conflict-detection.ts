@@ -97,3 +97,18 @@ export function isBackToBack(game: ScheduleGameDto, b2bIds: Set<number>): boolea
 export function isBreaking(game: ScheduleGameDto, clashIds: Set<number>): boolean {
     return isSlotCollision(game) || isTimeClash(game, clashIds);
 }
+
+/**
+ * Pre-move check: would placing a game with these teamIds into this row cause a time clash?
+ * Returns the clashing team's display label, or null if no clash.
+ */
+export function findTimeClashInRow(row: ScheduleGridRow, teamIds: string[], excludeGid: number): string | null {
+    for (const cell of row.cells) {
+        if (!cell || cell.gid === excludeGid) continue;
+        for (const tid of teamIds) {
+            if (cell.t1Id === tid) return cell.t1Label;
+            if (cell.t2Id === tid) return cell.t2Label;
+        }
+    }
+    return null;
+}
