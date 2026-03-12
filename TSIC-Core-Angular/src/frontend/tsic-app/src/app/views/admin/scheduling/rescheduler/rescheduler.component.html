@@ -4,9 +4,6 @@
     <div class="rescheduler-header">
         <h5 class="mb-0">Rescheduler</h5>
         <div class="d-flex gap-1">
-            <button class="btn btn-sm btn-primary" (click)="loadGrid()">
-                <i class="bi bi-funnel me-1"></i>Load Grid
-            </button>
             @if (isSingleDaySelected()) {
                 <button class="btn btn-sm btn-outline-warning" (click)="openWeatherModal()">
                     <i class="bi bi-cloud-rain me-1"></i>Weather Adjust
@@ -114,7 +111,7 @@
             @if (!gridResponse()) {
                 <div class="empty-state">
                     <i class="bi bi-calendar3 text-secondary icon-lg"></i>
-                    <p class="text-secondary mt-2 mb-0">Apply filters and click "Load Grid" to view the schedule</p>
+                    <p class="text-secondary mt-2 mb-0">Select filters to load the schedule</p>
                 </div>
             } @else {
                 <app-schedule-grid #scheduleGrid

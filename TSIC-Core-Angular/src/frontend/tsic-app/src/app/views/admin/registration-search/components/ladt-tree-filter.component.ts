@@ -15,7 +15,7 @@ interface TreeFlatNode {
   playerCount: number;
   expandable: boolean;
   isSpecial: boolean;
-  /** Agegroup hex color (level 1 only) */
+  /** Agegroup hex color (inherited to divisions/teams) */
   color: string | null;
   /** All descendant IDs (for cascade check/uncheck) */
   descendantIds: string[];
@@ -60,11 +60,14 @@ interface TreeFlatNode {
           <!-- Name -->
           <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
 
-          <!-- Count badges -->
-          <span class="tree-badges">
-            <span class="tree-badge badge-teams">{{ node.teamCount }}</span>
-            <span class="tree-badge badge-players">{{ node.playerCount }}</span>
-          </span>
+          <!-- Team count badge -->
+          @if (node.level >= 1) {
+            <span class="tree-badge"
+                  [style.background]="node.color ?? 'var(--bs-info)'"
+                  [style.color]="contrastText(node.color)">{{ node.teamCount }}</span>
+          } @else {
+            <span class="tree-badge badge-default">{{ node.teamCount }}</span>
+          }
         </div>
       }
 
@@ -77,14 +80,9 @@ interface TreeFlatNode {
       line-height: 1.4;
     }
 
-    .tree-badges {
-      display: flex;
-      gap: var(--space-1);
+    .tree-badge {
       margin-left: auto;
       flex-shrink: 0;
-    }
-
-    .tree-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -97,13 +95,8 @@ interface TreeFlatNode {
       font-variant-numeric: tabular-nums;
     }
 
-    .badge-teams {
+    .badge-default {
       background: var(--bs-info);
-      color: var(--bs-white);
-    }
-
-    .badge-players {
-      background: var(--bs-primary);
       color: var(--bs-white);
     }
 
@@ -244,7 +237,7 @@ export class LadtTreeFilterComponent implements OnChanges {
       return ids;
     };
 
-    const recurse = (items: LadtTreeNodeDto[]) => {
+    const recurse = (items: LadtTreeNodeDto[], inheritedColor: string | null = null) => {
       for (const node of items) {
         let children = (node.children ?? []) as LadtTreeNodeDto[];
 
@@ -277,6 +270,8 @@ export class LadtTreeFilterComponent implements OnChanges {
         }
 
         const descendantIds = collectDescendantIds(node);
+        // Agegroup (level 1) sets the color; children inherit it
+        const nodeColor = node.level === 1 ? (node.color ?? null) : inheritedColor;
 
         result.push({
           id: node.id,
@@ -289,12 +284,12 @@ export class LadtTreeFilterComponent implements OnChanges {
           expandable: children.length > 0,
           isSpecial: (node.level === 1 && this.isSpecialAgegroup(node.name)) ||
                      (node.level === 2 && node.name.toUpperCase() === 'UNASSIGNED'),
-          color: node.level === 1 ? (node.color ?? null) : null,
+          color: nodeColor,
           descendantIds
         });
 
         if (children.length > 0) {
-          recurse(children);
+          recurse(children, nodeColor);
         }
       }
     };
@@ -376,6 +371,18 @@ export class LadtTreeFilterComponent implements OnChanges {
       checked.add(parentId);
       this.bubbleCheckUp(parentId, checked);
     }
+  }
+
+  /** Returns white or dark text depending on background luminance */
+  contrastText(hex: string | null): string {
+    if (!hex) return 'var(--bs-white)';
+    const c = hex.replace('#', '');
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    // Relative luminance (ITU-R BT.709)
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.55 ? 'var(--bs-dark)' : 'var(--bs-white)';
   }
 
   /** After unchecking children, uncheck all ancestors */

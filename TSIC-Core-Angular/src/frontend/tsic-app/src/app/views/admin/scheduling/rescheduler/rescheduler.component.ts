@@ -81,6 +81,10 @@ export class ReschedulerComponent implements OnInit {
     readonly movedGameGid = signal<number | null>(null);
     private movedHighlightTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // ── Debounced filter → grid auto-load ──
+    private filterDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly FILTER_DEBOUNCE_MS = 350;
+
     // ── Add Timeslot ──
     readonly showAddTimeslot = signal(false);
     readonly newTimeslotDate = signal('');
@@ -214,6 +218,7 @@ export class ReschedulerComponent implements OnInit {
         this.ladtAgegroupIds.set(agIds);
         this.ladtDivisionIds.set(divIds);
         this.ladtTeamIds.set(teamIds);
+        this.scheduleGridLoad();
     }
 
     toggleLadtSection(): void { this.ladtExpanded.update(v => !v); }
@@ -236,6 +241,7 @@ export class ReschedulerComponent implements OnInit {
         this.selectedAgegroupIds.set(agegroupIds);
         this.selectedDivisionIds.set(divisionIds);
         this.selectedTeamIds.set(teamIds);
+        this.scheduleGridLoad();
     }
 
     // ── Filter toggles ──
@@ -245,6 +251,7 @@ export class ReschedulerComponent implements OnInit {
         const idx = curr.indexOf(day);
         idx >= 0 ? curr.splice(idx, 1) : curr.push(day);
         this.selectedGameDays.set(curr);
+        this.scheduleGridLoad();
     }
 
     toggleFieldFilter(id: string): void {
@@ -252,6 +259,7 @@ export class ReschedulerComponent implements OnInit {
         const idx = curr.indexOf(id);
         idx >= 0 ? curr.splice(idx, 1) : curr.push(id);
         this.selectedFieldIds.set(curr);
+        this.scheduleGridLoad();
     }
 
     isGameDaySelected(day: string): boolean { return this.selectedGameDays().includes(day); }
@@ -268,6 +276,7 @@ export class ReschedulerComponent implements OnInit {
         this.selectedTeamIds.set([]);
         this.selectedGameDays.set([]);
         this.selectedFieldIds.set([]);
+        this.scheduleGridLoad();
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -292,6 +301,12 @@ export class ReschedulerComponent implements OnInit {
             request.additionalTimeslot = `${this.newTimeslotDate()}T${this.newTimeslotTime()}`;
         }
         return request;
+    }
+
+    /** Debounced grid reload — call from any filter change handler */
+    private scheduleGridLoad(): void {
+        if (this.filterDebounceTimer) clearTimeout(this.filterDebounceTimer);
+        this.filterDebounceTimer = setTimeout(() => this.loadGrid(), this.FILTER_DEBOUNCE_MS);
     }
 
     loadGrid(): void {
