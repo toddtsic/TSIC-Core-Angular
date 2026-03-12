@@ -315,6 +315,19 @@
     }
 }
 
+.action-dropdown {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    left: 0;
+    z-index: 10;
+    background: var(--elevated-bg, var(--bs-body-bg));
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    box-shadow: var(--bs-box-shadow);
+    overflow: hidden;
+    padding: var(--space-1);
+}
+
 .bracket-dropdown {
     min-width: 280px;
 
