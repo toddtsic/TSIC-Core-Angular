@@ -857,7 +857,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // immediately — no point blocking 10 empty fields for hours while
         // 5 fields finish their last wave-1 round.
         var waveFloorByFieldDay = new Dictionary<(Guid FieldId, DateTime Day), DateTime>();
-        var waveLatestByFieldDay = new Dictionary<(Guid FieldId, DateTime Day), DateTime>();
+        var waveGameTimesByFieldDay = new Dictionary<(Guid FieldId, DateTime Day), List<DateTime>>();
         var currentWave = 0;
         var hasMultipleWaves = allChips.Select(c => c.Wave).Distinct().Count() > 1;
 
@@ -891,16 +891,16 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             // ── Wave transition: set per-day floors from previous wave ──
             if (chip.Wave != currentWave)
             {
-                if (currentWave > 0 && hasMultipleWaves && waveLatestByFieldDay.Count > 0)
+                if (currentWave > 0 && hasMultipleWaves && waveGameTimesByFieldDay.Count > 0)
                 {
                     var gsiMinutes = chip.Ctx.Profile.GsiMinutes > 0
                         ? chip.Ctx.Profile.GsiMinutes : 60;
-                    foreach (var (fieldDay, latest) in waveLatestByFieldDay)
+                    foreach (var (fieldDay, gameTimes) in waveGameTimesByFieldDay)
                     {
-                        waveFloorByFieldDay[fieldDay] = latest.AddMinutes(gsiMinutes);
+                        waveFloorByFieldDay[fieldDay] = ComputeWaveFloor(gameTimes, gsiMinutes);
                     }
                 }
-                waveLatestByFieldDay.Clear();
+                waveGameTimesByFieldDay.Clear();
                 currentWave = chip.Wave;
             }
 
@@ -1009,11 +1009,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         var prevGameCount = ctx.RoundsByNum.TryGetValue(prevRoundNum, out var prevGames)
                             ? prevGames.Count : 0;
 
-                        int minGapTicks;
-                        if (ctx.Profile.RoundLayout == RoundLayout.Sequential && prevGameCount > 1)
-                            minGapTicks = prevGameCount + ctx.Profile.MinTeamGapTicks - 1;
-                        else
-                            minGapTicks = ctx.Profile.MinTeamGapTicks;
+                        // The round start floor is an optimistic scan hint — "don't scan
+                        // before this time." The greedy scanner's per-game team gap check
+                        // (HasInsufficientGap) handles actual rest validation, so the floor
+                        // only needs to be MinTeamGapTicks from the previous round's start.
+                        // For Sequential layout, per-game advancement (GameIndex × GSI) is
+                        // layered on top, so later games in the round naturally get later floors.
+                        var minGapTicks = ctx.Profile.MinTeamGapTicks;
 
                         var effectiveGapTicks = Math.Max(ctx.Profile.InterRoundGapTicks, minGapTicks);
 
@@ -1156,13 +1158,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             ctx.State.RecordPlacement(result.Slot, game);
             divPlacedCounts[ctx.Div.DivId]++;
 
-            // Track latest placement per field+day for wave floor computation
+            // Track all placement times per field+day for wave floor computation
             var placedFieldDay = (result.Slot.FieldId, result.Slot.GDate.Date);
-            if (!waveLatestByFieldDay.TryGetValue(placedFieldDay, out var fieldDayLatest)
-                || result.Slot.GDate > fieldDayLatest)
+            if (!waveGameTimesByFieldDay.TryGetValue(placedFieldDay, out var fieldDayTimes))
             {
-                waveLatestByFieldDay[placedFieldDay] = result.Slot.GDate;
+                fieldDayTimes = [];
+                waveGameTimesByFieldDay[placedFieldDay] = fieldDayTimes;
             }
+            fieldDayTimes.Add(result.Slot.GDate);
 
             // Mark this TCnt+Day as having its first division placed.
             var placedDow = result.Slot.GDate.DayOfWeek;
@@ -1686,6 +1689,39 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
     // ══════════════════════════════════════════════════════════
     // Private: Candidate Slot Generation
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Compute the wave floor for a field, stripping trailing straggler games
+    /// (e.g., R4 bye-tax rounds separated from the main block by a team-rest gap).
+    /// </summary>
+    private static DateTime ComputeWaveFloor(List<DateTime> gameTimes, int gsiMinutes)
+    {
+        gameTimes.Sort();
+        var n = gameTimes.Count;
+
+        // Find tail contiguous block by reverse-walking
+        var tailStart = n - 1;
+        for (var i = n - 2; i >= 0; i--)
+        {
+            if ((gameTimes[i + 1] - gameTimes[i]).TotalMinutes > gsiMinutes)
+                break; // gap found — tail starts at i+1
+            tailStart = i;
+        }
+
+        var bodyCount = tailStart;           // games before the tail
+        var tailCount = n - tailStart;       // games in the tail
+
+        if (bodyCount > 0 && tailCount < bodyCount)
+        {
+            // Tail is a straggler — floor from end of main body
+            return gameTimes[tailStart - 1].AddMinutes(gsiMinutes);
+        }
+
+        // No straggler (all contiguous, or tail ≥ body) — current behavior
+        return gameTimes[n - 1].AddMinutes(gsiMinutes);
+    }
+
     // ══════════════════════════════════════════════════════════
 
     /// <summary>
