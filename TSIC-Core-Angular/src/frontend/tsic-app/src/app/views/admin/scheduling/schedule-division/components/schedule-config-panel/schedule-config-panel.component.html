@@ -8,6 +8,9 @@
       }
     </div>
     <div class="config-header-actions">
+      <button class="btn btn-primary btn-sm" (click)="buildRequested.emit()">
+        <i class="bi bi-play-fill"></i> Build Schedule
+      </button>
       <button class="btn btn-outline-danger btn-sm" (click)="openResetDialog()">
         <i class="bi bi-arrow-counterclockwise"></i> Reset
       </button>

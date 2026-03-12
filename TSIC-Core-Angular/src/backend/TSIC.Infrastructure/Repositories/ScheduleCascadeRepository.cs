@@ -38,9 +38,14 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
         {
             existing.GamePlacement = defaults.GamePlacement;
             existing.BetweenRoundRows = defaults.BetweenRoundRows;
-            existing.GameGuarantee = defaults.GameGuarantee;
+            // Only update GameGuarantee if explicitly provided — avoid overwriting
+            // a previously saved value with null when caller only intends to update
+            // GamePlacement/BetweenRoundRows (e.g., SaveStrategyProfilesAsync).
+            if (defaults.GameGuarantee.HasValue)
+                existing.GameGuarantee = defaults.GameGuarantee;
             existing.Modified = DateTime.UtcNow;
-            existing.LebUserId = defaults.LebUserId;
+            if (defaults.LebUserId != null)
+                existing.LebUserId = defaults.LebUserId;
         }
         else
         {

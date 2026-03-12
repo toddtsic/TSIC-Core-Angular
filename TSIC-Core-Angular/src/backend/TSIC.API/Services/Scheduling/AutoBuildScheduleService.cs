@@ -1006,21 +1006,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                     if (prevRoundTime.HasValue && ctx.Profile.GsiMinutes > 0)
                     {
-                        var prevGameCount = ctx.RoundsByNum.TryGetValue(prevRoundNum, out var prevGames)
-                            ? prevGames.Count : 0;
-
-                        // The round start floor is an optimistic scan hint — "don't scan
-                        // before this time." The greedy scanner's per-game team gap check
-                        // (HasInsufficientGap) handles actual rest validation, so the floor
-                        // only needs to be MinTeamGapTicks from the previous round's start.
-                        // For Sequential layout, per-game advancement (GameIndex × GSI) is
-                        // layered on top, so later games in the round naturally get later floors.
-                        var minGapTicks = ctx.Profile.MinTeamGapTicks;
-
-                        var effectiveGapTicks = Math.Max(ctx.Profile.InterRoundGapTicks, minGapTicks);
-
+                        // Round floor = previous round start + 1 GSI tick.
+                        // This is purely a scan optimization hint — "don't bother looking
+                        // at slots before this." The scanner's per-game team gap check
+                        // (HasInsufficientGap) validates actual per-team rest using
+                        // BetweenRoundRows. The floor just avoids scanning obviously-
+                        // occupied early slots.
                         roundStartTime = prevRoundTime.Value
-                            + TimeSpan.FromMinutes(effectiveGapTicks * ctx.Profile.GsiMinutes);
+                            + TimeSpan.FromMinutes(ctx.Profile.GsiMinutes);
                     }
                     else
                     {
@@ -1055,16 +1048,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             // ── Place this game (chip) ──
             var rst = roundStartTimes.GetValueOrDefault(divRoundKey);
 
-            // Per-game target time: for sequential rounds, each game advances by 1 GSI tick.
-            // Used as a hard time floor in the greedy scanner.
-            var gameTargetTime = rst;
-            if (ctx.Profile.RoundLayout == RoundLayout.Sequential
-                && rst.HasValue && ctx.Profile.GsiMinutes > 0 && chip.GameIndex > 0)
-            {
-                gameTargetTime = rst.Value
-                    + TimeSpan.FromMinutes(chip.GameIndex * ctx.Profile.GsiMinutes);
-            }
-
             var game = new GameContext
             {
                 Round = roundNum,
@@ -1077,7 +1060,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 DivName = ctx.Div.DivName,
                 TCnt = ctx.TeamCount,
                 TargetDay = ctx.RoundToDay.TryGetValue(roundNum, out var targetDate2) ? targetDate2.DayOfWeek : null,
-                TargetTime = gameTargetTime
+                TargetTime = rst
             };
 
             // Filter candidates to the selected date for this round
@@ -1871,10 +1854,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             ? RoundLayout.Horizontal
             : RoundLayout.Sequential;
 
-        // Default inter-round gap: for sequential = gamesPerRound ticks, for horizontal = 1 tick
-        var defaultInterRoundGapTicks = defaultLayout == RoundLayout.Horizontal
-            ? 1
-            : gamesPerRound;
+        // Default inter-round gap: MinTeamGapTicks for both layouts.
+        // For Sequential, per-game staggering (GameIndex × GSI) handles within-round spread;
+        // the round floor only needs MinTeamGapTicks from the previous round's start.
+        const int defaultMinTeamGapTicks = 2; // BetweenRoundRows=1 → no BTBs
 
         var defaultProfile = new DivisionSizeProfile
         {
@@ -1897,8 +1880,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             GsiMinutes = gsi,
             RoundLayout = defaultLayout,
             StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
-            InterRoundGapTicks = defaultInterRoundGapTicks,
-            MinTeamGapTicks = 2, // No BTBs by default
+            InterRoundGapTicks = defaultMinTeamGapTicks,
+            MinTeamGapTicks = defaultMinTeamGapTicks,
             FieldFairness = FieldFairness.Democratic
         };
 
@@ -1964,7 +1947,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             ? Math.Min(requestGameGuarantee.Value, teamCount - 1)
             : teamCount - 1;
         var gsi = currentGsi > 0 ? currentGsi : 60;
-        var gamesPerRound = teamCount / 2;
 
         // Translate strategy choices to profile properties
         var roundLayout = strategy.Placement == 1
@@ -1974,10 +1956,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // GapPattern → MinTeamGapTicks (+1 mapping)
         var minTeamGapTicks = strategy.GapPattern + 1;
 
-        // InterRoundGapTicks derived from layout and gap
-        var interRoundGapTicks = roundLayout == RoundLayout.Horizontal
-            ? minTeamGapTicks
-            : gamesPerRound + minTeamGapTicks - 1;
+        // InterRoundGapTicks = configured gap (same as MinTeamGapTicks)
+        var interRoundGapTicks = minTeamGapTicks;
 
         // Distribute rounds across play days
         var roundsPerDay = new Dictionary<DayOfWeek, int>();

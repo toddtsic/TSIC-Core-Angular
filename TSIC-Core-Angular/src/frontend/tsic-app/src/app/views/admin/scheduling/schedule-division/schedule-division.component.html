@@ -131,6 +131,7 @@
                         <!-- ══════════ CONFIGURE MODE ══════════ -->
                         @case ('configure') {
                             <app-schedule-config-panel
+                                (buildRequested)="onEventSelected(); mode.set('schedule'); openAutoScheduleConfig()"
                                 (resetConfirmed)="executeReset($event)" />
                         }
 

@@ -528,8 +528,9 @@ export class ScheduleDivisionComponent implements OnInit {
         this.activeTool.set(null);
         this.mode.set(mode);
 
-        // Auto-select first division when entering Schedule mode at event scope
-        if (mode === 'schedule' && this.scope().level === 'event') {
+        // Auto-select first division when entering Schedule mode at event scope,
+        // but only if games exist — otherwise show event-scope build controls.
+        if (mode === 'schedule' && this.scope().level === 'event' && this.hasGamesInScope()) {
             const firstAg = this.agegroups()[0];
             const firstDiv = firstAg?.divisions[0];
             if (firstAg && firstDiv) {
@@ -980,24 +981,48 @@ export class ScheduleDivisionComponent implements OnInit {
 
         this.autoBuildSvc.checkPrerequisites().subscribe({
             next: (result) => {
-                this.isCheckingPrereqs.set(false);
-                if (!result.allPassed) {
-                    const errors: string[] = [];
-                    if (!result.poolsAssigned) {
-                        errors.push(`${result.unassignedTeamCount} team${result.unassignedTeamCount > 1 ? 's' : ''} haven't been assigned to a pool yet`);
-                    }
-                    if (!result.pairingsCreated) {
-                        this.missingPairingTCnts.set(result.missingPairingTCnts);
-                        errors.push(`Pairings are missing for team count${result.missingPairingTCnts.length > 1 ? 's' : ''}: ${result.missingPairingTCnts.join(', ')}`);
-                    }
-                    if (!result.timeslotsConfigured) {
-                        errors.push(`Timeslots not configured for: ${result.agegroupsMissingTimeslots.join(', ')}`);
-                    }
-                    this.prerequisiteErrors.set(errors);
+                if (result.allPassed) {
+                    this.isCheckingPrereqs.set(false);
+                    this.openAutoScheduleModal();
                     return;
                 }
-                // All prerequisites passed — open the config modal
-                this.openAutoScheduleModal();
+
+                // Hard blockers: pools or timeslots — these need manual intervention
+                const hardErrors: string[] = [];
+                if (!result.poolsAssigned) {
+                    hardErrors.push(`${result.unassignedTeamCount} team${result.unassignedTeamCount > 1 ? 's' : ''} haven't been assigned to a pool yet`);
+                }
+                if (!result.timeslotsConfigured) {
+                    hardErrors.push(`Timeslots not configured for: ${result.agegroupsMissingTimeslots.join(', ')}`);
+                }
+
+                if (hardErrors.length > 0) {
+                    // Show hard errors; if pairings also missing, show that too
+                    if (!result.pairingsCreated) {
+                        this.missingPairingTCnts.set(result.missingPairingTCnts);
+                        hardErrors.push(`Pairings are missing for team count${result.missingPairingTCnts.length > 1 ? 's' : ''}: ${result.missingPairingTCnts.join(', ')}`);
+                    }
+                    this.isCheckingPrereqs.set(false);
+                    this.prerequisiteErrors.set(hardErrors);
+                    return;
+                }
+
+                // Only pairings missing — auto-generate and proceed
+                if (!result.pairingsCreated && result.missingPairingTCnts.length > 0) {
+                    this.autoBuildSvc.ensurePairings({ teamCounts: result.missingPairingTCnts }).subscribe({
+                        next: () => {
+                            this.isCheckingPrereqs.set(false);
+                            this.openAutoScheduleModal();
+                        },
+                        error: () => {
+                            this.isCheckingPrereqs.set(false);
+                            this.prerequisiteErrors.set(['Failed to auto-generate pairings']);
+                        }
+                    });
+                    return;
+                }
+
+                this.isCheckingPrereqs.set(false);
             },
             error: () => {
                 this.isCheckingPrereqs.set(false);
