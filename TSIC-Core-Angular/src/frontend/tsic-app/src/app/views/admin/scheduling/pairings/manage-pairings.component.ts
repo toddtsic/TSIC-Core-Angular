@@ -157,6 +157,10 @@ export class ManagePairingsComponent implements OnInit {
         this.whoPlaysWhoMatrix.set(null);
         this.divisionTeams.set([]);
         this.loadDivisionPairings(event.division.divId);
+
+        // Always open Division Teams on division select
+        this.teamsOpen.set(true);
+        this.loadDivisionTeams(event.division.divId);
     }
 
     loadDivisionPairings(divId: string): void {
@@ -166,6 +170,13 @@ export class ManagePairingsComponent implements OnInit {
                 this.divisionResponse.set(resp);
                 this.pairings.set(resp.pairings);
                 this.isLoading.set(false);
+
+                // Reload WPW if section is open (needs teamCount from response)
+                if (this.wpwOpen() && !this.whoPlaysWhoMatrix() && (resp.teamCount ?? 0) > 0) {
+                    this.svc.getWhoPlaysWho(resp.teamCount).subscribe({
+                        next: (wpw) => this.whoPlaysWhoMatrix.set(wpw.matrix)
+                    });
+                }
             },
             error: () => this.isLoading.set(false)
         });
