@@ -5,6 +5,24 @@
         <h5 class="mb-0">Manage Pairings</h5>
     </div>
 
+    <!-- ── How Pairing Tables Work ── -->
+    @if (showTip()) {
+        <div class="pairing-tip">
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-info-circle-fill tip-icon"></i>
+                <div>
+                    <strong>How pairing tables work</strong>
+                    <ul class="mb-0 mt-1 ps-3">
+                        <li>All divisions with the <strong>same number of teams</strong> share <strong>one pairing table</strong>, regardless of agegroup.</li>
+                        <li>Championship pairings are sized for the <strong>largest agegroup</strong> that contains a division of this size &mdash; smaller agegroups simply won't use all of them.</li>
+                        <li>When scheduling a pool manually, you <strong>do not have to place every championship game</strong> &mdash; only use the ones that apply.</li>
+                    </ul>
+                </div>
+                <button class="btn-close ms-auto flex-shrink-0" (click)="showTip.set(false)" aria-label="Dismiss tip"></button>
+            </div>
+        </div>
+    }
+
     <!-- ── Main layout: Navigator + Pairing Grid ── -->
     <div class="pairings-layout">
 

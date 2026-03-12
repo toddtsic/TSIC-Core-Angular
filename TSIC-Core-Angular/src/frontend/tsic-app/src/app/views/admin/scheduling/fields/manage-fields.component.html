@@ -4,16 +4,15 @@
   <div class="fields-header">
     <h5 class="mb-0">Manage Fields</h5>
     <div class="d-flex gap-2">
-      <a class="btn btn-sm btn-outline-secondary" routerLink="../schedule-hub">
-        <i class="bi bi-arrow-left me-1"></i>Return to Scheduling
-      </a>
       <button class="btn btn-sm btn-outline-secondary" (click)="loadData()"
               title="Refresh">
         <i class="bi bi-arrow-clockwise"></i>
       </button>
-      <button class="btn btn-sm btn-primary" (click)="startCreate()">
-        <i class="bi bi-plus-lg me-1"></i>New Field
-      </button>
+      @if (allowCreate()) {
+        <button class="btn btn-sm btn-primary" (click)="startCreate()">
+          <i class="bi bi-plus-lg me-1"></i>New Field
+        </button>
+      }
     </div>
   </div>
 
@@ -312,7 +311,7 @@
           </div>
         </div>
         <div class="detail-footer">
-          @if (!isCreating()) {
+          @if (!isCreating() && allowCreate()) {
             <button class="btn btn-sm btn-outline-danger me-auto"
                     [disabled]="isDeleting()"
                     (click)="deleteField()">

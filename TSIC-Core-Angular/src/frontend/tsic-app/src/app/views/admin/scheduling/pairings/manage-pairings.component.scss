@@ -16,6 +16,26 @@
     justify-content: space-between;
 }
 
+// ── Tip callout ──
+.pairing-tip {
+    background: var(--bs-info-bg-subtle, rgba(var(--bs-info-rgb), 0.1));
+    border: 1px solid var(--bs-info-border-subtle, rgba(var(--bs-info-rgb), 0.25));
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+
+    .tip-icon {
+        color: var(--bs-info);
+        font-size: var(--font-size-lg);
+        margin-top: 2px;
+    }
+
+    ul li + li {
+        margin-top: var(--space-1);
+    }
+}
+
 // ── Main layout: sidebar + grid ──
 
 .pairings-layout {

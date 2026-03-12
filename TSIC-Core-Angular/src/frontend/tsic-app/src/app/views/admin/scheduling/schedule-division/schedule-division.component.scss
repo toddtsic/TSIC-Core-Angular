@@ -171,61 +171,74 @@ app-pairings-panel {
 
 .toolbar-modes {
     display: flex;
-    gap: 0;
+    gap: 2px;
     flex-shrink: 0;
+    padding: 3px;
+    background: rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.06);
+    border-radius: var(--radius-md);
 }
 
 .mode-seg {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
+    padding: 6px var(--space-3);
+    border: none;
+    border-radius: calc(var(--radius-md) - 2px);
+    background: transparent;
     color: var(--brand-text-muted);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     white-space: nowrap;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-    // Segment-group feel: shared borders
-    margin-left: -1px;
-
-    &:first-child {
-        margin-left: 0;
-        border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-    }
-
-    &:last-child {
-        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    }
-
-    &:not(:first-child):not(:last-child) {
-        border-radius: 0;
-    }
-
-    &:hover {
-        background: var(--bs-secondary-bg);
+    &:hover:not(.active) {
+        background: rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.05);
         color: var(--brand-text);
-        z-index: 1;
     }
 
     &.active {
-        background: var(--bs-primary);
-        color: var(--bs-light);
-        border-color: var(--bs-primary);
-        z-index: 2;
+        font-weight: var(--font-weight-semibold);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
     }
 
     &:focus-visible {
         outline: none;
         box-shadow: var(--shadow-focus);
-        z-index: 3;
+        z-index: 1;
     }
 
     i {
         font-size: var(--font-size-sm);
+    }
+
+    // ── Per-mode active colors ──
+    &.mode--configure.active {
+        background: rgba(var(--bs-info-rgb), 0.12);
+        color: var(--bs-info-emphasis, var(--bs-info));
+    }
+
+    &.mode--schedule.active {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        color: var(--bs-primary-emphasis, var(--bs-primary));
+    }
+
+    &.mode--master.active {
+        background: rgba(var(--bs-success-rgb), 0.12);
+        color: var(--bs-success-emphasis, var(--bs-success));
+    }
+
+    &.mode--qa.active {
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        color: var(--bs-warning-emphasis, var(--bs-warning));
+    }
+
+    &.mode--reschedule.active {
+        background: rgba(var(--bs-danger-rgb), 0.12);
+        color: var(--bs-danger-emphasis, var(--bs-danger));
     }
 }
 

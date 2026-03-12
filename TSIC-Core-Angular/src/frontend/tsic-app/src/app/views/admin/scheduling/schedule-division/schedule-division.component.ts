@@ -42,6 +42,7 @@ import { QaResultsComponent } from '../qa-results/qa-results.component';
 import { ReschedulerComponent } from '../rescheduler/rescheduler.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
 import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
 import { ScheduleCascadeService } from './components/schedule-config/schedule-cascade.service';
@@ -65,8 +66,11 @@ export class ScheduleDivisionComponent implements OnInit {
     private readonly toast = inject(ToastService);
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
+    private readonly auth = inject(AuthService);
     readonly configSvc = inject(ScheduleConfigService);
     readonly cascadeSvc = inject(ScheduleCascadeService);
+
+    readonly isSuperUser = this.auth.isSuperuser;
 
     // ── Config service init tracking ──
     private configInitDone = false;

@@ -136,7 +136,7 @@ export class ManageTimeslotsComponent implements OnInit {
             if (dates.length > 1) {
                 warnings.push(
                     `Round ${rnd} is assigned to ${dates.length} different dates. ` +
-                    `Each calendar date should have a unique starting round so the engine knows which games go on which day.`
+                    `Each calendar date should have a unique first round number.`
                 );
             }
         }
@@ -146,7 +146,7 @@ export class ManageTimeslotsComponent implements OnInit {
         if (uniqueDates.size > 1 && uniqueRounds.size === 1) {
             warnings.push(
                 `All ${uniqueDates.size} dates share Round ${agDates[0].rnd}. ` +
-                `For multi-day events, each day needs a different starting round (e.g., Day 1 = Rnd 1, Day 2 = Rnd 2).`
+                `Each day should have a different first round (e.g., Day 1 = Rnd 1, Day 2 = Rnd 2).`
             );
         }
 
@@ -191,6 +191,9 @@ export class ManageTimeslotsComponent implements OnInit {
                     .sort((a, b) => (a.agegroupName ?? '').localeCompare(b.agegroupName ?? ''));
                 this.agegroups.set(filtered);
                 this.isNavLoading.set(false);
+                if (filtered.length > 0 && !this.selectedAgegroup()) {
+                    this.selectAgegroup(filtered[0]);
+                }
             },
             error: () => this.isNavLoading.set(false)
         });

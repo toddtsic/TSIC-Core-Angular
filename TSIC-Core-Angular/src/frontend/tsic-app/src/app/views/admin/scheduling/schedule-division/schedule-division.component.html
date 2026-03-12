@@ -1,10 +1,10 @@
 <div class="hub-container">
 
     <!-- ── Hub Layout: Sidebar + Main ── -->
-    <div class="hub-layout" [class.hub-layout--full]="mode() === 'reschedule'">
+    <div class="hub-layout" [class.hub-layout--full]="mode() === 'reschedule' || !!activeTool()">
 
-        <!-- ══════════ SIDEBAR (hidden in reschedule mode — rescheduler has its own filter panel) ══════════ -->
-        <div class="hub-sidebar" [class.d-none]="mode() === 'reschedule'">
+        <!-- ══════════ SIDEBAR (hidden in reschedule mode and when a tool is active — tools use full width) ══════════ -->
+        <div class="hub-sidebar" [class.d-none]="mode() === 'reschedule' || !!activeTool()">
 
             <!-- Navigator Tree -->
             <div class="sidebar-nav">
@@ -76,35 +76,35 @@
 
                 <!-- Left: mode segments -->
                 <div class="toolbar-modes" role="tablist">
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'configure'"
+                    <button class="mode-seg mode--configure" [class.active]="!activeTool() && mode() === 'configure'"
                             (click)="setMode('configure')" role="tab">
-                        <i class="bi bi-gear"></i><span>Configure</span>
+                        <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
+                                      [class.bi-gear]="activeTool() || mode() !== 'configure'"></i><span>Configure</span>
                     </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'schedule'"
+                    <button class="mode-seg mode--schedule" [class.active]="!activeTool() && mode() === 'schedule'"
                             (click)="setMode('schedule')" role="tab">
-                        <i class="bi bi-calendar-check"></i><span>Schedule</span>
+                        <i class="bi" [class.bi-calendar-check-fill]="!activeTool() && mode() === 'schedule'"
+                                      [class.bi-calendar-check]="activeTool() || mode() !== 'schedule'"></i><span>Schedule</span>
                     </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'master'"
+                    <button class="mode-seg mode--master" [class.active]="!activeTool() && mode() === 'master'"
                             (click)="setMode('master')" role="tab">
-                        <i class="bi bi-grid-3x3-gap"></i><span>Master</span>
+                        <i class="bi" [class.bi-grid-3x3-gap-fill]="!activeTool() && mode() === 'master'"
+                                      [class.bi-grid-3x3-gap]="activeTool() || mode() !== 'master'"></i><span>Master</span>
                     </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'qa'"
+                    <button class="mode-seg mode--qa" [class.active]="!activeTool() && mode() === 'qa'"
                             (click)="setMode('qa')" role="tab">
-                        <i class="bi bi-clipboard-check"></i><span>QA</span>
+                        <i class="bi" [class.bi-clipboard-check-fill]="!activeTool() && mode() === 'qa'"
+                                      [class.bi-clipboard-check]="activeTool() || mode() !== 'qa'"></i><span>QA</span>
                     </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'reschedule'"
+                    <button class="mode-seg mode--reschedule" [class.active]="!activeTool() && mode() === 'reschedule'"
                             (click)="setMode('reschedule')" role="tab">
                         <i class="bi bi-arrow-repeat"></i><span>Reschedule</span>
                     </button>
                 </div>
 
-                <!-- Center: breadcrumbs (Schedule), Back (tool), or empty -->
+                <!-- Center: breadcrumbs (Schedule mode only) -->
                 <div class="toolbar-center">
-                    @if (activeTool()) {
-                        <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
-                            <i class="bi bi-arrow-left me-1"></i>Back
-                        </button>
-                    } @else if (mode() === 'schedule') {
+                    @if (!activeTool() && mode() === 'schedule') {
                         @if (scope().level === 'event') {
                             <span class="crumb-current">Event</span>
                             <i class="bi bi-chevron-right crumb-sep"></i>
@@ -227,9 +227,13 @@
                     }
                 </div>
 
-                <!-- Right: scope info + actions (Schedule mode only) -->
+                <!-- Right: Back button (tool mode) or scope info + actions (Schedule mode) -->
                 <div class="toolbar-right">
-                    @if (mode() === 'schedule' && !activeTool()) {
+                    @if (activeTool()) {
+                        <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
+                            <i class="bi bi-arrow-left me-1"></i>Back
+                        </button>
+                    } @else if (mode() === 'schedule') {
                         @switch (scope().level) {
                             @case ('event') {
                                 @if (gameSummary()) {
@@ -303,7 +307,7 @@
                 @if (activeTool()) {
                     <div class="tool-embedded">
                         @switch (activeTool()) {
-                            @case ('fields') { <app-manage-fields /> }
+                            @case ('fields') { <app-manage-fields [allowCreate]="isSuperUser()" /> }
                             @case ('pairings') { <app-manage-pairings /> }
                             @case ('timeslots') { <app-manage-timeslots /> }
                             @case ('pools') { <app-pool-assignment /> }

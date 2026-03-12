@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -42,6 +42,7 @@ type TabId = 'pairings' | 'teams' | 'wpw';
 })
 export class ManagePairingsComponent implements OnInit {
     private readonly svc = inject(PairingsService);
+    @ViewChild(DivisionNavigatorComponent) private navigator?: DivisionNavigatorComponent;
 
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);
@@ -78,6 +79,9 @@ export class ManagePairingsComponent implements OnInit {
 
     // ── Add Single ──
     readonly isAddingSingle = signal(false);
+
+    // ── Tip ──
+    readonly showTip = signal(true);
 
     // ── Remove All ──
     readonly isRemovingAll = signal(false);
@@ -138,6 +142,14 @@ export class ManagePairingsComponent implements OnInit {
                     .sort((a, b) => (a.agegroupName ?? '').localeCompare(b.agegroupName ?? ''));
                 this.agegroups.set(filtered);
                 this.isNavLoading.set(false);
+
+                // Auto-select first division of first agegroup
+                const firstAg = filtered[0];
+                const firstDiv = firstAg?.divisions[0];
+                if (firstAg && firstDiv) {
+                    this.navigator?.toggleAgegroup(firstAg.agegroupId);
+                    this.onDivisionSelected({ division: firstDiv, agegroupId: firstAg.agegroupId });
+                }
             },
             error: () => this.isNavLoading.set(false)
         });

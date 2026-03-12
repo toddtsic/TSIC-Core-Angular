@@ -1,7 +1,7 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, input, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+
 import { ToastService } from '@shared-ui/toast.service';
 import {
     FieldManagementService,
@@ -16,7 +16,7 @@ type AssignedSortCol = keyof LeagueSeasonFieldDto | null;
 @Component({
     selector: 'app-manage-fields',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink],
+    imports: [CommonModule, FormsModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './manage-fields.component.html',
     styleUrl: './manage-fields.component.scss'
@@ -24,6 +24,9 @@ type AssignedSortCol = keyof LeagueSeasonFieldDto | null;
 export class ManageFieldsComponent {
     private readonly fieldService = inject(FieldManagementService);
     private readonly toast = inject(ToastService);
+
+    /** When false, hides New Field / Delete buttons (non-SuperUser context). */
+    readonly allowCreate = input(true);
 
     // ── Available panel (not assigned to this league-season) ──
     readonly availableFields = signal<FieldDto[]>([]);
