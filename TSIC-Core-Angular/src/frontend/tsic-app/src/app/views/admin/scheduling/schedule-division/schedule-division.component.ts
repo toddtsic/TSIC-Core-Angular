@@ -187,6 +187,59 @@ export class ScheduleDivisionComponent implements OnInit {
         return '';
     });
 
+    // ── Breadcrumb dropdown navigator ──
+    readonly openCrumbDropdown = signal<'agegroup' | 'division' | null>(null);
+
+    readonly crumbAgegroupOptions = computed(() => {
+        const currentAgId = this.selectedAgegroupId();
+        return this.agegroups().map(ag => ({
+            agegroupId: ag.agegroupId,
+            name: ag.agegroupName,
+            color: ag.color ?? null,
+            teamCount: ag.divisions.reduce((sum, d) => sum + (d.teamCount ?? 0), 0),
+            active: ag.agegroupId === currentAgId,
+        }));
+    });
+
+    readonly crumbDivisionOptions = computed(() => {
+        const ag = this.selectedAgegroup();
+        if (!ag) return [];
+        const currentDivId = this.scope().level === 'division' ? (this.scope() as any).divId : null;
+        return ag.divisions.map(d => ({
+            divId: d.divId,
+            name: d.divName,
+            teamCount: d.teamCount ?? 0,
+            active: d.divId === currentDivId,
+        }));
+    });
+
+    toggleCrumbDropdown(level: 'agegroup' | 'division'): void {
+        this.openCrumbDropdown.set(this.openCrumbDropdown() === level ? null : level);
+    }
+
+    selectCrumbAgegroup(agId: string): void {
+        this.openCrumbDropdown.set(null);
+        // Expand in tree and navigate
+        this.navigator?.expandedAgegroups.set(new Set([agId]));
+        this.onAgegroupSelected({ agegroupId: agId });
+    }
+
+    selectCrumbDivision(divId: string): void {
+        this.openCrumbDropdown.set(null);
+        const agId = this.selectedAgegroupId();
+        if (!agId) return;
+        const ag = this.agegroups().find(a => a.agegroupId === agId);
+        const div = ag?.divisions.find(d => d.divId === divId);
+        if (!div) return;
+        // Expand in tree and navigate
+        this.navigator?.expandedAgegroups.set(new Set([agId]));
+        this.onDivisionSelected({ division: div, agegroupId: agId });
+    }
+
+    closeCrumbDropdowns(): void {
+        this.openCrumbDropdown.set(null);
+    }
+
     // ── Pairings state ──
     readonly divisionResponse = signal<DivisionPairingsResponse | null>(null);
     readonly pairings = signal<PairingDto[]>([]);
@@ -349,6 +402,10 @@ export class ScheduleDivisionComponent implements OnInit {
         this.loadCanvasReadiness();
         this.loadStrategyProfiles();
         this.checkPairingStatus();
+        // Default mode is 'schedule' at event scope — load full event grid
+        if (this.mode() === 'schedule') {
+            this.loadEventGrid();
+        }
     }
 
     // ── Navigator ──
@@ -528,15 +585,10 @@ export class ScheduleDivisionComponent implements OnInit {
         this.activeTool.set(null);
         this.mode.set(mode);
 
-        // Auto-select first division when entering Schedule mode at event scope,
-        // but only if games exist — otherwise show event-scope build controls.
-        if (mode === 'schedule' && this.scope().level === 'event' && this.hasGamesInScope()) {
-            const firstAg = this.agegroups()[0];
-            const firstDiv = firstAg?.divisions[0];
-            if (firstAg && firstDiv) {
-                this.navigator?.expandedAgegroups.set(new Set([firstAg.agegroupId]));
-                this.onDivisionSelected({ division: firstDiv, agegroupId: firstAg.agegroupId });
-            }
+        // When entering Schedule mode, reset to event scope to show the full schedule.
+        // User drills into specific divisions manually via the navigator.
+        if (mode === 'schedule') {
+            this.onEventSelected();
         }
     }
 
@@ -550,6 +602,26 @@ export class ScheduleDivisionComponent implements OnInit {
         this.scope.set({ level: 'event' });
         this.dismissBuildResults();
         this.clearDivisionState();
+        // Load full event grid when in Schedule mode
+        if (this.mode() === 'schedule') {
+            this.loadEventGrid();
+        }
+    }
+
+    loadEventGrid(): void {
+        if (!this.gridResponse()) {
+            this.isGridLoading.set(true);
+        }
+        this.svc.getEventGrid().subscribe({
+            next: (grid) => {
+                this.gridResponse.set(grid);
+                this.isGridLoading.set(false);
+            },
+            error: () => {
+                this.gridResponse.set(null);
+                this.isGridLoading.set(false);
+            }
+        });
     }
 
     onBreadcrumbClick(level: 'event' | 'agegroup'): void {
@@ -1381,7 +1453,7 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.loadScheduleGrid(ag.divisions[0].divId, s.agegroupId);
             }
         } else {
-            this.gridResponse.set(null);
+            this.loadEventGrid();
         }
     }
 

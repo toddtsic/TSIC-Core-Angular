@@ -64,6 +64,11 @@ export class ScheduleDivisionService {
         });
     }
 
+    /** Full event grid — all games across all agegroups/divisions. Reuses rescheduler endpoint with empty filters. */
+    getEventGrid(): Observable<ScheduleGridResponse> {
+        return this.http.post<ScheduleGridResponse>(`${environment.apiUrl}/Rescheduler/grid`, {});
+    }
+
     // ── Game Placement ──
 
     placeGame(request: PlaceGameRequest): Observable<ScheduleGameDto> {
