@@ -165,13 +165,22 @@
   flex-shrink: 0;
 }
 
-.ag-badge {
-  display: inline-block;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  font-weight: 700;
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ag-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: var(--font-size-2xs, 10px);
   flex-shrink: 0;
 }
 
@@ -186,20 +195,6 @@
   white-space: nowrap;
 }
 
-.order-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  background: rgba(var(--bs-primary-rgb), 0.08);
-  color: var(--brand-text);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 
 // ── Empty state ──
 

@@ -225,6 +225,18 @@
   flex-shrink: 0;
 }
 
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: var(--font-size-2xs, 10px);
+  flex-shrink: 0;
+}
+
 .check-cell {
   padding: var(--space-2);
   text-align: center;

@@ -6,7 +6,8 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { ScheduleDivisionService } from '../../../services/schedule-division.service';
-import type { AgegroupCanvasReadinessDto, ProcessingOrderEntryDto } from '@core/api';
+import { contrastText, agTeamCount } from '../../../../shared/utils/scheduling-helpers';
+import type { ProcessingOrderEntryDto } from '@core/api';
 
 interface DivisionOrderItem {
   divId: string;
@@ -48,6 +49,9 @@ export class BuildOrderTabComponent implements OnInit {
   private readonly baselineOrder = signal<string[]>([]);
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
+  readonly contrastText = contrastText;
+
+  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }>>({});
 
   readonly isDirty = computed(() => {
     const current = this.localOrder().map(i => i.divId);
@@ -104,7 +108,26 @@ export class BuildOrderTabComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.loadAgegroupMeta();
     this.reload();
+  }
+
+  private loadAgegroupMeta(): void {
+    this.divSvc.getAgegroups().subscribe(ags => {
+      const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
+      for (const ag of ags) {
+        const divTeamCounts: Record<string, number> = {};
+        for (const d of ag.divisions) {
+          divTeamCounts[d.divId] = d.teamCount;
+        }
+        meta[ag.agegroupId] = {
+          color: ag.color ?? null,
+          teamCount: agTeamCount(ag),
+          divTeamCounts,
+        };
+      }
+      this.agegroupMeta.set(meta);
+    });
   }
 
   reload(): void {
@@ -130,16 +153,17 @@ export class BuildOrderTabComponent implements OnInit {
     const allDivs: DivisionOrderItem[] = [];
 
     for (const ag of cascade.agegroups) {
-      const playDates = Object.keys(ag.wavesByDate);
+      const playDates = Object.keys(ag.wavesByDate).map(d => this.toDateOnly(d));
       for (const div of ag.divisions) {
-        const divPlayDates = Object.keys(div.effectiveWavesByDate);
+        const divPlayDates = Object.keys(div.effectiveWavesByDate).map(d => this.toDateOnly(d));
+        const meta = this.agegroupMeta()[ag.agegroupId];
         allDivs.push({
           divId: div.divisionId,
           divName: div.divisionName,
           agegroupId: ag.agegroupId,
           agegroupName: ag.agegroupName,
-          agegroupColor: null, // Not available in cascade DTO, could be added
-          teamCount: 0, // Not available in cascade DTO
+          agegroupColor: meta?.color ?? null,
+          teamCount: meta?.divTeamCounts?.[div.divisionId] ?? 0,
           wave: waveMap[div.divisionId] ?? 1,
           playDates: divPlayDates.length > 0 ? divPlayDates : playDates,
         });
@@ -250,28 +274,26 @@ export class BuildOrderTabComponent implements OnInit {
 
   // ── Helpers ──
 
-  contrastText(hex: string | null | undefined): string {
-    if (!hex) return '#fff';
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return (r * 299 + g * 587 + b * 114) / 1000 > 128 ? '#000' : '#fff';
-  }
-
   dropListId(isoDate: string, wave: number): string {
     return `tab-order-${isoDate}-w${wave}`;
   }
 
+  /** Normalize DateTime strings (e.g. "2026-03-15T00:00:00") to date-only "2026-03-15" */
+  private toDateOnly(dateStr: string): string {
+    return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
+  }
+
   private getDowForDate(isoDate: string): string {
-    const d = new Date(isoDate + 'T12:00:00');
+    const d = new Date(this.toDateOnly(isoDate) + 'T12:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'long' });
   }
 
   private formatDateLabel(isoDate: string, dow: string): string {
-    const parts = isoDate.split('-');
+    const datePart = this.toDateOnly(isoDate);
+    const parts = datePart.split('-');
     if (parts.length === 3) {
       return `${dow} ${parts[1]}/${parts[2]}/${parts[0]}`;
     }
-    return `${dow} ${isoDate}`;
+    return `${dow} ${datePart}`;
   }
 }

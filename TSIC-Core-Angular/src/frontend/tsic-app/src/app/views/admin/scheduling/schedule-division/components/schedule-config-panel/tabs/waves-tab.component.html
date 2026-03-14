@@ -49,11 +49,19 @@
                   <td class="name-col">
                     @if (row.level === 'agegroup') {
                       <span class="ag-name">
-                        <i class="bi bi-diagram-3 me-1"></i>
-                        {{ row.name }}
+                        @if (row.color) {
+                          <span class="color-dot" [style.background]="row.color"></span>
+                        }
+                        <span>{{ row.name }}</span>
+                        <span class="badge rounded-pill ms-auto"
+                              [style.background]="row.color ?? 'var(--bs-secondary-bg)'"
+                              [style.color]="contrastText(row.color)">{{ row.teamCount }}</span>
                       </span>
                     } @else {
-                      <span class="div-name">{{ row.name }}</span>
+                      <span class="div-name">
+                        <span>{{ row.name }}</span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-auto">{{ row.teamCount }}</span>
+                      </span>
                     }
                   </td>
 

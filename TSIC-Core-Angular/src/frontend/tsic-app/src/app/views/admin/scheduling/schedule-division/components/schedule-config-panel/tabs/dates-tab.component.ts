@@ -7,7 +7,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
+import { ScheduleDivisionService } from '../../../services/schedule-division.service';
 import { DateAdderModalComponent } from './date-adder-modal.component';
+import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
 import type { AgegroupCanvasReadinessDto, BulkDateAgegroupEntry } from '@core/api';
 
 interface DateColumn {
@@ -20,6 +22,8 @@ interface DateColumn {
 interface AgRow {
   agegroupId: string;
   agegroupName: string;
+  color: string | null;
+  teamCount: number;
 }
 
 @Component({
@@ -33,13 +37,18 @@ interface AgRow {
 export class DatesTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
+  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
+  readonly contrastText = contrastText;
 
   /** Readiness snapshot keyed by agegroupId */
   private readonly readinessMap = signal<Record<string, AgegroupCanvasReadinessDto>>({});
+
+  /** Agegroup color + team count lookup */
+  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number }>>({});
 
   /** Local assignment matrix: agegroupId → Set<isoDate> */
   readonly localAssignments = signal<Record<string, Set<string>>>({});
@@ -64,9 +73,12 @@ export class DatesTabComponent implements OnInit {
   readonly agegroups = computed((): AgRow[] => {
     const cascade = this.cascadeSvc.cascade();
     if (!cascade) return [];
+    const meta = this.agegroupMeta();
     return cascade.agegroups.map(ag => ({
       agegroupId: ag.agegroupId,
       agegroupName: ag.agegroupName,
+      color: meta[ag.agegroupId]?.color ?? null,
+      teamCount: meta[ag.agegroupId]?.teamCount ?? 0,
     }));
   });
 
@@ -141,6 +153,22 @@ export class DatesTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.loadAgegroupMeta();
+  }
+
+  private loadAgegroupMeta(): void {
+    this.divSvc.getAgegroups().subscribe({
+      next: (ags) => {
+        const meta: Record<string, { color: string | null; teamCount: number }> = {};
+        for (const ag of ags) {
+          meta[ag.agegroupId] = {
+            color: ag.color ?? null,
+            teamCount: agTeamCount(ag),
+          };
+        }
+        this.agegroupMeta.set(meta);
+      },
+    });
   }
 
   // ── Data loading ──

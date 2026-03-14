@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
+import { ScheduleDivisionService } from '../../../services/schedule-division.service';
+import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
 import type {
   AgegroupCascadeDto,
   DivisionCascadeDto,
@@ -29,10 +31,15 @@ import type {
 })
 export class BuildRulesTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
+  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
 
   readonly cascade = this.cascadeSvc.cascade;
   readonly isSaving = signal(false);
+  readonly contrastText = contrastText;
+
+  /** Agegroup color + team count lookup */
+  readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }>>({});
 
   /** Track which agegroups are expanded to show division overrides */
   readonly expandedAgs = signal<Set<string>>(new Set());
@@ -54,6 +61,27 @@ export class BuildRulesTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.loadAgegroupMeta();
+  }
+
+  private loadAgegroupMeta(): void {
+    this.divSvc.getAgegroups().subscribe({
+      next: (ags) => {
+        const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
+        for (const ag of ags) {
+          const divTeamCounts: Record<string, number> = {};
+          for (const div of ag.divisions) {
+            divTeamCounts[div.divId] = div.teamCount;
+          }
+          meta[ag.agegroupId] = {
+            color: ag.color ?? null,
+            teamCount: agTeamCount(ag),
+            divTeamCounts,
+          };
+        }
+        this.agegroupMeta.set(meta);
+      },
+    });
   }
 
   /** Sync form state from cascade snapshot. Called on init and after reset. */

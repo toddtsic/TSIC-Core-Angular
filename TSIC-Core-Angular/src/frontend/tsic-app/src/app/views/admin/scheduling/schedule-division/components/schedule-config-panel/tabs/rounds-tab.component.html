@@ -50,7 +50,15 @@
               @for (row of rows(); track row.agegroupId) {
                 <tr [class.single-day]="!row.isMultiDay">
                   <td class="ag-name-cell">
-                    <span>{{ row.agegroupName }}</span>
+                    <div class="ag-name-content">
+                      @if (row.color) {
+                        <span class="color-dot" [style.background]="row.color"></span>
+                      }
+                      <span>{{ row.agegroupName }}</span>
+                      <span class="badge rounded-pill ms-auto"
+                            [style.background]="row.color ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(row.color)">{{ row.teamCount }}</span>
+                    </div>
                   </td>
                   <td class="rounds-count-cell">
                     <span class="rounds-badge">{{ row.totalRounds }}</span>

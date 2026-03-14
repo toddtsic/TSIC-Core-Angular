@@ -106,10 +106,13 @@
                   <i class="bi" [class.bi-chevron-right]="!isAgExpanded(ag.agegroupId)"
                      [class.bi-chevron-down]="isAgExpanded(ag.agegroupId)"></i>
                 </button>
-                <span class="ag-name">{{ ag.agegroupName }}</span>
-                @if (ag.divisions.length > 0) {
-                  <span class="div-count">{{ ag.divisions.length }} div</span>
+                @if (agegroupMeta()[ag.agegroupId]?.color) {
+                  <span class="color-dot" [style.background]="agegroupMeta()[ag.agegroupId]!.color"></span>
                 }
+                <span class="ag-name">{{ ag.agegroupName }}</span>
+                <span class="badge rounded-pill ms-auto"
+                      [style.background]="agegroupMeta()[ag.agegroupId]?.color ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(agegroupMeta()[ag.agegroupId]?.color ?? null)">{{ agegroupMeta()[ag.agegroupId]?.teamCount ?? 0 }}</span>
               </div>
 
               <!-- Guarantee -->
@@ -174,6 +177,7 @@
 
                   <div class="cascade-cell cascade-cell-name cascade-cell-indent">
                     <span class="div-name">{{ div.divisionName }}</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-auto">{{ agegroupMeta()[ag.agegroupId]?.divTeamCounts?.[div.divisionId] ?? 0 }}</span>
                   </div>
 
                   <!-- Guarantee -->

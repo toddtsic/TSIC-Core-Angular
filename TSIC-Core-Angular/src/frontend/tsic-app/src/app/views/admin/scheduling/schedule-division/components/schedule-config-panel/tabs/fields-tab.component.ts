@@ -5,7 +5,9 @@ import { CommonModule } from '@angular/common';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
-import type { AgegroupCanvasReadinessDto, EventFieldSummaryDto } from '@core/api';
+import { ScheduleDivisionService } from '../../../../schedule-division/services/schedule-division.service';
+import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
+import type { AgegroupCanvasReadinessDto, AgegroupWithDivisionsDto, EventFieldSummaryDto } from '@core/api';
 
 interface FieldColumn {
   fieldId: string;
@@ -15,6 +17,8 @@ interface FieldColumn {
 interface AgRow {
   agegroupId: string;
   agegroupName: string;
+  color: string | null;
+  teamCount: number;
 }
 
 @Component({
@@ -28,10 +32,12 @@ interface AgRow {
 export class FieldsTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
+  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
+  readonly contrastText = contrastText;
 
   /** Event fields (all available fields) */
   readonly eventFields = signal<FieldColumn[]>([]);
@@ -42,14 +48,20 @@ export class FieldsTabComponent implements OnInit {
   /** Baseline (saved) assignments for dirty tracking */
   private readonly baselineAssignments = signal<Record<string, Set<string>>>({});
 
+  /** Agegroup color + team count lookup (fetched once on init) */
+  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number }>>({});
+
   // ── Derived ──
 
   readonly agegroups = computed((): AgRow[] => {
     const cascade = this.cascadeSvc.cascade();
     if (!cascade) return [];
+    const meta = this.agegroupMeta();
     return cascade.agegroups.map(ag => ({
       agegroupId: ag.agegroupId,
       agegroupName: ag.agegroupName,
+      color: meta[ag.agegroupId]?.color ?? null,
+      teamCount: meta[ag.agegroupId]?.teamCount ?? 0,
     }));
   });
 
@@ -81,6 +93,7 @@ export class FieldsTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.loadAgegroupMeta();
   }
 
   // ── Data loading ──
@@ -110,6 +123,21 @@ export class FieldsTabComponent implements OnInit {
       error: () => {
         this.isLoading.set(false);
         this.toast.show('Failed to load field assignments', 'danger');
+      },
+    });
+  }
+
+  private loadAgegroupMeta(): void {
+    this.divSvc.getAgegroups().subscribe({
+      next: (ags) => {
+        const meta: Record<string, { color: string | null; teamCount: number }> = {};
+        for (const ag of ags) {
+          meta[ag.agegroupId] = {
+            color: ag.color ?? null,
+            teamCount: agTeamCount(ag),
+          };
+        }
+        this.agegroupMeta.set(meta);
       },
     });
   }

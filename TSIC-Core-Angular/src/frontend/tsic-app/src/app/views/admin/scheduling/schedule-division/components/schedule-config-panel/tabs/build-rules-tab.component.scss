@@ -186,9 +186,16 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.div-count {
-  font-size: var(--font-size-xs);
-  color: var(--brand-text-muted);
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: var(--font-size-2xs, 10px);
+  flex-shrink: 0;
 }
 
 .div-name {

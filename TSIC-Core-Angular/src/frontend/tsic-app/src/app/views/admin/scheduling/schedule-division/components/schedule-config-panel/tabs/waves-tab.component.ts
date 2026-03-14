@@ -1,8 +1,10 @@
 import {
-  Component, ChangeDetectionStrategy, computed, inject, signal
+  Component, ChangeDetectionStrategy, computed, inject, OnInit, signal
 } from '@angular/core';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
+import { ScheduleDivisionService } from '../../../services/schedule-division.service';
+import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
 import type { SaveBatchWavesRequest } from '@core/api';
 
 interface WaveRow {
@@ -10,6 +12,8 @@ interface WaveRow {
   name: string;
   level: 'agegroup' | 'division';
   agegroupId: string;
+  color: string | null;
+  teamCount: number;
 }
 
 /**
@@ -35,13 +39,43 @@ interface WaveState {
   templateUrl: './waves-tab.component.html',
   styleUrl: './waves-tab.component.scss',
 })
-export class WavesTabComponent {
+export class WavesTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
+  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
 
   readonly cascade = this.cascadeSvc.cascade;
   readonly isSaving = signal(false);
   readonly isEditing = signal(false);
+
+  /** Agegroup color + team count lookup (fetched once on init) */
+  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }>>({});
+
+  readonly contrastText = contrastText;
+
+  ngOnInit(): void {
+    this.loadAgegroupMeta();
+  }
+
+  private loadAgegroupMeta(): void {
+    this.divSvc.getAgegroups().subscribe({
+      next: (ags) => {
+        const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
+        for (const ag of ags) {
+          const divTeamCounts: Record<string, number> = {};
+          for (const div of ag.divisions) {
+            divTeamCounts[div.divId] = div.teamCount;
+          }
+          meta[ag.agegroupId] = {
+            color: ag.color ?? null,
+            teamCount: agTeamCount(ag),
+            divTeamCounts,
+          };
+        }
+        this.agegroupMeta.set(meta);
+      },
+    });
+  }
 
   // ── Dirty State Tracking ──
 
@@ -111,13 +145,17 @@ export class WavesTabComponent {
     const snap = this.cascade();
     if (!snap) return [];
 
+    const meta = this.agegroupMeta();
     const result: WaveRow[] = [];
     for (const ag of snap.agegroups) {
+      const agMeta = meta[ag.agegroupId];
       result.push({
         id: ag.agegroupId,
         name: ag.agegroupName,
         level: 'agegroup',
         agegroupId: ag.agegroupId,
+        color: agMeta?.color ?? null,
+        teamCount: agMeta?.teamCount ?? 0,
       });
       for (const div of ag.divisions) {
         result.push({
@@ -125,6 +163,8 @@ export class WavesTabComponent {
           name: div.divisionName,
           level: 'division',
           agegroupId: ag.agegroupId,
+          color: agMeta?.color ?? null,
+          teamCount: agMeta?.divTeamCounts[div.divisionId] ?? 0,
         });
       }
     }

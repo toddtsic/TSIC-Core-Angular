@@ -1,6 +1,21 @@
+@use '../shared/styles/minimap';
+
 :host {
 	display: block;
 	padding: var(--space-4);
+}
+
+.ms-grid-wrapper {
+	position: relative;
+}
+
+// Override shared minimap positioning — master-schedule grid is full-height
+// (no flex-constrained scroll wrapper like schedule-grid), so use fixed.
+.minimap-fab {
+	position: fixed;
+	bottom: var(--space-6);
+	right: var(--space-6);
+	z-index: 1040;
 }
 
 // ── Page Header ──

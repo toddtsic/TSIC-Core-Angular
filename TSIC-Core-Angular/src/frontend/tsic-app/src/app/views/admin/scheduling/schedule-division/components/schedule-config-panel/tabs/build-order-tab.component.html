@@ -55,25 +55,19 @@
 
                 <span class="order-position">{{ i + 1 }}</span>
 
-                <span class="ag-badge"
-                      [style.background]="item.agegroupColor ?? 'var(--bs-secondary)'"
-                      [style.color]="contrastText(item.agegroupColor)">
-                  {{ item.agegroupName }}
-                </span>
-
-                <span class="order-div-name">{{ item.divName }}</span>
-
-                @if (item.teamCount > 0) {
-                  <span class="order-badge">{{ item.teamCount }}t</span>
+                @if (item.agegroupColor) {
+                  <span class="color-dot" [style.background]="item.agegroupColor"></span>
                 }
+                <span class="ag-name">{{ item.agegroupName }}</span>
+                <span class="order-div-name">{{ item.divName }}</span>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-auto">{{ item.teamCount }}</span>
 
                 <ng-template cdkDragPreview>
                   <div class="order-item-preview">
-                    <span class="ag-badge"
-                          [style.background]="item.agegroupColor ?? 'var(--bs-secondary)'"
-                          [style.color]="contrastText(item.agegroupColor)">
-                      {{ item.agegroupName }}
-                    </span>
+                    @if (item.agegroupColor) {
+                      <span class="color-dot" [style.background]="item.agegroupColor"></span>
+                    }
+                    <span class="ag-name">{{ item.agegroupName }}</span>
                     <span>{{ item.divName }}</span>
                   </div>
                 </ng-template>

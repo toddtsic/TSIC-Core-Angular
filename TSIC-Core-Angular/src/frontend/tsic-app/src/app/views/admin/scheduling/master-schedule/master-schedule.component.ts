@@ -1,4 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
+import {
+	Component, ChangeDetectionStrategy, inject, signal, computed,
+	OnInit, OnDestroy, ViewChild, ElementRef, NgZone,
+} from '@angular/core';
 import type { MasterScheduleResponse, MasterScheduleDay } from '@core/api';
 import { MasterScheduleService } from './services/master-schedule.service';
 
@@ -9,8 +12,12 @@ import { MasterScheduleService } from './services/master-schedule.service';
 	styleUrl: './master-schedule.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MasterScheduleComponent implements OnInit {
+export class MasterScheduleComponent implements OnInit, OnDestroy {
 	private readonly svc = inject(MasterScheduleService);
+	private readonly zone = inject(NgZone);
+
+	@ViewChild('msGrid') msGridRef?: ElementRef<HTMLElement>;
+	@ViewChild('minimapCanvas') minimapCanvasRef?: ElementRef<HTMLCanvasElement>;
 
 	readonly masterData = signal<MasterScheduleResponse | null>(null);
 	readonly isLoading = signal(true);
@@ -43,6 +50,7 @@ export class MasterScheduleComponent implements OnInit {
 				this.isLoading.set(false);
 			},
 		});
+		document.addEventListener('keydown', this.onKeyDown);
 	}
 
 	selectDay(index: number): void {
@@ -80,5 +88,151 @@ export class MasterScheduleComponent implements OnInit {
 		a.download = fileName;
 		a.click();
 		URL.revokeObjectURL(url);
+	}
+
+	// ══════════════════════════════════════════════════════════════
+	// Minimap — bird's-eye grid navigator (shared pattern with schedule-grid)
+	// ══════════════════════════════════════════════════════════════
+
+	readonly minimapOpen = signal(false);
+	private isMinimapDragging = false;
+	private scrollHandler?: () => void;
+
+	private readonly onKeyDown = (e: KeyboardEvent) => {
+		if (e.key === 'Escape' && this.minimapOpen()) {
+			this.zone.run(() => this.closeMinimap());
+		}
+		if (e.key === 'm' || e.key === 'M') {
+			const el = e.target as HTMLElement;
+			const tag = el?.tagName;
+			if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+			if (el?.isContentEditable) return;
+			this.zone.run(() => this.toggleMinimap());
+		}
+	};
+
+	toggleMinimap(): void {
+		if (this.minimapOpen()) {
+			this.closeMinimap();
+		} else {
+			this.minimapOpen.set(true);
+			setTimeout(() => this.openMinimap());
+		}
+	}
+
+	private openMinimap(): void {
+		this.renderMinimap();
+		const el = this.msGridRef?.nativeElement;
+		if (el) {
+			this.scrollHandler = () => this.renderMinimap();
+			el.addEventListener('scroll', this.scrollHandler, { passive: true });
+		}
+	}
+
+	private closeMinimap(): void {
+		this.minimapOpen.set(false);
+		if (this.scrollHandler && this.msGridRef) {
+			this.msGridRef.nativeElement.removeEventListener('scroll', this.scrollHandler);
+			this.scrollHandler = undefined;
+		}
+	}
+
+	renderMinimap(): void {
+		const canvas = this.minimapCanvasRef?.nativeElement;
+		const el = this.msGridRef?.nativeElement;
+		const day = this.activeDay();
+		if (!canvas || !el || !day) return;
+
+		const gridW = el.scrollWidth;
+		const gridH = el.scrollHeight;
+
+		// Scale to fit in max 260x180 bounding box
+		const maxW = 260, maxH = 180;
+		const scale = Math.min(maxW / gridW, maxH / gridH);
+		canvas.width = Math.round(gridW * scale);
+		canvas.height = Math.round(gridH * scale);
+
+		const ctx = canvas.getContext('2d')!;
+		const style = getComputedStyle(document.documentElement);
+
+		// Background
+		ctx.fillStyle = style.getPropertyValue('--bs-tertiary-bg').trim() || '#f5f5f4';
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+		// Draw game cells from active day data
+		const cols = this.masterData()?.fieldColumns ?? [];
+		const rows = day.rows;
+		if (rows.length === 0 || cols.length === 0) return;
+
+		const timeColW = 80 * scale;
+		const fieldColW = (canvas.width - timeColW) / cols.length;
+		// +1 for header row
+		const rowH = canvas.height / (rows.length + 1);
+		const colorFallback = style.getPropertyValue('--bs-primary').trim() || '#0d6efd';
+
+		// Header row
+		ctx.fillStyle = style.getPropertyValue('--bg-elevated').trim() || '#e7e5e4';
+		ctx.fillRect(0, 0, canvas.width, rowH);
+
+		// Data rows
+		for (let ri = 0; ri < rows.length; ri++) {
+			const cells = rows[ri].cells;
+			for (let ci = 0; ci < cells.length; ci++) {
+				const cell = cells[ci];
+				if (!cell) continue;
+
+				ctx.fillStyle = cell.color || colorFallback;
+				const x = timeColW + ci * fieldColW + 0.5;
+				const y = (ri + 1) * rowH + 0.5;
+				ctx.fillRect(x, y, fieldColW - 1, rowH - 1);
+			}
+		}
+
+		// Viewport rectangle
+		const vpX = el.scrollLeft * scale;
+		const vpY = el.scrollTop * scale;
+		const vpW = el.clientWidth * scale;
+		const vpH = el.clientHeight * scale;
+
+		ctx.fillStyle = 'rgba(13, 110, 253, 0.1)';
+		ctx.fillRect(vpX, vpY, vpW, vpH);
+		ctx.strokeStyle = colorFallback;
+		ctx.lineWidth = 2;
+		ctx.strokeRect(vpX, vpY, vpW, vpH);
+	}
+
+	onMinimapDown(e: MouseEvent): void {
+		this.isMinimapDragging = true;
+		this.scrollFromMinimap(e);
+		e.preventDefault();
+	}
+
+	onMinimapMove(e: MouseEvent): void {
+		if (!this.isMinimapDragging) return;
+		this.scrollFromMinimap(e);
+	}
+
+	onMinimapUp(): void {
+		this.isMinimapDragging = false;
+	}
+
+	private scrollFromMinimap(e: MouseEvent): void {
+		const canvas = this.minimapCanvasRef?.nativeElement;
+		const el = this.msGridRef?.nativeElement;
+		if (!canvas || !el) return;
+
+		const rect = canvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+		const scale = canvas.width / el.scrollWidth;
+
+		// Center viewport on click position
+		el.scrollLeft = (x / scale) - (el.clientWidth / 2);
+		el.scrollTop = (y / scale) - (el.clientHeight / 2);
+	}
+
+	ngOnDestroy(): void {
+		this.closeMinimap();
+		document.removeEventListener('keydown', this.onKeyDown);
 	}
 }

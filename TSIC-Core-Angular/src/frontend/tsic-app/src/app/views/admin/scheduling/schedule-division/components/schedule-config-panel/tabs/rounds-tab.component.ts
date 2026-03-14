@@ -6,11 +6,15 @@ import { FormsModule } from '@angular/forms';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
+import { ScheduleDivisionService } from '../../../services/schedule-division.service';
+import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
 import type { AgegroupCanvasReadinessDto, GameDayDto, TimeslotDateDto } from '@core/api';
 
 interface RoundRow {
   agegroupId: string;
   agegroupName: string;
+  color: string | null;
+  teamCount: number;
   isMultiDay: boolean;
   totalRounds: number;
   /** Per-date start rounds (derived from gameDays or TLSD) */
@@ -34,10 +38,15 @@ interface DateCol {
 export class RoundsTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
+  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
+  readonly contrastText = contrastText;
+
+  /** Agegroup color + team count lookup */
+  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number }>>({});
 
   /** Readiness per agegroup */
   private readonly readinessMap = signal<Record<string, AgegroupCanvasReadinessDto>>({});
@@ -77,6 +86,7 @@ export class RoundsTabComponent implements OnInit {
     const cascade = this.cascadeSvc.cascade();
     const map = this.readinessMap();
     const local = this.localRounds();
+    const meta = this.agegroupMeta();
     if (!cascade) return [];
 
     return cascade.agegroups.map(ag => {
@@ -89,6 +99,8 @@ export class RoundsTabComponent implements OnInit {
       return {
         agegroupId: ag.agegroupId,
         agegroupName: ag.agegroupName,
+        color: meta[ag.agegroupId]?.color ?? null,
+        teamCount: meta[ag.agegroupId]?.teamCount ?? 0,
         isMultiDay,
         totalRounds,
         startRounds,
@@ -106,6 +118,22 @@ export class RoundsTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.loadAgegroupMeta();
+  }
+
+  private loadAgegroupMeta(): void {
+    this.divSvc.getAgegroups().subscribe({
+      next: (ags) => {
+        const meta: Record<string, { color: string | null; teamCount: number }> = {};
+        for (const ag of ags) {
+          meta[ag.agegroupId] = {
+            color: ag.color ?? null,
+            teamCount: agTeamCount(ag),
+          };
+        }
+        this.agegroupMeta.set(meta);
+      },
+    });
   }
 
   // ── Data loading ──

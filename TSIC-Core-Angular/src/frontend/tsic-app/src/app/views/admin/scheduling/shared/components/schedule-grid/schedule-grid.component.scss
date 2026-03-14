@@ -1,8 +1,11 @@
+@use '../../styles/minimap';
+
 :host {
     display: flex;
     flex-direction: column;
     min-height: 0;
     flex: 1;
+    position: relative;
 }
 
 // ── Grid header bar ──
@@ -43,91 +46,12 @@
     }
 }
 
-// ── Overview toggle button ──
-
-.pan-toggle {
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-    color: var(--bs-body-color);
-    padding: 2px 6px;
-    line-height: 1;
-
-    &:hover {
-        background: var(--bs-secondary-bg);
-    }
-}
-
-.pan-toggle-active {
-    background: var(--bs-primary);
-    color: var(--bs-white);
-    border-color: var(--bs-primary);
-
-    &:hover {
-        background: var(--bs-primary);
-        opacity: 0.9;
-    }
-}
-
 // ── Grid scroll container ──
 
 .grid-scroll {
     flex: 1;
     overflow: auto;
-}
-
-// ── Minimap popover (drops down from toggle button) ──
-
-.minimap-anchor {
     position: relative;
-}
-
-.minimap-overlay {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: var(--space-1);
-    z-index: 10;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-}
-
-.minimap-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 3px var(--space-2);
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-}
-
-.minimap-title {
-    font-size: var(--font-size-2xs);
-    font-weight: 600;
-    color: var(--bs-secondary-color);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-.minimap-close {
-    background: none;
-    border: none;
-    color: var(--bs-secondary-color);
-    font-size: var(--font-size-lg);
-    line-height: 1;
-    padding: 0 2px;
-    cursor: pointer;
-
-    &:hover {
-        color: var(--bs-body-color);
-    }
-}
-
-.minimap-overlay canvas {
-    display: block;
-    cursor: crosshair;
 }
 
 // ── Schedule grid table ──

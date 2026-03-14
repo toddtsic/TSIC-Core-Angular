@@ -45,7 +45,17 @@
           <tbody>
             @for (row of rows(); track row.agegroupId) {
               <tr [class.unconfigured]="!row.isConfigured">
-                <td class="ag-name-cell">{{ row.agegroupName }}</td>
+                <td class="ag-name-cell">
+                  <div class="ag-name-content">
+                    @if (row.color) {
+                      <span class="color-dot" [style.background]="row.color"></span>
+                    }
+                    <span>{{ row.agegroupName }}</span>
+                    <span class="badge rounded-pill ms-auto"
+                          [style.background]="row.color ?? 'var(--bs-secondary-bg)'"
+                          [style.color]="contrastText(row.color)">{{ row.teamCount }}</span>
+                  </div>
+                </td>
 
                 <td class="status-cell">
                   @if (row.isConfigured) {

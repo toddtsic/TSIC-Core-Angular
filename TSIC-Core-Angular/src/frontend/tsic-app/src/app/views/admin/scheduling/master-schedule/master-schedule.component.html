@@ -76,40 +76,66 @@
 
 	<!-- Desktop Grid -->
 	@if (activeDay()) {
-		<div class="ms-grid"
-			[style.grid-template-columns]="gridTemplateColumns()">
+		<div class="ms-grid-wrapper">
+			<div class="ms-grid" #msGrid
+				[style.grid-template-columns]="gridTemplateColumns()">
 
-			<!-- Header Row -->
-			<div class="ms-header-cell ms-time-header">Time</div>
-			@for (field of masterData()!.fieldColumns; track field) {
-				<div class="ms-header-cell">{{ field }}</div>
-			}
+				<!-- Header Row -->
+				<div class="ms-header-cell ms-time-header">Time</div>
+				@for (field of masterData()!.fieldColumns; track field) {
+					<div class="ms-header-cell">{{ field }}</div>
+				}
 
-			<!-- Data Rows -->
-			@for (row of activeDay()!.rows; track row.timeLabel) {
-				<div class="ms-time-cell">{{ row.timeLabel }}</div>
-				@for (cell of row.cells; track $index) {
-					@if (cell) {
-						<div class="ms-cell"
-							[style.background-color]="cell.color"
-							[style.color]="cell.contrastColor">
-							<span class="ms-round">R{{ cell.round }}</span>
-							<span class="ms-agdiv">{{ cell.agDiv }}</span>
-							<span class="ms-team">{{ cell.t1Name }}</span>
-							<span class="ms-vs">vs</span>
-							<span class="ms-team">{{ cell.t2Name }}</span>
-							@if (cell.t1Score != null) {
-								<span class="ms-score">{{ cell.t1Score }}–{{ cell.t2Score }}</span>
-							}
-							@if (cell.referees?.length) {
-								<span class="ms-refs">{{ cell.referees!.join(', ') }}</span>
-							}
-						</div>
-					} @else {
-						<div class="ms-empty">—</div>
+				<!-- Data Rows -->
+				@for (row of activeDay()!.rows; track row.timeLabel) {
+					<div class="ms-time-cell">{{ row.timeLabel }}</div>
+					@for (cell of row.cells; track $index) {
+						@if (cell) {
+							<div class="ms-cell"
+								[style.background-color]="cell.color"
+								[style.color]="cell.contrastColor">
+								<span class="ms-round">R{{ cell.round }}</span>
+								<span class="ms-agdiv">{{ cell.agDiv }}</span>
+								<span class="ms-team">{{ cell.t1Name }}</span>
+								<span class="ms-vs">vs</span>
+								<span class="ms-team">{{ cell.t2Name }}</span>
+								@if (cell.t1Score != null) {
+									<span class="ms-score">{{ cell.t1Score }}–{{ cell.t2Score }}</span>
+								}
+								@if (cell.referees?.length) {
+									<span class="ms-refs">{{ cell.referees!.join(', ') }}</span>
+								}
+							</div>
+						} @else {
+							<div class="ms-empty">—</div>
+						}
 					}
 				}
-			}
+			</div>
+
+			<!-- Minimap FAB -->
+			<div class="minimap-fab">
+				<button class="minimap-fab-btn"
+					[class.minimap-fab-active]="minimapOpen()"
+					(click)="toggleMinimap()"
+					title="Overview navigator (M to toggle, Esc to close)">
+					<i class="bi bi-pip"></i>
+				</button>
+				@if (minimapOpen()) {
+					<div class="minimap-overlay">
+						<div class="minimap-header">
+							<span class="minimap-title">Overview</span>
+							<button class="minimap-close" (click)="toggleMinimap()">&times;</button>
+						</div>
+						<canvas #minimapCanvas
+							(mousedown)="onMinimapDown($event)"
+							(mousemove)="onMinimapMove($event)"
+							(mouseup)="onMinimapUp()"
+							(mouseleave)="onMinimapUp()">
+						</canvas>
+					</div>
+				}
+			</div>
 		</div>
 
 		<!-- Mobile Cards (visible < 768px) -->
