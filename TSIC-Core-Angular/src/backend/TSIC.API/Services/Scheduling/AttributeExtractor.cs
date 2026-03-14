@@ -30,6 +30,12 @@ public static class AttributeExtractor
         if (rrPatterns.Count == 0)
             return new Dictionary<int, DivisionSizeProfile>();
 
+        // Compute GSI from ALL games before splitting by TCnt.
+        // Per-bucket inference is wrong: divisions share fields, so a bucket's
+        // consecutive games on a field are interleaved with other buckets' games,
+        // producing 2× (or N×) the actual field-level GSI.
+        var globalGsi = InferGsiMinutes(rrPatterns);
+
         // Build lookup: (AgegroupName, DivName) → TCnt
         var tcntLookup = sourceDivisions
             .ToDictionary(
@@ -51,7 +57,7 @@ public static class AttributeExtractor
             var games = group.Select(x => x.Pattern).ToList();
             var divCount = currentDivisionCountByTCnt?.GetValueOrDefault(tcnt, 0) ?? 0;
 
-            result[tcnt] = ExtractSingleProfile(tcnt, divCount, games, sourceTimeslotWindow);
+            result[tcnt] = ExtractSingleProfile(tcnt, divCount, games, sourceTimeslotWindow, globalGsi);
         }
 
         return result;
@@ -59,7 +65,8 @@ public static class AttributeExtractor
 
     private static DivisionSizeProfile ExtractSingleProfile(
         int tcnt, int divisionCount, List<GamePlacementPattern> games,
-        Dictionary<DayOfWeek, TimeSpan>? sourceTimeslotWindow)
+        Dictionary<DayOfWeek, TimeSpan>? sourceTimeslotWindow,
+        int globalGsi)
     {
         // Q1: Play days
         var playDays = games
@@ -185,8 +192,8 @@ public static class AttributeExtractor
 
         // ── Tick-based properties (V2.1) ──
 
-        // GSI: infer from most common interval between consecutive games on same field+day
-        var gsiMinutes = InferGsiMinutes(games);
+        // GSI: use global value computed across ALL games (not per-bucket)
+        var gsiMinutes = globalGsi;
 
         // Round layout: derive from Q5 — median VerticalityRatio across rounds
         var roundLayout = DeriveRoundLayout(placementShapePerRound);
