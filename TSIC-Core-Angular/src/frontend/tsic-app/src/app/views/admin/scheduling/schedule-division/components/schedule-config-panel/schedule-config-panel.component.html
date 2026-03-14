@@ -38,25 +38,25 @@
     @if (cascade()) {
       @switch (activeTab()) {
         @case ('dates') {
-          <app-dates-tab />
+          <app-dates-tab [agegroups]="agegroups()" />
         }
         @case ('fields') {
-          <app-fields-tab />
+          <app-fields-tab [agegroups]="agegroups()" />
         }
         @case ('buildRules') {
-          <app-build-rules-tab />
+          <app-build-rules-tab [agegroups]="agegroups()" />
         }
         @case ('rounds') {
-          <app-rounds-tab />
+          <app-rounds-tab [agegroups]="agegroups()" />
         }
         @case ('waves') {
-          <app-waves-tab />
+          <app-waves-tab [agegroups]="agegroups()" />
         }
         @case ('buildOrder') {
-          <app-build-order-tab />
+          <app-build-order-tab [agegroups]="agegroups()" />
         }
         @case ('grid') {
-          <app-grid-tab />
+          <app-grid-tab [agegroups]="agegroups()" />
         }
       }
     } @else {

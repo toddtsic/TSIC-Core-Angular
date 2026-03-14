@@ -1,11 +1,10 @@
 import {
-  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
-import { ScheduleDivisionService } from '../../../../schedule-division/services/schedule-division.service';
 import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
 import type { AgegroupCanvasReadinessDto, AgegroupWithDivisionsDto, EventFieldSummaryDto } from '@core/api';
 
@@ -32,8 +31,10 @@ interface AgRow {
 export class FieldsTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
-  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
+
+  /** Agegroup metadata from parent — eliminates per-tab HTTP fetch. */
+  readonly agegroupsInput = input<AgegroupWithDivisionsDto[]>([], { alias: 'agegroups' });
 
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
@@ -48,8 +49,17 @@ export class FieldsTabComponent implements OnInit {
   /** Baseline (saved) assignments for dirty tracking */
   private readonly baselineAssignments = signal<Record<string, Set<string>>>({});
 
-  /** Agegroup color + team count lookup (fetched once on init) */
-  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number }>>({});
+  /** Agegroup color + team count lookup — derived synchronously from parent input. */
+  private readonly agegroupMeta = computed(() => {
+    const meta: Record<string, { color: string | null; teamCount: number }> = {};
+    for (const ag of this.agegroupsInput()) {
+      meta[ag.agegroupId] = {
+        color: ag.color ?? null,
+        teamCount: agTeamCount(ag),
+      };
+    }
+    return meta;
+  });
 
   // ── Derived ──
 
@@ -93,7 +103,6 @@ export class FieldsTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
-    this.loadAgegroupMeta();
   }
 
   // ── Data loading ──
@@ -123,21 +132,6 @@ export class FieldsTabComponent implements OnInit {
       error: () => {
         this.isLoading.set(false);
         this.toast.show('Failed to load field assignments', 'danger');
-      },
-    });
-  }
-
-  private loadAgegroupMeta(): void {
-    this.divSvc.getAgegroups().subscribe({
-      next: (ags) => {
-        const meta: Record<string, { color: string | null; teamCount: number }> = {};
-        for (const ag of ags) {
-          meta[ag.agegroupId] = {
-            color: ag.color ?? null,
-            teamCount: agTeamCount(ag),
-          };
-        }
-        this.agegroupMeta.set(meta);
       },
     });
   }

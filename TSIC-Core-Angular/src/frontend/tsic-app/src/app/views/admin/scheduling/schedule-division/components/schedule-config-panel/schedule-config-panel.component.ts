@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, ViewChild, computed, signal, output, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { JobService } from '@infrastructure/services/job.service';
+import type { AgegroupWithDivisionsDto } from '@core/api';
 import { ScheduleCascadeService } from '../schedule-config/schedule-cascade.service';
 import type { DevResetOptions } from '../schedule-config/schedule-config.types';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -51,6 +52,9 @@ export class ScheduleConfigPanelComponent {
 
   /** Whether games already exist at event level (controls Build vs Re-Build label). */
   readonly hasGames = input(false);
+
+  /** Agegroup metadata from parent — passed to tabs so they don't re-fetch. */
+  readonly agegroups = input<AgegroupWithDivisionsDto[]>([]);
 
   /** Expose cascade signal for template guard (defer tabs until loaded). */
   readonly cascade = this.cascadeSvc.cascade;

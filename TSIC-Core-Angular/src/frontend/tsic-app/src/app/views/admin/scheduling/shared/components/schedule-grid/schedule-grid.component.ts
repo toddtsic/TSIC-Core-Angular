@@ -33,9 +33,6 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     readonly emptyMessage = input('No fields or timeslots configured');
 
     // Game card rendering options
-    readonly showMatchupCodes = input(false);
-    readonly showGameId = input(false);
-    readonly showTeamDesignators = input(false);
     readonly showActionButtons = input(false);
     readonly showQaBadges = input(true);
 

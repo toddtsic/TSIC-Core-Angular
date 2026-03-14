@@ -18,7 +18,7 @@
     height: 100%;
 }
 
-// ── Row 1: matchup + label + game ID ──
+// ── Row 1: agegroup:div label + round ──
 
 .game-row1 {
     display: flex;
@@ -28,31 +28,28 @@
     overflow: hidden;
 }
 
-.game-matchup {
+.game-label {
     font-size: var(--font-size-2xs);
     font-weight: 700;
     color: var(--bs-body-color);
-    flex-shrink: 0;
-}
-
-.game-label {
-    font-size: var(--font-size-2xs);
-    color: var(--bs-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.game-gid {
+.game-round {
     font-size: var(--font-size-2xs);
     font-weight: 700;
-    color: var(--bs-secondary-color);
+    color: var(--bs-body-color);
+    margin-left: auto;
     flex-shrink: 0;
 }
 
-// ── Team rows (detailed mode with designators) ──
+// ── Team rows ──
 
 .game-team {
+    display: flex;
+    align-items: baseline;
     font-size: var(--font-size-2xs);
     color: var(--bs-body-color);
     white-space: nowrap;
@@ -62,16 +59,18 @@
 
 .game-team-des {
     font-weight: 700;
+    margin-right: 3px;
+    flex-shrink: 0;
 }
 
-// ── Team rows (compact mode without designators) ──
+// ── Game ID (flush right on last team row) ──
 
-.game-teams {
+.game-gid {
     font-size: var(--font-size-2xs);
-    color: var(--bs-body-color);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 700;
+    color: var(--bs-secondary-color);
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 // ── Action buttons (top-right, visible on card hover) ──

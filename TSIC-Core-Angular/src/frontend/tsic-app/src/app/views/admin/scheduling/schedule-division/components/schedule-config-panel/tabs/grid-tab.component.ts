@@ -1,14 +1,13 @@
 import {
-  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
-import { ScheduleDivisionService } from '../../../services/schedule-division.service';
 import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
-import type { AgegroupCanvasReadinessDto } from '@core/api';
+import type { AgegroupCanvasReadinessDto, AgegroupWithDivisionsDto } from '@core/api';
 
 interface GridRow {
   agegroupId: string;
@@ -38,16 +37,27 @@ interface GridRow {
 export class GridTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
   private readonly timeslotSvc = inject(TimeslotService);
-  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
+
+  /** Agegroup metadata from parent — eliminates per-tab HTTP fetch. */
+  readonly agegroupsInput = input<AgegroupWithDivisionsDto[]>([], { alias: 'agegroups' });
 
   readonly isLoading = signal(false);
   readonly contrastText = contrastText;
 
   private readonly readinessMap = signal<Record<string, AgegroupCanvasReadinessDto>>({});
 
-  /** Agegroup color + team count lookup */
-  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number }>>({});
+  /** Agegroup color + team count lookup — derived synchronously from parent input. */
+  private readonly agegroupMeta = computed(() => {
+    const meta: Record<string, { color: string | null; teamCount: number }> = {};
+    for (const ag of this.agegroupsInput()) {
+      meta[ag.agegroupId] = {
+        color: ag.color ?? null,
+        teamCount: agTeamCount(ag),
+      };
+    }
+    return meta;
+  });
 
   // ── Derived ──
 
@@ -87,22 +97,6 @@ export class GridTabComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
-    this.loadAgegroupMeta();
-  }
-
-  private loadAgegroupMeta(): void {
-    this.divSvc.getAgegroups().subscribe({
-      next: (ags) => {
-        const meta: Record<string, { color: string | null; teamCount: number }> = {};
-        for (const ag of ags) {
-          meta[ag.agegroupId] = {
-            color: ag.color ?? null,
-            teamCount: agTeamCount(ag),
-          };
-        }
-        this.agegroupMeta.set(meta);
-      },
-    });
   }
 
   // ── Data loading ──

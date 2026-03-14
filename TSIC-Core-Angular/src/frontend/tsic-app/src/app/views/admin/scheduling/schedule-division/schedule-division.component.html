@@ -322,6 +322,7 @@
                         @case ('configure') {
                             <app-schedule-config-panel
                                 [hasGames]="hasGamesInScope()"
+                                [agegroups]="agegroups()"
                                 (buildRequested)="onEventSelected(); mode.set('schedule'); openAutoScheduleConfig()"
                                 (resetConfirmed)="executeReset($event)" />
                         }
@@ -372,10 +373,7 @@
                                             [gridResponse]="gridResponse()"
                                             [isLoading]="isGridLoading()"
                                             [emptyMessage]="'No games scheduled yet. Use Build Entire Schedule to auto-generate, or schedule a division by hand (click a division in the tree on the left to get started).'"
-                                            [showMatchupCodes]="true"
-                                            [showGameId]="true"
-                                            [showTeamDesignators]="true"
-                                            [showActionButtons]="false"
+[showActionButtons]="false"
                                             [highlightDivId]="null"
                                             [highlightDivColor]="null"
                                             [selectedGameGid]="null"
@@ -405,9 +403,6 @@
                                                 [gridResponse]="gridResponse()"
                                                 [isLoading]="isGridLoading()"
                                                 [emptyMessage]="'No fields or timeslots configured for this agegroup'"
-                                                [showMatchupCodes]="true"
-                                                [showGameId]="true"
-                                                [showTeamDesignators]="true"
                                                 [showActionButtons]="false"
                                                 [highlightDivId]="null"
                                                 [highlightDivColor]="selectedAgegroupColor()"
@@ -428,9 +423,6 @@
                                         [gridResponse]="gridResponse()"
                                         [isLoading]="isGridLoading()"
                                         [emptyMessage]="'No fields or timeslots configured for this division'"
-                                        [showMatchupCodes]="true"
-                                        [showGameId]="true"
-                                        [showTeamDesignators]="true"
                                         [showActionButtons]="true"
                                         [highlightDivId]="selectedDivision()?.divId ?? null"
                                         [highlightDivColor]="selectedAgegroupColor()"

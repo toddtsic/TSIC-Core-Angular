@@ -97,6 +97,7 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 	readonly minimapOpen = signal(false);
 	private isMinimapDragging = false;
 	private scrollHandler?: () => void;
+	private scrollContainer?: HTMLElement; // <main> with overflow-y:auto
 
 	private readonly onKeyDown = (e: KeyboardEvent) => {
 		if (e.key === 'Escape' && this.minimapOpen()) {
@@ -120,19 +121,35 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 		}
 	}
 
+	private getScrollContainer(): HTMLElement | undefined {
+		if (!this.scrollContainer) {
+			// Layout uses <main> with overflow-y:auto as the scroll container
+			this.scrollContainer =
+				this.msGridRef?.nativeElement.closest('main') as HTMLElement | undefined
+				?? undefined;
+		}
+		return this.scrollContainer;
+	}
+
 	private openMinimap(): void {
 		this.renderMinimap();
 		const el = this.msGridRef?.nativeElement;
+		const main = this.getScrollContainer();
+		this.scrollHandler = () => this.renderMinimap();
+		// Grid scrolls horizontally; <main> scrolls vertically
 		if (el) {
-			this.scrollHandler = () => this.renderMinimap();
 			el.addEventListener('scroll', this.scrollHandler, { passive: true });
+		}
+		if (main) {
+			main.addEventListener('scroll', this.scrollHandler, { passive: true });
 		}
 	}
 
 	private closeMinimap(): void {
 		this.minimapOpen.set(false);
-		if (this.scrollHandler && this.msGridRef) {
-			this.msGridRef.nativeElement.removeEventListener('scroll', this.scrollHandler);
+		if (this.scrollHandler) {
+			this.msGridRef?.nativeElement.removeEventListener('scroll', this.scrollHandler);
+			this.getScrollContainer()?.removeEventListener('scroll', this.scrollHandler);
 			this.scrollHandler = undefined;
 		}
 	}
@@ -188,11 +205,15 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 			}
 		}
 
-		// Viewport rectangle
+		// Viewport rectangle — horizontal from grid scroll, vertical from <main> scroll
+		const main = this.getScrollContainer();
 		const vpX = el.scrollLeft * scale;
-		const vpY = el.scrollTop * scale;
+		// Grid's top relative to <main>'s scroll viewport
+		const gridOffsetInMain = el.offsetTop - (main?.offsetTop ?? 0);
+		const mainScrollTop = main?.scrollTop ?? 0;
+		const vpY = Math.max(0, mainScrollTop - gridOffsetInMain) * scale;
 		const vpW = el.clientWidth * scale;
-		const vpH = el.clientHeight * scale;
+		const vpH = (main?.clientHeight ?? window.innerHeight) * scale;
 
 		ctx.fillStyle = 'rgba(13, 110, 253, 0.1)';
 		ctx.fillRect(vpX, vpY, vpW, vpH);
@@ -219,16 +240,23 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 	private scrollFromMinimap(e: MouseEvent): void {
 		const canvas = this.minimapCanvasRef?.nativeElement;
 		const el = this.msGridRef?.nativeElement;
+		const main = this.getScrollContainer();
 		if (!canvas || !el) return;
 
-		const rect = canvas.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
+		const canvasRect = canvas.getBoundingClientRect();
+		const x = e.clientX - canvasRect.left;
+		const y = e.clientY - canvasRect.top;
 		const scale = canvas.width / el.scrollWidth;
 
-		// Center viewport on click position
+		// Horizontal: grid scrolls itself
 		el.scrollLeft = (x / scale) - (el.clientWidth / 2);
-		el.scrollTop = (y / scale) - (el.clientHeight / 2);
+
+		// Vertical: <main> is the scroll container
+		if (main) {
+			const gridOffsetInMain = el.offsetTop - main.offsetTop;
+			const targetY = (y / scale) - (main.clientHeight / 2);
+			main.scrollTop = gridOffsetInMain + targetY;
+		}
 	}
 
 	ngOnDestroy(): void {

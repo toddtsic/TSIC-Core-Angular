@@ -1,11 +1,10 @@
 import {
-  Component, ChangeDetectionStrategy, computed, inject, OnInit, signal
+  Component, ChangeDetectionStrategy, computed, inject, input, signal
 } from '@angular/core';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
-import { ScheduleDivisionService } from '../../../services/schedule-division.service';
 import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
-import type { SaveBatchWavesRequest } from '@core/api';
+import type { AgegroupWithDivisionsDto, SaveBatchWavesRequest } from '@core/api';
 
 interface WaveRow {
   id: string;
@@ -39,43 +38,35 @@ interface WaveState {
   templateUrl: './waves-tab.component.html',
   styleUrl: './waves-tab.component.scss',
 })
-export class WavesTabComponent implements OnInit {
+export class WavesTabComponent {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
-  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
+
+  /** Agegroup metadata from parent — eliminates per-tab HTTP fetch. */
+  readonly agegroupsInput = input<AgegroupWithDivisionsDto[]>([], { alias: 'agegroups' });
 
   readonly cascade = this.cascadeSvc.cascade;
   readonly isSaving = signal(false);
   readonly isEditing = signal(false);
 
-  /** Agegroup color + team count lookup (fetched once on init) */
-  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }>>({});
+  /** Agegroup color + team count lookup — derived synchronously from parent input. */
+  private readonly agegroupMeta = computed(() => {
+    const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
+    for (const ag of this.agegroupsInput()) {
+      const divTeamCounts: Record<string, number> = {};
+      for (const div of ag.divisions) {
+        divTeamCounts[div.divId] = div.teamCount;
+      }
+      meta[ag.agegroupId] = {
+        color: ag.color ?? null,
+        teamCount: agTeamCount(ag),
+        divTeamCounts,
+      };
+    }
+    return meta;
+  });
 
   readonly contrastText = contrastText;
-
-  ngOnInit(): void {
-    this.loadAgegroupMeta();
-  }
-
-  private loadAgegroupMeta(): void {
-    this.divSvc.getAgegroups().subscribe({
-      next: (ags) => {
-        const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
-        for (const ag of ags) {
-          const divTeamCounts: Record<string, number> = {};
-          for (const div of ag.divisions) {
-            divTeamCounts[div.divId] = div.teamCount;
-          }
-          meta[ag.agegroupId] = {
-            color: ag.color ?? null,
-            teamCount: agTeamCount(ag),
-            divTeamCounts,
-          };
-        }
-        this.agegroupMeta.set(meta);
-      },
-    });
-  }
 
   // ── Dirty State Tracking ──
 

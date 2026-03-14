@@ -1,13 +1,12 @@
 import {
-  ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
+  ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
-import { ScheduleDivisionService } from '../../../services/schedule-division.service';
 import { contrastText, agTeamCount } from '../../../../shared/utils/scheduling-helpers';
-import type { ProcessingOrderEntryDto } from '@core/api';
+import type { AgegroupWithDivisionsDto, ProcessingOrderEntryDto } from '@core/api';
 
 interface DivisionOrderItem {
   divId: string;
@@ -42,8 +41,10 @@ interface DayGroup {
 })
 export class BuildOrderTabComponent implements OnInit {
   private readonly cascadeSvc = inject(ScheduleCascadeService);
-  private readonly divSvc = inject(ScheduleDivisionService);
   private readonly toast = inject(ToastService);
+
+  /** Agegroup metadata from parent — eliminates per-tab HTTP fetch. */
+  readonly agegroupsInput = input<AgegroupWithDivisionsDto[]>([], { alias: 'agegroups' });
 
   readonly localOrder = signal<DivisionOrderItem[]>([]);
   private readonly baselineOrder = signal<string[]>([]);
@@ -51,7 +52,22 @@ export class BuildOrderTabComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly contrastText = contrastText;
 
-  private readonly agegroupMeta = signal<Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }>>({});
+  /** Agegroup color + team count lookup — derived synchronously from parent input. */
+  private readonly agegroupMeta = computed(() => {
+    const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
+    for (const ag of this.agegroupsInput()) {
+      const divTeamCounts: Record<string, number> = {};
+      for (const d of ag.divisions) {
+        divTeamCounts[d.divId] = d.teamCount;
+      }
+      meta[ag.agegroupId] = {
+        color: ag.color ?? null,
+        teamCount: agTeamCount(ag),
+        divTeamCounts,
+      };
+    }
+    return meta;
+  });
 
   readonly isDirty = computed(() => {
     const current = this.localOrder().map(i => i.divId);
@@ -108,24 +124,7 @@ export class BuildOrderTabComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.isLoading.set(true);
-    // Load agegroup metadata first so colors are available when building order
-    this.divSvc.getAgegroups().subscribe(ags => {
-      const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
-      for (const ag of ags) {
-        const divTeamCounts: Record<string, number> = {};
-        for (const d of ag.divisions) {
-          divTeamCounts[d.divId] = d.teamCount;
-        }
-        meta[ag.agegroupId] = {
-          color: ag.color ?? null,
-          teamCount: agTeamCount(ag),
-          divTeamCounts,
-        };
-      }
-      this.agegroupMeta.set(meta);
-      this.reload();
-    });
+    this.reload();
   }
 
   reload(): void {

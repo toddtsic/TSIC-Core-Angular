@@ -77,9 +77,6 @@
                                     @if (cell) {
                                         <app-game-card
                                             [game]="cell"
-                                            [showMatchupCodes]="showMatchupCodes()"
-                                            [showGameId]="showGameId()"
-                                            [showTeamDesignators]="showTeamDesignators()"
                                             [showActions]="showActionButtons() && !isOtherDivision(cell)"
                                             [isSelected]="isGameSelected(cell)"
                                             [isOtherDivision]="isOtherDivision(cell)"

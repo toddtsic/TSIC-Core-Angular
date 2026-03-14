@@ -13,9 +13,6 @@ export class GameCardComponent {
 
     // ── Inputs ──
     readonly game = input.required<ScheduleGameDto>();
-    readonly showMatchupCodes = input(false);
-    readonly showGameId = input(false);
-    readonly showTeamDesignators = input(false);
     readonly showActions = input(false);
     readonly isSelected = input(false);
     readonly isOtherDivision = input(false);
