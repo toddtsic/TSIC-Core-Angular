@@ -31,15 +31,18 @@ export function computeTimeClashGameIds(rows: ScheduleGridRow[]): Set<number> {
 
 /**
  * NON-BREAKING: Same team in consecutive timeslot rows on the same calendar day (any division).
+ * Only flags rows whose actual time gap is ≤ 90 minutes — filtered grids may place
+ * non-consecutive timeslots in adjacent rows, which would otherwise create false positives.
  * Returns Set of game IDs that are back-to-back.
  */
 export function computeBackToBackGameIds(rows: ScheduleGridRow[]): Set<number> {
+    const MAX_GAP_MS = 90 * 60 * 1000; // 90 minutes
     const b2b = new Set<number>();
 
     for (let i = 0; i < rows.length - 1; i++) {
-        const curDay = new Date(rows[i].gDate).toDateString();
-        const nextDay = new Date(rows[i + 1].gDate).toDateString();
-        if (curDay !== nextDay) continue;
+        const curTime = new Date(rows[i].gDate).getTime();
+        const nextTime = new Date(rows[i + 1].gDate).getTime();
+        if (nextTime - curTime > MAX_GAP_MS) continue;
 
         const curTeams = new Map<string, number[]>();
         for (const cell of rows[i].cells) {

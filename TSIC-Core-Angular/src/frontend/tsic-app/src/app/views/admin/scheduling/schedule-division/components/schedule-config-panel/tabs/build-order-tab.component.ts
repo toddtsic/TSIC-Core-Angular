@@ -108,11 +108,8 @@ export class BuildOrderTabComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadAgegroupMeta();
-    this.reload();
-  }
-
-  private loadAgegroupMeta(): void {
+    this.isLoading.set(true);
+    // Load agegroup metadata first so colors are available when building order
     this.divSvc.getAgegroups().subscribe(ags => {
       const meta: Record<string, { color: string | null; teamCount: number; divTeamCounts: Record<string, number> }> = {};
       for (const ag of ags) {
@@ -127,6 +124,7 @@ export class BuildOrderTabComponent implements OnInit {
         };
       }
       this.agegroupMeta.set(meta);
+      this.reload();
     });
   }
 

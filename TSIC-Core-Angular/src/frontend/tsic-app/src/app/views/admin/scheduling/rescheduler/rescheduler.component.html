@@ -72,13 +72,14 @@
                         @if (gameDays().length > 0) {
                             <div class="filter-section">
                                 <div class="filter-section-label">Game Days</div>
-                                <div class="filter-chips">
+                                <div class="filter-list">
                                     @for (day of gameDays(); track day) {
-                                        <button class="chip"
-                                                [class.chip-selected]="isGameDaySelected(day)"
-                                                (click)="toggleGameDayFilter(day)">
-                                            {{ formatGameDay(day) }}
-                                        </button>
+                                        <label class="filter-item">
+                                            <input type="checkbox" class="form-check-input"
+                                                   [checked]="isGameDaySelected(day)"
+                                                   (change)="toggleGameDayFilter(day)">
+                                            <span>{{ formatGameDay(day) }}</span>
+                                        </label>
                                     }
                                 </div>
                             </div>
@@ -120,11 +121,20 @@
                     [emptyMessage]="'No games match the selected filters'"
                     [selectedGameGid]="selectedGame()?.gid ?? null"
                     [showMoveSlotHints]="!!selectedGame()"
+                    [showQaBadges]="false"
                     [highlightGameGid]="movedGameGid()"
                     (cellClicked)="onGridCellClick($event)">
 
-                    <!-- Projected into grid header title area -->
-                    <span gridTitle class="fw-semibold">Cross-Division Schedule</span>
+                    <!-- Projected into grid header title area: filter chips + result counts -->
+                    <div gridTitle class="grid-title-bar">
+                        <span class="result-count">{{ gameCount() }} games</span>
+                        @for (chip of filterChips(); track chip.id) {
+                            <span class="filter-chip" [class]="'filter-chip-' + chip.source">
+                                {{ chip.label }}
+                                <button class="filter-chip-x" (click)="removeFilterChip(chip)" aria-label="Remove filter">&times;</button>
+                            </span>
+                        }
+                    </div>
 
                     <!-- Projected into grid header actions area -->
                     <button gridActions class="btn btn-sm btn-outline-secondary" (click)="toggleAddTimeslot()">

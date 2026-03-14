@@ -7,12 +7,12 @@
             <i class="bi bi-arrows-move me-1"></i>Click destination to move
         </span>
     }
-    @if (breakingConflictCount() > 0) {
+    @if (showQaBadges() && breakingConflictCount() > 0) {
         <span class="badge bg-danger-subtle text-danger-emphasis" title="Slot collisions or same-team double-bookings">
             <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
         </span>
     }
-    @if (backToBackGameIds().size > 0) {
+    @if (showQaBadges() && backToBackGameIds().size > 0) {
         <span class="badge bg-warning-subtle text-warning-emphasis" title="Teams playing consecutive timeslots">
             <i class="bi bi-clock-history me-1"></i>{{ backToBackGameIds().size }} back-to-back
         </span>
@@ -28,28 +28,6 @@
     }
 
     <div class="ms-auto d-flex gap-1">
-        <div class="minimap-anchor">
-            <button class="btn btn-sm pan-toggle"
-                    [class.pan-toggle-active]="minimapOpen()"
-                    (click)="toggleMinimap()"
-                    title="Overview navigator (Esc to close)">
-                <i class="bi bi-pip"></i>
-            </button>
-            @if (minimapOpen()) {
-                <div class="minimap-overlay">
-                    <div class="minimap-header">
-                        <span class="minimap-title">Overview</span>
-                        <button class="minimap-close" (click)="toggleMinimap()">&times;</button>
-                    </div>
-                    <canvas #minimapCanvas
-                            (mousedown)="onMinimapDown($event)"
-                            (mousemove)="onMinimapMove($event)"
-                            (mouseup)="onMinimapUp()"
-                            (mouseleave)="onMinimapUp()">
-                    </canvas>
-                </div>
-            }
-        </div>
         <ng-content select="[gridActions]" />
     </div>
 </div>
@@ -130,4 +108,28 @@
                 </tbody>
             </table>
         </div>
+
+    <!-- Minimap FAB — always visible over grid -->
+    <div class="minimap-fab">
+        <button class="minimap-fab-btn"
+                [class.minimap-fab-active]="minimapOpen()"
+                (click)="toggleMinimap()"
+                title="Overview navigator (M to toggle, Esc to close)">
+            <i class="bi bi-pip"></i>
+        </button>
+        @if (minimapOpen()) {
+            <div class="minimap-overlay">
+                <div class="minimap-header">
+                    <span class="minimap-title">Overview</span>
+                    <button class="minimap-close" (click)="toggleMinimap()">&times;</button>
+                </div>
+                <canvas #minimapCanvas
+                        (mousedown)="onMinimapDown($event)"
+                        (mousemove)="onMinimapMove($event)"
+                        (mouseup)="onMinimapUp()"
+                        (mouseleave)="onMinimapUp()">
+                </canvas>
+            </div>
+        }
+    </div>
 }

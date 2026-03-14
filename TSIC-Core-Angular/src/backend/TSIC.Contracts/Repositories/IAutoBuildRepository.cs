@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
@@ -42,6 +43,20 @@ public interface IAutoBuildRepository
     /// </summary>
     Task<List<FieldNameMapping>> GetCurrentFieldsAsync(
         Guid leagueId, string season, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get FieldsLeagueSeason entries from a source league-season (for Tier 1 auto-copy
+    /// when the current league-season has no field assignments).
+    /// </summary>
+    Task<List<SourceFieldLeagueSeasonEntry>> GetSourceFieldsLeagueSeasonAsync(
+        Guid sourceLeagueId, string sourceSeason, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk-insert FieldsLeagueSeason rows (for Tier 1 auto-copy from source).
+    /// Caller must provide fully constructed entities. Calls SaveChanges.
+    /// </summary>
+    Task AddFieldsLeagueSeasonRangeAsync(
+        List<FieldsLeagueSeason> rows, CancellationToken ct = default);
 
     /// <summary>
     /// Get normalized addresses for a set of field IDs.

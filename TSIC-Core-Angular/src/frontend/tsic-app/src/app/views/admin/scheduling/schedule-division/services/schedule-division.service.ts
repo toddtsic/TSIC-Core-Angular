@@ -17,6 +17,12 @@ import type {
     WhoPlaysWhoResponse
 } from '@core/api';
 
+// TODO: remove after API model regeneration — GameDateInfoDto will be auto-generated
+export interface GameDateInfoDto {
+    date: string;
+    gameCount: number;
+}
+
 // Re-export for consumers
 export type {
     AgegroupWithDivisionsDto,
@@ -105,6 +111,15 @@ export class ScheduleDivisionService {
         return this.http.get<WhoPlaysWhoResponse>(`${this.apiUrl}/who-plays-who`, {
             params: { teamCount: teamCount.toString() }
         });
+    }
+
+    // ── Game Dates ──
+
+    getGameDates(agegroupId?: string, divId?: string): Observable<GameDateInfoDto[]> {
+        const params: Record<string, string> = {};
+        if (agegroupId) params['agegroupId'] = agegroupId;
+        if (divId) params['divId'] = divId;
+        return this.http.get<GameDateInfoDto[]>(`${this.apiUrl}/game-dates`, { params });
     }
 
     // ── Auto-Schedule ──

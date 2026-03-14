@@ -1,37 +1,89 @@
 <tsic-dialog [open]="true" size="sm" (requestClose)="cancelled.emit()">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title">{{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span> Schedule</h5>
+            <h5 class="modal-title">Schedule: <span class="scope-name">{{ scopeLabel() }}</span></h5>
             <button type="button" class="btn-close" (click)="cancelled.emit()"></button>
         </div>
         <div class="modal-body">
+            <!-- ── Action toggle (always shown when games exist) ── -->
             @if (hasGamesInScope()) {
-                <div class="mode-toggle-section">
-                    <label class="form-label form-label-sm fw-semibold mb-1">Existing Games</label>
+                <div class="action-toggle-section">
+                    <label class="form-label form-label-sm fw-semibold mb-1">Action</label>
                     <div class="mode-toggle">
                         <button class="mode-btn"
-                                [class.mode-btn-active]="localConfig().existingGameMode === 'keep'"
-                                (click)="setExistingGameMode('keep')">
-                            <i class="bi bi-shield-check"></i>
-                            Keep Existing
+                                [class.mode-btn-active]="action() === 'build'"
+                                (click)="setAction('build')">
+                            <i class="bi bi-lightning-fill"></i>
+                            Delete + Rebuild
                         </button>
-                        <button class="mode-btn"
-                                [class.mode-btn-active]="localConfig().existingGameMode === 'rebuild'"
-                                (click)="setExistingGameMode('rebuild')">
-                            <i class="bi bi-arrow-repeat"></i>
-                            Rebuild All
+                        <button class="mode-btn mode-btn-danger"
+                                [class.mode-btn-active]="action() === 'delete-only'"
+                                (click)="setAction('delete-only')">
+                            <i class="bi bi-trash3"></i>
+                            Delete Games Only
                         </button>
                     </div>
-                    @if (localConfig().existingGameMode === 'keep') {
-                        <small class="d-block text-secondary mt-1">
-                            Divisions with games will be kept in place. Only unscheduled divisions will be built.
-                        </small>
-                    } @else {
-                        <small class="d-block text-secondary mt-1">
-                            All existing games in scope will be deleted and rebuilt from scratch.
-                        </small>
-                    }
                 </div>
+
+                <!-- ── Existing game mode (only for build action) ── -->
+                @if (action() === 'build') {
+                    <div class="mode-toggle-section">
+                        <label class="form-label form-label-sm fw-semibold mb-1">Existing Games</label>
+                        <div class="mode-toggle">
+                            <button class="mode-btn"
+                                    [class.mode-btn-active]="existingGameMode() === 'keep'"
+                                    (click)="setExistingGameMode('keep')">
+                                <i class="bi bi-shield-check"></i>
+                                Keep Existing
+                            </button>
+                            <button class="mode-btn"
+                                    [class.mode-btn-active]="existingGameMode() === 'rebuild'"
+                                    (click)="setExistingGameMode('rebuild')">
+                                <i class="bi bi-arrow-repeat"></i>
+                                Rebuild All
+                            </button>
+                        </div>
+                        @if (existingGameMode() === 'keep') {
+                            <small class="d-block text-secondary mt-1">
+                                Divisions with games will be kept in place. Only unscheduled divisions will be built.
+                            </small>
+                        } @else {
+                            <small class="d-block text-secondary mt-1">
+                                All existing games in scope will be deleted and rebuilt from scratch.
+                            </small>
+                        }
+                    </div>
+                }
+
+                <!-- ── Day picker (only for delete-only action) ── -->
+                @if (showDayPicker()) {
+                    <div class="day-picker-section">
+                        <label class="form-label form-label-sm fw-semibold mb-1">Filter by Day</label>
+                        <select class="form-select form-select-sm"
+                                [value]="filterDate()"
+                                (change)="setFilterDate($any($event.target).value)">
+                            <option value="">All Days</option>
+                            @for (gd of gameDates(); track gd.date) {
+                                <option [value]="gd.date">{{ gd.date | date:'EEEE MMM d' }} ({{ gd.gameCount }} games)</option>
+                            }
+                        </select>
+                        @if (!filterDate()) {
+                            <small class="d-block text-secondary mt-1">
+                                All games in <span class="scope-name">{{ scopeLabel() }}</span> will be deleted.
+                            </small>
+                        } @else {
+                            <small class="d-block text-secondary mt-1">
+                                Only games on the selected day will be deleted.
+                            </small>
+                        }
+                    </div>
+                }
+
+                @if (action() === 'delete-only' && !showDayPicker()) {
+                    <p class="text-secondary mb-0 mt-2">
+                        Delete all games for <span class="scope-name">{{ scopeLabel() }}</span>.
+                    </p>
+                }
             } @else {
                 <p class="text-secondary mb-0">
                     Build the schedule for <span class="scope-name">{{ scopeLabel() }}</span> using the current configuration.
@@ -40,9 +92,13 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-sm btn-outline-secondary" (click)="cancelled.emit()">Cancel</button>
-            <button class="btn btn-sm btn-primary" (click)="onBuild()">
-                <i class="bi bi-lightning-fill me-1"></i>
-                {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Schedule
+            <button class="btn btn-sm" [ngClass]="actionBtnClass()" (click)="onConfirm()">
+                @if (action() === 'delete-only') {
+                    <i class="bi bi-trash3 me-1"></i>
+                } @else {
+                    <i class="bi bi-lightning-fill me-1"></i>
+                }
+                {{ actionLabel() }}
             </button>
         </div>
     </div>

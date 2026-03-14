@@ -41,6 +41,11 @@ public interface IScheduleDivisionService
     Task DeleteAgegroupGamesAsync(Guid jobId, DeleteAgegroupGamesRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Get distinct game dates with counts for the day picker, scoped by agegroup or division.
+    /// </summary>
+    Task<List<GameDateInfoDto>> GetGameDatesAsync(Guid jobId, Guid? agegroupId, Guid? divId, CancellationToken ct = default);
+
+    /// <summary>
     /// Auto-schedule all round-robin pairings for a division.
     /// Deletes existing games first, then iterates pairings by round/game
     /// and places each into the next available timeslot.

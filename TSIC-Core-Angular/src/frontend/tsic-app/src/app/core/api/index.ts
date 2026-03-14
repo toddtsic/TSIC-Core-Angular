@@ -63,6 +63,8 @@ export type { AutoBuildQaResult } from './models/AutoBuildQaResult';
 export type { AutoBuildRequest } from './models/AutoBuildRequest';
 export type { AutoBuildResult } from './models/AutoBuildResult';
 export type { AutoScheduleResponse } from './models/AutoScheduleResponse';
+export type { AutoSeedFieldTimeslotsResult } from './models/AutoSeedFieldTimeslotsResult';
+export type { AutoSeedFromSourceRequest } from './models/AutoSeedFromSourceRequest';
 export type { AvailableTeamDto } from './models/AvailableTeamDto';
 export type { AvailableWidgetDto } from './models/AvailableWidgetDto';
 export type { BatchEmailRequest } from './models/BatchEmailRequest';

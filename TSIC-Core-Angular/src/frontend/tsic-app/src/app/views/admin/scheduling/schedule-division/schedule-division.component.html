@@ -479,40 +479,13 @@
 }
 
 <!-- ══════════ Event Scope Build Confirm ══════════ -->
-@if (showEventBuildConfirm()) {
-    <tsic-dialog [open]="true" size="sm" (requestClose)="showEventBuildConfirm.set(false)">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Build Schedule</h5>
-                <button type="button" class="btn-close" (click)="showEventBuildConfirm.set(false)"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-0">Build schedule for <strong>{{ gameSummary()?.jobName ?? 'this event' }}</strong>?</p>
-                @if (hasGamesInScope()) {
-                    <p class="text-danger mt-2 mb-0">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        All {{ scopeGameCount() }} existing games will be deleted and rebuilt.
-                    </p>
-                }
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary btn-sm" (click)="showEventBuildConfirm.set(false)">Cancel</button>
-                <button class="btn btn-sm" [class]="hasGamesInScope() ? 'btn-warning' : 'btn-primary'"
-                        (click)="onEventBuildConfirmed()">
-                    <i class="bi bi-lightning-charge-fill me-1"></i>
-                    {{ hasGamesInScope() ? 'Re-Build Schedule' : 'Build Schedule' }}
-                </button>
-            </div>
-        </div>
-    </tsic-dialog>
-}
-
-<!-- ══════════ Auto-Schedule Config Modal (agegroup/division scope) ══════════ -->
+<!-- ══════════ Auto-Schedule Config Modal (all scopes) ══════════ -->
 @if (showAutoScheduleModal()) {
     <app-auto-schedule-config-modal
         [scope]="scope()"
         [scopeLabel]="scopeLabel()"
         [hasGamesInScope]="hasGamesInScope()"
+        [gameDates]="modalGameDates()"
         (buildRequested)="onAutoScheduleBuild($event)"
         (cancelled)="closeAutoScheduleModal()" />
 }

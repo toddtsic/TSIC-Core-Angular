@@ -358,6 +358,64 @@ public sealed class ScheduleRepository : IScheduleRepository
         return gids.Count;
     }
 
+    public async Task<int> DeleteDivisionGamesByDateAsync(
+        Guid divId, Guid leagueId, string season, string year, DateTime date, CancellationToken ct = default)
+    {
+        var gids = await _context.Schedule
+            .Where(s => (s.DivId == divId || s.Div2Id == divId)
+                && s.LeagueId == leagueId
+                && s.Season == season
+                && s.Year == year
+                && s.GDate.HasValue && s.GDate.Value.Date == date.Date)
+            .Select(s => s.Gid)
+            .ToListAsync(ct);
+
+        if (gids.Count == 0) return 0;
+
+        // Cascade order: DeviceGids → BracketSeeds → Schedule
+        var deviceGids = await _context.DeviceGids
+            .Where(dg => gids.Contains(dg.Gid))
+            .ToListAsync(ct);
+        if (deviceGids.Count > 0)
+            _context.DeviceGids.RemoveRange(deviceGids);
+
+        var bracketSeeds = await _context.BracketSeeds
+            .Where(bs => gids.Contains(bs.Gid))
+            .ToListAsync(ct);
+        if (bracketSeeds.Count > 0)
+            _context.BracketSeeds.RemoveRange(bracketSeeds);
+
+        var games = await _context.Schedule
+            .Where(s => gids.Contains(s.Gid))
+            .ToListAsync(ct);
+        _context.Schedule.RemoveRange(games);
+
+        return gids.Count;
+    }
+
+    public async Task<List<GameDateInfoDto>> GetDistinctGameDatesAsync(
+        Guid jobId, Guid? agegroupId = null, Guid? divId = null, CancellationToken ct = default)
+    {
+        var query = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue);
+
+        if (divId.HasValue)
+            query = query.Where(s => s.DivId == divId.Value || s.Div2Id == divId.Value);
+        else if (agegroupId.HasValue)
+            query = query.Where(s => s.AgegroupId == agegroupId.Value);
+
+        return await query
+            .GroupBy(s => s.GDate!.Value.Date)
+            .Select(g => new GameDateInfoDto
+            {
+                Date = g.Key,
+                GameCount = g.Count()
+            })
+            .OrderBy(d => d.Date)
+            .ToListAsync(ct);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         return await _context.SaveChangesAsync(ct);

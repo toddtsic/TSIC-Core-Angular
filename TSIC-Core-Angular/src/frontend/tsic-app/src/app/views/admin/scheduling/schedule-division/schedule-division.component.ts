@@ -9,6 +9,7 @@ import {
     type AutoScheduleResponse,
     type AgegroupWithDivisionsDto,
     type DivisionSummaryDto,
+    type GameDateInfoDto,
     type PairingDto,
     type DivisionPairingsResponse,
     type DivisionTeamDto,
@@ -273,6 +274,7 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Auto-schedule config modal ──
     readonly showAutoScheduleModal = signal(false);
     readonly showEventBuildConfirm = signal(false);
+    readonly modalGameDates = signal<GameDateInfoDto[]>([]);
     readonly isExecuting = signal(false);
 
     // ── Build results ──
@@ -428,12 +430,57 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.priorYearRounds.set(res.priorYearRounds ?? null);
                 this.fullReadinessResponse = res;
                 this.tryInitConfig();
+
+                // Proactive auto-seed: if prior job exists and fields are unconfigured,
+                // copy FLS rows + apply timing pattern from source
+                this.tryAutoSeedFromSource(res);
             },
             error: () => {
                 this.canvasReadiness.set({});
                 this.assignedFieldCount.set(0);
                 this.priorYearDefaults.set(null);
                 this.priorYearRounds.set(null);
+            }
+        });
+    }
+
+    private autoSeedAttempted = false;
+
+    private tryAutoSeedFromSource(res: import('@core/api').CanvasReadinessResponse): void {
+        if (this.autoSeedAttempted) return;
+
+        const priorJobId = res.priorYearDefaults?.priorJobId;
+        if (!priorJobId) return;
+
+        const noFls = res.assignedFieldCount === 0;
+        const unconfiguredFields = res.agegroups.filter(ag => ag.fieldCount === 0);
+        const unconfiguredDates = res.agegroups.filter(ag => ag.dateCount === 0);
+        if (!noFls && unconfiguredFields.length === 0 && unconfiguredDates.length === 0) return;
+
+        this.autoSeedAttempted = true;
+
+        this.timeslotSvc.autoSeedFromSource(priorJobId).subscribe({
+            next: (result) => {
+                const didAnything = result.agegroupsSeeded > 0
+                    || result.fieldsLeagueSeasonCopied
+                    || (result.datesSeeded ?? 0) > 0;
+                if (!didAnything) return;
+
+                const parts: string[] = [];
+                if (result.fieldsLeagueSeasonCopied) parts.push('field assignments copied');
+                if (result.agegroupsSeeded > 0)
+                    parts.push(`${result.agegroupsSeeded} agegroup(s) field config seeded`);
+                if ((result.datesSeeded ?? 0) > 0)
+                    parts.push(`${result.datesSeeded} agegroup(s) dates seeded`);
+
+                this.toast.show(
+                    `Auto-configured from prior year: ${parts.join(', ')}`,
+                    'success', 6000
+                );
+                this.loadCanvasReadiness();
+            },
+            error: () => {
+                // Silent failure — director can configure manually
             }
         });
     }
@@ -988,6 +1035,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     if (p.colorsApplied) seeded.push(`${p.colorsApplied} colors`);
                     if (p.datesSeeded) seeded.push(`${p.datesSeeded} ag dates`);
                     if (p.fieldAssignmentsSeeded) seeded.push(`${p.fieldAssignmentsSeeded} ag fields`);
+                    if (p.fieldsLeagueSeasonCopied) seeded.push('field assignments copied from source');
                     if (p.pairingsGenerated?.length) seeded.push(`pairings for ${p.pairingsGenerated.join(', ')}-team`);
                     if (p.cascadeSeeded) seeded.push('build rules');
                 }
@@ -999,6 +1047,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     parts.length > 0 ? `Reset complete — ${parts.join('; ')}` : 'Reset complete — nothing to clear',
                     'success', 8000
                 );
+
                 this.configSvc.clearLocalStorage();
                 this.configSvc.reset();
                 this.configInitDone = false;
@@ -1083,16 +1132,24 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     private openAutoScheduleModal(): void {
-        if (this.scope().level === 'event') {
-            this.showEventBuildConfirm.set(true);
-        } else {
-            this.showAutoScheduleModal.set(true);
-        }
+        this.showAutoScheduleModal.set(true);
+        // Fetch game dates for the day picker (non-blocking — modal shows immediately)
+        this.loadModalGameDates();
+    }
+
+    private loadModalGameDates(): void {
+        const s = this.scope();
+        const agId = s.level === 'agegroup' ? s.agegroupId : s.level === 'division' ? s.agegroupId : undefined;
+        const divId = s.level === 'division' ? s.divId : undefined;
+        this.svc.getGameDates(agId, divId).subscribe({
+            next: (dates) => this.modalGameDates.set(dates),
+            error: () => this.modalGameDates.set([])
+        });
     }
 
     onEventBuildConfirmed(): void {
         this.showEventBuildConfirm.set(false);
-        this.onAutoScheduleBuild({ config: { existingGameMode: 'rebuild' } });
+        this.onAutoScheduleBuild({ config: { action: 'build', existingGameMode: 'rebuild' } });
     }
 
     /** Lightweight pairing status check — populates missingPairingTCnts for stepper step ④. */
@@ -1198,10 +1255,18 @@ export class ScheduleDivisionComponent implements OnInit {
         this.showAutoScheduleModal.set(false);
     }
 
-    /** Handle build event from the auto-schedule config modal child. */
+    /** Handle build/delete event from the auto-schedule config modal child. */
     onAutoScheduleBuild(event: AutoScheduleBuildEvent): void {
-        this.isExecuting.set(true);
         this.showAutoScheduleModal.set(false);
+        this.showEventBuildConfirm.set(false);
+
+        if (event.config.action === 'delete-only') {
+            this.executeDeleteFromModal(event.config.filterDate);
+            return;
+        }
+
+        // Build flow (existing behavior)
+        this.isExecuting.set(true);
         this.openOperationModal('Building Your Schedule', 'Placing games and checking constraints...', 'bi-lightning-charge-fill');
         const buildStart = Date.now();
         const request = this.buildAutoScheduleRequest(event);
@@ -1231,6 +1296,39 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.isExecuting.set(false);
                 this.showOperationModal.set(false);
                 this.toast.show('Auto-schedule failed', 'danger', 5000);
+            }
+        });
+    }
+
+    /** Delete games from the config modal (supports optional day filter). */
+    private executeDeleteFromModal(filterDate?: string): void {
+        const s = this.scope();
+        this.isDeletingGames.set(true);
+
+        let delete$: Observable<unknown>;
+        // gameDate field exists on backend DTOs — regenerate API models after backend restart
+        switch (s.level) {
+            case 'division':
+                delete$ = this.svc.deleteDivisionGames({ divId: s.divId, gameDate: filterDate } as any);
+                break;
+            case 'agegroup':
+                delete$ = this.svc.deleteAgegroupGames({ agegroupId: s.agegroupId, gameDate: filterDate } as any);
+                break;
+            case 'event':
+                delete$ = this.autoBuildSvc.undo(filterDate);
+                break;
+        }
+
+        const dayLabel = filterDate ? ' for selected day' : '';
+        delete$.subscribe({
+            next: () => {
+                this.isDeletingGames.set(false);
+                this.refreshAfterBulkOperation();
+                this.toast.show(`Deleted ${this.scopeLabel()} games${dayLabel}`, 'success', 3000);
+            },
+            error: () => {
+                this.isDeletingGames.set(false);
+                this.toast.show('Delete failed', 'danger', 3000);
             }
         });
     }

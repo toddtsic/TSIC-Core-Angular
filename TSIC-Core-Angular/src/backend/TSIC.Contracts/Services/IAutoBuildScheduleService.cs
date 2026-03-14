@@ -22,6 +22,11 @@ public interface IAutoBuildScheduleService
     Task<int> UndoAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Undo by date: Delete only games on a specific date for the current job.
+    /// </summary>
+    Task<int> UndoByDateAsync(Guid jobId, DateTime date, CancellationToken ct = default);
+
+    /// <summary>
     /// Check the three mandatory prerequisites before auto-build:
     /// Pools assigned, Pairings created, Timeslots configured.
     /// </summary>
@@ -105,5 +110,16 @@ public interface IAutoBuildScheduleService
     /// Auto-detects team counts from current divisions for pairing generation.
     /// </summary>
     Task<PreconfigureResult> PreconfigureFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Auto-seed field timeslots from a prior-year job's timing patterns.
+    /// Called proactively on hub init — not as part of reset.
+    /// 1. If no FieldsLeagueSeason rows exist, auto-copies from source (Tier 1).
+    /// 2. For each agegroup with zero field timeslots, applies source timing pattern
+    ///    (DOW, earliest start time, GSI) to ALL currently assigned fields.
+    /// Guard: only seeds agegroups with zero existing field timeslots.
+    /// </summary>
+    Task<AutoSeedFieldTimeslotsResult> AutoSeedFieldTimeslotsFromSourceAsync(
         Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default);
 }

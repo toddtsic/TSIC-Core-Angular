@@ -345,14 +345,40 @@ public sealed class ViewScheduleService : IViewScheduleService
         if (poolPlayOnly)
             games = games.Where(g => g.T1Type == "T" && g.T2Type == "T").ToList();
 
-        // Only include scored games
+        // Seed every team that appears in the schedule so unscored teams show as 0-0-0
+        var teamStats = new Dictionary<Guid, TeamStatsAccumulator>();
+
+        foreach (var g in games)
+        {
+            if (g.T1Id.HasValue && !teamStats.ContainsKey(g.T1Id.Value))
+            {
+                teamStats[g.T1Id.Value] = new TeamStatsAccumulator
+                {
+                    TeamId = g.T1Id.Value,
+                    TeamName = g.T1Name ?? "",
+                    AgegroupName = g.AgegroupName ?? "",
+                    DivName = g.DivName ?? "",
+                    DivId = g.DivId ?? Guid.Empty
+                };
+            }
+            if (g.T2Id.HasValue && !teamStats.ContainsKey(g.T2Id.Value))
+            {
+                teamStats[g.T2Id.Value] = new TeamStatsAccumulator
+                {
+                    TeamId = g.T2Id.Value,
+                    TeamName = g.T2Name ?? "",
+                    AgegroupName = g.AgegroupName ?? "",
+                    DivName = g.DivName ?? "",
+                    DivId = g.DivId ?? Guid.Empty
+                };
+            }
+        }
+
+        // Accumulate stats from scored games only
         var scoredGames = games
             .Where(g => g.T1Score.HasValue && g.T2Score.HasValue
                 && g.T1Id.HasValue && g.T2Id.HasValue)
             .ToList();
-
-        // Build team standings by aggregating from both T1 and T2 perspectives
-        var teamStats = new Dictionary<Guid, TeamStatsAccumulator>();
 
         foreach (var g in scoredGames)
         {

@@ -174,6 +174,18 @@ public class ScheduleDivisionController : ControllerBase
         return Ok();
     }
 
+    /// <summary>GET /api/schedule-division/game-dates — Distinct game dates with counts for the day picker.</summary>
+    [HttpGet("game-dates")]
+    public async Task<ActionResult<List<GameDateInfoDto>>> GetGameDates(
+        [FromQuery] Guid? agegroupId, [FromQuery] Guid? divId, CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var dates = await _service.GetGameDatesAsync(jobId!.Value, agegroupId, divId, ct);
+        return Ok(dates);
+    }
+
     /// <summary>GET /api/schedule-division/field-directions/{fieldId} — Public field address/directions.</summary>
     [HttpGet("field-directions/{fieldId:guid}")]
     [AllowAnonymous]

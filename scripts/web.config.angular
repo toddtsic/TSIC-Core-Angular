@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+  <!-- index.html: NEVER cache — this is the SPA entry point that references hashed chunks.
+       Browsers must revalidate every time, but get a fast 304 when the file hasn't changed. -->
+  <location path="index.html">
+    <system.webServer>
+      <staticContent>
+        <clientCache cacheControlMode="DisableCache" />
+      </staticContent>
+      <httpProtocol>
+        <customHeaders>
+          <add name="Cache-Control" value="no-cache, no-store, must-revalidate" />
+          <add name="Pragma" value="no-cache" />
+        </customHeaders>
+      </httpProtocol>
+    </system.webServer>
+  </location>
+
   <location path="." inheritInChildApplications="false">
     <system.webServer>
       <!-- Enable directory browsing (optional) -->
@@ -13,7 +29,7 @@
         </files>
       </defaultDocument>
 
-      <!-- Static content: aggressive caching (Angular uses content-hashed filenames) -->
+      <!-- Hashed assets (JS/CSS chunks): cache 1 year — filenames change on every build -->
       <staticContent>
         <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" />
       </staticContent>
@@ -58,4 +74,4 @@
       <customErrors mode="Off" />
     </system.web>
   </location>
-</configuration></content>
+</configuration>

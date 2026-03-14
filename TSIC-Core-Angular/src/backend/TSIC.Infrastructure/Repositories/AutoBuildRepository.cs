@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -165,6 +166,28 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
             .Distinct()
             .OrderBy(f => f.FName)
             .ToListAsync(ct);
+    }
+
+    public async Task<List<SourceFieldLeagueSeasonEntry>> GetSourceFieldsLeagueSeasonAsync(
+        Guid sourceLeagueId, string sourceSeason, CancellationToken ct = default)
+    {
+        return await _context.FieldsLeagueSeason
+            .AsNoTracking()
+            .Where(fls => fls.LeagueId == sourceLeagueId && fls.Season == sourceSeason)
+            .Select(fls => new SourceFieldLeagueSeasonEntry
+            {
+                FieldId = fls.FieldId,
+                FieldPreference = fls.FieldPreference
+            })
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
+    public async Task AddFieldsLeagueSeasonRangeAsync(
+        List<FieldsLeagueSeason> rows, CancellationToken ct = default)
+    {
+        _context.FieldsLeagueSeason.AddRange(rows);
+        await _context.SaveChangesAsync(ct);
     }
 
     public async Task<Dictionary<Guid, string>> GetFieldAddressesAsync(

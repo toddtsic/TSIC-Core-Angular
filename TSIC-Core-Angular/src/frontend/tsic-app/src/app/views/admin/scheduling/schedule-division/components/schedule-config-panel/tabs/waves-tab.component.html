@@ -60,7 +60,9 @@
                     } @else {
                       <span class="div-name">
                         <span>{{ row.name }}</span>
-                        <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-auto">{{ row.teamCount }}</span>
+                        <span class="badge rounded-pill ms-auto"
+                              [style.background]="row.color ?? 'var(--bs-secondary-bg)'"
+                              [style.color]="contrastText(row.color)">{{ row.teamCount }}</span>
                       </span>
                     }
                   </td>

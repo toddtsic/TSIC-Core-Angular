@@ -14,13 +14,16 @@ namespace TSIC.API.Controllers;
 public class TimeslotController : ControllerBase
 {
     private readonly ITimeslotService _timeslotService;
+    private readonly IAutoBuildScheduleService _autoBuildService;
     private readonly IJobLookupService _jobLookupService;
 
     public TimeslotController(
         ITimeslotService timeslotService,
+        IAutoBuildScheduleService autoBuildService,
         IJobLookupService jobLookupService)
     {
         _timeslotService = timeslotService;
+        _autoBuildService = autoBuildService;
         _jobLookupService = jobLookupService;
     }
 
@@ -46,6 +49,20 @@ public class TimeslotController : ControllerBase
         if (error != null) return error;
 
         var result = await _timeslotService.GetReadinessAsync(jobId!.Value, ct);
+        return Ok(result);
+    }
+
+    // ── Auto-Seed from Source ──
+
+    [HttpPost("auto-seed-from-source")]
+    public async Task<ActionResult<AutoSeedFieldTimeslotsResult>> AutoSeedFromSource(
+        [FromBody] AutoSeedFromSourceRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _autoBuildService.AutoSeedFieldTimeslotsFromSourceAsync(
+            jobId!.Value, userId!, request.SourceJobId, ct);
         return Ok(result);
     }
 

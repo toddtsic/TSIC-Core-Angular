@@ -500,7 +500,13 @@ builder.Services.AddCors(options =>
                   "http://cp-ng.teamsportsinfo.com",
                   "https://cp-ng.teamsportsinfo.com",
                   "http://dev.teamsportsinfo.com",
-                  "https://dev.teamsportsinfo.com")
+                  "https://dev.teamsportsinfo.com",
+                  "http://bear.teamsportsinfo.com",
+                  "https://bear.teamsportsinfo.com",
+                  "http://www.teamsportsinfo.com",
+                  "https://www.teamsportsinfo.com",
+                  "http://teamsportsinfo.com",
+                  "https://teamsportsinfo.com")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials()

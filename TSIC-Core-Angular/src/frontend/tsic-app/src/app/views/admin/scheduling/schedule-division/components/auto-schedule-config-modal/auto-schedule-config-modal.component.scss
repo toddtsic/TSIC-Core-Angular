@@ -5,9 +5,11 @@
     font-style: italic;
 }
 
-// ── Existing Game Mode Toggle ──
+// ── Toggle Sections ──
 
-.mode-toggle-section {
+.action-toggle-section,
+.mode-toggle-section,
+.day-picker-section {
     padding-bottom: var(--space-3);
 }
 
@@ -38,6 +40,20 @@
         border-color: var(--bs-primary);
         color: var(--bs-primary);
         font-weight: var(--font-weight-semibold);
+    }
+
+    // Danger variant for delete-only
+    &.mode-btn-danger {
+        &:hover:not(.mode-btn-active) {
+            border-color: var(--bs-danger);
+            color: var(--bs-danger);
+        }
+
+        &.mode-btn-active {
+            background: rgba(var(--bs-danger-rgb), 0.1);
+            border-color: var(--bs-danger);
+            color: var(--bs-danger);
+        }
     }
 
     i {

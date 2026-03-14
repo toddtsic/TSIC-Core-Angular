@@ -1,5 +1,16 @@
 namespace TSIC.Contracts.Dtos.Scheduling;
 
+// ── Auto-Seed Request ──
+
+/// <summary>
+/// Request to auto-seed field timeslots from a prior-year source job.
+/// Called on hub init when fields are missing or unconfigured.
+/// </summary>
+public record AutoSeedFromSourceRequest
+{
+    public required Guid SourceJobId { get; init; }
+}
+
 // ── Response DTOs ──
 
 public record TimeslotDateDto

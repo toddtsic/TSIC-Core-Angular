@@ -60,7 +60,9 @@
                 }
                 <span class="ag-name">{{ item.agegroupName }}</span>
                 <span class="order-div-name">{{ item.divName }}</span>
-                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-auto">{{ item.teamCount }}</span>
+                <span class="badge rounded-pill ms-auto"
+                      [style.background]="item.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(item.agegroupColor)">{{ item.teamCount }}</span>
 
                 <ng-template cdkDragPreview>
                   <div class="order-item-preview">

@@ -17,7 +17,6 @@ import type {
     SaveGameGuaranteeResponse,
 } from '@core/api';
 
-/** Inline type — DevSchedulingController returns this as part of an anonymous object, so Swagger doesn't generate it. */
 export interface DevResetPreconfigResult {
     colorsApplied: number;
     datesSeeded: number;
@@ -26,6 +25,7 @@ export interface DevResetPreconfigResult {
     pairingsGenerated: number[];
     pairingsAlreadyExisted: number[];
     cascadeSeeded: boolean;
+    fieldsLeagueSeasonCopied: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -37,10 +37,10 @@ export class AutoBuildService {
         return this.http.get<GameSummaryResponse>(`${this.apiUrl}/game-summary`);
     }
 
-    undo(): Observable<{ gamesDeleted: number }> {
+    undo(gameDate?: string): Observable<{ gamesDeleted: number }> {
         return this.http.post<{ gamesDeleted: number }>(
             `${this.apiUrl}/undo`,
-            {}
+            gameDate ? { gameDate } : {}
         );
     }
 

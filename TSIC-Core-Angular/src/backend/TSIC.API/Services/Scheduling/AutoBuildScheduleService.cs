@@ -148,6 +148,15 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         return count;
     }
 
+    public async Task<int> UndoByDateAsync(Guid jobId, DateTime date, CancellationToken ct = default)
+    {
+        var count = await _scheduleRepo.DeleteGamesByDateAsync(jobId, date, ct);
+        await _scheduleRepo.SaveChangesAsync(ct);
+        _logger.LogInformation("AutoBuild UndoByDate: Job={JobId}, Date={Date}, GamesDeleted={Count}",
+            jobId, date.ToString("yyyy-MM-dd"), count);
+        return count;
+    }
+
     // ══════════════════════════════════════════════════════════
     // Prerequisite Checks
     // ══════════════════════════════════════════════════════════
@@ -773,6 +782,19 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         {
             for (int i = 0; i < persistedOrder.Count; i++)
                 divOrderIndex[persistedOrder[i].DivisionId] = i;
+
+            // Backfill any divisions NOT in the persisted order (new divisions
+            // added this year that weren't in the source). Without this, they
+            // all get int.MaxValue and GameIndex becomes the tiebreaker —
+            // scattering same-division games across the grid.
+            var nextOrder = persistedOrder.Count;
+            foreach (var ctx in divContexts
+                .Where(c => !divOrderIndex.ContainsKey(c.Div.DivId))
+                .OrderBy(c => c.Div.AgegroupName)
+                .ThenBy(c => c.Div.DivName))
+            {
+                divOrderIndex[ctx.Div.DivId] = nextOrder++;
+            }
         }
         else
         {
@@ -2592,36 +2614,87 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     public async Task<FieldSeedResult> SeedFieldAssignmentsFromSourceAsync(
         Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default)
     {
+        // Delegate to the pattern-based auto-seed method (same logic, called during reset)
+        var result = await AutoSeedFieldTimeslotsFromSourceAsync(jobId, userId, sourceJobId, ct);
+        return new FieldSeedResult
+        {
+            AgegroupsSeeded = result.AgegroupsSeeded,
+            TimeslotRowsCreated = result.TimeslotRowsCreated,
+            FieldsLeagueSeasonCopied = result.FieldsLeagueSeasonCopied
+        };
+    }
+
+    /// <summary>
+    /// Auto-seed field timeslots from a prior-year job's timing patterns.
+    /// Called proactively on hub init (not as part of reset).
+    /// 1. If no FLS rows exist → Tier 1 auto-copy from source.
+    /// 2. For each agegroup with zero field timeslots → apply source timing
+    ///    (DOW, earliest start, GSI) to ALL currently assigned fields.
+    /// Guard: only seeds agegroups with zero existing field timeslots.
+    /// </summary>
+    public async Task<AutoSeedFieldTimeslotsResult> AutoSeedFieldTimeslotsFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default)
+    {
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
         var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
         var yearDelta = ComputeYearDelta(sourceYear, year);
 
-        // 1. Get source field usage patterns (agegroupName → fields used)
-        var sourceUsage = await _autoBuildRepo.GetSourceFieldUsageAsync(sourceJobId, ct);
+        // ── Tier 1: Auto-copy FLS rows if none exist ──
+        var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
+        var fieldsLeagueSeasonCopied = false;
 
-        // 2. Build name maps (agegroup year offset + field name mapping)
+        if (currentFields.Count == 0)
+        {
+            var (sourceLeagueId, sourceSeason, _) = await _contextResolver.ResolveAsync(sourceJobId, ct);
+            var sourceFlsEntries = await _autoBuildRepo.GetSourceFieldsLeagueSeasonAsync(
+                sourceLeagueId, sourceSeason, ct);
+
+            if (sourceFlsEntries.Count > 0)
+            {
+                var now = DateTime.UtcNow;
+                var newFlsRows = sourceFlsEntries.Select(src => new FieldsLeagueSeason
+                {
+                    FlsId = Guid.NewGuid(),
+                    FieldId = src.FieldId,
+                    LeagueId = leagueId,
+                    Season = season,
+                    BActive = true,
+                    FieldPreference = src.FieldPreference,
+                    LebUserId = userId,
+                    Modified = now
+                }).ToList();
+
+                await _autoBuildRepo.AddFieldsLeagueSeasonRangeAsync(newFlsRows, ct);
+                fieldsLeagueSeasonCopied = true;
+                currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
+            }
+        }
+
+        if (currentFields.Count == 0)
+        {
+            // No source fields to copy either — nothing we can do
+            return new AutoSeedFieldTimeslotsResult
+            {
+                AgegroupsSeeded = 0,
+                TimeslotRowsCreated = 0,
+                FieldsLeagueSeasonCopied = false,
+                AssignedFieldCount = 0
+            };
+        }
+
+        var allFieldIds = currentFields.Select(f => f.FieldId).ToList();
+
+        // ── Source timing patterns ──
+        var sourceUsage = await _autoBuildRepo.GetSourceFieldUsageAsync(sourceJobId, ct);
+        var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
+
+        // Agegroup name mapping (graduation year offset)
         var nameMap = yearDelta != 0
             ? AgegroupNameMapper.BuildNameMap(sourceUsage.Keys, yearDelta)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        // GSI defaults from source profiles
         var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
-        var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);
-
-        // 3. Get current state
-        var currentAgegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, ct);
-        var existingFields = await _timeslotRepo.GetAgegroupIdsWithFieldTimeslotsAsync(
-            leagueId, season, year, ct);
-        var currentFields = await _autoBuildRepo.GetCurrentFieldsAsync(leagueId, season, ct);
-        var currentFieldByName = currentFields.ToDictionary(
-            f => f.FName, f => f.FieldId, StringComparer.OrdinalIgnoreCase);
-        var currentFieldIds = currentFields.Select(f => f.FieldId).ToHashSet();
-
-        // 4. Extract per-agegroup actual game times from source Schedule
-        var sourceAgTiming = await _autoBuildRepo.GetSourceAgegroupTimingAsync(sourceJobId, ct);
-
-        // 5. Extract source profiles for GSI defaults (GSI IS correctly per-team-count)
-        // NOTE: ExtractProfiles joins patterns→summaries by (AgegroupName, DivName),
-        // so pass original names. Remap separately for target name lookups below.
         var sourceDivisionsRaw = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
         var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
         var profiles = AttributeExtractor.ExtractProfiles(
@@ -2629,6 +2702,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var sourceDivisions = yearDelta != 0
             ? RemapSourceDivisionNames(sourceDivisionsRaw, yearDelta)
             : sourceDivisionsRaw;
+
+        // Current agegroups + which already have field timeslots
+        var currentAgegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, ct);
+        var existingFields = await _timeslotRepo.GetAgegroupIdsWithFieldTimeslotsAsync(
+            leagueId, season, year, ct);
 
         var seeded = 0;
         var newTimeslots = new List<TimeslotsLeagueSeasonFields>();
@@ -2640,48 +2718,42 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 a => string.Equals(a.AgegroupName, mappedName, StringComparison.OrdinalIgnoreCase));
 
             if (currentAg == null) continue;
-            if (existingFields.Contains(currentAg.AgegroupId)) continue;
+            if (existingFields.Contains(currentAg.AgegroupId)) continue; // already configured
 
-            // Look up profile defaults from the source division with same agegroup name
+            // Collapse source timing: collect all DOWs used by this agegroup
+            var dowsUsed = fieldUsages
+                .SelectMany(u => u.DaysUsed)
+                .Distinct()
+                .ToList();
+
+            // GSI from source profile (per team count)
             var srcDiv = sourceDivisions.FirstOrDefault(
                 d => string.Equals(d.AgegroupName, mappedName, StringComparison.OrdinalIgnoreCase));
             var profile = srcDiv != null ? profiles.GetValueOrDefault(srcDiv.TeamCount) : null;
             var defaultGsi = profile?.GsiMinutes ?? 45;
 
+            // Per-DOW earliest start time from source timing
+            var agTimings = sourceAgTiming.GetValueOrDefault(srcAgName);
+
             var rowsBefore = newTimeslots.Count;
 
-            foreach (var usage in fieldUsages)
+            foreach (var dow in dowsUsed)
             {
-                // Map source field name → current field ID (name-based, with address fallback)
-                var resolvedName = fieldMap.GetValueOrDefault(usage.FieldName, usage.FieldName);
-                Guid fieldId;
-                if (!currentFieldByName.TryGetValue(resolvedName, out fieldId))
-                {
-                    // Fallback: same physical field (same FieldId) may have been renamed
-                    if (!currentFieldIds.Contains(usage.FieldId))
-                        continue;
-                    fieldId = usage.FieldId;
-                }
+                var dowStr = dow.ToString();
+                var dayTiming = agTimings?.FirstOrDefault(t => t.DayOfWeek == dow);
+                var startTimeStr = dayTiming != null
+                    ? DateTime.Today.Add(dayTiming.EarliestTime).ToString("hh:mm tt")
+                    : "08:00 AM";
 
-                foreach (var dow in usage.DaysUsed)
-                {
-                    var dowStr = dow.ToString(); // Full name: "Saturday", "Sunday", etc.
-                    // Per-agegroup start time from actual source Schedule games
-                    var agTimings = sourceAgTiming.GetValueOrDefault(srcAgName);
-                    var dayTiming = agTimings?.FirstOrDefault(t => t.DayOfWeek == dow);
-                    var startTimeStr = dayTiming != null
-                        ? DateTime.Today.Add(dayTiming.EarliestTime).ToString("hh:mm tt")
-                        : "08:00 AM";
-                    // MaxGamesPerField = capacity ceiling (# rows the scheduler can use).
-                    // Always generous: startTime → 10 PM hard cap, regardless of how
-                    // many games the source agegroup actually used (small divisions had
-                    // short windows but the ceiling should be wide for flexibility).
-                    var startMinutes = dayTiming?.EarliestTime.TotalMinutes ?? 480; // 8 AM default
-                    var availableMinutes = 1320 - startMinutes; // 10 PM = 22:00 = 1320 min
-                    var maxGames = defaultGsi > 0
-                        ? Math.Max(2, (int)Math.Floor(availableMinutes / defaultGsi))
-                        : 14;
+                var startMinutes = dayTiming?.EarliestTime.TotalMinutes ?? 480;
+                var availableMinutes = 1320 - startMinutes; // 10 PM cap
+                var maxGames = defaultGsi > 0
+                    ? Math.Max(2, (int)Math.Floor(availableMinutes / defaultGsi))
+                    : 14;
 
+                // Apply to ALL assigned fields (no 1:1 mapping)
+                foreach (var fieldId in allFieldIds)
+                {
                     newTimeslots.Add(new TimeslotsLeagueSeasonFields
                     {
                         AgegroupId = currentAg.AgegroupId,
@@ -2698,15 +2770,73 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
             }
 
-            // Only count as seeded if at least one timeslot row was created
             if (newTimeslots.Count > rowsBefore)
                 seeded++;
         }
 
         if (newTimeslots.Count > 0)
+        {
             await _timeslotRepo.AddFieldTimeslotsRangeAsync(newTimeslots, ct);
+            await _timeslotRepo.SaveChangesAsync(ct);
+        }
 
-        return new FieldSeedResult { AgegroupsSeeded = seeded, TimeslotRowsCreated = newTimeslots.Count };
+        // ── Tier 3: Auto-seed dates from source (same logic as SeedDatesFromSourceAsync) ──
+        var datesSeeded = 0;
+        var dateRowsCreated = 0;
+        var existingDates = await _timeslotRepo.GetAgegroupIdsWithDatesAsync(
+            leagueId, season, year, ct);
+
+        var sourceDates = await _autoBuildRepo.GetSourceDatesAsync(sourceJobId, ct);
+        if (yearDelta != 0 && sourceDates.Count > 0)
+        {
+            var dateNameMap = AgegroupNameMapper.BuildNameMap(sourceDates.Keys, yearDelta);
+
+            foreach (var (srcAgName, dateEntries) in sourceDates)
+            {
+                var mappedName = dateNameMap.GetValueOrDefault(srcAgName, srcAgName);
+                var currentAg = currentAgegroups.FirstOrDefault(
+                    a => string.Equals(a.AgegroupName, mappedName, StringComparison.OrdinalIgnoreCase));
+
+                if (currentAg == null) continue;
+                if (existingDates.Contains(currentAg.AgegroupId)) continue;
+
+                var agDatesAdded = 0;
+                foreach (var entry in dateEntries)
+                {
+                    var newDate = AdvanceDateToMatchDow(entry.GDate, yearDelta);
+                    _timeslotRepo.AddDate(new TimeslotsLeagueSeasonDates
+                    {
+                        AgegroupId = currentAg.AgegroupId,
+                        GDate = newDate,
+                        Rnd = entry.Rnd,
+                        Season = season,
+                        Year = year,
+                        LebUserId = userId,
+                        Modified = DateTime.UtcNow
+                    });
+                    agDatesAdded++;
+                }
+
+                if (agDatesAdded > 0)
+                {
+                    datesSeeded++;
+                    dateRowsCreated += agDatesAdded;
+                }
+            }
+
+            if (dateRowsCreated > 0)
+                await _timeslotRepo.SaveChangesAsync(ct);
+        }
+
+        return new AutoSeedFieldTimeslotsResult
+        {
+            AgegroupsSeeded = seeded,
+            TimeslotRowsCreated = newTimeslots.Count,
+            FieldsLeagueSeasonCopied = fieldsLeagueSeasonCopied,
+            AssignedFieldCount = currentFields.Count,
+            DatesSeeded = datesSeeded,
+            DateRowsCreated = dateRowsCreated
+        };
     }
 
     /// <summary>
@@ -3094,6 +3224,66 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var cascadeSeeded = await SeedCascadeFromSourceAsync(
             jobId, userId, sourceJobId, currentDivisions, ct);
 
+        // 6. Processing order — copy from source, mapped by division name.
+        // Without this, divisions not in the persisted order table get
+        // int.MaxValue during chip-stack sort, scattering their games.
+        var sourceOrder = await _cascadeRepo.GetProcessingOrderAsync(sourceJobId, ct);
+        if (sourceOrder.Count > 0)
+        {
+            var sourceDivisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(sourceJobId, ct);
+            var sourceDivNameById = sourceDivisions
+                .ToDictionary(d => d.DivId, d => $"{d.AgegroupName}|{d.DivName}");
+            var targetDivByKey = currentDivisions
+                .ToDictionary(
+                    d => $"{d.AgegroupName.ToLowerInvariant()}|{d.DivName.ToLowerInvariant()}",
+                    d => d.DivId);
+
+            var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
+            var targetYear = await _autoBuildRepo.GetJobYearAsync(jobId, ct);
+            var yearDelta = ComputeYearDelta(sourceYear, targetYear);
+
+            var mappedOrder = new List<DivisionProcessingOrder>();
+            foreach (var entry in sourceOrder)
+            {
+                if (!sourceDivNameById.TryGetValue(entry.DivisionId, out var srcKey))
+                    continue;
+                var parts = srcKey.Split('|');
+                var mappedAg = AgegroupNameMapper.OffsetName(parts[0], yearDelta);
+                var key = $"{mappedAg.ToLowerInvariant()}|{parts[1].ToLowerInvariant()}";
+                if (targetDivByKey.TryGetValue(key, out var targetDivId))
+                {
+                    mappedOrder.Add(new DivisionProcessingOrder
+                    {
+                        DivisionId = targetDivId,
+                        SortOrder = entry.SortOrder,
+                        LebUserId = userId
+                    });
+                }
+            }
+
+            // Append any target divisions not covered by source mapping
+            if (mappedOrder.Count > 0)
+            {
+                var coveredIds = mappedOrder.Select(e => e.DivisionId).ToHashSet();
+                var nextSort = mappedOrder.Max(e => e.SortOrder) + 1;
+                foreach (var div in currentDivisions
+                    .Where(d => !coveredIds.Contains(d.DivId))
+                    .OrderBy(d => d.AgegroupName)
+                    .ThenBy(d => d.DivName))
+                {
+                    mappedOrder.Add(new DivisionProcessingOrder
+                    {
+                        DivisionId = div.DivId,
+                        SortOrder = nextSort++,
+                        LebUserId = userId
+                    });
+                }
+
+                await _cascadeRepo.UpsertProcessingOrderAsync(jobId, mappedOrder, ct);
+                await _cascadeRepo.SaveChangesAsync(ct);
+            }
+        }
+
         return new PreconfigureResult
         {
             ColorsApplied = colorsApplied,
@@ -3102,7 +3292,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             FieldTimeslotRowsCreated = fieldResult.TimeslotRowsCreated,
             PairingsGenerated = pairingsResult.Generated,
             PairingsAlreadyExisted = pairingsResult.AlreadyExisted,
-            CascadeSeeded = cascadeSeeded
+            CascadeSeeded = cascadeSeeded,
+            FieldsLeagueSeasonCopied = fieldResult.FieldsLeagueSeasonCopied
         };
     }
 

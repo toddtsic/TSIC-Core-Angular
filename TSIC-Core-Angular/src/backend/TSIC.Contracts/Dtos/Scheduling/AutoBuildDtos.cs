@@ -480,12 +480,23 @@ public record DateSeedResult
 }
 
 /// <summary>
+/// A field entry from the source job's FieldsLeagueSeason, used for Tier 1 auto-copy.
+/// </summary>
+public record SourceFieldLeagueSeasonEntry
+{
+    public required Guid FieldId { get; init; }
+    public required byte FieldPreference { get; init; }
+}
+
+/// <summary>
 /// Result of seeding field-timeslot assignments from source usage patterns.
 /// </summary>
 public record FieldSeedResult
 {
     public required int AgegroupsSeeded { get; init; }
     public required int TimeslotRowsCreated { get; init; }
+    /// <summary>True if Tier 1 auto-copied FieldsLeagueSeason rows from source (no current fields existed).</summary>
+    public bool FieldsLeagueSeasonCopied { get; init; }
 }
 
 /// <summary>
@@ -512,6 +523,33 @@ public record PreconfigureResult
     public required List<int> PairingsAlreadyExisted { get; init; }
     /// <summary>Whether cascade config (GameGuarantee, placement, rest) was seeded from source.</summary>
     public bool CascadeSeeded { get; init; }
+    /// <summary>True if Tier 1 auto-copied FieldsLeagueSeason rows from source.</summary>
+    public bool FieldsLeagueSeasonCopied { get; init; }
+}
+
+// ══════════════════════════════════════════════════════════
+// Auto-Seed Field Timeslots (hub init — pattern-based)
+// ══════════════════════════════════════════════════════════
+
+/// <summary>
+/// Result of auto-seeding field timeslots from a prior-year job's timing patterns.
+/// Applies source agegroup timing (DOW, start time, GSI) to ALL currently assigned fields.
+/// No 1:1 field mapping — every agegroup gets every assigned field.
+/// </summary>
+public record AutoSeedFieldTimeslotsResult
+{
+    /// <summary>Number of agegroups that had field timeslots created.</summary>
+    public required int AgegroupsSeeded { get; init; }
+    /// <summary>Total TimeslotsLeagueSeasonFields rows created.</summary>
+    public required int TimeslotRowsCreated { get; init; }
+    /// <summary>True if Tier 1 auto-copied FieldsLeagueSeason rows from source (no current fields existed).</summary>
+    public bool FieldsLeagueSeasonCopied { get; init; }
+    /// <summary>Number of fields assigned to the league-season after seeding.</summary>
+    public int AssignedFieldCount { get; init; }
+    /// <summary>Number of agegroups that had dates created (Tier 3).</summary>
+    public int DatesSeeded { get; init; }
+    /// <summary>Total TimeslotsLeagueSeasonDates rows created.</summary>
+    public int DateRowsCreated { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

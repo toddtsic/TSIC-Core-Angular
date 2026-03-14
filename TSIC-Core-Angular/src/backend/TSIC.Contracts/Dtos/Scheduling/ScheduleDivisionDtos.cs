@@ -95,6 +95,8 @@ public record MoveGameRequest
 public record DeleteDivGamesRequest
 {
     public required Guid DivId { get; init; }
+    /// <summary>When set, only delete games on this specific date.</summary>
+    public DateTime? GameDate { get; init; }
 }
 
 /// <summary>
@@ -103,6 +105,24 @@ public record DeleteDivGamesRequest
 public record DeleteAgegroupGamesRequest
 {
     public required Guid AgegroupId { get; init; }
+    /// <summary>When set, only delete games on this specific date.</summary>
+    public DateTime? GameDate { get; init; }
+}
+
+/// <summary>
+/// Optional body for event-level undo (delete all games).
+/// When GameDate is set, only games on that date are deleted.
+/// </summary>
+public record UndoGamesRequest
+{
+    public DateTime? GameDate { get; init; }
+}
+
+/// <summary>Distinct game date with count for the day picker UI.</summary>
+public record GameDateInfoDto
+{
+    public required DateTime Date { get; init; }
+    public required int GameCount { get; init; }
 }
 
 /// <summary>

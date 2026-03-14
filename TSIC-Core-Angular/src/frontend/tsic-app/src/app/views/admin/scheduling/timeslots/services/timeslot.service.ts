@@ -28,7 +28,8 @@ import type {
     CascadeDateChangeRequest,
     CascadeDateChangeResponse,
     CascadeDateDeleteRequest,
-    CascadeDateDeleteResponse
+    CascadeDateDeleteResponse,
+    AutoSeedFieldTimeslotsResult
 } from '@core/api';
 
 // Re-export for consumers
@@ -58,7 +59,8 @@ export type {
     CascadeDateChangeRequest,
     CascadeDateChangeResponse,
     CascadeDateDeleteRequest,
-    CascadeDateDeleteResponse
+    CascadeDateDeleteResponse,
+    AutoSeedFieldTimeslotsResult
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -70,6 +72,11 @@ export class TimeslotService {
 
     getReadiness(): Observable<CanvasReadinessResponse> {
         return this.http.get<CanvasReadinessResponse>(`${this.apiUrl}/readiness`);
+    }
+
+    autoSeedFromSource(sourceJobId: string): Observable<AutoSeedFieldTimeslotsResult> {
+        return this.http.post<AutoSeedFieldTimeslotsResult>(
+            `${this.apiUrl}/auto-seed-from-source`, { sourceJobId });
     }
 
     // ── Configuration ──

@@ -61,20 +61,31 @@ public class AutoBuildController : ControllerBase
 
     /// <summary>
     /// POST /api/auto-build/undo — Delete all games for the current job.
+    /// When request body contains a GameDate, only games on that date are deleted.
     /// Protected by AdminOnly policy (Director, SuperDirector, SuperUser).
     /// </summary>
     [HttpPost("undo")]
-    public async Task<ActionResult> Undo(CancellationToken ct)
+    public async Task<ActionResult> Undo([FromBody] UndoGamesRequest? request, CancellationToken ct)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         _logger.LogWarning(
-            "Delete-all-games executing. Hostname={Hostname}, Env={Env}, " +
-            "JobId={JobId}, UserId={UserId}",
-            Environment.MachineName, _env.EnvironmentName, jobId, userId);
+            "Delete-games executing. Hostname={Hostname}, Env={Env}, " +
+            "JobId={JobId}, UserId={UserId}, GameDate={GameDate}",
+            Environment.MachineName, _env.EnvironmentName, jobId, userId,
+            request?.GameDate?.ToString("yyyy-MM-dd") ?? "all");
 
-        var count = await _service.UndoAsync(jobId!.Value, ct);
+        int count;
+        if (request?.GameDate.HasValue == true)
+        {
+            count = await _service.UndoByDateAsync(jobId!.Value, request.GameDate.Value, ct);
+        }
+        else
+        {
+            count = await _service.UndoAsync(jobId!.Value, ct);
+        }
+
         return Ok(new { gamesDeleted = count });
     }
 

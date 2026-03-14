@@ -48,6 +48,8 @@ export class ReschedulerComponent implements OnInit {
     readonly ladtTree = signal<LadtTreeNodeDto[]>([]);
     readonly ladtCheckedIds = signal<Set<string>>(new Set());
     private ladtLevelMap = new Map<string, number>(); // nodeId → level (0=League,1=AG,2=Div,3=Team)
+    private ladtLabelMap = new Map<string, string>(); // nodeId → display name
+    private ladtParentMap = new Map<string, string>(); // nodeId → parentId
 
     // LADT-derived filter values
     readonly ladtAgegroupIds = signal<string[]>([]);
@@ -116,6 +118,83 @@ export class ReschedulerComponent implements OnInit {
 
     readonly isSingleDaySelected = computed(() => this.selectedGameDays().length === 1);
 
+    // ── CADT label + parent maps (rebuilt when clubs data changes) ──
+    private readonly cadtMaps = computed(() => {
+        const labels = new Map<string, string>();
+        const parents = new Map<string, string>();
+        for (const club of this.clubs()) {
+            const clubId = `club:${club.clubName}`;
+            labels.set(clubId, club.clubName);
+            for (const ag of club.agegroups) {
+                const agId = `ag:${club.clubName}|${ag.agegroupId}`;
+                labels.set(agId, ag.agegroupName);
+                parents.set(agId, clubId);
+                for (const div of ag.divisions) {
+                    const divId = `div:${club.clubName}|${div.divId}`;
+                    labels.set(divId, div.divName);
+                    parents.set(divId, agId);
+                    for (const team of div.teams) {
+                        const teamId = `team:${team.teamId}`;
+                        labels.set(teamId, team.teamName);
+                        parents.set(teamId, divId);
+                    }
+                }
+            }
+        }
+        return { labels, parents };
+    });
+
+    // ── Filter chips: only top-level selections (skip if parent is also checked) ──
+    readonly filterChips = computed(() => {
+        const chips: { label: string; source: 'ladt' | 'cadt' | 'day' | 'field'; id: string }[] = [];
+
+        // LADT chips
+        const ladtChecked = this.ladtCheckedIds();
+        for (const id of ladtChecked) {
+            const parentId = this.ladtParentMap.get(id);
+            if (parentId && ladtChecked.has(parentId)) continue; // parent covers this
+            const label = this.ladtLabelMap.get(id) ?? id;
+            chips.push({ label, source: 'ladt', id });
+        }
+
+        // CADT chips
+        const cadtChecked = this.cadtCheckedIds();
+        const { labels: cadtLabels, parents: cadtParents } = this.cadtMaps();
+        for (const id of cadtChecked) {
+            const parentId = cadtParents.get(id);
+            if (parentId && cadtChecked.has(parentId)) continue;
+            const label = cadtLabels.get(id) ?? id;
+            chips.push({ label, source: 'cadt', id });
+        }
+
+        // Day chips
+        for (const day of this.selectedGameDays()) {
+            chips.push({ label: formatGameDay(day), source: 'day', id: day });
+        }
+
+        // Field chips
+        const allFields = this.fields();
+        for (const fid of this.selectedFieldIds()) {
+            const field = allFields.find(f => f.fieldId === fid);
+            chips.push({ label: field?.fName ?? fid, source: 'field', id: fid });
+        }
+
+        return chips;
+    });
+
+    // ── Game / slot counts from grid response ──
+    readonly gameCount = computed(() => {
+        const rows = this.gridResponse()?.rows;
+        if (!rows) return 0;
+        let count = 0;
+        for (const row of rows) {
+            for (const cell of row.cells) {
+                if (cell) count++;
+            }
+        }
+        return count;
+    });
+
     // ── RTE toolbar config ──
     readonly rteTools = {
         items: ['Bold', 'Italic', 'Underline', '|',
@@ -178,10 +257,14 @@ export class ReschedulerComponent implements OnInit {
 
     private buildLadtLevelMap(nodes: LadtTreeNodeDto[]): void {
         this.ladtLevelMap.clear();
-        const recurse = (items: LadtTreeNodeDto[]) => {
+        this.ladtLabelMap.clear();
+        this.ladtParentMap.clear();
+        const recurse = (items: LadtTreeNodeDto[], parentId?: string) => {
             for (const node of items) {
                 this.ladtLevelMap.set(node.id, node.level);
-                if (node.children?.length) recurse(node.children as LadtTreeNodeDto[]);
+                this.ladtLabelMap.set(node.id, node.name);
+                if (parentId) this.ladtParentMap.set(node.id, parentId);
+                if (node.children?.length) recurse(node.children as LadtTreeNodeDto[], node.id);
             }
         };
         recurse(nodes);
@@ -235,6 +318,64 @@ export class ReschedulerComponent implements OnInit {
 
     isGameDaySelected(day: string): boolean { return this.selectedGameDays().includes(day); }
     isFieldSelected(id: string): boolean { return this.selectedFieldIds().includes(id); }
+
+    removeFilterChip(chip: { source: string; id: string }): void {
+        if (chip.source === 'ladt') {
+            const checked = new Set(this.ladtCheckedIds());
+            this.removeNodeAndDescendants(checked, chip.id, this.ladtTree());
+            this.onLadtSelectionChange(checked);
+        } else if (chip.source === 'cadt') {
+            const checked = new Set(this.cadtCheckedIds());
+            this.removeNodeAndDescendants(checked, chip.id, null);
+            this.onCadtSelectionChange(checked);
+        } else if (chip.source === 'day') {
+            this.selectedGameDays.set(this.selectedGameDays().filter(d => d !== chip.id));
+            this.scheduleGridLoad();
+        } else if (chip.source === 'field') {
+            this.selectedFieldIds.set(this.selectedFieldIds().filter(f => f !== chip.id));
+            this.scheduleGridLoad();
+        }
+    }
+
+    /** Remove a node and all its descendants from a checked set. */
+    private removeNodeAndDescendants(checked: Set<string>, nodeId: string, ladtNodes: LadtTreeNodeDto[] | null): void {
+        checked.delete(nodeId);
+        if (ladtNodes) {
+            // LADT: walk tree to find descendants
+            const findAndRemove = (nodes: LadtTreeNodeDto[]): boolean => {
+                for (const n of nodes) {
+                    if (n.id === nodeId) {
+                        this.removeAllChildren(checked, n);
+                        return true;
+                    }
+                    if (n.children?.length && findAndRemove(n.children as LadtTreeNodeDto[])) return true;
+                }
+                return false;
+            };
+            findAndRemove(ladtNodes);
+        } else {
+            // CADT: use parent map to find descendants
+            const { parents } = this.cadtMaps();
+            const toRemove: string[] = [];
+            for (const id of checked) {
+                // Walk ancestors to see if nodeId is an ancestor
+                let cur = id;
+                while (cur) {
+                    if (cur === nodeId) { toRemove.push(id); break; }
+                    cur = parents.get(cur) ?? '';
+                }
+            }
+            for (const id of toRemove) checked.delete(id);
+        }
+    }
+
+    private removeAllChildren(checked: Set<string>, node: LadtTreeNodeDto): void {
+        if (!node.children?.length) return;
+        for (const child of node.children as LadtTreeNodeDto[]) {
+            checked.delete(child.id);
+            this.removeAllChildren(checked, child);
+        }
+    }
 
     clearFilters(): void {
         this.ladtCheckedIds.set(new Set());

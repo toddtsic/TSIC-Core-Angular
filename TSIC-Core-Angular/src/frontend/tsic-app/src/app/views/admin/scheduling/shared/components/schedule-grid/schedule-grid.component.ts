@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal, ElementRef, ViewChild, ChangeDetectionStrategy, NgZone, inject, OnDestroy } from '@angular/core';
+import { Component, computed, input, output, signal, ElementRef, ViewChild, ChangeDetectionStrategy, NgZone, inject, OnDestroy, OnInit } from '@angular/core';
 import type { ScheduleGridResponse, ScheduleGridRow, ScheduleGameDto } from '@core/api';
 import { GameCardComponent } from '../game-card/game-card.component';
 import { formatDate, formatTimeOnly } from '../../utils/scheduling-helpers';
@@ -15,11 +15,17 @@ import {
     styleUrl: './schedule-grid.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ScheduleGridComponent implements OnDestroy {
+export class ScheduleGridComponent implements OnInit, OnDestroy {
     private readonly zone = inject(NgZone);
 
     @ViewChild('gridScroll') gridScrollEl?: ElementRef<HTMLElement>;
     @ViewChild('minimapCanvas') minimapCanvasRef?: ElementRef<HTMLCanvasElement>;
+
+    ngOnInit(): void {
+        this.zone.runOutsideAngular(() => {
+            document.addEventListener('keydown', this.onKeyDown);
+        });
+    }
 
     // ── Inputs ──
     readonly gridResponse = input<ScheduleGridResponse | null>(null);
@@ -31,6 +37,7 @@ export class ScheduleGridComponent implements OnDestroy {
     readonly showGameId = input(false);
     readonly showTeamDesignators = input(false);
     readonly showActionButtons = input(false);
+    readonly showQaBadges = input(true);
 
     // Division highlighting (null = no dimming)
     readonly highlightDivId = input<string | null>(null);
@@ -203,6 +210,13 @@ export class ScheduleGridComponent implements OnDestroy {
         if (e.key === 'Escape' && this.minimapOpen()) {
             this.zone.run(() => this.closeMinimap());
         }
+        if (e.key === 'm' || e.key === 'M') {
+            const el = e.target as HTMLElement;
+            const tag = el?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (el?.isContentEditable) return;
+            this.zone.run(() => this.toggleMinimap());
+        }
     };
 
     toggleMinimap(): void {
@@ -221,9 +235,6 @@ export class ScheduleGridComponent implements OnDestroy {
             this.scrollHandler = () => this.renderMinimap();
             el.addEventListener('scroll', this.scrollHandler, { passive: true });
         }
-        this.zone.runOutsideAngular(() => {
-            document.addEventListener('keydown', this.onKeyDown);
-        });
     }
 
     private closeMinimap(): void {
@@ -232,7 +243,6 @@ export class ScheduleGridComponent implements OnDestroy {
             this.gridScrollEl.nativeElement.removeEventListener('scroll', this.scrollHandler);
             this.scrollHandler = undefined;
         }
-        document.removeEventListener('keydown', this.onKeyDown);
     }
 
     renderMinimap(): void {
@@ -336,5 +346,6 @@ export class ScheduleGridComponent implements OnDestroy {
 
     ngOnDestroy(): void {
         this.closeMinimap();
+        document.removeEventListener('keydown', this.onKeyDown);
     }
 }

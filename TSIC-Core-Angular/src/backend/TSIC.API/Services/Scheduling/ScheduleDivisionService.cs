@@ -229,9 +229,21 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     public async Task DeleteDivisionGamesAsync(Guid jobId, DeleteDivGamesRequest request, CancellationToken ct = default)
     {
         var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
-        await _scheduleRepo.DeleteDivisionGamesAsync(request.DivId, leagueId, season, year, ct);
+
+        if (request.GameDate.HasValue)
+        {
+            await _scheduleRepo.DeleteDivisionGamesByDateAsync(
+                request.DivId, leagueId, season, year, request.GameDate.Value, ct);
+        }
+        else
+        {
+            await _scheduleRepo.DeleteDivisionGamesAsync(request.DivId, leagueId, season, year, ct);
+        }
+
         await _scheduleRepo.SaveChangesAsync(ct);
-        _logger.LogInformation("DeleteDivGames: DivId={DivId} with cascade cleanup", request.DivId);
+        _logger.LogInformation(
+            "DeleteDivGames: DivId={DivId}, GameDate={GameDate} with cascade cleanup",
+            request.DivId, request.GameDate?.ToString("yyyy-MM-dd") ?? "all");
     }
 
     public async Task DeleteAgegroupGamesAsync(Guid jobId, DeleteAgegroupGamesRequest request, CancellationToken ct = default)
@@ -241,13 +253,27 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
         foreach (var div in divisions)
         {
-            await _scheduleRepo.DeleteDivisionGamesAsync(div.DivId, leagueId, season, year, ct);
+            if (request.GameDate.HasValue)
+            {
+                await _scheduleRepo.DeleteDivisionGamesByDateAsync(
+                    div.DivId, leagueId, season, year, request.GameDate.Value, ct);
+            }
+            else
+            {
+                await _scheduleRepo.DeleteDivisionGamesAsync(div.DivId, leagueId, season, year, ct);
+            }
             await _scheduleRepo.SaveChangesAsync(ct);
         }
 
         _logger.LogInformation(
-            "DeleteAgegroupGames: AgegroupId={AgegroupId}, deleted games across {DivCount} divisions",
-            request.AgegroupId, divisions.Count);
+            "DeleteAgegroupGames: AgegroupId={AgegroupId}, GameDate={GameDate}, deleted games across {DivCount} divisions",
+            request.AgegroupId, request.GameDate?.ToString("yyyy-MM-dd") ?? "all", divisions.Count);
+    }
+
+    public async Task<List<GameDateInfoDto>> GetGameDatesAsync(
+        Guid jobId, Guid? agegroupId, Guid? divId, CancellationToken ct = default)
+    {
+        return await _scheduleRepo.GetDistinctGameDatesAsync(jobId, agegroupId, divId, ct);
     }
 
     public async Task<AutoScheduleResponse> AutoScheduleDivAsync(

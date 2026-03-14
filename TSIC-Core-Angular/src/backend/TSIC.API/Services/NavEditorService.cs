@@ -254,19 +254,15 @@ public class NavEditorService : INavEditorService
         if (item == null)
             throw new InvalidOperationException($"Nav item {navItemId} not found");
 
-        var siblingCount = await _navEditorRepo.GetSiblingCountAsync(item.NavId, item.ParentNavItemId, ct);
-
-        if (siblingCount > 1)
+        // If this is a parent item, remove its children first
+        if (item.ParentNavItemId == null)
         {
-            _navEditorRepo.RemoveNavItem(item);
-        }
-        else
-        {
-            // Soft delete — last sibling, prevent orphaning parent
-            item.Active = false;
-            item.Modified = DateTime.UtcNow;
+            var children = await _navEditorRepo.GetSiblingItemsAsync(item.NavId, item.NavItemId, ct);
+            if (children.Count > 0)
+                _navEditorRepo.RemoveNavItems(children);
         }
 
+        _navEditorRepo.RemoveNavItem(item);
         await _navEditorRepo.SaveChangesAsync(ct);
     }
 

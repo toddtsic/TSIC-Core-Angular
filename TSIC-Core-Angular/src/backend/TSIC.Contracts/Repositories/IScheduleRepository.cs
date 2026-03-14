@@ -105,6 +105,20 @@ public interface IScheduleRepository
     Task<int> DeleteGamesByDateAsync(
         Guid jobId, DateTime date, CancellationToken ct = default);
 
+    /// <summary>
+    /// Delete games for a division on a specific date with cascade cleanup.
+    /// </summary>
+    Task<int> DeleteDivisionGamesByDateAsync(
+        Guid divId, Guid leagueId, string season, string year, DateTime date, CancellationToken ct = default);
+
+    // ── Game date queries ──
+
+    /// <summary>
+    /// Get distinct game dates with counts, optionally scoped to an agegroup or division.
+    /// </summary>
+    Task<List<Dtos.Scheduling.GameDateInfoDto>> GetDistinctGameDatesAsync(
+        Guid jobId, Guid? agegroupId = null, Guid? divId = null, CancellationToken ct = default);
+
     /// <summary>Persist pending changes.</summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 
