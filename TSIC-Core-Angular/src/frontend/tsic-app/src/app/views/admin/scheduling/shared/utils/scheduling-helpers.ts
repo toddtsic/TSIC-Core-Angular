@@ -57,10 +57,10 @@ export function formatTime(gDate: string | Date): string {
     });
 }
 
-/** Format team designator: pool play → "2", bracket → "Y1", "S4", "F1", etc. */
+/** Format team designator: "T2", "Y1", "S4", "F1", etc. */
 export function teamDes(type: string, num: number | undefined | null): string {
     if (num == null) return type;
-    return type === 'T' ? `${num}` : `${type}${num}`;
+    return `${type}${num}`;
 }
 
 /** Sum team counts across all divisions in an agegroup. */
