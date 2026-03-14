@@ -208,10 +208,10 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 		// Viewport rectangle — horizontal from grid scroll, vertical from <main> scroll
 		const main = this.getScrollContainer();
 		const vpX = el.scrollLeft * scale;
-		// Grid's top relative to <main>'s scroll viewport
-		const gridOffsetInMain = el.offsetTop - (main?.offsetTop ?? 0);
-		const mainScrollTop = main?.scrollTop ?? 0;
-		const vpY = Math.max(0, mainScrollTop - gridOffsetInMain) * scale;
+		// How far the grid top has scrolled above <main>'s visible top edge
+		const mainTop = main?.getBoundingClientRect().top ?? 0;
+		const gridTop = el.getBoundingClientRect().top;
+		const vpY = Math.max(0, mainTop - gridTop) * scale;
 		const vpW = el.clientWidth * scale;
 		const vpH = (main?.clientHeight ?? window.innerHeight) * scale;
 
@@ -253,9 +253,10 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 
 		// Vertical: <main> is the scroll container
 		if (main) {
-			const gridOffsetInMain = el.offsetTop - main.offsetTop;
-			const targetY = (y / scale) - (main.clientHeight / 2);
-			main.scrollTop = gridOffsetInMain + targetY;
+			// Grid's absolute position within main's scrollable content
+			const gridAbsTop = el.getBoundingClientRect().top
+				- main.getBoundingClientRect().top + main.scrollTop;
+			main.scrollTop = gridAbsTop + (y / scale) - (main.clientHeight / 2);
 		}
 	}
 
