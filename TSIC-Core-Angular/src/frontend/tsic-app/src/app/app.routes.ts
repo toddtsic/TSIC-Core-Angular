@@ -67,30 +67,31 @@ export const routes: Routes = [
 				path: 'role-selection',
 				loadComponent: () => import('./views/auth/role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
 			},
-			// Family Account wizard (v2)
-			{
-				path: 'family-account',
-				loadComponent: () => import('./views/registration/wizards-v2/family/family-wizard.component').then(m => m.FamilyWizardV2Component)
-			},
-			// Registration entry screen: sign in then choose next action
+			// Registration routes (Controller/Action: registration/{action})
 			{
 				path: 'registration',
-				loadComponent: () => import('./views/registration/registration-entry/registration-entry.component').then(m => m.RegistrationEntryComponent)
-			},
-			// Player registration wizard (v2)
-			{
-				path: 'register-player',
-				loadComponent: () => import('./views/registration/wizards-v2/player/player-wizard.component').then(m => m.PlayerWizardV2Component)
-			},
-			// Team registration wizard (v2)
-			{
-				path: 'register-team',
-				loadComponent: () => import('./views/registration/wizards-v2/team/team-wizard.component').then(m => m.TeamWizardV2Component)
-			},
-			// Adult registration wizard (v2)
-			{
-				path: 'register-adult',
-				loadComponent: () => import('./views/registration/wizards-v2/adult/adult-wizard.component').then(m => m.AdultWizardV2Component)
+				children: [
+					{
+						path: 'entry',
+						loadComponent: () => import('./views/registration/entry/entry.component').then(m => m.RegistrationEntryComponent)
+					},
+					{
+						path: 'player',
+						loadComponent: () => import('./views/registration/player/player.component').then(m => m.PlayerWizardV2Component)
+					},
+					{
+						path: 'team',
+						loadComponent: () => import('./views/registration/team/team.component').then(m => m.TeamWizardV2Component)
+					},
+					{
+						path: 'adult',
+						loadComponent: () => import('./views/registration/adult/adult.component').then(m => m.AdultWizardV2Component)
+					},
+					{
+						path: 'family',
+						loadComponent: () => import('./views/registration/family/family.component').then(m => m.FamilyWizardV2Component)
+					}
+				]
 			},
 			{
 				path: 'home',
@@ -99,7 +100,7 @@ export const routes: Routes = [
 			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',
-				loadComponent: () => import('./views/home/job-home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
+				loadComponent: () => import('./views/home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
 			},
 			// Admin routes — parent requires Admin (Director, SuperDirector, SuperUser)
 			// Children that are SuperUser-only get explicit requireSuperUser data
@@ -275,35 +276,35 @@ export const routes: Routes = [
 				path: 'store/walk-up',
 				canActivate: [storeGuard],
 				data: { storeMode: 'walk-up' },
-				loadComponent: () => import('./views/store/store-walk-up/store-walk-up.component').then(m => m.StoreWalkUpComponent)
+				loadComponent: () => import('./views/store/walk-up/walk-up.component').then(m => m.StoreWalkUpComponent)
 			},
 			// Store — focused login page (family sign-in + guest option)
 			{
 				path: 'store/login',
 				canActivate: [storeGuard],
 				data: { storeMode: 'login' },
-				loadComponent: () => import('./views/store/store-login/store-login.component').then(m => m.StoreLoginComponent)
+				loadComponent: () => import('./views/store/login/login.component').then(m => m.StoreLoginComponent)
 			},
 			// Store — authenticated storefront (requires Player/Family role)
 			{
 				path: 'store',
 				canActivate: [storeGuard],
-				loadComponent: () => import('./views/store/store-catalog/store-catalog.component').then(m => m.StoreCatalogComponent)
+				loadComponent: () => import('./views/store/catalog/catalog.component').then(m => m.StoreCatalogComponent)
 			},
 			{
 				path: 'store/item/:storeItemId',
 				canActivate: [storeGuard],
-				loadComponent: () => import('./views/store/store-item-detail/store-item-detail.component').then(m => m.StoreItemDetailComponent)
+				loadComponent: () => import('./views/store/item-detail/item-detail.component').then(m => m.StoreItemDetailComponent)
 			},
 			{
 				path: 'store/cart',
 				canActivate: [storeGuard],
-				loadComponent: () => import('./views/store/store-cart/store-cart.component').then(m => m.StoreCartComponent)
+				loadComponent: () => import('./views/store/cart/cart.component').then(m => m.StoreCartComponent)
 			},
 			{
 				path: 'store/checkout',
 				canActivate: [storeGuard],
-				loadComponent: () => import('./views/store/store-checkout/store-checkout.component').then(m => m.StoreCheckoutComponent)
+				loadComponent: () => import('./views/store/checkout/checkout.component').then(m => m.StoreCheckoutComponent)
 			},
 			// Report launcher — handles all menu items with Controller=Reporting
 			{
@@ -385,34 +386,7 @@ export const routes: Routes = [
 				path: 'schedule',
 				data: { publicMode: true },
 				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
-			},
-			// Legacy route redirects (preserve bookmarks and external links)
-			{ path: 'dashboard', redirectTo: '', pathMatch: 'full' },
-			{ path: 'workspace/:workspaceKey', redirectTo: '', pathMatch: 'prefix' },
-			{ path: 'menu/admin', redirectTo: 'admin/nav-editor', pathMatch: 'full' },
-			{ path: 'bulletin/admin', redirectTo: 'admin/bulletin-editor', pathMatch: 'full' },
-			{ path: 'jobagerange/admin', redirectTo: 'admin/configure-age-ranges', pathMatch: 'full' },
-			{ path: 'validationremotetest/index', redirectTo: 'admin/uslax-test', pathMatch: 'full' },
-			{ path: 'uslaxrankings/index', redirectTo: 'admin/uslax-rankings', pathMatch: 'full' },
-			{ path: 'ladt/admin', redirectTo: 'admin/ladt', pathMatch: 'full' },
-			{ path: 'configure/administrators', redirectTo: 'admin/administrators', pathMatch: 'full' },
-			{ path: 'configure/discount-codes', redirectTo: 'admin/discount-codes', pathMatch: 'full' },
-			{ path: 'configure/customer-groups', redirectTo: 'admin/customer-groups', pathMatch: 'full' },
-			{ path: 'search/players', redirectTo: 'admin/search-players', pathMatch: 'full' },
-			{ path: 'search/teams', redirectTo: 'admin/search-teams', pathMatch: 'full' },
-			{ path: 'jobadministrator/admin', redirectTo: 'admin/administrators', pathMatch: 'full' },
-			{ path: 'jobdiscountcodes/admin', redirectTo: 'admin/discount-codes', pathMatch: 'full' },
-			{ path: 'jobemails/index', redirectTo: 'admin/email-log', pathMatch: 'full' },
-			{ path: 'admin/search', redirectTo: 'admin/search-players', pathMatch: 'full' },
-			{ path: 'search/index', redirectTo: 'admin/search-players', pathMatch: 'full' },
-			{ path: 'admin/team-search', redirectTo: 'admin/search-teams', pathMatch: 'full' },
-			{ path: 'searchteams/index', redirectTo: 'admin/search-teams', pathMatch: 'full' },
-			{ path: 'rosters/swapper', redirectTo: 'admin/roster-swapper', pathMatch: 'full' },
-			{ path: 'teampoolassignment/index', redirectTo: 'admin/pool-assignment', pathMatch: 'full' },
-			{ path: 'fields/index', redirectTo: 'scheduling/fields', pathMatch: 'full' },
-			{ path: 'pairings/index', redirectTo: 'scheduling/pairings', pathMatch: 'full' },
-			{ path: 'timeslots/index', redirectTo: 'scheduling/timeslots', pathMatch: 'full' },
-			{ path: 'scheduling/schedules', redirectTo: 'scheduling/view-schedule', pathMatch: 'full' }
+			}
 		]
 	},
 
