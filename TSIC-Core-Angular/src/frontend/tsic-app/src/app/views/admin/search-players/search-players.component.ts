@@ -32,7 +32,7 @@ interface FilterChip {
 }
 
 @Component({
-  selector: 'app-registration-search',
+  selector: 'app-search-players',
   standalone: true,
   imports: [
     CommonModule,
@@ -47,8 +47,8 @@ interface FilterChip {
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
-  templateUrl: './registration-search.component.html',
-  styleUrl: './registration-search.component.scss',
+  templateUrl: './search-players.component.html',
+  styleUrl: './search-players.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegistrationSearchComponent implements OnInit, OnDestroy {

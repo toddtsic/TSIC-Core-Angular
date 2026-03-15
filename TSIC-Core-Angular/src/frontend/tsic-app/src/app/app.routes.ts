@@ -96,10 +96,6 @@ export const routes: Routes = [
 				path: 'home',
 				loadComponent: () => import('./views/home/job-home/job-home.component').then(m => m.JobHomeComponent)
 			},
-			// Legacy /dashboard → redirect to index (hub dashboard renders at /:jobPath)
-			{ path: 'dashboard', redirectTo: '', pathMatch: 'full' },
-			// Legacy /workspace/:key → redirect to hub (spokes removed — nav menu handles navigation)
-			{ path: 'workspace/:workspaceKey', redirectTo: '', pathMatch: 'prefix' },
 			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',
@@ -140,7 +136,7 @@ export const routes: Routes = [
 						path: 'nav-editor',
 						canActivate: [authGuard],
 						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/menu-admin/menu-admin.component').then(m => m.MenuAdminComponent)
+						loadComponent: () => import('./views/admin/nav-editor/nav-editor.component').then(m => m.NavEditorComponent)
 					},
 					{
 						path: 'job-clone',
@@ -217,6 +213,54 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/admin/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
+					},
+					{
+						path: 'ladt',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/admin/ladt/ladt.component').then(m => m.LadtEditorComponent)
+					},
+					{
+						path: 'administrators',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/admin/administrators/administrators.component').then(m => m.AdministratorManagementComponent)
+					},
+					{
+						path: 'discount-codes',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
+					},
+					{
+						path: 'customer-groups',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/admin/customer-groups/customer-groups.component').then(m => m.CustomerGroupsComponent)
+					},
+					{
+						path: 'search-players',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/admin/search-players/search-players.component').then(m => m.RegistrationSearchComponent)
+					},
+					{
+						path: 'search-teams',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/admin/search-teams/search-teams.component').then(m => m.TeamSearchComponent)
+					},
+					{
+						path: 'roster-swapper',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/admin/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
+					},
+					{
+						path: 'pool-assignment',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
 					}
 				]
 			},
@@ -265,119 +309,6 @@ export const routes: Routes = [
 			{
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
-			},
-			// Legacy redirects
-			{ path: 'menu/admin', redirectTo: 'admin/nav-editor', pathMatch: 'full' },
-			{ path: 'bulletin/admin', redirectTo: 'admin/bulletin-editor', pathMatch: 'full' },
-			{ path: 'jobagerange/admin', redirectTo: 'admin/configure-age-ranges', pathMatch: 'full' },
-			{
-				path: 'jobadministrator/admin',
-				canActivate: [authGuard],
-				data: { requireSuperUser: true },
-				loadComponent: () => import('./views/admin/administrator-management/administrator-management.component').then(m => m.AdministratorManagementComponent)
-			},
-			{
-				path: 'jobdiscountcodes/admin',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
-			},
-			{
-				path: 'ladt/admin',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/ladt-editor/ladt-editor.component').then(m => m.LadtEditorComponent)
-			},
-			// Roster Swapper
-			{
-				path: 'admin/roster-swapper',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
-			},
-			// Legacy-compatible route for Roster Swapper
-			{
-				path: 'rosters/swapper',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
-			},
-			// Pool Assignment
-			{
-				path: 'admin/pool-assignment',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
-			},
-			// Legacy-compatible route for Pool Assignment
-			{
-				path: 'teampoolassignment/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
-			},
-			// Nav-convention routes (match nav menu hierarchy)
-			{
-				path: 'search/players',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
-			},
-			{
-				path: 'search/teams',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
-			},
-			{
-				path: 'configure/administrators',
-				canActivate: [authGuard],
-				data: { requireSuperUser: true },
-				loadComponent: () => import('./views/admin/administrator-management/administrator-management.component').then(m => m.AdministratorManagementComponent)
-			},
-			{
-				path: 'configure/discount-codes',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
-			},
-			{
-				path: 'configure/customer-groups',
-				canActivate: [authGuard],
-				data: { requireSuperUser: true },
-				loadComponent: () => import('./views/admin/customer-groups/customer-groups.component').then(m => m.CustomerGroupsComponent)
-			},
-			// Legacy-compatible: JobEmails/Index
-			{
-				path: 'jobemails/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
-			},
-			// Legacy-compatible routes (kept for external link compatibility)
-			{
-				path: 'admin/search',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
-			},
-			{
-				path: 'search/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/registration-search/registration-search.component').then(m => m.RegistrationSearchComponent)
-			},
-			{
-				path: 'admin/team-search',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
-			},
-			{
-				path: 'searchteams/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/team-search/team-search.component').then(m => m.TeamSearchComponent)
 			},
 			// Scheduling — Post-scheduling tools (standalone, no shell wrapper)
 			{
@@ -449,64 +380,39 @@ export const routes: Routes = [
 					}
 				]
 			},
-			// Legacy-compatible routes (standalone, no shell)
-			{
-				path: 'fields/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
-			},
-			{
-				path: 'pairings/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
-			},
-			{
-				path: 'timeslots/index',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
-			},
-			{
-				path: 'scheduling/schedule-hub',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
-			},
-			{
-				path: 'scheduling/schedules',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
-			},
-			{
-				path: 'scheduling/rescheduler',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
-			},
-			{
-				path: 'scheduling/referee-assignment',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
-			},
-			{
-				path: 'scheduling/referee-calendar',
-				canActivate: [authGuard],
-				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
-			},
-			// Legacy-compatible: ValidationRemoteTest/Index + USLaxRankings/Index
-			{ path: 'validationremotetest/index', redirectTo: 'admin/uslax-test', pathMatch: 'full' },
-			{ path: 'uslaxrankings/index', redirectTo: 'admin/uslax-rankings', pathMatch: 'full' },
 			// Public schedule view (anonymous access)
 			{
 				path: 'schedule',
 				data: { publicMode: true },
 				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
-			}
+			},
+			// Legacy route redirects (preserve bookmarks and external links)
+			{ path: 'dashboard', redirectTo: '', pathMatch: 'full' },
+			{ path: 'workspace/:workspaceKey', redirectTo: '', pathMatch: 'prefix' },
+			{ path: 'menu/admin', redirectTo: 'admin/nav-editor', pathMatch: 'full' },
+			{ path: 'bulletin/admin', redirectTo: 'admin/bulletin-editor', pathMatch: 'full' },
+			{ path: 'jobagerange/admin', redirectTo: 'admin/configure-age-ranges', pathMatch: 'full' },
+			{ path: 'validationremotetest/index', redirectTo: 'admin/uslax-test', pathMatch: 'full' },
+			{ path: 'uslaxrankings/index', redirectTo: 'admin/uslax-rankings', pathMatch: 'full' },
+			{ path: 'ladt/admin', redirectTo: 'admin/ladt', pathMatch: 'full' },
+			{ path: 'configure/administrators', redirectTo: 'admin/administrators', pathMatch: 'full' },
+			{ path: 'configure/discount-codes', redirectTo: 'admin/discount-codes', pathMatch: 'full' },
+			{ path: 'configure/customer-groups', redirectTo: 'admin/customer-groups', pathMatch: 'full' },
+			{ path: 'search/players', redirectTo: 'admin/search-players', pathMatch: 'full' },
+			{ path: 'search/teams', redirectTo: 'admin/search-teams', pathMatch: 'full' },
+			{ path: 'jobadministrator/admin', redirectTo: 'admin/administrators', pathMatch: 'full' },
+			{ path: 'jobdiscountcodes/admin', redirectTo: 'admin/discount-codes', pathMatch: 'full' },
+			{ path: 'jobemails/index', redirectTo: 'admin/email-log', pathMatch: 'full' },
+			{ path: 'admin/search', redirectTo: 'admin/search-players', pathMatch: 'full' },
+			{ path: 'search/index', redirectTo: 'admin/search-players', pathMatch: 'full' },
+			{ path: 'admin/team-search', redirectTo: 'admin/search-teams', pathMatch: 'full' },
+			{ path: 'searchteams/index', redirectTo: 'admin/search-teams', pathMatch: 'full' },
+			{ path: 'rosters/swapper', redirectTo: 'admin/roster-swapper', pathMatch: 'full' },
+			{ path: 'teampoolassignment/index', redirectTo: 'admin/pool-assignment', pathMatch: 'full' },
+			{ path: 'fields/index', redirectTo: 'scheduling/fields', pathMatch: 'full' },
+			{ path: 'pairings/index', redirectTo: 'scheduling/pairings', pathMatch: 'full' },
+			{ path: 'timeslots/index', redirectTo: 'scheduling/timeslots', pathMatch: 'full' },
+			{ path: 'scheduling/schedules', redirectTo: 'scheduling/view-schedule', pathMatch: 'full' }
 		]
 	},
 

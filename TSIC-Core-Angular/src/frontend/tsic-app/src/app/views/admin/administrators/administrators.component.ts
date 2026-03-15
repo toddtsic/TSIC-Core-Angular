@@ -11,12 +11,12 @@ type SortColumn = 'name' | 'role' | 'username' | 'status' | 'registered';
 type SortDirection = 'asc' | 'desc';
 
 @Component({
-    selector: 'app-administrator-management',
+    selector: 'app-administrators',
     standalone: true,
     imports: [CommonModule, DatePipe, AdminFormModalComponent, ConfirmDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    templateUrl: './administrator-management.component.html',
-    styleUrl: './administrator-management.component.scss'
+    templateUrl: './administrators.component.html',
+    styleUrl: './administrators.component.scss'
 })
 export class AdministratorManagementComponent {
     private readonly adminService = inject(AdministratorService);

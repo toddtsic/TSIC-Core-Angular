@@ -21,11 +21,11 @@ public class NavEditorService : INavEditorService
     /// </summary>
     private static readonly Dictionary<string, string> LegacyRouteMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["scheduling/manageleagueseasonfields"] = "fields/index",
-        ["scheduling/manageleagueseasonpairings"] = "pairings/index",
-        ["scheduling/manageleagueseasontimeslots"] = "timeslots/index",
-        ["scheduling/scheduledivbyagfields"] = "scheduling/scheduledivision",
-        ["scheduling/getschedule"] = "scheduling/schedules",
+        ["scheduling/manageleagueseasonfields"] = "scheduling/fields",
+        ["scheduling/manageleagueseasonpairings"] = "scheduling/pairings",
+        ["scheduling/manageleagueseasontimeslots"] = "scheduling/timeslots",
+        ["scheduling/scheduledivbyagfields"] = "scheduling/schedule-hub",
+        ["scheduling/getschedule"] = "scheduling/view-schedule",
         ["search/changepassword"] = "admin/change-password",
         ["customerjobrevenue/index"] = "admin/customer-job-revenue",
     };

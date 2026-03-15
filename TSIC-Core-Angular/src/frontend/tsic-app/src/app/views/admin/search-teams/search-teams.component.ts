@@ -8,7 +8,7 @@ import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-ang
 import { TeamSearchService } from './services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamDetailPanelComponent } from './components/team-detail-panel.component';
-import { LadtTreeFilterComponent } from '../registration-search/components/ladt-tree-filter.component';
+import { LadtTreeFilterComponent } from '../search-players/components/ladt-tree-filter.component';
 
 import type {
 	TeamSearchRequest,
@@ -29,7 +29,7 @@ interface FilterChip {
 }
 
 @Component({
-	selector: 'app-team-search',
+	selector: 'app-search-teams',
 	standalone: true,
 	imports: [
 		CommonModule,
@@ -41,8 +41,8 @@ interface FilterChip {
 	],
 	schemas: [CUSTOM_ELEMENTS_SCHEMA],
 	providers: [CheckBoxSelectionService],
-	templateUrl: './team-search.component.html',
-	styleUrl: './team-search.component.scss',
+	templateUrl: './search-teams.component.html',
+	styleUrl: './search-teams.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamSearchComponent implements OnInit, OnDestroy {

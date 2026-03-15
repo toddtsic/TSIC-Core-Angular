@@ -116,11 +116,11 @@ export class ClientMenuComponent {
      * may reference legacy controller/action patterns.
      */
     private readonly legacyRouteMap = new Map<string, string>([
-        ['scheduling/manageleagueseasonfields', 'fields/index'],
-        ['scheduling/manageleagueseasonpairings', 'pairings/index'],
-        ['scheduling/manageleagueseasontimeslots', 'timeslots/index'],
-        ['scheduling/scheduledivbyagfields', 'scheduling/scheduledivision'],
-        ['scheduling/getschedule', 'scheduling/schedules'],
+        ['scheduling/manageleagueseasonfields', 'scheduling/fields'],
+        ['scheduling/manageleagueseasonpairings', 'scheduling/pairings'],
+        ['scheduling/manageleagueseasontimeslots', 'scheduling/timeslots'],
+        ['scheduling/scheduledivbyagfields', 'scheduling/schedule-hub'],
+        ['scheduling/getschedule', 'scheduling/view-schedule'],
     ]);
 
     /**

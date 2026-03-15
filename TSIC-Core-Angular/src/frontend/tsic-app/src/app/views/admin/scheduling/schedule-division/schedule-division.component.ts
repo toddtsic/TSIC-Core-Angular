@@ -48,8 +48,8 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
 import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
 import { ScheduleCascadeService } from './components/schedule-config/schedule-cascade.service';
-import type { CanvasReadinessResponse, UpdateAgegroupRequest } from '@core/api';
-import { LadtService } from '../../ladt-editor/services/ladt.service';
+import type { CanvasReadinessResponse } from '@core/api';
+import { LadtService } from '../../ladt/services/ladt.service';
 
 @Component({
     selector: 'app-schedule-division',
@@ -676,8 +676,7 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     onAgegroupColorChanged(event: { agegroupId: string; color: string | null }): void {
-        const request: UpdateAgegroupRequest = { color: event.color };
-        this.ladtSvc.updateAgegroup(event.agegroupId, request).subscribe({
+        this.ladtSvc.updateAgegroupColor(event.agegroupId, event.color).subscribe({
             next: () => {
                 // Update local agegroups signal with new color
                 this.agegroups.set(this.agegroups().map(ag =>

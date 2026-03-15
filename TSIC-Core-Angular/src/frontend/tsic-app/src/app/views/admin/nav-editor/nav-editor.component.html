@@ -95,12 +95,27 @@
                             <button class="icon-btn icon-btn-sm" (click)="editItem(parentItem)" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="icon-btn icon-btn-sm" (click)="moveItemUp(parentItem, nav.items)" title="Move Up">
-                                <i class="bi bi-arrow-up"></i>
-                            </button>
-                            <button class="icon-btn icon-btn-sm" (click)="moveItemDown(parentItem, nav.items)" title="Move Down">
-                                <i class="bi bi-arrow-down"></i>
-                            </button>
+                            @if (nav.items.length > 1) {
+                            <div class="move-dropdown-wrapper">
+                                <button class="icon-btn icon-btn-sm"
+                                    (click)="toggleReorderDropdown(parentItem.navItemId, $event)"
+                                    title="Reorder"
+                                    [class.active]="reorderDropdownItemId() === parentItem.navItemId">
+                                    <i class="bi bi-arrows-vertical"></i>
+                                </button>
+                                @if (reorderDropdownItemId() === parentItem.navItemId) {
+                                <div class="move-dropdown" (click)="$event.stopPropagation()">
+                                    <div class="move-dropdown-header">Move...</div>
+                                    @for (opt of getMoveOptions(parentItem, nav.items); track opt.spots) {
+                                    <button class="move-dropdown-item" (click)="moveItemByN(parentItem, nav.items, opt.spots)">
+                                        <i class="bi" [class.bi-arrow-up]="opt.spots < 0" [class.bi-arrow-down]="opt.spots > 0"></i>
+                                        {{ opt.label }}
+                                    </button>
+                                    }
+                                </div>
+                                }
+                            </div>
+                            }
                             <button class="icon-btn icon-btn-sm icon-btn-success" (click)="createChildItem(parentItem)" title="Add Child">
                                 <i class="bi bi-plus-circle"></i>
                             </button>
@@ -135,14 +150,27 @@
                                 <button class="icon-btn icon-btn-sm" (click)="editItem(childItem)" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="icon-btn icon-btn-sm" (click)="moveItemUp(childItem, parentItem.children!)"
-                                    title="Move Up">
-                                    <i class="bi bi-arrow-up"></i>
-                                </button>
-                                <button class="icon-btn icon-btn-sm" (click)="moveItemDown(childItem, parentItem.children!)"
-                                    title="Move Down">
-                                    <i class="bi bi-arrow-down"></i>
-                                </button>
+                                @if (parentItem.children!.length > 1) {
+                                <div class="move-dropdown-wrapper">
+                                    <button class="icon-btn icon-btn-sm"
+                                        (click)="toggleReorderDropdown(childItem.navItemId, $event)"
+                                        title="Reorder"
+                                        [class.active]="reorderDropdownItemId() === childItem.navItemId">
+                                        <i class="bi bi-arrows-vertical"></i>
+                                    </button>
+                                    @if (reorderDropdownItemId() === childItem.navItemId) {
+                                    <div class="move-dropdown" (click)="$event.stopPropagation()">
+                                        <div class="move-dropdown-header">Move...</div>
+                                        @for (opt of getMoveOptions(childItem, parentItem.children!); track opt.spots) {
+                                        <button class="move-dropdown-item" (click)="moveItemByN(childItem, parentItem.children!, opt.spots)">
+                                            <i class="bi" [class.bi-arrow-up]="opt.spots < 0" [class.bi-arrow-down]="opt.spots > 0"></i>
+                                            {{ opt.label }}
+                                        </button>
+                                        }
+                                    </div>
+                                    }
+                                </div>
+                                }
                                 <div class="move-dropdown-wrapper">
                                     <button class="icon-btn icon-btn-sm"
                                         (click)="toggleMoveDropdown(childItem.navItemId, $event)"

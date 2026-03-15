@@ -64,6 +64,10 @@ export class LadtService {
     return this.http.put<AgegroupDetailDto>(`${this.apiUrl}/agegroups/${agegroupId}`, request);
   }
 
+  updateAgegroupColor(agegroupId: string, color: string | null): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/agegroups/${agegroupId}/color`, { color });
+  }
+
   deleteAgegroup(agegroupId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/agegroups/${agegroupId}`);
   }

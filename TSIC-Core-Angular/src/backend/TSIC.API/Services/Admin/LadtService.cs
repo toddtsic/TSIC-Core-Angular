@@ -334,6 +334,19 @@ public sealed class LadtService : ILadtService
         return MapAgegroup(ag);
     }
 
+    public async Task UpdateAgegroupColorAsync(Guid agegroupId, string? color, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    {
+        await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
+        var ag = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
+
+        ag.Color = color;
+        ag.LebUserId = userId;
+        ag.Modified = DateTime.UtcNow;
+
+        await _agegroupRepo.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task DeleteAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default)
     {
         await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);

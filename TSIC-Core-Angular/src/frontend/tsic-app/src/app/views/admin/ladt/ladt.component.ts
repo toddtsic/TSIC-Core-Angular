@@ -36,7 +36,7 @@ export interface LadtFlatNode {
 }
 
 @Component({
-  selector: 'app-ladt-editor',
+  selector: 'app-ladt',
   standalone: true,
   imports: [
     CommonModule,
@@ -50,8 +50,8 @@ export interface LadtFlatNode {
     ConfirmDialogComponent,
     TsicDialogComponent
   ],
-  templateUrl: './ladt-editor.component.html',
-  styleUrl: './ladt-editor.component.scss',
+  templateUrl: './ladt.component.html',
+  styleUrl: './ladt.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LadtEditorComponent implements OnInit, AfterViewChecked {

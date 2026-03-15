@@ -96,3 +96,8 @@ public record UpdateAgegroupRequest
     public decimal? PlayerFeeOverride { get; init; }
     public byte SortAge { get; init; }
 }
+
+public record UpdateAgegroupColorRequest
+{
+    public string? Color { get; init; }
+}

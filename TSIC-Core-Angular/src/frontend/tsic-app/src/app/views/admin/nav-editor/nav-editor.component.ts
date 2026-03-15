@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NavAdminService } from '../../core/services/nav-admin.service';
+import { NavAdminService } from '../../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -10,14 +10,14 @@ import { JobService } from '@infrastructure/services/job.service';
 import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
 
 @Component({
-    selector: 'app-menu-admin',
+    selector: 'app-nav-editor',
     standalone: true,
     imports: [FormsModule, NavItemFormDialogComponent, TsicDialogComponent, ConfirmDialogComponent],
-    templateUrl: './menu-admin.component.html',
-    styleUrl: './menu-admin.component.scss',
+    templateUrl: './nav-editor.component.html',
+    styleUrl: './nav-editor.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MenuAdminComponent implements OnInit {
+export class NavEditorComponent implements OnInit {
     private readonly navAdminService = inject(NavAdminService);
     private readonly toast = inject(ToastService);
     private readonly auth = inject(AuthService);
@@ -46,8 +46,11 @@ export class MenuAdminComponent implements OnInit {
     cloneTargetNavId = signal<number | null>(null);
     cloneLoading = signal(false);
 
-    // Move dropdown state — tracks which child item's dropdown is open
+    // Move dropdown state — tracks which child item's "move to group" dropdown is open
     moveDropdownItemId = signal<number | null>(null);
+
+    // Reorder dropdown state — tracks which item's "move N spots" dropdown is open
+    reorderDropdownItemId = signal<number | null>(null);
 
     // Confirm dialog state
     confirmDialogOpen = signal(false);
@@ -85,6 +88,7 @@ export class MenuAdminComponent implements OnInit {
     @HostListener('document:click')
     onDocumentClick(): void {
         this.closeMoveDropdown();
+        this.closeReorderDropdown();
     }
 
     ngOnInit(): void {
@@ -403,22 +407,53 @@ export class MenuAdminComponent implements OnInit {
         });
     }
 
-    moveItemUp(item: NavEditorNavItemDto, siblings: NavEditorNavItemDto[]): void {
-        const currentIndex = siblings.findIndex(s => s.navItemId === item.navItemId);
-        if (currentIndex <= 0) return;
+    // ── Reorder dropdown ──
 
-        const reordered = [...siblings];
-        [reordered[currentIndex - 1], reordered[currentIndex]] = [reordered[currentIndex], reordered[currentIndex - 1]];
-
-        this.reorderSiblings(reordered);
+    toggleReorderDropdown(itemId: number, event: MouseEvent): void {
+        event.stopPropagation();
+        this.closeMoveDropdown();
+        this.reorderDropdownItemId.set(
+            this.reorderDropdownItemId() === itemId ? null : itemId
+        );
     }
 
-    moveItemDown(item: NavEditorNavItemDto, siblings: NavEditorNavItemDto[]): void {
+    closeReorderDropdown(): void {
+        this.reorderDropdownItemId.set(null);
+    }
+
+    /** Build move options based on current position within siblings. */
+    getMoveOptions(item: NavEditorNavItemDto, siblings: NavEditorNavItemDto[]): Array<{ label: string; spots: number }> {
+        const idx = siblings.findIndex(s => s.navItemId === item.navItemId);
+        if (idx < 0) return [];
+
+        const options: Array<{ label: string; spots: number }> = [];
+
+        // Up options (negative spots)
+        for (let i = idx; i >= 1; i--) {
+            options.push({ label: `Up ${i}`, spots: -i });
+        }
+
+        // Down options (positive spots)
+        const maxDown = siblings.length - 1 - idx;
+        for (let i = 1; i <= maxDown; i++) {
+            options.push({ label: `Down ${i}`, spots: i });
+        }
+
+        return options;
+    }
+
+    moveItemByN(item: NavEditorNavItemDto, siblings: NavEditorNavItemDto[], spots: number): void {
+        this.closeReorderDropdown();
+
         const currentIndex = siblings.findIndex(s => s.navItemId === item.navItemId);
-        if (currentIndex < 0 || currentIndex >= siblings.length - 1) return;
+        if (currentIndex < 0) return;
+
+        const targetIndex = currentIndex + spots;
+        if (targetIndex < 0 || targetIndex >= siblings.length) return;
 
         const reordered = [...siblings];
-        [reordered[currentIndex], reordered[currentIndex + 1]] = [reordered[currentIndex + 1], reordered[currentIndex]];
+        reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, item);
 
         this.reorderSiblings(reordered);
     }
@@ -448,6 +483,7 @@ export class MenuAdminComponent implements OnInit {
 
     toggleMoveDropdown(childItemId: number, event: MouseEvent): void {
         event.stopPropagation();
+        this.closeReorderDropdown();
         this.moveDropdownItemId.set(
             this.moveDropdownItemId() === childItemId ? null : childItemId
         );

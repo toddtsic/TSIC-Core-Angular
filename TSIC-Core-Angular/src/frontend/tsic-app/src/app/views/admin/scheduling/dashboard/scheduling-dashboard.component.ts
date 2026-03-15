@@ -25,7 +25,7 @@ export class SchedulingDashboardComponent implements OnInit {
             {
                 title: 'LADT Setup',
                 icon: 'bi-diagram-3',
-                route: '../../ladt/admin',
+                route: '../../admin/ladt',
                 queryParams: { from: 'scheduling' },
                 metric: `${s.totalAgegroups} agegroups \u00b7 ${s.totalDivisions} divisions`,
                 detail: s.totalDivisions > 0

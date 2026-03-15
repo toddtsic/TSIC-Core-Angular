@@ -16,8 +16,8 @@ import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
-import { LadtTreeFilterComponent } from '../../registration-search/components/ladt-tree-filter.component';
-import { LadtService } from '../../ladt-editor/services/ladt.service';
+import { LadtTreeFilterComponent } from '../../search-players/components/ladt-tree-filter.component';
+import { LadtService } from '../../ladt/services/ladt.service';
 import type { LadtTreeNodeDto } from '@core/api';
 import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 

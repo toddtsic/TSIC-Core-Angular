@@ -133,6 +133,22 @@ public class LadtController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    [HttpPut("agegroups/{agegroupId:guid}/color")]
+    public async Task<IActionResult> UpdateAgegroupColor(
+        Guid agegroupId, [FromBody] UpdateAgegroupColorRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _ladtService.UpdateAgegroupColorAsync(agegroupId, request.Color, jobId!.Value, userId!, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     [HttpDelete("agegroups/{agegroupId:guid}")]
     public async Task<IActionResult> DeleteAgegroup(Guid agegroupId, CancellationToken cancellationToken)
     {

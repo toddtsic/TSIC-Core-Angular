@@ -82,10 +82,10 @@ SqlDbContext → nav.Nav + nav.NavItem
 ### Frontend
 
 ```
-src/app/views/menu-admin/
-  ├── menu-admin.component.ts        ← Main editor component
-  ├── menu-admin.component.html      ← WYSIWYG nav preview + dialogs
-  ├── menu-admin.component.scss      ← Editor styles
+src/app/views/admin/nav-editor/
+  ├── nav-editor.component.ts        ← Main editor component
+  ├── nav-editor.component.html      ← WYSIWYG nav preview + dialogs
+  ├── nav-editor.component.scss      ← Editor styles
   └── nav-item-form-dialog.component.ts ← Item create/edit dialog
 
 src/app/core/services/
