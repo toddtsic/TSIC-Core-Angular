@@ -3,33 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
 import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/api';
-
-const HTML_COLORS = [
-  { name: 'Red', value: '#FF0000' },
-  { name: 'Blue', value: '#0000FF' },
-  { name: 'Green', value: '#008000' },
-  { name: 'Orange', value: '#FFA500' },
-  { name: 'Purple', value: '#800080' },
-  { name: 'Yellow', value: '#FFFF00' },
-  { name: 'Teal', value: '#008080' },
-  { name: 'Navy', value: '#000080' },
-  { name: 'Maroon', value: '#800000' },
-  { name: 'Lime', value: '#00FF00' },
-  { name: 'Lawn Green', value: '#7CFC00' },
-  { name: 'Aqua', value: '#00FFFF' },
-  { name: 'Pale Turquoise', value: '#AFEEEE' },
-  { name: 'Fuchsia', value: '#FF00FF' },
-  { name: 'Pink', value: '#FFC0CB' },
-  { name: 'Khaki', value: '#F0E68C' },
-  { name: 'Silver', value: '#C0C0C0' },
-  { name: 'Gray', value: '#808080' },
-  { name: 'Black', value: '#000000' },
-  { name: 'White', value: '#FFFFFF' },
-  { name: 'Olive', value: '#808000' },
-  { name: 'Coral', value: '#FF7F50' },
-  { name: 'Crimson', value: '#DC143C' },
-  { name: 'Dodger Blue', value: '#1E90FF' },
-];
+import { AGEGROUP_COLORS } from '../../../admin/scheduling/shared/utils/scheduling-helpers';
 
 @Component({
   selector: 'app-agegroup-detail',
@@ -289,7 +263,7 @@ export class AgegroupDetailComponent implements OnChanges {
   showDeleteConfirm = signal(false);
   colorDropdownOpen = signal(false);
 
-  colorOptions = HTML_COLORS;
+  colorOptions = AGEGROUP_COLORS;
   form: any = {};
 
   @HostListener('document:click')

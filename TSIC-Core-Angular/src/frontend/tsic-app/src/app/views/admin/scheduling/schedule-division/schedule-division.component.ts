@@ -48,7 +48,8 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoBuildQaResult, AgegroupBuildEntry } from '@core/api';
 import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
 import { ScheduleCascadeService } from './components/schedule-config/schedule-cascade.service';
-import type { CanvasReadinessResponse } from '@core/api';
+import type { CanvasReadinessResponse, UpdateAgegroupRequest } from '@core/api';
+import { LadtService } from '../../ladt-editor/services/ladt.service';
 
 @Component({
     selector: 'app-schedule-division',
@@ -71,6 +72,7 @@ export class ScheduleDivisionComponent implements OnInit {
     private readonly auth = inject(AuthService);
     readonly configSvc = inject(ScheduleConfigService);
     readonly cascadeSvc = inject(ScheduleCascadeService);
+    private readonly ladtSvc = inject(LadtService);
 
     readonly isSuperUser = this.auth.isSuperuser;
 
@@ -85,7 +87,7 @@ export class ScheduleDivisionComponent implements OnInit {
     @ViewChild(DivisionNavigatorComponent) navigator?: DivisionNavigatorComponent;
 
     // ── Hub mode ──
-    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('schedule');
+    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('configure');
     readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | null>(null);
     readonly showToolsSection = signal(true);
 
@@ -671,6 +673,24 @@ export class ScheduleDivisionComponent implements OnInit {
         this.highlightGameGid.set(null);
         this.showDeleteConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
+    }
+
+    onAgegroupColorChanged(event: { agegroupId: string; color: string | null }): void {
+        const request: UpdateAgegroupRequest = { color: event.color };
+        this.ladtSvc.updateAgegroup(event.agegroupId, request).subscribe({
+            next: () => {
+                // Update local agegroups signal with new color
+                this.agegroups.set(this.agegroups().map(ag =>
+                    ag.agegroupId === event.agegroupId
+                        ? { ...ag, color: event.color }
+                        : ag
+                ));
+                this.toast.show('Color updated', 'success');
+            },
+            error: () => {
+                this.toast.show('Failed to update color', 'danger');
+            }
+        });
     }
 
     private dismissBuildResults(): void {

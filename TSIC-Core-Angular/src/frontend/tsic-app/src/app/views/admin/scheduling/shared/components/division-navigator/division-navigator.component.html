@@ -30,9 +30,11 @@
                        [class.bi-chevron-right]="!isExpanded(ag.agegroupId)"
                        [class.bi-chevron-down]="isExpanded(ag.agegroupId)"
                        (click)="toggleAgegroup(ag.agegroupId); $event.stopPropagation()"></i>
-                    @if (ag.color) {
-                        <span class="color-dot" [style.background]="ag.color"></span>
-                    }
+                    <span class="color-dot"
+                          [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
+                          [class.color-dot--empty]="!ag.color"
+                          (click)="openColorPicker(ag.agegroupId, $event)"
+                          title="Change color"></span>
                     <span class="nav-ag-name">{{ ag.agegroupName }}</span>
                     @if (isAgConfigured(ag.agegroupId) !== null) {
                         <i class="bi readiness-icon"
@@ -48,6 +50,28 @@
                         {{ agTeamCount(ag) }}
                     </span>
                 </div>
+
+                <!-- Color picker popover -->
+                @if (colorPickerAgId() === ag.agegroupId) {
+                    <div class="color-picker-popover" (click)="$event.stopPropagation()">
+                        <div class="color-picker-header">
+                            <span class="color-picker-title">{{ ag.agegroupName }} Color</span>
+                        </div>
+                        <div class="color-picker-grid">
+                            <button class="color-swatch color-swatch--none"
+                                    [class.active]="!ag.color"
+                                    (click)="selectColor(ag.agegroupId, null)"
+                                    title="None"></button>
+                            @for (c of colorOptions; track c.value) {
+                                <button class="color-swatch"
+                                        [style.background]="c.value"
+                                        [class.active]="ag.color?.toUpperCase() === c.value"
+                                        (click)="selectColor(ag.agegroupId, c.value)"
+                                        [title]="c.name"></button>
+                            }
+                        </div>
+                    </div>
+                }
 
                 @if (isExpanded(ag.agegroupId)) {
                     <div class="nav-divisions">

@@ -17,7 +17,8 @@
                     [readinessMap]="canvasReadiness()"
                     (eventSelected)="onEventSelected()"
                     (agegroupSelected)="onAgegroupSelected($event)"
-                    (divisionSelected)="onDivisionSelected($event)" />
+                    (divisionSelected)="onDivisionSelected($event)"
+                    (colorChanged)="onAgegroupColorChanged($event)" />
             </div>
 
             <!-- Pairings Panel (Schedule mode + division scope only) -->

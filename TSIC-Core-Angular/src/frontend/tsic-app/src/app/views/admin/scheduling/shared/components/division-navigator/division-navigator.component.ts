@@ -1,6 +1,6 @@
-import { Component, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, signal, ChangeDetectionStrategy, HostListener, ElementRef, inject } from '@angular/core';
 import type { AgegroupWithDivisionsDto, AgegroupCanvasReadinessDto, DivisionSummaryDto } from '@core/api';
-import { contrastText, agTeamCount } from '../../utils/scheduling-helpers';
+import { contrastText, agTeamCount, AGEGROUP_COLORS } from '../../utils/scheduling-helpers';
 import type { ScheduleScope } from '../../utils/scheduling-helpers';
 
 @Component({
@@ -11,6 +11,7 @@ import type { ScheduleScope } from '../../utils/scheduling-helpers';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DivisionNavigatorComponent {
+    private readonly el = inject(ElementRef);
 
     // ── Inputs ──
     readonly agegroups = input.required<AgegroupWithDivisionsDto[]>();
@@ -24,13 +25,24 @@ export class DivisionNavigatorComponent {
     readonly eventSelected = output<void>();
     readonly agegroupSelected = output<{ agegroupId: string }>();
     readonly divisionSelected = output<{ division: DivisionSummaryDto; agegroupId: string }>();
+    readonly colorChanged = output<{ agegroupId: string; color: string | null }>();
 
     // ── Internal state ──
     readonly expandedAgegroups = signal<Set<string>>(new Set());
+    readonly colorPickerAgId = signal<string | null>(null);
 
     // ── Helpers (bound as readonly for template) ──
     readonly contrastText = contrastText;
     readonly agTeamCount = agTeamCount;
+    readonly colorOptions = AGEGROUP_COLORS;
+
+    // ── Close color picker on outside click ──
+    @HostListener('document:click', ['$event'])
+    onDocClick(e: MouseEvent): void {
+        if (this.colorPickerAgId() && !this.el.nativeElement.contains(e.target)) {
+            this.colorPickerAgId.set(null);
+        }
+    }
 
     // ── Methods ──
 
@@ -86,5 +98,23 @@ export class DivisionNavigatorComponent {
         if (r.dateCount === 0) parts.push('no dates');
         if (r.fieldCount === 0) parts.push('no field schedules');
         return `Incomplete — ${parts.join(', ')}`;
+    }
+
+    // ── Color picker ──
+
+    openColorPicker(agId: string, e: MouseEvent): void {
+        e.preventDefault();
+        e.stopPropagation();
+        this.colorPickerAgId.set(this.colorPickerAgId() === agId ? null : agId);
+    }
+
+    selectColor(agId: string, color: string | null): void {
+        this.colorPickerAgId.set(null);
+        this.colorChanged.emit({ agegroupId: agId, color: color?.toUpperCase() ?? null });
+    }
+
+    getColorName(hex: string | null | undefined): string {
+        if (!hex) return 'None';
+        return this.colorOptions.find(c => c.value === hex.toUpperCase())?.name ?? hex;
     }
 }
