@@ -118,7 +118,7 @@ export const routes: Routes = [
 					{
 						path: 'discount-codes',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
+						data: { requireAdmin: true },
 						loadComponent: () => import('./views/configure/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
 					},
 					{
@@ -184,13 +184,13 @@ export const routes: Routes = [
 					{
 						path: 'players',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
+						data: { requireAdmin: true },
 						loadComponent: () => import('./views/search/players/search-players.component').then(m => m.RegistrationSearchComponent)
 					},
 					{
 						path: 'teams',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
+						data: { requireAdmin: true },
 						loadComponent: () => import('./views/search/teams/search-teams.component').then(m => m.TeamSearchComponent)
 					}
 				]
@@ -226,19 +226,19 @@ export const routes: Routes = [
 					{
 						path: 'editor',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
+						data: { requireAdmin: true },
 						loadComponent: () => import('./views/ladt/editor/ladt.component').then(m => m.LadtEditorComponent)
 					},
 					{
 						path: 'roster-swapper',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
+						data: { requireAdmin: true },
 						loadComponent: () => import('./views/ladt/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
 					},
 					{
 						path: 'pool-assignment',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
+						data: { requireAdmin: true },
 						loadComponent: () => import('./views/ladt/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
 					}
 				]
@@ -350,37 +350,37 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/view-schedule',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
 			{
 				path: 'scheduling/master-schedule',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/master-schedule/master-schedule.component').then(m => m.MasterScheduleComponent)
 			},
 			{
 				path: 'scheduling/rescheduler',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
 			{
 				path: 'scheduling/tournament-parking',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/tournament-parking/tournament-parking.component').then(m => m.TournamentParkingComponent)
 			},
 			{
 				path: 'scheduling/referee-assignment',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
 			},
 			{
 				path: 'scheduling/referee-calendar',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
 			},
 			{
@@ -393,7 +393,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling',
 				canActivate: [authGuard],
-				data: { requirePhase2: true },
+				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/dashboard/scheduling-shell.component').then(m => m.SchedulingShellComponent),
 				children: [
 					{
