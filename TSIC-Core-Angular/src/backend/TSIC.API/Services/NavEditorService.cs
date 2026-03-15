@@ -26,8 +26,8 @@ public class NavEditorService : INavEditorService
         ["scheduling/manageleagueseasontimeslots"] = "scheduling/timeslots",
         ["scheduling/scheduledivbyagfields"] = "scheduling/schedule-hub",
         ["scheduling/getschedule"] = "scheduling/view-schedule",
-        ["search/changepassword"] = "admin/change-password",
-        ["customerjobrevenue/index"] = "admin/customer-job-revenue",
+        ["search/changepassword"] = "tools/change-password",
+        ["customerjobrevenue/index"] = "tools/customer-job-revenue",
     };
 
     public NavEditorService(INavEditorRepository navEditorRepo)

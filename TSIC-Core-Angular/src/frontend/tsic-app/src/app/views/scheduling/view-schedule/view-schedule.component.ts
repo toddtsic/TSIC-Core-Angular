@@ -2,8 +2,8 @@ import {
     ChangeDetectionStrategy, Component, inject, OnInit, signal, computed
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { AuthService } from '../../../../infrastructure/services/auth.service';
-import { JobService } from '../../../../infrastructure/services/job.service';
+import { AuthService } from '../../../infrastructure/services/auth.service';
+import { JobService } from '../../../infrastructure/services/job.service';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import type {
@@ -29,7 +29,7 @@ import { BracketsTabComponent } from './components/brackets-tab.component';
 import { ContactsTabComponent } from './components/contacts-tab.component';
 import { TeamResultsModalComponent } from './components/team-results-modal.component';
 import { EditGameModalComponent } from './components/edit-game-modal.component';
-import { TsicDialogComponent } from '../../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
 type PanelId = 'cadt' | 'ladt';

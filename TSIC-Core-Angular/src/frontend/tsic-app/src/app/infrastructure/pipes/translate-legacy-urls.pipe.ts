@@ -59,7 +59,7 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
 
         // Check for JobAdministrator/Admin
         if (url.toLowerCase().includes('jobadministrator/admin')) {
-            return `/${jobPath}/admin/administrators`;
+            return `/${jobPath}/configure/administrators`;
         }
 
         // No translation pattern matched - return original URL

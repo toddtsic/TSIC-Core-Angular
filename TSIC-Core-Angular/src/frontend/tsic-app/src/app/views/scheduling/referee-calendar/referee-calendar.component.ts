@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import type { RefereeCalendarEventDto, RefereeSummaryDto } from '@core/api';
-import { RefereeAssignmentService } from '../../../../infrastructure/services/referee-assignment.service';
+import { RefereeAssignmentService } from '../../../infrastructure/services/referee-assignment.service';
 
 type TabId = 'agenda' | 'grid';
 

@@ -25,7 +25,7 @@ export class SchedulingDashboardComponent implements OnInit {
             {
                 title: 'LADT Setup',
                 icon: 'bi-diagram-3',
-                route: '../../admin/ladt',
+                route: '../ladt',
                 queryParams: { from: 'scheduling' },
                 metric: `${s.totalAgegroups} agegroups \u00b7 ${s.totalDivisions} divisions`,
                 detail: s.totalDivisions > 0
@@ -36,7 +36,7 @@ export class SchedulingDashboardComponent implements OnInit {
             {
                 title: 'Pool Assignment',
                 icon: 'bi-people',
-                route: '../../admin/pool-assignment',
+                route: '../ladt/pool-assignment',
                 queryParams: { from: 'scheduling' },
                 metric: `${s.agegroupsPoolComplete}/${s.totalAgegroups} agegroups`,
                 detail: 'complete',

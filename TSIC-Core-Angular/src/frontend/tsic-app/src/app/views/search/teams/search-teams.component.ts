@@ -8,7 +8,7 @@ import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-ang
 import { TeamSearchService } from './services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamDetailPanelComponent } from './components/team-detail-panel.component';
-import { LadtTreeFilterComponent } from '../search-players/components/ladt-tree-filter.component';
+import { LadtTreeFilterComponent } from '../players/components/ladt-tree-filter.component';
 
 import type {
 	TeamSearchRequest,

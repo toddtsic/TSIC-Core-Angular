@@ -27,7 +27,18 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -File /tmp/read_excel.ps1 -FilePath \"docs/Scheduling/lbts2026MasterSchedule-DEV.xlsx\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -Command \":*)",
       "Bash(powershell.exe -File tmp/dump-prod.ps1)",
-      "Read(//modelBuilder.Entity<Fields>/\\(entity/,/**)"
+      "Read(//modelBuilder.Entity<Fields>/\\(entity/,/**)",
+      "Bash(REG=c:/Users/Administrator/source/TSIC-Core-Angular/TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration)",
+      "Bash(for d:*)",
+      "Bash(do mkdir:*)",
+      "Bash(cp -r $REG/wizards-v2/$d/* $REG/$d/)",
+      "Bash(echo \"Copied wizards-v2/$d -> registration/$d\")",
+      "Bash(mkdir -p $REG/shared)",
+      "Bash(cp -r $REG/wizards-v2/shared/* $REG/shared/)",
+      "Bash(echo \"Copied wizards-v2/shared -> registration/shared\")",
+      "Bash(mkdir -p $REG/entry)",
+      "Bash(cp -r $REG/registration-entry/* $REG/entry/)",
+      "Bash(echo \"Copied registration-entry -> registration/entry\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

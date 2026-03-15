@@ -2,7 +2,7 @@ import { Component, inject, signal, ChangeDetectionStrategy, OnInit } from '@ang
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { ArbDefensiveService } from '../admin/arb-health/services/arb-defensive.service';
+import { ArbDefensiveService } from './health/services/arb-defensive.service';
 import type { ArbSubscriptionInfoDto, ArbUpdateCcRequest, ArbUpdateCcResultDto } from '@core/api';
 
 @Component({

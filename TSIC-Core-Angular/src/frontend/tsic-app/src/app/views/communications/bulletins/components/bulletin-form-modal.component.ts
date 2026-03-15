@@ -5,7 +5,7 @@ import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor'
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { BulletinAdminService } from '../services/bulletin-admin.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { JOB_CONFIG_RTE_TOOLS } from '../../job-config/shared/rte-config';
+import { JOB_CONFIG_RTE_TOOLS } from '../../../configure/job/shared/rte-config';
 import type { BulletinAdminDto, CreateBulletinRequest, UpdateBulletinRequest } from '@core/api';
 
 export type ModalMode = 'add' | 'edit';

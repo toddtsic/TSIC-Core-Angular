@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
 import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/api';
-import { AGEGROUP_COLORS } from '../../../admin/scheduling/shared/utils/scheduling-helpers';
+import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-helpers';
 
 @Component({
   selector: 'app-agegroup-detail',

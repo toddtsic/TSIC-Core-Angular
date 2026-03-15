@@ -9,7 +9,6 @@ export const routes: Routes = [
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
 	// TSIC corporate landing — standalone marketing page (no layout chrome)
-	// Guard redirects authenticated users to their job, anonymous users with a lastJobPath to that job
 	{
 		path: 'tsic',
 		canActivate: [authGuard],
@@ -50,24 +49,22 @@ export const routes: Routes = [
 				path: '',
 				loadComponent: () => import('./views/home/landing-router/landing-router.component').then(m => m.LandingRouterComponent)
 			},
-			// Login page
+			// Auth
 			{
 				path: 'login',
 				loadComponent: () => import('./views/auth/login/login.component').then(m => m.LoginComponent),
 				canActivate: [authGuard],
 				data: { redirectAuthenticated: true }
 			},
-			// Terms of Service acceptance
 			{
 				path: 'terms-of-service',
 				loadComponent: () => import('./views/auth/terms-of-service/terms-of-service.component').then(m => m.TermsOfServiceComponent)
 			},
-			// Role selection page
 			{
 				path: 'role-selection',
 				loadComponent: () => import('./views/auth/role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
 			},
-			// Registration routes (Controller/Action: registration/{action})
+			// Registration (Controller/Action)
 			{
 				path: 'registration',
 				children: [
@@ -97,195 +94,227 @@ export const routes: Routes = [
 				path: 'home',
 				loadComponent: () => import('./views/home/job-home/job-home.component').then(m => m.JobHomeComponent)
 			},
-			// Brand preview (design system showcase)
 			{
 				path: 'brand-preview',
 				loadComponent: () => import('./views/home/brand-preview/brand-preview.component').then(m => m.BrandPreviewComponent)
 			},
-			// Admin routes — parent requires Admin (Director, SuperDirector, SuperUser)
-			// Children that are SuperUser-only get explicit requireSuperUser data
+			// Configure — job & platform settings
 			{
-				path: 'admin',
-				canActivate: [authGuard],
-				data: { requireAdmin: true },
+				path: 'configure',
 				children: [
 					{
-						path: 'profile-migration',
+						path: 'job',
 						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
-					},
-					{
-						path: 'profile-editor',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
-					},
-					{
-						path: 'theme',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/theme-editor/theme-editor.component').then(m => m.ThemeEditorComponent)
-					},
-					{
-						path: 'widget-editor',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
-					},
-					{
-						path: 'nav-editor',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/nav-editor/nav-editor.component').then(m => m.NavEditorComponent)
-					},
-					{
-						path: 'job-clone',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/job-clone/job-clone.component').then(m => m.JobCloneComponent)
-					},
-					{
-						path: 'ddl-options',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/ddl-options/ddl-options.component').then(m => m.DdlOptionsComponent)
-					},
-					{
-						path: 'job-config',
 						canDeactivate: [unsavedChangesGuard],
-						loadComponent: () => import('./views/admin/job-config/job-config.component').then(m => m.JobConfigComponent)
-					},
-					{
-						path: 'uslax-test',
-						loadComponent: () => import('./views/admin/uslax-test/uslax-test.component').then(m => m.UsLaxTestComponent)
-					},
-					{
-						path: 'uslax-rankings',
-						loadComponent: () => import('./views/admin/uslax-rankings/uslax-rankings.component').then(m => m.UsLaxRankingsComponent)
-					},
-					{
-						path: 'email-log',
-						loadComponent: () => import('./views/admin/email-log/email-log.component').then(m => m.EmailLogComponent)
-					},
-					{
-						path: 'bulletin-editor',
-						loadComponent: () => import('./views/admin/bulletin-editor/bulletin-editor.component').then(m => m.BulletinEditorComponent)
-					},
-					{
-						path: 'configure-age-ranges',
-						loadComponent: () => import('./views/admin/configure-age-ranges/configure-age-ranges.component').then(m => m.ConfigureAgeRangesComponent)
-					},
-					{
-						path: 'store',
-						loadComponent: () => import('./views/admin/store-admin/store-admin.component').then(m => m.StoreAdminComponent)
-					},
-					{
-						path: 'customer-configure',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/customer-configure/customer-configure.component').then(m => m.CustomerConfigureComponent)
-					},
-					{
-						path: 'arb-health',
-						loadComponent: () => import('./views/admin/arb-health/arb-health.component').then(m => m.ArbHealthComponent)
-					},
-					{
-						path: 'mobile-scorers',
-						loadComponent: () => import('./views/admin/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent),
-						data: { title: 'Mobile Scorers' }
-					},
-					{
-						path: 'change-password',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/change-password/change-password.component').then(m => m.ChangePasswordComponent)
-					},
-					{
-						path: 'uniform-upload',
-						loadComponent: () => import('./views/admin/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
-					},
-					{
-						path: 'push-notification',
-						loadComponent: () => import('./views/admin/push-notification/push-notification.component').then(m => m.PushNotificationComponent)
-					},
-					{
-						path: 'customer-job-revenue',
-						canActivate: [authGuard],
-						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
-					},
-					{
-						path: 'ladt',
-						canActivate: [authGuard],
-						data: { requirePhase2: true },
-						loadComponent: () => import('./views/admin/ladt/ladt.component').then(m => m.LadtEditorComponent)
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/configure/job/job-config.component').then(m => m.JobConfigComponent)
 					},
 					{
 						path: 'administrators',
 						canActivate: [authGuard],
 						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/administrators/administrators.component').then(m => m.AdministratorManagementComponent)
+						loadComponent: () => import('./views/configure/administrators/administrators.component').then(m => m.AdministratorManagementComponent)
 					},
 					{
 						path: 'discount-codes',
 						canActivate: [authGuard],
 						data: { requirePhase2: true },
-						loadComponent: () => import('./views/admin/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
+						loadComponent: () => import('./views/configure/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
 					},
 					{
 						path: 'customer-groups',
 						canActivate: [authGuard],
 						data: { requireSuperUser: true },
-						loadComponent: () => import('./views/admin/customer-groups/customer-groups.component').then(m => m.CustomerGroupsComponent)
+						loadComponent: () => import('./views/configure/customer-groups/customer-groups.component').then(m => m.CustomerGroupsComponent)
 					},
 					{
-						path: 'search-players',
+						path: 'age-ranges',
 						canActivate: [authGuard],
-						data: { requirePhase2: true },
-						loadComponent: () => import('./views/admin/search-players/search-players.component').then(m => m.RegistrationSearchComponent)
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/configure/age-ranges/configure-age-ranges.component').then(m => m.ConfigureAgeRangesComponent)
 					},
 					{
-						path: 'search-teams',
+						path: 'ddl-options',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/configure/ddl-options/ddl-options.component').then(m => m.DdlOptionsComponent)
+					},
+					{
+						path: 'customers',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/configure/customers/customer-configure.component').then(m => m.CustomerConfigureComponent)
+					},
+					{
+						path: 'theme',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/configure/theme/theme-editor.component').then(m => m.ThemeEditorComponent)
+					},
+					{
+						path: 'nav-editor',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/configure/nav-editor/nav-editor.component').then(m => m.NavEditorComponent)
+					},
+					{
+						path: 'widget-editor',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/configure/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
+					},
+					{
+						path: 'job-clone',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/configure/job-clone/job-clone.component').then(m => m.JobCloneComponent)
+					},
+					{
+						path: 'uniform-upload',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/configure/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
+					}
+				]
+			},
+			// Search — player & team lookup
+			{
+				path: 'search',
+				children: [
+					{
+						path: 'players',
 						canActivate: [authGuard],
 						data: { requirePhase2: true },
-						loadComponent: () => import('./views/admin/search-teams/search-teams.component').then(m => m.TeamSearchComponent)
+						loadComponent: () => import('./views/search/players/search-players.component').then(m => m.RegistrationSearchComponent)
+					},
+					{
+						path: 'teams',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/search/teams/search-teams.component').then(m => m.TeamSearchComponent)
+					}
+				]
+			},
+			// Communications — bulletins, email, push
+			{
+				path: 'communications',
+				children: [
+					{
+						path: 'bulletins',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/communications/bulletins/bulletin-editor.component').then(m => m.BulletinEditorComponent)
+					},
+					{
+						path: 'email-log',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/communications/email-log/email-log.component').then(m => m.EmailLogComponent)
+					},
+					{
+						path: 'push-notification',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/communications/push-notification/push-notification.component').then(m => m.PushNotificationComponent)
+					}
+				]
+			},
+			// LADT — leagues, agegroups, divisions, teams
+			{
+				path: 'ladt',
+				children: [
+					{
+						path: 'editor',
+						canActivate: [authGuard],
+						data: { requirePhase2: true },
+						loadComponent: () => import('./views/ladt/editor/ladt.component').then(m => m.LadtEditorComponent)
 					},
 					{
 						path: 'roster-swapper',
 						canActivate: [authGuard],
 						data: { requirePhase2: true },
-						loadComponent: () => import('./views/admin/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
+						loadComponent: () => import('./views/ladt/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
 					},
 					{
 						path: 'pool-assignment',
 						canActivate: [authGuard],
 						data: { requirePhase2: true },
-						loadComponent: () => import('./views/admin/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
+						loadComponent: () => import('./views/ladt/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
 					}
 				]
 			},
-			// ARB self-service: update credit card on subscription
+			// ARB — automatic recurring billing
 			{
-				path: 'arb/update-cc/:registrationId',
-				canActivate: [authGuard],
-				loadComponent: () => import('./views/arb/arb-update-cc.component').then(m => m.ArbUpdateCcComponent)
+				path: 'arb',
+				children: [
+					{
+						path: 'health',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/arb/health/arb-health.component').then(m => m.ArbHealthComponent)
+					},
+					{
+						path: 'update-cc/:registrationId',
+						canActivate: [authGuard],
+						loadComponent: () => import('./views/arb/arb-update-cc.component').then(m => m.ArbUpdateCcComponent)
+					}
+				]
 			},
-			// Store — walk-up kiosk (always forces clean slate)
+			// Tools — utilities & one-off tools
+			{
+				path: 'tools',
+				children: [
+					{
+						path: 'uslax-test',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/tools/uslax-test/uslax-test.component').then(m => m.UsLaxTestComponent)
+					},
+					{
+						path: 'uslax-rankings',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/tools/uslax-rankings/uslax-rankings.component').then(m => m.UsLaxRankingsComponent)
+					},
+					{
+						path: 'profile-migration',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/tools/profile-migration/profile-migration.component').then(m => m.ProfileMigrationComponent)
+					},
+					{
+						path: 'profile-editor',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/tools/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
+					},
+					{
+						path: 'change-password',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/tools/change-password/change-password.component').then(m => m.ChangePasswordComponent)
+					},
+					{
+						path: 'customer-job-revenue',
+						canActivate: [authGuard],
+						data: { requireSuperUser: true },
+						loadComponent: () => import('./views/tools/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
+					}
+				]
+			},
+			// Store
 			{
 				path: 'store/walk-up',
 				canActivate: [storeGuard],
 				data: { storeMode: 'walk-up' },
 				loadComponent: () => import('./views/store/walk-up/walk-up.component').then(m => m.StoreWalkUpComponent)
 			},
-			// Store — focused login page (family sign-in + guest option)
 			{
 				path: 'store/login',
 				canActivate: [storeGuard],
 				data: { storeMode: 'login' },
 				loadComponent: () => import('./views/store/login/login.component').then(m => m.StoreLoginComponent)
 			},
-			// Store — authenticated storefront (requires Player/Family role)
 			{
 				path: 'store',
 				canActivate: [storeGuard],
@@ -306,78 +335,90 @@ export const routes: Routes = [
 				canActivate: [storeGuard],
 				loadComponent: () => import('./views/store/checkout/checkout.component').then(m => m.StoreCheckoutComponent)
 			},
-			// Report launcher — handles all menu items with Controller=Reporting
+			{
+				path: 'store/admin',
+				canActivate: [authGuard],
+				data: { requireAdmin: true },
+				loadComponent: () => import('./views/store/admin/store-admin.component').then(m => m.StoreAdminComponent)
+			},
+			// Reporting
 			{
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
 			},
-			// Scheduling — Post-scheduling tools (standalone, no shell wrapper)
+			// Scheduling — standalone tools (no shell)
 			{
 				path: 'scheduling/view-schedule',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
 			{
 				path: 'scheduling/master-schedule',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/master-schedule/master-schedule.component').then(m => m.MasterScheduleComponent)
+				loadComponent: () => import('./views/scheduling/master-schedule/master-schedule.component').then(m => m.MasterScheduleComponent)
 			},
 			{
 				path: 'scheduling/rescheduler',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
+				loadComponent: () => import('./views/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
 			{
 				path: 'scheduling/tournament-parking',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/tournament-parking/tournament-parking.component').then(m => m.TournamentParkingComponent)
+				loadComponent: () => import('./views/scheduling/tournament-parking/tournament-parking.component').then(m => m.TournamentParkingComponent)
 			},
 			{
 				path: 'scheduling/referee-assignment',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
+				loadComponent: () => import('./views/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
 			},
 			{
 				path: 'scheduling/referee-calendar',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
+				loadComponent: () => import('./views/scheduling/referee-calendar/referee-calendar.component').then(m => m.RefereeCalendarComponent)
 			},
-			// Scheduling — Pipeline shell (dashboard + steps 1–4)
+			{
+				path: 'scheduling/mobile-scorers',
+				canActivate: [authGuard],
+				data: { requireAdmin: true, title: 'Mobile Scorers' },
+				loadComponent: () => import('./views/scheduling/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent)
+			},
+			// Scheduling — pipeline shell (dashboard + steps)
 			{
 				path: 'scheduling',
 				canActivate: [authGuard],
 				data: { requirePhase2: true },
-				loadComponent: () => import('./views/admin/scheduling/dashboard/scheduling-shell.component').then(m => m.SchedulingShellComponent),
+				loadComponent: () => import('./views/scheduling/dashboard/scheduling-shell.component').then(m => m.SchedulingShellComponent),
 				children: [
 					{
 						path: '',
-						loadComponent: () => import('./views/admin/scheduling/dashboard/scheduling-dashboard.component').then(m => m.SchedulingDashboardComponent)
+						loadComponent: () => import('./views/scheduling/dashboard/scheduling-dashboard.component').then(m => m.SchedulingDashboardComponent)
 					},
 					{
 						path: 'fields',
-						loadComponent: () => import('./views/admin/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
+						loadComponent: () => import('./views/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
 					},
 					{
 						path: 'pairings',
-						loadComponent: () => import('./views/admin/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
+						loadComponent: () => import('./views/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
 					},
 					{
 						path: 'timeslots',
-						loadComponent: () => import('./views/admin/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
+						loadComponent: () => import('./views/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
 					},
 					{
 						path: 'schedule-hub',
-						loadComponent: () => import('./views/admin/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+						loadComponent: () => import('./views/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
 					},
 					{
 						path: 'qa-results',
-						loadComponent: () => import('./views/admin/scheduling/qa-results/qa-results.component').then(m => m.QaResultsComponent)
+						loadComponent: () => import('./views/scheduling/qa-results/qa-results.component').then(m => m.QaResultsComponent)
 					}
 				]
 			},
@@ -385,7 +426,7 @@ export const routes: Routes = [
 			{
 				path: 'schedule',
 				data: { publicMode: true },
-				loadComponent: () => import('./views/admin/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			}
 		]
 	},

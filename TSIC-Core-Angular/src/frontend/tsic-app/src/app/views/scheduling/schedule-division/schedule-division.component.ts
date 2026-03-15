@@ -38,7 +38,7 @@ import { ScheduleConfigPanelComponent } from './components/schedule-config-panel
 import { ManageFieldsComponent } from '../fields/manage-fields.component';
 import { ManagePairingsComponent } from '../pairings/manage-pairings.component';
 import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.component';
-import { PoolAssignmentComponent } from '../../pool-assignment/pool-assignment.component';
+import { PoolAssignmentComponent } from '../../ladt/pool-assignment/pool-assignment.component';
 import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
 import { QaResultsComponent } from '../qa-results/qa-results.component';
 import { ReschedulerComponent } from '../rescheduler/rescheduler.component';
@@ -49,7 +49,7 @@ import type { GameSummaryResponse, DivisionStrategyEntry, AutoBuildResult, AutoB
 import { ScheduleConfigService } from './components/schedule-config/schedule-config.service';
 import { ScheduleCascadeService } from './components/schedule-config/schedule-cascade.service';
 import type { CanvasReadinessResponse } from '@core/api';
-import { LadtService } from '../../ladt/services/ladt.service';
+import { LadtService } from '../../ladt/editor/services/ladt.service';
 
 @Component({
     selector: 'app-schedule-division',
