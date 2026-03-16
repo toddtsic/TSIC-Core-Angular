@@ -89,7 +89,8 @@ FROM nav.NavItem ni
 JOIN nav.Nav n ON ni.NavId = n.NavId
 WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%';
 
-DECLARE @reportCount INT = (SELECT COUNT(*) FROM #ReportingItems);
+DECLARE @reportCount INT;
+SELECT @reportCount = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @reportCount, ' reporting item(s)');
 
 -- ── 4. Clear platform defaults ──
@@ -260,7 +261,8 @@ PRINT 'Non-admin roles (Family, Player, ClubRep, UnassignedAdult): no menu items
 IF @reportCount > 0
 BEGIN
     -- Re-insert reporting items into the SuperUser nav (they were manually added)
-    DECLARE @suNavId INT = (SELECT NavId FROM nav.Nav WHERE RoleId = @SuperUser AND JobId IS NULL);
+    DECLARE @suNavId INT;
+    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = @SuperUser AND JobId IS NULL;
 
     -- Find or create an "Analyze" parent for reporting items
     DECLARE @analyzeParentId INT;
@@ -283,9 +285,12 @@ END
 
 -- ── 9. Summary ──
 
-DECLARE @totalNavs INT = (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL);
-DECLARE @totalItems INT = (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL);
-DECLARE @parentItems INT = (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL);
+DECLARE @totalNavs INT;
+DECLARE @totalItems INT;
+DECLARE @parentItems INT;
+SELECT @totalNavs = COUNT(*) FROM nav.Nav WHERE JobId IS NULL;
+SELECT @totalItems = COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL;
+SELECT @parentItems = COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL;
 
 PRINT '';
 PRINT '════════════════════════════════════════════';
