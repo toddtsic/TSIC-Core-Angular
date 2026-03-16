@@ -1,0 +1,265 @@
+<div class="bs-page">
+	<div class="page-header">
+		<div>
+			<h4 class="mb-1">Bracket Seeds</h4>
+			<p class="text-muted mb-0">Assign division-ranked teams to bracket/playoff game slots</p>
+		</div>
+	</div>
+
+	@if (errorMessage()) {
+		<div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+			<i class="bi bi-exclamation-triangle"></i>
+			{{ errorMessage() }}
+		</div>
+	}
+
+	@if (isLoading()) {
+		<div class="d-flex justify-content-center py-5">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">Loading...</span>
+			</div>
+		</div>
+	} @else if (bracketGames().length === 0) {
+		<div class="card">
+			<div class="card-body text-center py-5 text-muted">
+				<i class="bi bi-trophy fs-1 d-block mb-3 opacity-50"></i>
+				<p class="mb-0">No bracket/playoff games found for this job.</p>
+				<p class="small">Bracket games are created during scheduling with non-RR game types (C, F, S, Q, etc.)</p>
+			</div>
+		</div>
+	} @else {
+		<!-- Bracket Games Table -->
+		<div class="card mb-4">
+			<div class="card-header bg-surface border-0 py-3 d-flex justify-content-between align-items-center">
+				<h6 class="mb-0">
+					<i class="bi bi-diagram-3 me-2"></i>
+					Bracket Games ({{ bracketGames().length }})
+				</h6>
+			</div>
+			<div class="table-responsive">
+				<table class="table table-sm table-hover mb-0 align-middle">
+					<thead>
+						<tr>
+							<th>Agegroup</th>
+							<th class="text-center">Type-1</th>
+							<th class="text-center">Rank-1</th>
+							<th>Seed Pool 1</th>
+							<th class="text-center">Seed Rank 1</th>
+							<th class="text-center text-muted">Side</th>
+							<th class="text-center">Type-2</th>
+							<th class="text-center">Rank-2</th>
+							<th>Seed Pool 2</th>
+							<th class="text-center">Seed Rank 2</th>
+							<th class="text-center">Edit</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (game of bracketGames(); track game.gid) {
+							<tr class="cursor-pointer" [class.table-active]="editingGame()?.gid === game.gid">
+								<td>{{ game.agegroupName }}</td>
+								<td class="text-center fw-medium">{{ game.t1Type }}</td>
+								<td class="text-center">{{ game.t1No }}</td>
+								<td>
+									@if (game.t1SeedDivName) {
+										<span class="badge bg-primary-subtle text-primary">{{ game.t1SeedDivName }}</span>
+									} @else {
+										<span class="text-muted">—</span>
+									}
+								</td>
+								<td class="text-center">
+									@if (game.t1SeedRank) {
+										<span class="fw-medium">#{{ game.t1SeedRank }}</span>
+									} @else {
+										<span class="text-muted">—</span>
+									}
+								</td>
+								<td class="text-center text-muted">{{ game.whichSide || '' }}</td>
+								<td class="text-center fw-medium">{{ game.t2Type }}</td>
+								<td class="text-center">{{ game.t2No }}</td>
+								<td>
+									@if (game.t2SeedDivName) {
+										<span class="badge bg-primary-subtle text-primary">{{ game.t2SeedDivName }}</span>
+									} @else {
+										<span class="text-muted">—</span>
+									}
+								</td>
+								<td class="text-center">
+									@if (game.t2SeedRank) {
+										<span class="fw-medium">#{{ game.t2SeedRank }}</span>
+									} @else {
+										<span class="text-muted">—</span>
+									}
+								</td>
+								<td class="text-center">
+									<button class="btn btn-sm btn-outline-primary"
+										(click)="openEdit(game)"
+										[disabled]="isSaving()">
+										<i class="bi bi-pencil"></i>
+									</button>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Edit Modal -->
+		@if (editingGame(); as game) {
+			<div class="edit-backdrop" (click)="cancelEdit()"></div>
+			<div class="edit-panel card shadow-lg">
+				<div class="card-header bg-surface border-0 py-3 d-flex justify-content-between align-items-center">
+					<h6 class="mb-0">
+						Edit Seed — {{ game.agegroupName }} {{ game.t1Type }}{{ game.t1No }} vs {{ game.t2Type }}{{ game.t2No }}
+					</h6>
+					<button class="btn-close" (click)="cancelEdit()"></button>
+				</div>
+				<div class="card-body">
+					@if (isLoadingDivisions()) {
+						<div class="text-center py-3">
+							<div class="spinner-border spinner-border-sm text-primary"></div>
+							Loading divisions...
+						</div>
+					} @else {
+						<!-- T1 Seed Fields -->
+						@if (showT1(game)) {
+							<div class="seed-section mb-4">
+								<label class="form-label fw-medium">
+									Team 1 Seed ({{ game.t1Type }}{{ game.t1No }})
+								</label>
+								<div class="row g-2">
+									<div class="col-8">
+										<select class="form-select form-select-sm"
+											[ngModel]="editT1DivId()"
+											(ngModelChange)="editT1DivId.set($event)">
+											<option value="">— No Division —</option>
+											@for (div of divisionOptions(); track div.divId) {
+												<option [value]="div.divId">{{ div.divName }}</option>
+											}
+										</select>
+									</div>
+									<div class="col-4">
+										<select class="form-select form-select-sm"
+											[ngModel]="editT1Rank()"
+											(ngModelChange)="editT1Rank.set($event ? +$event : null)">
+											<option [ngValue]="null">Rank</option>
+											@for (r of rankOptions; track r) {
+												<option [ngValue]="r">{{ r }}</option>
+											}
+										</select>
+									</div>
+								</div>
+							</div>
+						}
+
+						<!-- T2 Seed Fields -->
+						@if (showT2(game)) {
+							<div class="seed-section mb-4">
+								<label class="form-label fw-medium">
+									Team 2 Seed ({{ game.t2Type }}{{ game.t2No }})
+								</label>
+								<div class="row g-2">
+									<div class="col-8">
+										<select class="form-select form-select-sm"
+											[ngModel]="editT2DivId()"
+											(ngModelChange)="editT2DivId.set($event)">
+											<option value="">— No Division —</option>
+											@for (div of divisionOptions(); track div.divId) {
+												<option [value]="div.divId">{{ div.divName }}</option>
+											}
+										</select>
+									</div>
+									<div class="col-4">
+										<select class="form-select form-select-sm"
+											[ngModel]="editT2Rank()"
+											(ngModelChange)="editT2Rank.set($event ? +$event : null)">
+											<option [ngValue]="null">Rank</option>
+											@for (r of rankOptions; track r) {
+												<option [ngValue]="r">{{ r }}</option>
+											}
+										</select>
+									</div>
+								</div>
+							</div>
+						}
+
+						<div class="d-flex gap-2 justify-content-end">
+							<button class="btn btn-sm btn-outline-secondary" (click)="cancelEdit()">
+								Cancel
+							</button>
+							<button class="btn btn-sm btn-primary" (click)="saveEdit()" [disabled]="isSaving()">
+								@if (isSaving()) {
+									<span class="spinner-border spinner-border-sm me-1"></span>
+								}
+								Save
+							</button>
+						</div>
+					}
+				</div>
+			</div>
+		}
+	}
+
+	<!-- Division Standings Reference -->
+	<div class="card mt-4">
+		<div class="card-header bg-surface border-0 py-3 d-flex justify-content-between align-items-center cursor-pointer"
+			(click)="toggleStandings()">
+			<h6 class="mb-0">
+				<i class="bi bi-bar-chart me-2"></i>
+				Division Standings Reference
+			</h6>
+			<i class="bi" [class.bi-chevron-down]="showStandings()" [class.bi-chevron-right]="!showStandings()"></i>
+		</div>
+		@if (showStandings()) {
+			<div class="card-body p-0">
+				@if (isLoadingStandings()) {
+					<div class="text-center py-4">
+						<div class="spinner-border spinner-border-sm text-primary"></div>
+					</div>
+				} @else if (!standingsData()?.divisions?.length) {
+					<p class="text-muted text-center py-3 mb-0">No standings data available.</p>
+				} @else {
+					@for (div of standingsData()!.divisions; track div.divId) {
+						<div class="standings-group">
+							<div class="standings-group-header">
+								{{ div.agegroupName }}:{{ div.divName }}
+							</div>
+							<div class="table-responsive">
+								<table class="table table-sm mb-0">
+									<thead>
+										<tr>
+											<th class="text-center" style="width: 40px">#</th>
+											<th>Team</th>
+											<th class="text-center">GP</th>
+											<th class="text-center">W</th>
+											<th class="text-center">L</th>
+											<th class="text-center">T</th>
+											<th class="text-center">GF</th>
+											<th class="text-center">GV</th>
+											<th class="text-center">Pts</th>
+										</tr>
+									</thead>
+									<tbody>
+										@for (team of div.teams; track team.teamId; let i = $index) {
+											<tr>
+												<td class="text-center text-muted">{{ i + 1 }}</td>
+												<td>{{ team.teamName }}</td>
+												<td class="text-center">{{ team.games }}</td>
+												<td class="text-center">{{ team.wins }}</td>
+												<td class="text-center">{{ team.losses }}</td>
+												<td class="text-center">{{ team.ties }}</td>
+												<td class="text-center">{{ team.goalsFor }}</td>
+												<td class="text-center">{{ team.goalsAgainst }}</td>
+												<td class="text-center fw-medium">{{ team.points }}</td>
+											</tr>
+										}
+									</tbody>
+								</table>
+							</div>
+						</div>
+					}
+				}
+			</div>
+		}
+	</div>
+</div>

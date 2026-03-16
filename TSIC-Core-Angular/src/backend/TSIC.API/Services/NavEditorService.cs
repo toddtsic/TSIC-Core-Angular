@@ -28,6 +28,7 @@ public class NavEditorService : INavEditorService
         ["scheduling/getschedule"] = "scheduling/view-schedule",
         ["search/changepassword"] = "tools/change-password",
         ["customerjobrevenue/index"] = "tools/customer-job-revenue",
+        ["bracketseeds/index"] = "scheduling/bracket-seeds",
     };
 
     public NavEditorService(INavEditorRepository navEditorRepo)
@@ -86,7 +87,39 @@ public class NavEditorService : INavEditorService
     {
         var now = DateTime.UtcNow;
 
-        // Validate 2-level constraint
+        // Hide rows are root-level override items with DefaultNavItemId set — skip 2-level and stub logic
+        if (request.DefaultNavItemId != null)
+        {
+            var hideRow = new NavItem
+            {
+                NavId = request.NavId,
+                ParentNavItemId = null,
+                DefaultNavItemId = request.DefaultNavItemId,
+                DefaultParentNavItemId = null,
+                Text = null,
+                Active = false, // Active=false marks this as a hide row
+                SortOrder = 0,
+                Modified = now,
+                ModifiedBy = userId
+            };
+            _navEditorRepo.AddNavItem(hideRow);
+            await _navEditorRepo.SaveChangesAsync(ct);
+
+            return new NavEditorNavItemDto
+            {
+                NavItemId = hideRow.NavItemId,
+                NavId = hideRow.NavId,
+                ParentNavItemId = null,
+                SortOrder = 0,
+                Text = null,
+                Active = false,
+                DefaultNavItemId = hideRow.DefaultNavItemId,
+                DefaultParentNavItemId = null,
+                Children = new List<NavEditorNavItemDto>()
+            };
+        }
+
+        // Validate 2-level constraint for normal items
         if (request.ParentNavItemId != null)
         {
             var parent = await _navEditorRepo.GetNavItemByIdAsync(request.ParentNavItemId.Value, ct);
@@ -98,74 +131,15 @@ public class NavEditorService : INavEditorService
 
         var siblingCount = await _navEditorRepo.GetSiblingCountAsync(request.NavId, request.ParentNavItemId, ct);
 
-        if (request.ParentNavItemId == null)
+        // Items slotted under a default parent (DefaultParentNavItemId set) are always children — no stub
+        if (request.DefaultParentNavItemId != null || request.ParentNavItemId != null)
         {
-            // Root item: create parent + auto-create stub child
-            var parentItem = new NavItem
-            {
-                NavId = request.NavId,
-                ParentNavItemId = null,
-                Text = request.Text,
-                IconName = request.IconName,
-                RouterLink = request.RouterLink,
-                NavigateUrl = request.NavigateUrl,
-                Target = request.Target,
-                Active = true,
-                SortOrder = siblingCount + 1,
-                Modified = now,
-                ModifiedBy = userId
-            };
-            _navEditorRepo.AddNavItem(parentItem);
-            await _navEditorRepo.SaveChangesAsync(ct);
-
-            // Auto-create stub child
-            var stubChild = new NavItem
-            {
-                NavId = request.NavId,
-                ParentNavItemId = parentItem.NavItemId,
-                Text = "new child",
-                Active = false,
-                SortOrder = 1,
-                Modified = now,
-                ModifiedBy = userId
-            };
-            _navEditorRepo.AddNavItem(stubChild);
-            await _navEditorRepo.SaveChangesAsync(ct);
-
-            return new NavEditorNavItemDto
-            {
-                NavItemId = parentItem.NavItemId,
-                NavId = parentItem.NavId,
-                ParentNavItemId = null,
-                SortOrder = parentItem.SortOrder,
-                Text = parentItem.Text,
-                IconName = parentItem.IconName,
-                RouterLink = parentItem.RouterLink,
-                NavigateUrl = parentItem.NavigateUrl,
-                Target = parentItem.Target,
-                Active = parentItem.Active,
-                Children = new List<NavEditorNavItemDto>
-                {
-                    new NavEditorNavItemDto
-                    {
-                        NavItemId = stubChild.NavItemId,
-                        NavId = stubChild.NavId,
-                        ParentNavItemId = stubChild.ParentNavItemId,
-                        SortOrder = stubChild.SortOrder,
-                        Text = stubChild.Text,
-                        Active = stubChild.Active,
-                        Children = new List<NavEditorNavItemDto>()
-                    }
-                }
-            };
-        }
-        else
-        {
-            // Child item
             var child = new NavItem
             {
                 NavId = request.NavId,
                 ParentNavItemId = request.ParentNavItemId,
+                DefaultNavItemId = null,
+                DefaultParentNavItemId = request.DefaultParentNavItemId,
                 Text = request.Text,
                 IconName = request.IconName,
                 RouterLink = request.RouterLink,
@@ -191,9 +165,74 @@ public class NavEditorService : INavEditorService
                 NavigateUrl = child.NavigateUrl,
                 Target = child.Target,
                 Active = child.Active,
+                DefaultNavItemId = null,
+                DefaultParentNavItemId = child.DefaultParentNavItemId,
                 Children = new List<NavEditorNavItemDto>()
             };
         }
+
+        // Root item: create parent + auto-create stub child
+        var parentItem = new NavItem
+        {
+            NavId = request.NavId,
+            ParentNavItemId = null,
+            DefaultNavItemId = null,
+            DefaultParentNavItemId = null,
+            Text = request.Text,
+            IconName = request.IconName,
+            RouterLink = request.RouterLink,
+            NavigateUrl = request.NavigateUrl,
+            Target = request.Target,
+            Active = true,
+            SortOrder = siblingCount + 1,
+            Modified = now,
+            ModifiedBy = userId
+        };
+        _navEditorRepo.AddNavItem(parentItem);
+        await _navEditorRepo.SaveChangesAsync(ct);
+
+        // Auto-create stub child
+        var stubChild = new NavItem
+        {
+            NavId = request.NavId,
+            ParentNavItemId = parentItem.NavItemId,
+            Text = "new child",
+            Active = false,
+            SortOrder = 1,
+            Modified = now,
+            ModifiedBy = userId
+        };
+        _navEditorRepo.AddNavItem(stubChild);
+        await _navEditorRepo.SaveChangesAsync(ct);
+
+        return new NavEditorNavItemDto
+        {
+            NavItemId = parentItem.NavItemId,
+            NavId = parentItem.NavId,
+            ParentNavItemId = null,
+            SortOrder = parentItem.SortOrder,
+            Text = parentItem.Text,
+            IconName = parentItem.IconName,
+            RouterLink = parentItem.RouterLink,
+            NavigateUrl = parentItem.NavigateUrl,
+            Target = parentItem.Target,
+            Active = parentItem.Active,
+            DefaultNavItemId = null,
+            DefaultParentNavItemId = null,
+            Children = new List<NavEditorNavItemDto>
+            {
+                new NavEditorNavItemDto
+                {
+                    NavItemId = stubChild.NavItemId,
+                    NavId = stubChild.NavId,
+                    ParentNavItemId = stubChild.ParentNavItemId,
+                    SortOrder = stubChild.SortOrder,
+                    Text = stubChild.Text,
+                    Active = stubChild.Active,
+                    Children = new List<NavEditorNavItemDto>()
+                }
+            }
+        };
     }
 
     public async Task<NavEditorNavItemDto> UpdateNavItemAsync(
@@ -248,13 +287,29 @@ public class NavEditorService : INavEditorService
         return matches.Count;
     }
 
-    public async Task DeleteNavItemAsync(int navItemId, CancellationToken ct = default)
+    public async Task<DeleteNavItemResult?> DeleteNavItemAsync(int navItemId, bool force = false, CancellationToken ct = default)
     {
         var item = await _navEditorRepo.GetNavItemByIdAsync(navItemId, ct);
         if (item == null)
             throw new InvalidOperationException($"Nav item {navItemId} not found");
 
-        // If this is a parent item, remove its children first
+        // Check if any job override items reference this item
+        var references = await _navEditorRepo.GetReferencingOverrideItemsAsync(navItemId, ct);
+        if (references.Count > 0 && !force)
+        {
+            return new DeleteNavItemResult
+            {
+                RequiresConfirmation = true,
+                Message = $"{references.Count} job override item(s) reference this item. Deleting will also remove those overrides.",
+                AffectedCount = references.Count
+            };
+        }
+
+        // Remove override references first (force=true or already handled above)
+        if (references.Count > 0)
+            _navEditorRepo.RemoveNavItems(references);
+
+        // If this is a parent item, remove its direct children too
         if (item.ParentNavItemId == null)
         {
             var children = await _navEditorRepo.GetSiblingItemsAsync(item.NavId, item.NavItemId, ct);
@@ -264,6 +319,7 @@ public class NavEditorService : INavEditorService
 
         _navEditorRepo.RemoveNavItem(item);
         await _navEditorRepo.SaveChangesAsync(ct);
+        return null;
     }
 
     public async Task ReorderNavItemsAsync(
@@ -540,6 +596,86 @@ public class NavEditorService : INavEditorService
         return 1 + childSort;
     }
 
+    public async Task<List<NavEditorNavDto>> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _navEditorRepo.GetJobOverridesAsync(jobId, ct);
+    }
+
+    public async Task<int> EnsureJobOverrideNavAsync(
+        Guid jobId, string roleId, string userId, CancellationToken ct = default)
+    {
+        var overrideNav = await _navEditorRepo.GetJobOverrideNavAsync(jobId, roleId, ct);
+        if (overrideNav != null)
+            return overrideNav.NavId;
+
+        overrideNav = new Nav
+        {
+            RoleId = roleId,
+            JobId = jobId,
+            Active = true,
+            Modified = DateTime.UtcNow,
+            ModifiedBy = userId
+        };
+        _navEditorRepo.AddNav(overrideNav);
+        await _navEditorRepo.SaveChangesAsync(ct);
+        return overrideNav.NavId;
+    }
+
+    public async Task ToggleHideAsync(
+        Guid jobId, string roleId, int defaultNavItemId, bool hide, string userId, CancellationToken ct = default)
+    {
+        // Ensure the job override nav exists for this role
+        var overrideNav = await _navEditorRepo.GetJobOverrideNavAsync(jobId, roleId, ct);
+
+        if (overrideNav == null)
+        {
+            // Create on demand
+            overrideNav = new Nav
+            {
+                RoleId = roleId,
+                JobId = jobId,
+                Active = true,
+                Modified = DateTime.UtcNow,
+                ModifiedBy = userId
+            };
+            _navEditorRepo.AddNav(overrideNav);
+            await _navEditorRepo.SaveChangesAsync(ct);
+        }
+
+        if (hide)
+        {
+            // Create hide row if it doesn't already exist
+            var existing = await _navEditorRepo.GetHideRowAsync(overrideNav.NavId, defaultNavItemId, ct);
+            if (existing == null)
+            {
+                var hideRow = new NavItem
+                {
+                    NavId = overrideNav.NavId,
+                    ParentNavItemId = null,
+                    DefaultNavItemId = defaultNavItemId,
+                    DefaultParentNavItemId = null,
+                    Text = null,
+                    Active = false,
+                    SortOrder = 0,
+                    Modified = DateTime.UtcNow,
+                    ModifiedBy = userId
+                };
+                _navEditorRepo.AddNavItem(hideRow);
+                await _navEditorRepo.SaveChangesAsync(ct);
+            }
+        }
+        else
+        {
+            // Remove hide row if it exists
+            var existing = await _navEditorRepo.GetHideRowAsync(overrideNav.NavId, defaultNavItemId, ct);
+            if (existing != null)
+            {
+                _navEditorRepo.RemoveNavItem(existing);
+                await _navEditorRepo.SaveChangesAsync(ct);
+            }
+        }
+    }
+
     public async Task<int> EnsureAllRoleNavsAsync(string userId, CancellationToken ct = default)
     {
         // All roles that should have platform default navs
@@ -635,22 +771,26 @@ public class NavEditorService : INavEditorService
         sb.AppendLine("BEGIN");
         sb.AppendLine("    CREATE TABLE [nav].[NavItem]");
         sb.AppendLine("    (");
-        sb.AppendLine("        [NavItemId]         INT IDENTITY(1,1)   NOT NULL,");
-        sb.AppendLine("        [NavId]             INT                 NOT NULL,");
-        sb.AppendLine("        [ParentNavItemId]   INT                 NULL,");
-        sb.AppendLine("        [Active]            BIT                 NOT NULL    DEFAULT 1,");
-        sb.AppendLine("        [SortOrder]         INT                 NOT NULL    DEFAULT 0,");
-        sb.AppendLine("        [Text]              NVARCHAR(200)       NOT NULL,");
-        sb.AppendLine("        [IconName]          NVARCHAR(100)       NULL,");
-        sb.AppendLine("        [RouterLink]        NVARCHAR(500)       NULL,");
-        sb.AppendLine("        [NavigateUrl]       NVARCHAR(500)       NULL,");
-        sb.AppendLine("        [Target]            NVARCHAR(20)        NULL,");
-        sb.AppendLine("        [Modified]          DATETIME2           NOT NULL    DEFAULT GETDATE(),");
-        sb.AppendLine("        [ModifiedBy]        NVARCHAR(450)       NULL,");
+        sb.AppendLine("        [NavItemId]              INT IDENTITY(1,1)   NOT NULL,");
+        sb.AppendLine("        [NavId]                  INT                 NOT NULL,");
+        sb.AppendLine("        [ParentNavItemId]        INT                 NULL,");
+        sb.AppendLine("        [DefaultNavItemId]       INT                 NULL,");
+        sb.AppendLine("        [DefaultParentNavItemId] INT                 NULL,");
+        sb.AppendLine("        [Active]                 BIT                 NOT NULL    DEFAULT 1,");
+        sb.AppendLine("        [SortOrder]              INT                 NOT NULL    DEFAULT 0,");
+        sb.AppendLine("        [Text]                   NVARCHAR(200)       NULL,");
+        sb.AppendLine("        [IconName]               NVARCHAR(100)       NULL,");
+        sb.AppendLine("        [RouterLink]             NVARCHAR(500)       NULL,");
+        sb.AppendLine("        [NavigateUrl]            NVARCHAR(500)       NULL,");
+        sb.AppendLine("        [Target]                 NVARCHAR(20)        NULL,");
+        sb.AppendLine("        [Modified]               DATETIME2           NOT NULL    DEFAULT GETDATE(),");
+        sb.AppendLine("        [ModifiedBy]             NVARCHAR(450)       NULL,");
         sb.AppendLine();
         sb.AppendLine("        CONSTRAINT [PK_nav_NavItem] PRIMARY KEY CLUSTERED ([NavItemId]),");
         sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_NavId] FOREIGN KEY ([NavId]) REFERENCES [nav].[Nav] ([NavId]) ON DELETE CASCADE,");
         sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_ParentNavItemId] FOREIGN KEY ([ParentNavItemId]) REFERENCES [nav].[NavItem] ([NavItemId]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_DefaultNavItemId] FOREIGN KEY ([DefaultNavItemId]) REFERENCES [nav].[NavItem] ([NavItemId]),");
+        sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_DefaultParentNavItemId] FOREIGN KEY ([DefaultParentNavItemId]) REFERENCES [nav].[NavItem] ([NavItemId]),");
         sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_ModifiedBy] FOREIGN KEY ([ModifiedBy]) REFERENCES [dbo].[AspNetUsers] ([Id])");
         sb.AppendLine("    );");
         sb.AppendLine("    PRINT 'Created table: nav.NavItem';");
@@ -721,7 +861,8 @@ public class NavEditorService : INavEditorService
                 var targetCol = item.Target != null ? $"N'{SqlEscape(item.Target)}'" : "NULL";
 
                 sb.AppendLine($"INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])");
-                sb.AppendLine($"VALUES ({item.NavItemId}, {navId}, {parentCol}, {(item.Active ? 1 : 0)}, {item.SortOrder}, N'{SqlEscape(item.Text)}', {iconCol}, {routerCol}, {urlCol}, {targetCol}, GETDATE());");
+                var textCol = item.Text != null ? $"N'{SqlEscape(item.Text)}'" : "NULL";
+                sb.AppendLine($"VALUES ({item.NavItemId}, {navId}, {parentCol}, {(item.Active ? 1 : 0)}, {item.SortOrder}, {textCol}, {iconCol}, {routerCol}, {urlCol}, {targetCol}, GETDATE());");
             }
 
             sb.AppendLine();
