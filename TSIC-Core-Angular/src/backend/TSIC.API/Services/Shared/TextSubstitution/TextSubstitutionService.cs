@@ -101,7 +101,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         Guid paymentMethodCreditCardId,
         Guid? registrationId,
         string familyUserId,
-        string template)
+        string template,
+        string? inviteTargetJobPath = null)
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
 
@@ -120,7 +121,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         // Build token dictionary (simple tokens + complex HTML sections)
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         AddSimpleTokens(tokens, first, jobSegment);
-        await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template, emailMode);
+        await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template, emailMode, inviteTargetJobPath);
 
         // Perform replacements
         var result = TokenReplacer.ReplaceTokens(template, tokens);
@@ -258,8 +259,23 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         Guid paymentMethodCreditCardId,
         Guid? registrationId,
         string template,
-        bool emailMode)
+        bool emailMode,
+        string? inviteTargetJobPath = null)
     {
+        if (template.Contains("!INVITE_LINK", StringComparison.OrdinalIgnoreCase))
+        {
+            if (inviteTargetJobPath != null && list.Count > 0)
+            {
+                var regId = list[0].RegistrationId;
+                var url = $"https://www.teamsportsinfo.com/{inviteTargetJobPath}/register-player?invite={regId:D}";
+                tokens["!INVITE_LINK"] = $"<a href=\"{url}\">Click here to complete your registration</a>";
+            }
+            else
+            {
+                tokens["!INVITE_LINK"] = "[INVITE LINK — target job not configured]";
+            }
+        }
+
         if (template.Contains("!F-DISPLAYINACTIVEPLAYERS", StringComparison.OrdinalIgnoreCase))
             tokens["!F-DISPLAYINACTIVEPLAYERS"] = PlayerHtmlGenerator.BuildInactivePlayersHtml(MapToRegistrationData(list));
 

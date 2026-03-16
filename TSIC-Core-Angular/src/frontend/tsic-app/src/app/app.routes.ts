@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './infrastructure/guards/auth.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
+import { playerInviteGuard } from './infrastructure/guards/player-invite.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 
 export const routes: Routes = [
@@ -74,6 +75,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'player',
+						canActivate: [playerInviteGuard],
 						loadComponent: () => import('./views/registration/player/player.component').then(m => m.PlayerWizardV2Component)
 					},
 					{
@@ -352,6 +354,12 @@ export const routes: Routes = [
 				canActivate: [authGuard],
 				data: { requireAdmin: true },
 				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+			},
+			{
+				path: 'scheduling/bracket-seeds',
+				canActivate: [authGuard],
+				data: { requireAdmin: true },
+				loadComponent: () => import('./views/scheduling/bracket-seeds/bracket-seeds.component').then(m => m.BracketSeedsComponent)
 			},
 			{
 				path: 'scheduling/master-schedule',

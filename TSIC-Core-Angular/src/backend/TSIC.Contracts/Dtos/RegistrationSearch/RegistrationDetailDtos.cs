@@ -122,6 +122,10 @@ public record BatchEmailRequest
     public required List<Guid> RegistrationIds { get; init; }
     public required string Subject { get; init; }
     public required string BodyTemplate { get; init; }
+    /// <summary>
+    /// When !INVITE_LINK is used in the template, this is the target job the invite links point to.
+    /// </summary>
+    public Guid? InviteLinkTargetJobId { get; init; }
 }
 
 /// <summary>

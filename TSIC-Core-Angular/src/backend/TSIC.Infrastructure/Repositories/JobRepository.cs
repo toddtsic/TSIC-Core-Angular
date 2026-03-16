@@ -69,6 +69,15 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<string?> GetJobPathAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.JobPath)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<JobRegistrationStatus?> GetRegistrationStatusAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs
@@ -77,6 +86,7 @@ public class JobRepository : IJobRepository
             .Select(j => new JobRegistrationStatus
             {
                 BRegistrationAllowPlayer = j.BRegistrationAllowPlayer ?? false,
+                BPlayerRegRequiresToken = j.BplayerRegRequiresToken,
                 ExpiryUsers = j.ExpiryUsers
             })
             .SingleOrDefaultAsync(cancellationToken);
@@ -361,6 +371,7 @@ public class JobRepository : IJobRepository
             .Select(j => new Contracts.Dtos.JobPulseDto
             {
                 PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
                 // Team reg only meaningful for Tournament (2) and League (3) job types
                 TeamRegistrationOpen = j.BRegistrationAllowTeam == true
                     && (j.JobTypeId == 2 || j.JobTypeId == 3),

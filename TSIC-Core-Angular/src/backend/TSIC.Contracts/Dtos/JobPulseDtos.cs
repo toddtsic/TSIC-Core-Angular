@@ -7,6 +7,7 @@ namespace TSIC.Contracts.Dtos;
 public record JobPulseDto
 {
     public required bool PlayerRegistrationOpen { get; init; }
+    public required bool PlayerRegRequiresToken { get; init; }
     public required bool TeamRegistrationOpen { get; init; }
     public required bool StoreEnabled { get; init; }
     public required bool StoreHasActiveItems { get; init; }

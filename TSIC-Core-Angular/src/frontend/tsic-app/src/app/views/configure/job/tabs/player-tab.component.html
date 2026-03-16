@@ -24,6 +24,31 @@
         </small>
       </div>
 
+      <div class="d-flex align-items-center gap-3 p-3 rounded-2 mb-3"
+           [style.background]="bPlayerRegRequiresToken() ? 'rgba(var(--bs-warning-rgb), 0.1)' : 'rgba(var(--bs-secondary-rgb), 0.08)'"
+           [style.border]="'1px solid ' + (bPlayerRegRequiresToken() ? 'rgba(var(--bs-warning-rgb), 0.35)' : 'rgba(var(--bs-secondary-rgb), 0.2)')"
+           [style.opacity]="bRegistrationAllowPlayer() ? '1' : '0.5'">
+        <div class="form-check form-switch mb-0">
+          <input type="checkbox" class="form-check-input" id="bPlayerRegRequiresToken" role="switch"
+            [ngModel]="bPlayerRegRequiresToken()"
+            (ngModelChange)="bPlayerRegRequiresToken.set($event); onFieldChange()"
+            [disabled]="!bRegistrationAllowPlayer()" />
+          <label class="form-check-label fw-semibold" for="bPlayerRegRequiresToken">
+            <i class="bi me-1" [ngClass]="bPlayerRegRequiresToken() ? 'bi-lock' : 'bi-unlock'"></i>
+            Require Invitation Token
+          </label>
+        </div>
+        <small class="text-secondary">
+          @if (!bRegistrationAllowPlayer()) {
+            Enable player registration to configure this setting.
+          } @else if (bPlayerRegRequiresToken()) {
+            Players must have a valid invite link to register — use <code>!INVITE_LINK</code> in batch emails to generate them.
+          } @else {
+            Open registration — any player can register without an invite.
+          }
+        </small>
+      </div>
+
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">Registration Form Name</label>

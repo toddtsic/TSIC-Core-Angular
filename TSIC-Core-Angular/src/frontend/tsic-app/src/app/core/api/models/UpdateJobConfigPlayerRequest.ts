@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type UpdateJobConfigPlayerRequest = {
     bRegistrationAllowPlayer: boolean | null;
+    bPlayerRegRequiresToken: boolean | null;
     regformNamePlayer: string;
     coreRegformPlayer: string | null;
     playerRegConfirmationEmail: string | null;

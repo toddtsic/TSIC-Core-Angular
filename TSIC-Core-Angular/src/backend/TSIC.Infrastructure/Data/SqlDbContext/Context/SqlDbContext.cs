@@ -4475,6 +4475,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BannerFile).HasColumnName("bannerFile");
             entity.Property(e => e.BenableStp).HasColumnName("BEnableSTP");
             entity.Property(e => e.BillingTypeId).HasColumnName("BillingTypeID");
+            entity.Property(e => e.BplayerRegRequiresToken).HasColumnName("BPlayerRegRequiresToken");
             entity.Property(e => e.CoreRegformPlayer).IsUnicode(false);
             entity.Property(e => e.CustomerId).HasColumnName("customerID");
             entity.Property(e => e.DadLabel).IsUnicode(false);
@@ -4884,6 +4885,14 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.RouterLink).HasMaxLength(500);
             entity.Property(e => e.Target).HasMaxLength(20);
             entity.Property(e => e.Text).HasMaxLength(200);
+
+            entity.HasOne(d => d.DefaultNavItem).WithMany(p => p.InverseDefaultNavItem)
+                .HasForeignKey(d => d.DefaultNavItemId)
+                .HasConstraintName("FK_nav_NavItem_DefaultNavItemId");
+
+            entity.HasOne(d => d.DefaultParentNavItem).WithMany(p => p.InverseDefaultParentNavItem)
+                .HasForeignKey(d => d.DefaultParentNavItemId)
+                .HasConstraintName("FK_nav_NavItem_DefaultParentNavItemId");
 
             entity.HasOne(d => d.ModifiedByNavigation).WithMany(p => p.NavItem)
                 .HasForeignKey(d => d.ModifiedBy)

@@ -62,6 +62,7 @@ public record JobMetadataDto
 public record JobRegistrationStatus
 {
     public required bool BRegistrationAllowPlayer { get; init; }
+    public required bool BPlayerRegRequiresToken { get; init; }
     public DateTime? ExpiryUsers { get; init; }
 }
 
@@ -96,6 +97,11 @@ public interface IJobRepository
     /// Find job by JobPath (case-insensitive).
     /// </summary>
     Task<Guid?> GetJobIdByPathAsync(string jobPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get job URL path by JobId. Used to construct invite links.
+    /// </summary>
+    Task<string?> GetJobPathAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get job registration status (is player registration active).

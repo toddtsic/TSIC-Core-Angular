@@ -20,6 +20,30 @@
               [ngModel]="bodyTemplate()" (ngModelChange)="bodyTemplate.set($event)"
               placeholder="Enter email body (use tokens below to personalize)" rows="8" [disabled]="isSending()"></textarea>
           </div>
+
+          @if (requiresInviteLink()) {
+            <div class="form-group invite-target-group">
+              <label for="invite-target-job">Target registration event <span class="text-danger">*</span></label>
+              @if (inviteTargetJobs().length === 0) {
+                <div class="alert alert-warning py-2 mb-0">
+                  No sibling events found for invite links. The <strong>!INVITE_LINK</strong> token requires at least one other event under the same customer.
+                </div>
+              } @else {
+                <select id="invite-target-job" class="form-select"
+                  [ngModel]="selectedInviteTargetJobId()"
+                  (ngModelChange)="selectedInviteTargetJobId.set($event)"
+                  [disabled]="isSending()">
+                  <option [value]="null">— Select target event —</option>
+                  @for (job of inviteTargetJobs(); track job.jobId) {
+                    <option [value]="job.jobId">{{ job.jobName }}</option>
+                  }
+                </select>
+                <small class="form-text text-muted">
+                  Each player will receive a unique invite link to register on the selected event.
+                </small>
+              }
+            </div>
+          }
         </div>
 
         <div class="tokens-section">
@@ -56,6 +80,9 @@
             <p class="mb-1 mt-1">
               You are about to send an email to <strong>{{ recipientCount() }}</strong> recipient(s).
             </p>
+            @if (requiresInviteLink()) {
+              <p class="mb-1">Each email will include a personalized invite link for the selected event.</p>
+            }
             <p class="mb-2">Please verify the subject and body are correct. This action cannot be undone.</p>
             <div class="d-flex gap-2">
               <button type="button" class="btn btn-sm btn-warning" (click)="confirmSend()">
@@ -74,7 +101,7 @@
           @if (sendResult()) { Close } @else { Cancel }
         </button>
         @if (!sendResult() && !showConfirm()) {
-          <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending()">
+          <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending() || !canSend()">
             @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() }} recipient(s) }
           </button>
         }

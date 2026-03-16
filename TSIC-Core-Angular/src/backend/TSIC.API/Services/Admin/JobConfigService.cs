@@ -143,6 +143,7 @@ public class JobConfigService : IJobConfigService
 
         // Admin-editable
         job.BRegistrationAllowPlayer = req.BRegistrationAllowPlayer;
+        job.BplayerRegRequiresToken = req.BPlayerRegRequiresToken ?? false;
         job.RegformNamePlayer = req.RegformNamePlayer;
         job.CoreRegformPlayer = req.CoreRegformPlayer;
         job.PlayerRegConfirmationEmail = req.PlayerRegConfirmationEmail;
@@ -549,6 +550,7 @@ public class JobConfigService : IJobConfigService
     private static JobConfigPlayerDto MapPlayer(Jobs job, bool isSuperUser) => new()
     {
         BRegistrationAllowPlayer = job.BRegistrationAllowPlayer,
+        BPlayerRegRequiresToken = job.BplayerRegRequiresToken,
         RegformNamePlayer = job.RegformNamePlayer,
         CoreRegformPlayer = job.CoreRegformPlayer,
         PlayerRegConfirmationEmail = job.PlayerRegConfirmationEmail,

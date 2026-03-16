@@ -123,6 +123,10 @@ export class RegistrationSearchService {
 		return this.http.get<LadtTreeRootDto>(`${environment.apiUrl}/ladt/tree`);
 	}
 
+	getInviteTargetJobs(): Observable<JobOptionDto[]> {
+		return this.http.get<JobOptionDto[]>(`${this.apiUrl}/invite-target-jobs`);
+	}
+
 	getChangeJobOptions(): Observable<JobOptionDto[]> {
 		return this.http.get<JobOptionDto[]>(`${this.apiUrl}/change-job-options`);
 	}

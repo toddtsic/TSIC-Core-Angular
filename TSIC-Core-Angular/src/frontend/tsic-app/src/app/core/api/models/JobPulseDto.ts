@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type JobPulseDto = {
     playerRegistrationOpen: boolean;
+    playerRegRequiresToken: boolean;
     teamRegistrationOpen: boolean;
     storeEnabled: boolean;
     storeHasActiveItems: boolean;

@@ -6,6 +6,7 @@ export type { LoginResponseDto as LoginResponse } from '@core/api';
 
 export interface AuthenticatedUser {
     username: string;
+    userId?: string;  // ASP.NET Identity user ID (from JWT sub claim) — needed for invite validation
     regId?: string;
     jobPath?: string;
     role?: string;

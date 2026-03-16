@@ -8,7 +8,8 @@ public interface ITextSubstitutionService
         Guid paymentMethodCreditCardId,
         Guid? registrationId,
         string familyUserId,
-        string template);
+        string template,
+        string? inviteTargetJobPath = null);
 
     /// <summary>
     /// Substitutes job-level tokens only (e.g., !JOBNAME, !USLAXVALIDTHROUGHDATE).

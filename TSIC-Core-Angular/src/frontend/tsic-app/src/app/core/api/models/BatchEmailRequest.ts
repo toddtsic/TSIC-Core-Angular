@@ -6,5 +6,6 @@ export type BatchEmailRequest = {
     registrationIds: Array<string>;
     subject: string;
     bodyTemplate: string;
+    inviteLinkTargetJobId?: string | null;
 };
 

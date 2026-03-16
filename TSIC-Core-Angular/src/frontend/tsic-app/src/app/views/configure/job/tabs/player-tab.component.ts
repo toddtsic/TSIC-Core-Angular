@@ -20,6 +20,7 @@ export class PlayerTabComponent implements OnInit {
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
   bRegistrationAllowPlayer = linkedSignal(() => this.svc.player()?.bRegistrationAllowPlayer ?? null);
+  bPlayerRegRequiresToken = linkedSignal(() => this.svc.player()?.bPlayerRegRequiresToken ?? null);
   regformNamePlayer = linkedSignal(() => this.svc.player()?.regformNamePlayer ?? '');
   coreRegformPlayer = linkedSignal(() => this.svc.player()?.coreRegformPlayer ?? null);
   playerRegConfirmationEmail = linkedSignal(() => this.svc.player()?.playerRegConfirmationEmail ?? null);
@@ -41,6 +42,7 @@ export class PlayerTabComponent implements OnInit {
     if (!p) return '';
     const req: UpdateJobConfigPlayerRequest = {
       bRegistrationAllowPlayer: p.bRegistrationAllowPlayer,
+      bPlayerRegRequiresToken: p.bPlayerRegRequiresToken,
       regformNamePlayer: p.regformNamePlayer,
       coreRegformPlayer: p.coreRegformPlayer,
       playerRegConfirmationEmail: p.playerRegConfirmationEmail,
@@ -85,6 +87,7 @@ export class PlayerTabComponent implements OnInit {
   private buildPayload(): UpdateJobConfigPlayerRequest {
     const req: UpdateJobConfigPlayerRequest = {
       bRegistrationAllowPlayer: this.bRegistrationAllowPlayer(),
+      bPlayerRegRequiresToken: this.bPlayerRegRequiresToken(),
       regformNamePlayer: this.regformNamePlayer(),
       coreRegformPlayer: this.coreRegformPlayer(),
       playerRegConfirmationEmail: this.playerRegConfirmationEmail(),

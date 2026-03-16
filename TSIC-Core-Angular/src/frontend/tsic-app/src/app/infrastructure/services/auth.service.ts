@@ -401,6 +401,7 @@ export class AuthService {
       }
       const user: AuthenticatedUser = {
         username: payload.username || payload.sub,
+        userId: payload.sub,
         regId: payload.regId,
         jobPath: payload.jobPath,
         jobLogo: payload.jobLogo,

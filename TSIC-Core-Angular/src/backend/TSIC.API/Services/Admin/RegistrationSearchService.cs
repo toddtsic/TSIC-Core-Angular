@@ -586,6 +586,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var jobConfirmation = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
         var jobPath = jobConfirmation?.JobPath ?? "";
 
+        // Resolve invite link target job path once (if !INVITE_LINK is in use)
+        string? inviteTargetJobPath = null;
+        if (request.InviteLinkTargetJobId.HasValue)
+            inviteTargetJobPath = await _jobRepo.GetJobPathAsync(request.InviteLinkTargetJobId.Value, ct);
+
         var sent = 0;
         var failed = 0;
         var optedOut = 0;
@@ -616,9 +621,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
                 // Substitute tokens
                 var renderedSubject = await _textSubstitution.SubstituteAsync(
-                    jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.Subject);
+                    jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.Subject, inviteTargetJobPath);
                 var renderedBody = await _textSubstitution.SubstituteAsync(
-                    jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.BodyTemplate);
+                    jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.BodyTemplate, inviteTargetJobPath);
 
                 var emailMsg = new EmailMessageDto
                 {

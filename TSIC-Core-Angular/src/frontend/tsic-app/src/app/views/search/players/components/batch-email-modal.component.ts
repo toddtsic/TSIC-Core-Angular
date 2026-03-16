@@ -1,7 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, input, output, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { BatchEmailResponse } from '@core/api';
+import type { BatchEmailResponse, JobOptionDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 
@@ -18,7 +18,8 @@ const AVAILABLE_TOKENS = [
   { token: '!F-ACCOUNTING', description: 'Formatted accounting table' },
   { token: '!F-PLAYERS', description: 'Formatted player roster table' },
   { token: '!J-CONTACTBLOCK', description: 'JSON contact information block' },
-  { token: '!UNSUBSCRIBE', description: 'Unsubscribe link' }
+  { token: '!UNSUBSCRIBE', description: 'Unsubscribe link' },
+  { token: '!INVITE_LINK', description: 'Personalized registration invitation link (requires target event selection)' }
 ];
 
 @Component({
@@ -29,7 +30,7 @@ const AVAILABLE_TOKENS = [
   styleUrl: './batch-email-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BatchEmailModalComponent {
+export class BatchEmailModalComponent implements OnInit {
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
 
@@ -46,7 +47,27 @@ export class BatchEmailModalComponent {
   sendResult = signal<BatchEmailResponse | null>(null);
   showConfirm = signal<boolean>(false);
 
+  // Invite link support
+  inviteTargetJobs = signal<JobOptionDto[]>([]);
+  inviteTargetJobsLoading = signal<boolean>(false);
+  selectedInviteTargetJobId = signal<string | null>(null);
+
+  readonly requiresInviteLink = computed(() =>
+    this.bodyTemplate().includes('!INVITE_LINK')
+  );
+
+  readonly canSend = computed(() =>
+    !this.requiresInviteLink() || this.selectedInviteTargetJobId() !== null
+  );
+
   readonly availableTokens = AVAILABLE_TOKENS;
+
+  ngOnInit(): void {
+    this.searchService.getInviteTargetJobs().subscribe({
+      next: (jobs) => this.inviteTargetJobs.set(jobs),
+      error: () => { /* non-critical — just means dropdown stays empty */ }
+    });
+  }
 
   close(): void { this.closed.emit(); this.resetForm(); }
 
@@ -62,7 +83,10 @@ export class BatchEmailModalComponent {
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
     const ids = this.registrationIds();
     if (ids.length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
-
+    if (this.requiresInviteLink() && !this.selectedInviteTargetJobId()) {
+      this.toast.show('Select a target registration event for the invite link', 'danger', 4000);
+      return;
+    }
     this.showConfirm.set(true);
   }
 
@@ -72,7 +96,10 @@ export class BatchEmailModalComponent {
 
     this.isSending.set(true);
     this.searchService.sendBatchEmail({
-      registrationIds: ids, subject: this.subject(), bodyTemplate: this.bodyTemplate()
+      registrationIds: ids,
+      subject: this.subject(),
+      bodyTemplate: this.bodyTemplate(),
+      inviteLinkTargetJobId: this.selectedInviteTargetJobId() ?? undefined
     }).subscribe({
       next: (response) => {
         this.isSending.set(false);
@@ -90,6 +117,11 @@ export class BatchEmailModalComponent {
   dismissConfirm(): void { this.showConfirm.set(false); }
 
   private resetForm(): void {
-    this.subject.set(''); this.bodyTemplate.set(''); this.isSending.set(false); this.sendResult.set(null); this.showConfirm.set(false);
+    this.subject.set('');
+    this.bodyTemplate.set('');
+    this.isSending.set(false);
+    this.sendResult.set(null);
+    this.showConfirm.set(false);
+    this.selectedInviteTargetJobId.set(null);
   }
 }

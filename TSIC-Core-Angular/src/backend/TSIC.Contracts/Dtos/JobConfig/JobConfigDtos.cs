@@ -181,6 +181,7 @@ public record UpdateJobConfigCommunicationsRequest
 public record JobConfigPlayerDto
 {
     public required bool? BRegistrationAllowPlayer { get; init; }
+    public required bool? BPlayerRegRequiresToken { get; init; }
     public required string RegformNamePlayer { get; init; }
     public required string? CoreRegformPlayer { get; init; }
     public required string? PlayerRegConfirmationEmail { get; init; }
@@ -202,6 +203,7 @@ public record JobConfigPlayerDto
 public record UpdateJobConfigPlayerRequest
 {
     public required bool? BRegistrationAllowPlayer { get; init; }
+    public required bool? BPlayerRegRequiresToken { get; init; }
     public required string RegformNamePlayer { get; init; }
     public required string? CoreRegformPlayer { get; init; }
     public required string? PlayerRegConfirmationEmail { get; init; }
