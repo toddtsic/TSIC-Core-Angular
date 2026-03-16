@@ -177,7 +177,9 @@ INSERT INTO #MenuManifest VALUES ('Tools', 'tools', 7, 'Job Revenue', 'cash-stac
 -- Store (requireAdmin)
 INSERT INTO #MenuManifest VALUES ('Store', 'cart', 8, 'Store Admin', 'shop', 'store/admin', 1, 'admin');
 
-PRINT CONCAT('Menu manifest: ', (SELECT COUNT(*) FROM #MenuManifest), ' items');
+DECLARE @manifestCount INT;
+SELECT @manifestCount = COUNT(*) FROM #MenuManifest;
+PRINT CONCAT('Menu manifest: ', @manifestCount, ' items');
 
 -- ── 7. Fan out manifest to role-specific Nav records ──
 -- Admin-level roles get 'admin' items. SuperUser gets 'admin' + 'superuser' items.
