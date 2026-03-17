@@ -65,6 +65,13 @@ export class ScheduleCascadeService {
         ).pipe(switchMap(() => this.loadCascade()));
     }
 
+    /** Batch-save event defaults + all agegroup/division overrides in a single request. */
+    saveBatchBuildRules(request: any): Observable<ScheduleCascadeSnapshot> {
+        return this.http.put<unknown>(
+            `${this.apiUrl}/build-rules`, request
+        ).pipe(switchMap(() => this.loadCascade()));
+    }
+
     /** Batch-save all wave assignments (agegroup + division) in a single request. */
     saveBatchWaves(request: SaveBatchWavesRequest): Observable<ScheduleCascadeSnapshot> {
         return this.http.put<unknown>(

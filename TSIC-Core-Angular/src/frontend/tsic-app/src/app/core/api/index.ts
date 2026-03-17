@@ -167,6 +167,7 @@ export type { DiscountCodeDto } from './models/DiscountCodeDto';
 export type { DivisionBracketResponse } from './models/DivisionBracketResponse';
 export type { DivisionCascadeDto } from './models/DivisionCascadeDto';
 export type { DivisionDetailDto } from './models/DivisionDetailDto';
+export type { DivisionFieldAssignmentEntry } from './models/DivisionFieldAssignmentEntry';
 export type { DivisionNameSyncPreview } from './models/DivisionNameSyncPreview';
 export type { DivisionNameSyncRequest } from './models/DivisionNameSyncRequest';
 export type { DivisionNameSyncResult } from './models/DivisionNameSyncResult';

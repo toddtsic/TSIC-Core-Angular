@@ -168,6 +168,12 @@ public record CanvasReadinessResponse
     /// Used by the field config section to display the full field list.
     /// </summary>
     public required List<EventFieldSummaryDto> EventFields { get; init; }
+
+    /// <summary>
+    /// Per-division field IDs (from field-timeslot rows where DivId IS NOT NULL).
+    /// divisionId → list of distinct fieldIds. Used for division-level field overrides.
+    /// </summary>
+    public Dictionary<Guid, List<Guid>>? FieldIdsPerDivision { get; init; }
 }
 
 // ── Request DTOs ──
@@ -422,6 +428,9 @@ public record EventFieldSummaryDto
 public record SaveFieldAssignmentsRequest
 {
     public required List<AgegroupFieldAssignmentEntry> Entries { get; init; }
+
+    /// <summary>Division-level overrides. Null or empty = no division overrides.</summary>
+    public List<DivisionFieldAssignmentEntry>? DivisionEntries { get; init; }
 }
 
 /// <summary>Per-agegroup field assignment: which of the event fields this agegroup should use.</summary>
@@ -430,6 +439,16 @@ public record AgegroupFieldAssignmentEntry
     public required Guid AgegroupId { get; init; }
 
     /// <summary>Field IDs this agegroup should use. Empty list = use NO fields (unusual but valid).</summary>
+    public required List<Guid> FieldIds { get; init; }
+}
+
+/// <summary>Per-division field assignment override.</summary>
+public record DivisionFieldAssignmentEntry
+{
+    public required Guid DivisionId { get; init; }
+    public required Guid AgegroupId { get; init; }
+
+    /// <summary>Field IDs this division should use. Overrides the agegroup-level assignment.</summary>
     public required List<Guid> FieldIds { get; init; }
 }
 

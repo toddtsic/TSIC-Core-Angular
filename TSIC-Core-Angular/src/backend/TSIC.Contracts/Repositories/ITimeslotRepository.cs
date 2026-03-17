@@ -151,6 +151,13 @@ public interface ITimeslotRepository
         Guid leagueId, string season, string year, CancellationToken ct = default);
 
     /// <summary>
+    /// Get the distinct field IDs used by each division in field-timeslot rows.
+    /// Only includes rows where DivId IS NOT NULL. Returns divisionId → list of distinct fieldIds.
+    /// </summary>
+    Task<Dictionary<Guid, List<Guid>>> GetFieldIdsPerDivisionAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default);
+
+    /// <summary>
     /// Get event-level field summaries (FieldId + FieldName) for all fields assigned
     /// to a league-season. Excludes system fields (name starts with '*').
     /// </summary>
@@ -163,6 +170,13 @@ public interface ITimeslotRepository
     /// </summary>
     Task DeleteFieldTimeslotsByFieldAsync(
         Guid agegroupId, Guid fieldId, string season, string year, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete field-timeslot rows for a specific (agegroup, division, field) combination.
+    /// Used when removing a field from a division-level override.
+    /// </summary>
+    Task DeleteFieldTimeslotsByDivFieldAsync(
+        Guid agegroupId, Guid divId, Guid fieldId, string season, string year, CancellationToken ct = default);
 
     // ── Prior-year defaults ──
 

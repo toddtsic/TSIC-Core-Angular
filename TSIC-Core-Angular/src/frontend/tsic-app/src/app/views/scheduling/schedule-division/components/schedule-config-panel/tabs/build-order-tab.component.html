@@ -91,22 +91,15 @@
 
   }
 
-  <!-- FAB — fixed bottom-right, visible only when dirty -->
+  <!-- Save FAB -->
   @if (isDirty()) {
-    <div class="order-fab">
-      <button class="btn btn-outline-secondary"
-              [disabled]="isSaving()"
-              (click)="discard()">
-        <i class="bi bi-arrow-counterclockwise me-1"></i>Discard
-      </button>
-      <button class="btn btn-primary"
-              [disabled]="isSaving()"
-              (click)="save()">
-        @if (isSaving()) {
-          <span class="spinner-border spinner-border-sm me-1"></span>
-        }
-        <i class="bi bi-check2 me-1"></i>Save Order
-      </button>
-    </div>
+    <button class="save-fab" [disabled]="isSaving()" (click)="save()">
+      @if (isSaving()) {
+        <span class="spinner-border spinner-border-sm me-1"></span>
+      } @else {
+        <i class="bi bi-check-lg me-1"></i>
+      }
+      Save Order
+    </button>
   }
 </div>

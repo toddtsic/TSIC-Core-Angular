@@ -11,5 +11,6 @@ export type CanvasReadinessResponse = {
     priorYearDefaults?: (null | PriorYearFieldDefaults);
     priorYearRounds?: any | null;
     eventFields: Array<EventFieldSummaryDto>;
+    fieldIdsPerDivision?: any | null;
 };
 

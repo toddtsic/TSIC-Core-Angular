@@ -16,6 +16,40 @@ export interface AutoScheduleBuildEvent {
     config: AutoScheduleConfig;
 }
 
+type ScheduleAction = 'rebuild-all' | 'rebuild-keep' | 'delete-only';
+
+interface ActionOption {
+    value: ScheduleAction;
+    label: string;
+    description: string;
+    icon: string;
+    danger: boolean;
+}
+
+const ACTION_OPTIONS: ActionOption[] = [
+    {
+        value: 'rebuild-all',
+        label: 'Delete ALL games + rebuild from scratch',
+        description: 'Every existing game in scope will be wiped and rebuilt from scratch.',
+        icon: 'bi-arrow-repeat',
+        danger: false
+    },
+    {
+        value: 'rebuild-keep',
+        label: 'Rebuild but KEEP existing games',
+        description: 'Divisions that already have games will be left alone. Only unscheduled divisions will be built.',
+        icon: 'bi-shield-check',
+        danger: false
+    },
+    {
+        value: 'delete-only',
+        label: 'Delete ALL games (no rebuild)',
+        description: 'Every game in scope will be permanently deleted. Nothing will be rebuilt.',
+        icon: 'bi-trash3',
+        danger: true
+    }
+];
+
 @Component({
     selector: 'app-auto-schedule-config-modal',
     standalone: true,
@@ -25,56 +59,56 @@ export interface AutoScheduleBuildEvent {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AutoScheduleConfigModalComponent {
-    // ── Inputs ──
     readonly scope = input.required<ScheduleScope>();
     readonly scopeLabel = input('');
-    /** Whether games already exist in the current scope (controls mode toggle visibility). */
     readonly hasGamesInScope = input(false);
-    /** Distinct game dates with counts for the day picker. */
     readonly gameDates = input<GameDateInfoDto[]>([]);
 
-    // ── Outputs ──
     readonly buildRequested = output<AutoScheduleBuildEvent>();
     readonly cancelled = output<void>();
 
-    // ── Local state ──
-    readonly action = signal<'build' | 'delete-only'>('build');
-    readonly existingGameMode = signal<'rebuild' | 'keep'>('rebuild');
+    readonly options = ACTION_OPTIONS;
+    readonly selectedAction = signal<ScheduleAction | null>(null);
     readonly filterDate = signal<string>('');
+    readonly confirmed = signal(false);
 
-    /** Whether the day picker is available (delete-only + games exist + dates loaded). */
+    readonly selectedOption = computed(() =>
+        ACTION_OPTIONS.find(o => o.value === this.selectedAction()) ?? null
+    );
+
     readonly showDayPicker = computed(() =>
-        this.action() === 'delete-only' && this.hasGamesInScope() && this.gameDates().length > 0
+        this.selectedAction() === 'delete-only' && this.hasGamesInScope() && this.gameDates().length > 0
     );
 
-    /** Action button label. */
-    readonly actionLabel = computed(() =>
-        this.action() === 'delete-only' ? 'Delete Games' : (this.hasGamesInScope() ? 'Re-Build Schedule' : 'Build Schedule')
-    );
+    readonly actionLabel = computed(() => {
+        const opt = this.selectedOption();
+        return opt ? opt.label : 'Proceed';
+    });
 
-    /** Action button style class. */
-    readonly actionBtnClass = computed(() =>
-        this.action() === 'delete-only' ? 'btn-outline-danger' : 'btn-primary'
-    );
+    readonly isDanger = computed(() => this.selectedOption()?.danger ?? false);
+    readonly hasSelection = computed(() => this.selectedAction() !== null);
 
-    setAction(a: 'build' | 'delete-only'): void {
-        this.action.set(a);
-        if (a === 'build') this.filterDate.set('');
+    onActionChange(value: string): void {
+        this.selectedAction.set(value ? value as ScheduleAction : null);
+        this.confirmed.set(false);
+        if (value !== 'delete-only') this.filterDate.set('');
     }
 
-    setExistingGameMode(mode: 'rebuild' | 'keep'): void {
-        this.existingGameMode.set(mode);
+    onFilterDateChange(value: string): void {
+        this.filterDate.set(value);
+        this.confirmed.set(false);
     }
 
-    setFilterDate(date: string): void {
-        this.filterDate.set(date);
+    toggleConfirm(): void {
+        this.confirmed.set(!this.confirmed());
     }
 
     onConfirm(): void {
+        const action = this.selectedAction();
         this.buildRequested.emit({
             config: {
-                action: this.action(),
-                existingGameMode: this.existingGameMode(),
+                action: action === 'delete-only' ? 'delete-only' : 'build',
+                existingGameMode: action === 'rebuild-keep' ? 'keep' : 'rebuild',
                 filterDate: this.filterDate() || undefined,
             },
         });

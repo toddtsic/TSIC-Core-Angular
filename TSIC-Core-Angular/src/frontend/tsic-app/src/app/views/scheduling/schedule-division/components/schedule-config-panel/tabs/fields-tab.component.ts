@@ -6,7 +6,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
 import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
-import type { AgegroupCanvasReadinessDto, AgegroupWithDivisionsDto, EventFieldSummaryDto } from '@core/api';
+import type { AgegroupCanvasReadinessDto, AgegroupWithDivisionsDto, EventFieldSummaryDto, DivisionFieldAssignmentEntry } from '@core/api';
 
 interface FieldColumn {
   fieldId: string;
@@ -18,6 +18,15 @@ interface AgRow {
   agegroupName: string;
   color: string | null;
   teamCount: number;
+  divisions: DivRow[];
+}
+
+interface DivRow {
+  divId: string;
+  divName: string;
+  agegroupId: string;
+  teamCount: number;
+  color: string | null;
 }
 
 @Component({
@@ -46,8 +55,15 @@ export class FieldsTabComponent implements OnInit {
   /** Local assignment matrix: agegroupId → Set<fieldId> */
   readonly localAssignments = signal<Record<string, Set<string>>>({});
 
+  /** Division-level overrides: divId → Set<fieldId> (only populated when different from agegroup) */
+  readonly divisionAssignments = signal<Record<string, Set<string>>>({});
+
+  /** Which agegroups are expanded to show divisions */
+  readonly expandedAgegroups = signal<Set<string>>(new Set());
+
   /** Baseline (saved) assignments for dirty tracking */
   private readonly baselineAssignments = signal<Record<string, Set<string>>>({});
+  private readonly baselineDivAssignments = signal<Record<string, Set<string>>>({});
 
   /** Agegroup color + team count lookup — derived synchronously from parent input. */
   private readonly agegroupMeta = computed(() => {
@@ -67,22 +83,45 @@ export class FieldsTabComponent implements OnInit {
     const cascade = this.cascadeSvc.cascade();
     if (!cascade) return [];
     const meta = this.agegroupMeta();
-    return cascade.agegroups.map(ag => ({
-      agegroupId: ag.agegroupId,
-      agegroupName: ag.agegroupName,
-      color: meta[ag.agegroupId]?.color ?? null,
-      teamCount: meta[ag.agegroupId]?.teamCount ?? 0,
-    }));
+    const agInput = this.agegroupsInput();
+    return cascade.agegroups.map(ag => {
+      const inputAg = agInput.find(a => a.agegroupId === ag.agegroupId);
+      return {
+        agegroupId: ag.agegroupId,
+        agegroupName: ag.agegroupName,
+        color: meta[ag.agegroupId]?.color ?? null,
+        teamCount: meta[ag.agegroupId]?.teamCount ?? 0,
+        divisions: (inputAg?.divisions ?? []).map(d => ({
+          divId: d.divId,
+          divName: d.divName,
+          agegroupId: ag.agegroupId,
+          teamCount: d.teamCount ?? 0,
+          color: meta[ag.agegroupId]?.color ?? null,
+        })),
+      };
+    });
   });
 
   readonly isDirty = computed(() => {
+    // Check agegroup assignments
     const current = this.localAssignments();
     const baseline = this.baselineAssignments();
     const agIds = new Set([...Object.keys(current), ...Object.keys(baseline)]);
-
     for (const agId of agIds) {
       const curSet = current[agId] ?? new Set<string>();
       const baseSet = baseline[agId] ?? new Set<string>();
+      if (curSet.size !== baseSet.size) return true;
+      for (const f of curSet) {
+        if (!baseSet.has(f)) return true;
+      }
+    }
+    // Check division assignments
+    const curDiv = this.divisionAssignments();
+    const baseDiv = this.baselineDivAssignments();
+    const divIds = new Set([...Object.keys(curDiv), ...Object.keys(baseDiv)]);
+    for (const divId of divIds) {
+      const curSet = curDiv[divId] ?? new Set<string>();
+      const baseSet = baseDiv[divId] ?? new Set<string>();
       if (curSet.size !== baseSet.size) return true;
       for (const f of curSet) {
         if (!baseSet.has(f)) return true;
@@ -98,7 +137,9 @@ export class FieldsTabComponent implements OnInit {
     if (fields.length === 0) return 'No fields available';
     const assigned = Object.values(this.localAssignments())
       .reduce((sum, set) => sum + set.size, 0);
-    return `${assigned} assignment${assigned !== 1 ? 's' : ''} across ${fields.length} field${fields.length !== 1 ? 's' : ''}`;
+    const divOverrides = Object.keys(this.divisionAssignments()).length;
+    const overrideNote = divOverrides > 0 ? ` (${divOverrides} division override${divOverrides !== 1 ? 's' : ''})` : '';
+    return `${assigned} assignment${assigned !== 1 ? 's' : ''} across ${fields.length} field${fields.length !== 1 ? 's' : ''}${overrideNote}`;
   });
 
   ngOnInit(): void {
@@ -119,14 +160,25 @@ export class FieldsTabComponent implements OnInit {
           }))
         );
 
-        // Build assignments from readiness
+        // Agegroup-level assignments
         const assignments: Record<string, Set<string>> = {};
         for (const ag of response.agegroups) {
           assignments[ag.agegroupId] = new Set(ag.fieldIds ?? []);
         }
-
         this.localAssignments.set(assignments);
         this.baselineAssignments.set(this.cloneAssignments(assignments));
+
+        // Division-level overrides
+        const divAssignments: Record<string, Set<string>> = {};
+        const perDiv = (response as any).fieldIdsPerDivision as Record<string, string[]> | null;
+        if (perDiv) {
+          for (const [divId, fieldIds] of Object.entries(perDiv)) {
+            divAssignments[divId] = new Set(fieldIds);
+          }
+        }
+        this.divisionAssignments.set(divAssignments);
+        this.baselineDivAssignments.set(this.cloneAssignments(divAssignments));
+
         this.isLoading.set(false);
       },
       error: () => {
@@ -136,7 +188,23 @@ export class FieldsTabComponent implements OnInit {
     });
   }
 
-  // ── User actions ──
+  // ── Expand/collapse ──
+
+  isExpanded(agegroupId: string): boolean {
+    return this.expandedAgegroups().has(agegroupId);
+  }
+
+  toggleExpand(agegroupId: string): void {
+    const expanded = new Set(this.expandedAgegroups());
+    if (expanded.has(agegroupId)) {
+      expanded.delete(agegroupId);
+    } else {
+      expanded.add(agegroupId);
+    }
+    this.expandedAgegroups.set(expanded);
+  }
+
+  // ── Agegroup-level actions ──
 
   isChecked(agegroupId: string, fieldId: string): boolean {
     return this.localAssignments()[agegroupId]?.has(fieldId) ?? false;
@@ -220,6 +288,57 @@ export class FieldsTabComponent implements OnInit {
     return 'some';
   }
 
+  // ── Division-level actions ──
+
+  /** Division check: has explicit override → use it; otherwise inherit from agegroup. */
+  isDivChecked(div: DivRow, fieldId: string): boolean {
+    const divOverride = this.divisionAssignments()[div.divId];
+    if (divOverride) return divOverride.has(fieldId);
+    // Inherit from agegroup
+    return this.localAssignments()[div.agegroupId]?.has(fieldId) ?? false;
+  }
+
+  /** Does this division have an explicit override (different from agegroup)? */
+  hasDivOverride(divId: string): boolean {
+    return divId in this.divisionAssignments();
+  }
+
+  toggleDivAssignment(div: DivRow, fieldId: string): void {
+    const current = this.divisionAssignments();
+    const agFields = this.localAssignments()[div.agegroupId] ?? new Set<string>();
+
+    // Get or create division override set
+    let divSet: Set<string>;
+    if (current[div.divId]) {
+      divSet = new Set(current[div.divId]);
+    } else {
+      // First override: clone from agegroup
+      divSet = new Set(agFields);
+    }
+
+    if (divSet.has(fieldId)) {
+      divSet.delete(fieldId);
+    } else {
+      divSet.add(fieldId);
+    }
+
+    // If the override now matches the agegroup exactly, remove it (back to inherited)
+    const updated = { ...current };
+    if (this.setsEqual(divSet, agFields)) {
+      delete updated[div.divId];
+    } else {
+      updated[div.divId] = divSet;
+    }
+    this.divisionAssignments.set(updated);
+  }
+
+  /** Reset a division's overrides back to inheriting from agegroup. */
+  resetDivOverride(divId: string): void {
+    const updated = { ...this.divisionAssignments() };
+    delete updated[divId];
+    this.divisionAssignments.set(updated);
+  }
+
   // ── Save ──
 
   save(): void {
@@ -229,11 +348,30 @@ export class FieldsTabComponent implements OnInit {
       fieldIds: [...fieldSet],
     }));
 
+    // Division overrides
+    const divCurrent = this.divisionAssignments();
+    const divisionEntries: DivisionFieldAssignmentEntry[] = [];
+    for (const ag of this.agegroups()) {
+      for (const div of ag.divisions) {
+        if (divCurrent[div.divId]) {
+          divisionEntries.push({
+            divisionId: div.divId,
+            agegroupId: div.agegroupId,
+            fieldIds: [...divCurrent[div.divId]],
+          });
+        }
+      }
+    }
+
     this.isSaving.set(true);
-    this.timeslotSvc.saveFieldAssignments({ entries }).subscribe({
+    this.timeslotSvc.saveFieldAssignments({
+      entries,
+      divisionEntries: divisionEntries.length > 0 ? divisionEntries : undefined,
+    } as any).subscribe({
       next: () => {
         this.isSaving.set(false);
         this.baselineAssignments.set(this.cloneAssignments(current));
+        this.baselineDivAssignments.set(this.cloneAssignments(divCurrent));
         this.toast.show('Field assignments saved', 'success');
       },
       error: () => {
@@ -251,5 +389,13 @@ export class FieldsTabComponent implements OnInit {
       clone[k] = new Set(v);
     }
     return clone;
+  }
+
+  private setsEqual(a: Set<string>, b: Set<string>): boolean {
+    if (a.size !== b.size) return false;
+    for (const item of a) {
+      if (!b.has(item)) return false;
+    }
+    return true;
   }
 }

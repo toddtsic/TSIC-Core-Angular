@@ -5,5 +5,6 @@
 import type { AgegroupFieldAssignmentEntry } from './AgegroupFieldAssignmentEntry';
 export type SaveFieldAssignmentsRequest = {
     entries: Array<AgegroupFieldAssignmentEntry>;
+    divisionEntries?: any[] | null;
 };
 

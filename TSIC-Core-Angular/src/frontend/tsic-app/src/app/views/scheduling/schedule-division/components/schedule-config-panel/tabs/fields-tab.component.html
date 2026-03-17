@@ -11,8 +11,7 @@
     <div class="tab-guidance">
       <i class="bi bi-info-circle me-1"></i>
       Toggle which fields each agegroup can use.
-      Click a column header to toggle all agegroups for that field.
-      Click a row header to toggle all fields for that agegroup.
+      Click the chevron to expand divisions and override at division level.
     </div>
 
     <!-- Summary -->
@@ -36,7 +35,7 @@
         <table class="matrix-table">
           <thead>
             <tr>
-              <th class="ag-header-cell">Agegroup</th>
+              <th class="ag-header-cell">Agegroup / Division</th>
               @for (field of eventFields(); track field.fieldId) {
                 <th class="field-header-cell"
                     (click)="toggleFieldColumn(field.fieldId)">
@@ -55,19 +54,26 @@
           </thead>
           <tbody>
             @for (ag of agegroups(); track ag.agegroupId) {
+              <!-- Agegroup row -->
               <tr>
-                <td class="ag-name-cell" (click)="toggleAgRow(ag.agegroupId)">
+                <td class="ag-name-cell">
                   <div class="ag-name-content">
+                    @if (ag.divisions.length > 0) {
+                      <i class="bi expand-chevron"
+                         [ngClass]="isExpanded(ag.agegroupId) ? 'bi-chevron-down' : 'bi-chevron-right'"
+                         (click)="toggleExpand(ag.agegroupId); $event.stopPropagation()"></i>
+                    }
                     <i class="bi row-check"
                        [ngClass]="{
                          'bi-check-square-fill': agRowState(ag.agegroupId) === 'all',
                          'bi-dash-square': agRowState(ag.agegroupId) === 'some',
                          'bi-square': agRowState(ag.agegroupId) === 'none'
-                       }"></i>
+                       }"
+                       (click)="toggleAgRow(ag.agegroupId)"></i>
                     @if (ag.color) {
                       <span class="color-dot" [style.background]="ag.color"></span>
                     }
-                    <span>{{ ag.agegroupName }}</span>
+                    <span (click)="toggleExpand(ag.agegroupId)">{{ ag.agegroupName }}</span>
                     <span class="badge rounded-pill ms-auto"
                           [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
                           [style.color]="contrastText(ag.color)">{{ ag.teamCount }}</span>
@@ -83,24 +89,56 @@
                   </td>
                 }
               </tr>
+
+              <!-- Division rows (expanded) -->
+              @if (isExpanded(ag.agegroupId)) {
+                @for (div of ag.divisions; track div.divId) {
+                  <tr class="div-row">
+                    <td class="div-name-cell">
+                      <div class="div-name-content">
+                        <span class="div-indent"></span>
+                        <span class="div-name">{{ div.divName }}</span>
+                        <span class="badge rounded-pill ms-auto"
+                              [style.background]="div.color ?? 'var(--bs-secondary-bg)'"
+                              [style.color]="contrastText(div.color)">{{ div.teamCount }}</span>
+                        @if (hasDivOverride(div.divId)) {
+                          <button class="reset-override-btn" title="Reset to agegroup defaults"
+                                  (click)="resetDivOverride(div.divId); $event.stopPropagation()">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                    @for (field of eventFields(); track field.fieldId) {
+                      <td class="check-cell div-check-cell"
+                          [class.checked]="isDivChecked(div, field.fieldId)"
+                          [class.inherited]="!hasDivOverride(div.divId)"
+                          (click)="toggleDivAssignment(div, field.fieldId)">
+                        @if (isDivChecked(div, field.fieldId)) {
+                          <i class="bi bi-check-lg check-icon"
+                             [class.inherited-check]="!hasDivOverride(div.divId)"></i>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              }
             }
           </tbody>
         </table>
       </div>
     }
 
-    <!-- Actions -->
-    @if (eventFields().length > 0) {
-      <div class="tab-actions">
-        <button class="btn btn-sm btn-primary"
-                [disabled]="!isDirty() || isSaving()"
-                (click)="save()">
-          @if (isSaving()) {
-            <span class="spinner-border spinner-border-sm me-1"></span>
-          }
-          <i class="bi bi-check2"></i> Save Assignments
-        </button>
-      </div>
+    <!-- Save FAB -->
+    @if (eventFields().length > 0 && isDirty()) {
+      <button class="save-fab" [disabled]="isSaving()" (click)="save()">
+        @if (isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        } @else {
+          <i class="bi bi-check-lg me-1"></i>
+        }
+        Save Fields
+      </button>
     }
   }
 </div>

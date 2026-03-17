@@ -77,8 +77,8 @@ public class ScheduleCascadeController : ControllerBase
         if (request.GamePlacement is not ("H" or "V"))
             return BadRequest(new { message = "GamePlacement must be 'H' or 'V'" });
 
-        if (request.BetweenRoundRows > 2)
-            return BadRequest(new { message = "BetweenRoundRows must be 0, 1, or 2" });
+        if (request.BetweenRoundRows > 4)
+            return BadRequest(new { message = "BetweenRoundRows must be 0–4" });
 
         if (request.GameGuarantee < 1)
             return BadRequest(new { message = "GameGuarantee must be at least 1" });
@@ -155,6 +155,56 @@ public class ScheduleCascadeController : ControllerBase
 
         await _service.SaveBatchWavesAsync(jobId!.Value, request, userId!, ct);
         return Ok(new { message = "Wave assignments saved" });
+    }
+
+    /// <summary>
+    /// PUT /api/schedule-cascade/build-rules — Batch-save event defaults + all agegroup/division overrides.
+    /// Single request, single transaction — no concurrent DbContext issues.
+    /// </summary>
+    [HttpPut("build-rules")]
+    public async Task<ActionResult> SaveBatchBuildRules(
+        [FromBody] SaveBatchBuildRulesRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var ev = request.EventDefaults;
+        if (ev.GamePlacement is not ("H" or "V"))
+            return BadRequest(new { message = "GamePlacement must be 'H' or 'V'" });
+        if (ev.BetweenRoundRows > 4)
+            return BadRequest(new { message = "BetweenRoundRows must be 0–4" });
+        if (ev.GameGuarantee < 1)
+            return BadRequest(new { message = "GameGuarantee must be at least 1" });
+
+        // 1. Event defaults
+        await _service.SaveEventDefaultsAsync(
+            jobId!.Value, ev.GamePlacement, ev.BetweenRoundRows, ev.GameGuarantee, userId!, ct);
+
+        // 2. Agegroup overrides (sequential — shared DbContext)
+        if (request.AgegroupOverrides != null)
+        {
+            foreach (var (agIdStr, ovr) in request.AgegroupOverrides)
+            {
+                if (!Guid.TryParse(agIdStr, out var agId)) continue;
+                var waves = ParseWavesByDate(ovr.WavesByDate);
+                await _service.SaveAgegroupOverrideAsync(
+                    agId, ovr.GamePlacement, ovr.BetweenRoundRows, ovr.GameGuarantee, waves, userId!, ct);
+            }
+        }
+
+        // 3. Division overrides (sequential — shared DbContext)
+        if (request.DivisionOverrides != null)
+        {
+            foreach (var (divIdStr, ovr) in request.DivisionOverrides)
+            {
+                if (!Guid.TryParse(divIdStr, out var divId)) continue;
+                var waves = ParseWavesByDate(ovr.WavesByDate);
+                await _service.SaveDivisionOverrideAsync(
+                    divId, ovr.GamePlacement, ovr.BetweenRoundRows, ovr.GameGuarantee, waves, userId!, ct);
+            }
+        }
+
+        return Ok(new { message = "Build rules saved" });
     }
 
     /// <summary>

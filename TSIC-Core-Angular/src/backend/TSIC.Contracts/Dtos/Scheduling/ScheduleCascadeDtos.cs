@@ -165,6 +165,21 @@ public record SaveBatchWavesRequest
     public required Dictionary<string, Dictionary<string, byte>> DivisionWaves { get; init; }
 }
 
+/// <summary>
+/// Batch-save event defaults + all agegroup/division overrides in a single request.
+/// </summary>
+public record SaveBatchBuildRulesRequest
+{
+    /// <summary>Event-level defaults (always required).</summary>
+    public required SaveEventDefaultsRequest EventDefaults { get; init; }
+
+    /// <summary>Agegroup overrides keyed by agegroupId. Null properties = inherit from event.</summary>
+    public Dictionary<string, SaveCascadeLevelRequest>? AgegroupOverrides { get; init; }
+
+    /// <summary>Division overrides keyed by divisionId. Null properties = inherit from agegroup.</summary>
+    public Dictionary<string, SaveCascadeLevelRequest>? DivisionOverrides { get; init; }
+}
+
 // ══════════════════════════════════════════════════════════
 // Division Processing Order DTOs
 // ══════════════════════════════════════════════════════════

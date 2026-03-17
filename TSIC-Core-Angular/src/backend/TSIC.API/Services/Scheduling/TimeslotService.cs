@@ -64,6 +64,9 @@ public sealed class TimeslotService : ITimeslotService
         // Per-agegroup field IDs for the field config section
         var fieldIdsPerAg = await _tsRepo.GetFieldIdsPerAgegroupAsync(leagueId, season, year, ct);
 
+        // Per-division field IDs for division-level overrides in field config
+        var fieldIdsPerDiv = await _tsRepo.GetFieldIdsPerDivisionAsync(leagueId, season, year, ct);
+
         // Game guarantee from cascade: event default + per-agegroup overrides
         var cascadeEventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
         int? eventGameGuarantee = cascadeEventDefaults?.GameGuarantee;
@@ -152,7 +155,8 @@ public sealed class TimeslotService : ITimeslotService
             AssignedFieldCount = assignedFieldIds.Count,
             PriorYearDefaults = priorYearDefaults,
             PriorYearRounds = priorYearRounds,
-            EventFields = eventFields
+            EventFields = eventFields,
+            FieldIdsPerDivision = fieldIdsPerDiv.Count > 0 ? fieldIdsPerDiv : null
         };
     }
 
@@ -1538,6 +1542,75 @@ public sealed class TimeslotService : ITimeslotService
                 {
                     await _tsRepo.AddFieldTimeslotsRangeAsync(newRows, ct);
                     totalCreated += newRows.Count;
+                }
+            }
+        }
+
+        // ── Division-level overrides ──
+        if (request.DivisionEntries is { Count: > 0 })
+        {
+            foreach (var divEntry in request.DivisionEntries)
+            {
+                var desiredDivFieldIds = divEntry.FieldIds.ToHashSet();
+
+                // Get existing rows for this specific division
+                var existingDivRows = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                    divEntry.AgegroupId, season, year, divId: divEntry.DivisionId, ct: ct);
+
+                var currentDivFieldIds = existingDivRows.Select(r => r.FieldId).Distinct().ToHashSet();
+
+                // Fields to remove at division level
+                var divFieldsToRemove = currentDivFieldIds.Except(desiredDivFieldIds).ToList();
+                foreach (var fieldId in divFieldsToRemove)
+                {
+                    await _tsRepo.DeleteFieldTimeslotsByDivFieldAsync(
+                        divEntry.AgegroupId, divEntry.DivisionId, fieldId, season, year, ct);
+                    totalDeleted += existingDivRows.Count(r => r.FieldId == fieldId);
+                }
+
+                // Fields to add at division level (clone timing from agegroup-level templates)
+                var divFieldsToAdd = desiredDivFieldIds.Except(currentDivFieldIds).ToList();
+                if (divFieldsToAdd.Count > 0)
+                {
+                    // Use agegroup-level rows as timing template (DivId IS NULL)
+                    var agTemplates = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                        divEntry.AgegroupId, season, year, ct: ct);
+                    var templatesByDow = agTemplates
+                        .Where(r => r.DivId == null)
+                        .GroupBy(r => r.Dow)
+                        .Select(g => g.First())
+                        .ToList();
+
+                    if (templatesByDow.Count > 0)
+                    {
+                        var newDivRows = new List<TimeslotsLeagueSeasonFields>();
+                        foreach (var newFieldId in divFieldsToAdd)
+                        {
+                            foreach (var tmpl in templatesByDow)
+                            {
+                                newDivRows.Add(new TimeslotsLeagueSeasonFields
+                                {
+                                    AgegroupId = divEntry.AgegroupId,
+                                    FieldId = newFieldId,
+                                    DivId = divEntry.DivisionId,
+                                    StartTime = tmpl.StartTime,
+                                    GamestartInterval = tmpl.GamestartInterval,
+                                    MaxGamesPerField = tmpl.MaxGamesPerField,
+                                    Dow = tmpl.Dow,
+                                    Season = season,
+                                    Year = year,
+                                    LebUserId = userId,
+                                    Modified = DateTime.UtcNow
+                                });
+                            }
+                        }
+
+                        if (newDivRows.Count > 0)
+                        {
+                            await _tsRepo.AddFieldTimeslotsRangeAsync(newDivRows, ct);
+                            totalCreated += newDivRows.Count;
+                        }
+                    }
                 }
             }
         }

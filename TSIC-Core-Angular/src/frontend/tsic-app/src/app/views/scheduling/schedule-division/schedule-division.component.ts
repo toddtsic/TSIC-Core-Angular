@@ -135,10 +135,25 @@ export class ScheduleDivisionComponent implements OnInit {
         return all.filter(p => p.t1Type !== 'T');
     });
 
-    // ── Add Row (custom timeslot for championship game placement) ──
+    // ── Add Row (custom timeslot injection) ──
     readonly showAddTimeslot = signal(false);
     readonly newTimeslotDate = signal('');
     readonly newTimeslotTime = signal('');
+
+    /** Distinct game days from the current grid, sorted chronologically. */
+    readonly availableGameDays = computed((): { iso: string; label: string }[] => {
+        const grid = this.gridResponse();
+        if (!grid) return [];
+        const seen = new Map<string, string>();
+        for (const row of grid.rows) {
+            const d = new Date(row.gDate);
+            const iso = d.toISOString().split('T')[0];
+            if (!seen.has(iso)) {
+                seen.set(iso, d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+            }
+        }
+        return Array.from(seen.entries()).map(([iso, label]) => ({ iso, label }));
+    });
 
     /** Auto-detected event type label for the stepper badge. */
     readonly eventTypeLabel = computed(() => {
@@ -922,15 +937,28 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Add Row (custom timeslot injection) ──
 
-    toggleAddTimeslot(): void {
-        this.showAddTimeslot.update(v => !v);
+    openAddTimeslotModal(): void {
+        const days = this.availableGameDays();
+        this.newTimeslotDate.set(days.length > 0 ? days[0].iso : '');
+        this.newTimeslotTime.set('');
+        this.showAddTimeslot.set(true);
+    }
+
+    closeAddTimeslotModal(): void {
+        this.showAddTimeslot.set(false);
     }
 
     addTimeslotAndReload(): void {
-        if (this.newTimeslotDate() && this.newTimeslotTime()) {
-            const div = this.selectedDivision();
-            const agId = this.selectedAgegroupId();
-            if (div && agId) this.loadScheduleGrid(div.divId, agId);
+        if (!this.newTimeslotDate() || !this.newTimeslotTime()) return;
+        this.showAddTimeslot.set(false);
+        const s = this.scope();
+        if (s.level === 'division') {
+            this.loadScheduleGrid(s.divId, s.agegroupId);
+        } else if (s.level === 'agegroup') {
+            const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+            if (ag?.divisions.length) this.loadScheduleGrid(ag.divisions[0].divId, s.agegroupId);
+        } else {
+            this.loadEventGrid();
         }
     }
 

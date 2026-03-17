@@ -190,6 +190,12 @@ export class WavesTabComponent {
     return waves.agegroups[row.agegroupId]?.[dateIso] ?? 1;
   }
 
+  /** Whether this row's agegroup plays on this date. */
+  playsOnDate(row: WaveRow, dateIso: string): boolean {
+    const waves = this.effectiveWaves();
+    return dateIso in (waves.agegroups[row.agegroupId] ?? {});
+  }
+
   /** Whether a division's wave is inherited (no override for that date). */
   isInherited(row: WaveRow, dateIso: string): boolean {
     if (row.level === 'agegroup') return false;

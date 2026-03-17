@@ -137,25 +137,16 @@
       </div>
     }
 
-    <!-- Actions -->
-    @if (dateColumns().length > 0) {
-      <div class="tab-actions">
-        @if (isDirty()) {
-          <button class="btn btn-sm btn-outline-secondary"
-                  [disabled]="isSaving()"
-                  (click)="discard()">
-            <i class="bi bi-arrow-counterclockwise"></i> Reset Game Days
-          </button>
+    <!-- Save FAB -->
+    @if (isDirty()) {
+      <button class="save-fab" [disabled]="isSaving()" (click)="apply()">
+        @if (isSaving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        } @else {
+          <i class="bi bi-check-lg me-1"></i>
         }
-        <button class="btn btn-sm btn-primary"
-                [disabled]="!isDirty() || isSaving()"
-                (click)="apply()">
-          @if (isSaving()) {
-            <span class="spinner-border spinner-border-sm me-1"></span>
-          }
-          <i class="bi bi-check2"></i> Apply
-        </button>
-      </div>
+        Save Dates
+      </button>
     }
   }
 

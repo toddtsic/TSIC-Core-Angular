@@ -1,5 +1,6 @@
 :host {
   display: block;
+  position: relative;
 }
 
 .build-rules {
@@ -73,12 +74,12 @@
   color: var(--brand-text-muted);
 }
 
-.rule-cell-action {
-  margin-left: auto;
-  justify-content: flex-end;
-}
-
 // ── Cascade table ──
+
+.cascade-table-wrapper {
+  overflow: auto;
+  max-height: 60vh;
+}
 
 .cascade-table {
   font-size: var(--font-size-sm);
@@ -103,7 +104,10 @@
   color: var(--brand-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: var(--bs-secondary-bg);
+  background: var(--bs-body-bg);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .cascade-ag-row {
@@ -210,9 +214,8 @@
   font-style: italic;
 }
 
-.override-value {
-  font-weight: var(--font-weight-semibold);
-  color: var(--bs-primary);
+.override-input {
+  width: 80px;
 }
 
 // ── Inline edit button ──
@@ -245,6 +248,45 @@
   }
 }
 
+// ── Save FAB ──
+
+.save-fab {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  z-index: 20;
+  height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--bs-primary);
+  color: var(--bs-white);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  white-space: nowrap;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+
+  &:hover:not(:disabled) {
+    box-shadow: var(--shadow-xl);
+    transform: scale(1.03);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
 // ── Responsive ──
 
 @media (max-width: 768px) {
@@ -255,10 +297,6 @@
 
   .rule-input {
     width: 100%;
-  }
-
-  .rule-cell-action {
-    margin-left: 0;
   }
 
   .cascade-row {

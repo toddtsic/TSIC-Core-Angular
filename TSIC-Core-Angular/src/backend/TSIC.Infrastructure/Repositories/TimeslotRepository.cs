@@ -378,6 +378,23 @@ public class TimeslotRepository : ITimeslotRepository
             .ToDictionary(g => g.Key, g => g.Select(r => r.FieldId).Distinct().ToList());
     }
 
+    public async Task<Dictionary<Guid, List<Guid>>> GetFieldIdsPerDivisionAsync(
+        Guid leagueId, string season, string year, CancellationToken ct = default)
+    {
+        var rows = await _context.TimeslotsLeagueSeasonFields
+            .AsNoTracking()
+            .Where(f => f.Season == season && f.Year == year
+                && f.Agegroup.LeagueId == leagueId
+                && f.DivId != null)
+            .Select(f => new { DivId = f.DivId!.Value, f.FieldId })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.DivId)
+            .ToDictionary(g => g.Key, g => g.Select(r => r.FieldId).Distinct().ToList());
+    }
+
     public async Task<List<EventFieldSummaryDto>> GetEventFieldSummariesAsync(
         Guid leagueId, string season, CancellationToken ct = default)
     {
@@ -403,6 +420,20 @@ public class TimeslotRepository : ITimeslotRepository
     {
         var toDelete = await _context.TimeslotsLeagueSeasonFields
             .Where(f => f.AgegroupId == agegroupId
+                && f.FieldId == fieldId
+                && f.Season == season
+                && f.Year == year)
+            .ToListAsync(ct);
+
+        _context.TimeslotsLeagueSeasonFields.RemoveRange(toDelete);
+    }
+
+    public async Task DeleteFieldTimeslotsByDivFieldAsync(
+        Guid agegroupId, Guid divId, Guid fieldId, string season, string year, CancellationToken ct = default)
+    {
+        var toDelete = await _context.TimeslotsLeagueSeasonFields
+            .Where(f => f.AgegroupId == agegroupId
+                && f.DivId == divId
                 && f.FieldId == fieldId
                 && f.Season == season
                 && f.Year == year)
