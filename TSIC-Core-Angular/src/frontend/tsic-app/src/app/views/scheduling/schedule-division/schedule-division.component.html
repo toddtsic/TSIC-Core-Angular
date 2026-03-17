@@ -47,6 +47,10 @@
                     </button>
                     @if (showToolsSection()) {
                         <div class="tools-list">
+                            <button class="tool-link" [class.active]="activeTool() === 'pools'"
+                                    (click)="setTool('pools')">
+                                <i class="bi bi-collection"></i> Pool Assignment
+                            </button>
                             <button class="tool-link" [class.active]="activeTool() === 'fields'"
                                     (click)="setTool('fields')">
                                 <i class="bi bi-grid-3x3"></i> Manage Fields
@@ -58,10 +62,6 @@
                             <button class="tool-link" [class.active]="activeTool() === 'timeslots'"
                                     (click)="setTool('timeslots')">
                                 <i class="bi bi-clock"></i> Manage Timeslots
-                            </button>
-                            <button class="tool-link" [class.active]="activeTool() === 'pools'"
-                                    (click)="setTool('pools')">
-                                <i class="bi bi-collection"></i> Pool Assignment
                             </button>
                             @if (hasChampionshipPairings()) {
                                 <button class="tool-link" [class.active]="activeTool() === 'bracket-seeds'"
