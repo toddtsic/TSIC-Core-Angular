@@ -42,7 +42,8 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     }
 
     public async Task<ScheduleGridResponse> GetScheduleGridAsync(
-        Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default)
+        Guid jobId, Guid agegroupId, Guid divId,
+        DateTime? additionalTimeslot = null, CancellationToken ct = default)
     {
         var (_, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
 
@@ -101,9 +102,22 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             }
         }
 
-        // 4. Query scheduled games for this grid
-        var allGameDates = allTimeslots.ToList();
-        var games = await _scheduleRepo.GetGamesForGridAsync(jobId, fieldIds, allGameDates, ct);
+        // Inject one-off custom timeslot row (for championship game placement)
+        if (additionalTimeslot.HasValue)
+            allTimeslots.Add(additionalTimeslot.Value);
+
+        // 4. Query scheduled games by date range — includes games at non-standard
+        //    times (e.g., championship games placed at custom intervals)
+        var games = await _scheduleRepo.GetGamesForGridByDateRangeAsync(
+            jobId, fieldIds, gameDates.Min(), gameDates.Max().AddDays(1), ct);
+
+        // Merge actual game times into the timeslot set so the grid shows rows
+        // for games placed at non-standard intervals
+        foreach (var game in games)
+        {
+            if (game.GDate.HasValue)
+                allTimeslots.Add(game.GDate.Value);
+        }
 
         // Index by (GDate, FieldId) for O(1) cell lookup; detect slot collisions
         var gameIndex = new Dictionary<(DateTime, Guid), Schedule>();

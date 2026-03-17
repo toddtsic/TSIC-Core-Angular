@@ -230,6 +230,18 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<Domain.Entities.Schedule>> GetGamesForGridByDateRangeAsync(
+        Guid jobId, List<Guid> fieldIds, DateTime dateFrom, DateTime dateTo, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.FieldId.HasValue && fieldIds.Contains(s.FieldId.Value)
+                && s.GDate.HasValue && s.GDate.Value >= dateFrom && s.GDate.Value < dateTo)
+            .OrderBy(s => s.GDate)
+            .ToListAsync(ct);
+    }
+
     public async Task<HashSet<(Guid fieldId, DateTime gDate)>> GetOccupiedSlotsAsync(
         Guid jobId, List<Guid> fieldIds, CancellationToken ct = default)
     {

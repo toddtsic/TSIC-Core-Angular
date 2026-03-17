@@ -50,6 +50,10 @@ export class AutoBuildService {
         );
     }
 
+    hasChampionshipPairings(): Observable<boolean> {
+        return this.http.get<boolean>(`${this.apiUrl}/has-championship-pairings`);
+    }
+
     extractProfiles(sourceJobId: string): Observable<ProfileExtractionResponse> {
         return this.http.post<ProfileExtractionResponse>(
             `${this.apiUrl}/extract-profiles`,

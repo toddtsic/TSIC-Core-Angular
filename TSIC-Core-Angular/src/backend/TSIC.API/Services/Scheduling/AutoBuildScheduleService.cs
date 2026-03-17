@@ -279,6 +279,17 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
+    // Championship Pairings Check
+    // ══════════════════════════════════════════════════════════
+
+    public async Task<bool> HasChampionshipPairingsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+        return await _pairingsRepo.HasNonRoundRobinPairingsAsync(leagueId, season, ct);
+    }
+
+    // ══════════════════════════════════════════════════════════
     // Build — Horizontal-First Placement with Scoring Engine
     // ══════════════════════════════════════════════════════════
 
@@ -3220,9 +3231,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }, ct);
         }
 
-        // 4.5 Championship pairings — copy bracket structure from source per TCnt
-        await CopyChampionshipPairingsFromSourceAsync(
-            jobId, userId, sourceJobId, ct);
+        // 4.5 Championship pairings — directors add these manually via Manage Pairings.
+        // Auto-copy from source removed: championship games are manually placed,
+        // so championship pairings should be manually created too.
 
         // 5. Cascade config (GameGuarantee, GamePlacement, BetweenRoundRows, waves, BracketDepth)
         var cascadeSeeded = await SeedCascadeFromSourceAsync(
@@ -3304,6 +3315,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     /// <summary>
     /// Copy championship (bracket) pairings from the source job for each matching TCnt.
     /// Offsets GameNumber, Rnd, and GnoRef values to append after existing RR pairings.
+    ///
+    /// NOT CURRENTLY CALLED. Championship games are manually placed by the scheduler,
+    /// so championship pairings should be manually created via Manage Pairings.
+    /// Retained in case we ever move to auto-scheduling championship games (unlikely).
+    /// Was previously called from PreconfigureFromSourceAsync (step 4.5), removed 2026-03-17.
     /// </summary>
     private async Task<int> CopyChampionshipPairingsFromSourceAsync(
         Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default)

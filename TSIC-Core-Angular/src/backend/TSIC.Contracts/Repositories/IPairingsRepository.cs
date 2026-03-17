@@ -97,6 +97,15 @@ public interface IPairingsRepository
     /// </summary>
     Task<int> GetDivisionTeamCountAsync(Guid divId, Guid jobId, CancellationToken ct = default);
 
+    // ── Read: Championship presence check ──
+
+    /// <summary>
+    /// Returns true if any non-round-robin pairings (T1Type != "T") exist for the league-season.
+    /// Used to block "Auto-Schedule All" when championship games require manual placement.
+    /// </summary>
+    Task<bool> HasNonRoundRobinPairingsAsync(
+        Guid leagueId, string season, CancellationToken ct = default);
+
     // ── Write ──
 
     /// <summary>

@@ -12,7 +12,8 @@ public interface IScheduleDivisionService
     /// Build the schedule grid for a division: timeslot rows × field columns.
     /// Shows all games across all divisions that fall on the agegroup's configured dates/fields.
     /// </summary>
-    Task<ScheduleGridResponse> GetScheduleGridAsync(Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default);
+    Task<ScheduleGridResponse> GetScheduleGridAsync(Guid jobId, Guid agegroupId, Guid divId,
+        DateTime? additionalTimeslot = null, CancellationToken ct = default);
 
     /// <summary>
     /// Place a game from a pairing into a specific date/field slot.

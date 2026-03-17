@@ -118,6 +118,20 @@ public class AutoBuildController : ControllerBase
     }
 
     /// <summary>
+    /// GET /api/auto-build/has-championship-pairings — Check if championship games exist.
+    /// Used by frontend to block "Auto-Schedule All" when championship games require manual placement.
+    /// </summary>
+    [HttpGet("has-championship-pairings")]
+    public async Task<ActionResult<bool>> HasChampionshipPairings(CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.HasChampionshipPairingsAsync(jobId!.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// POST /api/auto-build/execute — Horizontal-first placement with scoring engine.
     /// </summary>
     [HttpPost("execute")]

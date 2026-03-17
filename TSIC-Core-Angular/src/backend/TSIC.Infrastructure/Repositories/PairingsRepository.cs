@@ -85,6 +85,16 @@ public class PairingsRepository : IPairingsRepository
             .ToListAsync(ct);
     }
 
+    public async Task<bool> HasNonRoundRobinPairingsAsync(
+        Guid leagueId, string season, CancellationToken ct = default)
+    {
+        return await _context.PairingsLeagueSeason
+            .AsNoTracking()
+            .AnyAsync(p => p.LeagueId == leagueId
+                && p.Season == season
+                && p.T1Type != "T", ct);
+    }
+
     // ── Read: Dashboard aggregates ──
 
     public async Task<HashSet<int>> GetDistinctPoolSizesWithPairingsAsync(

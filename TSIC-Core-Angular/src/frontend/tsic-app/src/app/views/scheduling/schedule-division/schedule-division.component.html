@@ -24,7 +24,7 @@
             <!-- Pairings Panel (Schedule mode + division scope only) -->
             @if (mode() === 'schedule' && scope().level === 'division' && !activeTool()) {
                 <app-pairings-panel
-                    [pairings]="pairings()"
+                    [pairings]="displayPairings()"
                     [isPairingsLoading]="isPairingsLoading()"
                     [placementMode]="placementMode()"
                     [selectedPairingAi]="selectedPairing()?.ai ?? null"
@@ -63,6 +63,12 @@
                                     (click)="setTool('pools')">
                                 <i class="bi bi-collection"></i> Pool Assignment
                             </button>
+                            @if (hasChampionshipPairings()) {
+                                <button class="tool-link" [class.active]="activeTool() === 'bracket-seeds'"
+                                        (click)="setTool('bracket-seeds')">
+                                    <i class="bi bi-trophy"></i> Bracket Seeds
+                                </button>
+                            }
                         </div>
                     }
                 </div>
@@ -312,6 +318,7 @@
                             @case ('pairings') { <app-manage-pairings /> }
                             @case ('timeslots') { <app-manage-timeslots /> }
                             @case ('pools') { <app-pool-assignment /> }
+                            @case ('bracket-seeds') { <app-bracket-seeds /> }
                         }
                     </div>
                 } @else {
@@ -365,6 +372,22 @@
                                 </div>
                             }
 
+                            <!-- Championship placement banner (non-dismissible) -->
+                            @if (championshipPlacementMode()) {
+                                <div class="championship-banner">
+                                    <i class="bi bi-trophy-fill me-2"></i>
+                                    <strong>{{ unplacedChampCount() }}</strong> championship
+                                    {{ unplacedChampCount() === 1 ? 'game' : 'games' }} remaining.
+                                    Use <strong>Add Row</strong> to create timeslots at championship intervals, then place each game.
+                                    @if (unplacedChampCount() === 0) {
+                                        <button class="btn btn-sm btn-success ms-3"
+                                                (click)="exitChampionshipPlacementMode()">
+                                            <i class="bi bi-check-circle me-1"></i>Done
+                                        </button>
+                                    }
+                                </div>
+                            }
+
                             @switch (scope().level) {
 
                                 <!-- Event Scope: full event grid -->
@@ -374,15 +397,17 @@
                                             [gridResponse]="gridResponse()"
                                             [isLoading]="isGridLoading()"
                                             [emptyMessage]="'No games scheduled yet. Use Build Entire Schedule to auto-generate, or schedule a division by hand (click a division in the tree on the left to get started).'"
-[showActionButtons]="false"
+                                            [showActionButtons]="true"
                                             [highlightDivId]="null"
                                             [highlightDivColor]="null"
-                                            [selectedGameGid]="null"
-                                            [highlightGameGid]="null"
+                                            [selectedGameGid]="selectedGame()?.game?.gid ?? null"
+                                            [highlightGameGid]="highlightGameGid()"
                                             [highlightAllDiv]="false"
                                             [showOpenSlotHints]="false"
-                                            [showMoveSlotHints]="false"
-                                            (cellClicked)="onGridCellClick($event)">
+                                            [showMoveSlotHints]="!!selectedGame()"
+                                            (cellClicked)="onGridCellClick($event)"
+                                            (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
+                                            (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
                                         </app-schedule-grid>
                                     }
                                 }
@@ -404,15 +429,17 @@
                                                 [gridResponse]="gridResponse()"
                                                 [isLoading]="isGridLoading()"
                                                 [emptyMessage]="'No fields or timeslots configured for this agegroup'"
-                                                [showActionButtons]="false"
+                                                [showActionButtons]="true"
                                                 [highlightDivId]="null"
                                                 [highlightDivColor]="selectedAgegroupColor()"
-                                                [selectedGameGid]="null"
-                                                [highlightGameGid]="null"
+                                                [selectedGameGid]="selectedGame()?.game?.gid ?? null"
+                                                [highlightGameGid]="highlightGameGid()"
                                                 [highlightAllDiv]="false"
                                                 [showOpenSlotHints]="false"
-                                                [showMoveSlotHints]="false"
-                                                (cellClicked)="onGridCellClick($event)">
+                                                [showMoveSlotHints]="!!selectedGame()"
+                                                (cellClicked)="onGridCellClick($event)"
+                                                (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
+                                                (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
                                             </app-schedule-grid>
                                         }
                                     }
@@ -435,6 +462,29 @@
                                         (cellClicked)="onGridCellClick($event)"
                                         (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                         (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
+
+                                        <!-- Add Row button (projected into grid header actions) -->
+                                        <button gridActions class="btn btn-sm btn-outline-secondary"
+                                                (click)="toggleAddTimeslot()">
+                                            <i class="bi bi-plus-circle me-1"></i>Add Row
+                                        </button>
+
+                                        <!-- Add Row inputs (projected below grid header) -->
+                                        @if (showAddTimeslot()) {
+                                            <div gridExtra class="add-timeslot-bar">
+                                                <label class="form-label mb-0">Date</label>
+                                                <input type="date" class="form-control form-control-sm"
+                                                       [ngModel]="newTimeslotDate()"
+                                                       (ngModelChange)="newTimeslotDate.set($event)">
+                                                <label class="form-label mb-0">Time</label>
+                                                <input type="time" class="form-control form-control-sm"
+                                                       [ngModel]="newTimeslotTime()"
+                                                       (ngModelChange)="newTimeslotTime.set($event)">
+                                                <button class="btn btn-sm btn-primary" (click)="addTimeslotAndReload()">
+                                                    <i class="bi bi-plus"></i> Inject Row
+                                                </button>
+                                            </div>
+                                        }
                                     </app-schedule-grid>
                                 }
                             }

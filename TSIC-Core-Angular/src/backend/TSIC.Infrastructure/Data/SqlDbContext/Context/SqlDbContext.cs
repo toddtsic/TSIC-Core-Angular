@@ -4480,6 +4480,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BenableStp).HasColumnName("BEnableSTP");
             entity.Property(e => e.BillingTypeId).HasColumnName("BillingTypeID");
             entity.Property(e => e.BplayerRegRequiresToken).HasColumnName("BPlayerRegRequiresToken");
+            entity.Property(e => e.BteamRegRequiresToken).HasColumnName("BTeamRegRequiresToken");
             entity.Property(e => e.CoreRegformPlayer).IsUnicode(false);
             entity.Property(e => e.CustomerId).HasColumnName("customerID");
             entity.Property(e => e.DadLabel).IsUnicode(false);

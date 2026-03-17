@@ -16,6 +16,14 @@ public interface IAutoBuildScheduleService
         Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Check if any championship (non-round-robin) pairings exist for this job.
+    /// When true, "Auto-Schedule All" must be blocked — championship games
+    /// require manual placement after per-agegroup/division RR build.
+    /// </summary>
+    Task<bool> HasChampionshipPairingsAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Undo: Delete all games for the current job.
     /// Returns the count of games deleted.
     /// </summary>

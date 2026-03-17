@@ -82,12 +82,13 @@ public class ScheduleDivisionController : ControllerBase
     /// <summary>GET /api/schedule-division/{divId}/grid?agegroupId=X — Schedule grid for a division.</summary>
     [HttpGet("{divId:guid}/grid")]
     public async Task<ActionResult<ScheduleGridResponse>> GetScheduleGrid(
-        Guid divId, [FromQuery] Guid agegroupId, CancellationToken ct)
+        Guid divId, [FromQuery] Guid agegroupId,
+        [FromQuery] DateTime? additionalTimeslot, CancellationToken ct)
     {
         var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _service.GetScheduleGridAsync(jobId!.Value, agegroupId, divId, ct);
+        var result = await _service.GetScheduleGridAsync(jobId!.Value, agegroupId, divId, additionalTimeslot, ct);
         return Ok(result);
     }
 

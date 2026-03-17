@@ -64,10 +64,10 @@ export class ScheduleDivisionService {
 
     // ── Schedule Grid ──
 
-    getScheduleGrid(divId: string, agegroupId: string): Observable<ScheduleGridResponse> {
-        return this.http.get<ScheduleGridResponse>(`${this.apiUrl}/${divId}/grid`, {
-            params: { agegroupId }
-        });
+    getScheduleGrid(divId: string, agegroupId: string, additionalTimeslot?: string): Observable<ScheduleGridResponse> {
+        const params: Record<string, string> = { agegroupId };
+        if (additionalTimeslot) params['additionalTimeslot'] = additionalTimeslot;
+        return this.http.get<ScheduleGridResponse>(`${this.apiUrl}/${divId}/grid`, { params });
     }
 
     /** Full event grid — all games across all agegroups/divisions. Reuses rescheduler endpoint with empty filters. */

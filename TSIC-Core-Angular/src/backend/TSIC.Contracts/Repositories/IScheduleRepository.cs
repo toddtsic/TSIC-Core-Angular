@@ -57,6 +57,15 @@ public interface IScheduleRepository
         Guid jobId, List<Guid> fieldIds, List<DateTime> gameDates, CancellationToken ct = default);
 
     /// <summary>
+    /// Get all scheduled games for a given set of fields within a date range.
+    /// Unlike <see cref="GetGamesForGridAsync"/>, this does not filter by exact timeslot
+    /// matches — it returns games at ANY time within the range, including championship
+    /// games placed at non-standard intervals.
+    /// </summary>
+    Task<List<Schedule>> GetGamesForGridByDateRangeAsync(
+        Guid jobId, List<Guid> fieldIds, DateTime dateFrom, DateTime dateTo, CancellationToken ct = default);
+
+    /// <summary>
     /// Get all occupied (FieldId, GDate) pairs for a set of fields.
     /// Used by auto-schedule to avoid double-booking slots across divisions.
     /// </summary>

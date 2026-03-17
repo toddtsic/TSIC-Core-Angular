@@ -39,6 +39,7 @@ import { ManageFieldsComponent } from '../fields/manage-fields.component';
 import { ManagePairingsComponent } from '../pairings/manage-pairings.component';
 import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.component';
 import { PoolAssignmentComponent } from '../../ladt/pool-assignment/pool-assignment.component';
+import { BracketSeedsComponent } from '../bracket-seeds/bracket-seeds.component';
 import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
 import { QaResultsComponent } from '../qa-results/qa-results.component';
 import { ReschedulerComponent } from '../rescheduler/rescheduler.component';
@@ -54,7 +55,7 @@ import { LadtService } from '../../ladt/editor/services/ladt.service';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, MasterScheduleComponent, QaResultsComponent, ReschedulerComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, MasterScheduleComponent, QaResultsComponent, ReschedulerComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -88,7 +89,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Hub mode ──
     readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('configure');
-    readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | null>(null);
+    readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | 'bracket-seeds' | null>(null);
     readonly showToolsSection = signal(true);
 
     // ── Scope selection model (replaces separate selectedDivision + selectedAgegroupId) ──
@@ -116,6 +117,28 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly strategyProfiles = signal<DivisionStrategyEntry[]>([]);
     readonly strategySource = signal<string>('defaults');
     readonly isSavingStrategy = signal(false);
+
+    // ── Championship awareness ──
+    readonly hasChampionshipPairings = signal(false);
+    readonly championshipPlacementMode = signal(false);
+
+    /** Unplaced championship pairings in current division (non-"T" type + bAvailable). */
+    readonly unplacedChampCount = computed(() => {
+        if (!this.championshipPlacementMode()) return 0;
+        return this.pairings().filter(p => p.t1Type !== 'T' && p.bAvailable).length;
+    });
+
+    /** Pairings to show in the panel — filtered to championship-only when in placement mode. */
+    readonly displayPairings = computed(() => {
+        const all = this.pairings();
+        if (!this.championshipPlacementMode()) return all;
+        return all.filter(p => p.t1Type !== 'T');
+    });
+
+    // ── Add Row (custom timeslot for championship game placement) ──
+    readonly showAddTimeslot = signal(false);
+    readonly newTimeslotDate = signal('');
+    readonly newTimeslotTime = signal('');
 
     /** Auto-detected event type label for the stepper badge. */
     readonly eventTypeLabel = computed(() => {
@@ -378,6 +401,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.loadCanvasReadiness();
         this.loadStrategyProfiles();
         this.checkPairingStatus();
+        this.loadChampionshipStatus();
         // Default mode is 'schedule' at event scope — load full event grid
         if (this.mode() === 'schedule') {
             this.loadEventGrid();
@@ -613,7 +637,7 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     }
 
-    setTool(tool: 'fields' | 'pairings' | 'timeslots' | 'pools'): void {
+    setTool(tool: 'fields' | 'pairings' | 'timeslots' | 'pools' | 'bracket-seeds'): void {
         this.activeTool.set(this.activeTool() === tool ? null : tool);
     }
 
@@ -799,7 +823,12 @@ export class ScheduleDivisionComponent implements OnInit {
         if (!this.gridResponse()) {
             this.isGridLoading.set(true);
         }
-        this.svc.getScheduleGrid(divId, agegroupId).subscribe({
+        // Build additionalTimeslot ISO string if Add Row is active
+        let additionalTimeslot: string | undefined;
+        if (this.showAddTimeslot() && this.newTimeslotDate() && this.newTimeslotTime()) {
+            additionalTimeslot = `${this.newTimeslotDate()}T${this.newTimeslotTime()}`;
+        }
+        this.svc.getScheduleGrid(divId, agegroupId, additionalTimeslot).subscribe({
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
@@ -828,6 +857,81 @@ export class ScheduleDivisionComponent implements OnInit {
                 this.isGridLoading.set(false);
             }
         });
+    }
+
+    // ── Championship placement mode ──
+
+    /**
+     * After RR build, check the built scope for unplaced championship pairings.
+     * If found, switch to division scope on the first affected division and
+     * enter championship placement mode.
+     */
+    private enterChampionshipPlacementIfNeeded(): void {
+        const s = this.scope();
+        const builtAgIds = s.level === 'event'
+            ? this.agegroups().map(a => a.agegroupId)
+            : s.level === 'agegroup' ? [s.agegroupId]
+            : [];
+        const builtDivId = s.level === 'division' ? s.divId : null;
+
+        // Find first division with championship pairings to focus on.
+        // For division scope, check the current division directly.
+        if (builtDivId) {
+            // Already at division scope — check current pairings after they reload
+            setTimeout(() => {
+                const hasUnplaced = this.pairings().some(p => p.t1Type !== 'T' && p.bAvailable);
+                if (hasUnplaced) {
+                    this.championshipPlacementMode.set(true);
+                    this.showAddTimeslot.set(true);
+                    this.toast.show(
+                        'Championship games need placement. Use Add Row to create timeslots, then place each game.',
+                        'info', 6000);
+                }
+            }, 500); // Allow pairings reload to complete
+            return;
+        }
+
+        // For agegroup/event scope, navigate to first division with championship pairings
+        for (const agId of builtAgIds) {
+            const ag = this.agegroups().find(a => a.agegroupId === agId);
+            if (!ag) continue;
+            for (const div of ag.divisions) {
+                // Navigate to this division and let pairings load, then check
+                this.onDivisionSelected({ division: div, agegroupId: agId });
+                setTimeout(() => {
+                    const hasUnplaced = this.pairings().some(p => p.t1Type !== 'T' && p.bAvailable);
+                    if (hasUnplaced) {
+                        this.championshipPlacementMode.set(true);
+                        this.showAddTimeslot.set(true);
+                        this.toast.show(
+                            `Championship games need placement for ${ag.agegroupName}/${div.divName}. Use Add Row to create timeslots, then place each game.`,
+                            'info', 6000);
+                    }
+                }, 800);
+                return; // Focus on first division — admin will work through them
+            }
+        }
+    }
+
+    /** Exit championship placement mode (called when all championship games placed). */
+    exitChampionshipPlacementMode(): void {
+        this.championshipPlacementMode.set(false);
+        this.showAddTimeslot.set(false);
+        this.toast.show('All championship games placed!', 'success', 3000);
+    }
+
+    // ── Add Row (custom timeslot injection) ──
+
+    toggleAddTimeslot(): void {
+        this.showAddTimeslot.update(v => !v);
+    }
+
+    addTimeslotAndReload(): void {
+        if (this.newTimeslotDate() && this.newTimeslotTime()) {
+            const div = this.selectedDivision();
+            const agId = this.selectedAgegroupId();
+            if (div && agId) this.loadScheduleGrid(div.divId, agId);
+        }
     }
 
     // ── Placement Workflow ──
@@ -1091,6 +1195,14 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Auto-schedule config modal ──
 
     openAutoScheduleConfig(): void {
+        // Block "Build Entire Schedule" when championship pairings exist
+        if (this.scope().level === 'event' && this.hasChampionshipPairings()) {
+            this.toast.show(
+                'Championship games detected. Build per-agegroup or per-division instead — championship games require manual placement after RR build.',
+                'warning', 6000);
+            return;
+        }
+
         // Commit current config to localStorage before build
         this.configSvc.saveToLocalStorage();
 
@@ -1172,6 +1284,13 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     /** Lightweight pairing status check — populates missingPairingTCnts for stepper step ④. */
+    loadChampionshipStatus(): void {
+        this.autoBuildSvc.hasChampionshipPairings().subscribe({
+            next: (has) => this.hasChampionshipPairings.set(has),
+            error: () => this.hasChampionshipPairings.set(false)
+        });
+    }
+
     checkPairingStatus(): void {
         this.autoBuildSvc.checkPrerequisites().subscribe({
             next: (result) => {
@@ -1310,6 +1429,11 @@ export class ScheduleDivisionComponent implements OnInit {
                 });
 
                 this.refreshAfterBulkOperation();
+
+                // Check for championship pairings that need manual placement
+                if (this.hasChampionshipPairings()) {
+                    this.enterChampionshipPlacementIfNeeded();
+                }
             },
             error: () => {
                 this.isExecuting.set(false);
@@ -1534,13 +1658,29 @@ export class ScheduleDivisionComponent implements OnInit {
         }).subscribe({
             next: () => {
                 this.selectedGame.set(null);
-                const div = this.selectedDivision();
-                const agId = this.selectedAgegroupId();
-                if (div && agId) {
-                    this.loadScheduleGrid(div.divId, agId, movedGid);
-                }
+                this.reloadCurrentGrid(movedGid);
             }
         });
+    }
+
+    /** Reload the grid at whatever scope is active, optionally highlighting a moved game. */
+    private reloadCurrentGrid(highlightGid?: number): void {
+        const s = this.scope();
+        switch (s.level) {
+            case 'event':
+                this.loadEventGrid();
+                break;
+            case 'agegroup': {
+                const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+                if (ag?.divisions.length) {
+                    this.loadScheduleGrid(ag.divisions[0].divId, s.agegroupId, highlightGid);
+                }
+                break;
+            }
+            case 'division':
+                this.loadScheduleGrid(s.divId!, s.agegroupId, highlightGid);
+                break;
+        }
     }
 
     // ── Grid cell click handler ──
