@@ -3,6 +3,7 @@ import { authGuard } from './infrastructure/guards/auth.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { playerInviteGuard } from './infrastructure/guards/player-invite.guard';
+import { teamInviteGuard } from './infrastructure/guards/team-invite.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 
 export const routes: Routes = [
@@ -80,6 +81,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'team',
+						canActivate: [teamInviteGuard],
 						loadComponent: () => import('./views/registration/team/team.component').then(m => m.TeamWizardV2Component)
 					},
 					{

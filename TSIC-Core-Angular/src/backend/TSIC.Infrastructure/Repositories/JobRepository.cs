@@ -87,6 +87,8 @@ public class JobRepository : IJobRepository
             {
                 BRegistrationAllowPlayer = j.BRegistrationAllowPlayer ?? false,
                 BPlayerRegRequiresToken = j.BplayerRegRequiresToken,
+                BRegistrationAllowTeam = j.BRegistrationAllowTeam ?? false,
+                BTeamRegRequiresToken = j.BteamRegRequiresToken,
                 ExpiryUsers = j.ExpiryUsers
             })
             .SingleOrDefaultAsync(cancellationToken);
@@ -345,6 +347,32 @@ public class JobRepository : IJobRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetFutureJobsForCustomerAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var customerId = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.CustomerId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (customerId == Guid.Empty)
+            return [];
+
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.CustomerId == customerId
+                && j.JobId != jobId
+                && (j.ExpiryUsers == null || j.ExpiryUsers > DateTime.UtcNow))
+            .OrderBy(j => j.JobName)
+            .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "(unnamed)"
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         var customerId = await _context.Jobs
@@ -375,6 +403,7 @@ public class JobRepository : IJobRepository
                 // Team reg only meaningful for Tournament (2) and League (3) job types
                 TeamRegistrationOpen = j.BRegistrationAllowTeam == true
                     && (j.JobTypeId == 2 || j.JobTypeId == 3),
+                TeamRegRequiresToken = j.BteamRegRequiresToken,
                 StoreEnabled = j.BEnableStore == true,
                 StoreHasActiveItems = j.BEnableStore == true
                     && _context.Stores.Any(s => s.JobId == j.JobId

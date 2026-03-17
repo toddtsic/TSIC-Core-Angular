@@ -176,6 +176,7 @@ public class JobConfigService : IJobConfigService
 
         // Admin-editable
         job.BRegistrationAllowTeam = req.BRegistrationAllowTeam;
+        job.BteamRegRequiresToken = req.BTeamRegRequiresToken ?? false;
         job.RegformNameTeam = req.RegformNameTeam;
         job.RegformNameClubRep = req.RegformNameClubRep;
         job.BClubRepAllowEdit = req.BClubRepAllowEdit;
@@ -571,6 +572,7 @@ public class JobConfigService : IJobConfigService
     private static JobConfigTeamsDto MapTeams(Jobs job, bool isSuperUser) => new()
     {
         BRegistrationAllowTeam = job.BRegistrationAllowTeam,
+        BTeamRegRequiresToken = job.BteamRegRequiresToken,
         RegformNameTeam = job.RegformNameTeam,
         RegformNameClubRep = job.RegformNameClubRep,
         BClubRepAllowEdit = job.BClubRepAllowEdit,

@@ -15,6 +15,7 @@ export class TeamsTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
   bRegistrationAllowTeam = linkedSignal(() => this.svc.teams()?.bRegistrationAllowTeam ?? null);
+  bTeamRegRequiresToken = linkedSignal(() => this.svc.teams()?.bTeamRegRequiresToken ?? false);
   bClubRepAllowEdit = linkedSignal(() => this.svc.teams()?.bClubRepAllowEdit ?? null);
   bClubRepAllowDelete = linkedSignal(() => this.svc.teams()?.bClubRepAllowDelete ?? null);
   bClubRepAllowAdd = linkedSignal(() => this.svc.teams()?.bClubRepAllowAdd ?? null);
@@ -31,6 +32,7 @@ export class TeamsTabComponent implements OnInit {
     if (!t) return '';
     const req: UpdateJobConfigTeamsRequest = {
       bRegistrationAllowTeam: t.bRegistrationAllowTeam,
+      bTeamRegRequiresToken: t.bTeamRegRequiresToken,
       regformNameTeam: t.regformNameTeam ?? '',
       regformNameClubRep: t.regformNameClubRep ?? '',
       bClubRepAllowEdit: t.bClubRepAllowEdit,
@@ -67,6 +69,7 @@ export class TeamsTabComponent implements OnInit {
     const t = this.svc.teams();
     const req: UpdateJobConfigTeamsRequest = {
       bRegistrationAllowTeam: this.bRegistrationAllowTeam(),
+      bTeamRegRequiresToken: this.bTeamRegRequiresToken(),
       regformNameTeam: t?.regformNameTeam ?? '',
       regformNameClubRep: t?.regformNameClubRep ?? '',
       bClubRepAllowEdit: this.bClubRepAllowEdit(),

@@ -1,11 +1,11 @@
 import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { BatchEmailResponse, JobOptionDto } from '@core/api';
+import type { BatchEmailResponse, JobOptionDto, FilterOption } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 
-const AVAILABLE_TOKENS = [
+const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
   { token: '!EMAIL', description: 'Contact email address' },
   { token: '!JOBNAME', description: 'League/Organization name' },
@@ -21,6 +21,8 @@ const AVAILABLE_TOKENS = [
   { token: '!UNSUBSCRIBE', description: 'Unsubscribe link' },
   { token: '!INVITE_LINK', description: 'Personalized registration invitation link (requires target event selection)' }
 ];
+
+const CLUBREP_INVITE_TOKEN = { token: '!CLUBREP_INVITE_LINK', description: 'Club rep team registration invitation link (requires target event selection)' };
 
 @Component({
   selector: 'app-batch-email-modal',
@@ -38,6 +40,10 @@ export class BatchEmailModalComponent implements OnInit {
   recipientCount = input<number>(0);
   isOpen = input<boolean>(false);
 
+  // Role context — used to conditionally show !CLUBREP_INVITE_LINK
+  activeRoleIds = input<string[]>([]);
+  roleOptions = input<FilterOption[] | null>(null);
+
   closed = output<void>();
   sent = output<BatchEmailResponse>();
 
@@ -49,25 +55,49 @@ export class BatchEmailModalComponent implements OnInit {
 
   // Invite link support
   inviteTargetJobs = signal<JobOptionDto[]>([]);
-  inviteTargetJobsLoading = signal<boolean>(false);
+  clubRepInviteTargetJobs = signal<JobOptionDto[]>([]);
   selectedInviteTargetJobId = signal<string | null>(null);
 
-  readonly requiresInviteLink = computed(() =>
-    this.bodyTemplate().includes('!INVITE_LINK')
+  /** True when exactly one role is selected and it's "Club Rep" */
+  readonly isClubRepOnly = computed(() => {
+    const ids = this.activeRoleIds();
+    if (ids.length !== 1) return false;
+    const opts = this.roleOptions();
+    if (!opts) return false;
+    const match = opts.find(o => o.value === ids[0]);
+    return match?.text === 'Club Rep';
+  });
+
+  readonly availableTokens = computed(() =>
+    this.isClubRepOnly() ? [...BASE_TOKENS, CLUBREP_INVITE_TOKEN] : BASE_TOKENS
   );
+
+  readonly requiresInviteLink = computed(() => {
+    const body = this.bodyTemplate();
+    return body.includes('!INVITE_LINK') || body.includes('!CLUBREP_INVITE_LINK');
+  });
 
   readonly canSend = computed(() =>
     !this.requiresInviteLink() || this.selectedInviteTargetJobId() !== null
   );
-
-  readonly availableTokens = AVAILABLE_TOKENS;
 
   ngOnInit(): void {
     this.searchService.getInviteTargetJobs().subscribe({
       next: (jobs) => this.inviteTargetJobs.set(jobs),
       error: () => { /* non-critical — just means dropdown stays empty */ }
     });
+    this.searchService.getClubRepInviteTargetJobs().subscribe({
+      next: (jobs) => this.clubRepInviteTargetJobs.set(jobs),
+      error: () => { /* non-critical */ }
+    });
   }
+
+  /** Jobs shown in the target event dropdown — future-only for club rep invite, all for player invite */
+  readonly targetJobOptions = computed(() => {
+    const body = this.bodyTemplate();
+    if (body.includes('!CLUBREP_INVITE_LINK')) return this.clubRepInviteTargetJobs();
+    return this.inviteTargetJobs();
+  });
 
   close(): void { this.closed.emit(); this.resetForm(); }
 

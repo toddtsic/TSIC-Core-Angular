@@ -127,6 +127,10 @@ export class RegistrationSearchService {
 		return this.http.get<JobOptionDto[]>(`${this.apiUrl}/invite-target-jobs`);
 	}
 
+	getClubRepInviteTargetJobs(): Observable<JobOptionDto[]> {
+		return this.http.get<JobOptionDto[]>(`${this.apiUrl}/clubrep-invite-target-jobs`);
+	}
+
 	getChangeJobOptions(): Observable<JobOptionDto[]> {
 		return this.http.get<JobOptionDto[]>(`${this.apiUrl}/change-job-options`);
 	}

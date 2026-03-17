@@ -698,6 +698,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         return await _jobRepo.GetOtherJobsForCustomerAsync(jobId, ct);
     }
 
+    public async Task<List<JobOptionDto>> GetFutureJobOptionsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _jobRepo.GetFutureJobsForCustomerAsync(jobId, ct);
+    }
+
     public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
         Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default)
     {

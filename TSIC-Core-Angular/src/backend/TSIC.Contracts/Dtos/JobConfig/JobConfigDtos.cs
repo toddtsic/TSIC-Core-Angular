@@ -229,6 +229,7 @@ public record UpdateJobConfigPlayerRequest
 public record JobConfigTeamsDto
 {
     public required bool? BRegistrationAllowTeam { get; init; }
+    public required bool BTeamRegRequiresToken { get; init; }
     public required string RegformNameTeam { get; init; }
     public required string RegformNameClubRep { get; init; }
     public required bool? BClubRepAllowEdit { get; init; }
@@ -246,6 +247,7 @@ public record JobConfigTeamsDto
 public record UpdateJobConfigTeamsRequest
 {
     public required bool? BRegistrationAllowTeam { get; init; }
+    public bool? BTeamRegRequiresToken { get; init; }
     public required string RegformNameTeam { get; init; }
     public required string RegformNameClubRep { get; init; }
     public required bool? BClubRepAllowEdit { get; init; }

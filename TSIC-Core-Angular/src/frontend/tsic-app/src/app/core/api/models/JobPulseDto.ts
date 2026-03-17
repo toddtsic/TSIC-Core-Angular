@@ -6,6 +6,7 @@ export type JobPulseDto = {
     playerRegistrationOpen: boolean;
     playerRegRequiresToken: boolean;
     teamRegistrationOpen: boolean;
+    teamRegRequiresToken: boolean;
     storeEnabled: boolean;
     storeHasActiveItems: boolean;
     schedulePublished: boolean;

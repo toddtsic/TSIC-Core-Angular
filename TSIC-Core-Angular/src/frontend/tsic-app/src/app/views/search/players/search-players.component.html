@@ -503,6 +503,8 @@
     [registrationIds]="selectedRegistrationIds"
     [recipientCount]="selectedRegistrations().size"
     [isOpen]="showBatchEmailModal()"
+    [activeRoleIds]="searchRequest().roleIds ?? []"
+    [roleOptions]="filterOptions()?.roles ?? null"
     (closed)="showBatchEmailModal.set(false)"
     (sent)="onBatchEmailComplete()"
   ></app-batch-email-modal>

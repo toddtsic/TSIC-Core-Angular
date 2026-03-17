@@ -63,6 +63,8 @@ public record JobRegistrationStatus
 {
     public required bool BRegistrationAllowPlayer { get; init; }
     public required bool BPlayerRegRequiresToken { get; init; }
+    public required bool BRegistrationAllowTeam { get; init; }
+    public required bool BTeamRegRequiresToken { get; init; }
     public DateTime? ExpiryUsers { get; init; }
 }
 
@@ -184,6 +186,13 @@ public interface IJobRepository
     /// Excludes the current job. Used for "Change Job" dropdown.
     /// </summary>
     Task<List<Dtos.RegistrationSearch.JobOptionDto>> GetOtherJobsForCustomerAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get other jobs owned by the same customer, excluding past jobs (expired).
+    /// Used for club rep invite link target job dropdown.
+    /// </summary>
+    Task<List<Dtos.RegistrationSearch.JobOptionDto>> GetFutureJobsForCustomerAsync(
         Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>

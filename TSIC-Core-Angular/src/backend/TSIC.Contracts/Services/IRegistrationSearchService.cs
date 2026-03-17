@@ -25,6 +25,7 @@ public interface IRegistrationSearchService
     Task<BatchEmailResponse> SendBatchEmailAsync(Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default);
     Task<EmailPreviewResponse> PreviewEmailAsync(Guid jobId, EmailPreviewRequest request, CancellationToken ct = default);
     Task<List<JobOptionDto>> GetChangeJobOptionsAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<JobOptionDto>> GetFutureJobOptionsAsync(Guid jobId, CancellationToken ct = default);
     Task<ChangeJobResponse> ChangeRegistrationJobAsync(Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default);
     Task<DeleteRegistrationResponse> DeleteRegistrationAsync(Guid jobId, string userId, string callerRole, Guid registrationId, CancellationToken ct = default);
     Task SetEmailOptOutAsync(Guid jobId, Guid registrationId, bool optOut, CancellationToken ct = default);

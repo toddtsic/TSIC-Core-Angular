@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type UpdateJobConfigTeamsRequest = {
     bRegistrationAllowTeam: boolean | null;
+    bTeamRegRequiresToken?: boolean | null;
     regformNameTeam: string;
     regformNameClubRep: string;
     bClubRepAllowEdit: boolean | null;

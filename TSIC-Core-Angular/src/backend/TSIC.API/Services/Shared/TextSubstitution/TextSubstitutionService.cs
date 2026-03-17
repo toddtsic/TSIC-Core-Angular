@@ -262,12 +262,26 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         bool emailMode,
         string? inviteTargetJobPath = null)
     {
+        if (template.Contains("!CLUBREP_INVITE_LINK", StringComparison.OrdinalIgnoreCase))
+        {
+            if (inviteTargetJobPath != null && list.Count > 0)
+            {
+                var regId = list[0].RegistrationId;
+                var url = $"https://www.teamsportsinfo.com/{inviteTargetJobPath}/registration/team?invite={regId:D}";
+                tokens["!CLUBREP_INVITE_LINK"] = $"<a href=\"{url}\">Click here to register your team</a>";
+            }
+            else
+            {
+                tokens["!CLUBREP_INVITE_LINK"] = "[CLUBREP INVITE LINK — target job not configured]";
+            }
+        }
+
         if (template.Contains("!INVITE_LINK", StringComparison.OrdinalIgnoreCase))
         {
             if (inviteTargetJobPath != null && list.Count > 0)
             {
                 var regId = list[0].RegistrationId;
-                var url = $"https://www.teamsportsinfo.com/{inviteTargetJobPath}/register-player?invite={regId:D}";
+                var url = $"https://www.teamsportsinfo.com/{inviteTargetJobPath}/registration/player?invite={regId:D}";
                 tokens["!INVITE_LINK"] = $"<a href=\"{url}\">Click here to complete your registration</a>";
             }
             else

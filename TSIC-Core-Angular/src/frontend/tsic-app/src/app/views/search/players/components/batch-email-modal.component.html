@@ -24,9 +24,9 @@
           @if (requiresInviteLink()) {
             <div class="form-group invite-target-group">
               <label for="invite-target-job">Target registration event <span class="text-danger">*</span></label>
-              @if (inviteTargetJobs().length === 0) {
+              @if (targetJobOptions().length === 0) {
                 <div class="alert alert-warning py-2 mb-0">
-                  No sibling events found for invite links. The <strong>!INVITE_LINK</strong> token requires at least one other event under the same customer.
+                  No eligible events found for invite links. The invite token requires at least one other event under the same customer.
                 </div>
               } @else {
                 <select id="invite-target-job" class="form-select"
@@ -34,12 +34,12 @@
                   (ngModelChange)="selectedInviteTargetJobId.set($event)"
                   [disabled]="isSending()">
                   <option [value]="null">— Select target event —</option>
-                  @for (job of inviteTargetJobs(); track job.jobId) {
+                  @for (job of targetJobOptions(); track job.jobId) {
                     <option [value]="job.jobId">{{ job.jobName }}</option>
                   }
                 </select>
                 <small class="form-text text-muted">
-                  Each player will receive a unique invite link to register on the selected event.
+                  Each recipient will receive a unique invite link to register on the selected event.
                 </small>
               }
             </div>
@@ -50,7 +50,7 @@
           <h4>Available Tokens</h4>
           <p class="tokens-help">Click a token to insert it at cursor position</p>
           <div class="token-chips">
-            @for (tokenInfo of availableTokens; track tokenInfo.token) {
+            @for (tokenInfo of availableTokens(); track tokenInfo.token) {
               <button type="button" class="token-chip" (click)="insertToken(tokenInfo.token, bodyTextarea)"
                 [disabled]="isSending()" [title]="tokenInfo.description">{{ tokenInfo.token }}</button>
             }

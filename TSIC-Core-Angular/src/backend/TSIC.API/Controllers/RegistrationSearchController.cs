@@ -347,6 +347,17 @@ public class RegistrationSearchController : ControllerBase
         return Ok(options);
     }
 
+    [HttpGet("clubrep-invite-target-jobs")]
+    public async Task<ActionResult<List<JobOptionDto>>> GetClubRepInviteTargetJobs(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var options = await _searchService.GetFutureJobOptionsAsync(jobId.Value, ct);
+        return Ok(options);
+    }
+
     [HttpGet("change-job-options")]
     public async Task<ActionResult<List<JobOptionDto>>> GetChangeJobOptions(CancellationToken ct)
     {

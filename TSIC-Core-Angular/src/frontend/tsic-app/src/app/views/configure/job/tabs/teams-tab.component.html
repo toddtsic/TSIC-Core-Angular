@@ -8,6 +8,31 @@
           (ngModelChange)="bRegistrationAllowTeam.set($event); onFieldChange()" />
         <label class="form-check-label" for="bAllowTeam">Allow Team Registration</label>
       </div>
+
+      <div class="d-flex align-items-center gap-3 p-3 rounded-2 mt-3"
+           [style.background]="bTeamRegRequiresToken() ? 'rgba(var(--bs-warning-rgb), 0.1)' : 'rgba(var(--bs-secondary-rgb), 0.08)'"
+           [style.border]="'1px solid ' + (bTeamRegRequiresToken() ? 'rgba(var(--bs-warning-rgb), 0.35)' : 'rgba(var(--bs-secondary-rgb), 0.2)')"
+           [style.opacity]="bRegistrationAllowTeam() ? '1' : '0.5'">
+        <div class="form-check form-switch mb-0">
+          <input type="checkbox" class="form-check-input" id="bTeamRegRequiresToken" role="switch"
+            [ngModel]="bTeamRegRequiresToken()"
+            (ngModelChange)="bTeamRegRequiresToken.set($event); onFieldChange()"
+            [disabled]="!bRegistrationAllowTeam()" />
+          <label class="form-check-label fw-semibold" for="bTeamRegRequiresToken">
+            <i class="bi me-1" [ngClass]="bTeamRegRequiresToken() ? 'bi-lock' : 'bi-unlock'"></i>
+            Require Club Rep Invitation Token
+          </label>
+        </div>
+        <small class="text-secondary">
+          @if (!bRegistrationAllowTeam()) {
+            Enable team registration to configure this setting.
+          } @else if (bTeamRegRequiresToken()) {
+            Club reps must have a valid invite link to register teams — use <code>!CLUBREP_INVITE_LINK</code> in batch emails to generate them.
+          } @else {
+            Open registration — any club rep can register teams without an invite.
+          }
+        </small>
+      </div>
     </div>
 
     <div class="form-section">
