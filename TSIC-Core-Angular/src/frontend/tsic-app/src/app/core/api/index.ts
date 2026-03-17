@@ -506,6 +506,7 @@ export type { TeamFeeUpdateDto } from './models/TeamFeeUpdateDto';
 export type { TeamFilterOptionsDto } from './models/TeamFilterOptionsDto';
 export type { TeamInsurancePurchaseRequestDto } from './models/TeamInsurancePurchaseRequestDto';
 export type { TeamInsurancePurchaseResponseDto } from './models/TeamInsurancePurchaseResponseDto';
+export type { TeamInviteValidationResult } from './models/TeamInviteValidationResult';
 export type { TeamPaymentAllocation } from './models/TeamPaymentAllocation';
 export type { TeamPaymentRequestDto } from './models/TeamPaymentRequestDto';
 export type { TeamPaymentResponseDto } from './models/TeamPaymentResponseDto';
