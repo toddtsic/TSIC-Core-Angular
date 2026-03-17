@@ -145,6 +145,16 @@ public interface IScheduleCascadeRepository
     Task DeleteProcessingOrderAsync(
         Guid jobId, CancellationToken ct = default);
 
+    // ── Bracket Depth Extraction (from Schedule) ──
+
+    /// <summary>
+    /// Get the highest bracket type actually USED per agegroup from the Schedule table
+    /// for a given job. Returns agegroupId → bracket depth char ('F','S','Q','X','Y','Z').
+    /// Only includes agegroups that have bracket games on the schedule.
+    /// </summary>
+    Task<Dictionary<Guid, string>> GetBracketDepthsByAgegroupAsync(
+        Guid jobId, CancellationToken ct = default);
+
     // ── Bulk operations ──
 
     /// <summary>

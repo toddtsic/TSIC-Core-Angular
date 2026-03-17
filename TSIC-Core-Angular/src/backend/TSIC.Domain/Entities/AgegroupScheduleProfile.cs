@@ -17,6 +17,8 @@ public partial class AgegroupScheduleProfile
 
     public int? GameGuarantee { get; set; }
 
+    public string? BracketDepth { get; set; }
+
     public virtual Agegroups Agegroup { get; set; } = null!;
 
     public virtual AspNetUsers? LebUser { get; set; }

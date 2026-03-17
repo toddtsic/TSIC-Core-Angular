@@ -61,4 +61,20 @@ public interface IBracketSeedRepository
         Guid divId, CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
+
+    // ── Source job seed lookup (for pre-fill from prior year) ──
+
+    /// <summary>
+    /// Get bracket seed data from a source job, enriched with division names
+    /// for name-matching to the target job.
+    /// </summary>
+    Task<List<SourceBracketSeedInfo>> GetSourceBracketSeedsAsync(
+        Guid sourceJobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get lightweight context for a set of bracket games (agegroup name, bracket type, slot numbers).
+    /// Used to match target games against source seed definitions.
+    /// </summary>
+    Task<Dictionary<int, BracketGameContext>> GetBracketGameContextAsync(
+        IEnumerable<int> gids, CancellationToken ct = default);
 }

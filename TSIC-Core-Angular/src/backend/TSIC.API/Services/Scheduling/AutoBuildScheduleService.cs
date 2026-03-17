@@ -3220,7 +3220,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }, ct);
         }
 
-        // 5. Cascade config (GameGuarantee, GamePlacement, BetweenRoundRows, waves)
+        // 4.5 Championship pairings — copy bracket structure from source per TCnt
+        await CopyChampionshipPairingsFromSourceAsync(
+            jobId, userId, sourceJobId, ct);
+
+        // 5. Cascade config (GameGuarantee, GamePlacement, BetweenRoundRows, waves, BracketDepth)
         var cascadeSeeded = await SeedCascadeFromSourceAsync(
             jobId, userId, sourceJobId, currentDivisions, ct);
 
@@ -3295,6 +3299,78 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             CascadeSeeded = cascadeSeeded,
             FieldsLeagueSeasonCopied = fieldResult.FieldsLeagueSeasonCopied
         };
+    }
+
+    /// <summary>
+    /// Copy championship (bracket) pairings from the source job for each matching TCnt.
+    /// Offsets GameNumber, Rnd, and GnoRef values to append after existing RR pairings.
+    /// </summary>
+    private async Task<int> CopyChampionshipPairingsFromSourceAsync(
+        Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default)
+    {
+        var (srcLeagueId, srcSeason, _) = await _contextResolver.ResolveAsync(sourceJobId, ct);
+        var (tgtLeagueId, tgtSeason, _) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        var targetPoolSizes = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(tgtLeagueId, tgtSeason, ct);
+        var sourcePoolSizes = await _pairingsRepo.GetDistinctPoolSizesWithPairingsAsync(srcLeagueId, srcSeason, ct);
+
+        var copied = 0;
+        foreach (var tCnt in targetPoolSizes.Intersect(sourcePoolSizes).OrderBy(t => t))
+        {
+            // Skip if target already has championship pairings for this TCnt
+            var targetPairings = await _pairingsRepo.GetPairingsAsync(tgtLeagueId, tgtSeason, tCnt, ct);
+            if (targetPairings.Any(p => p.T1Type != "T"))
+                continue;
+
+            // Get source championship pairings
+            var srcChampPairings = await _pairingsRepo.GetChampionshipPairingsAsync(
+                srcLeagueId, srcSeason, tCnt, ct);
+            if (srcChampPairings.Count == 0)
+                continue;
+
+            // Get target's current max game/round (from RR pairings)
+            var (tgtMaxGame, tgtMaxRound) = await _pairingsRepo.GetMaxGameAndRoundAsync(
+                tgtLeagueId, tgtSeason, tCnt, ct);
+
+            // Compute offsets so championship pairings append after RR
+            var srcMinGame = srcChampPairings.Min(p => p.GameNumber);
+            var srcMinRound = srcChampPairings.Min(p => p.Rnd);
+            var gameOffset = tgtMaxGame - srcMinGame + 1;
+            var roundOffset = tgtMaxRound - srcMinRound + 1;
+
+            var now = DateTime.UtcNow;
+            var cloned = srcChampPairings.Select(p => new PairingsLeagueSeason
+            {
+                LeagueId = tgtLeagueId,
+                Season = tgtSeason,
+                TCnt = tCnt,
+                GameNumber = p.GameNumber + gameOffset,
+                Rnd = p.Rnd + roundOffset,
+                T1 = p.T1,
+                T2 = p.T2,
+                T1Type = p.T1Type,
+                T2Type = p.T2Type,
+                T1GnoRef = p.T1GnoRef.HasValue ? p.T1GnoRef.Value + gameOffset : null,
+                T2GnoRef = p.T2GnoRef.HasValue ? p.T2GnoRef.Value + gameOffset : null,
+                T1CalcType = p.T1CalcType,
+                T2CalcType = p.T2CalcType,
+                T1Annotation = p.T1Annotation,
+                T2Annotation = p.T2Annotation,
+                GCnt = p.GCnt,
+                LebUserId = userId,
+                Modified = now
+            }).ToList();
+
+            await _pairingsRepo.AddRangeAsync(cloned, ct);
+            await _pairingsRepo.SaveChangesAsync(ct);
+            copied++;
+
+            _logger.LogInformation(
+                "Copied {Count} championship pairings for TCnt={TCnt} from source job {SourceJobId}",
+                cloned.Count, tCnt, sourceJobId);
+        }
+
+        return copied;
     }
 
     /// <summary>
@@ -3534,12 +3610,63 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }
         }
 
+        // ── BracketDepth — always extracted from source Schedule (ground truth of what was used) ──
+        // We patch BracketDepth onto existing profiles rather than using the generic
+        // UpsertAgegroupProfileAsync, which would overwrite previously seeded GamePlacement/
+        // BetweenRoundRows/GameGuarantee values with null.
+        var bracketDepths = await _cascadeRepo.GetBracketDepthsByAgegroupAsync(sourceJobId, ct);
+        var bracketDepthsSeeded = 0;
+        if (bracketDepths.Count > 0)
+        {
+            // Load target agegroup profiles (tracked for update)
+            var targetAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
+
+            foreach (var (srcAgId, depth) in bracketDepths)
+            {
+                var srcAg = sourceDivisions.FirstOrDefault(d => d.AgegroupId == srcAgId);
+                if (srcAg == null) continue;
+
+                var mappedName = yearDelta != 0
+                    ? AgegroupNameMapper.OffsetName(srcAg.AgegroupName, yearDelta)
+                    : srcAg.AgegroupName;
+                if (!targetAgByName.TryGetValue(mappedName.ToLowerInvariant(), out var targetAgId))
+                    continue;
+
+                var existingProfile = targetAgProfiles.FirstOrDefault(p => p.AgegroupId == targetAgId);
+                if (existingProfile != null)
+                {
+                    // Profile already exists — just patch BracketDepth via upsert
+                    // (preserve other fields by copying them through)
+                    await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+                    {
+                        AgegroupId = targetAgId,
+                        GamePlacement = existingProfile.GamePlacement,
+                        BetweenRoundRows = existingProfile.BetweenRoundRows,
+                        GameGuarantee = existingProfile.GameGuarantee,
+                        BracketDepth = depth,
+                        LebUserId = userId
+                    }, ct);
+                }
+                else
+                {
+                    // No profile yet — create one with just BracketDepth
+                    await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+                    {
+                        AgegroupId = targetAgId,
+                        BracketDepth = depth,
+                        LebUserId = userId
+                    }, ct);
+                }
+                bracketDepthsSeeded++;
+            }
+        }
+
         await _cascadeRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
             "Seeded cascade from source: JobId={JobId}, SourceJobId={SourceJobId}, " +
-            "HasCascade={HasCascade}, AgProfiles={AgCount}, DivProfiles={DivCount}",
-            jobId, sourceJobId, sourceHasCascade, agProfilesSeeded, divProfilesSeeded);
+            "HasCascade={HasCascade}, AgProfiles={AgCount}, DivProfiles={DivCount}, BracketDepths={BdCount}",
+            jobId, sourceJobId, sourceHasCascade, agProfilesSeeded, divProfilesSeeded, bracketDepthsSeeded);
 
         return true;
     }

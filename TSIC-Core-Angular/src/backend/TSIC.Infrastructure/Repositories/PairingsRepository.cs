@@ -70,6 +70,21 @@ public class PairingsRepository : IPairingsRepository
             .ToListAsync(ct);
     }
 
+    // ── Read: Championship (bracket) pairings ──
+
+    public async Task<List<PairingsLeagueSeason>> GetChampionshipPairingsAsync(
+        Guid leagueId, string season, int teamCount, CancellationToken ct = default)
+    {
+        return await _context.PairingsLeagueSeason
+            .AsNoTracking()
+            .Where(p => p.LeagueId == leagueId
+                && p.Season == season
+                && p.TCnt == teamCount
+                && p.T1Type != "T")
+            .OrderBy(p => p.GameNumber)
+            .ToListAsync(ct);
+    }
+
     // ── Read: Dashboard aggregates ──
 
     public async Task<HashSet<int>> GetDistinctPoolSizesWithPairingsAsync(

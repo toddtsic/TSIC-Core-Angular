@@ -1139,6 +1139,10 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("AgegroupScheduleProfile", "scheduling");
 
             entity.Property(e => e.AgegroupId).ValueGeneratedNever();
+            entity.Property(e => e.BracketDepth)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
             entity.Property(e => e.GamePlacement)
                 .HasMaxLength(1)
                 .IsUnicode(false)

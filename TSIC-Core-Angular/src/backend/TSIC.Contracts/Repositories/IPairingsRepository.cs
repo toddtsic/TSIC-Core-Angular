@@ -43,6 +43,15 @@ public interface IPairingsRepository
     Task<List<BracketDataSingleElimination>> GetBracketDataAsync(
         string roundType, CancellationToken ct = default);
 
+    // ── Read: Championship (bracket) pairings ──
+
+    /// <summary>
+    /// Get all non-round-robin pairings (championship/bracket games) for a league-season
+    /// and team count. These are pairings where T1Type != "T", ordered by GameNumber.
+    /// </summary>
+    Task<List<PairingsLeagueSeason>> GetChampionshipPairingsAsync(
+        Guid leagueId, string season, int teamCount, CancellationToken ct = default);
+
     // ── Read: Availability ──
 
     /// <summary>

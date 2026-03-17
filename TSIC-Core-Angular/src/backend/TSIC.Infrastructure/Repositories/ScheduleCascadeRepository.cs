@@ -81,6 +81,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
             existing.GamePlacement = profile.GamePlacement;
             existing.BetweenRoundRows = profile.BetweenRoundRows;
             existing.GameGuarantee = profile.GameGuarantee;
+            existing.BracketDepth = profile.BracketDepth;
             existing.Modified = DateTime.UtcNow;
             existing.LebUserId = profile.LebUserId;
         }
@@ -399,6 +400,42 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
             .ToListAsync(ct);
 
         _context.DivisionProcessingOrder.RemoveRange(existing);
+    }
+
+    // ── Bracket Depth Extraction ──
+
+    // Bracket type hierarchy: Z (deepest) > Y > X > Q > S > F (shallowest)
+    private static readonly Dictionary<string, int> BracketTypeDepth = new()
+    {
+        ["F"] = 1, ["S"] = 2, ["Q"] = 3, ["X"] = 4, ["Y"] = 5, ["Z"] = 6
+    };
+
+    public async Task<Dictionary<Guid, string>> GetBracketDepthsByAgegroupAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // Get all bracket types used per agegroup from the Schedule table
+        var bracketTypes = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.T1Type != null && s.T2Type != null
+                && s.T1Type == s.T2Type
+                && s.T1Type != "T"
+                && s.AgegroupId != null)
+            .Select(s => new { AgegroupId = s.AgegroupId!.Value, s.T1Type })
+            .Distinct()
+            .ToListAsync(ct);
+
+        // For each agegroup, find the highest (deepest) bracket type
+        return bracketTypes
+            .GroupBy(x => x.AgegroupId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .Where(x => BracketTypeDepth.ContainsKey(x.T1Type!))
+                    .OrderByDescending(x => BracketTypeDepth[x.T1Type!])
+                    .Select(x => x.T1Type!)
+                    .First()
+            );
     }
 
     // ── Bulk Delete ──
