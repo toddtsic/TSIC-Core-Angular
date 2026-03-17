@@ -9,8 +9,8 @@
 --
 -- ============================================================================
 --
--- Generated: 2026-03-15 15:10:45
--- Source:    0-Restore-DevConfig-DEV.ps1 (queried dev DB)
+-- Generated: 2026-03-17 09:05:14
+-- Source:    0-Restore-DevConfig-DEV.ps1 (widgets/store from dev DB, nav from route manifest)
 --
 -- WHAT THIS DOES:
 --   Section 1 -- Creates schemas/tables/columns that don't exist yet
@@ -24,7 +24,7 @@
 --   * ZERO writes to legacy tables
 --
 -- Snapshot: 2 widget categories, 7 widgets, 87 defaults, 0 job overrides
---           10 navs, 62 nav items
+--           10 navs, 180 nav items [from route manifest]
 --           20 store images
 --
 -- Prerequisites: reference.JobTypes + dbo.AspNetRoles + dbo.AspNetUsers populated
@@ -35,7 +35,7 @@ SET NOCOUNT ON;
 PRINT '';
 PRINT '==========================================================';
 PRINT '  0-Restore-DevConfig-PROD.sql';
-PRINT '  Generated: 2026-03-15 15:10:45';
+PRINT '  Generated: 2026-03-17 09:05:14';
 PRINT '==========================================================';
 PRINT '';
 
@@ -492,7 +492,7 @@ PRINT '  2A complete';
 GO
 
 SET NOCOUNT ON;
-PRINT '-- 2B: Nav data (platform defaults only)';
+PRINT '-- 2B: Nav data (generated from route manifest)';
 
 -- Clear platform defaults only (job-specific overrides survive)
 DELETE FROM [nav].[NavItem] WHERE [NavId] IN (SELECT [NavId] FROM [nav].[Nav] WHERE [JobId] IS NULL);
@@ -506,17 +506,17 @@ VALUES (2, N'7B9EB503-53C9-44FA-94A0-17760C512440', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
 VALUES (3, N'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
-VALUES (4, N'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0', NULL, 1, GETDATE());
+VALUES (4, N'1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
-VALUES (5, N'DAC0C570-94AA-4A88-8D73-6034F1F72F3A', NULL, 1, GETDATE());
+VALUES (5, N'122075A3-2C42-4092-97F1-9673DF5B6A2C', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
-VALUES (6, N'6A26171F-4D94-4928-94FA-2FEFD42C3C3E', NULL, 1, GETDATE());
+VALUES (6, N'5B9B7055-4530-4E46-B403-1019FD8B8418', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
-VALUES (7, N'122075A3-2C42-4092-97F1-9673DF5B6A2C', NULL, 1, GETDATE());
+VALUES (7, N'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
-VALUES (8, N'1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA', NULL, 1, GETDATE());
+VALUES (8, N'DAC0C570-94AA-4A88-8D73-6034F1F72F3A', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
-VALUES (9, N'5B9B7055-4530-4E46-B403-1019FD8B8418', NULL, 1, GETDATE());
+VALUES (9, N'6A26171F-4D94-4928-94FA-2FEFD42C3C3E', NULL, 1, GETDATE());
 INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])
 VALUES (10, N'CE2CB370-5880-4624-A43E-048379C64331', NULL, 1, GETDATE());
 SET IDENTITY_INSERT [nav].[Nav] OFF;
@@ -528,33 +528,99 @@ SET IDENTITY_INSERT [nav].[NavItem] ON;
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (1, 1, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (8, 2, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (15, 3, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
-INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (4, 1, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (11, 2, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
+VALUES (9, 1, NULL, 1, 3, N'Communications', N'envelope', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (18, 3, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
+VALUES (13, 1, NULL, 1, 4, N'LADT', N'diagram-3', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (23, 3, NULL, 1, 3, N'Analyze', N'bar-chart', NULL, NULL, NULL, GETDATE());
+VALUES (17, 1, NULL, 1, 5, N'Scheduling', N'calendar', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (100, 1, NULL, 1, 3, N'Scheduling', N'receipt', NULL, NULL, NULL, GETDATE());
+VALUES (22, 1, NULL, 1, 6, N'ARB', N'credit-card', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (106, 1, NULL, 1, 4, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+VALUES (24, 1, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (63, 3, NULL, 1, 4, N'LADT', NULL, NULL, NULL, NULL, GETDATE());
+VALUES (27, 1, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (26, 3, NULL, 1, 5, N'Scheduling', N'receipt', NULL, NULL, NULL, GETDATE());
+VALUES (29, 2, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (51, 3, NULL, 1, 6, N'ARB', N'gear', NULL, NULL, NULL, GETDATE());
+VALUES (32, 2, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (46, 3, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+VALUES (37, 2, NULL, 1, 3, N'Communications', N'envelope', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (54, 3, NULL, 1, 8, N'X-Job', NULL, NULL, NULL, NULL, GETDATE());
+VALUES (41, 2, NULL, 1, 4, N'LADT', N'diagram-3', NULL, NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (60, 3, NULL, 1, 9, N'Merch', N'cart', NULL, NULL, NULL, GETDATE());
+VALUES (45, 2, NULL, 1, 5, N'Scheduling', N'calendar', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (50, 2, NULL, 1, 6, N'ARB', N'credit-card', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (52, 2, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (55, 2, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (57, 3, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (60, 3, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (73, 3, NULL, 1, 3, N'Communications', N'envelope', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (77, 3, NULL, 1, 4, N'LADT', N'diagram-3', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (81, 3, NULL, 1, 5, N'Scheduling', N'calendar', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (86, 3, NULL, 1, 6, N'ARB', N'credit-card', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (88, 3, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (95, 3, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (97, 4, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (100, 4, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (105, 4, NULL, 1, 3, N'Communications', N'envelope', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (109, 4, NULL, 1, 4, N'LADT', N'diagram-3', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (113, 4, NULL, 1, 5, N'Scheduling', N'calendar', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (118, 4, NULL, 1, 6, N'ARB', N'credit-card', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (120, 4, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (123, 4, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (125, 5, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (128, 5, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (133, 5, NULL, 1, 3, N'Communications', N'envelope', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (137, 5, NULL, 1, 4, N'LADT', N'diagram-3', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (141, 5, NULL, 1, 5, N'Scheduling', N'calendar', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (146, 5, NULL, 1, 6, N'ARB', N'credit-card', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (148, 5, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (151, 5, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (153, 6, NULL, 1, 1, N'Search', N'search', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (156, 6, NULL, 1, 2, N'Configure', N'gear', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (161, 6, NULL, 1, 3, N'Communications', N'envelope', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (165, 6, NULL, 1, 4, N'LADT', N'diagram-3', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (169, 6, NULL, 1, 5, N'Scheduling', N'calendar', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (174, 6, NULL, 1, 6, N'ARB', N'credit-card', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (176, 6, NULL, 1, 7, N'Tools', N'tools', NULL, NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (179, 6, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
 
 -- Children
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -564,96 +630,266 @@ VALUES (3, 1, 1, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (5, 1, 4, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (6, 1, 4, 1, 2, N'Administrators', N'person-badge', N'configure/administrators', NULL, NULL, GETDATE());
+VALUES (6, 1, 4, 1, 2, N'Age Ranges', N'sliders', N'configure/age-ranges', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (7, 1, 4, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (9, 2, 8, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (8, 1, 4, 1, 4, N'Uniform Upload', N'upload', N'configure/uniform-upload', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (10, 2, 8, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
+VALUES (10, 1, 9, 1, 1, N'Bulletins', N'megaphone', N'communications/bulletins', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (12, 2, 11, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
+VALUES (11, 1, 9, 1, 2, N'Email Log', N'envelope-open', N'communications/email-log', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (13, 2, 11, 1, 2, N'Administrators', N'person-badge', N'configure/administrators', NULL, NULL, GETDATE());
+VALUES (12, 1, 9, 1, 3, N'Push Notification', N'bell', N'communications/push-notification', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (14, 2, 11, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
+VALUES (14, 1, 13, 1, 1, N'Editor', N'pencil', N'ladt/editor', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (16, 3, 15, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (15, 1, 13, 1, 2, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (17, 3, 15, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
+VALUES (16, 1, 13, 1, 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (45, 3, 15, 1, 3, N'Email Log', N'envelope', N'communications/email-log', NULL, NULL, GETDATE());
+VALUES (18, 1, 17, 1, 1, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (19, 3, 18, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
+VALUES (19, 1, 17, 1, 2, N'View Schedule', N'eye', N'scheduling/view-schedule', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (20, 3, 18, 1, 2, N'Administrators', N'person-badge', N'configure/administrators', NULL, NULL, GETDATE());
+VALUES (20, 1, 17, 1, 3, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (21, 3, 18, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
+VALUES (21, 1, 17, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (22, 3, 18, 1, 4, N'Menus', N'list', N'configure/nav-editor', NULL, NULL, GETDATE());
+VALUES (23, 1, 22, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (67, 3, 18, 1, 5, N'Widgets', N'tools', N'configure/widget-editor', NULL, NULL, GETDATE());
+VALUES (25, 1, 24, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (68, 3, 18, 1, 6, N'Job Clone', N'tools', N'configure/job-clone', NULL, NULL, GETDATE());
+VALUES (26, 1, 24, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (69, 3, 18, 1, 7, N'Theme', N'tools', N'configure/theme', NULL, NULL, GETDATE());
+VALUES (28, 1, 27, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (72, 3, 23, 1, 2, N'TSIC Daily Registrations', N'search', N'reporting/Get_JobPlayers_TSICDaily', NULL, NULL, GETDATE());
+VALUES (30, 2, 29, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (25, 3, 23, 1, 2, N'Logs', N'tools', N'tools/log-viewer', NULL, NULL, GETDATE());
+VALUES (31, 2, 29, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (73, 3, 23, 1, 3, N'Job Transaction Rollup (Excel)', N'search', N'reporting/export-sp?spName=[reporting].[GetJobTransactionRollup]&bUseJobId=true', NULL, NULL, GETDATE());
+VALUES (33, 2, 32, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (32, 3, 26, 1, 1, N'Scheduling Hub', N'tools', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
+VALUES (34, 2, 32, 1, 2, N'Age Ranges', N'sliders', N'configure/age-ranges', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (86, 3, 26, 1, 2, N'Schedule Viewer', N'search', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+VALUES (35, 2, 32, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (33, 3, 26, 1, 3, N'View Schedule', N'list', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+VALUES (36, 2, 32, 1, 4, N'Uniform Upload', N'upload', N'configure/uniform-upload', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (87, 3, 26, 1, 4, N'Parking Analysis Tool', N'gear', N'scheduling/tournament-parking', NULL, NULL, GETDATE());
+VALUES (38, 2, 37, 1, 1, N'Bulletins', N'megaphone', N'communications/bulletins', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (49, 3, 26, 1, 5, N'Mobile Scorers', N'pencil', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
+VALUES (39, 2, 37, 1, 2, N'Email Log', N'envelope-open', N'communications/email-log', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (48, 3, 46, 1, 2, N'US Lax Number Tester', N'tools', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (40, 2, 37, 1, 3, N'Push Notification', N'bell', N'communications/push-notification', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (108, 3, 46, 1, 2, N'US Lax Rankings Tool', N'gear', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+VALUES (42, 2, 41, 1, 1, N'Editor', N'pencil', N'ladt/editor', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (109, 3, 46, 1, 3, N'Player Profile Migration Tool', N'sliders', N'tools/profile-migration', NULL, NULL, GETDATE());
+VALUES (43, 2, 41, 1, 2, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (53, 3, 51, 1, 2, N'Check Status', N'gear', N'arb/health', NULL, NULL, GETDATE());
+VALUES (44, 2, 41, 1, 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (56, 3, 54, 1, 2, N'Configure Customers', N'gear', N'configure/customers', NULL, NULL, GETDATE());
+VALUES (46, 2, 45, 1, 1, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (57, 3, 54, 1, 2, N'Configure Customer Groups', N'gear', N'configure/customer-groups', NULL, NULL, GETDATE());
+VALUES (47, 2, 45, 1, 2, N'View Schedule', N'eye', N'scheduling/view-schedule', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (58, 3, 54, 1, 3, N'Reg Form Profile Migration', N'tools', N'tools/profile-migration', NULL, NULL, GETDATE());
+VALUES (48, 2, 45, 1, 3, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (59, 3, 54, 1, 4, N'Reg Form Profile Editor', N'tools', N'tools/profile-editor', NULL, NULL, GETDATE());
+VALUES (49, 2, 45, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (61, 3, 60, 0, 1, N'new child', NULL, NULL, NULL, NULL, GETDATE());
+VALUES (51, 2, 50, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (62, 3, 60, 1, 2, N'Store', NULL, N'store/admin', NULL, NULL, GETDATE());
+VALUES (53, 2, 52, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (110, 3, 63, 1, 1, N'Configure', N'tools', N'ladt/editor', NULL, NULL, GETDATE());
+VALUES (54, 2, 52, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (65, 3, 63, 1, 2, N'Roster Swapper', N'people', N'ladt/roster-swapper', NULL, NULL, GETDATE());
+VALUES (56, 2, 55, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (66, 3, 63, 1, 3, N'Pool Assignment', N'tools', N'ladt/pool-assignment', NULL, NULL, GETDATE());
+VALUES (58, 3, 57, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (101, 1, 100, 1, 1, N'Schedule Viewer', N'search', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+VALUES (59, 3, 57, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (102, 1, 100, 1, 2, N'Scheduling Hub', N'tools', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
+VALUES (61, 3, 60, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (103, 1, 100, 1, 3, N'View Schedule', N'list', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+VALUES (62, 3, 60, 1, 2, N'Age Ranges', N'sliders', N'configure/age-ranges', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (104, 1, 100, 1, 4, N'Parking Analysis Tool', N'gear', N'scheduling/tournament-parking', NULL, NULL, GETDATE());
+VALUES (63, 3, 60, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (105, 1, 100, 1, 5, N'Mobile Scorers', N'pencil', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
+VALUES (64, 3, 60, 1, 4, N'Uniform Upload', N'upload', N'configure/uniform-upload', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (107, 1, 106, 1, 1, N'US Lax Number Tester', N'tools', N'tools/uslax-test', NULL, NULL, GETDATE());
+VALUES (65, 3, 60, 1, 10, N'Administrators', N'person-badge', N'configure/administrators', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (66, 3, 60, 1, 11, N'Customer Groups', N'people', N'configure/customer-groups', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (67, 3, 60, 1, 12, N'Dropdown Options', N'list', N'configure/ddl-options', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (68, 3, 60, 1, 13, N'Customers', N'building', N'configure/customers', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (69, 3, 60, 1, 14, N'Theme', N'palette', N'configure/theme', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (70, 3, 60, 1, 15, N'Menus', N'list', N'configure/nav-editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (71, 3, 60, 1, 16, N'Widgets', N'grid', N'configure/widget-editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (72, 3, 60, 1, 17, N'Job Clone', N'copy', N'configure/job-clone', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (74, 3, 73, 1, 1, N'Bulletins', N'megaphone', N'communications/bulletins', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (75, 3, 73, 1, 2, N'Email Log', N'envelope-open', N'communications/email-log', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (76, 3, 73, 1, 3, N'Push Notification', N'bell', N'communications/push-notification', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (78, 3, 77, 1, 1, N'Editor', N'pencil', N'ladt/editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (79, 3, 77, 1, 2, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (80, 3, 77, 1, 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (82, 3, 81, 1, 1, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (83, 3, 81, 1, 2, N'View Schedule', N'eye', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (84, 3, 81, 1, 3, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (85, 3, 81, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (87, 3, 86, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (89, 3, 88, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (90, 3, 88, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (91, 3, 88, 1, 10, N'Profile Migration', N'arrow-right', N'tools/profile-migration', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (92, 3, 88, 1, 11, N'Profile Editor', N'pencil-square', N'tools/profile-editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (93, 3, 88, 1, 12, N'Change Password', N'key', N'tools/change-password', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (94, 3, 88, 1, 13, N'Job Revenue', N'cash-stack', N'tools/customer-job-revenue', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (96, 3, 95, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (98, 4, 97, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (99, 4, 97, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (101, 4, 100, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (102, 4, 100, 1, 2, N'Age Ranges', N'sliders', N'configure/age-ranges', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (103, 4, 100, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (104, 4, 100, 1, 4, N'Uniform Upload', N'upload', N'configure/uniform-upload', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (106, 4, 105, 1, 1, N'Bulletins', N'megaphone', N'communications/bulletins', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (107, 4, 105, 1, 2, N'Email Log', N'envelope-open', N'communications/email-log', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (108, 4, 105, 1, 3, N'Push Notification', N'bell', N'communications/push-notification', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (110, 4, 109, 1, 1, N'Editor', N'pencil', N'ladt/editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (111, 4, 109, 1, 2, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (112, 4, 109, 1, 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (114, 4, 113, 1, 1, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (115, 4, 113, 1, 2, N'View Schedule', N'eye', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (116, 4, 113, 1, 3, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (117, 4, 113, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (119, 4, 118, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (121, 4, 120, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (122, 4, 120, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (124, 4, 123, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (126, 5, 125, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (127, 5, 125, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (129, 5, 128, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (130, 5, 128, 1, 2, N'Age Ranges', N'sliders', N'configure/age-ranges', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (131, 5, 128, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (132, 5, 128, 1, 4, N'Uniform Upload', N'upload', N'configure/uniform-upload', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (134, 5, 133, 1, 1, N'Bulletins', N'megaphone', N'communications/bulletins', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (135, 5, 133, 1, 2, N'Email Log', N'envelope-open', N'communications/email-log', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (136, 5, 133, 1, 3, N'Push Notification', N'bell', N'communications/push-notification', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (138, 5, 137, 1, 1, N'Editor', N'pencil', N'ladt/editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (139, 5, 137, 1, 2, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (140, 5, 137, 1, 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (142, 5, 141, 1, 1, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (143, 5, 141, 1, 2, N'View Schedule', N'eye', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (144, 5, 141, 1, 3, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (145, 5, 141, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (147, 5, 146, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (149, 5, 148, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (150, 5, 148, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (152, 5, 151, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (154, 6, 153, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (155, 6, 153, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (157, 6, 156, 1, 1, N'Job', N'briefcase', N'configure/job', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (158, 6, 156, 1, 2, N'Age Ranges', N'sliders', N'configure/age-ranges', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (159, 6, 156, 1, 3, N'Discount Codes', N'tags', N'configure/discount-codes', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (160, 6, 156, 1, 4, N'Uniform Upload', N'upload', N'configure/uniform-upload', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (162, 6, 161, 1, 1, N'Bulletins', N'megaphone', N'communications/bulletins', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (163, 6, 161, 1, 2, N'Email Log', N'envelope-open', N'communications/email-log', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (164, 6, 161, 1, 3, N'Push Notification', N'bell', N'communications/push-notification', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (166, 6, 165, 1, 1, N'Editor', N'pencil', N'ladt/editor', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (167, 6, 165, 1, 2, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (168, 6, 165, 1, 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (170, 6, 169, 1, 1, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (171, 6, 169, 1, 2, N'View Schedule', N'eye', N'scheduling/view-schedule', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (172, 6, 169, 1, 3, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (173, 6, 169, 1, 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (175, 6, 174, 1, 1, N'Health Check', N'heart-pulse', N'arb/health', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (177, 6, 176, 1, 1, N'US Lax Tester', N'check-circle', N'tools/uslax-test', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (178, 6, 176, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', NULL, NULL, GETDATE());
+INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
+VALUES (180, 6, 179, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 
 SET IDENTITY_INSERT [nav].[NavItem] OFF;
-PRINT '  Loaded 62 nav items (15 parents, 47 children)';
+PRINT '  Loaded 180 nav items (48 parents, 132 children)';
 PRINT '  2B complete';
 GO
 

@@ -273,13 +273,83 @@ $jobWidgets = Invoke-Sql "SELECT JobWidgetId, JobId, WidgetId, RoleId, CategoryI
 
 Write-Host "  Widgets:     $($categories.Rows.Count) categories, $($widgets.Rows.Count) widgets, $($defaults.Rows.Count) defaults, $($jobWidgets.Rows.Count) job overrides" -ForegroundColor Gray
 
-# Nav (platform defaults only — JobId IS NULL)
-$navs     = Invoke-Sql "SELECT NavId, RoleId, JobId, Active FROM nav.Nav WHERE JobId IS NULL ORDER BY NavId"
-$navItems = Invoke-Sql "SELECT ni.NavItemId, ni.NavId, ni.ParentNavItemId, ni.Active, ni.SortOrder, ni.[Text], ni.IconName, ni.RouterLink, ni.NavigateUrl, ni.Target FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL ORDER BY ni.ParentNavItemId, ni.SortOrder"
+# Nav — generated from inline route manifest (not read from DB)
+# This ensures nav is always correct regardless of dev DB state.
+# Manifest mirrors app.routes.ts guard data + display metadata.
 
-$parentCount = @($navItems.Rows | Where-Object { $_.ParentNavItemId -is [System.DBNull] }).Count
-$childCount = $navItems.Rows.Count - $parentCount
-Write-Host "  Nav:         $($navs.Rows.Count) navs, $($navItems.Rows.Count) items ($parentCount parents, $childCount children)" -ForegroundColor Gray
+$menuManifest = @(
+    # Search (requireAdmin)
+    @{ Controller='Search'; Icon='search'; Sort=1; Action='Players'; ActionIcon='people'; Route='search/players'; ActionSort=1; Guard='admin' }
+    @{ Controller='Search'; Icon='search'; Sort=1; Action='Teams'; ActionIcon='shield'; Route='search/teams'; ActionSort=2; Guard='admin' }
+    # Configure (mixed guards)
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Job'; ActionIcon='briefcase'; Route='configure/job'; ActionSort=1; Guard='admin' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Age Ranges'; ActionIcon='sliders'; Route='configure/age-ranges'; ActionSort=2; Guard='admin' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Discount Codes'; ActionIcon='tags'; Route='configure/discount-codes'; ActionSort=3; Guard='admin' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Uniform Upload'; ActionIcon='upload'; Route='configure/uniform-upload'; ActionSort=4; Guard='admin' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Administrators'; ActionIcon='person-badge'; Route='configure/administrators'; ActionSort=10; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Customer Groups'; ActionIcon='people'; Route='configure/customer-groups'; ActionSort=11; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Dropdown Options'; ActionIcon='list'; Route='configure/ddl-options'; ActionSort=12; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Customers'; ActionIcon='building'; Route='configure/customers'; ActionSort=13; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Theme'; ActionIcon='palette'; Route='configure/theme'; ActionSort=14; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Menus'; ActionIcon='list'; Route='configure/nav-editor'; ActionSort=15; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Widgets'; ActionIcon='grid'; Route='configure/widget-editor'; ActionSort=16; Guard='superuser' }
+    @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Job Clone'; ActionIcon='copy'; Route='configure/job-clone'; ActionSort=17; Guard='superuser' }
+    # Communications (requireAdmin)
+    @{ Controller='Communications'; Icon='envelope'; Sort=3; Action='Bulletins'; ActionIcon='megaphone'; Route='communications/bulletins'; ActionSort=1; Guard='admin' }
+    @{ Controller='Communications'; Icon='envelope'; Sort=3; Action='Email Log'; ActionIcon='envelope-open'; Route='communications/email-log'; ActionSort=2; Guard='admin' }
+    @{ Controller='Communications'; Icon='envelope'; Sort=3; Action='Push Notification'; ActionIcon='bell'; Route='communications/push-notification'; ActionSort=3; Guard='admin' }
+    # LADT (requireAdmin)
+    @{ Controller='LADT'; Icon='diagram-3'; Sort=4; Action='Editor'; ActionIcon='pencil'; Route='ladt/editor'; ActionSort=1; Guard='admin' }
+    @{ Controller='LADT'; Icon='diagram-3'; Sort=4; Action='Roster Swapper'; ActionIcon='arrow-left-right'; Route='ladt/roster-swapper'; ActionSort=2; Guard='admin' }
+    @{ Controller='LADT'; Icon='diagram-3'; Sort=4; Action='Pool Assignment'; ActionIcon='people'; Route='ladt/pool-assignment'; ActionSort=3; Guard='admin' }
+    # Scheduling (requireAdmin)
+    @{ Controller='Scheduling'; Icon='calendar'; Sort=5; Action='Schedule Hub'; ActionIcon='grid'; Route='scheduling/schedule-hub'; ActionSort=1; Guard='admin' }
+    @{ Controller='Scheduling'; Icon='calendar'; Sort=5; Action='View Schedule'; ActionIcon='eye'; Route='scheduling/view-schedule'; ActionSort=2; Guard='admin' }
+    @{ Controller='Scheduling'; Icon='calendar'; Sort=5; Action='Rescheduler'; ActionIcon='arrow-repeat'; Route='scheduling/rescheduler'; ActionSort=3; Guard='admin' }
+    @{ Controller='Scheduling'; Icon='calendar'; Sort=5; Action='Mobile Scorers'; ActionIcon='phone'; Route='scheduling/mobile-scorers'; ActionSort=4; Guard='admin' }
+    # ARB (requireAdmin)
+    @{ Controller='ARB'; Icon='credit-card'; Sort=6; Action='Health Check'; ActionIcon='heart-pulse'; Route='arb/health'; ActionSort=1; Guard='admin' }
+    # Tools (mixed guards)
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='US Lax Tester'; ActionIcon='check-circle'; Route='tools/uslax-test'; ActionSort=1; Guard='admin' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='US Lax Rankings'; ActionIcon='trophy'; Route='tools/uslax-rankings'; ActionSort=2; Guard='admin' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Profile Migration'; ActionIcon='arrow-right'; Route='tools/profile-migration'; ActionSort=10; Guard='superuser' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Profile Editor'; ActionIcon='pencil-square'; Route='tools/profile-editor'; ActionSort=11; Guard='superuser' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Change Password'; ActionIcon='key'; Route='tools/change-password'; ActionSort=12; Guard='superuser' }
+    @{ Controller='Tools'; Icon='tools'; Sort=7; Action='Job Revenue'; ActionIcon='cash-stack'; Route='tools/customer-job-revenue'; ActionSort=13; Guard='superuser' }
+    # Store (requireAdmin)
+    @{ Controller='Store'; Icon='cart'; Sort=8; Action='Store Admin'; ActionIcon='shop'; Route='store/admin'; ActionSort=1; Guard='admin' }
+)
+
+# Admin roles get menu items based on guard level; non-admin roles get Nav record only (dashboard-only)
+$adminRoles = @(
+    @{ RoleId='FF4D1C27-F6DA-4745-98CC-D7E8121A5D06'; GuardLevel='admin';     Name='Director' }
+    @{ RoleId='7B9EB503-53C9-44FA-94A0-17760C512440'; GuardLevel='admin';     Name='SuperDirector' }
+    @{ RoleId='CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9'; GuardLevel='superuser'; Name='Superuser' }
+    @{ RoleId='1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA'; GuardLevel='admin';     Name='Staff' }
+    @{ RoleId='122075A3-2C42-4092-97F1-9673DF5B6A2C'; GuardLevel='admin';     Name='RefAssignor' }
+    @{ RoleId='5B9B7055-4530-4E46-B403-1019FD8B8418'; GuardLevel='admin';     Name='StoreAdmin' }
+)
+$nonAdminRoles = @(
+    @{ RoleId='E0A8A5C3-A36C-417F-8312-E7083F1AA5A0'; Name='Family' }
+    @{ RoleId='DAC0C570-94AA-4A88-8D73-6034F1F72F3A'; Name='Player' }
+    @{ RoleId='6A26171F-4D94-4928-94FA-2FEFD42C3C3E'; Name='ClubRep' }
+    @{ RoleId='CE2CB370-5880-4624-A43E-048379C64331'; Name='UnassignedAdult' }
+)
+$allRoles = $adminRoles + $nonAdminRoles
+
+# Pre-compute nav stats for console output
+$navRoleCount = $allRoles.Count
+$navParentCount = 0
+$navChildCount = 0
+foreach ($role in $adminRoles) {
+    $gl = $role.GuardLevel
+    $visible = @($menuManifest | Where-Object { $_.Guard -eq 'admin' -or ($gl -eq 'superuser' -and $_.Guard -eq 'superuser') })
+    $ctrlGroups = $visible | Group-Object { $_.Controller }
+    $navParentCount += $ctrlGroups.Count
+    $navChildCount += $visible.Count
+}
+$navItemCount = $navParentCount + $navChildCount
+Write-Host "  Nav:         $navRoleCount navs, $navItemCount items ($navParentCount parents, $navChildCount children) [from route manifest]" -ForegroundColor Gray
 
 # Store images
 $storeImages = Invoke-Sql "SELECT img.StoreItemId, img.ImageUrl, img.DisplayOrder, si.StoreId FROM stores.StoreItemImage img JOIN stores.StoreItems si ON img.StoreItemId = si.StoreItemId ORDER BY si.StoreId, img.StoreItemId, img.DisplayOrder"
@@ -303,7 +373,7 @@ $sb.AppendLine("--") | Out-Null
 $sb.AppendLine("-- ============================================================================") | Out-Null
 $sb.AppendLine("--") | Out-Null
 $sb.AppendLine("-- Generated: $timestamp") | Out-Null
-$sb.AppendLine("-- Source:    0-Restore-DevConfig-DEV.ps1 (queried dev DB)") | Out-Null
+$sb.AppendLine("-- Source:    0-Restore-DevConfig-DEV.ps1 (widgets/store from dev DB, nav from route manifest)") | Out-Null
 $sb.AppendLine("--") | Out-Null
 $sb.AppendLine("-- WHAT THIS DOES:") | Out-Null
 $sb.AppendLine("--   Section 1 -- Creates schemas/tables/columns that don't exist yet") | Out-Null
@@ -317,7 +387,7 @@ $sb.AppendLine("--   * Data targets ONLY: widgets.*, nav.*, logs.*, stores.Store
 $sb.AppendLine("--   * ZERO writes to legacy tables") | Out-Null
 $sb.AppendLine("--") | Out-Null
 $sb.AppendLine("-- Snapshot: $($categories.Rows.Count) widget categories, $($widgets.Rows.Count) widgets, $($defaults.Rows.Count) defaults, $($jobWidgets.Rows.Count) job overrides") | Out-Null
-$sb.AppendLine("--           $($navs.Rows.Count) navs, $($navItems.Rows.Count) nav items") | Out-Null
+$sb.AppendLine("--           $navRoleCount navs, $navItemCount nav items [from route manifest]") | Out-Null
 $sb.AppendLine("--           $($storeImages.Rows.Count) store images") | Out-Null
 $sb.AppendLine("--") | Out-Null
 $sb.AppendLine("-- Prerequisites: reference.JobTypes + dbo.AspNetRoles + dbo.AspNetUsers populated") | Out-Null
@@ -651,44 +721,90 @@ $sb.AppendLine("PRINT '  2A complete';") | Out-Null
 $sb.AppendLine("GO") | Out-Null
 $sb.AppendLine("") | Out-Null
 
-# ── 2B: Nav data (platform defaults only) ──
+# ── 2B: Nav data (generated from route manifest) ──
 $sb.AppendLine("SET NOCOUNT ON;") | Out-Null
-$sb.AppendLine("PRINT '-- 2B: Nav data (platform defaults only)';") | Out-Null
+$sb.AppendLine("PRINT '-- 2B: Nav data (generated from route manifest)';") | Out-Null
 $sb.AppendLine("") | Out-Null
 $sb.AppendLine("-- Clear platform defaults only (job-specific overrides survive)") | Out-Null
 $sb.AppendLine("DELETE FROM [nav].[NavItem] WHERE [NavId] IN (SELECT [NavId] FROM [nav].[Nav] WHERE [JobId] IS NULL);") | Out-Null
 $sb.AppendLine("DELETE FROM [nav].[Nav] WHERE [JobId] IS NULL;") | Out-Null
 $sb.AppendLine("") | Out-Null
 
+# Generate Nav records (one per role)
+$navId = 1
+$navItemId = 1
+$roleNavIdMap = @{}
+
 $sb.AppendLine("SET IDENTITY_INSERT [nav].[Nav] ON;") | Out-Null
-foreach ($row in $navs.Rows) {
+foreach ($role in $allRoles) {
+    $roleNavIdMap[$role.RoleId] = $navId
     $sb.AppendLine("INSERT INTO [nav].[Nav] ([NavId], [RoleId], [JobId], [Active], [Modified])") | Out-Null
-    $sb.AppendLine("VALUES ($($row.NavId), $(Esc $row.RoleId), NULL, $(BitOrNull $row.Active), GETDATE());") | Out-Null
+    $sb.AppendLine("VALUES ($navId, N'$($role.RoleId)', NULL, 1, GETDATE());") | Out-Null
+    $navId++
 }
 $sb.AppendLine("SET IDENTITY_INSERT [nav].[Nav] OFF;") | Out-Null
-$sb.AppendLine("PRINT '  Loaded $($navs.Rows.Count) platform default navs';") | Out-Null
+$sb.AppendLine("PRINT '  Loaded $($allRoles.Count) platform default navs';") | Out-Null
 $sb.AppendLine("") | Out-Null
 
-# Parents first (ParentNavItemId IS NULL), then children
-$parents  = @($navItems.Rows | Where-Object { $_.ParentNavItemId -is [System.DBNull] })
-$children = @($navItems.Rows | Where-Object { -not ($_.ParentNavItemId -is [System.DBNull]) })
-
+# Generate NavItem records from manifest — parents first, then children
 $sb.AppendLine("SET IDENTITY_INSERT [nav].[NavItem] ON;") | Out-Null
 $sb.AppendLine("") | Out-Null
-$sb.AppendLine("-- Parents") | Out-Null
-foreach ($row in $parents) {
-    $sb.AppendLine("INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])") | Out-Null
-    $sb.AppendLine("VALUES ($($row.NavItemId), $($row.NavId), NULL, $(BitOrNull $row.Active), $($row.SortOrder), $(Esc $row.Text), $(StrOrNull $row.IconName), $(StrOrNull $row.RouterLink), $(StrOrNull $row.NavigateUrl), $(StrOrNull $row.Target), GETDATE());") | Out-Null
+
+# Track parent/child counts for output
+$genParentCount = 0
+$genChildCount = 0
+
+# Collect all inserts: parents first, then children (FK constraint order)
+$parentInserts = [System.Collections.Generic.List[string]]::new()
+$childInserts  = [System.Collections.Generic.List[string]]::new()
+
+foreach ($role in $adminRoles) {
+    $rNavId = $roleNavIdMap[$role.RoleId]
+    $gl = $role.GuardLevel
+
+    # Get visible items for this role's guard level
+    $visibleItems = @($menuManifest | Where-Object { $_.Guard -eq 'admin' -or ($gl -eq 'superuser' -and $_.Guard -eq 'superuser') })
+
+    # Get distinct controllers (group by name, take first for icon/sort metadata)
+    $controllerGroups = $visibleItems | Group-Object { $_.Controller } | Sort-Object { $_.Group[0].Sort }
+
+    foreach ($group in $controllerGroups) {
+        $firstItem = $group.Group[0]
+        $parentItemId = $navItemId
+        $navItemId++
+        $genParentCount++
+
+        $ctrlText = $firstItem.Controller.Replace("'", "''")
+        $ctrlIcon = if ($firstItem.Icon) { "N'$($firstItem.Icon)'" } else { 'NULL' }
+
+        $parentInserts.Add("INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])")
+        $parentInserts.Add("VALUES ($parentItemId, $rNavId, NULL, 1, $($firstItem.Sort), N'$ctrlText', $ctrlIcon, NULL, NULL, NULL, GETDATE());")
+
+        # Children under this controller
+        $ctrlChildren = $group.Group | Sort-Object { $_.ActionSort }
+        foreach ($child in $ctrlChildren) {
+            $childText = $child.Action.Replace("'", "''")
+            $childIcon = if ($child.ActionIcon) { "N'$($child.ActionIcon)'" } else { 'NULL' }
+            $childRoute = "N'$($child.Route)'"
+
+            $childInserts.Add("INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])")
+            $childInserts.Add("VALUES ($navItemId, $rNavId, $parentItemId, 1, $($child.ActionSort), N'$childText', $childIcon, $childRoute, NULL, NULL, GETDATE());")
+            $navItemId++
+            $genChildCount++
+        }
+    }
 }
+
+$sb.AppendLine("-- Parents") | Out-Null
+foreach ($line in $parentInserts) { $sb.AppendLine($line) | Out-Null }
 $sb.AppendLine("") | Out-Null
 $sb.AppendLine("-- Children") | Out-Null
-foreach ($row in $children) {
-    $sb.AppendLine("INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])") | Out-Null
-    $sb.AppendLine("VALUES ($($row.NavItemId), $($row.NavId), $($row.ParentNavItemId), $(BitOrNull $row.Active), $($row.SortOrder), $(Esc $row.Text), $(StrOrNull $row.IconName), $(StrOrNull $row.RouterLink), $(StrOrNull $row.NavigateUrl), $(StrOrNull $row.Target), GETDATE());") | Out-Null
-}
+foreach ($line in $childInserts) { $sb.AppendLine($line) | Out-Null }
 $sb.AppendLine("") | Out-Null
+
 $sb.AppendLine("SET IDENTITY_INSERT [nav].[NavItem] OFF;") | Out-Null
-$sb.AppendLine("PRINT '  Loaded $($navItems.Rows.Count) nav items ($parentCount parents, $childCount children)';") | Out-Null
+$genTotalItems = $genParentCount + $genChildCount
+$sb.AppendLine("PRINT '  Loaded $genTotalItems nav items ($genParentCount parents, $genChildCount children)';") | Out-Null
 $sb.AppendLine("PRINT '  2B complete';") | Out-Null
 $sb.AppendLine("GO") | Out-Null
 $sb.AppendLine("") | Out-Null
@@ -803,7 +919,7 @@ Write-Host ""
 Write-Host "  Output: $OutputPath" -ForegroundColor White
 Write-Host ""
 Write-Host "  Widgets:  $($categories.Rows.Count) categories, $($widgets.Rows.Count) widgets, $($defaults.Rows.Count) defaults, $($jobWidgets.Rows.Count) job overrides" -ForegroundColor Gray
-Write-Host "  Nav:      $($navs.Rows.Count) navs, $($navItems.Rows.Count) items ($parentCount parents, $childCount children)" -ForegroundColor Gray
+Write-Host "  Nav:      $navRoleCount navs, $navItemCount items ($navParentCount parents, $navChildCount children) [from route manifest]" -ForegroundColor Gray
 Write-Host "  Store:    $($storeImages.Rows.Count) images" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Next: Run 0-Restore-DevConfig-PROD.sql against target DB." -ForegroundColor Yellow

@@ -7,73 +7,65 @@
     <span class="pill-nav__error">{{ menusError() }}</span>
     } @else {
 
-        <!-- Transparent backdrop — click anywhere outside to close open panel -->
-        @if (expandedItems().size > 0) {
-        <div class="pill-nav__backdrop" (click)="collapseAll()" aria-hidden="true"></div>
-        }
-
         @for (item of menus(); track item.navItemId) {
 
             @if (hasChildren(item)) {
-            <!-- Parent pill — opens fixed-position panel -->
-            <button type="button"
-                class="pill-nav__item"
-                [class.pill-nav__item--open]="isExpanded(item.navItemId)"
-                (click)="toggleDropdownAtEvent($event, item.navItemId)"
-                [attr.aria-expanded]="isExpanded(item.navItemId)"
-                [attr.aria-haspopup]="true">
-                <i class="bi bi-{{ getMenuIcon(item) }}" aria-hidden="true"></i>
-                <span>{{ item.text }}</span>
-                <i class="bi bi-chevron-down pill-nav__chevron"
-                   [class.pill-nav__chevron--open]="isExpanded(item.navItemId)"
-                   aria-hidden="true"></i>
-            </button>
-
-            <!-- Fixed-position rich dropdown panel -->
-            @if (isExpanded(item.navItemId)) {
-            <div class="dropdown-panel"
-                [style.top.px]="dropdownPanelTop()"
-                [style.left.px]="dropdownPanelLeft()"
-                role="menu">
-                <!-- Section header strip -->
-                <div class="dropdown-panel__header">
+            <!-- Hover group — wraps pill + panel so mouseleave bridges the gap -->
+            <div class="pill-nav__group"
+                (mouseenter)="onGroupMouseEnter($event, item.navItemId)"
+                (mouseleave)="onGroupMouseLeave()">
+                <button type="button"
+                    class="pill-nav__item"
+                    [class.pill-nav__item--open]="isExpanded(item.navItemId)"
+                    [attr.aria-expanded]="isExpanded(item.navItemId)"
+                    [attr.aria-haspopup]="true">
                     <i class="bi bi-{{ getMenuIcon(item) }}" aria-hidden="true"></i>
                     <span>{{ item.text }}</span>
-                </div>
-                <!-- Items -->
-                <div class="dropdown-panel__items">
-                    @for (child of item.children; track child.navItemId) {
-                        @if (!isRouteImplemented(child)) {
-                        <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem" aria-disabled="true">
-                            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                            <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                            <span class="dropdown-panel__badge">Soon</span>
-                        </span>
-                        } @else if (isExternalLink(child)) {
-                        <a class="dropdown-panel__item" role="menuitem"
-                            [href]="getLink(child)" [target]="child.target || '_self'"
-                            (click)="collapseAll()">
-                            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                            <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                        </a>
-                        } @else if (getLink(child)) {
-                        <a class="dropdown-panel__item" role="menuitem"
-                            [routerLink]="getLink(child)" [queryParams]="getQueryParams(child)"
-                            routerLinkActive="dropdown-panel__item--active"
-                            (click)="collapseAll()">
-                            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                            <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                        </a>
-                        } @else {
-                        <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem">
-                            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                            <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                        </span>
+                    <i class="bi bi-chevron-down pill-nav__chevron"
+                       [class.pill-nav__chevron--open]="isExpanded(item.navItemId)"
+                       aria-hidden="true"></i>
+                </button>
+
+                <!-- Fixed-position rich dropdown panel -->
+                @if (isExpanded(item.navItemId)) {
+                <div class="dropdown-panel"
+                    [style.top.px]="dropdownPanelTop()"
+                    [style.left.px]="dropdownPanelLeft()"
+                    role="menu">
+                    <div class="dropdown-panel__items">
+                        @for (child of item.children; track child.navItemId) {
+                            @if (!isRouteImplemented(child)) {
+                            <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem" aria-disabled="true">
+                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
+                                <span class="dropdown-panel__badge">Soon</span>
+                            </span>
+                            } @else if (isExternalLink(child)) {
+                            <a class="dropdown-panel__item" role="menuitem"
+                                [href]="getLink(child)" [target]="child.target || '_self'"
+                                (click)="collapseAll()">
+                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
+                            </a>
+                            } @else if (getLink(child)) {
+                            <a class="dropdown-panel__item" role="menuitem"
+                                [routerLink]="getLink(child)" [queryParams]="getQueryParams(child)"
+                                routerLinkActive="dropdown-panel__item--active"
+                                (click)="collapseAll()">
+                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
+                            </a>
+                            } @else {
+                            <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem">
+                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
+                            </span>
+                            }
                         }
-                    }
+                    </div>
                 </div>
+                }
             </div>
-            }
 
             } @else {
             <!-- Standalone pill link -->
