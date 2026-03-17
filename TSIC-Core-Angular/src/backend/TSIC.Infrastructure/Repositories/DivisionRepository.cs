@@ -75,7 +75,10 @@ public class DivisionRepository : IDivisionRepository
                 d.Agegroup.MaxTeams,
                 d.Agegroup.TeamFee,
                 d.Agegroup.RosterFee,
-                TeamCount = _context.Teams.Count(t => t.DivId == d.DivId && t.JobId == jobId)
+                AgegroupColor = d.Agegroup.Color,
+                TeamCount = _context.Teams.Count(t => t.DivId == d.DivId && t.JobId == jobId),
+                PlayerCount = _context.Registrations
+                    .Count(r => r.AssignedDivId == d.DivId && r.JobId == jobId && r.BActive == true)
             })
             .OrderBy(d => d.AgegroupName)
             .ThenBy(d => d.DivName)
@@ -92,7 +95,9 @@ public class DivisionRepository : IDivisionRepository
             IsDroppedTeams = d.AgegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase)
                           || d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase),
             TeamFee = d.TeamFee,
-            RosterFee = d.RosterFee
+            RosterFee = d.RosterFee,
+            AgegroupColor = d.AgegroupColor,
+            PlayerCount = d.PlayerCount
         }).ToList();
     }
 

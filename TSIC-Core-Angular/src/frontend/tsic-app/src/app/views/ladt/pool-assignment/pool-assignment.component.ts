@@ -8,9 +8,11 @@ import {
     PoolTeamDto,
     PoolTransferPreviewResponse
 } from './services/pool-assignment.service';
+import { contrastText } from '../../scheduling/shared/utils/scheduling-helpers';
 
 interface AgegroupGroup {
     label: string;
+    agegroupColor: string | null;
     divisions: PoolDivisionOptionDto[];
 }
 
@@ -32,6 +34,10 @@ export class PoolAssignmentComponent {
     // Division options
     readonly divisionOptions = signal<PoolDivisionOptionDto[]>([]);
     readonly groupedDivisionOptions = computed<AgegroupGroup[]>(() => this.groupByAgegroup(this.divisionOptions()));
+
+    // Custom dropdown open state
+    readonly sourceDropdownOpen = signal(false);
+    readonly targetDropdownOpen = signal(false);
 
     // Source panel
     readonly sourceDivId = signal<string | null>(null);
@@ -88,6 +94,25 @@ export class PoolAssignmentComponent {
     constructor() {
         this.loadDivisionOptions();
     }
+
+    // ── Custom dropdown helpers ──
+
+    selectSourceDiv(divId: string): void {
+        this.sourceDropdownOpen.set(false);
+        this.onSourceDivChange(divId);
+    }
+
+    selectTargetDiv(divId: string): void {
+        this.targetDropdownOpen.set(false);
+        this.onTargetDivChange(divId);
+    }
+
+    closeDropdowns(): void {
+        this.sourceDropdownOpen.set(false);
+        this.targetDropdownOpen.set(false);
+    }
+
+    readonly contrastText = contrastText;
 
     // ── Division loading ──
 
@@ -451,6 +476,10 @@ export class PoolAssignmentComponent {
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key)!.push(div);
         }
-        return Array.from(groups.entries()).map(([label, divs]) => ({ label, divisions: divs }));
+        return Array.from(groups.entries()).map(([label, divs]) => ({
+            label,
+            agegroupColor: divs[0]?.agegroupColor ?? null,
+            divisions: divs
+        }));
     }
 }

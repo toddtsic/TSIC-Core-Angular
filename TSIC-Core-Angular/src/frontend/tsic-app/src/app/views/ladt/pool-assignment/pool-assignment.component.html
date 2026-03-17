@@ -23,22 +23,51 @@
       <div class="pool-panel">
         <div class="panel-header">
           <label class="form-label fw-semibold text-uppercase small mb-1">Source Agegroup:Division</label>
-          <select class="form-select form-select-sm"
-                  [ngModel]="sourceDivId()"
-                  (ngModelChange)="onSourceDivChange($event)">
-            <option [ngValue]="null" disabled>Select an agegroup:division...</option>
-            @for (group of groupedDivisionOptions(); track group.label) {
-              <optgroup [label]="group.label">
-                @for (div of group.divisions; track div.divId) {
-                  <option [value]="div.divId"
-                          [disabled]="div.divId === targetDivId()">
-                    {{ div.agegroupName }}: {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
-                    ({{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }})
-                  </option>
+          <div class="pool-dropdown-wrapper">
+            <button class="pool-dropdown-trigger form-select form-select-sm text-start"
+                    (click)="sourceDropdownOpen.set(!sourceDropdownOpen())">
+              @if (sourceDiv(); as div) {
+                <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [class.color-dot--empty]="!div.agegroupColor"></span>
+                {{ div.divName }}
+                <span class="badge rounded-pill ms-1"
+                      [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                <span class="badge rounded-pill"
+                      [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(div.agegroupColor)"
+                      [style.opacity]="0.7">{{ div.playerCount }}p</span>
+              } @else {
+                Select an agegroup:division...
+              }
+            </button>
+            @if (sourceDropdownOpen()) {
+              <div class="pool-dropdown-backdrop" (click)="closeDropdowns()"></div>
+              <div class="pool-dropdown-panel">
+                @for (group of groupedDivisionOptions(); track group.label) {
+                  <div class="pool-dropdown-group-label">{{ group.label }}</div>
+                  @for (div of group.divisions; track div.divId) {
+                    <button class="pool-dropdown-item"
+                            [class.active]="div.divId === sourceDivId()"
+                            [class.disabled]="div.divId === targetDivId()"
+                            [disabled]="div.divId === targetDivId()"
+                            (click)="selectSourceDiv(div.divId)">
+                      <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [class.color-dot--empty]="!div.agegroupColor"></span>
+                      <span class="pool-dropdown-name">{{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}</span>
+                      <span class="badge rounded-pill"
+                            [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                      <span class="badge rounded-pill"
+                            [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(div.agegroupColor)"
+                            [style.opacity]="0.7">{{ div.playerCount }}p</span>
+                    </button>
+                  }
                 }
-              </optgroup>
+              </div>
             }
-          </select>
+          </div>
 
           <!-- Capacity bar -->
           @if (sourceDiv() && sourceDiv()!.maxTeams > 0) {
@@ -175,22 +204,51 @@
       <div class="pool-panel">
         <div class="panel-header">
           <label class="form-label fw-semibold text-uppercase small mb-1">Target Agegroup:Division</label>
-          <select class="form-select form-select-sm"
-                  [ngModel]="targetDivId()"
-                  (ngModelChange)="onTargetDivChange($event)">
-            <option [ngValue]="null" disabled>Select an agegroup:division...</option>
-            @for (group of groupedDivisionOptions(); track group.label) {
-              <optgroup [label]="group.label">
-                @for (div of group.divisions; track div.divId) {
-                  <option [value]="div.divId"
-                          [disabled]="div.divId === sourceDivId()">
-                    {{ div.agegroupName }}: {{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}
-                    ({{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }})
-                  </option>
+          <div class="pool-dropdown-wrapper">
+            <button class="pool-dropdown-trigger form-select form-select-sm text-start"
+                    (click)="targetDropdownOpen.set(!targetDropdownOpen())">
+              @if (targetDiv(); as div) {
+                <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [class.color-dot--empty]="!div.agegroupColor"></span>
+                {{ div.divName }}
+                <span class="badge rounded-pill ms-1"
+                      [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                <span class="badge rounded-pill"
+                      [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(div.agegroupColor)"
+                      [style.opacity]="0.7">{{ div.playerCount }}p</span>
+              } @else {
+                Select an agegroup:division...
+              }
+            </button>
+            @if (targetDropdownOpen()) {
+              <div class="pool-dropdown-backdrop" (click)="closeDropdowns()"></div>
+              <div class="pool-dropdown-panel">
+                @for (group of groupedDivisionOptions(); track group.label) {
+                  <div class="pool-dropdown-group-label">{{ group.label }}</div>
+                  @for (div of group.divisions; track div.divId) {
+                    <button class="pool-dropdown-item"
+                            [class.active]="div.divId === targetDivId()"
+                            [class.disabled]="div.divId === sourceDivId()"
+                            [disabled]="div.divId === sourceDivId()"
+                            (click)="selectTargetDiv(div.divId)">
+                      <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [class.color-dot--empty]="!div.agegroupColor"></span>
+                      <span class="pool-dropdown-name">{{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}</span>
+                      <span class="badge rounded-pill"
+                            [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                      <span class="badge rounded-pill"
+                            [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(div.agegroupColor)"
+                            [style.opacity]="0.7">{{ div.playerCount }}p</span>
+                    </button>
+                  }
                 }
-              </optgroup>
+              </div>
             }
-          </select>
+          </div>
 
           <!-- Capacity bar -->
           @if (targetDiv() && targetDiv()!.maxTeams > 0) {

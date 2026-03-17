@@ -263,3 +263,100 @@ thead .frozen {
         height: auto;
     }
 }
+
+// ── Custom division dropdown (with color dots + badges) ──
+
+.pool-dropdown-wrapper {
+    position: relative;
+}
+
+.pool-dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    cursor: pointer;
+}
+
+.pool-dropdown-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+}
+
+.pool-dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-1) 0;
+}
+
+.pool-dropdown-group-label {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    letter-spacing: 0.03em;
+
+    &:not(:first-child) {
+        border-top: 1px solid var(--bs-border-color);
+        margin-top: var(--space-1);
+        padding-top: var(--space-2);
+    }
+}
+
+.pool-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-1) var(--space-3);
+    border: none;
+    background: none;
+    font-size: var(--font-size-sm);
+    color: var(--bs-body-color);
+    cursor: pointer;
+    text-align: start;
+
+    &:hover:not(:disabled) {
+        background: var(--bs-primary-bg-subtle);
+    }
+
+    &.active {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        font-weight: var(--font-weight-medium);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+.pool-dropdown-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.color-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid var(--bs-border-color);
+
+    &--empty {
+        border-style: dashed;
+    }
+}

@@ -12,5 +12,7 @@ export type PoolDivisionOptionDto = {
     isDroppedTeams: boolean;
     teamFee: number;
     rosterFee: number;
+    agegroupColor?: string | null;
+    playerCount: number;
 };
 
