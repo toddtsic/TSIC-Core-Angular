@@ -38,6 +38,10 @@ export class ClientMenuComponent {
     dropdownPanelTop = signal(0);
     dropdownPanelLeft = signal(0);
 
+    // Hover-to-open timer — short delay prevents flicker when moving between pill and panel
+    private hoverCloseTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly HOVER_CLOSE_DELAY = 150;
+
     /** Close all dropdown panels */
     collapseAll(): void {
         this.expandedItems.set(new Set());
@@ -48,31 +52,40 @@ export class ClientMenuComponent {
         this.menuState.closeOffcanvas();
     }
 
-    /**
-     * Open a dropdown panel positioned below the trigger button.
-     * Uses getBoundingClientRect so the panel escapes any stacking context.
-     */
-    toggleDropdownAtEvent(event: MouseEvent, menuItemId: string | number): void {
-        event.preventDefault();
+    /** Desktop hover: open dropdown when mouse enters a parent group */
+    onGroupMouseEnter(event: MouseEvent, menuItemId: string | number): void {
+        this.clearHoverTimer();
         const normalizedId = String(menuItemId);
-        const expanded = this.expandedItems();
+        if (this.isExpanded(normalizedId)) return;
 
-        if (expanded.has(normalizedId)) {
-            // Same trigger clicked again — close
-            this.expandedItems.set(new Set());
-            return;
-        }
-
-        // Compute panel position from trigger button's screen rect
-        const btn = event.currentTarget as HTMLElement;
+        // Position panel below the <button> child inside the group wrapper
+        const group = event.currentTarget as HTMLElement;
+        const btn = group.querySelector('button') as HTMLElement;
         const rect = btn.getBoundingClientRect();
         const PANEL_MIN_WIDTH = 260;
         const left = Math.min(rect.left, window.innerWidth - PANEL_MIN_WIDTH - 8);
         this.dropdownPanelLeft.set(Math.max(8, left));
         this.dropdownPanelTop.set(rect.bottom + 4);
-
-        // Open this panel, close all others
         this.expandedItems.set(new Set([normalizedId]));
+    }
+
+    /** Desktop hover: delayed close when mouse leaves the group (pill + panel) */
+    onGroupMouseLeave(): void {
+        this.startHoverCloseTimer();
+    }
+
+    private startHoverCloseTimer(): void {
+        this.clearHoverTimer();
+        this.hoverCloseTimer = setTimeout(() => {
+            this.collapseAll();
+        }, this.HOVER_CLOSE_DELAY);
+    }
+
+    private clearHoverTimer(): void {
+        if (this.hoverCloseTimer) {
+            clearTimeout(this.hoverCloseTimer);
+            this.hoverCloseTimer = null;
+        }
     }
 
     /** Toggle expansion for mobile accordion (unchanged behaviour) */
