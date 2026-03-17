@@ -64,8 +64,13 @@ public class FieldRepository : IFieldRepository
                 FlsId = fls.FlsId,
                 FieldId = fls.FieldId,
                 FName = fls.Field.FName ?? "",
+                Address = fls.Field.Address,
                 City = fls.Field.City,
                 State = fls.Field.State,
+                Zip = fls.Field.Zip,
+                Directions = fls.Field.Directions,
+                Latitude = fls.Field.Latitude,
+                Longitude = fls.Field.Longitude,
                 BActive = fls.BActive,
                 FieldPreference = fls.FieldPreference
             })

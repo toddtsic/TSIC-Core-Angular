@@ -20,8 +20,13 @@ public record LeagueSeasonFieldDto
     public required Guid FlsId { get; init; }
     public required Guid FieldId { get; init; }
     public required string FName { get; init; }
+    public string? Address { get; init; }
     public string? City { get; init; }
     public string? State { get; init; }
+    public string? Zip { get; init; }
+    public string? Directions { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
     public bool? BActive { get; init; }
 
     /// <summary>0 = Normal, 1 = Preferred, 2 = Avoid</summary>

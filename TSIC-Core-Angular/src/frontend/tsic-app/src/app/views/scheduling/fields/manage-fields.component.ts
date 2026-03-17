@@ -247,8 +247,13 @@ export class ManageFieldsComponent {
                 flsId: '',
                 fieldId: f.fieldId,
                 fName: f.fName,
+                address: f.address,
                 city: f.city,
                 state: f.state,
+                zip: f.zip,
+                directions: f.directions,
+                latitude: f.latitude,
+                longitude: f.longitude,
                 fieldPreference: 0,
                 scheduledGameCount: 0,
             } as LeagueSeasonFieldDto))
@@ -263,8 +268,13 @@ export class ManageFieldsComponent {
             ...fields.map(f => ({
                 fieldId: f.fieldId,
                 fName: f.fName,
+                address: f.address,
                 city: f.city,
                 state: f.state,
+                zip: f.zip,
+                directions: f.directions,
+                latitude: f.latitude,
+                longitude: f.longitude,
             } as FieldDto))
         ]);
     }
@@ -278,12 +288,16 @@ export class ManageFieldsComponent {
     }
 
     selectAssignedFieldForEdit(field: LeagueSeasonFieldDto) {
-        // Find the full FieldDto from available or fetch it from assigned data
         const fullField: FieldDto = {
             fieldId: field.fieldId,
             fName: field.fName,
+            address: field.address ?? undefined,
             city: field.city ?? undefined,
-            state: field.state ?? undefined
+            state: field.state ?? undefined,
+            zip: field.zip ?? undefined,
+            directions: field.directions ?? undefined,
+            latitude: field.latitude ?? undefined,
+            longitude: field.longitude ?? undefined
         } as FieldDto;
         this.isCreating.set(false);
         this.selectedField.set(fullField);

@@ -146,11 +146,16 @@ export class StoreAdminComponent {
 		this.formItemName.set(item.storeItemName);
 		this.formItemPrice.set(item.storeItemPrice);
 		this.formItemComments.set('');
-		this.showItemModal.set(true);
 
-		// Load full item detail for comments
+		// Load full detail before showing modal to prevent saving stale/empty comments
 		this.store.getItemDetail(item.storeItemId).subscribe({
-			next: detail => this.formItemComments.set(detail.storeItemComments ?? '')
+			next: detail => {
+				this.formItemComments.set(detail.storeItemComments ?? '');
+				this.showItemModal.set(true);
+			},
+			error: () => {
+				this.toast.show('Failed to load item details', 'danger');
+			}
 		});
 	}
 

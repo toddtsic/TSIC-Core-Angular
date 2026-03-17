@@ -240,7 +240,7 @@
                         <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
                             <i class="bi bi-arrow-left me-1"></i>Back
                         </button>
-                    } @else if (mode() === 'schedule') {
+                    } @else if (mode() === 'schedule' || mode() === 'configure') {
                         @switch (scope().level) {
                             @case ('event') {
                                 @if (gameSummary()) {
@@ -248,14 +248,19 @@
                                         {{ gameSummary()!.totalGames }} games
                                     </span>
                                 }
-                                <button class="btn btn-primary btn-sm"
-                                        (click)="openAutoScheduleConfig()"
-                                        [disabled]="isExecuting()">
-                                    @if (isExecuting()) {
-                                        <span class="spinner-border spinner-border-sm me-1"></span>
-                                    }
-                                    <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
-                                </button>
+                                @if (mode() === 'schedule') {
+                                    <button class="btn btn-sm"
+                                            [class.btn-primary]="!hasChampionshipPairings()"
+                                            [class.btn-outline-secondary]="hasChampionshipPairings()"
+                                            (click)="openAutoScheduleConfig()"
+                                            [disabled]="isExecuting() || hasChampionshipPairings()"
+                                            [title]="hasChampionshipPairings() ? 'Championship games detected — build per-agegroup or per-division instead' : ''">
+                                        @if (isExecuting()) {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
+                                    </button>
+                                }
                             }
                             @case ('agegroup') {
                                 @if (isAgegroupConfigured()) {
@@ -329,9 +334,7 @@
                         <!-- ══════════ CONFIGURE MODE ══════════ -->
                         @case ('configure') {
                             <app-schedule-config-panel
-                                [hasGames]="hasGamesInScope()"
                                 [agegroups]="agegroups()"
-                                (buildRequested)="onEventSelected(); mode.set('schedule'); openAutoScheduleConfig()"
                                 (resetConfirmed)="executeReset($event)" />
                         }
 
@@ -408,6 +411,13 @@
                                             (cellClicked)="onGridCellClick($event)"
                                             (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                             (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
+
+                                            @if (hasGamesInScope()) {
+                                            <button gridActions class="btn btn-sm btn-outline-secondary"
+                                                    (click)="openAddTimeslotModal()">
+                                                <i class="bi bi-plus-circle me-1"></i>Add Row
+                                            </button>
+                                            }
                                         </app-schedule-grid>
                                     }
                                 }
@@ -440,6 +450,13 @@
                                                 (cellClicked)="onGridCellClick($event)"
                                                 (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                                 (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
+
+                                                @if (hasGamesInScope()) {
+                                                <button gridActions class="btn btn-sm btn-outline-secondary"
+                                                        (click)="openAddTimeslotModal()">
+                                                    <i class="bi bi-plus-circle me-1"></i>Add Row
+                                                </button>
+                                                }
                                             </app-schedule-grid>
                                         }
                                     }
@@ -463,27 +480,11 @@
                                         (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                         (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
 
-                                        <!-- Add Row button (projected into grid header actions) -->
+                                        @if (hasGamesInScope()) {
                                         <button gridActions class="btn btn-sm btn-outline-secondary"
-                                                (click)="toggleAddTimeslot()">
+                                                (click)="openAddTimeslotModal()">
                                             <i class="bi bi-plus-circle me-1"></i>Add Row
                                         </button>
-
-                                        <!-- Add Row inputs (projected below grid header) -->
-                                        @if (showAddTimeslot()) {
-                                            <div gridExtra class="add-timeslot-bar">
-                                                <label class="form-label mb-0">Date</label>
-                                                <input type="date" class="form-control form-control-sm"
-                                                       [ngModel]="newTimeslotDate()"
-                                                       (ngModelChange)="newTimeslotDate.set($event)">
-                                                <label class="form-label mb-0">Time</label>
-                                                <input type="time" class="form-control form-control-sm"
-                                                       [ngModel]="newTimeslotTime()"
-                                                       (ngModelChange)="newTimeslotTime.set($event)">
-                                                <button class="btn btn-sm btn-primary" (click)="addTimeslotAndReload()">
-                                                    <i class="bi bi-plus"></i> Inject Row
-                                                </button>
-                                            </div>
                                         }
                                     </app-schedule-grid>
                                 }
@@ -687,6 +688,44 @@
             </div>
         </div>
     </tsic-dialog>
+}
+
+<!-- ══════════ Add Row Modal ══════════ -->
+@if (showAddTimeslot()) {
+    <div class="modal-overlay" (click)="closeAddTimeslotModal()">
+        <div class="add-row-modal" (click)="$event.stopPropagation()">
+            <div class="add-row-header">
+                <h6 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Add Timeslot Row</h6>
+                <button class="btn-close" (click)="closeAddTimeslotModal()"></button>
+            </div>
+            <div class="add-row-body">
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Game Day</label>
+                    <select class="form-select"
+                            [ngModel]="newTimeslotDate()"
+                            (ngModelChange)="newTimeslotDate.set($event)">
+                        @for (day of availableGameDays(); track day.iso) {
+                            <option [value]="day.iso">{{ day.label }}</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-medium">Time</label>
+                    <input type="time" class="form-control"
+                           [ngModel]="newTimeslotTime()"
+                           (ngModelChange)="newTimeslotTime.set($event)">
+                </div>
+            </div>
+            <div class="add-row-footer">
+                <button class="btn btn-secondary btn-sm" (click)="closeAddTimeslotModal()">Cancel</button>
+                <button class="btn btn-primary btn-sm"
+                        [disabled]="!newTimeslotDate() || !newTimeslotTime()"
+                        (click)="addTimeslotAndReload()">
+                    <i class="bi bi-plus-lg me-1"></i>Add Row
+                </button>
+            </div>
+        </div>
+    </div>
 }
 
 <!-- ══════════ Operation Spinner Modal (build / delete / undo) ══════════ -->
