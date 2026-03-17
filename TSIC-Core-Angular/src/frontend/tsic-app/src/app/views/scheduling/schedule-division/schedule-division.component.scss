@@ -49,7 +49,7 @@
     border-radius: var(--bs-border-radius);
     background: var(--bs-body-bg);
     overflow: hidden;
-    flex: 1;
+    flex: 1 1 50%;
     min-height: 0;
 
     app-division-navigator {
@@ -59,9 +59,8 @@
 }
 
 app-pairings-panel {
-    flex: 0 1 auto;
-    min-height: 0;
-    max-height: 40%;
+    flex: 1 1 50%;
+    min-height: 120px;
 }
 
 // ── Tools Section ──

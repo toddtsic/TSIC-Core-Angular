@@ -201,6 +201,7 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
 
     readonly minimapOpen = signal(false);
     private isMinimapDragging = false;
+    private _diagLogged = false;
     private scrollHandler?: () => void;
 
     private readonly onKeyDown = (e: KeyboardEvent) => {
@@ -225,20 +226,29 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
         }
     }
 
+    private scrollParent?: HTMLElement | null;
+
     private openMinimap(): void {
         this.renderMinimap();
         const el = this.gridScrollEl?.nativeElement;
         if (el) {
             this.scrollHandler = () => this.renderMinimap();
             el.addEventListener('scroll', this.scrollHandler, { passive: true });
+            // Also listen on the parent scroll container if grid-scroll doesn't scroll vertically
+            this.scrollParent = this.findScrollParent(el);
+            if (this.scrollParent) {
+                this.scrollParent.addEventListener('scroll', this.scrollHandler, { passive: true });
+            }
         }
     }
 
     private closeMinimap(): void {
         this.minimapOpen.set(false);
-        if (this.scrollHandler && this.gridScrollEl) {
-            this.gridScrollEl.nativeElement.removeEventListener('scroll', this.scrollHandler);
+        if (this.scrollHandler) {
+            this.gridScrollEl?.nativeElement.removeEventListener('scroll', this.scrollHandler);
+            this.scrollParent?.removeEventListener('scroll', this.scrollHandler);
             this.scrollHandler = undefined;
+            this.scrollParent = undefined;
         }
     }
 
@@ -249,6 +259,20 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
 
         const gridW = el.scrollWidth;
         const gridH = el.scrollHeight;
+
+        // DIAG: remove after fixing
+        if (!this._diagLogged) {
+            this._diagLogged = true;
+            const parent = this.findScrollParent(el);
+            console.log('[minimap-diag]', {
+                elTag: el.tagName, elClass: el.className,
+                scrollW: gridW, scrollH: gridH,
+                clientW: el.clientWidth, clientH: el.clientHeight,
+                elScrollsVertically: gridH > el.clientHeight + 1,
+                parentTag: parent?.tagName, parentClass: parent?.className,
+                parentScrollH: parent?.scrollHeight, parentClientH: parent?.clientHeight,
+            });
+        }
 
         // Scale to fit in max 260x180 bounding box
         const maxW = 260, maxH = 180;
@@ -298,11 +322,26 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
             }
         }
 
-        // Viewport rectangle
+        // Viewport rectangle — use grid-scroll if it scrolls vertically, else find parent scroller
+        let vpY: number;
+        let vpH: number;
+        if (el.scrollHeight > el.clientHeight + 1) {
+            vpY = el.scrollTop * scale;
+            vpH = el.clientHeight * scale;
+        } else {
+            const parent = this.findScrollParent(el);
+            if (parent) {
+                const gridAbsTop = el.getBoundingClientRect().top
+                    - parent.getBoundingClientRect().top + parent.scrollTop;
+                vpY = (parent.scrollTop - gridAbsTop) * scale;
+                vpH = parent.clientHeight * scale;
+            } else {
+                vpY = 0;
+                vpH = canvas.height;
+            }
+        }
         const vpX = el.scrollLeft * scale;
-        const vpY = el.scrollTop * scale;
         const vpW = el.clientWidth * scale;
-        const vpH = el.clientHeight * scale;
 
         ctx.fillStyle = 'rgba(13, 110, 253, 0.1)';
         ctx.fillRect(vpX, vpY, vpW, vpH);
@@ -311,10 +350,15 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
         ctx.strokeRect(vpX, vpY, vpW, vpH);
     }
 
+    private readonly boundMinimapMove = (e: MouseEvent) => this.onMinimapMove(e);
+    private readonly boundMinimapUp = () => this.onMinimapUp();
+
     onMinimapDown(e: MouseEvent): void {
         this.isMinimapDragging = true;
         this.scrollFromMinimap(e);
         e.preventDefault();
+        document.addEventListener('mousemove', this.boundMinimapMove);
+        document.addEventListener('mouseup', this.boundMinimapUp);
     }
 
     onMinimapMove(e: MouseEvent): void {
@@ -324,6 +368,8 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
 
     onMinimapUp(): void {
         this.isMinimapDragging = false;
+        document.removeEventListener('mousemove', this.boundMinimapMove);
+        document.removeEventListener('mouseup', this.boundMinimapUp);
     }
 
     private scrollFromMinimap(e: MouseEvent): void {
@@ -336,13 +382,41 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
         const y = e.clientY - rect.top;
         const scale = canvas.width / el.scrollWidth;
 
-        // Center viewport on click position
+        // Horizontal: grid scrolls itself
         el.scrollLeft = (x / scale) - (el.clientWidth / 2);
-        el.scrollTop = (y / scale) - (el.clientHeight / 2);
+
+        // Vertical: grid-scroll may or may not be the vertical scroller.
+        // If grid-scroll has no vertical overflow, find the nearest scrollable ancestor.
+        if (el.scrollHeight > el.clientHeight + 1) {
+            el.scrollTop = (y / scale) - (el.clientHeight / 2);
+        } else {
+            const parent = this.findScrollParent(el);
+            if (parent) {
+                const gridAbsTop = el.getBoundingClientRect().top
+                    - parent.getBoundingClientRect().top + parent.scrollTop;
+                parent.scrollTop = gridAbsTop + (y / scale) - (parent.clientHeight / 2);
+            }
+        }
+    }
+
+    /** Walk up the DOM to find the nearest vertically-scrollable ancestor. */
+    private findScrollParent(el: HTMLElement): HTMLElement | null {
+        let node = el.parentElement;
+        while (node) {
+            if (node.scrollHeight > node.clientHeight + 1) {
+                const style = getComputedStyle(node);
+                const ov = style.overflowY;
+                if (ov === 'auto' || ov === 'scroll') return node;
+            }
+            node = node.parentElement;
+        }
+        return null;
     }
 
     ngOnDestroy(): void {
         this.closeMinimap();
+        document.removeEventListener('mousemove', this.boundMinimapMove);
+        document.removeEventListener('mouseup', this.boundMinimapUp);
         document.removeEventListener('keydown', this.onKeyDown);
     }
 }

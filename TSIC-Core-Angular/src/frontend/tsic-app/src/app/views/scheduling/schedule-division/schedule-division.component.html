@@ -21,8 +21,8 @@
                     (colorChanged)="onAgegroupColorChanged($event)" />
             </div>
 
-            <!-- Pairings Panel (Schedule mode + division scope only) -->
-            @if (mode() === 'schedule' && scope().level === 'division' && !activeTool()) {
+            <!-- Pairings Panel (division scope, configure or schedule mode) -->
+            @if ((mode() === 'schedule' || mode() === 'configure') && scope().level === 'division' && !activeTool()) {
                 <app-pairings-panel
                     [pairings]="displayPairings()"
                     [isPairingsLoading]="isPairingsLoading()"

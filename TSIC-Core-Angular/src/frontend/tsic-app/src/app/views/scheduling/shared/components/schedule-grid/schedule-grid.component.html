@@ -121,10 +121,7 @@
                     <button class="minimap-close" (click)="toggleMinimap()">&times;</button>
                 </div>
                 <canvas #minimapCanvas
-                        (mousedown)="onMinimapDown($event)"
-                        (mousemove)="onMinimapMove($event)"
-                        (mouseup)="onMinimapUp()"
-                        (mouseleave)="onMinimapUp()">
+                        (mousedown)="onMinimapDown($event)">
                 </canvas>
             </div>
         }
