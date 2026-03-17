@@ -52,4 +52,25 @@ public interface IScheduleDivisionService
     /// and places each into the next available timeslot.
     /// </summary>
     Task<AutoScheduleResponse> AutoScheduleDivAsync(Guid jobId, string userId, Guid divId, CancellationToken ct = default);
+
+    // ── Batch Operations ──
+
+    /// <summary>
+    /// Park specific games into the 23:45–23:59 parking zone on their current day/field.
+    /// Each game's GDate time is moved to the first free minute >= 23:45 on the same day and field.
+    /// </summary>
+    Task<BatchParkResult> ParkGamesAsync(Guid jobId, string userId, BatchParkRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Park all championship/bracket games (T1Type != "T" or T2Type != "T") on a specific date.
+    /// </summary>
+    Task<BatchParkResult> ParkAllChampionshipAsync(Guid jobId, string userId, ParkAllChampionshipRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Shift a block of games by N rows within the grid's timeslot sequence.
+    /// Supports dry-run mode for preview without committing.
+    /// Rejects if any selected game has non-T team types.
+    /// Detects collisions with ALL games (cross-agegroup safe).
+    /// </summary>
+    Task<BatchShiftPreview> BatchShiftAsync(Guid jobId, string userId, BatchShiftRequest request, CancellationToken ct = default);
 }

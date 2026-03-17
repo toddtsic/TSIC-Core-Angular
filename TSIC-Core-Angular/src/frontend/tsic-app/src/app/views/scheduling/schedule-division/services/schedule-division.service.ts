@@ -5,10 +5,15 @@ import { environment } from '@environments/environment';
 import type {
     AgegroupWithDivisionsDto,
     AutoScheduleResponse,
+    BatchParkRequest,
+    BatchParkResult,
+    BatchShiftPreview,
+    BatchShiftRequest,
     DeleteAgegroupGamesRequest,
     DivisionPairingsResponse,
     DivisionTeamDto,
     EditDivisionTeamRequest,
+    ParkAllChampionshipRequest,
     ScheduleGridResponse,
     ScheduleGameDto,
     PlaceGameRequest,
@@ -27,16 +32,23 @@ export interface GameDateInfoDto {
 export type {
     AgegroupWithDivisionsDto,
     AutoScheduleResponse,
+    BatchParkRequest,
+    BatchParkResult,
+    BatchShiftPreview,
+    BatchShiftRequest,
     DeleteAgegroupGamesRequest,
     DivisionSummaryDto,
     DivisionPairingsResponse,
     DivisionTeamDto,
     EditDivisionTeamRequest,
+    GameShiftTarget,
     PairingDto,
+    ParkAllChampionshipRequest,
     ScheduleGridResponse,
     ScheduleGridRow,
     ScheduleFieldColumn,
     ScheduleGameDto,
+    ShiftConflict,
     PlaceGameRequest,
     MoveGameRequest,
     DeleteDivGamesRequest,
@@ -126,5 +138,21 @@ export class ScheduleDivisionService {
 
     autoScheduleDiv(divId: string): Observable<AutoScheduleResponse> {
         return this.http.post<AutoScheduleResponse>(`${this.apiUrl}/auto-schedule/${divId}`, {});
+    }
+
+    // ── Batch Operations: Parking ──
+
+    parkGames(request: BatchParkRequest): Observable<BatchParkResult> {
+        return this.http.post<BatchParkResult>(`${this.apiUrl}/park-games`, request);
+    }
+
+    parkAllChampionship(request: ParkAllChampionshipRequest): Observable<BatchParkResult> {
+        return this.http.post<BatchParkResult>(`${this.apiUrl}/park-all-championship`, request);
+    }
+
+    // ── Batch Operations: Block Shift ──
+
+    batchShift(request: BatchShiftRequest): Observable<BatchShiftPreview> {
+        return this.http.post<BatchShiftPreview>(`${this.apiUrl}/batch-shift`, request);
     }
 }

@@ -437,4 +437,273 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         };
     }
 
+    // ── Batch Operations: Parking ──
+
+    /// <summary>Parking zone start time: 23:45:00.</summary>
+    private static readonly TimeSpan ParkingZoneStart = new(23, 45, 0);
+
+    public async Task<BatchParkResult> ParkGamesAsync(
+        Guid jobId, string userId, BatchParkRequest request, CancellationToken ct = default)
+    {
+        var games = await _scheduleRepo.GetGamesByIdsAsync(request.Gids, ct);
+        if (games.Count == 0)
+            return new BatchParkResult { ParkedCount = 0, ParkedGames = [] };
+
+        return await ParkGamesInternalAsync(games, userId, ct);
+    }
+
+    public async Task<BatchParkResult> ParkAllChampionshipAsync(
+        Guid jobId, string userId, ParkAllChampionshipRequest request, CancellationToken ct = default)
+    {
+        // Query all games on that date
+        var dayStart = request.GameDate.Date;
+        var dayEnd = dayStart.AddDays(1);
+
+        var fieldIds = request.FieldIds;
+
+        // Get all games on the date (need to find non-T games)
+        // Use the date-range query, then filter in memory for non-T types
+        var allFieldIds = fieldIds ?? [];
+        List<Schedule> allGames;
+
+        if (allFieldIds.Count > 0)
+        {
+            allGames = await _scheduleRepo.GetGamesForGridByDateRangeAsync(
+                jobId, allFieldIds, dayStart, dayEnd, ct);
+        }
+        else
+        {
+            // No field filter — get ALL games on that date for the job
+            // Use a broader query: get all fields for the job, then query
+            allGames = await _scheduleRepo.GetGamesForGridByDateRangeAsync(
+                jobId, [], dayStart, dayEnd, ct);
+        }
+
+        // Filter to championship/bracket games (non-T type) that aren't already parked
+        var nonTGames = allGames
+            .Where(g => (g.T1Type != "T" || g.T2Type != "T")
+                && g.GDate.HasValue
+                && g.GDate.Value.TimeOfDay < ParkingZoneStart)
+            .ToList();
+
+        if (nonTGames.Count == 0)
+            return new BatchParkResult { ParkedCount = 0, ParkedGames = [] };
+
+        // Re-fetch as tracked entities for mutation
+        var gids = nonTGames.Select(g => g.Gid).ToList();
+        var trackedGames = await _scheduleRepo.GetGamesByIdsAsync(gids, ct);
+
+        return await ParkGamesInternalAsync(trackedGames, userId, ct);
+    }
+
+    private async Task<BatchParkResult> ParkGamesInternalAsync(
+        List<Schedule> games, string userId, CancellationToken ct)
+    {
+        // Build a set of already-occupied parking slots to avoid collisions
+        var occupiedParking = new HashSet<(Guid fieldId, DateTime gDate)>();
+
+        // Pre-load existing parked games (any games with time >= 23:45)
+        foreach (var game in games)
+        {
+            if (!game.GDate.HasValue || !game.FieldId.HasValue) continue;
+
+            var day = game.GDate.Value.Date;
+            // Check for existing games at parking times on this field
+            for (var minute = 0; minute < 15; minute++)
+            {
+                var parkTime = day.Add(ParkingZoneStart).AddMinutes(minute);
+                var existing = await _scheduleRepo.GetGameAtSlotAsync(parkTime, game.FieldId.Value, ct);
+                if (existing != null)
+                    occupiedParking.Add((game.FieldId.Value, parkTime));
+            }
+        }
+
+        var parkedGames = new List<ParkedGameInfo>();
+
+        foreach (var game in games)
+        {
+            if (!game.GDate.HasValue || !game.FieldId.HasValue) continue;
+
+            var originalGDate = game.GDate.Value;
+            var day = originalGDate.Date;
+            var fieldId = game.FieldId.Value;
+
+            // Find first free parking minute on same day/field
+            DateTime? parkingSlot = null;
+            for (var minute = 0; minute < 15; minute++)
+            {
+                var candidate = day.Add(ParkingZoneStart).AddMinutes(minute);
+                if (!occupiedParking.Contains((fieldId, candidate)))
+                {
+                    parkingSlot = candidate;
+                    occupiedParking.Add((fieldId, candidate));
+                    break;
+                }
+            }
+
+            if (parkingSlot == null)
+            {
+                _logger.LogWarning("ParkGame: No free parking slot for Gid={Gid} on {Day} field {FieldId}",
+                    game.Gid, day, fieldId);
+                continue;
+            }
+
+            game.GDate = parkingSlot.Value;
+            game.RescheduleCount = (game.RescheduleCount ?? 0) + 1;
+            game.Modified = DateTime.UtcNow;
+            game.LebUserId = userId;
+
+            parkedGames.Add(new ParkedGameInfo
+            {
+                Gid = game.Gid,
+                OriginalGDate = originalGDate,
+                ParkedGDate = parkingSlot.Value
+            });
+        }
+
+        if (parkedGames.Count > 0)
+            await _scheduleRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation("ParkGames: Parked {Count} games", parkedGames.Count);
+
+        return new BatchParkResult
+        {
+            ParkedCount = parkedGames.Count,
+            ParkedGames = parkedGames
+        };
+    }
+
+    // ── Batch Operations: Block Shift ──
+
+    public async Task<BatchShiftPreview> BatchShiftAsync(
+        Guid jobId, string userId, BatchShiftRequest request, CancellationToken ct = default)
+    {
+        var games = await _scheduleRepo.GetGamesByIdsAsync(request.Gids, ct);
+
+        // Validate: reject non-T games
+        var nonTGames = games.Where(g => g.T1Type != "T" || g.T2Type != "T").ToList();
+        if (nonTGames.Count > 0)
+        {
+            return new BatchShiftPreview
+            {
+                Moves = [],
+                Conflicts = nonTGames.Select(g => new ShiftConflict
+                {
+                    Gid = g.Gid,
+                    TargetGDate = g.GDate ?? DateTime.MinValue,
+                    FieldId = g.FieldId ?? Guid.Empty,
+                    Reason = $"Championship/bracket game (G{g.Gid}) — park first"
+                }).ToList(),
+                CanApply = false,
+                Applied = false
+            };
+        }
+
+        // Build timeslot index for O(1) lookups
+        var timeslotIndex = new Dictionary<DateTime, int>();
+        for (var i = 0; i < request.TimeslotSequence.Count; i++)
+            timeslotIndex[request.TimeslotSequence[i]] = i;
+
+        var gidSet = request.Gids.ToHashSet();
+        var moves = new List<GameShiftTarget>();
+        var conflicts = new List<ShiftConflict>();
+
+        foreach (var game in games)
+        {
+            if (!game.GDate.HasValue || !game.FieldId.HasValue)
+            {
+                conflicts.Add(new ShiftConflict
+                {
+                    Gid = game.Gid,
+                    TargetGDate = DateTime.MinValue,
+                    FieldId = Guid.Empty,
+                    Reason = "Game has no date or field assigned"
+                });
+                continue;
+            }
+
+            // Find current row index
+            if (!timeslotIndex.TryGetValue(game.GDate.Value, out var currentIndex))
+            {
+                conflicts.Add(new ShiftConflict
+                {
+                    Gid = game.Gid,
+                    TargetGDate = game.GDate.Value,
+                    FieldId = game.FieldId.Value,
+                    Reason = "Game time not found in timeslot sequence"
+                });
+                continue;
+            }
+
+            var targetIndex = currentIndex + request.RowOffset;
+
+            // Bounds check
+            if (targetIndex < 0 || targetIndex >= request.TimeslotSequence.Count)
+            {
+                conflicts.Add(new ShiftConflict
+                {
+                    Gid = game.Gid,
+                    TargetGDate = game.GDate.Value,
+                    FieldId = game.FieldId.Value,
+                    Reason = targetIndex < 0 ? "Would shift above first row" : "Would shift below last row"
+                });
+                continue;
+            }
+
+            var targetGDate = request.TimeslotSequence[targetIndex];
+
+            moves.Add(new GameShiftTarget
+            {
+                Gid = game.Gid,
+                OriginalGDate = game.GDate.Value,
+                TargetGDate = targetGDate,
+                FieldId = game.FieldId.Value
+            });
+        }
+
+        // Collision check: query target slots for games NOT in our selection
+        foreach (var move in moves)
+        {
+            var occupant = await _scheduleRepo.GetGameAtSlotAsync(move.TargetGDate, move.FieldId, ct);
+            if (occupant != null && !gidSet.Contains(occupant.Gid))
+            {
+                var label = $"{occupant.AgegroupName}:{occupant.DivName}".Trim(':');
+                conflicts.Add(new ShiftConflict
+                {
+                    Gid = move.Gid,
+                    TargetGDate = move.TargetGDate,
+                    FieldId = move.FieldId,
+                    Reason = $"Occupied by G{occupant.Gid} ({label})"
+                });
+            }
+        }
+
+        var canApply = conflicts.Count == 0 && moves.Count > 0;
+
+        // Apply if not dry run and no conflicts
+        if (!request.DryRun && canApply)
+        {
+            foreach (var move in moves)
+            {
+                var game = games.First(g => g.Gid == move.Gid);
+                game.GDate = move.TargetGDate;
+                game.RescheduleCount = (game.RescheduleCount ?? 0) + 1;
+                game.Modified = DateTime.UtcNow;
+                game.LebUserId = userId;
+            }
+
+            await _scheduleRepo.SaveChangesAsync(ct);
+            _logger.LogInformation("BatchShift: Shifted {Count} games by {Offset} rows",
+                moves.Count, request.RowOffset);
+        }
+
+        return new BatchShiftPreview
+        {
+            Moves = moves,
+            Conflicts = conflicts,
+            CanApply = canApply,
+            Applied = !request.DryRun && canApply
+        };
+    }
+
 }

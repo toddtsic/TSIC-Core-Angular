@@ -8,6 +8,7 @@ import {
     ScheduleDivisionService,
     type AutoScheduleResponse,
     type AgegroupWithDivisionsDto,
+    type BatchShiftPreview,
     type DivisionSummaryDto,
     type GameDateInfoDto,
     type PairingDto,
@@ -1714,6 +1715,22 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Grid cell click handler ──
 
     onGridCellClick(event: { row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }): void {
+        // Block shift mode: clicks set anchor/end for rectangle selection
+        if (this.blockShiftMode()) {
+            // Find row index in regular rows (exclude parking)
+            const grid = this.gridResponse();
+            if (!grid) return;
+            const regularRows = grid.rows.filter(r => {
+                const d = new Date(r.gDate);
+                return !(d.getHours() === 23 && d.getMinutes() >= 45);
+            });
+            const ri = regularRows.findIndex(r => r.gDate === event.row.gDate);
+            if (ri >= 0) {
+                this.onBlockShiftCellClick(ri, event.colIndex);
+            }
+            return;
+        }
+
         if (this.selectedPairing()) {
             if (!event.game) {
                 this.placeGame(event.row, event.colIndex);
@@ -1976,6 +1993,252 @@ export class ScheduleDivisionComponent implements OnInit {
             }
         }
         return null;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Batch Operations: Parking
+    // ══════════════════════════════════════════════════════════════
+
+    readonly isParkingInProgress = signal(false);
+
+    parkAllChampionship(): void {
+        const grid = this.gridResponse();
+        if (!grid) return;
+
+        // Find the first game date from regular rows (non-parking)
+        const firstRow = grid.rows.find(r => {
+            const d = new Date(r.gDate);
+            return !(d.getHours() === 23 && d.getMinutes() >= 45);
+        });
+        if (!firstRow) return;
+
+        this.isParkingInProgress.set(true);
+        this.svc.parkAllChampionship({
+            gameDate: firstRow.gDate,
+            fieldIds: null
+        }).subscribe({
+            next: (result) => {
+                this.isParkingInProgress.set(false);
+                if (result.parkedCount > 0) {
+                    this.toast.show(`Parked ${result.parkedCount} championship game(s)`, 'success', 3000);
+                    this.reloadCurrentGrid();
+                } else {
+                    this.toast.show('No championship games to park', 'info', 2000);
+                }
+            },
+            error: () => {
+                this.isParkingInProgress.set(false);
+                this.toast.show('Failed to park championship games', 'danger', 4000);
+            }
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // Batch Operations: Block Shift
+    // ══════════════════════════════════════════════════════════════
+
+    readonly blockShiftMode = signal(false);
+    readonly blockAnchor = signal<{ rowIndex: number; colIndex: number } | null>(null);
+    readonly blockEnd = signal<{ rowIndex: number; colIndex: number } | null>(null);
+    readonly shiftAmount = signal(0);
+    readonly shiftPreview = signal<BatchShiftPreview | null>(null);
+    readonly isShiftLoading = signal(false);
+
+    readonly blockSelection = computed(() => {
+        const anchor = this.blockAnchor();
+        const end = this.blockEnd();
+        if (!anchor || !end) return null;
+        return {
+            rowStart: Math.min(anchor.rowIndex, end.rowIndex),
+            rowEnd: Math.max(anchor.rowIndex, end.rowIndex),
+            colStart: Math.min(anchor.colIndex, end.colIndex),
+            colEnd: Math.max(anchor.colIndex, end.colIndex)
+        };
+    });
+
+    readonly selectedBlockGids = computed(() => {
+        const sel = this.blockSelection();
+        const grid = this.gridResponse();
+        if (!sel || !grid) return [];
+
+        // Use regular rows (filter out parking rows)
+        const rows = grid.rows.filter(r => {
+            const d = new Date(r.gDate);
+            return !(d.getHours() === 23 && d.getMinutes() >= 45);
+        });
+
+        const gids: number[] = [];
+        for (let ri = sel.rowStart; ri <= sel.rowEnd && ri < rows.length; ri++) {
+            for (let ci = sel.colStart; ci <= sel.colEnd && ci < rows[ri].cells.length; ci++) {
+                const cell = rows[ri].cells[ci];
+                if (cell) gids.push(cell.gid);
+            }
+        }
+        return gids;
+    });
+
+    readonly hasNonTInSelection = computed(() => {
+        const sel = this.blockSelection();
+        const grid = this.gridResponse();
+        if (!sel || !grid) return false;
+
+        const rows = grid.rows.filter(r => {
+            const d = new Date(r.gDate);
+            return !(d.getHours() === 23 && d.getMinutes() >= 45);
+        });
+
+        for (let ri = sel.rowStart; ri <= sel.rowEnd && ri < rows.length; ri++) {
+            for (let ci = sel.colStart; ci <= sel.colEnd && ci < rows[ri].cells.length; ci++) {
+                const cell = rows[ri].cells[ci];
+                if (cell && (cell.t1Type !== 'T' || cell.t2Type !== 'T')) return true;
+            }
+        }
+        return false;
+    });
+
+    toggleBlockShiftMode(): void {
+        const entering = !this.blockShiftMode();
+        this.blockShiftMode.set(entering);
+        if (entering) {
+            // Clear existing selection modes
+            this.selectedPairing.set(null);
+            this.selectedGame.set(null);
+        }
+        this.clearBlockSelection();
+    }
+
+    clearBlockSelection(): void {
+        this.blockAnchor.set(null);
+        this.blockEnd.set(null);
+        this.shiftAmount.set(0);
+        this.shiftPreview.set(null);
+    }
+
+    onBlockShiftCellClick(rowIndex: number, colIndex: number): void {
+        if (!this.blockAnchor()) {
+            this.blockAnchor.set({ rowIndex, colIndex });
+            this.blockEnd.set(null);
+            this.shiftPreview.set(null);
+        } else if (!this.blockEnd()) {
+            this.blockEnd.set({ rowIndex, colIndex });
+        } else {
+            // Third click = reset selection
+            this.clearBlockSelection();
+            this.blockAnchor.set({ rowIndex, colIndex });
+        }
+    }
+
+    adjustShiftAmount(delta: number): void {
+        this.shiftAmount.update(v => v + delta);
+        this.shiftPreview.set(null); // Invalidate preview on amount change
+    }
+
+    previewBlockShift(): void {
+        const gids = this.selectedBlockGids();
+        const grid = this.gridResponse();
+        if (gids.length === 0 || !grid || this.shiftAmount() === 0) return;
+
+        // Build timeslot sequence from regular rows only
+        const regularRows = grid.rows.filter(r => {
+            const d = new Date(r.gDate);
+            return !(d.getHours() === 23 && d.getMinutes() >= 45);
+        });
+        const timeslotSequence = regularRows.map(r => r.gDate);
+
+        this.isShiftLoading.set(true);
+        this.svc.batchShift({
+            gids,
+            rowOffset: this.shiftAmount(),
+            timeslotSequence,
+            dryRun: true
+        }).subscribe({
+            next: (preview) => {
+                this.shiftPreview.set(preview);
+                this.isShiftLoading.set(false);
+                if (preview.conflicts.length > 0) {
+                    this.toast.show(`${preview.conflicts.length} conflict(s) detected`, 'warning', 3000);
+                }
+            },
+            error: () => {
+                this.isShiftLoading.set(false);
+                this.toast.show('Failed to preview shift', 'danger', 3000);
+            }
+        });
+    }
+
+    applyBlockShift(): void {
+        const gids = this.selectedBlockGids();
+        const grid = this.gridResponse();
+        if (gids.length === 0 || !grid || this.shiftAmount() === 0) return;
+
+        const regularRows = grid.rows.filter(r => {
+            const d = new Date(r.gDate);
+            return !(d.getHours() === 23 && d.getMinutes() >= 45);
+        });
+        const timeslotSequence = regularRows.map(r => r.gDate);
+
+        this.isShiftLoading.set(true);
+        this.svc.batchShift({
+            gids,
+            rowOffset: this.shiftAmount(),
+            timeslotSequence,
+            dryRun: false
+        }).subscribe({
+            next: (result) => {
+                this.isShiftLoading.set(false);
+                if (result.applied) {
+                    this.toast.show(`Shifted ${result.moves.length} game(s) by ${this.shiftAmount()} row(s)`, 'success', 3000);
+                    this.clearBlockSelection();
+                    this.reloadCurrentGrid();
+                } else {
+                    this.toast.show('Shift blocked — conflicts detected', 'danger', 4000);
+                    this.shiftPreview.set(result);
+                }
+            },
+            error: () => {
+                this.isShiftLoading.set(false);
+                this.toast.show('Failed to apply shift', 'danger', 4000);
+            }
+        });
+    }
+
+    parkAndShift(): void {
+        // Park non-T games in the selection, then re-run preview
+        const sel = this.blockSelection();
+        const grid = this.gridResponse();
+        if (!sel || !grid) return;
+
+        const rows = grid.rows.filter(r => {
+            const d = new Date(r.gDate);
+            return !(d.getHours() === 23 && d.getMinutes() >= 45);
+        });
+
+        // Collect non-T game gids in selection
+        const nonTGids: number[] = [];
+        for (let ri = sel.rowStart; ri <= sel.rowEnd && ri < rows.length; ri++) {
+            for (let ci = sel.colStart; ci <= sel.colEnd && ci < rows[ri].cells.length; ci++) {
+                const cell = rows[ri].cells[ci];
+                if (cell && (cell.t1Type !== 'T' || cell.t2Type !== 'T')) {
+                    nonTGids.push(cell.gid);
+                }
+            }
+        }
+
+        if (nonTGids.length === 0) return;
+
+        this.isParkingInProgress.set(true);
+        this.svc.parkGames({ gids: nonTGids }).subscribe({
+            next: (result) => {
+                this.isParkingInProgress.set(false);
+                this.toast.show(`Parked ${result.parkedCount} championship game(s)`, 'success', 3000);
+                this.reloadCurrentGrid();
+                // Selection will be invalidated by grid reload — user can re-select and shift
+            },
+            error: () => {
+                this.isParkingInProgress.set(false);
+                this.toast.show('Failed to park championship games', 'danger', 4000);
+            }
+        });
     }
 
     // ── Helpers ──

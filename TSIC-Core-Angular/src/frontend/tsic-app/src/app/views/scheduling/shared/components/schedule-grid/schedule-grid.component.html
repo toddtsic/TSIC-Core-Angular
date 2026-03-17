@@ -57,7 +57,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @for (row of gridRows(); track row.gDate) {
+                    @for (row of regularRows(); track row.gDate; let ri = $index) {
                         <tr>
                             <td class="col-time sticky-col">
                                 <div class="time-label">{{ formatDate(row.gDate) }}</div>
@@ -73,6 +73,7 @@
                                     [class.cell-breaking]="cell && isBreaking(cell)"
                                     [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
                                     [class.cell-other-div]="cell && isOtherDivision(cell)"
+                                    [class.cell-block-selected]="isInBlockSelection(ri, ci)"
                                     (click)="onCellClick(row, ci)">
                                     @if (cell) {
                                         <app-game-card
@@ -101,6 +102,44 @@
                                 </td>
                             }
                         </tr>
+                    }
+
+                    <!-- Parking Zone (collapsed by default, visible when parked games exist) -->
+                    @if (parkedGameCount() > 0) {
+                        <tr class="parking-separator" (click)="parkingExpanded.set(!parkingExpanded())">
+                            <td [attr.colspan]="gridColumns().length + 1" class="parking-separator-cell">
+                                <i class="bi" [class.bi-chevron-right]="!parkingExpanded()" [class.bi-chevron-down]="parkingExpanded()"></i>
+                                <i class="bi bi-p-square me-1"></i>
+                                Parking
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">{{ parkedGameCount() }}</span>
+                            </td>
+                        </tr>
+                        @if (parkingExpanded()) {
+                            @for (row of parkingRows(); track row.gDate) {
+                                <tr class="parking-row">
+                                    <td class="col-time sticky-col parking-time">
+                                        <div class="time-sub">parked</div>
+                                    </td>
+                                    @for (cell of row.cells; track $index; let ci = $index) {
+                                        <td class="col-field parking-cell"
+                                            [class.cell-game]="!!cell"
+                                            [class.cell-move-target]="(showMoveSlotHints() || selectedGameGid()) && !cell"
+                                            (click)="onCellClick(row, ci)">
+                                            @if (cell) {
+                                                <app-game-card
+                                                    [game]="cell"
+                                                    [showActions]="showActionButtons()"
+                                                    [isSelected]="isGameSelected(cell)"
+                                                    [showSwapHint]="!!selectedGameGid() && !isGameSelected(cell)"
+                                                    [conflictIcons]="{ slotCollision: false, timeClash: false, backToBack: false }"
+                                                    (moveClicked)="gameMoveRequested.emit({ game: cell, row: row, colIndex: ci })"
+                                                    (deleteClicked)="gameDeleteRequested.emit({ game: cell, row: row, colIndex: ci })" />
+                                            }
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        }
                     }
                 </tbody>
             </table>

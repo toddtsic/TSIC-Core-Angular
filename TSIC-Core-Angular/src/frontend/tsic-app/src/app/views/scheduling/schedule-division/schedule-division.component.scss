@@ -607,3 +607,29 @@ app-rescheduler {
     padding: var(--space-3) var(--space-4);
     border-top: 1px solid var(--bs-border-color);
 }
+
+// ── Block Shift Action Bar ──
+
+.block-shift-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bs-tertiary-bg);
+    border-top: 1px solid var(--bs-border-color);
+    font-size: var(--font-size-sm);
+    flex-wrap: wrap;
+}
+
+.shift-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.shift-amount {
+    min-width: 60px;
+    text-align: center;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}

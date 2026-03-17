@@ -261,6 +261,13 @@ public sealed class ScheduleRepository : IScheduleRepository
         return await _context.Schedule.FindAsync(new object[] { gid }, ct);
     }
 
+    public async Task<List<Domain.Entities.Schedule>> GetGamesByIdsAsync(List<int> gids, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .Where(s => gids.Contains(s.Gid))
+            .ToListAsync(ct);
+    }
+
     public async Task<Domain.Entities.Schedule?> GetGameAtSlotAsync(DateTime gDate, Guid fieldId, CancellationToken ct = default)
     {
         return await _context.Schedule

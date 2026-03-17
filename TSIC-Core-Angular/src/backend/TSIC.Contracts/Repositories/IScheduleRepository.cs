@@ -78,6 +78,11 @@ public interface IScheduleRepository
     Task<Schedule?> GetGameByIdAsync(int gid, CancellationToken ct = default);
 
     /// <summary>
+    /// Get multiple schedule records by Gids (tracked for batch mutation).
+    /// </summary>
+    Task<List<Schedule>> GetGamesByIdsAsync(List<int> gids, CancellationToken ct = default);
+
+    /// <summary>
     /// Find the schedule record at a specific date/field intersection (tracked for mutation).
     /// </summary>
     Task<Schedule?> GetGameAtSlotAsync(DateTime gDate, Guid fieldId, CancellationToken ct = default);

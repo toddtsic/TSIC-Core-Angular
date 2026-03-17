@@ -365,10 +365,13 @@ public class TimeslotRepository : ITimeslotRepository
     public async Task<Dictionary<Guid, List<Guid>>> GetFieldIdsPerAgegroupAsync(
         Guid leagueId, string season, string year, CancellationToken ct = default)
     {
+        // Only agegroup-level rows (DivId IS NULL). Division overrides are loaded separately
+        // via GetFieldIdsPerDivisionAsync and must not inflate the agegroup field set.
         var rows = await _context.TimeslotsLeagueSeasonFields
             .AsNoTracking()
             .Where(f => f.Season == season && f.Year == year
-                && f.Agegroup.LeagueId == leagueId)
+                && f.Agegroup.LeagueId == leagueId
+                && f.DivId == null)
             .Select(f => new { f.AgegroupId, f.FieldId })
             .Distinct()
             .ToListAsync(ct);
@@ -418,11 +421,14 @@ public class TimeslotRepository : ITimeslotRepository
     public async Task DeleteFieldTimeslotsByFieldAsync(
         Guid agegroupId, Guid fieldId, string season, string year, CancellationToken ct = default)
     {
+        // Only delete agegroup-level rows (DivId IS NULL).
+        // Division-level rows are managed separately via DeleteFieldTimeslotsByDivFieldAsync.
         var toDelete = await _context.TimeslotsLeagueSeasonFields
             .Where(f => f.AgegroupId == agegroupId
                 && f.FieldId == fieldId
                 && f.Season == season
-                && f.Year == year)
+                && f.Year == year
+                && f.DivId == null)
             .ToListAsync(ct);
 
         _context.TimeslotsLeagueSeasonFields.RemoveRange(toDelete);

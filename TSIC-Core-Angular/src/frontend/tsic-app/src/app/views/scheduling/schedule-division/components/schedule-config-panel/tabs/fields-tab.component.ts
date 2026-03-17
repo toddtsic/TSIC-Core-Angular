@@ -170,7 +170,7 @@ export class FieldsTabComponent implements OnInit {
 
         // Division-level overrides
         const divAssignments: Record<string, Set<string>> = {};
-        const perDiv = (response as any).fieldIdsPerDivision as Record<string, string[]> | null;
+        const perDiv = response.fieldIdsPerDivision as Record<string, string[]> | null;
         if (perDiv) {
           for (const [divId, fieldIds] of Object.entries(perDiv)) {
             divAssignments[divId] = new Set(fieldIds);

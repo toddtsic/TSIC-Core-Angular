@@ -408,16 +408,30 @@
                                             [highlightAllDiv]="false"
                                             [showOpenSlotHints]="false"
                                             [showMoveSlotHints]="!!selectedGame()"
+                                            [blockSelection]="blockSelection()"
                                             (cellClicked)="onGridCellClick($event)"
                                             (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                             (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
 
-                                            @if (hasGamesInScope()) {
-                                            <button gridActions class="btn btn-sm btn-outline-secondary"
-                                                    (click)="openAddTimeslotModal()">
-                                                <i class="bi bi-plus-circle me-1"></i>Add Row
-                                            </button>
-                                            }
+                                            <ng-container gridActions>
+                                                @if (hasGamesInScope()) {
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                        (click)="openAddTimeslotModal()">
+                                                    <i class="bi bi-plus-circle me-1"></i>Add Row
+                                                </button>
+                                                <button class="btn btn-sm"
+                                                        [class.btn-outline-secondary]="!blockShiftMode()"
+                                                        [class.btn-primary]="blockShiftMode()"
+                                                        (click)="toggleBlockShiftMode()">
+                                                    <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-warning"
+                                                        [disabled]="isParkingInProgress()"
+                                                        (click)="parkAllChampionship()">
+                                                    <i class="bi bi-p-square me-1"></i>Park Champs
+                                                </button>
+                                                }
+                                            </ng-container>
                                         </app-schedule-grid>
                                     }
                                 }
@@ -447,16 +461,30 @@
                                                 [highlightAllDiv]="false"
                                                 [showOpenSlotHints]="false"
                                                 [showMoveSlotHints]="!!selectedGame()"
+                                                [blockSelection]="blockSelection()"
                                                 (cellClicked)="onGridCellClick($event)"
                                                 (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                                 (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
 
-                                                @if (hasGamesInScope()) {
-                                                <button gridActions class="btn btn-sm btn-outline-secondary"
-                                                        (click)="openAddTimeslotModal()">
-                                                    <i class="bi bi-plus-circle me-1"></i>Add Row
-                                                </button>
-                                                }
+                                                <ng-container gridActions>
+                                                    @if (hasGamesInScope()) {
+                                                    <button class="btn btn-sm btn-outline-secondary"
+                                                            (click)="openAddTimeslotModal()">
+                                                        <i class="bi bi-plus-circle me-1"></i>Add Row
+                                                    </button>
+                                                    <button class="btn btn-sm"
+                                                            [class.btn-outline-secondary]="!blockShiftMode()"
+                                                            [class.btn-primary]="blockShiftMode()"
+                                                            (click)="toggleBlockShiftMode()">
+                                                        <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-warning"
+                                                            [disabled]="isParkingInProgress()"
+                                                            (click)="parkAllChampionship()">
+                                                        <i class="bi bi-p-square me-1"></i>Park Champs
+                                                    </button>
+                                                    }
+                                                </ng-container>
                                             </app-schedule-grid>
                                         }
                                     }
@@ -476,16 +504,84 @@
                                         [highlightAllDiv]="highlightAllDiv()"
                                         [showOpenSlotHints]="!!selectedPairing()"
                                         [showMoveSlotHints]="!!selectedGame()"
+                                        [blockSelection]="blockSelection()"
                                         (cellClicked)="onGridCellClick($event)"
                                         (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
                                         (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
 
-                                        @if (hasGamesInScope()) {
-                                        <button gridActions class="btn btn-sm btn-outline-secondary"
-                                                (click)="openAddTimeslotModal()">
-                                            <i class="bi bi-plus-circle me-1"></i>Add Row
-                                        </button>
-                                        }
+                                        <ng-container gridActions>
+                                            @if (hasGamesInScope()) {
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    (click)="openAddTimeslotModal()">
+                                                <i class="bi bi-plus-circle me-1"></i>Add Row
+                                            </button>
+                                            <button class="btn btn-sm"
+                                                    [class.btn-outline-secondary]="!blockShiftMode()"
+                                                    [class.btn-primary]="blockShiftMode()"
+                                                    (click)="toggleBlockShiftMode()">
+                                                <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-warning"
+                                                    [disabled]="isParkingInProgress()"
+                                                    (click)="parkAllChampionship()">
+                                                <i class="bi bi-p-square me-1"></i>Park Champs
+                                            </button>
+                                            }
+                                        </ng-container>
+
+                                        <!-- Block Shift Action Bar -->
+                                        <ng-container gridExtra>
+                                            @if (blockShiftMode() && blockSelection()) {
+                                                <div class="block-shift-bar">
+                                                    <span class="badge bg-primary-subtle text-primary-emphasis">
+                                                        {{ selectedBlockGids().length }} game(s) selected
+                                                    </span>
+
+                                                    @if (hasNonTInSelection()) {
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>Championship games in selection
+                                                        </span>
+                                                        <button class="btn btn-sm btn-outline-warning" (click)="parkAndShift()">
+                                                            <i class="bi bi-p-square me-1"></i>Park &amp; Continue
+                                                        </button>
+                                                    } @else {
+                                                        <div class="shift-stepper">
+                                                            <button class="btn btn-sm btn-outline-secondary" (click)="adjustShiftAmount(-1)">
+                                                                <i class="bi bi-dash"></i>
+                                                            </button>
+                                                            <span class="shift-amount">{{ shiftAmount() > 0 ? '+' : '' }}{{ shiftAmount() }} rows</span>
+                                                            <button class="btn btn-sm btn-outline-secondary" (click)="adjustShiftAmount(1)">
+                                                                <i class="bi bi-plus"></i>
+                                                            </button>
+                                                        </div>
+
+                                                        <button class="btn btn-sm btn-outline-primary"
+                                                                [disabled]="shiftAmount() === 0 || isShiftLoading()"
+                                                                (click)="previewBlockShift()">
+                                                            <i class="bi bi-eye me-1"></i>Preview
+                                                        </button>
+
+                                                        @if (shiftPreview()?.canApply) {
+                                                            <button class="btn btn-sm btn-primary"
+                                                                    [disabled]="isShiftLoading()"
+                                                                    (click)="applyBlockShift()">
+                                                                <i class="bi bi-check-lg me-1"></i>Apply
+                                                            </button>
+                                                        }
+
+                                                        @if (shiftPreview() && !shiftPreview()!.canApply) {
+                                                            <span class="badge bg-danger-subtle text-danger-emphasis">
+                                                                {{ shiftPreview()!.conflicts.length }} conflict(s)
+                                                            </span>
+                                                        }
+                                                    }
+
+                                                    <button class="btn btn-sm btn-outline-secondary ms-auto" (click)="clearBlockSelection()">
+                                                        <i class="bi bi-x-lg me-1"></i>Cancel
+                                                    </button>
+                                                </div>
+                                            }
+                                        </ng-container>
                                     </app-schedule-grid>
                                 }
                             }

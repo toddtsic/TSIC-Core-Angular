@@ -1486,9 +1486,12 @@ public sealed class TimeslotService : ITimeslotService
         {
             var desiredFieldIds = entry.FieldIds.ToHashSet();
 
-            // Get existing field-timeslot rows for this agegroup
-            var existingRows = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+            // Get existing field-timeslot rows for this agegroup (agegroup-level only: DivId IS NULL).
+            // Division-level rows are managed separately below — must NOT be included here
+            // or the diff will treat division-only fields as removals and nuke them.
+            var allRows = await _tsRepo.GetFieldTimeslotsByFilterAsync(
                 entry.AgegroupId, season, year, ct: ct);
+            var existingRows = allRows.Where(r => r.DivId == null).ToList();
 
             var currentFieldIds = existingRows.Select(r => r.FieldId).Distinct().ToHashSet();
 
@@ -1498,7 +1501,7 @@ public sealed class TimeslotService : ITimeslotService
             // Fields to add: in desired but not in current
             var fieldsToAdd = desiredFieldIds.Except(currentFieldIds).ToList();
 
-            // Delete rows for removed fields
+            // Delete agegroup-level rows for removed fields (division rows left intact)
             foreach (var fieldId in fieldsToRemove)
             {
                 await _tsRepo.DeleteFieldTimeslotsByFieldAsync(
@@ -1506,13 +1509,13 @@ public sealed class TimeslotService : ITimeslotService
                 totalDeleted += existingRows.Count(r => r.FieldId == fieldId);
             }
 
-            // Add rows for new fields by cloning from existing templates
+            // Add agegroup-level rows for new fields by cloning from existing agegroup templates
             if (fieldsToAdd.Count > 0 && existingRows.Count > 0)
             {
-                // Group existing rows by (Dow, DivId) to get timing templates
+                // Templates from agegroup-level rows only (DivId == null)
                 var templates = existingRows
                     .Where(r => desiredFieldIds.Contains(r.FieldId) || !fieldsToRemove.Contains(r.FieldId))
-                    .GroupBy(r => new { r.Dow, r.DivId })
+                    .GroupBy(r => r.Dow)
                     .Select(g => g.First())
                     .ToList();
 
@@ -1525,7 +1528,7 @@ public sealed class TimeslotService : ITimeslotService
                         {
                             AgegroupId = entry.AgegroupId,
                             FieldId = newFieldId,
-                            DivId = tmpl.DivId,
+                            DivId = null,
                             StartTime = tmpl.StartTime,
                             GamestartInterval = tmpl.GamestartInterval,
                             MaxGamesPerField = tmpl.MaxGamesPerField,
@@ -1568,18 +1571,29 @@ public sealed class TimeslotService : ITimeslotService
                     totalDeleted += existingDivRows.Count(r => r.FieldId == fieldId);
                 }
 
-                // Fields to add at division level (clone timing from agegroup-level templates)
+                // Fields to add at division level (clone timing from templates)
                 var divFieldsToAdd = desiredDivFieldIds.Except(currentDivFieldIds).ToList();
                 if (divFieldsToAdd.Count > 0)
                 {
-                    // Use agegroup-level rows as timing template (DivId IS NULL)
-                    var agTemplates = await _tsRepo.GetFieldTimeslotsByFilterAsync(
+                    // Prefer agegroup-level rows as timing template (DivId IS NULL).
+                    // Fall back to any existing row for this agegroup (including other
+                    // divisions) when the agegroup itself has no fields assigned.
+                    var allAgRows = await _tsRepo.GetFieldTimeslotsByFilterAsync(
                         divEntry.AgegroupId, season, year, ct: ct);
-                    var templatesByDow = agTemplates
+                    var templatesByDow = allAgRows
                         .Where(r => r.DivId == null)
                         .GroupBy(r => r.Dow)
                         .Select(g => g.First())
                         .ToList();
+
+                    if (templatesByDow.Count == 0)
+                    {
+                        // No agegroup-level rows — fall back to any division row
+                        templatesByDow = allAgRows
+                            .GroupBy(r => r.Dow)
+                            .Select(g => g.First())
+                            .ToList();
+                    }
 
                     if (templatesByDow.Count > 0)
                     {

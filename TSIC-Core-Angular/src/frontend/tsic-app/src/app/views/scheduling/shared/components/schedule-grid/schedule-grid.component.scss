@@ -215,6 +215,47 @@ th.sticky-col {
     color: var(--bs-info);
 }
 
+// ── Parking zone ──
+
+.parking-separator {
+    cursor: pointer;
+
+    &:hover .parking-separator-cell {
+        background: rgba(var(--bs-primary-rgb), 0.06);
+    }
+}
+
+.parking-separator-cell {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    background: var(--bs-tertiary-bg);
+    border-top: 2px solid var(--bs-border-color);
+    user-select: none;
+}
+
+.parking-row > td {
+    background: rgba(var(--bs-secondary-rgb), 0.04);
+}
+
+.parking-time {
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
+
+.parking-cell:not(.cell-game) {
+    background: rgba(var(--bs-secondary-rgb), 0.02);
+}
+
+// ── Block shift selection ──
+
+.cell-block-selected {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+    background: rgba(var(--bs-primary-rgb), 0.08);
+}
+
 // ── Empty states ──
 
 .icon-lg {

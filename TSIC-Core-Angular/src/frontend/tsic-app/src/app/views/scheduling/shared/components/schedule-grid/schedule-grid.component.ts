@@ -55,6 +55,15 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     // When true, ALL games matching highlightDivId get marching ants (division click)
     readonly highlightAllDiv = input(false);
 
+    // Block shift selection (driven by parent)
+    readonly blockSelection = input<{ rowStart: number; rowEnd: number; colStart: number; colEnd: number } | null>(null);
+
+    // Shift preview ghost targets: Map<gid, targetGDate> (for rendering ghost cells at target positions)
+    readonly shiftGhostMap = input<Map<number, string> | null>(null);
+
+    // Shift conflict gids (for red highlight on target cells)
+    readonly shiftConflictGids = input<Set<number> | null>(null);
+
     // ── Outputs ──
     readonly cellClicked = output<{ row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }>();
     readonly gameMoveRequested = output<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number }>();
@@ -80,6 +89,47 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
             rowIndex
         }));
     });
+
+    // ── Parking zone ──
+
+    private static readonly PARKING_HOUR = 23;
+    private static readonly PARKING_MIN = 45;
+
+    /** Split grid rows into regular + parking (time >= 23:45). */
+    readonly regularRows = computed(() =>
+        this.gridRows().filter(r => !this.isParkingRow(r))
+    );
+
+    readonly parkingRows = computed(() =>
+        this.gridRows().filter(r => this.isParkingRow(r))
+    );
+
+    readonly parkedGameCount = computed(() => {
+        let count = 0;
+        for (const row of this.parkingRows()) {
+            for (const cell of row.cells) {
+                if (cell) count++;
+            }
+        }
+        return count;
+    });
+
+    readonly parkingExpanded = signal(false);
+
+    isParkingRow(row: ScheduleGridRow): boolean {
+        const d = new Date(row.gDate);
+        return d.getHours() === ScheduleGridComponent.PARKING_HOUR
+            && d.getMinutes() >= ScheduleGridComponent.PARKING_MIN;
+    }
+
+    // ── Block selection helpers ──
+
+    isInBlockSelection(rowIndex: number, colIndex: number): boolean {
+        const sel = this.blockSelection();
+        if (!sel) return false;
+        return rowIndex >= sel.rowStart && rowIndex <= sel.rowEnd
+            && colIndex >= sel.colStart && colIndex <= sel.colEnd;
+    }
 
     // ── Helpers bound for template ──
     readonly formatDate = formatDate;

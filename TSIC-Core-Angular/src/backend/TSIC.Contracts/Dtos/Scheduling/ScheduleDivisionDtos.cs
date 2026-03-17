@@ -125,6 +125,86 @@ public record GameDateInfoDto
     public required int GameCount { get; init; }
 }
 
+// ── Parking DTOs ──
+
+/// <summary>
+/// Park specific games into the 23:45–23:59 parking zone on their current day/field.
+/// </summary>
+public record BatchParkRequest
+{
+    public required List<int> Gids { get; init; }
+}
+
+/// <summary>
+/// Park all championship/bracket games (non-T type) on a specific date.
+/// </summary>
+public record ParkAllChampionshipRequest
+{
+    public required DateTime GameDate { get; init; }
+    /// <summary>Optional field filter. When null, parks on all fields.</summary>
+    public List<Guid>? FieldIds { get; init; }
+}
+
+/// <summary>Result of a batch park operation.</summary>
+public record BatchParkResult
+{
+    public required int ParkedCount { get; init; }
+    public required List<ParkedGameInfo> ParkedGames { get; init; }
+}
+
+/// <summary>Info about a single parked game.</summary>
+public record ParkedGameInfo
+{
+    public required int Gid { get; init; }
+    public required DateTime OriginalGDate { get; init; }
+    public required DateTime ParkedGDate { get; init; }
+}
+
+// ── Block Shift DTOs ──
+
+/// <summary>
+/// Shift a set of games by N rows within the grid's timeslot sequence.
+/// </summary>
+public record BatchShiftRequest
+{
+    /// <summary>Game IDs to shift.</summary>
+    public required List<int> Gids { get; init; }
+    /// <summary>Row offset: +N = down (later), -N = up (earlier).</summary>
+    public required int RowOffset { get; init; }
+    /// <summary>Ordered ISO datetime strings representing every timeslot row in the grid.</summary>
+    public required List<DateTime> TimeslotSequence { get; init; }
+    /// <summary>When true, returns preview without committing changes.</summary>
+    public bool DryRun { get; init; }
+}
+
+/// <summary>Preview/result of a batch shift operation.</summary>
+public record BatchShiftPreview
+{
+    public required List<GameShiftTarget> Moves { get; init; }
+    public required List<ShiftConflict> Conflicts { get; init; }
+    public required bool CanApply { get; init; }
+    public required bool Applied { get; init; }
+}
+
+/// <summary>Where a game would move to.</summary>
+public record GameShiftTarget
+{
+    public required int Gid { get; init; }
+    public required DateTime OriginalGDate { get; init; }
+    public required DateTime TargetGDate { get; init; }
+    public required Guid FieldId { get; init; }
+}
+
+/// <summary>A conflict preventing a game from being shifted.</summary>
+public record ShiftConflict
+{
+    public required int Gid { get; init; }
+    public required DateTime TargetGDate { get; init; }
+    public required Guid FieldId { get; init; }
+    /// <summary>Human-readable reason, e.g. "Occupied by G1234 (U14 Boys)".</summary>
+    public required string Reason { get; init; }
+}
+
 /// <summary>
 /// Auto-schedule result — how many games were placed vs failed to find slots.
 /// </summary>

@@ -187,6 +187,44 @@ public class ScheduleDivisionController : ControllerBase
         return Ok(dates);
     }
 
+    // ── Batch Operations ──
+
+    /// <summary>POST /api/schedule-division/park-games — Park specific games into the 23:45+ parking zone.</summary>
+    [HttpPost("park-games")]
+    public async Task<ActionResult<BatchParkResult>> ParkGames(
+        [FromBody] BatchParkRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.ParkGamesAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/schedule-division/park-all-championship — Park all non-T games on a date.</summary>
+    [HttpPost("park-all-championship")]
+    public async Task<ActionResult<BatchParkResult>> ParkAllChampionship(
+        [FromBody] ParkAllChampionshipRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.ParkAllChampionshipAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/schedule-division/batch-shift — Shift a block of games by N grid rows.</summary>
+    [HttpPost("batch-shift")]
+    public async Task<ActionResult<BatchShiftPreview>> BatchShift(
+        [FromBody] BatchShiftRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.BatchShiftAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
+
     /// <summary>GET /api/schedule-division/field-directions/{fieldId} — Public field address/directions.</summary>
     [HttpGet("field-directions/{fieldId:guid}")]
     [AllowAnonymous]
