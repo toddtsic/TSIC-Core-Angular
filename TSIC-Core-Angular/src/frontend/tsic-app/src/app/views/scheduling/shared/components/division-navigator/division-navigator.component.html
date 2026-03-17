@@ -80,7 +80,9 @@
                                  [class.active]="isDivActive(div.divId)"
                                  (click)="selectDivision(div, ag.agegroupId)">
                                 <span class="div-name">{{ div.divName }}</span>
-                                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                <span class="badge rounded-pill"
+                                      [style.background]="ag.color ?? 'var(--bs-secondary-bg)'"
+                                      [style.color]="contrastText(ag.color)">
                                     {{ div.teamCount }}
                                 </span>
                             </div>

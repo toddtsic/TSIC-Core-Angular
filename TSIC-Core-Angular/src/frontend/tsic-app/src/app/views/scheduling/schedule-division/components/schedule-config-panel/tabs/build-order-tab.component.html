@@ -10,8 +10,8 @@
     <!-- Guidance -->
     <div class="order-guidance">
       <i class="bi bi-info-circle me-1"></i>
-      Divisions higher in the list get first pick of field-time slots within their day and wave.
-      Drag to reorder within a day. The engine sorts chips as:
+      Agegroups higher in the list get first pick of field-time slots.
+      Expand to reorder divisions within an agegroup. The engine sorts chips as:
       <strong>Day &rarr; Wave &rarr; Round &rarr; this order &rarr; Game.</strong>
     </div>
 
@@ -23,60 +23,96 @@
       }
     </div>
 
-    <!-- Day Groups -->
-    @for (day of dayGroups(); track day.isoDate) {
-      <div class="day-group">
-        <div class="day-group-header">
-          <i class="bi bi-calendar3"></i>
-          <span class="day-group-label">{{ day.dateLabel }}</span>
-        </div>
+    <!-- Agegroup order list -->
+    @if (agGroups().length > 0) {
+      <div class="ag-order-list"
+           cdkDropList
+           [cdkDropListData]="agGroups()"
+           (cdkDropListDropped)="onDropAgegroup($event)">
 
-        @for (wg of day.waveGroups; track wg.wave) {
-          @if (!day.singleWave) {
-            <div class="wave-group-header">
-              <span class="wave-group-badge">Wave {{ wg.wave }}</span>
-              <span class="wave-group-count">
-                {{ wg.items.length }} division{{ wg.items.length !== 1 ? 's' : '' }}
+        @for (ag of agGroups(); track ag.agegroupId; let agIdx = $index) {
+          <div class="ag-order-block" cdkDrag>
+
+            <!-- Agegroup header -->
+            <div class="ag-order-header" cdkDragHandle>
+              <i class="bi bi-grip-vertical drag-grip"
+                 title="Drag to reorder agegroup"
+                 aria-label="Drag to reorder agegroup"></i>
+
+              <span class="order-position">{{ agIdx + 1 }}</span>
+
+              @if (ag.agegroupColor) {
+                <span class="color-dot" [style.background]="ag.agegroupColor"></span>
+              }
+
+              <span class="ag-name">{{ ag.agegroupName }}</span>
+
+              <span class="ag-stats">
+                {{ ag.divisions.length }} div{{ ag.divisions.length !== 1 ? 's' : '' }}
+                &middot; {{ ag.totalTeamCount }} teams
               </span>
+
+              <button class="expand-toggle"
+                      (click)="toggleAg(ag.agegroupId); $event.stopPropagation()"
+                      [attr.aria-label]="isAgExpanded(ag.agegroupId) ? 'Collapse' : 'Expand'">
+                <i class="bi"
+                   [class.bi-chevron-right]="!isAgExpanded(ag.agegroupId)"
+                   [class.bi-chevron-down]="isAgExpanded(ag.agegroupId)"></i>
+              </button>
             </div>
-          }
 
-          <div class="order-list"
-               cdkDropList
-               [id]="dropListId(day.isoDate, wg.wave)"
-               [cdkDropListData]="wg.items"
-               (cdkDropListDropped)="onDrop($event, day.isoDate, wg.wave)">
+            <!-- Division list (expanded) -->
+            @if (isAgExpanded(ag.agegroupId)) {
+              <div class="div-order-list"
+                   cdkDropList
+                   [id]="'div-list-' + ag.agegroupId"
+                   [cdkDropListData]="ag.divisions"
+                   (cdkDropListDropped)="onDropDivision($event, ag.agegroupId)">
 
-            @for (item of wg.items; track item.divId; let i = $index) {
-              <div class="order-item" cdkDrag>
-                <i class="bi bi-grip-vertical drag-grip" cdkDragHandle
-                   title="Drag to reorder"
-                   aria-label="Drag to reorder"></i>
+                @for (div of ag.divisions; track div.divId; let divIdx = $index) {
+                  <div class="div-order-item" cdkDrag>
+                    <i class="bi bi-grip-vertical drag-grip drag-grip-sm"
+                       cdkDragHandle
+                       title="Drag to reorder division"
+                       aria-label="Drag to reorder division"></i>
 
-                <span class="order-position">{{ i + 1 }}</span>
+                    <span class="order-position order-position-sm">{{ divIdx + 1 }}</span>
+                    <span class="div-name">{{ div.divName }}</span>
 
-                @if (item.agegroupColor) {
-                  <span class="color-dot" [style.background]="item.agegroupColor"></span>
-                }
-                <span class="ag-name">{{ item.agegroupName }}</span>
-                <span class="order-div-name">{{ item.divName }}</span>
-                <span class="badge rounded-pill ms-auto"
-                      [style.background]="item.agegroupColor ?? 'var(--bs-secondary-bg)'"
-                      [style.color]="contrastText(item.agegroupColor)">{{ item.teamCount }}</span>
+                    <span class="badge rounded-pill ms-auto"
+                          [style.background]="ag.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                          [style.color]="contrastText(ag.agegroupColor)">{{ div.teamCount }}</span>
 
-                <ng-template cdkDragPreview>
-                  <div class="order-item-preview">
-                    @if (item.agegroupColor) {
-                      <span class="color-dot" [style.background]="item.agegroupColor"></span>
-                    }
-                    <span class="ag-name">{{ item.agegroupName }}</span>
-                    <span>{{ item.divName }}</span>
+                    <span class="wave-badge">W{{ div.wave }}</span>
+
+                    <ng-template cdkDragPreview>
+                      <div class="order-item-preview">
+                        @if (ag.agegroupColor) {
+                          <span class="color-dot" [style.background]="ag.agegroupColor"></span>
+                        }
+                        <span>{{ div.divName }}</span>
+                        <span class="wave-badge">W{{ div.wave }}</span>
+                      </div>
+                    </ng-template>
+
+                    <div *cdkDragPlaceholder class="div-item-placeholder"></div>
                   </div>
-                </ng-template>
-
-                <div *cdkDragPlaceholder class="order-item-placeholder"></div>
+                }
               </div>
             }
+
+            <!-- Agegroup drag preview -->
+            <ng-template cdkDragPreview>
+              <div class="ag-order-preview">
+                @if (ag.agegroupColor) {
+                  <span class="color-dot" [style.background]="ag.agegroupColor"></span>
+                }
+                <span class="ag-name">{{ ag.agegroupName }}</span>
+                <span class="ag-stats">{{ ag.divisions.length }} divs</span>
+              </div>
+            </ng-template>
+
+            <div *cdkDragPlaceholder class="ag-order-placeholder"></div>
           </div>
         }
       </div>

@@ -16,20 +16,19 @@ interface DivisionOrderItem {
   agegroupColor: string | null;
   teamCount: number;
   wave: number;
-  playDates: string[];
 }
 
-interface DayGroup {
-  isoDate: string;
-  dow: string;
-  dateLabel: string;
-  waveGroups: { wave: number; items: DivisionOrderItem[] }[];
-  singleWave: boolean;
+interface AgegroupOrderGroup {
+  agegroupId: string;
+  agegroupName: string;
+  agegroupColor: string | null;
+  totalTeamCount: number;
+  divisions: DivisionOrderItem[];
 }
 
 /**
- * Build Order tab — DB-persisted drag-sort of divisions within day+wave groups.
- * Replaces the old processing-order-section that used ephemeral localStorage.
+ * Build Order tab — two-tier drag-sort: agegroups (block reorder) + divisions (within agegroup).
+ * Persists a flat ProcessingOrderEntryDto[] to the cascade backend.
  */
 @Component({
   selector: 'app-build-order-tab',
@@ -51,6 +50,9 @@ export class BuildOrderTabComponent implements OnInit {
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
   readonly contrastText = contrastText;
+
+  /** Expand/collapse state for agegroup drill-down. */
+  readonly expandedAgs = signal<Set<string>>(new Set());
 
   /** Agegroup color + team count lookup — derived synchronously from parent input. */
   private readonly agegroupMeta = computed(() => {
@@ -76,51 +78,39 @@ export class BuildOrderTabComponent implements OnInit {
     return current.some((id, i) => id !== baseline[i]);
   });
 
-  readonly dayGroups = computed((): DayGroup[] => {
+  /** Groups localOrder into agegroup blocks, preserving first-occurrence order. */
+  readonly agGroups = computed((): AgegroupOrderGroup[] => {
     const items = this.localOrder();
     if (items.length === 0) return [];
 
-    const dateSet = new Map<string, string>();
+    const groupMap = new Map<string, AgegroupOrderGroup>();
+    const groupOrder: string[] = [];
+
     for (const item of items) {
-      for (const d of item.playDates) {
-        if (!dateSet.has(d)) {
-          dateSet.set(d, this.getDowForDate(d));
-        }
+      let group = groupMap.get(item.agegroupId);
+      if (!group) {
+        group = {
+          agegroupId: item.agegroupId,
+          agegroupName: item.agegroupName,
+          agegroupColor: item.agegroupColor,
+          totalTeamCount: 0,
+          divisions: [],
+        };
+        groupMap.set(item.agegroupId, group);
+        groupOrder.push(item.agegroupId);
       }
+      group.divisions.push(item);
+      group.totalTeamCount += item.teamCount;
     }
 
-    const sortedDates = [...dateSet.entries()].sort(([a], [b]) => a.localeCompare(b));
-
-    return sortedDates.map(([isoDate, dow]) => {
-      const dayItems = items.filter(i => i.playDates.includes(isoDate));
-
-      const waveMap = new Map<number, DivisionOrderItem[]>();
-      for (const item of dayItems) {
-        const arr = waveMap.get(item.wave) ?? [];
-        arr.push(item);
-        waveMap.set(item.wave, arr);
-      }
-
-      const waveGroups = [...waveMap.entries()]
-        .sort(([a], [b]) => a - b)
-        .map(([wave, waveItems]) => ({ wave, items: waveItems }));
-
-      return {
-        isoDate,
-        dow,
-        dateLabel: this.formatDateLabel(isoDate, dow),
-        waveGroups,
-        singleWave: waveGroups.length <= 1,
-      };
-    });
+    return groupOrder.map(id => groupMap.get(id)!);
   });
 
   readonly summaryLabel = computed(() => {
-    const items = this.localOrder();
-    if (items.length === 0) return 'No divisions';
-    const dayCount = new Set(items.flatMap(i => i.playDates)).size;
-    if (dayCount <= 1) return `${items.length} divisions`;
-    return `${items.length} divisions across ${dayCount} days`;
+    const groups = this.agGroups();
+    if (groups.length === 0) return 'No divisions';
+    const totalDivs = groups.reduce((s, g) => s + g.divisions.length, 0);
+    return `${groups.length} agegroup${groups.length !== 1 ? 's' : ''} \u00b7 ${totalDivs} division${totalDivs !== 1 ? 's' : ''}`;
   });
 
   ngOnInit(): void {
@@ -150,9 +140,7 @@ export class BuildOrderTabComponent implements OnInit {
     const allDivs: DivisionOrderItem[] = [];
 
     for (const ag of cascade.agegroups) {
-      const playDates = Object.keys(ag.wavesByDate).map(d => this.toDateOnly(d));
       for (const div of ag.divisions) {
-        const divPlayDates = Object.keys(div.effectiveWavesByDate).map(d => this.toDateOnly(d));
         const meta = this.agegroupMeta()[ag.agegroupId];
         allDivs.push({
           divId: div.divisionId,
@@ -162,24 +150,38 @@ export class BuildOrderTabComponent implements OnInit {
           agegroupColor: meta?.color ?? null,
           teamCount: meta?.divTeamCounts?.[div.divisionId] ?? 0,
           wave: waveMap[div.divisionId] ?? 1,
-          playDates: divPlayDates.length > 0 ? divPlayDates : playDates,
         });
       }
     }
 
-    // Sort by persisted order if available, else wave → AG name → div name
     if (entries.length > 0) {
+      // Sort by persisted order, then re-cluster by agegroup
       const orderMap = new Map(entries.map(e => [e.divisionId, e.sortOrder]));
-      allDivs.sort((a, b) => {
-        const aIdx = orderMap.get(a.divId) ?? 9999;
-        const bIdx = orderMap.get(b.divId) ?? 9999;
-        return aIdx - bIdx;
-      });
+      allDivs.sort((a, b) =>
+        (orderMap.get(a.divId) ?? 9999) - (orderMap.get(b.divId) ?? 9999)
+      );
+
+      // Re-cluster: ensure agegroups are contiguous (handles legacy data)
+      const seen = new Map<string, DivisionOrderItem[]>();
+      const agOrder: string[] = [];
+      for (const div of allDivs) {
+        if (!seen.has(div.agegroupId)) {
+          seen.set(div.agegroupId, []);
+          agOrder.push(div.agegroupId);
+        }
+        seen.get(div.agegroupId)!.push(div);
+      }
+      allDivs.length = 0;
+      for (const agId of agOrder) {
+        allDivs.push(...seen.get(agId)!);
+      }
     } else {
+      // Default: agegroup name → wave → division name
       allDivs.sort((a, b) => {
-        if (a.wave !== b.wave) return a.wave - b.wave;
         const agCmp = a.agegroupName.localeCompare(b.agegroupName);
-        return agCmp !== 0 ? agCmp : a.divName.localeCompare(b.divName);
+        if (agCmp !== 0) return agCmp;
+        if (a.wave !== b.wave) return a.wave - b.wave;
+        return a.divName.localeCompare(b.divName);
       });
     }
 
@@ -187,26 +189,59 @@ export class BuildOrderTabComponent implements OnInit {
     this.baselineOrder.set(allDivs.map(i => i.divId));
   }
 
-  // ── Drag-drop ──
+  // ── Expand / Collapse ──
 
-  onDrop(event: CdkDragDrop<DivisionOrderItem[]>, isoDate: string, wave: number): void {
+  toggleAg(agId: string): void {
+    const expanded = new Set(this.expandedAgs());
+    expanded.has(agId) ? expanded.delete(agId) : expanded.add(agId);
+    this.expandedAgs.set(expanded);
+  }
+
+  isAgExpanded(agId: string): boolean {
+    return this.expandedAgs().has(agId);
+  }
+
+  // ── Drag-drop: Agegroup level ──
+
+  onDropAgegroup(event: CdkDragDrop<AgegroupOrderGroup[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+
+    const groups = this.agGroups();
+    const agIds = groups.map(g => g.agegroupId);
+    moveItemInArray(agIds, event.previousIndex, event.currentIndex);
+
+    // Rebuild flat localOrder: walk agegroups in new order
+    const groupLookup = new Map(groups.map(g => [g.agegroupId, g]));
+    const newOrder: DivisionOrderItem[] = [];
+    for (const agId of agIds) {
+      newOrder.push(...groupLookup.get(agId)!.divisions);
+    }
+
+    this.localOrder.set(newOrder);
+  }
+
+  // ── Drag-drop: Division level (within agegroup) ──
+
+  onDropDivision(event: CdkDragDrop<DivisionOrderItem[]>, agegroupId: string): void {
     if (event.previousIndex === event.currentIndex) return;
 
     const all = this.localOrder().slice();
-    const matchIndices: number[] = [];
-    const matchItems: DivisionOrderItem[] = [];
 
+    // Find indices belonging to this agegroup
+    const agIndices: number[] = [];
+    const agItems: DivisionOrderItem[] = [];
     for (let i = 0; i < all.length; i++) {
-      if (all[i].wave === wave && all[i].playDates.includes(isoDate)) {
-        matchIndices.push(i);
-        matchItems.push(all[i]);
+      if (all[i].agegroupId === agegroupId) {
+        agIndices.push(i);
+        agItems.push(all[i]);
       }
     }
 
-    moveItemInArray(matchItems, event.previousIndex, event.currentIndex);
+    moveItemInArray(agItems, event.previousIndex, event.currentIndex);
 
-    for (let i = 0; i < matchIndices.length; i++) {
-      all[matchIndices[i]] = matchItems[i];
+    // Write reordered items back into the flat array
+    for (let i = 0; i < agIndices.length; i++) {
+      all[agIndices[i]] = agItems[i];
     }
 
     this.localOrder.set(all);
@@ -215,21 +250,10 @@ export class BuildOrderTabComponent implements OnInit {
   // ── Save to DB ──
 
   save(): void {
-    const dayGs = this.dayGroups();
-    const seen = new Set<string>();
-    const entries: ProcessingOrderEntryDto[] = [];
-    let sortOrder = 0;
-
-    for (const day of dayGs) {
-      for (const wg of day.waveGroups) {
-        for (const item of wg.items) {
-          if (!seen.has(item.divId)) {
-            seen.add(item.divId);
-            entries.push({ divisionId: item.divId, sortOrder: sortOrder++ });
-          }
-        }
-      }
-    }
+    const entries: ProcessingOrderEntryDto[] = this.localOrder().map((item, i) => ({
+      divisionId: item.divId,
+      sortOrder: i,
+    }));
 
     this.isSaving.set(true);
     this.cascadeSvc.saveProcessingOrder(entries).subscribe({
@@ -267,30 +291,5 @@ export class BuildOrderTabComponent implements OnInit {
         this.toast.show('Failed to reset processing order', 'danger');
       },
     });
-  }
-
-  // ── Helpers ──
-
-  dropListId(isoDate: string, wave: number): string {
-    return `tab-order-${isoDate}-w${wave}`;
-  }
-
-  /** Normalize DateTime strings (e.g. "2026-03-15T00:00:00") to date-only "2026-03-15" */
-  private toDateOnly(dateStr: string): string {
-    return dateStr.length > 10 ? dateStr.substring(0, 10) : dateStr;
-  }
-
-  private getDowForDate(isoDate: string): string {
-    const d = new Date(this.toDateOnly(isoDate) + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'long' });
-  }
-
-  private formatDateLabel(isoDate: string, dow: string): string {
-    const datePart = this.toDateOnly(isoDate);
-    const parts = datePart.split('-');
-    if (parts.length === 3) {
-      return `${dow} ${parts[1]}/${parts[2]}/${parts[0]}`;
-    }
-    return `${dow} ${datePart}`;
   }
 }

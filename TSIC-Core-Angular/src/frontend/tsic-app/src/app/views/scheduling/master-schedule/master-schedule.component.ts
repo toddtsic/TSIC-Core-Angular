@@ -123,10 +123,17 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 
 	private getScrollContainer(): HTMLElement | undefined {
 		if (!this.scrollContainer) {
-			// Layout uses <main> with overflow-y:auto as the scroll container
-			this.scrollContainer =
-				this.msGridRef?.nativeElement.closest('main') as HTMLElement | undefined
-				?? undefined;
+			// Walk up from the grid to find the nearest ancestor with vertical overflow.
+			// The hub layout uses .hub-content (overflow-y: auto), NOT <main>.
+			let node = this.msGridRef?.nativeElement.parentElement;
+			while (node && node !== document.documentElement) {
+				const ov = getComputedStyle(node).overflowY;
+				if (ov === 'auto' || ov === 'scroll') {
+					this.scrollContainer = node;
+					break;
+				}
+				node = node.parentElement;
+			}
 		}
 		return this.scrollContainer;
 	}
