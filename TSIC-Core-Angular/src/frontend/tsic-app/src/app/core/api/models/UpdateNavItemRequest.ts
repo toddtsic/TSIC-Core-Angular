@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UpdateNavItemRequest = {
-    text: string;
+    text?: string | null;
     active: boolean;
     iconName?: string | null;
     routerLink?: string | null;

@@ -30,6 +30,33 @@ public interface INavEditorRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Get the job override Nav record for a specific job+role combination (tracked).
+    /// Returns null if no override nav exists for this job+role.
+    /// </summary>
+    Task<Nav?> GetJobOverrideNavAsync(
+        Guid jobId,
+        string roleId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all job override NavItem rows that reference the given default NavItemId
+    /// via DefaultNavItemId or DefaultParentNavItemId. Used for delete reference checks.
+    /// Returns tracked entities.
+    /// </summary>
+    Task<List<NavItem>> GetReferencingOverrideItemsAsync(
+        int navItemId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get a hide row for a specific job override nav + default item (tracked).
+    /// Returns null if no hide row exists.
+    /// </summary>
+    Task<NavItem?> GetHideRowAsync(
+        int overrideNavId,
+        int defaultNavItemId,
+        CancellationToken cancellationToken = default);
+
     // ─── Nav items ──────────────────────────────────────────────────
 
     /// <summary>Get a nav item by ID (tracked for updates).</summary>

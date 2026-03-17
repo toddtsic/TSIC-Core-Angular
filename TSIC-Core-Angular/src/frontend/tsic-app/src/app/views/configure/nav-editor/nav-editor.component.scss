@@ -1,3 +1,9 @@
+// Amber accent used for "This Job" context — not a brand palette color, intentionally fixed
+// so it reads as "caution/contextual" regardless of which palette is active.
+$this-job-color: #d97706;      // amber-600
+$this-job-color-light: #fef3c7; // amber-50
+$this-job-color-border: #fbbf24; // amber-400
+
 .menu-admin-container {
     padding: 2rem;
     max-width: 1200px;
@@ -108,6 +114,84 @@
 
     &.inactive {
         opacity: 0.6;
+    }
+
+    &.job-hidden {
+        background: rgba(var(--bs-danger-rgb), 0.04);
+        border-radius: var(--radius-sm);
+    }
+}
+
+.menu-item.job-hidden {
+    opacity: 0.65;
+}
+
+// Always-visible controls in "This Job" tab rows
+.menu-item.job-visibility-row .item-controls {
+    visibility: visible;
+}
+
+.job-controls {
+    gap: var(--space-3) !important;
+}
+
+// ── Tab styling ──────────────────────────────────────────────────
+
+.nav-tabs {
+    border-bottom: 2px solid var(--border-color);
+}
+
+// "Platform Defaults" tab — uses the standard active color (bs-primary)
+.tab-defaults {
+    &.active {
+        border-bottom-color: var(--bs-primary) !important;
+        color: var(--bs-primary) !important;
+        font-weight: 600;
+    }
+}
+
+// "This Job" tab — amber accent so it's unmistakably different
+.tab-this-job {
+    color: $this-job-color;
+
+    &:hover:not(.active) {
+        color: $this-job-color;
+        border-color: transparent;
+        background: $this-job-color-light;
+    }
+
+    &.active {
+        color: $this-job-color !important;
+        border-color: var(--border-color) var(--border-color) var(--bs-card-bg) !important;
+        border-bottom: 2px solid $this-job-color !important;
+        font-weight: 600;
+    }
+}
+
+// ── "This Job" content panel ──────────────────────────────────────
+
+.this-job-panel {
+    border: 2px solid $this-job-color-border;
+    border-top: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    padding: var(--space-4);
+    background: var(--bs-card-bg);
+}
+
+.this-job-banner {
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
+    background: $this-job-color-light;
+    border-bottom: 1px solid $this-job-color-border;
+    border-radius: 0;
+    font-size: var(--font-size-sm);
+    color: #92400e; // amber-800 — readable on amber-50 background
+
+    i {
+        color: $this-job-color;
+        font-size: var(--font-size-base);
     }
 }
 

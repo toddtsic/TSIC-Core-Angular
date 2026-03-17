@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DeleteDivGamesRequest = {
-    divId: string;
-    gameDate?: string | null;
+export type ToggleHideRequest = {
+    roleId: string;
+    defaultNavItemId: number;
+    hide: boolean;
 };
 

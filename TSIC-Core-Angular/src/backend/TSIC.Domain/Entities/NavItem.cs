@@ -15,7 +15,7 @@ public partial class NavItem
 
     public int SortOrder { get; set; }
 
-    public string Text { get; set; } = null!;
+    public string? Text { get; set; }
 
     public string? IconName { get; set; }
 
@@ -28,6 +28,18 @@ public partial class NavItem
     public DateTime Modified { get; set; }
 
     public string? ModifiedBy { get; set; }
+
+    public int? DefaultNavItemId { get; set; }
+
+    public int? DefaultParentNavItemId { get; set; }
+
+    public virtual NavItem? DefaultNavItem { get; set; }
+
+    public virtual NavItem? DefaultParentNavItem { get; set; }
+
+    public virtual ICollection<NavItem> InverseDefaultNavItem { get; set; } = new List<NavItem>();
+
+    public virtual ICollection<NavItem> InverseDefaultParentNavItem { get; set; } = new List<NavItem>();
 
     public virtual ICollection<NavItem> InverseParentNavItem { get; set; } = new List<NavItem>();
 

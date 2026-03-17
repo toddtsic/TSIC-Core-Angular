@@ -7,12 +7,14 @@ export type NavEditorNavItemDto = {
     navId: number;
     parentNavItemId?: number;
     sortOrder: number;
-    text: string;
+    text?: string | null;
     iconName?: string | null;
     routerLink?: string | null;
     navigateUrl?: string | null;
     target?: string | null;
     active: boolean;
+    defaultNavItemId?: number;
+    defaultParentNavItemId?: number;
     children: Array<NavEditorNavItemDto>;
 };
 

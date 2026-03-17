@@ -70,19 +70,132 @@ public class NavRepository : INavRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        // Get platform default
-        var defaultNav = await GetPlatformDefaultAsync(roleId, cancellationToken);
+        // 1. Get platform default nav record
+        var defaultNav = await _context.Nav
+            .AsNoTracking()
+            .Where(n => n.RoleId == roleId && n.JobId == null && n.Active)
+            .FirstOrDefaultAsync(cancellationToken);
+
         if (defaultNav == null) return null;
 
-        // Get job override
-        var overrideNav = await GetJobOverrideAsync(roleId, jobId, cancellationToken);
+        // 2. Load platform default items as a mutable tree
+        var defaultItems = await LoadNavItemTreeAsync(defaultNav.NavId, activeOnly: true, cancellationToken);
 
-        // If no override, return defaults as-is
-        if (overrideNav == null) return defaultNav;
+        // 3. Check for job override nav
+        var overrideNav = await _context.Nav
+            .AsNoTracking()
+            .Where(n => n.RoleId == roleId && n.JobId == jobId && n.Active)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        // Merge: default items + override items appended at end
-        var mergedItems = new List<NavItemDto>(defaultNav.Items);
-        mergedItems.AddRange(overrideNav.Items);
+        if (overrideNav == null)
+        {
+            return new NavDto
+            {
+                NavId = defaultNav.NavId,
+                RoleId = roleId,
+                JobId = jobId,
+                Active = true,
+                Items = defaultItems
+            };
+        }
+
+        // 4. Load ALL override items (including inactive hide rows)
+        var overrideItems = await _context.NavItem
+            .AsNoTracking()
+            .Where(ni => ni.NavId == overrideNav.NavId)
+            .ToListAsync(cancellationToken);
+
+        // 5. Build suppressed set from hide rows (DefaultNavItemId set + Active=false)
+        var suppressedIds = overrideItems
+            .Where(ni => ni.DefaultNavItemId != null && !ni.Active)
+            .Select(ni => ni.DefaultNavItemId!.Value)
+            .ToHashSet();
+
+        // 6. Filter default items — cascade: suppressing an L1 also suppresses its children
+        var filteredItems = new List<NavItemDto>();
+        foreach (var root in defaultItems)
+        {
+            if (suppressedIds.Contains(root.NavItemId)) continue; // L1 suppressed — skip entire section
+
+            var filteredChildren = root.Children
+                .Where(c => !suppressedIds.Contains(c.NavItemId))
+                .ToList();
+
+            filteredItems.Add(root with { Children = filteredChildren });
+        }
+
+        // 7a. Slot additive override items under a default parent (DefaultParentNavItemId set)
+        var slotted = overrideItems
+            .Where(ni => ni.DefaultParentNavItemId != null && ni.Active)
+            .OrderBy(ni => ni.SortOrder)
+            .ToList();
+
+        foreach (var item in slotted)
+        {
+            var parent = filteredItems.FirstOrDefault(r => r.NavItemId == item.DefaultParentNavItemId!.Value);
+            if (parent == null) continue; // parent was suppressed or not found
+
+            parent.Children.Add(new NavItemDto
+            {
+                NavItemId = item.NavItemId,
+                ParentNavItemId = item.DefaultParentNavItemId,
+                SortOrder = item.SortOrder,
+                Text = item.Text ?? string.Empty,
+                IconName = item.IconName,
+                RouterLink = item.RouterLink,
+                NavigateUrl = item.NavigateUrl,
+                Target = item.Target,
+                Active = true,
+                Children = new List<NavItemDto>()
+            });
+        }
+
+        // 7b. New root sections from override (no default cols, ParentNavItemId null, Active=true)
+        var newRoots = overrideItems
+            .Where(ni => ni.DefaultNavItemId == null && ni.DefaultParentNavItemId == null
+                      && ni.ParentNavItemId == null && ni.Active)
+            .OrderBy(ni => ni.SortOrder)
+            .ToList();
+
+        var newRootIds = newRoots.Select(r => r.NavItemId).ToHashSet();
+        var newRootChildren = overrideItems
+            .Where(ni => ni.ParentNavItemId != null && newRootIds.Contains(ni.ParentNavItemId.Value) && ni.Active)
+            .ToList();
+
+        foreach (var newRoot in newRoots)
+        {
+            var children = newRootChildren
+                .Where(c => c.ParentNavItemId == newRoot.NavItemId)
+                .OrderBy(c => c.SortOrder)
+                .Select(c => new NavItemDto
+                {
+                    NavItemId = c.NavItemId,
+                    ParentNavItemId = c.ParentNavItemId,
+                    SortOrder = c.SortOrder,
+                    Text = c.Text ?? string.Empty,
+                    IconName = c.IconName,
+                    RouterLink = c.RouterLink,
+                    NavigateUrl = c.NavigateUrl,
+                    Target = c.Target,
+                    Active = true,
+                    Children = new List<NavItemDto>()
+                })
+                .ToList();
+
+            filteredItems.Add(new NavItemDto
+            {
+                NavItemId = newRoot.NavItemId,
+                ParentNavItemId = null,
+                SortOrder = newRoot.SortOrder,
+                Text = newRoot.Text ?? string.Empty,
+                IconName = newRoot.IconName,
+                RouterLink = newRoot.RouterLink,
+                NavigateUrl = newRoot.NavigateUrl,
+                Target = newRoot.Target,
+                Active = true,
+                Children = children
+            });
+        }
 
         return new NavDto
         {
@@ -90,7 +203,7 @@ public class NavRepository : INavRepository
             RoleId = roleId,
             JobId = jobId,
             Active = true,
-            Items = mergedItems
+            Items = filteredItems
         };
     }
 
@@ -119,7 +232,7 @@ public class NavRepository : INavRepository
                 NavItemId = ni.NavItemId,
                 ParentNavItemId = null,
                 SortOrder = ni.SortOrder,
-                Text = ni.Text,
+                Text = ni.Text ?? string.Empty,
                 IconName = ni.IconName,
                 RouterLink = ni.RouterLink,
                 NavigateUrl = ni.NavigateUrl,
@@ -150,7 +263,7 @@ public class NavRepository : INavRepository
                 NavItemId = ni.NavItemId,
                 ParentNavItemId = ni.ParentNavItemId,
                 SortOrder = ni.SortOrder,
-                Text = ni.Text,
+                Text = ni.Text ?? string.Empty,
                 IconName = ni.IconName,
                 RouterLink = ni.RouterLink,
                 NavigateUrl = ni.NavigateUrl,

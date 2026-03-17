@@ -31,76 +31,64 @@ export class ClientMenuComponent {
     // Offcanvas state from shared service
     offcanvasOpen = this.menuState.offcanvasOpen;
 
-    // Track expanded items for desktop dropdown and mobile accordion
+    // Track which item's dropdown panel is open
     expandedItems = signal<Set<string>>(new Set());
 
-    /**
-     * Collapse all expanded dropdown menus
-     */
+    // Fixed-position coordinates for the open desktop dropdown panel
+    dropdownPanelTop = signal(0);
+    dropdownPanelLeft = signal(0);
+
+    /** Close all dropdown panels */
     collapseAll(): void {
         this.expandedItems.set(new Set());
     }
 
-    /**
-     * Close offcanvas (when clicking backdrop or close button)
-     */
+    /** Close offcanvas (mobile sidebar) */
     closeOffcanvas(): void {
         this.menuState.closeOffcanvas();
     }
 
     /**
-     * Toggle expansion state of a parent menu item
-     * Closes all other expanded items (single expansion at a time)
+     * Open a dropdown panel positioned below the trigger button.
+     * Uses getBoundingClientRect so the panel escapes any stacking context.
      */
+    toggleDropdownAtEvent(event: MouseEvent, menuItemId: string | number): void {
+        event.preventDefault();
+        const normalizedId = String(menuItemId);
+        const expanded = this.expandedItems();
+
+        if (expanded.has(normalizedId)) {
+            // Same trigger clicked again — close
+            this.expandedItems.set(new Set());
+            return;
+        }
+
+        // Compute panel position from trigger button's screen rect
+        const btn = event.currentTarget as HTMLElement;
+        const rect = btn.getBoundingClientRect();
+        const PANEL_MIN_WIDTH = 260;
+        const left = Math.min(rect.left, window.innerWidth - PANEL_MIN_WIDTH - 8);
+        this.dropdownPanelLeft.set(Math.max(8, left));
+        this.dropdownPanelTop.set(rect.bottom + 4);
+
+        // Open this panel, close all others
+        this.expandedItems.set(new Set([normalizedId]));
+    }
+
+    /** Toggle expansion for mobile accordion (unchanged behaviour) */
     toggleExpanded(menuItemId: string | number): void {
         const normalizedId = String(menuItemId);
         const expanded = this.expandedItems();
         const isCurrentlyExpanded = expanded.has(normalizedId);
-
-        // Close all items
         const newExpanded = new Set<string>();
-
-        // If the item wasn't expanded, open it (otherwise leave all closed)
         if (!isCurrentlyExpanded) {
             newExpanded.add(normalizedId);
         }
-
         this.expandedItems.set(newExpanded);
     }
 
-    /**
-     * Check if a menu item is expanded
-     */
     isExpanded(menuItemId: string | number): boolean {
-        const normalizedId = String(menuItemId);
-        return this.expandedItems().has(normalizedId);
-    }
-
-    /**
-     * Expand a menu item (desktop hover)
-     */
-    expandItem(menuItemId: string | number): void {
-        const normalizedId = String(menuItemId);
-        const expanded = this.expandedItems();
-        if (!expanded.has(normalizedId)) {
-            // Close all others and open this one
-            const newExpanded = new Set<string>();
-            newExpanded.add(normalizedId);
-            this.expandedItems.set(newExpanded);
-        }
-    }
-
-    /**
-     * Collapse a menu item (desktop hover out)
-     */
-    collapseItem(menuItemId: string | number): void {
-        const normalizedId = String(menuItemId);
-        const expanded = this.expandedItems();
-        if (expanded.has(normalizedId)) {
-            const newExpanded = new Set(expanded);
-            newExpanded.delete(normalizedId);
-            this.expandedItems.set(newExpanded);
-        }
+        return this.expandedItems().has(String(menuItemId));
     }
 
     /**

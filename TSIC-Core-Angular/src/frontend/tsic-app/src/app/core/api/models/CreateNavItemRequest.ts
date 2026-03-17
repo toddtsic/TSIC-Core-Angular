@@ -5,7 +5,9 @@
 export type CreateNavItemRequest = {
     navId: number;
     parentNavItemId?: number;
-    text: string;
+    defaultNavItemId?: number;
+    defaultParentNavItemId?: number;
+    text?: string | null;
     iconName?: string | null;
     routerLink?: string | null;
     navigateUrl?: string | null;

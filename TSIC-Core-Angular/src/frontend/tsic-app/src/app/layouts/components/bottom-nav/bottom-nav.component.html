@@ -1,0 +1,40 @@
+@if (navVisible()) {
+<nav class="bottom-nav d-lg-none" aria-label="Mobile navigation">
+
+    @for (item of tabItems(); track item.navItemId) {
+        @if (isExternalLink(item)) {
+        <a class="bottom-nav__tab"
+            [href]="item.navigateUrl!"
+            [target]="item.target || '_self'">
+            <i class="bi bi-{{ getIcon(item) }} bottom-nav__icon" aria-hidden="true"></i>
+            <span class="bottom-nav__label">{{ item.text }}</span>
+        </a>
+        } @else if (getLink(item)) {
+        <a class="bottom-nav__tab"
+            [routerLink]="getLink(item)"
+            routerLinkActive="bottom-nav__tab--active"
+            [routerLinkActiveOptions]="{ exact: false }">
+            <i class="bi bi-{{ getIcon(item) }} bottom-nav__icon" aria-hidden="true"></i>
+            <span class="bottom-nav__label">{{ item.text }}</span>
+        </a>
+        } @else {
+        <span class="bottom-nav__tab bottom-nav__tab--disabled" aria-disabled="true">
+            <i class="bi bi-{{ getIcon(item) }} bottom-nav__icon" aria-hidden="true"></i>
+            <span class="bottom-nav__label">{{ item.text }}</span>
+        </span>
+        }
+    }
+
+    @if (hasMoreItems()) {
+    <button type="button"
+        class="bottom-nav__tab"
+        [class.bottom-nav__tab--active]="menuState.offcanvasOpen()"
+        (click)="openMore()"
+        aria-label="More navigation options">
+        <i class="bi bi-three-dots bottom-nav__icon" aria-hidden="true"></i>
+        <span class="bottom-nav__label">More</span>
+    </button>
+    }
+
+</nav>
+}

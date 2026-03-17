@@ -94,6 +94,37 @@ public class NavEditorRepository : INavEditorRepository
         return navs;
     }
 
+    public async Task<Nav?> GetJobOverrideNavAsync(
+        Guid jobId,
+        string roleId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Nav
+            .FirstOrDefaultAsync(n => n.JobId == jobId && n.RoleId == roleId, cancellationToken);
+    }
+
+    public async Task<List<NavItem>> GetReferencingOverrideItemsAsync(
+        int navItemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.NavItem
+            .Where(ni => ni.DefaultNavItemId == navItemId || ni.DefaultParentNavItemId == navItemId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<NavItem?> GetHideRowAsync(
+        int overrideNavId,
+        int defaultNavItemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.NavItem
+            .FirstOrDefaultAsync(
+                ni => ni.NavId == overrideNavId
+                   && ni.DefaultNavItemId == defaultNavItemId
+                   && !ni.Active,
+                cancellationToken);
+    }
+
     // ─── Nav items ──────────────────────────────────────────────────
 
     public async Task<NavItem?> GetNavItemByIdAsync(
@@ -234,7 +265,7 @@ public class NavEditorRepository : INavEditorRepository
     private async Task<List<NavEditorNavItemDto>> LoadEditorNavItemTreeAsync(
         int navId, CancellationToken cancellationToken)
     {
-        // Load root items (includes inactive for editor)
+        // Load root items (includes inactive for editor, including hide rows)
         var rootItems = await _context.NavItem
             .AsNoTracking()
             .Where(ni => ni.NavId == navId && ni.ParentNavItemId == null)
@@ -251,6 +282,8 @@ public class NavEditorRepository : INavEditorRepository
                 NavigateUrl = ni.NavigateUrl,
                 Target = ni.Target,
                 Active = ni.Active,
+                DefaultNavItemId = ni.DefaultNavItemId,
+                DefaultParentNavItemId = ni.DefaultParentNavItemId,
                 Children = new List<NavEditorNavItemDto>()
             })
             .ToListAsync(cancellationToken);
@@ -274,6 +307,8 @@ public class NavEditorRepository : INavEditorRepository
                 NavigateUrl = ni.NavigateUrl,
                 Target = ni.Target,
                 Active = ni.Active,
+                DefaultNavItemId = ni.DefaultNavItemId,
+                DefaultParentNavItemId = ni.DefaultParentNavItemId,
                 Children = new List<NavEditorNavItemDto>()
             })
             .ToListAsync(cancellationToken);

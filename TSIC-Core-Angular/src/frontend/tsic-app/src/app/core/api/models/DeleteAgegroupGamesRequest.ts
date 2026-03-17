@@ -4,5 +4,6 @@
 /* eslint-disable */
 export type DeleteAgegroupGamesRequest = {
     agegroupId: string;
+    gameDate?: string | null;
 };
 

@@ -2,8 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DeleteDivGamesRequest = {
-    divId: string;
-    gameDate?: string | null;
+export type EnsureJobOverrideNavRequest = {
+    roleId: string;
 };
 

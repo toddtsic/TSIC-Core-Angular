@@ -183,13 +183,65 @@ public class NavController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Delete a nav item.</summary>
+    /// <summary>
+    /// Delete a nav item. Returns 409 with DeleteNavItemResult if job override references exist
+    /// and force=false. Re-call with force=true to cascade-delete references and proceed.
+    /// </summary>
     [HttpDelete("editor/items/{navItemId:int}")]
     [Authorize(Policy = "SuperUserOnly")]
-    public async Task<IActionResult> DeleteNavItem(int navItemId)
+    public async Task<IActionResult> DeleteNavItem(int navItemId, [FromQuery] bool force = false)
     {
-        await _navEditorService.DeleteNavItemAsync(navItemId);
+        var result = await _navEditorService.DeleteNavItemAsync(navItemId, force);
+        if (result != null)
+            return Conflict(result);
         return NoContent();
+    }
+
+    /// <summary>Show or hide a platform default nav item for the current job.</summary>
+    [HttpPost("editor/items/toggle-hide")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<IActionResult> ToggleHide([FromBody] ToggleHideRequest request)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest("Job ID could not be determined from user token");
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token");
+
+        await _navEditorService.ToggleHideAsync(jobId.Value, request.RoleId, request.DefaultNavItemId, request.Hide, userId);
+        return NoContent();
+    }
+
+    /// <summary>Get all job override navs for the current job (for the editor).</summary>
+    [HttpGet("editor/job-overrides")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<List<NavEditorNavDto>>> GetJobOverrides()
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest("Job ID could not be determined from user token");
+
+        var overrides = await _navEditorService.GetJobOverridesAsync(jobId.Value);
+        return Ok(overrides);
+    }
+
+    /// <summary>Ensure a job override nav exists for a role; returns its NavId.</summary>
+    [HttpPost("editor/job-overrides/ensure")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<object>> EnsureJobOverrideNav([FromBody] EnsureJobOverrideNavRequest request)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest("Job ID could not be determined from user token");
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token");
+
+        var navId = await _navEditorService.EnsureJobOverrideNavAsync(jobId.Value, request.RoleId, userId);
+        return Ok(new { navId });
     }
 
     /// <summary>Reorder sibling nav items.</summary>

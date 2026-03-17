@@ -23,7 +23,7 @@ public record NavItemDto
     public required int NavItemId { get; init; }
     public int? ParentNavItemId { get; init; }
     public required int SortOrder { get; init; }
-    public required string Text { get; init; }
+    public required string Text { get; init; }  // Always non-null for rendered items (hide rows are filtered before this DTO is used)
     public string? IconName { get; init; }
     public string? RouterLink { get; init; }
     public string? NavigateUrl { get; init; }
@@ -51,6 +51,7 @@ public record NavEditorNavDto
 
 /// <summary>
 /// Nav item for the editor — includes all fields for editing.
+/// Text is nullable because hide rows (DefaultNavItemId set, Active=false) carry no display text.
 /// </summary>
 public record NavEditorNavItemDto
 {
@@ -58,12 +59,20 @@ public record NavEditorNavItemDto
     public required int NavId { get; init; }
     public int? ParentNavItemId { get; init; }
     public required int SortOrder { get; init; }
-    public required string Text { get; init; }
+    public string? Text { get; init; }
     public string? IconName { get; init; }
     public string? RouterLink { get; init; }
     public string? NavigateUrl { get; init; }
     public string? Target { get; init; }
     public required bool Active { get; init; }
+    /// <summary>
+    /// Set on job override items that suppress a platform default item (Active=false).
+    /// </summary>
+    public int? DefaultNavItemId { get; init; }
+    /// <summary>
+    /// Set on job override items that should be slotted under an existing default section.
+    /// </summary>
+    public int? DefaultParentNavItemId { get; init; }
     public required List<NavEditorNavItemDto> Children { get; init; } = new();
 }
 
@@ -113,12 +122,18 @@ public record CreateNavRequest
 
 /// <summary>
 /// Create a new nav item within an existing nav.
+/// For hide rows: set DefaultNavItemId + leave Text null.
+/// For slotted additions: set DefaultParentNavItemId.
 /// </summary>
 public record CreateNavItemRequest
 {
     public required int NavId { get; init; }
     public int? ParentNavItemId { get; init; }
-    public required string Text { get; init; }
+    /// <summary>Set to suppress a platform default item (creates a hide row with Active=false).</summary>
+    public int? DefaultNavItemId { get; init; }
+    /// <summary>Set to slot this item under an existing default section.</summary>
+    public int? DefaultParentNavItemId { get; init; }
+    public string? Text { get; init; }
     public string? IconName { get; init; }
     public string? RouterLink { get; init; }
     public string? NavigateUrl { get; init; }
@@ -126,11 +141,11 @@ public record CreateNavItemRequest
 }
 
 /// <summary>
-/// Update an existing nav item.
+/// Update an existing nav item. Text is nullable to support hide rows.
 /// </summary>
 public record UpdateNavItemRequest
 {
-    public required string Text { get; init; }
+    public string? Text { get; init; }
     public required bool Active { get; init; }
     public string? IconName { get; init; }
     public string? RouterLink { get; init; }
@@ -206,4 +221,32 @@ public record CloneBranchRequest
 
     /// <summary>If true, replace an existing Level 1 item with the same text in the target.</summary>
     public required bool ReplaceExisting { get; init; }
+}
+
+/// <summary>
+/// Returned by DeleteNavItemAsync when a default item has job override references.
+/// The caller must re-request with force=true to proceed with cascade deletion.
+/// </summary>
+public record DeleteNavItemResult
+{
+    public required bool RequiresConfirmation { get; init; }
+    public required string Message { get; init; }
+    public required int AffectedCount { get; init; }
+}
+
+/// <summary>
+/// Show or hide a platform default nav item for the current job.
+/// Creates or removes a hide row in the job's override nav.
+/// </summary>
+public record ToggleHideRequest
+{
+    public required string RoleId { get; init; }
+    public required int DefaultNavItemId { get; init; }
+    public required bool Hide { get; init; }
+}
+
+/// <summary>Request body for ensuring a job override nav exists for a role.</summary>
+public record EnsureJobOverrideNavRequest
+{
+    public required string RoleId { get; init; }
 }

@@ -2,8 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type DeleteDivGamesRequest = {
-    divId: string;
+export type UndoGamesRequest = {
     gameDate?: string | null;
 };
 

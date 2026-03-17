@@ -11,6 +11,7 @@ import { ClientHeaderBarComponent } from '../components/client-header-bar/client
 import { ClientMenuComponent } from '../components/client-menu/client-menu.component';
 import { ClientFooterBarComponent } from '../components/client-footer-bar/client-footer-bar.component';
 import { ScrollToTopComponent } from '../../shared-ui/scroll-to-top/scroll-to-top.component';
+import { BottomNavComponent } from '../components/bottom-nav/bottom-nav.component';
 import { Subject, takeUntil, filter, skip, startWith, map, distinctUntilChanged } from 'rxjs';
 import { isJobLanding } from '@infrastructure/utils/route-segment.utils';
 import { environment } from '@environments/environment';
@@ -18,7 +19,7 @@ import { environment } from '@environments/environment';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientFooterBarComponent, ScrollToTopComponent],
+  imports: [RouterOutlet, ClientHeaderBarComponent, ClientMenuComponent, ClientFooterBarComponent, ScrollToTopComponent, BottomNavComponent],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush

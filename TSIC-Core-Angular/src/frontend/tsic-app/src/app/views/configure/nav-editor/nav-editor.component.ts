@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal, computed, isDevMode } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NavAdminService } from '../../../core/services/nav-admin.service';
+import { NavAdminService, DeleteNavItemConflict } from '../../../core/services/nav-admin.service';
 import { NavItemFormDialogComponent, NavItemFormResult } from './nav-item-form-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
-import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
+import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest, ToggleHideRequest } from '@core/api';
 
 @Component({
     selector: 'app-nav-editor',
@@ -24,9 +24,16 @@ export class NavEditorComponent implements OnInit {
     private readonly jobService = inject(JobService);
     readonly isDevMode = isDevMode();
 
+    // Tab state
+    activeTab = signal<'defaults' | 'this-job'>('defaults');
+
     // Component state
     selectedRoleId = signal<string | null>(null);
     expandedItems = signal<Set<number>>(new Set());
+
+    // This Job tab state
+    jobSelectedRoleId = signal<string | null>(null);
+    jobExpandedItems = signal<Set<number>>(new Set());
 
     // Edit dialog state
     editDialogOpen = signal(false);
@@ -67,9 +74,14 @@ export class NavEditorComponent implements OnInit {
 
     // Pending data for delete confirm
     private pendingDeleteItem = signal<NavEditorNavItemDto | null>(null);
+    private pendingForceDeleteItemId = signal<number | null>(null);
+
+    // "Add under default section" in This Job tab
+    pendingJobAddSection = signal<NavEditorNavItemDto | null>(null);
 
     // Computed values
     navs = computed(() => this.navAdminService.navs());
+    jobOverrides = computed(() => this.navAdminService.jobOverrides());
     isLoading = computed(() => this.navAdminService.isLoading());
 
     selectedNav = computed(() => {
@@ -85,6 +97,41 @@ export class NavEditorComponent implements OnInit {
         return this.navs().filter(n => n.navId !== current.navId);
     });
 
+    /** The job override nav for the currently selected role in the "This Job" tab. */
+    selectedJobOverrideNav = computed(() => {
+        const roleId = this.jobSelectedRoleId();
+        if (!roleId) return null;
+        return this.jobOverrides().find(n => n.roleId === roleId) ?? null;
+    });
+
+    /** The platform default nav for the currently selected role in the "This Job" tab. */
+    selectedDefaultForJobRole = computed(() => {
+        const roleId = this.jobSelectedRoleId();
+        if (!roleId) return null;
+        return this.navs().find(n => n.roleId === roleId) ?? null;
+    });
+
+    /**
+     * Build a set of suppressed default NavItemIds from the current job override nav.
+     * An item is suppressed when a hide row (defaultNavItemId set, active=false) exists for it.
+     */
+    suppressedDefaultIds = computed((): Set<number> => {
+        const override = this.selectedJobOverrideNav();
+        const result = new Set<number>();
+        if (!override) return result;
+        for (const item of override.items) {
+            if (item.defaultNavItemId != null && !item.active) {
+                result.add(item.defaultNavItemId);
+            }
+            for (const child of item.children ?? []) {
+                if (child.defaultNavItemId != null && !child.active) {
+                    result.add(child.defaultNavItemId);
+                }
+            }
+        }
+        return result;
+    });
+
     @HostListener('document:click')
     onDocumentClick(): void {
         this.closeMoveDropdown();
@@ -97,8 +144,12 @@ export class NavEditorComponent implements OnInit {
                 if (navs.length > 0 && !this.selectedRoleId()) {
                     this.selectBestDefault(navs);
                 }
+                if (!this.jobSelectedRoleId() && navs.length > 0) {
+                    this.jobSelectedRoleId.set(navs[0].roleId);
+                }
             }
         });
+        this.navAdminService.loadJobOverrides();
     }
 
     loadNavs(): void {
@@ -110,6 +161,110 @@ export class NavEditorComponent implements OnInit {
                 // Refresh the live menu so changes are visible immediately
                 this.jobService.loadNav();
             }
+        });
+        this.navAdminService.loadJobOverrides();
+    }
+
+    switchTab(tab: 'defaults' | 'this-job'): void {
+        this.activeTab.set(tab);
+        // Keep role selection in sync between tabs
+        if (tab === 'this-job' && this.selectedRoleId()) {
+            this.jobSelectedRoleId.set(this.selectedRoleId());
+            this.jobExpandedItems.set(new Set());
+        } else if (tab === 'defaults' && this.jobSelectedRoleId()) {
+            this.selectedRoleId.set(this.jobSelectedRoleId());
+            this.expandedItems.set(new Set());
+        }
+    }
+
+    onJobRoleChange(roleId: string): void {
+        this.jobSelectedRoleId.set(roleId);
+        this.jobExpandedItems.set(new Set());
+    }
+
+    toggleJobItemExpanded(itemId: number): void {
+        const expanded = new Set(this.jobExpandedItems());
+        if (expanded.has(itemId)) {
+            expanded.delete(itemId);
+        } else {
+            expanded.add(itemId);
+        }
+        this.jobExpandedItems.set(expanded);
+    }
+
+    isJobItemExpanded(itemId: number): boolean {
+        return this.jobExpandedItems().has(itemId);
+    }
+
+    /**
+     * Toggle hide/show for a platform default item in this job's override nav.
+     */
+    toggleHideItem(item: NavEditorNavItemDto, hide: boolean): void {
+        const roleId = this.jobSelectedRoleId();
+        if (!roleId) return;
+
+        if (hide && !item.parentNavItemId && item.children && item.children.length > 0) {
+            const childCount = item.children.filter(c => c.active).length;
+            if (childCount > 0) {
+                this.showConfirm(
+                    'Hide Entire Section',
+                    `Hiding "<strong>${item.text}</strong>" will also suppress its ${childCount} child item${childCount > 1 ? 's' : ''} for this job. Continue?`,
+                    'warning',
+                    'Hide Section',
+                    () => this.doToggleHide(item, roleId, hide)
+                );
+                return;
+            }
+        }
+
+        this.doToggleHide(item, roleId, hide);
+    }
+
+    /**
+     * Open the create-item dialog to add a job-specific child under a default section.
+     * Creates the override nav for this role on demand if it doesn't exist yet.
+     */
+    addJobOverrideItem(sectionItem: NavEditorNavItemDto): void {
+        const roleId = this.jobSelectedRoleId();
+        if (!roleId) return;
+
+        this.pendingJobAddSection.set(sectionItem);
+
+        const overrideNav = this.selectedJobOverrideNav();
+
+        const openDialog = (navId: number) => {
+            this.editNavId.set(navId);
+            this.editParentNavItemId.set(undefined); // no parent in override nav
+            this.editExistingItem.set(undefined);
+            this.editDialogOpen.set(true);
+        };
+
+        if (overrideNav) {
+            openDialog(overrideNav.navId);
+        } else {
+            this.navAdminService.ensureJobOverrideNav(roleId).subscribe({
+                next: (navId) => {
+                    this.navAdminService.loadJobOverrides();
+                    openDialog(navId);
+                },
+                error: () => this.toast.show('Failed to initialize job override nav.', 'danger')
+            });
+        }
+    }
+
+    private doToggleHide(item: NavEditorNavItemDto, roleId: string, hide: boolean): void {
+        const req: ToggleHideRequest = {
+            roleId,
+            defaultNavItemId: item.navItemId,
+            hide
+        };
+        this.navAdminService.toggleHide(req).subscribe({
+            next: () => {
+                this.toast.show(hide ? `"${item.text}" hidden for this job.` : `"${item.text}" restored for this job.`, 'success');
+                this.navAdminService.loadJobOverrides();
+                this.jobService.loadNav();
+            },
+            error: (err) => this.toast.show(`Failed: ${err.error?.message || err.statusText}`, 'danger')
         });
     }
 
@@ -191,8 +346,23 @@ export class NavEditorComponent implements OnInit {
         this.editDialogOpen.set(false);
 
         if (result.type === 'create') {
-            this.navAdminService.createItem(result.data as CreateNavItemRequest).subscribe({
-                next: () => { this.toast.show('Nav item created.', 'success'); this.loadNavs(); },
+            const jobSection = this.pendingJobAddSection();
+            this.pendingJobAddSection.set(null);
+
+            const createRequest: CreateNavItemRequest = jobSection
+                ? { ...(result.data as CreateNavItemRequest), defaultParentNavItemId: jobSection.navItemId }
+                : result.data as CreateNavItemRequest;
+
+            this.navAdminService.createItem(createRequest).subscribe({
+                next: () => {
+                    this.toast.show('Nav item created.', 'success');
+                    if (jobSection) {
+                        this.navAdminService.loadJobOverrides();
+                        this.jobService.loadNav();
+                    } else {
+                        this.loadNavs();
+                    }
+                },
                 error: (err) => {
                     console.error('Create nav item failed:', err);
                     this.toast.show(`Failed to create: ${err.status} ${err.statusText}`, 'danger');
@@ -278,7 +448,7 @@ export class NavEditorComponent implements OnInit {
     private getParentTextForItem(item: NavEditorNavItemDto, nav: NavEditorNavDto): string | null {
         if (!item.parentNavItemId) return null;
         for (const parent of nav.items) {
-            if (parent.navItemId === item.parentNavItemId) return parent.text;
+            if (parent.navItemId === item.parentNavItemId) return parent.text ?? null;
         }
         return null;
     }
@@ -322,21 +492,43 @@ export class NavEditorComponent implements OnInit {
 
     deleteItem(item: NavEditorNavItemDto): void {
         this.pendingDeleteItem.set(item);
+        this.pendingForceDeleteItemId.set(null);
         this.showConfirm(
             'Delete Nav Item',
             `Delete "<strong>${item.text}</strong>"?`,
             'danger',
             'Delete',
-            () => {
-                const target = this.pendingDeleteItem();
-                if (!target) return;
-                this.pendingDeleteItem.set(null);
-                this.navAdminService.deleteItem(target.navItemId).subscribe({
-                    next: () => { this.toast.show('Nav item deleted.', 'success'); this.loadNavs(); },
-                    error: () => this.toast.show('Failed to delete nav item.', 'danger')
-                });
-            }
+            () => this.executeDelete(item.navItemId, false)
         );
+    }
+
+    private executeDelete(navItemId: number, force: boolean): void {
+        this.navAdminService.deleteItem(navItemId, force).subscribe({
+            next: () => {
+                this.pendingDeleteItem.set(null);
+                this.pendingForceDeleteItemId.set(null);
+                this.toast.show('Nav item deleted.', 'success');
+                this.loadNavs();
+            },
+            error: (err) => {
+                if (err.status === 409) {
+                    const conflict = err.error as DeleteNavItemConflict;
+                    this.pendingForceDeleteItemId.set(navItemId);
+                    this.showConfirm(
+                        'Confirm Delete',
+                        conflict.message || `${conflict.affectedCount} job override(s) reference this item and will also be deleted.`,
+                        'danger',
+                        'Delete Anyway',
+                        () => {
+                            const id = this.pendingForceDeleteItemId();
+                            if (id != null) this.executeDelete(id, true);
+                        }
+                    );
+                } else {
+                    this.toast.show('Failed to delete nav item.', 'danger');
+                }
+            }
+        });
     }
 
     // ── Clone branch ──
@@ -357,7 +549,7 @@ export class NavEditorComponent implements OnInit {
 
         // Client-side duplicate detection
         const duplicate = targetNav.items.find(
-            i => i.text.toLowerCase() === source.text.toLowerCase()
+            i => (i.text ?? '').toLowerCase() === (source.text ?? '').toLowerCase()
         );
 
         if (duplicate) {
@@ -580,5 +772,6 @@ export class NavEditorComponent implements OnInit {
         }
 
         this.pendingDeleteItem.set(null);
+        this.pendingForceDeleteItemId.set(null);
     }
 }

@@ -23,8 +23,13 @@ public interface INavEditorService
     /// <summary>Update an existing nav item.</summary>
     Task<NavEditorNavItemDto> UpdateNavItemAsync(int navItemId, UpdateNavItemRequest request, string userId, CancellationToken ct = default);
 
-    /// <summary>Delete a nav item (hard or soft depending on sibling count).</summary>
-    Task DeleteNavItemAsync(int navItemId, CancellationToken ct = default);
+    /// <summary>
+    /// Delete a nav item. If the item is a platform default referenced by job overrides,
+    /// returns a DeleteNavItemResult with RequiresConfirmation=true (HTTP 409).
+    /// Pass force=true to cascade-delete override references and proceed.
+    /// Returns null when deletion succeeded without issues.
+    /// </summary>
+    Task<DeleteNavItemResult?> DeleteNavItemAsync(int navItemId, bool force = false, CancellationToken ct = default);
 
     /// <summary>Reorder sibling nav items.</summary>
     Task ReorderNavItemsAsync(ReorderNavItemsRequest request, string userId, CancellationToken ct = default);
@@ -56,6 +61,23 @@ public interface INavEditorService
 
     /// <summary>Toggle the Active state of a nav.</summary>
     Task ToggleNavActiveAsync(int navId, bool active, CancellationToken ct = default);
+
+    /// <summary>
+    /// Show or hide a platform default nav item for a specific job.
+    /// Creates a hide row (Active=false, DefaultNavItemId set) in the job's override nav,
+    /// creating the override nav record if it doesn't exist yet.
+    /// Un-hiding removes the hide row.
+    /// </summary>
+    Task ToggleHideAsync(Guid jobId, string roleId, int defaultNavItemId, bool hide, string userId, CancellationToken ct = default);
+
+    /// <summary>Get all job override navs for a specific job (for the editor).</summary>
+    Task<List<NavEditorNavDto>> GetJobOverridesAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Ensure a job override nav exists for the given role.
+    /// Creates one if it doesn't exist yet. Returns the NavId.
+    /// </summary>
+    Task<int> EnsureJobOverrideNavAsync(Guid jobId, string roleId, string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Ensure platform default navs exist for all standard roles.

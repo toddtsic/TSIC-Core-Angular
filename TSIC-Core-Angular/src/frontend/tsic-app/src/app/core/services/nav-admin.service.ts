@@ -10,9 +10,17 @@ import type {
     ReorderNavItemsRequest,
     CreateNavRequest,
     ToggleNavActiveRequest,
+    ToggleHideRequest,
     CascadeRouteRequest,
     CloneBranchRequest
 } from '@core/api';
+
+/** Shape of the 409 body returned when a delete requires confirmation. */
+export interface DeleteNavItemConflict {
+    requiresConfirmation: boolean;
+    message: string;
+    affectedCount: number;
+}
 
 @Injectable({
     providedIn: 'root'
@@ -23,6 +31,7 @@ export class NavAdminService {
 
     // Signal-based state
     public readonly navs = signal<NavEditorNavDto[]>([]);
+    public readonly jobOverrides = signal<NavEditorNavDto[]>([]);
     public readonly isLoading = signal(false);
 
     /**
@@ -71,10 +80,42 @@ export class NavAdminService {
     }
 
     /**
-     * Delete a nav item.
+     * Delete a nav item. Pass force=true to cascade-delete job override references.
+     * On 409 Conflict, the error.error body is a DeleteNavItemConflict.
      */
-    deleteItem(navItemId: number): Observable<void> {
-        return this.http.delete<void>(`${this.apiUrl}/items/${navItemId}`);
+    deleteItem(navItemId: number, force = false): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/items/${navItemId}`, {
+            params: force ? { force: 'true' } : {}
+        });
+    }
+
+    /**
+     * Show or hide a platform default nav item for the current job.
+     */
+    toggleHide(request: ToggleHideRequest): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/items/toggle-hide`, request);
+    }
+
+    /**
+     * Load all job override navs for the current job.
+     */
+    loadJobOverrides(): void {
+        this.http.get<NavEditorNavDto[]>(`${this.apiUrl}/job-overrides`).pipe(
+            tap({
+                next: (data) => this.jobOverrides.set(data),
+                error: () => this.jobOverrides.set([])
+            })
+        ).subscribe();
+    }
+
+    /**
+     * Ensure a job override nav exists for the given role.
+     * Returns the navId (creates one if needed).
+     */
+    ensureJobOverrideNav(roleId: string): Observable<number> {
+        return this.http.post<{ navId: number }>(`${this.apiUrl}/job-overrides/ensure`, { roleId }).pipe(
+            map(res => res.navId)
+        );
     }
 
     /**

@@ -1,128 +1,264 @@
-// Modern menu — lives inside .tsic-header sticky block, no separate sticky needed
-.navbar {
+// ─── Pill Navigation Bar ────────────────────────────────────────────────────
+// Replaces the legacy Bootstrap navbar. Uses position:fixed panels to escape
+// stacking contexts (same pattern as .user-menu-dropdown in header bar).
+
+.pill-nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-5);
     background: var(--brand-surface);
-    // NOTE: backdrop-filter removed — creates containing block that traps
-    // position:absolute dropdown-menu children inside the navbar paint layer.
     border-bottom: 1px solid var(--brand-border);
-    width: 100%;
-    padding: 0;
     min-height: var(--space-12);
+    position: relative;
+}
 
-    .container-fluid {
-        padding: 0 var(--space-6);
+.pill-nav__loading,
+.pill-nav__error {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-400);
+    padding: var(--space-2) var(--space-3);
+}
+
+.pill-nav__error { color: var(--bs-danger); }
+
+// Full-screen transparent backdrop — click to close open panel
+.pill-nav__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: transparent;
+}
+
+// ── Individual pill (button or <a>) ─────────────────────────────────────────
+.pill-nav__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+
+    i:first-child {
+        font-size: var(--font-size-sm);
+        opacity: 0.6;
+        flex-shrink: 0;
     }
 
-    .navbar-nav {
-        gap: var(--space-1);
-        align-items: center;
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.07);
+        border-color: rgba(var(--bs-primary-rgb), 0.15);
+        color: var(--bs-primary);
 
-        .nav-item {
-            .nav-link {
-                color: var(--brand-text);
-                font-weight: var(--font-weight-medium);
-                font-size: var(--font-size-sm);
-                padding: var(--space-3) var(--space-4);
-                border-radius: var(--radius-md);
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                position: relative;
-                display: flex;
-                align-items: center;
-                letter-spacing: 0.02em;
-
-                &:hover {
-                    color: var(--bs-primary);
-                    background: rgba(var(--bs-primary-rgb), 0.06);
-                    transform: translateY(-1px);
-                    box-shadow: var(--shadow-sm);
-                }
-
-                &.active {
-                    color: var(--bs-primary);
-                    background: rgba(var(--bs-primary-rgb), 0.1);
-                    font-weight: var(--font-weight-semibold);
-                    box-shadow: var(--shadow-sm);
-                }
-
-                i {
-                    margin-right: var(--space-2);
-                    font-size: var(--font-size-base);
-                    opacity: 0.8;
-                }
-
-                // Styling for unimplemented routes
-                &.coming-soon {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-
-                    .badge {
-                        font-size: var(--font-size-2xs);
-                        padding: 0.15em 0.4em;
-                    }
-                }
-            }
-
-            &.dropdown {
-                .dropdown-toggle::after {
-                    margin-left: var(--space-2);
-                    transition: transform 0.2s ease;
-                }
-
-                &.show .dropdown-toggle::after {
-                    transform: rotate(180deg);
-                }
-
-                .dropdown-menu {
-                    border: none;
-                    box-shadow: var(--shadow-xl), 0 0 0 1px var(--brand-border);
-                    border-radius: var(--radius-lg);
-                    padding: var(--space-2);
-                    margin-top: 0;
-                    background: var(--brand-surface);
-                    // backdrop-filter removed — same stacking context trap
-                    min-width: 200px;
-
-                    .dropdown-item {
-                        padding: var(--space-2) var(--space-4);
-                        border-radius: var(--radius-md);
-                        font-size: var(--font-size-sm);
-                        color: var(--brand-text);
-                        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                        display: flex;
-                        align-items: center;
-                        margin-bottom: var(--space-1);
-
-                        &:last-child {
-                            margin-bottom: 0;
-                        }
-
-                        &:hover {
-                            background: rgba(var(--bs-primary-rgb), 0.06);
-                            color: var(--bs-primary);
-                            transform: translateX(var(--space-1));
-                            box-shadow: var(--shadow-sm);
-                        }
-
-                        &:active {
-                            transform: translateX(var(--space-1)) scale(0.98);
-                        }
-
-                        &.active {
-                            background: rgba(var(--bs-primary-rgb), 0.12);
-                            color: var(--bs-primary);
-                            font-weight: var(--font-weight-semibold);
-                        }
-
-                        i {
-                            margin-right: var(--space-3);
-                            opacity: 0.7;
-                            width: var(--space-4);
-                            text-align: center;
-                        }
-                    }
-                }
-            }
-        }
+        i:first-child { opacity: 1; }
     }
+
+    // Active route — filled primary pill
+    &--active {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: var(--neutral-0);
+        font-weight: var(--font-weight-semibold);
+        box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.3);
+
+        i:first-child { opacity: 1; }
+    }
+
+    // Open dropdown state
+    &--open {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-color: rgba(var(--bs-primary-rgb), 0.2);
+        color: var(--bs-primary);
+        box-shadow: var(--shadow-sm);
+
+        i:first-child { opacity: 1; }
+    }
+
+    &--disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4);
+    }
+}
+
+// Chevron rotates when panel is open
+.pill-nav__chevron {
+    font-size: 0.6rem;
+    opacity: 0.5;
+    margin-left: var(--space-1);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    flex-shrink: 0;
+
+    &--open {
+        transform: rotate(180deg);
+        opacity: 0.9;
+    }
+}
+
+// Coming-soon badge on disabled pills
+.pill-nav__badge {
+    font-size: 0.65rem;
+    font-weight: var(--font-weight-semibold);
+    padding: 1px var(--space-2);
+    background: var(--neutral-200);
+    color: var(--neutral-500);
+    border-radius: var(--radius-full);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+
+// ── Rich Dropdown Panel (position:fixed — escapes header stacking context) ──
+// Same z-index pattern as .user-menu-dropdown in client-header-bar.
+
+.dropdown-panel {
+    position: fixed;
+    z-index: 10001;
+    min-width: 240px;
+    max-width: 320px;
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl), 0 2px 8px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    animation: dropdownPanelIn 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropdownPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+// Colored section header strip
+.dropdown-panel__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: rgba(var(--bs-primary-rgb), 0.07);
+    border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.1);
+    border-left: 3px solid var(--bs-primary);
+    color: var(--bs-primary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+
+    i {
+        font-size: var(--font-size-sm);
+        opacity: 0.85;
+        flex-shrink: 0;
+    }
+}
+
+// Items container
+.dropdown-panel__items {
+    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+// Individual row
+.dropdown-panel__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-normal);
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    transition:
+        background 0.12s ease,
+        color 0.12s ease,
+        transform 0.12s ease;
+
+    i {
+        font-size: var(--font-size-sm);
+        opacity: 0.6;
+        width: 1rem;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.07);
+        color: var(--bs-primary);
+        transform: translateX(3px);
+
+        i { opacity: 1; }
+    }
+
+    &--active {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-semibold);
+
+        i { opacity: 1; }
+    }
+
+    &--disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    &:focus-visible {
+        outline: none;
+        background: rgba(var(--bs-primary-rgb), 0.08);
+    }
+}
+
+.dropdown-panel__item-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dropdown-panel__badge {
+    font-size: 0.6rem;
+    font-weight: var(--font-weight-semibold);
+    padding: 1px var(--space-2);
+    background: var(--neutral-200);
+    color: var(--neutral-600);
+    border-radius: var(--radius-full);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
 }
 
 // Modern mobile sidebar
