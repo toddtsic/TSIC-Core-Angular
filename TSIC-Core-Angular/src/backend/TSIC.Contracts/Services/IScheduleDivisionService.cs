@@ -16,6 +16,12 @@ public interface IScheduleDivisionService
         DateTime? additionalTimeslot = null, CancellationToken ct = default);
 
     /// <summary>
+    /// Build the event-level schedule grid: all fields × all timeslots across all agegroups.
+    /// Shows every configured slot (empty + filled) for the entire event.
+    /// </summary>
+    Task<ScheduleGridResponse> GetEventGridAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Place a game from a pairing into a specific date/field slot.
     /// Creates a Schedule record and runs RecalcValues (UpdateGameIds).
     /// </summary>

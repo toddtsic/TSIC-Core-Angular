@@ -63,107 +63,147 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         var divFields = fieldTimeslots.Where(f => f.DivId == divId).ToList();
         var effectiveFields = divFields.Count > 0 ? divFields : fieldTimeslots.Where(f => f.DivId == null).ToList();
 
-        // Distinct field columns sorted by name
-        var columns = effectiveFields
-            .GroupBy(f => f.FieldId)
-            .Select(g => new ScheduleFieldColumn
-            {
-                FieldId = g.Key,
-                FName = g.First().FieldName
-            })
-            .OrderBy(c => c.FName)
-            .ToList();
-
-        var fieldIds = columns.Select(c => c.FieldId).ToList();
-
-        if (gameDates.Count == 0 || fieldIds.Count == 0)
-            return new ScheduleGridResponse { Columns = columns, Rows = [] };
-
-        // 3. Build all timeslots (date × field game intervals)
-        var allTimeslots = new SortedSet<DateTime>();
-        foreach (var date in gameDates)
-        {
-            var dow = date.DayOfWeek.ToString(); // Full name: Monday, Saturday, etc.
-            var fieldsForDow = effectiveFields
-                .Where(f => f.Dow.Equals(dow, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            foreach (var ft in fieldsForDow)
-            {
-                if (DateTime.TryParse(ft.StartTime, out var startDt))
-                {
-                    var startTime = startDt.TimeOfDay;
-                    for (var g = 0; g < ft.MaxGamesPerField; g++)
-                    {
-                        var gameTime = date + startTime + TimeSpan.FromMinutes(g * ft.GamestartInterval);
-                        allTimeslots.Add(gameTime);
-                    }
-                }
-            }
-        }
+        // 3. Build timeslots and columns from the effective dates/fields
+        var (allTimeslots, columns) = BuildTimeslotMatrix(gameDates, effectiveFields);
 
         // Inject one-off custom timeslot row (for championship game placement)
         if (additionalTimeslot.HasValue)
             allTimeslots.Add(additionalTimeslot.Value);
 
-        // 4. Query scheduled games by date range — includes games at non-standard
-        //    times (e.g., championship games placed at custom intervals)
-        var games = await _scheduleRepo.GetGamesForGridByDateRangeAsync(
-            jobId, fieldIds, gameDates.Min(), gameDates.Max().AddDays(1), ct);
+        // 4. Assemble grid (shared: query games, overlay onto timeslot matrix)
+        return await AssembleGridAsync(jobId, allTimeslots, columns, ct);
+    }
 
-        // Merge actual game times into the timeslot set so the grid shows rows
-        // for games placed at non-standard intervals
+    public async Task<ScheduleGridResponse> GetEventGridAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+
+        // Load all agegroups and union their timeslot dates + fields
+        var agegroups = await _pairingsRepo.GetAgegroupsWithDivisionsAsync(leagueId, season, ct);
+
+        var allTimeslots = new SortedSet<DateTime>();
+        var fieldMap = new Dictionary<Guid, string>();
+
+        foreach (var ag in agegroups)
+        {
+            var dates = await _timeslotRepo.GetDatesAsync(ag.AgegroupId, season, year, ct);
+            var fieldTimeslots = await _timeslotRepo.GetFieldTimeslotsAsync(ag.AgegroupId, season, year, ct);
+
+            var gameDates = dates.Select(d => d.GDate.Date).Distinct().ToList();
+            var (agSlots, _) = BuildTimeslotMatrix(gameDates, fieldTimeslots);
+
+            foreach (var slot in agSlots)
+                allTimeslots.Add(slot);
+
+            foreach (var ft in fieldTimeslots)
+            {
+                if (!fieldMap.ContainsKey(ft.FieldId))
+                    fieldMap[ft.FieldId] = ft.FieldName;
+            }
+        }
+
+        var columns = fieldMap
+            .Select(kvp => new ScheduleFieldColumn { FieldId = kvp.Key, FName = kvp.Value })
+            .OrderBy(c => c.FName)
+            .ToList();
+
+        return await AssembleGridAsync(jobId, allTimeslots, columns, ct);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Private: Shared Grid Assembly
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Build the set of timeslot DateTimes and field columns from dates × field configs.
+    /// Pure computation — no DB calls.
+    /// </summary>
+    private static (SortedSet<DateTime> Timeslots, List<ScheduleFieldColumn> Columns) BuildTimeslotMatrix(
+        List<DateTime> gameDates, List<TimeslotFieldDto> fields)
+    {
+        var timeslots = new SortedSet<DateTime>();
+        foreach (var date in gameDates)
+        {
+            var dow = date.DayOfWeek.ToString();
+            foreach (var ft in fields.Where(f => f.Dow.Equals(dow, StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!DateTime.TryParse(ft.StartTime, out var startDt)) continue;
+                var startTime = startDt.TimeOfDay;
+                for (var g = 0; g < ft.MaxGamesPerField; g++)
+                    timeslots.Add(date + startTime + TimeSpan.FromMinutes(g * ft.GamestartInterval));
+            }
+        }
+
+        var columns = fields
+            .GroupBy(f => f.FieldId)
+            .Select(g => new ScheduleFieldColumn { FieldId = g.Key, FName = g.First().FieldName })
+            .OrderBy(c => c.FName)
+            .ToList();
+
+        return (timeslots, columns);
+    }
+
+    /// <summary>
+    /// Query games, overlay onto timeslot matrix, assemble grid response.
+    /// Shared by division-level and event-level grid methods.
+    /// </summary>
+    private async Task<ScheduleGridResponse> AssembleGridAsync(
+        Guid jobId, SortedSet<DateTime> timeslots, List<ScheduleFieldColumn> columns,
+        CancellationToken ct)
+    {
+        var fieldIds = columns.Select(c => c.FieldId).ToList();
+
+        if (timeslots.Count == 0 || fieldIds.Count == 0)
+            return new ScheduleGridResponse { Columns = columns, Rows = [] };
+
+        // Query scheduled games by date range
+        var games = await _scheduleRepo.GetGamesForGridByDateRangeAsync(
+            jobId, fieldIds, timeslots.Min().Date, timeslots.Max().Date.AddDays(1), ct);
+
+        // Merge game times into timeslot set (games at non-standard intervals)
         foreach (var game in games)
         {
             if (game.GDate.HasValue)
-                allTimeslots.Add(game.GDate.Value);
+                timeslots.Add(game.GDate.Value);
         }
 
         // Index by (GDate, FieldId) for O(1) cell lookup; detect slot collisions
         var gameIndex = new Dictionary<(DateTime, Guid), Schedule>();
-        var slotCollisionKeys = new HashSet<(DateTime, Guid)>();
+        var collisionKeys = new HashSet<(DateTime, Guid)>();
         foreach (var game in games)
         {
             if (game.GDate.HasValue && game.FieldId.HasValue)
             {
                 var key = (game.GDate.Value, game.FieldId.Value);
                 if (gameIndex.ContainsKey(key))
-                    slotCollisionKeys.Add(key);
+                    collisionKeys.Add(key);
                 gameIndex[key] = game;
             }
         }
 
-        // 5. Build agegroup color map for games (multiple agegroups may share fields)
-        var agegroupIds = games
-            .Where(g => g.AgegroupId.HasValue)
-            .Select(g => g.AgegroupId!.Value)
-            .Distinct()
-            .ToList();
+        // Agegroup color map
         var agColorMap = new Dictionary<Guid, string?>();
-        foreach (var agId in agegroupIds)
+        foreach (var agId in games.Where(g => g.AgegroupId.HasValue).Select(g => g.AgegroupId!.Value).Distinct())
         {
             var ag = await _agegroupRepo.GetByIdAsync(agId, ct);
             agColorMap[agId] = ag?.Color;
         }
 
-        // 6. Assemble grid rows
-        var rows = new List<ScheduleGridRow>();
-        foreach (var timeslot in allTimeslots)
+        // Assemble rows
+        var rows = timeslots.Select(ts => new ScheduleGridRow
         {
-            var cells = columns
-                .Select(col =>
-                {
-                    if (!gameIndex.TryGetValue((timeslot, col.FieldId), out var game))
-                        return (ScheduleGameDto?)null;
+            GDate = ts,
+            Cells = columns.Select(col =>
+            {
+                if (!gameIndex.TryGetValue((ts, col.FieldId), out var game))
+                    return (ScheduleGameDto?)null;
 
-                    var agColor = game.AgegroupId.HasValue && agColorMap.TryGetValue(game.AgegroupId.Value, out var c) ? c : null;
-                    var isCollision = slotCollisionKeys.Contains((timeslot, col.FieldId));
-                    return ScheduleGameDtoMapper.Map(game, agColor, isCollision);
-                })
-                .ToList();
-
-            rows.Add(new ScheduleGridRow { GDate = timeslot, Cells = cells });
-        }
+                var agColor = game.AgegroupId.HasValue && agColorMap.TryGetValue(game.AgegroupId.Value, out var c) ? c : null;
+                var isCollision = collisionKeys.Contains((ts, col.FieldId));
+                return ScheduleGameDtoMapper.Map(game, agColor, isCollision);
+            }).ToList()
+        }).ToList();
 
         return new ScheduleGridResponse { Columns = columns, Rows = rows };
     }

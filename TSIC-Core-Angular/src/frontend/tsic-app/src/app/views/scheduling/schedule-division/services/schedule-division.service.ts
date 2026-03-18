@@ -82,9 +82,9 @@ export class ScheduleDivisionService {
         return this.http.get<ScheduleGridResponse>(`${this.apiUrl}/${divId}/grid`, { params });
     }
 
-    /** Full event grid — all games across all agegroups/divisions. Reuses rescheduler endpoint with empty filters. */
+    /** Full event grid — all fields × all timeslots across all agegroups. */
     getEventGrid(): Observable<ScheduleGridResponse> {
-        return this.http.post<ScheduleGridResponse>(`${environment.apiUrl}/Rescheduler/grid`, {});
+        return this.http.get<ScheduleGridResponse>(`${this.apiUrl}/event-grid`);
     }
 
     // ── Game Placement ──

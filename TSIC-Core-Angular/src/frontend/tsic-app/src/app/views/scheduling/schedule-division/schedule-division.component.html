@@ -1,10 +1,10 @@
 <div class="hub-container">
 
     <!-- ── Hub Layout: Sidebar + Main ── -->
-    <div class="hub-layout" [class.hub-layout--full]="mode() === 'reschedule' || !!activeTool()">
+    <div class="hub-layout" [class.hub-layout--full]="mode() !== 'schedule' || !!activeTool()">
 
-        <!-- ══════════ SIDEBAR (hidden in reschedule mode and when a tool is active — tools use full width) ══════════ -->
-        <div class="hub-sidebar" [class.d-none]="mode() === 'reschedule' || !!activeTool()">
+        <!-- ══════════ SIDEBAR (only visible in Schedule mode, hidden when a tool is active) ══════════ -->
+        <div class="hub-sidebar" [class.d-none]="mode() !== 'schedule' || !!activeTool()">
 
             <!-- Navigator Tree -->
             <div class="sidebar-nav">
@@ -379,8 +379,7 @@
                             @if (championshipPlacementMode()) {
                                 <div class="championship-banner">
                                     <i class="bi bi-trophy-fill me-2"></i>
-                                    <strong>{{ unplacedChampCount() }}</strong> championship
-                                    {{ unplacedChampCount() === 1 ? 'game' : 'games' }} remaining.
+                                    {{ champBannerText() }}
                                     Use <strong>Add Row</strong> to create timeslots at championship intervals, then place each game.
                                     @if (unplacedChampCount() === 0) {
                                         <button class="btn btn-sm btn-success ms-3"

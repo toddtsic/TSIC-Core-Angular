@@ -136,6 +136,20 @@ export class ScheduleDivisionComponent implements OnInit {
         return this.pairings().filter(p => p.t1Type !== 'T' && p.bAvailable).length;
     });
 
+    /** Championship banner text — scoped by bChampionsByDivision flag. */
+    readonly champBannerText = computed(() => {
+        const s = this.scope();
+        if (s.level === 'event') return "Championship games haven't been placed yet.";
+
+        const ag = this.agegroups().find(a => a.agegroupId === s.agegroupId);
+        const agName = ag?.agegroupName ?? '';
+        if (ag?.bChampionsByDivision && s.level === 'division') {
+            const divName = ag.divisions.find(d => d.divId === s.divId)?.divName ?? '';
+            return `Championship games for ${agName}:${divName} haven't been placed yet.`;
+        }
+        return `Championship games for ${agName} haven't been placed yet.`;
+    });
+
     /** Pairings to show in the panel — filtered to championship-only when in placement mode. */
     readonly displayPairings = computed(() => {
         const all = this.pairings();
@@ -670,7 +684,6 @@ export class ScheduleDivisionComponent implements OnInit {
         this.scope.set({ level: 'event' });
         this.dismissBuildResults();
         this.clearDivisionState();
-        // Load full event grid when in Schedule mode
         if (this.mode() === 'schedule') {
             this.loadEventGrid();
         }
@@ -684,6 +697,8 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
+                // Auto-open minimap for event-level overview after grid renders
+                setTimeout(() => this.scheduleGrid?.toggleMinimap());
             },
             error: () => {
                 this.gridResponse.set(null);
@@ -905,9 +920,8 @@ export class ScheduleDivisionComponent implements OnInit {
                 const hasUnplaced = this.pairings().some(p => p.t1Type !== 'T' && p.bAvailable);
                 if (hasUnplaced) {
                     this.championshipPlacementMode.set(true);
-                    this.toast.show(
-                        'Championship games need placement. Use Add Row to create timeslots, then place each game.',
-                        'info', 6000);
+                    // Banner text (champBannerText computed) handles the details
+                    this.toast.show(this.champBannerText(), 'info', 6000);
                 }
             }, 500); // Allow pairings reload to complete
             return;
@@ -924,9 +938,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     const hasUnplaced = this.pairings().some(p => p.t1Type !== 'T' && p.bAvailable);
                     if (hasUnplaced) {
                         this.championshipPlacementMode.set(true);
-                        this.toast.show(
-                            `Championship games need placement for ${ag.agegroupName}/${div.divName}. Use Add Row to create timeslots, then place each game.`,
-                            'info', 6000);
+                        this.toast.show(this.champBannerText(), 'info', 6000);
                     }
                 }, 800);
                 return; // Focus on first division — admin will work through them

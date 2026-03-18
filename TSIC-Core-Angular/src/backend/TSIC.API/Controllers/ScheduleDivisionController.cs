@@ -92,6 +92,17 @@ public class ScheduleDivisionController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>GET /api/schedule-division/event-grid — Full event grid: all fields × all timeslots.</summary>
+    [HttpGet("event-grid")]
+    public async Task<ActionResult<ScheduleGridResponse>> GetEventGrid(CancellationToken ct)
+    {
+        var (jobId, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _service.GetEventGridAsync(jobId!.Value, ct);
+        return Ok(result);
+    }
+
     /// <summary>GET /api/schedule-division/who-plays-who?teamCount=N — Who plays who matrix.</summary>
     [HttpGet("who-plays-who")]
     public async Task<ActionResult<WhoPlaysWhoResponse>> GetWhoPlaysWho(
