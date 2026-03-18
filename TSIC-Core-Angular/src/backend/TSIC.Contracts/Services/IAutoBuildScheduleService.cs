@@ -62,14 +62,14 @@ public interface IAutoBuildScheduleService
     /// 3. Defaults from current division names → Source="defaults"
     /// </summary>
     Task<DivisionStrategyProfileResponse> LoadStrategyProfilesAsync(
-        Guid jobId, Guid? sourceJobId, CancellationToken ct = default);
+        Guid jobId, Guid? sourceJobId, string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Save strategy profiles for a job (standalone — does not require a build).
     /// Upserts all entries and returns the reloaded response.
     /// </summary>
     Task<DivisionStrategyProfileResponse> SaveStrategyProfilesAsync(
-        Guid jobId, List<DivisionStrategyEntry> strategies, CancellationToken ct = default);
+        Guid jobId, List<DivisionStrategyEntry> strategies, string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Auto-generate round-robin pairings for team counts that don't have them yet.

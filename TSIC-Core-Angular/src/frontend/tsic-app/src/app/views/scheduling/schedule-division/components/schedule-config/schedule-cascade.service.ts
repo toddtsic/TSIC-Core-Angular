@@ -10,6 +10,7 @@ import type {
     SeedWavesRequest,
     ProcessingOrderEntryDto,
     SaveProcessingOrderRequest,
+    DivisionStrategyEntry,
 } from '@core/api';
 
 /**
@@ -145,28 +146,26 @@ export class ScheduleCascadeService {
         return !upper.startsWith('WAITLIST') && !upper.startsWith('DROPPED');
     }
 
-    /** Get effective placement and gap for all divisions (name-keyed for backward compat). */
-    getStrategyEntries(): { divisionName: string; placement: number; gapPattern: number }[] {
+    /** Get effective placement and gap for all divisions (per-division, keyed by ID). */
+    getStrategyEntries(): DivisionStrategyEntry[] {
         const snapshot = this.cascade();
         if (!snapshot) return [];
 
-        const seen = new Set<string>();
-        const entries: { divisionName: string; placement: number; gapPattern: number }[] = [];
+        const entries: { divisionId: string; divisionName: string; agegroupName: string; placement: number; gapPattern: number }[] = [];
 
         for (const ag of snapshot.agegroups) {
             for (const div of ag.divisions) {
-                const key = div.divisionName.toLowerCase();
-                if (seen.has(key)) continue;
-                seen.add(key);
-
                 entries.push({
+                    divisionId: div.divisionId,
                     divisionName: div.divisionName,
+                    agegroupName: ag.agegroupName,
                     placement: div.effectiveGamePlacement === 'V' ? 1 : 0,
                     gapPattern: div.effectiveBetweenRoundRows,
                 });
             }
         }
 
-        return entries.sort((a, b) => a.divisionName.localeCompare(b.divisionName));
+        return entries.sort((a, b) =>
+            a.agegroupName.localeCompare(b.agegroupName) || a.divisionName.localeCompare(b.divisionName));
     }
 }

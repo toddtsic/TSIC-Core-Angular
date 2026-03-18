@@ -400,7 +400,7 @@
                                             [gridResponse]="gridResponse()"
                                             [isLoading]="isGridLoading()"
                                             [emptyMessage]="'No games scheduled yet. Use Build Entire Schedule to auto-generate, or schedule a division by hand (click a division in the tree on the left to get started).'"
-                                            [showActionButtons]="true"
+                                            [showActionButtons]="!blockShiftMode()"
                                             [highlightDivId]="null"
                                             [highlightDivColor]="null"
                                             [selectedGameGid]="selectedGame()?.game?.gid ?? null"
@@ -425,11 +425,13 @@
                                                         (click)="toggleBlockShiftMode()">
                                                     <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
                                                 </button>
+                                                @if (hasChampGamesInGrid()) {
                                                 <button class="btn btn-sm btn-outline-warning"
                                                         [disabled]="isParkingInProgress()"
                                                         (click)="parkAllChampionship()">
                                                     <i class="bi bi-p-square me-1"></i>Park Champs
                                                 </button>
+                                                }
                                                 }
                                             </ng-container>
                                         </app-schedule-grid>
@@ -453,7 +455,7 @@
                                                 [gridResponse]="gridResponse()"
                                                 [isLoading]="isGridLoading()"
                                                 [emptyMessage]="'No fields or timeslots configured for this agegroup'"
-                                                [showActionButtons]="true"
+                                                [showActionButtons]="!blockShiftMode()"
                                                 [highlightDivId]="null"
                                                 [highlightDivColor]="selectedAgegroupColor()"
                                                 [selectedGameGid]="selectedGame()?.game?.gid ?? null"
@@ -496,13 +498,13 @@
                                         [gridResponse]="gridResponse()"
                                         [isLoading]="isGridLoading()"
                                         [emptyMessage]="'No fields or timeslots configured for this division'"
-                                        [showActionButtons]="true"
+                                        [showActionButtons]="!blockShiftMode()"
                                         [highlightDivId]="selectedDivision()?.divId ?? null"
                                         [highlightDivColor]="selectedAgegroupColor()"
                                         [selectedGameGid]="selectedGame()?.game?.gid ?? null"
                                         [highlightGameGid]="highlightGameGid()"
                                         [highlightAllDiv]="highlightAllDiv()"
-                                        [showOpenSlotHints]="!!selectedPairing()"
+                                        [showOpenSlotHints]="!!selectedPairing() && !blockShiftMode()"
                                         [showMoveSlotHints]="!!selectedGame()"
                                         [blockSelection]="blockSelection()"
                                         (cellClicked)="onGridCellClick($event)"
@@ -521,11 +523,13 @@
                                                     (click)="toggleBlockShiftMode()">
                                                 <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
                                             </button>
+                                            @if (hasChampGamesInGrid()) {
                                             <button class="btn btn-sm btn-outline-warning"
                                                     [disabled]="isParkingInProgress()"
                                                     (click)="parkAllChampionship()">
                                                 <i class="bi bi-p-square me-1"></i>Park Champs
                                             </button>
+                                            }
                                             }
                                         </ng-container>
 

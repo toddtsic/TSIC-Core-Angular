@@ -228,8 +228,10 @@
                                 [ngModel]="getDivOverride(div.divisionId)!.betweenRoundRows"
                                 (ngModelChange)="setDivField(div.divisionId, 'betweenRoundRows', +$event)">
                           <option [ngValue]="0">None</option>
-                          <option [ngValue]="1">1 game</option>
-                          <option [ngValue]="2">2 games</option>
+                          <option [ngValue]="1">1 slot</option>
+                          <option [ngValue]="2">2 slots</option>
+                          <option [ngValue]="3">3 slots</option>
+                          <option [ngValue]="4">4 slots</option>
                         </select>
                       } @else {
                         <span class="inherited-value">{{ restLabel(+resolvedAgValue(ag.agegroupId, 'betweenRoundRows')) }}</span>

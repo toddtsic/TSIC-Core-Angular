@@ -123,6 +123,13 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly hasChampionshipPairings = signal(false);
     readonly championshipPlacementMode = signal(false);
 
+    /** True when the current grid contains any championship games (non-"T" t1Type). */
+    readonly hasChampGamesInGrid = computed(() => {
+        const grid = this.gridResponse();
+        if (!grid) return false;
+        return grid.rows.some(r => r.cells.some(c => c?.gid != null && c.t1Type !== 'T'));
+    });
+
     /** Unplaced championship pairings in current division (non-"T" type + bAvailable). */
     readonly unplacedChampCount = computed(() => {
         if (!this.championshipPlacementMode()) return 0;
@@ -532,7 +539,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.cascadeSvc.loadCascade().subscribe({
             next: () => {
                 // Derive strategy entries from cascade for backward-compat display
-                this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]);
+                this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries());
                 this.strategySource.set('saved');
 
                 // Auto-seed waves from prior year projection if cascade has no waves
@@ -583,7 +590,7 @@ export class ScheduleDivisionComponent implements OnInit {
                     next: () => {
                         // Refresh strategy entries with new wave data
                         this.strategyProfiles.set(
-                            this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]
+                            this.cascadeSvc.getStrategyEntries()
                         );
                     }
                 });
@@ -898,7 +905,6 @@ export class ScheduleDivisionComponent implements OnInit {
                 const hasUnplaced = this.pairings().some(p => p.t1Type !== 'T' && p.bAvailable);
                 if (hasUnplaced) {
                     this.championshipPlacementMode.set(true);
-                    this.showAddTimeslot.set(true);
                     this.toast.show(
                         'Championship games need placement. Use Add Row to create timeslots, then place each game.',
                         'info', 6000);
@@ -918,7 +924,6 @@ export class ScheduleDivisionComponent implements OnInit {
                     const hasUnplaced = this.pairings().some(p => p.t1Type !== 'T' && p.bAvailable);
                     if (hasUnplaced) {
                         this.championshipPlacementMode.set(true);
-                        this.showAddTimeslot.set(true);
                         this.toast.show(
                             `Championship games need placement for ${ag.agegroupName}/${div.divName}. Use Add Row to create timeslots, then place each game.`,
                             'info', 6000);
@@ -1292,6 +1297,14 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     private openAutoScheduleModal(): void {
+        // No existing games → skip the modal, build immediately
+        if (!this.hasGamesInScope()) {
+            this.onAutoScheduleBuild({
+                config: { action: 'build', existingGameMode: 'rebuild' }
+            });
+            return;
+        }
+
         this.showAutoScheduleModal.set(true);
         // Fetch game dates for the day picker (non-blocking — modal shows immediately)
         this.loadModalGameDates();
@@ -1406,7 +1419,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.cascadeSvc.saveEventDefaults({ gamePlacement, betweenRoundRows, gameGuarantee }).subscribe({
             next: () => {
                 this.isSavingStrategy.set(false);
-                this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries() as DivisionStrategyEntry[]);
+                this.strategyProfiles.set(this.cascadeSvc.getStrategyEntries());
                 this.strategySource.set('saved');
                 this.toast.show('Strategy saved', 'success');
             },
@@ -1459,10 +1472,13 @@ export class ScheduleDivisionComponent implements OnInit {
 
                 this.refreshAfterBulkOperation();
 
-                // Check for championship pairings that need manual placement
-                if (this.hasChampionshipPairings()) {
-                    this.enterChampionshipPlacementIfNeeded();
-                }
+                // Re-check championship pairings (stale signal from before build)
+                this.autoBuildSvc.hasChampionshipPairings().subscribe({
+                    next: (has) => {
+                        this.hasChampionshipPairings.set(has);
+                        if (has) this.enterChampionshipPlacementIfNeeded();
+                    }
+                });
             },
             error: () => {
                 this.isExecuting.set(false);

@@ -13,7 +13,7 @@ public interface IScheduleCascadeService
     /// effective values for GamePlacement, BetweenRoundRows, and per-date Wave.
     /// </summary>
     Task<ScheduleCascadeSnapshot> ResolveAsync(
-        Guid jobId, CancellationToken ct = default);
+        Guid jobId, string userId, CancellationToken ct = default);
 
     /// <summary>Save event-level defaults (non-nullable — always has values).</summary>
     Task SaveEventDefaultsAsync(

@@ -419,13 +419,20 @@ public enum GapPattern
 }
 
 /// <summary>
-/// A single division's scheduling strategy, identified by division name.
-/// Division names are consistent across agegroups by convention.
+/// A single division's scheduling strategy. Uniquely identified by DivisionId;
+/// DivisionName is included for display. Division names can repeat across agegroups,
+/// so DivisionId is required for correct per-division cascade resolution.
 /// </summary>
 public record DivisionStrategyEntry
 {
-    /// <summary>Division name (e.g. "Division 1", "Pool A") — stable across agegroups.</summary>
+    /// <summary>Unique division identifier — required for cascade lookups.</summary>
+    public Guid? DivisionId { get; init; }
+
+    /// <summary>Division name (e.g. "Division 1", "Pool A") — for display.</summary>
     public required string DivisionName { get; init; }
+
+    /// <summary>Agegroup name — for display when division names repeat across agegroups.</summary>
+    public string? AgegroupName { get; init; }
 
     /// <summary>0 = Horizontal (default), 1 = Sequential/Vertical (showcase).</summary>
     public required int Placement { get; init; }

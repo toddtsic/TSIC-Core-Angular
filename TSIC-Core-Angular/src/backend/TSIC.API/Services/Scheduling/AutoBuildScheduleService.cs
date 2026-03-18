@@ -344,14 +344,27 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             profilesByTCnt = new Dictionary<int, DivisionSizeProfile>();
         }
 
-        // ── 1b. Game guarantee from cascade: Event → Agegroup → Division ──
-        // Used by the placement loop to cap rounds per division.
+        // ── 1b. Cascade settings: Event → Agegroup → Division ──
+        // Loaded ONCE here; resolved per-division in the placement loop using:
+        //   divMap[divId] ?? agMap[agId] ?? eventDefault
         var cascadeEventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
         var cascadeAgProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
         var cascadeDivProfiles = await _cascadeRepo.GetDivisionProfilesAsync(jobId, ct);
+
+        // Game guarantee
         var eventGameGuarantee = cascadeEventDefaults?.GameGuarantee ?? 0;
         var agGuaranteeMap = cascadeAgProfiles.ToDictionary(p => p.AgegroupId, p => p.GameGuarantee);
         var divGuaranteeMap = cascadeDivProfiles.ToDictionary(p => p.DivisionId, p => p.GameGuarantee);
+
+        // BetweenRoundRows (byte: 0=back-to-back, 1=one-on-one-off, 2+=wider gap)
+        var eventBrr = cascadeEventDefaults?.BetweenRoundRows ?? (byte)1;
+        var agBrrMap = cascadeAgProfiles.ToDictionary(p => p.AgegroupId, p => p.BetweenRoundRows);
+        var divBrrMap = cascadeDivProfiles.ToDictionary(p => p.DivisionId, p => p.BetweenRoundRows);
+
+        // GamePlacement ("H"=Horizontal, "V"=Vertical/Sequential)
+        var eventPlacement = cascadeEventDefaults?.GamePlacement ?? "H";
+        var agPlacementMap = cascadeAgProfiles.ToDictionary(p => p.AgegroupId, p => p.GamePlacement);
+        var divPlacementMap = cascadeDivProfiles.ToDictionary(p => p.DivisionId, p => p.GamePlacement);
 
         // ── 1c. Per-date wave assignments from cascade tables ──
         // Cascade: divWaveByDate[(divId, date)] ?? agWaveByDate[(agId, date)] ?? 1
@@ -543,14 +556,17 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var pairings = await _pairingsRepo.GetPairingsAsync(
                 agCtx.AgLeagueId, agCtx.AgSeason, teamCount, ct);
 
-            // Resolve this division's effective guarantee via cascade:
-            //   division override → agegroup override → event default → request fallback.
-            // Cap rounds to only what this division's guarantee requires.
-            // The pairing table may have more rounds (for other divisions with
-            // higher guarantees), but this division only places what it needs.
+            // Resolve this division's effective cascade settings:
+            //   division override → agegroup override → event default.
             var agGuarantee = divGuaranteeMap.GetValueOrDefault(div.DivId)
                 ?? agGuaranteeMap.GetValueOrDefault(div.AgegroupId)
                 ?? eventGameGuarantee;
+            var effectiveBrr = divBrrMap.GetValueOrDefault(div.DivId)
+                ?? agBrrMap.GetValueOrDefault(div.AgegroupId)
+                ?? eventBrr;
+            var effectivePlacement = divPlacementMap.GetValueOrDefault(div.DivId)
+                ?? agPlacementMap.GetValueOrDefault(div.AgegroupId)
+                ?? eventPlacement;
             var guaranteeMaxRound = ComputeRoundCount(teamCount, agGuarantee);
 
             var rrPairings = pairings
@@ -666,21 +682,27 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var currentGsi = effectiveFields.Count > 0
                 ? effectiveFields.Max(f => f.GamestartInterval) : 60;
 
-            // Get or build profile for this division
+            // Get or build profile for this division.
+            // Cascade BetweenRoundRows and GamePlacement are always authoritative
+            // (resolved by DivisionId above), regardless of which profile path is used.
             DivisionSizeProfile profile;
             if (useStrategyPath && strategyByName.TryGetValue(div.DivName, out var strategy))
             {
-                // Strategy-driven: translate user choices to profile
                 profile = BuildProfileFromStrategy(
                     strategy, teamCount, effectiveDates, effectiveFields, currentGsi,
-                    request.GameGuarantee);
+                    effectiveBrr, effectivePlacement, request.GameGuarantee);
+            }
+            else if (profilesByTCnt.TryGetValue(teamCount, out var sourceProfile))
+            {
+                // Source-job legacy path: apply cascade overrides on top
+                profile = ApplyCascadeOverrides(sourceProfile, effectiveBrr, effectivePlacement);
             }
             else
             {
-                // Legacy TCnt-keyed path or clean sheet
-                profile = GetOrBuildDefaultProfile(
-                    profilesByTCnt, teamCount, effectiveDates, effectiveFields, currentGsi,
-                    request.GameGuarantee);
+                // Clean sheet: build from timeslot config + cascade settings
+                profile = BuildDefaultProfile(
+                    teamCount, effectiveDates, effectiveFields, currentGsi,
+                    effectiveBrr, effectivePlacement, request.GameGuarantee);
             }
 
             // Build PlacementState for this division (shares global occupiedSlots + field prefs)
@@ -1059,14 +1081,20 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                     if (prevRoundTime.HasValue && ctx.Profile.GsiMinutes > 0)
                     {
-                        // Round floor = previous round start + 1 GSI tick.
-                        // This is purely a scan optimization hint — "don't bother looking
-                        // at slots before this." The scanner's per-game team gap check
-                        // (HasInsufficientGap) validates actual per-team rest using
-                        // BetweenRoundRows. The floor just avoids scanning obviously-
-                        // occupied early slots.
-                        roundStartTime = prevRoundTime.Value
-                            + TimeSpan.FromMinutes(ctx.Profile.GsiMinutes);
+                        // Only apply the previous-round time floor if this round is
+                        // on the SAME day. When rounds cross day boundaries the floor
+                        // is meaningless — Saturday should start at the day's first
+                        // available slot, not offset from Friday's last round.
+                        var prevRoundDate = roundSelectedDate.TryGetValue(
+                            (ctx.Div.DivId, prevRoundNum), out var prd) ? prd : (DateTime?)null;
+
+                        if (prevRoundDate.HasValue && prevRoundDate.Value == selectedDate.Value)
+                        {
+                            roundStartTime = prevRoundTime.Value
+                                + TimeSpan.FromMinutes(ctx.Profile.GsiMinutes);
+                        }
+                        // else: different day — leave roundStartTime null so the scan
+                        // starts from the beginning of the day's timeslot window.
                     }
                     else
                     {
@@ -1270,7 +1298,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // ── 9. Save strategy profiles to DB if requested ──
         if (useStrategyPath && request.SaveProfiles && totalPlaced > 0)
         {
-            await SaveStrategyProfilesAsync(jobId, request.DivisionStrategies!, ct);
+            await SaveStrategyProfilesAsync(jobId, request.DivisionStrategies!, userId, ct);
 
             _logger.LogInformation(
                 "AutoBuild: Saved strategy profiles via cascade for Job={JobId}",
@@ -1302,25 +1330,26 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     // ══════════════════════════════════════════════════════════
 
     public async Task<DivisionStrategyProfileResponse> LoadStrategyProfilesAsync(
-        Guid jobId, Guid? sourceJobId, CancellationToken ct = default)
+        Guid jobId, Guid? sourceJobId, string userId, CancellationToken ct = default)
     {
         // Layer 1: Check cascade tables for saved config
         var eventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
         if (eventDefaults != null)
         {
-            // Cascade has data — resolve and flatten to per-division-name entries
-            var snapshot = await _cascadeService.ResolveAsync(jobId, ct);
+            // Cascade has data — resolve to per-division entries (keyed by ID, not name)
+            var snapshot = await _cascadeService.ResolveAsync(jobId, userId, ct);
             var strategies = snapshot.Agegroups
-                .SelectMany(ag => ag.Divisions)
-                .GroupBy(d => d.DivisionName, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.First()) // one entry per name (same name = same strategy)
-                .Select(d => new DivisionStrategyEntry
+                .SelectMany(ag => ag.Divisions.Select(d => (Ag: ag, Div: d)))
+                .Select(x => new DivisionStrategyEntry
                 {
-                    DivisionName = d.DivisionName,
-                    Placement = d.EffectiveGamePlacement == "V" ? 1 : 0,
-                    GapPattern = d.EffectiveBetweenRoundRows
+                    DivisionId = x.Div.DivisionId,
+                    DivisionName = x.Div.DivisionName,
+                    AgegroupName = x.Ag.AgegroupName,
+                    Placement = x.Div.EffectiveGamePlacement == "V" ? 1 : 0,
+                    GapPattern = x.Div.EffectiveBetweenRoundRows
                 })
-                .OrderBy(s => s.DivisionName)
+                .OrderBy(s => s.AgegroupName)
+                .ThenBy(s => s.DivisionName)
                 .ToList();
 
             // Compute disconnects if we have a source job to compare against
@@ -1379,22 +1408,17 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 var profilesByTCnt = AttributeExtractor.ExtractProfiles(
                     patterns, sourceDivisions, currentDivCountByTCnt, sourceWindow);
 
-                // Get distinct division names and map to strategy entries via TCnt
-                var divNameToTCnt = currentDivisions
-                    .GroupBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.First().TeamCount,
-                        StringComparer.OrdinalIgnoreCase);
-
+                // Map each division (by ID) to a strategy entry via its TCnt profile
                 var strategies = new List<DivisionStrategyEntry>();
-                foreach (var (divName, tCnt) in divNameToTCnt)
+                foreach (var div in currentDivisions)
                 {
-                    if (profilesByTCnt.TryGetValue(tCnt, out var profile))
+                    if (profilesByTCnt.TryGetValue(div.TeamCount, out var profile))
                     {
                         strategies.Add(new DivisionStrategyEntry
                         {
-                            DivisionName = divName,
+                            DivisionId = div.DivId,
+                            DivisionName = div.DivName,
+                            AgegroupName = div.AgegroupName,
                             Placement = profile.RoundLayout == RoundLayout.Sequential ? 1 : 0,
                             GapPattern = Math.Max(0, profile.MinTeamGapTicks - 1)
                         });
@@ -1403,7 +1427,9 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     {
                         strategies.Add(new DivisionStrategyEntry
                         {
-                            DivisionName = divName,
+                            DivisionId = div.DivId,
+                            DivisionName = div.DivName,
+                            AgegroupName = div.AgegroupName,
                             Placement = 0,
                             GapPattern = 1
                         });
@@ -1424,7 +1450,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
                 return new DivisionStrategyProfileResponse
                 {
-                    Strategies = strategies.OrderBy(s => s.DivisionName).ToList(),
+                    Strategies = strategies.OrderBy(s => s.AgegroupName).ThenBy(s => s.DivisionName).ToList(),
                     Source = "inferred",
                     InferredFromJobId = sourceJobId.Value,
                     InferredFromJobName = sourceJobName ?? "Unknown",
@@ -1433,23 +1459,24 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }
         }
 
-        // Layer 3: Defaults from current division names
+        // Layer 3: Defaults from current divisions (per-division, not per-name)
         var allDivisions = FilterSchedulableDivisions(
             await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct));
-        var distinctDivNames = allDivisions
-            .Select(d => d.DivName)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n)
-            .ToList();
 
         return new DivisionStrategyProfileResponse
         {
-            Strategies = distinctDivNames.Select(n => new DivisionStrategyEntry
-            {
-                DivisionName = n,
-                Placement = 0,  // Horizontal
-                GapPattern = 1  // OneOnOneOff
-            }).ToList(),
+            Strategies = allDivisions
+                .Select(d => new DivisionStrategyEntry
+                {
+                    DivisionId = d.DivId,
+                    DivisionName = d.DivName,
+                    AgegroupName = d.AgegroupName,
+                    Placement = 0,  // Horizontal
+                    GapPattern = 1  // OneOnOneOff
+                })
+                .OrderBy(s => s.AgegroupName)
+                .ThenBy(s => s.DivisionName)
+                .ToList(),
             Source = "defaults"
         };
     }
@@ -1823,25 +1850,23 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     }
 
     // ══════════════════════════════════════════════════════════
-    // Private: Default Profile for Clean Sheet
+    // Private: Build Profile from Cascade + Timeslot Config
     // ══════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Get a profile from extracted profiles, or build a default from timeslot config.
-    /// Clean sheet mode: no prior year data, so derive sensible defaults.
+    /// Build a profile from timeslot configuration and cascade-resolved settings.
+    /// Used when no source job and no explicit strategies — cascade is the sole
+    /// source of truth for BetweenRoundRows and GamePlacement.
     /// </summary>
-    private static DivisionSizeProfile GetOrBuildDefaultProfile(
-        Dictionary<int, DivisionSizeProfile> profilesByTCnt,
+    private static DivisionSizeProfile BuildDefaultProfile(
         int teamCount,
         List<TimeslotDateDto> dates,
         List<TimeslotFieldDto> fields,
         int currentGsi,
+        byte cascadeBrr,
+        string cascadePlacement,
         int? requestGameGuarantee = null)
     {
-        if (profilesByTCnt.TryGetValue(teamCount, out var profile))
-            return profile;
-
-        // Build default profile from timeslot config
         var playDays = dates
             .Select(d => d.GDate.DayOfWeek)
             .Distinct()
@@ -1884,11 +1909,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             ? Math.Min(requestGameGuarantee.Value, teamCount - 1)
             : teamCount - 1;
 
-        // Default interval from field config
         var gsi = currentGsi > 0 ? currentGsi : 60;
-        var defaultInterval = TimeSpan.FromMinutes(gsi);
 
-        // Default rounds per day: distribute evenly
         var roundsPerDay = new Dictionary<DayOfWeek, int>();
         if (playDays.Count > 0)
         {
@@ -1900,19 +1922,13 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             }
         }
 
-        // Determine default round layout: if enough fields for all games in a round, horizontal
-        var gamesPerRound = teamCount / 2; // round-robin: half the teams play per round
-        var fieldCount = fieldBand.Count;
-        var defaultLayout = fieldCount >= gamesPerRound
-            ? RoundLayout.Horizontal
-            : RoundLayout.Sequential;
+        // Cascade-resolved values
+        var minTeamGapTicks = cascadeBrr + 1;
+        var roundLayout = string.Equals(cascadePlacement, "V", StringComparison.OrdinalIgnoreCase)
+            ? RoundLayout.Sequential
+            : RoundLayout.Horizontal;
 
-        // Default inter-round gap: MinTeamGapTicks for both layouts.
-        // For Sequential, per-game staggering (GameIndex × GSI) handles within-round spread;
-        // the round floor only needs MinTeamGapTicks from the previous round's start.
-        const int defaultMinTeamGapTicks = 2; // BetweenRoundRows=1 → no BTBs
-
-        var defaultProfile = new DivisionSizeProfile
+        return new DivisionSizeProfile
         {
             TCnt = teamCount,
             DivisionCount = 1,
@@ -1928,19 +1944,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             FieldDesirability = new Dictionary<string, FieldUsageDto>(),
             RoundsPerDay = roundsPerDay,
             ExtraRoundDay = null,
-            InterRoundInterval = defaultInterval,
-            // Tick-based defaults for clean sheet mode
+            InterRoundInterval = TimeSpan.FromMinutes(gsi),
             GsiMinutes = gsi,
-            RoundLayout = defaultLayout,
+            RoundLayout = roundLayout,
             StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
-            InterRoundGapTicks = defaultMinTeamGapTicks,
-            MinTeamGapTicks = defaultMinTeamGapTicks,
+            InterRoundGapTicks = minTeamGapTicks,
+            MinTeamGapTicks = minTeamGapTicks,
             FieldFairness = FieldFairness.Democratic
         };
-
-        // Cache for subsequent divisions with same TCnt
-        profilesByTCnt[teamCount] = defaultProfile;
-        return defaultProfile;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1948,8 +1959,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     // ══════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Translate a user-chosen DivisionStrategyEntry into a DivisionSizeProfile.
-    /// Used by the strategy-driven code path (replaces source-job extraction).
+    /// Translate a DivisionStrategyEntry into a DivisionSizeProfile.
+    /// Cascade-resolved BetweenRoundRows and GamePlacement always take precedence
+    /// (keyed by DivisionId, not name), ensuring correct per-division settings
+    /// even when division names repeat across agegroups.
     /// </summary>
     private static DivisionSizeProfile BuildProfileFromStrategy(
         DivisionStrategyEntry strategy,
@@ -1957,6 +1970,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         List<TimeslotDateDto> dates,
         List<TimeslotFieldDto> fields,
         int currentGsi,
+        byte cascadeBrr,
+        string cascadePlacement,
         int? requestGameGuarantee = null)
     {
         var playDays = dates
@@ -2001,16 +2016,11 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             : teamCount - 1;
         var gsi = currentGsi > 0 ? currentGsi : 60;
 
-        // Translate strategy choices to profile properties
-        var roundLayout = strategy.Placement == 1
+        // Cascade-resolved values (authoritative, keyed by DivisionId)
+        var roundLayout = string.Equals(cascadePlacement, "V", StringComparison.OrdinalIgnoreCase)
             ? RoundLayout.Sequential
             : RoundLayout.Horizontal;
-
-        // GapPattern → MinTeamGapTicks (+1 mapping)
-        var minTeamGapTicks = strategy.GapPattern + 1;
-
-        // InterRoundGapTicks = configured gap (same as MinTeamGapTicks)
-        var interRoundGapTicks = minTeamGapTicks;
+        var minTeamGapTicks = cascadeBrr + 1;
 
         // Distribute rounds across play days
         var roundsPerDay = new Dictionary<DayOfWeek, int>();
@@ -2044,9 +2054,35 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             GsiMinutes = gsi,
             RoundLayout = roundLayout,
             StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
-            InterRoundGapTicks = interRoundGapTicks,
+            InterRoundGapTicks = minTeamGapTicks,
             MinTeamGapTicks = minTeamGapTicks,
             FieldFairness = FieldFairness.Democratic
+        };
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Private: Apply Cascade Overrides to Source-Job Profile
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Apply cascade-resolved BetweenRoundRows and GamePlacement on top of a
+    /// source-job extracted profile. The source profile provides timeslot layout,
+    /// field bands, and round distribution; cascade provides the authoritative
+    /// gap and placement settings for the current year.
+    /// </summary>
+    private static DivisionSizeProfile ApplyCascadeOverrides(
+        DivisionSizeProfile source, byte cascadeBrr, string cascadePlacement)
+    {
+        var minTeamGapTicks = cascadeBrr + 1;
+        var roundLayout = string.Equals(cascadePlacement, "V", StringComparison.OrdinalIgnoreCase)
+            ? RoundLayout.Sequential
+            : RoundLayout.Horizontal;
+
+        return source with
+        {
+            MinTeamGapTicks = minTeamGapTicks,
+            InterRoundGapTicks = minTeamGapTicks,
+            RoundLayout = roundLayout
         };
     }
 
@@ -2341,7 +2377,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     // ══════════════════════════════════════════════════════════
 
     public async Task<DivisionStrategyProfileResponse> SaveStrategyProfilesAsync(
-        Guid jobId, List<DivisionStrategyEntry> strategies, CancellationToken ct = default)
+        Guid jobId, List<DivisionStrategyEntry> strategies, string userId, CancellationToken ct = default)
     {
         // Convert int-based Placement/GapPattern to cascade string/byte values
         static string ToGamePlacement(int placement) => placement == 1 ? "V" : "H";
@@ -2364,11 +2400,14 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             Modified = DateTime.UtcNow
         }, ct);
 
-        // For non-uniform strategies, save per-division overrides
+        // For non-uniform strategies, save per-division overrides.
+        // When DivisionId is present, target that exact division.
+        // When absent (legacy callers), fan out to all divisions matching the name.
         if (!isUniform)
         {
             var allDivisions = FilterSchedulableDivisions(
                 await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct));
+            var divsById = allDivisions.ToDictionary(d => d.DivId);
             var divsByName = allDivisions
                 .GroupBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
@@ -2382,10 +2421,22 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 if (entryGp == gamePlacement && entryBrr == betweenRoundRows)
                     continue;
 
-                if (!divsByName.TryGetValue(entry.DivisionName, out var matchingDivs))
+                // Prefer DivisionId when available (exact targeting)
+                List<CurrentDivisionSummary> targetDivs;
+                if (entry.DivisionId.HasValue && divsById.TryGetValue(entry.DivisionId.Value, out var exactDiv))
+                {
+                    targetDivs = [exactDiv];
+                }
+                else if (divsByName.TryGetValue(entry.DivisionName, out var namedDivs))
+                {
+                    targetDivs = namedDivs;
+                }
+                else
+                {
                     continue;
+                }
 
-                foreach (var div in matchingDivs)
+                foreach (var div in targetDivs)
                 {
                     await _cascadeRepo.UpsertDivisionProfileAsync(
                         new Domain.Entities.DivisionScheduleProfile
@@ -2406,7 +2457,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             jobId, isUniform, strategies.Count);
 
         // Reload and return the updated response
-        return await LoadStrategyProfilesAsync(jobId, null, ct);
+        return await LoadStrategyProfilesAsync(jobId, null, userId, ct);
     }
 
     // Ensure Pairings (auto-generate missing round-robin)

@@ -67,7 +67,13 @@ export class AutoScheduleConfigModalComponent {
     readonly buildRequested = output<AutoScheduleBuildEvent>();
     readonly cancelled = output<void>();
 
-    readonly options = ACTION_OPTIONS;
+    /** Filter out 'rebuild-keep' at division scope — it only makes sense for multi-division scopes. */
+    readonly options = computed(() => {
+        const scope = this.scope();
+        return scope.level === 'division'
+            ? ACTION_OPTIONS.filter(o => o.value !== 'rebuild-keep')
+            : ACTION_OPTIONS;
+    });
     readonly selectedAction = signal<ScheduleAction | null>(null);
     readonly filterDate = signal<string>('');
     readonly confirmed = signal(false);

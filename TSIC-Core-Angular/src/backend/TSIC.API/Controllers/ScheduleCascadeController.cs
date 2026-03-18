@@ -56,10 +56,10 @@ public class ScheduleCascadeController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ScheduleCascadeSnapshot>> GetCascade(CancellationToken ct)
     {
-        var (jobId, _, error) = await ResolveContext();
+        var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var snapshot = await _service.ResolveAsync(jobId!.Value, ct);
+        var snapshot = await _service.ResolveAsync(jobId!.Value, userId, ct);
         return Ok(snapshot);
     }
 
@@ -173,8 +173,8 @@ public class ScheduleCascadeController : ControllerBase
             return BadRequest(new { message = "GamePlacement must be 'H' or 'V'" });
         if (ev.BetweenRoundRows > 4)
             return BadRequest(new { message = "BetweenRoundRows must be 0–4" });
-        if (ev.GameGuarantee < 1)
-            return BadRequest(new { message = "GameGuarantee must be at least 1" });
+        if (ev.GameGuarantee < 0)
+            return BadRequest(new { message = "GameGuarantee cannot be negative" });
 
         // 1. Event defaults
         await _service.SaveEventDefaultsAsync(
@@ -243,7 +243,7 @@ public class ScheduleCascadeController : ControllerBase
             jobId!.Value, divisionWaves, agegroupDates, userId!, ct);
 
         // Return updated snapshot
-        var snapshot = await _service.ResolveAsync(jobId!.Value, ct);
+        var snapshot = await _service.ResolveAsync(jobId!.Value, userId, ct);
         return Ok(snapshot);
     }
 

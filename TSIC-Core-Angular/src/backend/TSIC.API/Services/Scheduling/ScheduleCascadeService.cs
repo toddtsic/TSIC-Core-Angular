@@ -32,7 +32,7 @@ public class ScheduleCascadeService : IScheduleCascadeService
     }
 
     public async Task<ScheduleCascadeSnapshot> ResolveAsync(
-        Guid jobId, CancellationToken ct = default)
+        Guid jobId, string userId, CancellationToken ct = default)
     {
         // Load all cascade data (sequential — shared DbContext)
         var eventDefaults = await _cascadeRepo.GetEventDefaultsAsync(jobId, ct);
@@ -45,15 +45,59 @@ public class ScheduleCascadeService : IScheduleCascadeService
         // Get current agegroup/division structure
         var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
 
-        // Load pairing-derived max rounds as fallback for unconfigured guarantees
-        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
-        var maxRoundByPoolSize = await _pairingsRepo.GetMaxRoundByPoolSizeAsync(
-            leagueId, season, ct);
+        // Self-heal: if cascade has no guarantee data but pairings exist,
+        // seed agegroup profiles from pairing rounds so ALL consumers (display + build) get correct values.
+        var eventGameGuarantee = eventDefaults?.GameGuarantee ?? 0;
+        if (eventGameGuarantee == 0 && agProfiles.Count == 0 && divisions.Count > 0)
+        {
+            var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
+            var maxRoundByPoolSize = await _pairingsRepo.GetMaxRoundByPoolSizeAsync(
+                leagueId, season, ct);
+
+            if (maxRoundByPoolSize.Count > 0)
+            {
+                // Group divisions by agegroup, compute min guarantee per agegroup
+                var agGroups = divisions
+                    .GroupBy(d => d.AgegroupId)
+                    .ToList();
+
+                foreach (var ag in agGroups)
+                {
+                    var divGuarantees = ag
+                        .Where(d => d.TeamCount > 0 && maxRoundByPoolSize.ContainsKey(d.TeamCount))
+                        .Select(d =>
+                        {
+                            var mr = maxRoundByPoolSize[d.TeamCount];
+                            return d.TeamCount % 2 == 0 ? mr : mr - 1;
+                        })
+                        .ToList();
+
+                    if (divGuarantees.Count == 0) continue;
+
+                    var agGuarantee = divGuarantees.Min();
+                    var entity = new AgegroupScheduleProfile
+                    {
+                        AgegroupId = ag.Key,
+                        GameGuarantee = agGuarantee,
+                        LebUserId = userId
+                    };
+                    await _cascadeRepo.UpsertAgegroupProfileAsync(entity, ct);
+                }
+
+                await _cascadeRepo.SaveChangesAsync(ct);
+
+                _logger.LogInformation(
+                    "Seeded {Count} agegroup guarantee profiles from pairing data for JobId={JobId}",
+                    agGroups.Count, jobId);
+
+                // Reload profiles so the rest of this method uses the persisted values
+                agProfiles = await _cascadeRepo.GetAgegroupProfilesAsync(jobId, ct);
+            }
+        }
 
         // Event defaults (floor values)
         var eventGamePlacement = eventDefaults?.GamePlacement ?? "H";
         var eventBetweenRoundRows = eventDefaults?.BetweenRoundRows ?? (byte)1;
-        var eventGameGuarantee = eventDefaults?.GameGuarantee ?? 0;
 
         // Index lookup tables
         var agProfileMap = agProfiles.ToDictionary(p => p.AgegroupId);
@@ -98,16 +142,6 @@ public class ScheduleCascadeService : IScheduleCascadeService
                 var divEffectiveGameGuarantee = divProfile?.GameGuarantee
                     ?? agEffectiveGameGuarantee;
 
-                // Fallback: derive from pairing table when cascade has no guarantee
-                if (divEffectiveGameGuarantee == 0
-                    && div.TeamCount > 0
-                    && maxRoundByPoolSize.TryGetValue(div.TeamCount, out var maxRound))
-                {
-                    divEffectiveGameGuarantee = div.TeamCount % 2 == 0
-                        ? maxRound
-                        : maxRound - 1;
-                }
-
                 // Resolve per-date effective waves:
                 // Collect dates from wave tables AND TLSD (game dates with no wave = wave 1)
                 var allDates = new HashSet<DateTime>();
@@ -143,18 +177,6 @@ public class ScheduleCascadeService : IScheduleCascadeService
                     EffectiveGameGuarantee = divEffectiveGameGuarantee,
                     EffectiveWavesByDate = effectiveWaves
                 });
-            }
-
-            // If agegroup effective guarantee is still 0 (no cascade override),
-            // derive from the minimum of its divisions' effective guarantees
-            if (agEffectiveGameGuarantee == 0 && divisionDtos.Count > 0)
-            {
-                var derivedMin = divisionDtos
-                    .Where(d => d.EffectiveGameGuarantee > 0)
-                    .Select(d => d.EffectiveGameGuarantee)
-                    .DefaultIfEmpty(0)
-                    .Min();
-                agEffectiveGameGuarantee = derivedMin;
             }
 
             agegroupDtos.Add(new AgegroupCascadeDto

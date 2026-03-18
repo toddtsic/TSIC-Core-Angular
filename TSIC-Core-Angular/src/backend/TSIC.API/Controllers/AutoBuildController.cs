@@ -152,10 +152,10 @@ public class AutoBuildController : ControllerBase
     public async Task<ActionResult<DivisionStrategyProfileResponse>> GetStrategyProfiles(
         [FromQuery] Guid? sourceJobId, CancellationToken ct)
     {
-        var (jobId, _, error) = await ResolveContext();
+        var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _service.LoadStrategyProfilesAsync(jobId!.Value, sourceJobId, ct);
+        var result = await _service.LoadStrategyProfilesAsync(jobId!.Value, sourceJobId, userId!, ct);
         return Ok(result);
     }
 
@@ -166,10 +166,10 @@ public class AutoBuildController : ControllerBase
     public async Task<ActionResult<DivisionStrategyProfileResponse>> SaveStrategyProfiles(
         [FromBody] List<DivisionStrategyEntry> strategies, CancellationToken ct)
     {
-        var (jobId, _, error) = await ResolveContext();
+        var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _service.SaveStrategyProfilesAsync(jobId!.Value, strategies, ct);
+        var result = await _service.SaveStrategyProfilesAsync(jobId!.Value, strategies, userId!, ct);
         return Ok(result);
     }
 
