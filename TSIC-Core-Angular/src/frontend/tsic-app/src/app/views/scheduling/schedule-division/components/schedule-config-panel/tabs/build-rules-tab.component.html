@@ -108,7 +108,7 @@
                            (ngModelChange)="setAgField(ag.agegroupId, 'gameGuarantee', $event)"
                            min="1" max="20" step="1" />
                   } @else {
-                    <span class="inherited-value">{{ eventDefaults().gameGuarantee }}</span>
+                    <span class="inherited-value">{{ ag.effectiveGameGuarantee }}</span>
                   }
                   <button class="inline-edit-btn" (click)="toggleAgField(ag.agegroupId, 'gameGuarantee')">
                     <i class="bi" [class.bi-pencil]="getAgOverride(ag.agegroupId)?.gameGuarantee == null"
@@ -191,7 +191,7 @@
                                (ngModelChange)="setDivField(div.divisionId, 'gameGuarantee', $event)"
                                min="1" max="20" step="1" />
                       } @else {
-                        <span class="inherited-value">{{ resolvedAgValue(ag.agegroupId, 'gameGuarantee') }}</span>
+                        <span class="inherited-value">{{ div.effectiveGameGuarantee }}</span>
                       }
                       <button class="inline-edit-btn" (click)="toggleDivField(div.divisionId, ag.agegroupId, 'gameGuarantee')">
                         <i class="bi" [class.bi-pencil]="getDivOverride(div.divisionId)?.gameGuarantee == null"
