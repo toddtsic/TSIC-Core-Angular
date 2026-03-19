@@ -12,5 +12,6 @@ export type CreateNavItemRequest = {
     routerLink?: string | null;
     navigateUrl?: string | null;
     target?: string | null;
+    visibilityRules?: string | null;
 };
 

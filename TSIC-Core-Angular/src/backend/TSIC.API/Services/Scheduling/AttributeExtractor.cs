@@ -207,11 +207,6 @@ public static class AttributeExtractor
                 kv => (int)Math.Round(kv.Value.TotalMinutes / gsiMinutes));
         }
 
-        // Inter-round gap: convert Q10 to ticks
-        var interRoundGapTicks = gsiMinutes > 0
-            ? (int)Math.Round(interRoundInterval.TotalMinutes / gsiMinutes)
-            : 1;
-
         // Q12: Minimum team gap in GSI ticks
         var minTeamGapTicks = ExtractMinTeamGapTicks(games, gsiMinutes);
 
@@ -240,7 +235,6 @@ public static class AttributeExtractor
             GsiMinutes = gsiMinutes,
             RoundLayout = roundLayout,
             StartTickOffset = startTickOffset,
-            InterRoundGapTicks = interRoundGapTicks,
             MinTeamGapTicks = minTeamGapTicks,
             FieldFairness = fieldFairness
         };

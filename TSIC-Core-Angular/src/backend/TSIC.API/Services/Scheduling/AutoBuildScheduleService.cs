@@ -431,6 +431,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var unplacedGames = new List<UnplacedGameDto>();
         var totalPlaced = 0;
         var totalFailed = 0;
+        var healedAgIds = new HashSet<Guid>(); // Track agegroups where self-heal wrote back guarantee
 
         // Holds everything needed to place games for one division
         var divContexts = new List<DivisionBuildContext>();
@@ -561,6 +562,31 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var agGuarantee = divGuaranteeMap.GetValueOrDefault(div.DivId)
                 ?? agGuaranteeMap.GetValueOrDefault(div.AgegroupId)
                 ?? eventGameGuarantee;
+
+            // Self-heal: if cascade resolves to 0, derive from pairing table
+            // and write back to cascade so the UI reflects the derived value.
+            if (agGuarantee == 0 && pairings.Count > 0)
+            {
+                var derivedMaxRound = pairings
+                    .Where(p => p.T1Type == "T" && p.T2Type == "T")
+                    .Select(p => p.Rnd)
+                    .DefaultIfEmpty(0)
+                    .Max();
+                // Even teams: guarantee = maxRound; Odd teams: guarantee = maxRound - 1
+                agGuarantee = teamCount % 2 == 0 ? derivedMaxRound : Math.Max(derivedMaxRound - 1, 0);
+
+                // Write back to cascade table (once per agegroup)
+                if (agGuarantee > 0 && healedAgIds.Add(div.AgegroupId))
+                {
+                    await _cascadeRepo.UpsertAgegroupProfileAsync(new AgegroupScheduleProfile
+                    {
+                        AgegroupId = div.AgegroupId,
+                        GameGuarantee = agGuarantee,
+                        LebUserId = userId
+                    }, ct);
+                }
+            }
+
             var effectiveBrr = divBrrMap.GetValueOrDefault(div.DivId)
                 ?? agBrrMap.GetValueOrDefault(div.AgegroupId)
                 ?? eventBrr;
@@ -1948,7 +1974,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             GsiMinutes = gsi,
             RoundLayout = roundLayout,
             StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
-            InterRoundGapTicks = minTeamGapTicks,
             MinTeamGapTicks = minTeamGapTicks,
             FieldFairness = FieldFairness.Democratic
         };
@@ -2054,7 +2079,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             GsiMinutes = gsi,
             RoundLayout = roundLayout,
             StartTickOffset = playDays.ToDictionary(d => d, _ => 0),
-            InterRoundGapTicks = minTeamGapTicks,
             MinTeamGapTicks = minTeamGapTicks,
             FieldFairness = FieldFairness.Democratic
         };
@@ -2081,7 +2105,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         return source with
         {
             MinTeamGapTicks = minTeamGapTicks,
-            InterRoundGapTicks = minTeamGapTicks,
             RoundLayout = roundLayout
         };
     }

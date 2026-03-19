@@ -7,7 +7,7 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
-import type { NavEditorNavDto, NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest, ToggleHideRequest } from '@core/api';
+import type { NavEditorNavDto, NavEditorNavItemDto, NavVisibilityOptionsDto, CreateNavItemRequest, UpdateNavItemRequest, ToggleHideRequest } from '@core/api';
 
 @Component({
     selector: 'app-nav-editor',
@@ -78,6 +78,9 @@ export class NavEditorComponent implements OnInit {
 
     // "Add under default section" in This Job tab
     pendingJobAddSection = signal<NavEditorNavItemDto | null>(null);
+
+    // Visibility rules reference data
+    visibilityOptions = signal<NavVisibilityOptionsDto | undefined>(undefined);
 
     // Computed values
     navs = computed(() => this.navAdminService.navs());
@@ -150,6 +153,9 @@ export class NavEditorComponent implements OnInit {
             }
         });
         this.navAdminService.loadJobOverrides();
+        this.navAdminService.loadVisibilityOptions().subscribe({
+            next: (opts) => this.visibilityOptions.set(opts)
+        });
     }
 
     loadNavs(): void {
@@ -749,6 +755,26 @@ export class NavEditorComponent implements OnInit {
         this.confirmDialogOpen.set(false);
         this.confirmDialogAction.set(null);
         action?.();
+    }
+
+    /** Whether the edit dialog is editing a platform default item (vs job override). */
+    isEditingDefaultNav(): boolean {
+        return this.activeTab() === 'defaults';
+    }
+
+    /** Returns a short summary of visibility rules for tooltip display, or empty string if none. */
+    getVisibilityRulesSummary(item: NavEditorNavItemDto): string {
+        if (!item.visibilityRules) return '';
+        try {
+            const rules = JSON.parse(item.visibilityRules);
+            const parts: string[] = [];
+            if (rules.sports?.length) parts.push(`Sports: ${rules.sports.join(', ')}`);
+            if (rules.jobTypes?.length) parts.push(`Job Types: ${rules.jobTypes.join(', ')}`);
+            if (rules.customersDeny?.length) parts.push(`Hidden from: ${rules.customersDeny.join(', ')}`);
+            return parts.join(' | ');
+        } catch {
+            return '';
+        }
     }
 
     onConfirmDialogCancelled(): void {

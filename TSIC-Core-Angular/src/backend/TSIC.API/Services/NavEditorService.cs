@@ -115,6 +115,7 @@ public class NavEditorService : INavEditorService
                 Active = false,
                 DefaultNavItemId = hideRow.DefaultNavItemId,
                 DefaultParentNavItemId = null,
+                VisibilityRules = null,
                 Children = new List<NavEditorNavItemDto>()
             };
         }
@@ -145,6 +146,7 @@ public class NavEditorService : INavEditorService
                 RouterLink = request.RouterLink,
                 NavigateUrl = request.NavigateUrl,
                 Target = request.Target,
+                VisibilityRules = request.VisibilityRules,
                 Active = true,
                 SortOrder = siblingCount + 1,
                 Modified = now,
@@ -167,6 +169,7 @@ public class NavEditorService : INavEditorService
                 Active = child.Active,
                 DefaultNavItemId = null,
                 DefaultParentNavItemId = child.DefaultParentNavItemId,
+                VisibilityRules = child.VisibilityRules,
                 Children = new List<NavEditorNavItemDto>()
             };
         }
@@ -183,6 +186,7 @@ public class NavEditorService : INavEditorService
             RouterLink = request.RouterLink,
             NavigateUrl = request.NavigateUrl,
             Target = request.Target,
+            VisibilityRules = request.VisibilityRules,
             Active = true,
             SortOrder = siblingCount + 1,
             Modified = now,
@@ -219,6 +223,7 @@ public class NavEditorService : INavEditorService
             Active = parentItem.Active,
             DefaultNavItemId = null,
             DefaultParentNavItemId = null,
+            VisibilityRules = parentItem.VisibilityRules,
             Children = new List<NavEditorNavItemDto>
             {
                 new NavEditorNavItemDto
@@ -248,6 +253,7 @@ public class NavEditorService : INavEditorService
         item.RouterLink = request.RouterLink;
         item.NavigateUrl = request.NavigateUrl;
         item.Target = request.Target;
+        item.VisibilityRules = request.VisibilityRules;
         item.Modified = DateTime.UtcNow;
         item.ModifiedBy = userId;
 
@@ -265,6 +271,7 @@ public class NavEditorService : INavEditorService
             NavigateUrl = item.NavigateUrl,
             Target = item.Target,
             Active = item.Active,
+            VisibilityRules = item.VisibilityRules,
             Children = new List<NavEditorNavItemDto>()
         };
     }
@@ -560,6 +567,7 @@ public class NavEditorService : INavEditorService
             RouterLink = sourceItem.RouterLink,
             NavigateUrl = sourceItem.NavigateUrl,
             Target = sourceItem.Target,
+            VisibilityRules = sourceItem.VisibilityRules,
             Active = true,
             SortOrder = siblingCount + 1,
             Modified = now,
@@ -582,6 +590,7 @@ public class NavEditorService : INavEditorService
                 RouterLink = sourceChild.RouterLink,
                 NavigateUrl = sourceChild.NavigateUrl,
                 Target = sourceChild.Target,
+                VisibilityRules = sourceChild.VisibilityRules,
                 Active = true,
                 SortOrder = childSort,
                 Modified = now,
@@ -785,6 +794,7 @@ public class NavEditorService : INavEditorService
         sb.AppendLine("        [Target]                 NVARCHAR(20)        NULL,");
         sb.AppendLine("        [Modified]               DATETIME2           NOT NULL    DEFAULT GETDATE(),");
         sb.AppendLine("        [ModifiedBy]             NVARCHAR(450)       NULL,");
+        sb.AppendLine("        [VisibilityRules]        NVARCHAR(MAX)       NULL,");
         sb.AppendLine();
         sb.AppendLine("        CONSTRAINT [PK_nav_NavItem] PRIMARY KEY CLUSTERED ([NavItemId]),");
         sb.AppendLine("        CONSTRAINT [FK_nav_NavItem_NavId] FOREIGN KEY ([NavId]) REFERENCES [nav].[Nav] ([NavId]) ON DELETE CASCADE,");
@@ -859,10 +869,11 @@ public class NavEditorService : INavEditorService
                 var routerCol = item.RouterLink != null ? $"N'{SqlEscape(item.RouterLink)}'" : "NULL";
                 var urlCol = item.NavigateUrl != null ? $"N'{SqlEscape(item.NavigateUrl)}'" : "NULL";
                 var targetCol = item.Target != null ? $"N'{SqlEscape(item.Target)}'" : "NULL";
+                var rulesCol = item.VisibilityRules != null ? $"N'{SqlEscape(item.VisibilityRules)}'" : "NULL";
 
-                sb.AppendLine($"INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])");
+                sb.AppendLine($"INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [VisibilityRules], [Modified])");
                 var textCol = item.Text != null ? $"N'{SqlEscape(item.Text)}'" : "NULL";
-                sb.AppendLine($"VALUES ({item.NavItemId}, {navId}, {parentCol}, {(item.Active ? 1 : 0)}, {item.SortOrder}, {textCol}, {iconCol}, {routerCol}, {urlCol}, {targetCol}, GETDATE());");
+                sb.AppendLine($"VALUES ({item.NavItemId}, {navId}, {parentCol}, {(item.Active ? 1 : 0)}, {item.SortOrder}, {textCol}, {iconCol}, {routerCol}, {urlCol}, {targetCol}, {rulesCol}, GETDATE());");
             }
 
             sb.AppendLine();
@@ -926,6 +937,11 @@ public class NavEditorService : INavEditorService
         }
 
         return null;
+    }
+
+    public async Task<NavVisibilityOptionsDto> GetVisibilityOptionsAsync(CancellationToken ct = default)
+    {
+        return await _navEditorRepo.GetVisibilityOptionsAsync(ct);
     }
 
     /// <summary>Escape single quotes for SQL string literals.</summary>

@@ -103,9 +103,6 @@ public record DivisionSizeProfile
     /// Portable across different window starts and GSI values.</summary>
     public Dictionary<DayOfWeek, int>? StartTickOffset { get; init; }
 
-    /// <summary>Q10 expressed as GSI ticks between consecutive round start times.</summary>
-    public int InterRoundGapTicks { get; init; }
-
     /// <summary>Q12: Smallest observed gap in GSI ticks between any team's consecutive games on a day.
     /// 1 = BTBs existed, 2 = no BTBs (most common), 3+ = intentional wider spacing.</summary>
     public int MinTeamGapTicks { get; init; }

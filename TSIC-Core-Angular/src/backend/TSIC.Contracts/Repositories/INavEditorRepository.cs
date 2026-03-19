@@ -97,6 +97,15 @@ public interface INavEditorRepository
         int navItemId,
         CancellationToken cancellationToken = default);
 
+    // ─── Reference data ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Get distinct sport names, job type names, and customer names
+    /// for the visibility rules editor.
+    /// </summary>
+    Task<NavVisibilityOptionsDto> GetVisibilityOptionsAsync(
+        CancellationToken cancellationToken = default);
+
     // ─── Mutations ──────────────────────────────────────────────────
 
     /// <summary>Add a new nav to the context.</summary>

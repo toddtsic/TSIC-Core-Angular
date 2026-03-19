@@ -1,5 +1,30 @@
 namespace TSIC.Contracts.Dtos;
 
+// ── Visibility Rules ────────────────────────────────────────
+
+/// <summary>
+/// Deserialization model for the VisibilityRules JSON column on NavItem.
+/// Sports/JobTypes are allowlists (show only if match); CustomersDeny is a denylist (hide if match).
+/// Empty/null arrays = no filter on that dimension. All three AND-gated.
+/// </summary>
+public record NavItemVisibilityRules
+{
+    public List<string>? Sports { get; init; }
+    public List<string>? JobTypes { get; init; }
+    public List<string>? CustomersDeny { get; init; }
+}
+
+/// <summary>
+/// Reference data for the visibility rules editor — distinct sport names,
+/// job type names, and customer names from the database.
+/// </summary>
+public record NavVisibilityOptionsDto
+{
+    public required List<string> Sports { get; init; }
+    public required List<string> JobTypes { get; init; }
+    public required List<string> Customers { get; init; }
+}
+
 // ── Read DTOs ────────────────────────────────────────────────
 
 /// <summary>
@@ -73,6 +98,11 @@ public record NavEditorNavItemDto
     /// Set on job override items that should be slotted under an existing default section.
     /// </summary>
     public int? DefaultParentNavItemId { get; init; }
+    /// <summary>
+    /// JSON string containing visibility rules (sports allowlist, jobTypes allowlist, customersDeny denylist).
+    /// NULL = universal (no restrictions).
+    /// </summary>
+    public string? VisibilityRules { get; init; }
     public required List<NavEditorNavItemDto> Children { get; init; } = new();
 }
 
@@ -138,6 +168,8 @@ public record CreateNavItemRequest
     public string? RouterLink { get; init; }
     public string? NavigateUrl { get; init; }
     public string? Target { get; init; }
+    /// <summary>JSON visibility rules. NULL = universal.</summary>
+    public string? VisibilityRules { get; init; }
 }
 
 /// <summary>
@@ -151,6 +183,8 @@ public record UpdateNavItemRequest
     public string? RouterLink { get; init; }
     public string? NavigateUrl { get; init; }
     public string? Target { get; init; }
+    /// <summary>JSON visibility rules. NULL = universal. Only meaningful on platform default items.</summary>
+    public string? VisibilityRules { get; init; }
 }
 
 /// <summary>

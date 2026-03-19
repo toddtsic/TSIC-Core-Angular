@@ -315,6 +315,7 @@ export type { NavEditorLegacyMenuDto } from './models/NavEditorLegacyMenuDto';
 export type { NavEditorNavDto } from './models/NavEditorNavDto';
 export type { NavEditorNavItemDto } from './models/NavEditorNavItemDto';
 export type { NavItemDto } from './models/NavItemDto';
+export type { NavVisibilityOptionsDto } from './models/NavVisibilityOptionsDto';
 export type { NextProfileTypeResult } from './models/NextProfileTypeResult';
 export type { OptionSet } from './models/OptionSet';
 export type { OptionSetUpdateRequest } from './models/OptionSetUpdateRequest';

@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -12,6 +14,11 @@ namespace TSIC.Infrastructure.Repositories;
 public class NavRepository : INavRepository
 {
     private readonly SqlDbContext _context;
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public NavRepository(SqlDbContext context)
     {
@@ -29,7 +36,7 @@ public class NavRepository : INavRepository
 
         if (nav == null) return null;
 
-        var items = await LoadNavItemTreeAsync(nav.NavId, activeOnly: true, cancellationToken);
+        var items = await LoadNavItemTreeAsync(nav.NavId, activeOnly: true, jobNavCtx: null, cancellationToken);
 
         return new NavDto
         {
@@ -53,7 +60,7 @@ public class NavRepository : INavRepository
 
         if (nav == null) return null;
 
-        var items = await LoadNavItemTreeAsync(nav.NavId, activeOnly: true, cancellationToken);
+        var items = await LoadNavItemTreeAsync(nav.NavId, activeOnly: true, jobNavCtx: null, cancellationToken);
 
         return new NavDto
         {
@@ -70,6 +77,9 @@ public class NavRepository : INavRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
+        // 0. Fetch job metadata for visibility rule evaluation
+        var jobCtx = await GetJobNavContextAsync(jobId, cancellationToken);
+
         // 1. Get platform default nav record
         var defaultNav = await _context.Nav
             .AsNoTracking()
@@ -78,8 +88,8 @@ public class NavRepository : INavRepository
 
         if (defaultNav == null) return null;
 
-        // 2. Load platform default items as a mutable tree
-        var defaultItems = await LoadNavItemTreeAsync(defaultNav.NavId, activeOnly: true, cancellationToken);
+        // 2. Load platform default items as a mutable tree (filtered by visibility rules)
+        var defaultItems = await LoadNavItemTreeAsync(defaultNav.NavId, activeOnly: true, jobCtx, cancellationToken);
 
         // 3. Check for job override nav
         var overrideNav = await _context.Nav
@@ -209,77 +219,136 @@ public class NavRepository : INavRepository
 
     // ─── Private helpers ────────────────────────────────────────────
 
+    private sealed record JobNavContext(string? SportName, string? JobTypeName, string? CustomerName);
+
+    private async Task<JobNavContext?> GetJobNavContextAsync(Guid jobId, CancellationToken ct)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobNavContext(
+                j.Sport.SportName,
+                j.JobType.JobTypeName,
+                j.Customer.CustomerName))
+            .FirstOrDefaultAsync(ct);
+    }
+
+    /// <summary>
+    /// Evaluates visibility rules against job metadata.
+    /// Returns true if the item should be visible for this job.
+    /// </summary>
+    private static bool PassesVisibilityRules(string? rulesJson, JobNavContext ctx)
+    {
+        if (string.IsNullOrEmpty(rulesJson)) return true;
+
+        NavItemVisibilityRules? rules;
+        try
+        {
+            rules = JsonSerializer.Deserialize<NavItemVisibilityRules>(rulesJson, JsonOpts);
+        }
+        catch
+        {
+            return true; // Malformed JSON = fail-open
+        }
+
+        if (rules == null) return true;
+
+        // Sports allowlist
+        if (rules.Sports is { Count: > 0 } && ctx.SportName != null
+            && !rules.Sports.Contains(ctx.SportName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        // JobTypes allowlist
+        if (rules.JobTypes is { Count: > 0 } && ctx.JobTypeName != null
+            && !rules.JobTypes.Contains(ctx.JobTypeName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        // CustomersDeny denylist
+        if (rules.CustomersDeny is { Count: > 0 } && ctx.CustomerName != null
+            && rules.CustomersDeny.Contains(ctx.CustomerName, StringComparer.OrdinalIgnoreCase))
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Loads nav items as a 2-level tree. When jobNavCtx is provided,
+    /// filters items by visibility rules before building the tree.
+    /// </summary>
     private async Task<List<NavItemDto>> LoadNavItemTreeAsync(
         int navId,
         bool activeOnly,
+        JobNavContext? jobNavCtx,
         CancellationToken cancellationToken)
     {
+        // Load raw entities so we have access to VisibilityRules
         var query = _context.NavItem
             .AsNoTracking()
             .Where(ni => ni.NavId == navId);
 
         if (activeOnly)
-        {
             query = query.Where(ni => ni.Active);
-        }
 
-        // Load root items
-        var rootItems = await query
+        var allItems = await query.ToListAsync(cancellationToken);
+
+        // Separate roots and children
+        var roots = allItems
             .Where(ni => ni.ParentNavItemId == null)
             .OrderBy(ni => ni.SortOrder)
-            .Select(ni => new NavItemDto
-            {
-                NavItemId = ni.NavItemId,
-                ParentNavItemId = null,
-                SortOrder = ni.SortOrder,
-                Text = ni.Text ?? string.Empty,
-                IconName = ni.IconName,
-                RouterLink = ni.RouterLink,
-                NavigateUrl = ni.NavigateUrl,
-                Target = ni.Target,
-                Active = ni.Active,
-                Children = new List<NavItemDto>()
-            })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
-        if (rootItems.Count == 0) return rootItems;
-
-        // Load all children in one query
-        var rootIds = rootItems.Select(r => r.NavItemId).ToList();
-
-        var childQuery = _context.NavItem
-            .AsNoTracking()
-            .Where(ni => ni.NavId == navId && ni.ParentNavItemId != null && rootIds.Contains(ni.ParentNavItemId.Value));
-
-        if (activeOnly)
-        {
-            childQuery = childQuery.Where(ni => ni.Active);
-        }
-
-        var childItems = await childQuery
+        var children = allItems
+            .Where(ni => ni.ParentNavItemId != null)
             .OrderBy(ni => ni.SortOrder)
-            .Select(ni => new NavItemDto
-            {
-                NavItemId = ni.NavItemId,
-                ParentNavItemId = ni.ParentNavItemId,
-                SortOrder = ni.SortOrder,
-                Text = ni.Text ?? string.Empty,
-                IconName = ni.IconName,
-                RouterLink = ni.RouterLink,
-                NavigateUrl = ni.NavigateUrl,
-                Target = ni.Target,
-                Active = ni.Active,
-                Children = new List<NavItemDto>()
-            })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
-        // Populate children into parents
-        foreach (var child in childItems)
+        // Build tree with optional visibility filtering
+        var result = new List<NavItemDto>();
+
+        foreach (var root in roots)
         {
-            var parent = rootItems.FirstOrDefault(r => r.NavItemId == child.ParentNavItemId);
-            parent?.Children.Add(child);
+            // Apply visibility rules to L1 items — failure removes entire section
+            if (jobNavCtx != null && !PassesVisibilityRules(root.VisibilityRules, jobNavCtx))
+                continue;
+
+            var rootDto = new NavItemDto
+            {
+                NavItemId = root.NavItemId,
+                ParentNavItemId = null,
+                SortOrder = root.SortOrder,
+                Text = root.Text ?? string.Empty,
+                IconName = root.IconName,
+                RouterLink = root.RouterLink,
+                NavigateUrl = root.NavigateUrl,
+                Target = root.Target,
+                Active = root.Active,
+                Children = new List<NavItemDto>()
+            };
+
+            // Add children, filtering by visibility rules
+            foreach (var child in children.Where(c => c.ParentNavItemId == root.NavItemId))
+            {
+                if (jobNavCtx != null && !PassesVisibilityRules(child.VisibilityRules, jobNavCtx))
+                    continue;
+
+                rootDto.Children.Add(new NavItemDto
+                {
+                    NavItemId = child.NavItemId,
+                    ParentNavItemId = child.ParentNavItemId,
+                    SortOrder = child.SortOrder,
+                    Text = child.Text ?? string.Empty,
+                    IconName = child.IconName,
+                    RouterLink = child.RouterLink,
+                    NavigateUrl = child.NavigateUrl,
+                    Target = child.Target,
+                    Active = child.Active,
+                    Children = new List<NavItemDto>()
+                });
+            }
+
+            result.Add(rootDto);
         }
 
-        return rootItems;
+        return result;
     }
 }

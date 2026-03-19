@@ -15,10 +15,15 @@ namespace TSIC.API.Services.Scheduling;
 ///   3. Team rest gap (teams need MinTeamGapTicks between games)
 ///
 /// Four-pass cascade (progressively relaxed):
-///   Pass 1: time floor ✓ + skip Avoid fields ✓ + full team gap ✓   (ideal)
-///   Pass 2: time floor ✓ + any fields          + full team gap ✓   (relax field preference)
-///   Pass 3: any time     + skip Avoid fields    + overlap-only gap  (relax time floor + gap)
-///   Pass 4: any time     + any fields           + overlap-only gap  (last resort)
+///   Pass 1: time floor ✓ + skip Avoid fields ✓ + full team gap ✓ + sequential ✓  (ideal)
+///   Pass 2: time floor ✓ + any fields          + full team gap ✓ + sequential ✓  (relax field preference)
+///   Pass 3: any time     + skip Avoid fields    + overlap-only gap               (relax time floor + gap + sequential)
+///   Pass 4: any time     + any fields           + overlap-only gap               (last resort)
+///
+/// Sequential (vertical) placement:
+///   When RoundLayout == Sequential, passes 1-2 avoid placing multiple games
+///   from the same round at the same time slot. This stacks games in time so
+///   spectators/recruiters can watch every team. Relaxed in passes 3-4.
 /// </summary>
 public static class PlacementScorer
 {
@@ -40,33 +45,34 @@ public static class PlacementScorer
         var hasTimeFloor = game.TargetTime.HasValue;
         var hasAvoidFields = state.FieldPreferences.Count > 0;
         var fullGap = profile.MinTeamGapTicks;
+        var isSequential = profile.RoundLayout == RoundLayout.Sequential;
 
-        // Pass 1: target time floor + skip Avoid fields + full team gap
-        if (hasTimeFloor || hasAvoidFields)
+        // Pass 1: time floor + skip Avoid fields + full team gap + sequential
+        if (hasTimeFloor || hasAvoidFields || isSequential)
         {
             var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
                 useTimeFloor: hasTimeFloor, skipAvoidFields: hasAvoidFields,
-                minGapTicks: fullGap);
+                minGapTicks: fullGap, enforceSequential: isSequential);
             if (slot != null)
                 return new PlacementResult { Slot = slot };
         }
 
-        // Pass 2: target time floor + any fields + full team gap
+        // Pass 2: time floor + any fields + full team gap + sequential
         if (hasTimeFloor && hasAvoidFields)
         {
             var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
                 useTimeFloor: true, skipAvoidFields: false,
-                minGapTicks: fullGap);
+                minGapTicks: fullGap, enforceSequential: isSequential);
             if (slot != null)
                 return new PlacementResult { Slot = slot, AvoidField = true };
         }
 
-        // Pass 3: any time + skip Avoid fields + overlap-only gap
-        if (hasAvoidFields)
+        // Pass 3: any time + skip Avoid fields + overlap-only gap (sequential relaxed)
+        if (hasAvoidFields || isSequential)
         {
             var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
-                useTimeFloor: false, skipAvoidFields: true,
-                minGapTicks: 1);
+                useTimeFloor: false, skipAvoidFields: hasAvoidFields,
+                minGapTicks: 1, enforceSequential: false);
             if (slot != null)
                 return new PlacementResult { Slot = slot, TimeFallback = hasTimeFloor };
         }
@@ -75,7 +81,7 @@ public static class PlacementScorer
         {
             var slot = TryScan(candidates, game, profile, state, waveFloorByFieldDay,
                 useTimeFloor: false, skipAvoidFields: false,
-                minGapTicks: 1);
+                minGapTicks: 1, enforceSequential: false);
             if (slot != null)
                 return new PlacementResult
                 {
@@ -95,7 +101,8 @@ public static class PlacementScorer
 
     /// <summary>
     /// Iterate candidates in order. Return the first one that passes
-    /// all hard filters plus the optional time floor and avoid-field skip.
+    /// all hard filters plus the optional time floor, avoid-field skip,
+    /// and sequential time-stacking constraint.
     /// </summary>
     private static CandidateSlot? TryScan(
         List<CandidateSlot> candidates,
@@ -105,7 +112,8 @@ public static class PlacementScorer
         Dictionary<(Guid FieldId, DateTime Day), DateTime>? waveFloorByFieldDay,
         bool useTimeFloor,
         bool skipAvoidFields,
-        int minGapTicks)
+        int minGapTicks,
+        bool enforceSequential)
     {
         foreach (var c in candidates)
         {
@@ -134,6 +142,17 @@ public static class PlacementScorer
                 && state.FieldPreferences.TryGetValue(c.FieldId, out var pref)
                 && pref == 2)
                 continue;
+
+            // ═══ Optional: sequential (vertical) — skip time slots already
+            //     used by another game in the same (division, round, day).
+            //     Stacks games at different times so a recruiter can watch all teams. ═══
+            if (enforceSequential)
+            {
+                var roundKey = (game.DivId, game.Round, c.GDate.Date);
+                if (state.RoundTimeSlots.TryGetValue(roundKey, out var usedTimes)
+                    && usedTimes.Contains(c.GDate.TimeOfDay))
+                    continue;
+            }
 
             return c;
         }

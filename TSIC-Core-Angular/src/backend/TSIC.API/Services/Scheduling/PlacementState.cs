@@ -37,6 +37,14 @@ public sealed class PlacementState
     /// </summary>
     public Dictionary<Guid, int> FieldPreferences { get; }
 
+    /// <summary>
+    /// Tracks which time-of-day slots have been used per (DivId, Round, GameDay).
+    /// Used by PlacementScorer for Sequential (vertical) placement: avoids placing
+    /// multiple games from the same round at the same time slot, stacking them
+    /// in time instead so spectators/recruiters can watch every team.
+    /// </summary>
+    public Dictionary<(Guid DivId, int Round, DateTime GameDay), HashSet<TimeSpan>> RoundTimeSlots { get; } = new();
+
     public PlacementState(
         HashSet<(Guid FieldId, DateTime GDate)> occupiedSlots,
         Dictionary<DayOfWeek, TimeSpan>? currentWindowStart = null,
@@ -71,5 +79,11 @@ public sealed class PlacementState
         if (!TeamDayGameTimes.TryGetValue(tdKey2, out var times2))
             TeamDayGameTimes[tdKey2] = times2 = [];
         times2.Add(gameTime);
+
+        // Track round time slots for sequential (vertical) placement
+        var roundDayKey = (game.DivId, game.Round, gameDay);
+        if (!RoundTimeSlots.TryGetValue(roundDayKey, out var roundTimes))
+            RoundTimeSlots[roundDayKey] = roundTimes = [];
+        roundTimes.Add(gameTime);
     }
 }

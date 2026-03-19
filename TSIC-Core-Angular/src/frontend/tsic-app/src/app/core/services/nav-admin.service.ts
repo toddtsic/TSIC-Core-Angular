@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import type {
     NavEditorNavDto,
     NavEditorNavItemDto,
+    NavVisibilityOptionsDto,
     CreateNavItemRequest,
     UpdateNavItemRequest,
     ReorderNavItemsRequest,
@@ -181,5 +182,12 @@ export class NavAdminService {
         return this.http.get<{ sql: string }>(`${this.apiUrl}/export-sql`).pipe(
             map(res => res.sql)
         );
+    }
+
+    /**
+     * Load distinct sports, job types, and customers for visibility rules editor.
+     */
+    loadVisibilityOptions(): Observable<NavVisibilityOptionsDto> {
+        return this.http.get<NavVisibilityOptionsDto>(`${this.apiUrl}/visibility-options`);
     }
 }

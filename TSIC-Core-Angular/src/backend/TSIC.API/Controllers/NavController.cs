@@ -300,4 +300,13 @@ public class NavController : ControllerBase
         var sql = await _navEditorService.ExportNavSqlAsync();
         return Ok(new { sql });
     }
+
+    /// <summary>Get distinct sports, job types, and customers for visibility rules editor.</summary>
+    [HttpGet("editor/visibility-options")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<NavVisibilityOptionsDto>> GetVisibilityOptions(CancellationToken ct)
+    {
+        var options = await _navEditorService.GetVisibilityOptionsAsync(ct);
+        return Ok(options);
+    }
 }

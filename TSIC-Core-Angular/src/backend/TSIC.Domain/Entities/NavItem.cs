@@ -11,6 +11,10 @@ public partial class NavItem
 
     public int? ParentNavItemId { get; set; }
 
+    public int? DefaultNavItemId { get; set; }
+
+    public int? DefaultParentNavItemId { get; set; }
+
     public bool Active { get; set; }
 
     public int SortOrder { get; set; }
@@ -29,9 +33,7 @@ public partial class NavItem
 
     public string? ModifiedBy { get; set; }
 
-    public int? DefaultNavItemId { get; set; }
-
-    public int? DefaultParentNavItemId { get; set; }
+    public string? VisibilityRules { get; set; }
 
     public virtual NavItem? DefaultNavItem { get; set; }
 

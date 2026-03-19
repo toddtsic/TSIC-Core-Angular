@@ -2,7 +2,14 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { Route, Router } from '@angular/router';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
-import type { NavEditorNavItemDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
+import type { NavEditorNavItemDto, NavVisibilityOptionsDto, CreateNavItemRequest, UpdateNavItemRequest } from '@core/api';
+
+/** Deserialized shape of the VisibilityRules JSON. */
+interface VisibilityRules {
+    sports?: string[];
+    jobTypes?: string[];
+    customersDeny?: string[];
+}
 
 export interface NavItemFormResult {
     type: 'create' | 'update';
@@ -187,6 +194,94 @@ export interface NavItemFormResult {
               </div>
             }
             }
+
+            <!-- ── Visibility Rules (platform defaults only) ── -->
+            @if (isDefaultNav && visibilityOptions) {
+              <hr class="my-3">
+              <div class="visibility-rules">
+                <div class="d-flex align-items-center mb-2 cursor-pointer" (click)="rulesExpanded.set(!rulesExpanded())">
+                  <i class="bi me-2" [class.bi-chevron-right]="!rulesExpanded()" [class.bi-chevron-down]="rulesExpanded()"></i>
+                  <strong class="small text-uppercase">Visibility Rules</strong>
+                  @if (hasAnyRules()) {
+                    <span class="badge bg-primary ms-2">{{ activeRuleCount() }}</span>
+                  }
+                </div>
+
+                @if (rulesExpanded()) {
+                  <!-- Sports (allowlist) -->
+                  @if (visibilityOptions.sports.length > 0) {
+                    <div class="rule-section mb-3">
+                      <label class="form-label small fw-medium">
+                        Sports
+                        <span class="text-muted fw-normal">(show only for selected; empty = all)</span>
+                      </label>
+                      <div class="checkbox-grid">
+                        @for (sport of visibilityOptions.sports; track sport) {
+                          <div class="form-check form-check-inline">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              [id]="'sport-' + sport"
+                              [checked]="selectedSports().includes(sport)"
+                              (change)="toggleSelection('sports', sport)"
+                            >
+                            <label class="form-check-label small" [for]="'sport-' + sport">{{ sport }}</label>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Job Types (allowlist) -->
+                  @if (visibilityOptions.jobTypes.length > 0) {
+                    <div class="rule-section mb-3">
+                      <label class="form-label small fw-medium">
+                        Job Types
+                        <span class="text-muted fw-normal">(show only for selected; empty = all)</span>
+                      </label>
+                      <div class="checkbox-grid">
+                        @for (jt of visibilityOptions.jobTypes; track jt) {
+                          <div class="form-check form-check-inline">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              [id]="'jt-' + jt"
+                              [checked]="selectedJobTypes().includes(jt)"
+                              (change)="toggleSelection('jobTypes', jt)"
+                            >
+                            <label class="form-check-label small" [for]="'jt-' + jt">{{ jt }}</label>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Customers Deny (denylist) -->
+                  @if (visibilityOptions.customers.length > 0) {
+                    <div class="rule-section mb-3">
+                      <label class="form-label small fw-medium">
+                        Customers
+                        <span class="text-muted fw-normal">(hide from selected; empty = none hidden)</span>
+                      </label>
+                      <div class="checkbox-grid">
+                        @for (cust of visibilityOptions.customers; track cust) {
+                          <div class="form-check form-check-inline">
+                            <input
+                              type="checkbox"
+                              class="form-check-input"
+                              [id]="'cust-' + cust"
+                              [checked]="selectedCustomersDeny().includes(cust)"
+                              (change)="toggleSelection('customersDeny', cust)"
+                            >
+                            <label class="form-check-label small" [for]="'cust-' + cust">{{ cust }}</label>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                }
+              </div>
+            }
           </form>
         </div>
 
@@ -234,6 +329,15 @@ export interface NavItemFormResult {
             background: rgba(var(--bs-primary-rgb), 0.1);
             color: var(--bs-primary);
         }
+        .cursor-pointer { cursor: pointer; }
+        .checkbox-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2) var(--space-4);
+        }
+        .rule-section {
+            padding-left: var(--space-3);
+        }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -244,6 +348,8 @@ export class NavItemFormDialogComponent implements OnInit {
     @Input() navId!: number;
     @Input() parentNavItemId?: number;
     @Input() existingItem?: NavEditorNavItemDto;
+    @Input() isDefaultNav = false;
+    @Input() visibilityOptions?: NavVisibilityOptionsDto;
 
     @Output() saved = new EventEmitter<NavItemFormResult>();
     @Output() cancelled = new EventEmitter<void>();
@@ -253,6 +359,12 @@ export class NavItemFormDialogComponent implements OnInit {
     useCustomRoute = false;
     isEditMode = signal(false);
     isParentItem = false;
+
+    // Visibility rules state
+    rulesExpanded = signal(false);
+    selectedSports = signal<string[]>([]);
+    selectedJobTypes = signal<string[]>([]);
+    selectedCustomersDeny = signal<string[]>([]);
 
     readonly commonIcons = [
         'search', 'gear', 'house', 'person', 'people', 'clipboard', 'calendar',
@@ -271,6 +383,7 @@ export class NavItemFormDialogComponent implements OnInit {
         if (this.isParentItem) {
             this.navType = 'none';
         }
+        this.initializeVisibilityRules();
     }
 
     private initializeForm(): void {
@@ -297,10 +410,68 @@ export class NavItemFormDialogComponent implements OnInit {
         }
     }
 
+    private initializeVisibilityRules(): void {
+        if (!this.existingItem?.visibilityRules) return;
+
+        try {
+            const rules: VisibilityRules = JSON.parse(this.existingItem.visibilityRules);
+            this.selectedSports.set(rules.sports ?? []);
+            this.selectedJobTypes.set(rules.jobTypes ?? []);
+            this.selectedCustomersDeny.set(rules.customersDeny ?? []);
+            // Auto-expand if rules exist
+            if ((rules.sports?.length ?? 0) > 0 || (rules.jobTypes?.length ?? 0) > 0 || (rules.customersDeny?.length ?? 0) > 0) {
+                this.rulesExpanded.set(true);
+            }
+        } catch {
+            // Malformed JSON — ignore
+        }
+    }
+
+    toggleSelection(dimension: 'sports' | 'jobTypes' | 'customersDeny', value: string): void {
+        const signalMap = {
+            sports: this.selectedSports,
+            jobTypes: this.selectedJobTypes,
+            customersDeny: this.selectedCustomersDeny
+        };
+        const sig = signalMap[dimension];
+        const current = sig();
+        if (current.includes(value)) {
+            sig.set(current.filter(v => v !== value));
+        } else {
+            sig.set([...current, value]);
+        }
+    }
+
+    hasAnyRules(): boolean {
+        return this.selectedSports().length > 0
+            || this.selectedJobTypes().length > 0
+            || this.selectedCustomersDeny().length > 0;
+    }
+
+    activeRuleCount(): number {
+        let count = 0;
+        if (this.selectedSports().length > 0) count++;
+        if (this.selectedJobTypes().length > 0) count++;
+        if (this.selectedCustomersDeny().length > 0) count++;
+        return count;
+    }
+
+    private serializeVisibilityRules(): string | null {
+        if (!this.hasAnyRules()) return null;
+
+        const rules: VisibilityRules = {};
+        if (this.selectedSports().length > 0) rules.sports = this.selectedSports();
+        if (this.selectedJobTypes().length > 0) rules.jobTypes = this.selectedJobTypes();
+        if (this.selectedCustomersDeny().length > 0) rules.customersDeny = this.selectedCustomersDeny();
+
+        return JSON.stringify(rules);
+    }
+
     save(): void {
         if (this.form.invalid) return;
 
         const v = this.form.value;
+        const visibilityRules = this.isDefaultNav ? this.serializeVisibilityRules() : (this.existingItem?.visibilityRules ?? null);
 
         const cleanedData = {
             text: v.text,
@@ -308,7 +479,8 @@ export class NavItemFormDialogComponent implements OnInit {
             iconName: v.iconName || null,
             routerLink: this.navType === 'router' ? (v.routerLink || null) : null,
             navigateUrl: this.navType === 'external' ? (v.navigateUrl || null) : null,
-            target: this.navType === 'external' ? (v.target || null) : null
+            target: this.navType === 'external' ? (v.target || null) : null,
+            visibilityRules
         };
 
         if (this.isEditMode()) {

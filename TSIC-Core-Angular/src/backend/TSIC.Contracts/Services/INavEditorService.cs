@@ -90,4 +90,10 @@ public interface INavEditorService
     /// that creates schema/tables, clears data, and reseeds from current state.
     /// </summary>
     Task<string> ExportNavSqlAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Get distinct sport names, job type names, and customer names
+    /// for the visibility rules editor multi-select UI.
+    /// </summary>
+    Task<NavVisibilityOptionsDto> GetVisibilityOptionsAsync(CancellationToken ct = default);
 }

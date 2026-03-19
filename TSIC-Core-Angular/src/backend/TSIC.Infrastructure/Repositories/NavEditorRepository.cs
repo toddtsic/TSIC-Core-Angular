@@ -245,6 +245,43 @@ public class NavEditorRepository : INavEditorRepository
         }
     }
 
+    // ─── Reference data ─────────────────────────────────────────────
+
+    public async Task<NavVisibilityOptionsDto> GetVisibilityOptionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var sports = await _context.Sports
+            .AsNoTracking()
+            .Where(s => s.SportName != null)
+            .Select(s => s.SportName!)
+            .Distinct()
+            .OrderBy(s => s)
+            .ToListAsync(cancellationToken);
+
+        var jobTypes = await _context.JobTypes
+            .AsNoTracking()
+            .Where(jt => jt.JobTypeName != null)
+            .Select(jt => jt.JobTypeName!)
+            .Distinct()
+            .OrderBy(jt => jt)
+            .ToListAsync(cancellationToken);
+
+        var customers = await _context.Customers
+            .AsNoTracking()
+            .Where(c => c.CustomerName != null)
+            .Select(c => c.CustomerName!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(cancellationToken);
+
+        return new NavVisibilityOptionsDto
+        {
+            Sports = sports,
+            JobTypes = jobTypes,
+            Customers = customers
+        };
+    }
+
     // ─── Mutations ──────────────────────────────────────────────────
 
     public void AddNav(Nav nav) => _context.Nav.Add(nav);
@@ -284,6 +321,7 @@ public class NavEditorRepository : INavEditorRepository
                 Active = ni.Active,
                 DefaultNavItemId = ni.DefaultNavItemId,
                 DefaultParentNavItemId = ni.DefaultParentNavItemId,
+                VisibilityRules = ni.VisibilityRules,
                 Children = new List<NavEditorNavItemDto>()
             })
             .ToListAsync(cancellationToken);
@@ -309,6 +347,7 @@ public class NavEditorRepository : INavEditorRepository
                 Active = ni.Active,
                 DefaultNavItemId = ni.DefaultNavItemId,
                 DefaultParentNavItemId = ni.DefaultParentNavItemId,
+                VisibilityRules = ni.VisibilityRules,
                 Children = new List<NavEditorNavItemDto>()
             })
             .ToListAsync(cancellationToken);

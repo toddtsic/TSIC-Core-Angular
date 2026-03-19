@@ -15,6 +15,7 @@ export type NavEditorNavItemDto = {
     active: boolean;
     defaultNavItemId?: number;
     defaultParentNavItemId?: number;
+    visibilityRules?: string | null;
     children: Array<NavEditorNavItemDto>;
 };
 
