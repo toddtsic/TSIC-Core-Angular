@@ -3,7 +3,6 @@ using System.Text.Json;
 using TSIC.Domain.Constants;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
-using TSIC.Application.Services.Players;
 using TSIC.Domain.Entities;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.VerticalInsure;
@@ -15,8 +14,7 @@ namespace TSIC.API.Services.Players;
 public class PlayerRegistrationService : IPlayerRegistrationService
 {
     private readonly ILogger<PlayerRegistrationService> _logger;
-    private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
-    private readonly IPlayerFeeCalculator _feeCalculator;
+    private readonly IPlayerRegistrationFeeService _feeService;
     private readonly IVerticalInsureService _verticalInsure;
     private readonly ITeamLookupService _teamLookupService;
     private readonly IPlayerFormValidationService _validationService;
@@ -40,8 +38,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
     public PlayerRegistrationService(
         ILogger<PlayerRegistrationService> logger,
-        IPlayerBaseTeamFeeResolverService feeResolver,
-        IPlayerFeeCalculator feeCalculator,
+        IPlayerRegistrationFeeService feeService,
         IVerticalInsureService verticalInsure,
         ITeamLookupService teamLookupService,
         IPlayerFormValidationService validationService,
@@ -50,8 +47,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         IJobRepository jobs)
     {
         _logger = logger;
-        _feeResolver = feeResolver;
-        _feeCalculator = feeCalculator;
+        _feeService = feeService;
         _verticalInsure = verticalInsure;
         _teamLookupService = teamLookupService;
         _validationService = validationService;
@@ -288,9 +284,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var existingBase = regToUpdate.FeeBase;
         if (existingBase <= 0 && regToUpdate.AssignedTeamId.HasValue)
         {
-            existingBase = await ResolveTeamBaseFeeAsync(team.TeamId);
+            existingBase = await _feeService.ResolveBaseFeeAsync(team.TeamId);
         }
-        var newTeamBase = team.FeeBase ?? team.PerRegistrantFee ?? await ResolveTeamBaseFeeAsync(team.TeamId);
+        var newTeamBase = team.FeeBase ?? team.PerRegistrantFee ?? await _feeService.ResolveBaseFeeAsync(team.TeamId);
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
         FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         if (sameBase)
@@ -374,39 +370,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
     }
 
-    private async Task<decimal> ResolveTeamBaseFeeAsync(Guid teamId)
-    {
-        // Prefer centralized TeamLookupService resolver for consistency with team listings.
-        var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(teamId);
-        if (fee > 0m) return fee;
-
-        // Fallback to repository if centralized logic yields zero, for backward compatibility.
-        var feeInfo = await _teams.GetTeamFeeInfoAsync(teamId);
-        var v = feeInfo.FeeBase ?? feeInfo.PerRegistrantFee ?? 0m;
-        if (v > 0m) return v;
-        return await _feeResolver.ResolveBaseFeeForTeamAsync(teamId);
-    }
-
     private async Task ApplyInitialFeesAsync(Registrations reg, Guid teamId, decimal? teamFeeBase, decimal? teamPerRegistrantFee)
     {
-        var paid = reg.PaidTotal;
-        if (paid > 0m) return;
+        if (reg.PaidTotal > 0m) return;
 
-        // Centralized fee resolution: prefer provided team values, else resolve via TeamLookupService
         var baseFee = teamFeeBase ?? teamPerRegistrantFee ?? 0m;
         if (baseFee <= 0m)
-        {
-            baseFee = await ResolveTeamBaseFeeAsync(teamId);
-        }
-        if (baseFee > 0m)
-        {
-            if (reg.FeeBase <= 0m) reg.FeeBase = baseFee;
-            var (processing, total) = _feeCalculator.ComputeTotals(reg.FeeBase, reg.FeeDiscount, reg.FeeDonation,
-                (reg.FeeProcessing > 0m) ? reg.FeeProcessing : null);
-            if (reg.FeeProcessing <= 0m) reg.FeeProcessing = processing;
-            reg.FeeTotal = total;
-            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-        }
+            baseFee = await _feeService.ResolveBaseFeeAsync(teamId);
+
+        _feeService.ApplyFees(reg, baseFee, new PlayerFeeContext { IsRecalculation = false });
     }
 
     // Removed unused ValidateAndAdjustNextTabAsync method (was retained for backward compatibility).

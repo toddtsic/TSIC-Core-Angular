@@ -10,7 +10,6 @@ using TSIC.Application.Services.Shared.Html;
 using TSIC.Application.Services.Shared.Text;
 using TSIC.Application.Services.Shared.Discount;
 using TSIC.Application.Validators;
-using TSIC.Application.Services.Players;
 using TSIC.Infrastructure.Services.Auth;
 using TSIC.Infrastructure.Services.Users;
 using TSIC.Infrastructure.Services;
@@ -156,13 +155,7 @@ builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
-builder.Services.AddScoped<IPlayerBaseTeamFeeResolverService, PlayerBaseTeamFeeResolverService>();
-builder.Services.AddScoped<IPlayerFeeCalculator>(sp =>
-{
-    // Read credit card processing percentage from configuration
-    var ccPercent = builder.Configuration.GetValue<decimal?>("Fees:CreditCardPercent") ?? 0.035m;
-    return new PlayerFeeCalculator(ccPercent);
-});
+builder.Services.AddScoped<TSIC.Contracts.Services.IPlayerFeeCalculator, PlayerFeeCalculator>();
 builder.Services.AddScoped<TSIC.Application.Services.Teams.ITeamFeeCalculator>(sp =>
 {
     // Read credit card processing percentage from configuration
@@ -222,7 +215,6 @@ builder.Services.AddScoped<IMasterScheduleService, MasterScheduleService>();
 builder.Services.AddScoped<IReschedulerService, ReschedulerService>();
 builder.Services.AddScoped<ISchedulingDashboardService, SchedulingDashboardService>();
 builder.Services.AddScoped<ITournamentParkingService, TournamentParkingService>();
-builder.Services.AddScoped<IRegistrationRecordFeeCalculatorService, RegistrationRecordFeeCalculatorService>();
 // Widget Dashboard
 builder.Services.AddScoped<IUserWidgetService, UserWidgetService>();
 builder.Services.AddScoped<IWidgetDashboardService, WidgetDashboardService>();

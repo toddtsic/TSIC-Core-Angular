@@ -4,6 +4,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Repositories;
+using TSIC.Application.Services.Teams;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 
@@ -531,8 +532,7 @@ public sealed class TeamSearchService : ITeamSearchService
                     if (processingFeeReduction > 0 && (team.OwedTotal ?? 0) > 0 && (team.FeeProcessing ?? 0) >= processingFeeReduction)
                     {
                         team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
-                        team.OwedTotal = (team.OwedTotal ?? 0) - processingFeeReduction;
-                        team.FeeTotal = (team.FeeTotal ?? 0) - processingFeeReduction;
+                        team.RecalcTotals();
 
                         clubRep.FeeProcessing -= processingFeeReduction;
                         clubRep.OwedTotal -= processingFeeReduction;

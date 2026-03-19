@@ -138,7 +138,8 @@ public class TeamRepository : ITeamRepository
                 TeamAllowsSelfRostering = t.BAllowSelfRostering,
                 AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering,
                 LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
-                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride
+                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride,
+                JobTypeId = t.Job.JobTypeId
             })
             .ToListAsync(cancellationToken);
     }
@@ -157,9 +158,31 @@ public class TeamRepository : ITeamRepository
                 TeamFee = t.Agegroup.TeamFee,
                 RosterFee = t.Agegroup.RosterFee,
                 LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
-                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride
+                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride,
+                JobTypeId = t.Job.JobTypeId
             })
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, TeamFeeData>> GetTeamFeeDataByTeamIdsAsync(
+        IReadOnlyList<Guid> teamIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return new();
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => teamIds.Contains(t.TeamId))
+            .Select(t => new { t.TeamId, Data = new TeamFeeData
+            {
+                PerRegistrantFee = t.PerRegistrantFee,
+                PerRegistrantDeposit = t.PerRegistrantDeposit,
+                TeamFee = t.Agegroup.TeamFee,
+                RosterFee = t.Agegroup.RosterFee,
+                LeaguePlayerFeeOverride = t.League.PlayerFeeOverride,
+                AgegroupPlayerFeeOverride = t.Agegroup.PlayerFeeOverride,
+                JobTypeId = t.Job.JobTypeId
+            }})
+            .ToDictionaryAsync(x => x.TeamId, x => x.Data, cancellationToken);
     }
 
     public async Task<Dictionary<Guid, string>> GetTeamNameMapAsync(

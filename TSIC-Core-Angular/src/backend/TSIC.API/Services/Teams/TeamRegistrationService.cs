@@ -607,7 +607,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubrepRegistrationid = clubRepRegistration.RegistrationId,  // Track which club rep registered this team
             FeeBase = feeBase,
             FeeProcessing = feeProcessing,
-            FeeTotal = feeBase + feeProcessing,
+            FeeTotal = feeBase + feeProcessing,  // No discount/donation/latefee at creation
             OwedTotal = feeBase + feeProcessing,
             PaidTotal = 0,
             Active = true,
@@ -926,10 +926,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
             if (newFeeBase != oldFeeBase || newFeeProcessing != oldFeeProcessing)
             {
-                team.FeeBase = newFeeBase;
-                team.FeeProcessing = newFeeProcessing;
-                team.FeeTotal = newFeeBase + newFeeProcessing;
-                team.OwedTotal = team.FeeTotal - (team.PaidTotal ?? 0);
+                team.ApplyCalculatedFees(newFeeBase, newFeeProcessing);
                 team.LebUserId = userId;
                 team.Modified = DateTime.UtcNow;
 

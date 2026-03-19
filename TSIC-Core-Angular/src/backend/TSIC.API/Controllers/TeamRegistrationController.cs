@@ -5,6 +5,7 @@ using System.Transactions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Contracts.Repositories;
+using TSIC.Application.Services.Teams;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Families;
@@ -704,8 +705,7 @@ public class TeamRegistrationController : ControllerBase
 
         await _feeAdjustment.ReduceTeamProcessingFeeProportionalAsync(team, discountAmount, jobId, userId);
 
-        team.FeeTotal = (team.FeeBase ?? 0m) - (team.FeeDiscount ?? 0m) + (team.FeeProcessing ?? 0m) + (team.FeeDonation ?? 0m) + (team.FeeLatefee ?? 0m);
-        team.OwedTotal = Math.Max(0m, (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m));
+        team.RecalcTotals();
         team.Modified = DateTime.UtcNow;
         team.LebUserId = userId;
 

@@ -30,7 +30,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
     private readonly IRegistrationRepository _registrations;
-    private readonly IRegistrationRecordFeeCalculatorService _feeCalc;
+    private readonly IPlayerFeeCalculator _feeCalc;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
 
     public PlayerRegistrationPaymentController(
@@ -38,7 +38,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
         IRegistrationRepository registrations,
-        IRegistrationRecordFeeCalculatorService feeCalc,
+        IPlayerFeeCalculator feeCalc,
         IRegistrationFeeAdjustmentService feeAdjustment,
         ILogger<PlayerRegistrationPaymentController> logger)
     {

@@ -13,15 +13,6 @@ public interface ITeamFeeCalculator
     ///  - Balance due phase (BTeamsFullPaymentRequired=true): FeeBase = RosterFee + TeamFee
     ///  - Processing fee calculated based on phase, flags, and payment status
     /// </summary>
-    /// <param name="rosterFee">Age group roster fee</param>
-    /// <param name="teamFee">Age group team fee</param>
-    /// <param name="bTeamsFullPaymentRequired">Job phase: false=Deposit, true=Balance Due</param>
-    /// <param name="bAddProcessingFees">Master switch for processing fees</param>
-    /// <param name="bApplyProcessingFeesToTeamDeposit">Apply to RosterFee in deposit phase vs TeamFee only in balance due</param>
-    /// <param name="jobProcessingFeePercent">Job-specific processing fee percentage (null uses default from appsettings)</param>
-    /// <param name="paidTotal">Amount already paid</param>
-    /// <param name="currentFeeTotal">Current total fee (to check if fully paid)</param>
-    /// <returns>Tuple of (FeeBase, FeeProcessing)</returns>
     (decimal FeeBase, decimal FeeProcessing) CalculateTeamFees(
         decimal rosterFee,
         decimal teamFee,
@@ -31,4 +22,36 @@ public interface ITeamFeeCalculator
         decimal? jobProcessingFeePercent,
         decimal paidTotal,
         decimal currentFeeTotal);
+}
+
+/// <summary>
+/// Consistent FeeTotal formula for team entities. Use this everywhere instead of inline math.
+/// FeeTotal = FeeBase + FeeProcessing - FeeDiscount + FeeDonation + FeeLatefee.
+/// OwedTotal = FeeTotal - PaidTotal.
+/// </summary>
+public static class TeamFeeExtensions
+{
+    /// <summary>
+    /// Recalculates FeeTotal and OwedTotal from current fee fields.
+    /// Call this after any change to FeeBase, FeeProcessing, FeeDiscount, FeeDonation, or FeeLatefee.
+    /// </summary>
+    public static void RecalcTotals(this TSIC.Domain.Entities.Teams team)
+    {
+        team.FeeTotal = (team.FeeBase ?? 0m)
+                      + (team.FeeProcessing ?? 0m)
+                      - (team.FeeDiscount ?? 0m)
+                      + (team.FeeDonation ?? 0m)
+                      + (team.FeeLatefee ?? 0m);
+        team.OwedTotal = (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m);
+    }
+
+    /// <summary>
+    /// Sets FeeBase + FeeProcessing from calculator output, then recalculates totals.
+    /// </summary>
+    public static void ApplyCalculatedFees(this TSIC.Domain.Entities.Teams team, decimal feeBase, decimal feeProcessing)
+    {
+        team.FeeBase = feeBase;
+        team.FeeProcessing = feeProcessing;
+        team.RecalcTotals();
+    }
 }

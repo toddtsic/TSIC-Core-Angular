@@ -40,6 +40,7 @@ public record AvailableTeamQueryResult
     public bool? AgegroupAllowsSelfRostering { get; init; }
     public decimal? LeaguePlayerFeeOverride { get; init; }
     public decimal? AgegroupPlayerFeeOverride { get; init; }
+    public int JobTypeId { get; init; }
 }
 
 public record TeamFeeData
@@ -50,6 +51,7 @@ public record TeamFeeData
     public decimal? RosterFee { get; init; }
     public decimal? LeaguePlayerFeeOverride { get; init; }
     public decimal? AgegroupPlayerFeeOverride { get; init; }
+    public int JobTypeId { get; init; }
 }
 
 /// <summary>
@@ -171,6 +173,14 @@ public interface ITeamRepository
     /// </summary>
     Task<TeamFeeData?> GetTeamFeeDataAsync(
         Guid teamId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Batch: get team fee data for multiple teams in a single query.
+    /// Used by LADT bulk fee recalculation.
+    /// </summary>
+    Task<Dictionary<Guid, TeamFeeData>> GetTeamFeeDataByTeamIdsAsync(
+        IReadOnlyList<Guid> teamIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>

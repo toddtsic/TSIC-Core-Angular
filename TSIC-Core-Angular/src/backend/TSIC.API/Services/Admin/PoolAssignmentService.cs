@@ -331,10 +331,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                     team.Job.ProcessingFeePercent,
                     team.PaidTotal ?? 0m,
                     team.FeeTotal ?? 0m);
-                team.FeeBase = newFeeBase;
-                team.FeeProcessing = newFeeProcessing;
-                team.FeeTotal = newFeeBase + newFeeProcessing;
-                team.OwedTotal = (newFeeBase + newFeeProcessing) - (team.PaidTotal ?? 0m);
+                team.ApplyCalculatedFees(newFeeBase, newFeeProcessing);
                 feesRecalculated++;
             }
 
@@ -376,10 +373,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                         team.Job.ProcessingFeePercent,
                         team.PaidTotal ?? 0m,
                         team.FeeTotal ?? 0m);
-                    team.FeeBase = newFeeBase;
-                    team.FeeProcessing = newFeeProcessing;
-                    team.FeeTotal = newFeeBase + newFeeProcessing;
-                    team.OwedTotal = (newFeeBase + newFeeProcessing) - (team.PaidTotal ?? 0m);
+                    team.ApplyCalculatedFees(newFeeBase, newFeeProcessing);
                     feesRecalculated++;
                 }
 

@@ -1,5 +1,6 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.API.Services.Players;
 
 namespace TSIC.API.Services.Teams;
 
@@ -8,17 +9,20 @@ public class TeamLookupService : ITeamLookupService
     private readonly ITeamRepository _teamRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IPlayerRegistrationFeeService _feeService;
     private readonly ILogger<TeamLookupService> _logger;
 
     public TeamLookupService(
         ITeamRepository teamRepo,
         IRegistrationRepository registrationRepo,
         IJobRepository jobRepo,
+        IPlayerRegistrationFeeService feeService,
         ILogger<TeamLookupService> logger)
     {
         _teamRepo = teamRepo;
         _registrationRepo = registrationRepo;
         _jobRepo = jobRepo;
+        _feeService = feeService;
         _logger = logger;
     }
 
@@ -42,12 +46,16 @@ public class TeamLookupService : ITeamLookupService
             var current = rosterCounts.TryGetValue(t.TeamId, out var c) ? c : 0;
             var rosterFull = current >= t.MaxCount && t.MaxCount > 0;
 
-            var fee = ComputePerRegistrantFee(
-                t.RawPerRegistrantFee,
-                t.RawTeamFee,
-                t.RawRosterFee,
-                t.LeaguePlayerFeeOverride,
-                t.AgegroupPlayerFeeOverride);
+            // Delegate fee resolution to the unified single source of truth
+            var fee = _feeService.ResolveBaseFee(new TeamFeeData
+            {
+                PerRegistrantFee = t.RawPerRegistrantFee,
+                TeamFee = t.RawTeamFee,
+                RosterFee = t.RawRosterFee,
+                LeaguePlayerFeeOverride = t.LeaguePlayerFeeOverride,
+                AgegroupPlayerFeeOverride = t.AgegroupPlayerFeeOverride,
+                JobTypeId = t.JobTypeId
+            });
             var deposit = ComputePerRegistrantDeposit(
                 t.RawPerRegistrantDeposit,
                 t.RawTeamFee,
@@ -86,39 +94,12 @@ public class TeamLookupService : ITeamLookupService
             return (0m, 0m);
         }
 
-        var fee = ComputePerRegistrantFee(
-            data.PerRegistrantFee,
-            data.TeamFee,
-            data.RosterFee,
-            data.LeaguePlayerFeeOverride,
-            data.AgegroupPlayerFeeOverride);
+        var fee = _feeService.ResolveBaseFee(data);
         var deposit = ComputePerRegistrantDeposit(
             data.PerRegistrantDeposit,
             data.TeamFee,
             data.RosterFee);
         return (fee, deposit);
-    }
-
-    private static decimal ComputePerRegistrantFee(decimal? prFee, decimal? agTeamFee, decimal? agRosterFee, decimal? leaguePlayerFeeOverride, decimal? agegroupPlayerFeeOverride)
-    {
-        if (agegroupPlayerFeeOverride.HasValue && agegroupPlayerFeeOverride.Value > 0m)
-        {
-            return agegroupPlayerFeeOverride.Value;
-        }
-
-        if (leaguePlayerFeeOverride.HasValue && leaguePlayerFeeOverride.Value > 0m)
-        {
-            return leaguePlayerFeeOverride.Value;
-        }
-
-        var fee = prFee ?? 0m;
-        var teamFee = agTeamFee ?? 0m;
-        var rosterFee = agRosterFee ?? 0m;
-
-        if (fee > 0m) return fee;
-        if (teamFee > 0m && rosterFee > 0m) return teamFee;
-        if (rosterFee > 0m) return rosterFee;
-        return 0m;
     }
 
     private static decimal ComputePerRegistrantDeposit(decimal? prDeposit, decimal? agTeamFee, decimal? agRosterFee)

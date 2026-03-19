@@ -16,7 +16,7 @@ public class PaymentService : IPaymentService
     private readonly IRegistrationRepository _registrations;
     private readonly ITeamRepository _teams;
     private readonly IAdnApiService _adnApiService;
-    private readonly IPlayerBaseTeamFeeResolverService _feeResolver;
+    private readonly IPlayerRegistrationFeeService _feeService;
     private readonly ITeamLookupService _teamLookup;
     private readonly ILogger<PaymentService> _logger;
     private readonly IPlayerRegConfirmationService? _confirmation;
@@ -26,7 +26,7 @@ public class PaymentService : IPaymentService
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate);
 
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerRegistrationFeeService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
     {
         _jobs = jobs;
         _registrations = registrations;
@@ -34,14 +34,14 @@ public class PaymentService : IPaymentService
         _families = families;
         _acct = acct;
         _adnApiService = adnApiService;
-        _feeResolver = feeResolver;
+        _feeService = feeService;
         _teamLookup = teamLookup;
         _logger = logger;
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerBaseTeamFeeResolverService feeResolver, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
-        : this(jobs, registrations, teams, families, acct, adnApiService, feeResolver, teamLookup, logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerRegistrationFeeService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
+        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, logger)
     {
         _confirmation = confirmation;
         _email = email;
@@ -412,7 +412,7 @@ public class PaymentService : IPaymentService
         foreach (var reg in registrations)
         {
             if (!reg.AssignedTeamId.HasValue) continue;
-            var baseFee = await _feeResolver.ResolveBaseFeeForTeamAsync(reg.AssignedTeamId.Value);
+            var baseFee = await _feeService.ResolveBaseFeeAsync(reg.AssignedTeamId.Value);
             if (baseFee <= 0) continue;
             if (reg.FeeBase != baseFee) reg.FeeBase = baseFee;
             if (reg.FeeTotal <= 0) reg.FeeTotal = baseFee;

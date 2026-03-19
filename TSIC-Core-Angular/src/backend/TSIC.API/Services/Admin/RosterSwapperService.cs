@@ -20,18 +20,18 @@ public sealed class RosterSwapperService : IRosterSwapperService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IDeviceRepository _deviceRepo;
-    private readonly IRegistrationRecordFeeCalculatorService _feeCalc;
+    private readonly IPlayerRegistrationFeeService _feeService;
 
     public RosterSwapperService(
         IRegistrationRepository registrationRepo,
         ITeamRepository teamRepo,
         IDeviceRepository deviceRepo,
-        IRegistrationRecordFeeCalculatorService feeCalc)
+        IPlayerRegistrationFeeService feeService)
     {
         _registrationRepo = registrationRepo;
         _teamRepo = teamRepo;
         _deviceRepo = deviceRepo;
-        _feeCalc = feeCalc;
+        _feeService = feeService;
     }
 
     public async Task<List<SwapperPoolOptionDto>> GetPoolOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -159,9 +159,12 @@ public sealed class RosterSwapperService : IRosterSwapperService
             }
             else
             {
-                // FLOW 1: Player → Team (fee recalc)
-                var newFeeBase = CoalescePlayerFee(targetTeam, targetAgegroup);
-                var (_, newTotal) = _feeCalc.ComputeTotals(newFeeBase, reg.FeeDiscount, reg.FeeDonation);
+                // FLOW 1: Player → Team (fee recalc via unified service)
+                var newFeeBase = await _feeService.ResolveBaseFeeAsync(targetTeam.TeamId, ct);
+                // Preview estimate: apply same zero-fee rules as ApplyFees
+                var previewDiscount = newFeeBase > 0m ? reg.FeeDiscount : 0m;
+                var previewLatefee = newFeeBase > 0m ? reg.FeeLatefee : 0m;
+                var newTotal = newFeeBase - previewDiscount + reg.FeeDonation + previewLatefee;
 
                 previews.Add(new RosterTransferFeePreviewDto
                 {
@@ -354,13 +357,9 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 }
                 else
                 {
-                    // FLOW 1: Player → Team (fee recalc)
-                    var newFeeBase = CoalescePlayerFee(targetTeam, targetAgegroup);
-                    reg.FeeBase = newFeeBase;
-                    var (processing, total) = _feeCalc.ComputeTotals(newFeeBase, reg.FeeDiscount, reg.FeeDonation);
-                    reg.FeeProcessing = processing;
-                    reg.FeeTotal = total;
-                    reg.OwedTotal = total - reg.PaidTotal;
+                    // FLOW 1: Player → Team (fee recalc via unified service)
+                    var newFeeBase = await _feeService.ResolveBaseFeeAsync(targetTeam.TeamId, ct);
+                    _feeService.ApplyFees(reg, newFeeBase, new Players.PlayerFeeContext { IsRecalculation = true });
 
                     // Entity is already tracked — EF detects property changes automatically
                     playersTransferred++;
@@ -411,17 +410,6 @@ public sealed class RosterSwapperService : IRosterSwapperService
         reg.LebUserId = adminUserId;
         // Entity is already tracked via FindAsync — EF detects property changes automatically
         await _registrationRepo.SaveChangesAsync(ct);
-    }
-
-    /// <summary>
-    /// Fee coalescing hierarchy: Team.PerRegistrantFee → Agegroup.PlayerFeeOverride → Agegroup.RosterFee → 0
-    /// </summary>
-    private static decimal CoalescePlayerFee(TSIC.Domain.Entities.Teams team, TSIC.Domain.Entities.Agegroups agegroup)
-    {
-        return team.PerRegistrantFee
-            ?? agegroup.PlayerFeeOverride
-            ?? agegroup.RosterFee
-            ?? 0m;
     }
 
     private static string GetPlayerName(Registrations reg)

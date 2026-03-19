@@ -24,7 +24,7 @@ public sealed class LadtService : ILadtService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IRegistrationAccountingRepository _regAcctRepo;
     private readonly IJobRepository _jobRepo;
-    private readonly IRegistrationRecordFeeCalculatorService _feeCalc;
+    private readonly IPlayerRegistrationFeeService _feeService;
     private readonly IClubTeamRepository _clubTeamRepo;
     private readonly IClubRepository _clubRepo;
     private readonly IScheduleRepository _scheduleRepo;
@@ -37,7 +37,7 @@ public sealed class LadtService : ILadtService
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository regAcctRepo,
         IJobRepository jobRepo,
-        IRegistrationRecordFeeCalculatorService feeCalc,
+        IPlayerRegistrationFeeService feeService,
         IClubTeamRepository clubTeamRepo,
         IClubRepository clubRepo,
         IScheduleRepository scheduleRepo)
@@ -49,7 +49,7 @@ public sealed class LadtService : ILadtService
         _registrationRepo = registrationRepo;
         _regAcctRepo = regAcctRepo;
         _jobRepo = jobRepo;
-        _feeCalc = feeCalc;
+        _feeService = feeService;
         _clubTeamRepo = clubTeamRepo;
         _clubRepo = clubRepo;
         _scheduleRepo = scheduleRepo;
@@ -1137,29 +1137,25 @@ public sealed class LadtService : ILadtService
     {
         await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
 
-        var ag = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
+        _ = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
 
-        // Get teams for this age group
         var teams = await _teamRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
         if (teams.Count == 0) return 0;
 
-        // Get active player registrations assigned to these teams (tracked for update)
         var teamIds = teams.Select(t => t.TeamId).ToList();
         var registrations = await _registrationRepo.GetActivePlayerRegistrationsByTeamIdsAsync(jobId, teamIds, cancellationToken);
         if (registrations.Count == 0) return 0;
 
-        // Get job fee settings and payment summaries
+        // Unified fee resolution — single batch query through the authoritative cascade
+        var feeByTeam = await _feeService.ResolveBaseFeesByTeamIdsAsync(teamIds, cancellationToken);
+
         var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
         var addProcessingFees = feeSettings?.BAddProcessingFees ?? false;
 
         var regIds = registrations.Select(r => r.RegistrationId).ToList();
         var payments = await _regAcctRepo.GetPaymentSummariesAsync(regIds, cancellationToken);
 
-        // Build fee-per-team using in-memory coalescing
-        var feeByTeam = teams.ToDictionary(t => t.TeamId, t => ResolveBaseFee(t, ag));
-
-        // Recalculate each registration
         var updated = 0;
         foreach (var reg in registrations)
         {
@@ -1175,25 +1171,13 @@ public sealed class LadtService : ILadtService
             if (reg.FeeBase == resolvedFee && reg.OwedTotal <= 0)
                 continue;
 
-            if (resolvedFee == 0)
+            _feeService.ApplyFees(reg, resolvedFee, new Players.PlayerFeeContext
             {
-                // Zero fee: clear all fee fields
-                reg.FeeBase = 0;
-                reg.FeeDiscount = 0;
-                reg.FeeProcessing = 0;
-                reg.FeeDonation = 0;
-                reg.FeeLatefee = 0;
-            }
-            else
-            {
-                reg.FeeBase = resolvedFee;
-                reg.FeeProcessing = addProcessingFees
-                    ? _feeCalc.GetDefaultProcessing(Math.Max(resolvedFee - (summary?.NonCcPayments ?? 0), 0))
-                    : 0;
-            }
+                IsRecalculation = true,
+                AddProcessingFees = addProcessingFees,
+                NonCcPayments = summary?.NonCcPayments ?? 0m
+            });
 
-            reg.FeeTotal = reg.FeeBase - reg.FeeDiscount + reg.FeeProcessing + reg.FeeDonation + reg.FeeLatefee;
-            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
             reg.Modified = DateTime.UtcNow;
             updated++;
         }
@@ -1202,20 +1186,6 @@ public sealed class LadtService : ILadtService
             await _registrationRepo.SaveChangesAsync(cancellationToken);
 
         return updated;
-    }
-
-    /// <summary>
-    /// Coalescing fee resolution: Team.FeeBase → Team.PerRegistrantFee → AG.TeamFee → AG.RosterFee → 0.
-    /// Returns the effective base fee for a team, checking team-level fees first,
-    /// then falling back to age group fees.
-    /// </summary>
-    private static decimal ResolveBaseFee(TSIC.Domain.Entities.Teams team, Agegroups ag)
-    {
-        if ((team.FeeBase ?? 0) > 0) return team.FeeBase!.Value;
-        if ((team.PerRegistrantFee ?? 0) > 0) return team.PerRegistrantFee!.Value;
-        if ((ag.TeamFee ?? 0) > 0) return ag.TeamFee!.Value;
-        if ((ag.RosterFee ?? 0) > 0) return ag.RosterFee!.Value;
-        return 0;
     }
 
     // ═══════════════════════════════════════════
