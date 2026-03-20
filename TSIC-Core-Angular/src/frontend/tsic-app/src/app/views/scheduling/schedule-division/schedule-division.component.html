@@ -15,73 +15,39 @@
         <!-- ══════════ SIDEBAR (only visible in Schedule mode, hidden when a tool is active) ══════════ -->
         <div class="hub-sidebar" [class.d-none]="mode() !== 'schedule' || !!activeTool()">
 
-            <!-- Navigator Tree -->
-            <div class="sidebar-nav">
-                <app-division-navigator
-                    [agegroups]="agegroups()"
-                    [selectedScope]="scope()"
-                    [jobName]="gameSummary()?.jobName ?? 'Event'"
-                    [isLoading]="isNavLoading()"
-                    [showCollapseAll]="true"
-                    [readinessMap]="canvasReadiness()"
-                    (eventSelected)="onEventSelected()"
-                    (agegroupSelected)="onAgegroupSelected($event)"
-                    (divisionSelected)="onDivisionSelected($event)"
-                    (colorChanged)="onAgegroupColorChanged($event)" />
-            </div>
-
-            <!-- Pairings Panel (division scope, configure or schedule mode) -->
-            @if ((mode() === 'schedule' || mode() === 'configure') && scope().level === 'division' && !activeTool()) {
-                <app-pairings-panel
-                    [pairings]="displayPairings()"
-                    [isPairingsLoading]="isPairingsLoading()"
-                    [placementMode]="placementMode()"
-                    [selectedPairingAi]="selectedPairing()?.ai ?? null"
-                    [teamCount]="teamCount()"
-                    [whoPlaysWhoMatrix]="whoPlaysWhoMatrix()"
-                    [divisionTeams]="divisionTeams()"
-                    (pairingClicked)="onPairingClick($event)"
-                    (placementModeChanged)="setPlacementMode($event)"
-                    (teamEditRequested)="openTeamEditModal($event)"
-                    (pairingLocated)="locateScheduledGame($event)" />
-            }
-
-            <!-- Tools Section (Configure mode only) -->
-            @if (mode() === 'configure') {
-                <div class="tools-section">
-                    <button class="tools-toggle" (click)="showToolsSection.set(!showToolsSection())">
-                        <i class="bi" [class.bi-chevron-down]="showToolsSection()"
-                                      [class.bi-chevron-right]="!showToolsSection()"></i>
-                        <span>Tools</span>
-                    </button>
-                    @if (showToolsSection()) {
-                        <div class="tools-list">
-                            <button class="tool-link" [class.active]="activeTool() === 'pools'"
-                                    (click)="setTool('pools')">
-                                <i class="bi bi-collection"></i> Pool Assignment
-                            </button>
-                            <button class="tool-link" [class.active]="activeTool() === 'fields'"
-                                    (click)="setTool('fields')">
-                                <i class="bi bi-grid-3x3"></i> Manage Fields
-                            </button>
-                            <button class="tool-link" [class.active]="activeTool() === 'pairings'"
-                                    (click)="setTool('pairings')">
-                                <i class="bi bi-people"></i> Manage Pairings
-                            </button>
-                            <button class="tool-link" [class.active]="activeTool() === 'timeslots'"
-                                    (click)="setTool('timeslots')">
-                                <i class="bi bi-clock"></i> Manage Timeslots
-                            </button>
-                            @if (hasChampionshipPairings()) {
-                                <button class="tool-link" [class.active]="activeTool() === 'bracket-seeds'"
-                                        (click)="setTool('bracket-seeds')">
-                                    <i class="bi bi-trophy"></i> Bracket Seeds
-                                </button>
-                            }
-                        </div>
-                    }
+            <!-- Navigator Tree (Schedule mode only) -->
+            @if (mode() === 'schedule') {
+                <div class="sidebar-nav">
+                    <app-division-navigator
+                        [agegroups]="agegroups()"
+                        [selectedScope]="scope()"
+                        [jobName]="gameSummary()?.jobName ?? 'Event'"
+                        [isLoading]="isNavLoading()"
+                        [showCollapseAll]="true"
+                        [readinessMap]="canvasReadiness()"
+                        (eventSelected)="onEventSelected()"
+                        (agegroupSelected)="onAgegroupSelected($event)"
+                        (divisionSelected)="onDivisionSelected($event)"
+                        (colorChanged)="onAgegroupColorChanged($event)" />
                 </div>
+
+                <!-- Pairings Panel (division scope) -->
+                @if (scope().level === 'division' && !activeTool()) {
+                    <app-pairings-panel
+                        [pairings]="displayPairings()"
+                        [isPairingsLoading]="isPairingsLoading()"
+                        [placementMode]="placementMode()"
+                        [selectedPairingAi]="selectedPairing()?.ai ?? null"
+                        [teamCount]="teamCount()"
+                        [whoPlaysWhoMatrix]="whoPlaysWhoMatrix()"
+                        [divisionTeams]="divisionTeams()"
+                        (pairingClicked)="onPairingClick($event)"
+                        (placementModeChanged)="setPlacementMode($event)"
+                        (teamEditRequested)="openTeamEditModal($event)"
+                        (pairingLocated)="locateScheduledGame($event)" />
+                }
             }
+
         </div>
 
         <!-- ══════════ MAIN PANE ══════════ -->
@@ -344,7 +310,10 @@
                         @case ('configure') {
                             <app-schedule-config-panel
                                 [agegroups]="agegroups()"
-                                (resetConfirmed)="executeReset($event)" />
+                                [hasChampionshipPairings]="hasChampionshipPairings()"
+                                [activeTool]="activeTool()"
+                                (resetConfirmed)="executeReset($event)"
+                                (toolSelected)="setTool($event)" />
                         }
 
                         <!-- ══════════ SCHEDULE MODE ══════════ -->

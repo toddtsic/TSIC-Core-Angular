@@ -98,6 +98,32 @@
     text-align: center;
 }
 
+// ── Pairing section headers (RR / Championship) ──
+
+.pairing-section-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    .section-count {
+        margin-left: auto;
+        font-weight: 600;
+        font-size: var(--font-size-2xs);
+        opacity: 0.7;
+    }
+
+    .section-done-icon {
+        color: var(--bs-success);
+        font-size: var(--font-size-xs);
+        margin-left: var(--space-1);
+    }
+
+    .section-champ-icon {
+        color: var(--bs-warning);
+        font-size: var(--font-size-xs);
+    }
+}
+
 // ── Collapsible section labels ──
 
 .section-label {

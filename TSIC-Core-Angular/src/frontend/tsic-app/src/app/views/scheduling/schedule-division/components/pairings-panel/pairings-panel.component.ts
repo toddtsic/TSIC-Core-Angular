@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import type { PairingDto, DivisionTeamDto } from '../../services/schedule-division.service';
 import { teamDes } from '../../../shared/utils/scheduling-helpers';
@@ -29,12 +29,34 @@ export class PairingsPanelComponent {
     readonly teamEditRequested = output<DivisionTeamDto>();
     readonly pairingLocated = output<PairingDto>();
 
+    // ── Derived: split pairings into RR vs Championship ──
+    readonly rrPairings = computed(() => this.pairings().filter(p => p.t1Type === 'T'));
+    readonly champPairings = computed(() => this.pairings().filter(p => p.t1Type !== 'T'));
+    readonly allRrScheduled = computed(() => {
+        const rr = this.rrPairings();
+        return rr.length > 0 && rr.every(p => !p.bAvailable);
+    });
+    readonly rrUnplacedCount = computed(() => this.rrPairings().filter(p => p.bAvailable).length);
+    readonly champUnplacedCount = computed(() => this.champPairings().filter(p => p.bAvailable).length);
+
     // ── Local UI state ──
     readonly whoPlaysWhoOpen = signal(false);
     readonly divisionTeamsOpen = signal(false);
+    readonly rrSectionOpen = signal<boolean | null>(null); // null = use auto default
 
     // ── Helpers ──
     readonly teamDes = teamDes;
+
+    /** RR section: open by default unless all RR are scheduled (then collapsed). Manual toggle overrides. */
+    isRrOpen(): boolean {
+        const manual = this.rrSectionOpen();
+        if (manual !== null) return manual;
+        return !this.allRrScheduled();
+    }
+
+    toggleRrSection(): void {
+        this.rrSectionOpen.set(!this.isRrOpen());
+    }
 
     isPairingSelected(pairing: PairingDto): boolean {
         return this.selectedPairingAi() === pairing.ai;

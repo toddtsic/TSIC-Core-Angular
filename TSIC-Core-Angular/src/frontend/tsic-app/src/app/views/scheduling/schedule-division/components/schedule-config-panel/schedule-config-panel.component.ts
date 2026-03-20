@@ -14,11 +14,19 @@ import { RoundsTabComponent } from './tabs/rounds-tab.component';
 import { GridTabComponent } from './tabs/grid-tab.component';
 
 export type ScheduleConfigTab = 'dates' | 'fields' | 'buildRules' | 'rounds' | 'waves' | 'buildOrder' | 'grid';
+export type ScheduleTool = 'pools' | 'fields' | 'pairings' | 'timeslots' | 'bracket-seeds';
 
 interface TabDef {
   key: ScheduleConfigTab;
   label: string;
   icon: string;
+}
+
+interface ToolDef {
+  key: ScheduleTool;
+  label: string;
+  icon: string;
+  champOnly?: boolean;
 }
 
 /**
@@ -56,6 +64,12 @@ export class ScheduleConfigPanelComponent {
   /** Agegroup metadata from parent — passed to tabs so they don't re-fetch. */
   readonly agegroups = input<AgegroupWithDivisionsDto[]>([]);
 
+  /** Whether championship pairings exist (controls Bracket Seeds tool visibility). */
+  readonly hasChampionshipPairings = input(false);
+
+  /** Currently active tool (to highlight in dropdown). */
+  readonly activeTool = input<ScheduleTool | null>(null);
+
   /** Expose cascade signal for template guard (defer tabs until loaded). */
   readonly cascade = this.cascadeSvc.cascade;
 
@@ -73,6 +87,34 @@ export class ScheduleConfigPanelComponent {
   // ── Outputs ──
   buildRequested = output<void>();
   resetConfirmed = output<DevResetOptions>();
+  toolSelected = output<ScheduleTool>();
+
+  // ── Tools dropdown state ──
+  readonly toolsDropdownOpen = signal(false);
+  readonly tools: ToolDef[] = [
+    { key: 'pools', label: 'Pool Assignment', icon: 'bi-collection' },
+    { key: 'fields', label: 'Manage Fields', icon: 'bi-grid-3x3' },
+    { key: 'pairings', label: 'Manage Pairings', icon: 'bi-people' },
+    { key: 'timeslots', label: 'Manage Timeslots', icon: 'bi-clock' },
+    { key: 'bracket-seeds', label: 'Bracket Seeds', icon: 'bi-trophy', champOnly: true },
+  ];
+
+  readonly visibleTools = computed(() =>
+    this.tools.filter(t => !t.champOnly || this.hasChampionshipPairings())
+  );
+
+  toggleToolsDropdown(): void {
+    this.toolsDropdownOpen.set(!this.toolsDropdownOpen());
+  }
+
+  selectTool(tool: ScheduleTool): void {
+    this.toolsDropdownOpen.set(false);
+    this.toolSelected.emit(tool);
+  }
+
+  closeToolsDropdown(): void {
+    this.toolsDropdownOpen.set(false);
+  }
 
   // ── Tab state ──
   readonly tabs: TabDef[] = [

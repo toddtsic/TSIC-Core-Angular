@@ -31,29 +31,70 @@
         </div>
     } @else {
         <div class="panel-body pairings-body">
-            @for (p of pairings(); track p.ai) {
-                <div class="pairing-row"
-                     [class.pairing-selected]="isPairingSelected(p)"
-                     [class.pairing-scheduled]="!p.bAvailable"
-                     (click)="onPairingClick(p)">
-                    <span class="pairing-gno">G{{ p.gameNumber }}</span>
-                    <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
-                    <span class="pairing-rnd">R{{ p.rnd }}</span>
-                    @if (p.bAvailable) {
-                        <button class="pairing-pick-btn" title="Select for placement"
-                                (click)="pairingClicked.emit(p); $event.stopPropagation()">
-                            <i class="bi bi-pencil-fill"></i>
-                        </button>
-                    } @else {
-                        <i class="bi bi-check-circle-fill pairing-scheduled-icon"></i>
-                    }
-                </div>
-            }
-
             @if (pairings().length === 0) {
                 <div class="empty-state-sm">
                     <p class="text-secondary mb-0">No pairings for this division</p>
                 </div>
+            }
+
+            <!-- Round Robin section -->
+            @if (rrPairings().length > 0) {
+                <div class="section-label section-label-toggle pairing-section-header"
+                     (click)="toggleRrSection()">
+                    <i class="bi" [class.bi-chevron-right]="!isRrOpen()" [class.bi-chevron-down]="isRrOpen()"></i>
+                    <span>Round Robin</span>
+                    <span class="section-count">{{ rrPairings().length - rrUnplacedCount() }}/{{ rrPairings().length }}</span>
+                    @if (allRrScheduled()) {
+                        <i class="bi bi-check-circle-fill section-done-icon"></i>
+                    }
+                </div>
+                @if (isRrOpen()) {
+                    @for (p of rrPairings(); track p.ai) {
+                        <div class="pairing-row"
+                             [class.pairing-selected]="isPairingSelected(p)"
+                             [class.pairing-scheduled]="!p.bAvailable"
+                             (click)="onPairingClick(p)">
+                            <span class="pairing-gno">G{{ p.gameNumber }}</span>
+                            <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
+                            <span class="pairing-rnd">R{{ p.rnd }}</span>
+                            @if (p.bAvailable) {
+                                <button class="pairing-pick-btn" title="Select for placement"
+                                        (click)="pairingClicked.emit(p); $event.stopPropagation()">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                            } @else {
+                                <i class="bi bi-check-circle-fill pairing-scheduled-icon"></i>
+                            }
+                        </div>
+                    }
+                }
+            }
+
+            <!-- Championship section -->
+            @if (champPairings().length > 0) {
+                <div class="section-label pairing-section-header">
+                    <i class="bi bi-trophy-fill section-champ-icon"></i>
+                    <span>Championship</span>
+                    <span class="section-count">{{ champPairings().length - champUnplacedCount() }}/{{ champPairings().length }}</span>
+                </div>
+                @for (p of champPairings(); track p.ai) {
+                    <div class="pairing-row"
+                         [class.pairing-selected]="isPairingSelected(p)"
+                         [class.pairing-scheduled]="!p.bAvailable"
+                         (click)="onPairingClick(p)">
+                        <span class="pairing-gno">G{{ p.gameNumber }}</span>
+                        <span class="pairing-teams">{{ teamDes(p.t1Type, p.t1) }} vs {{ teamDes(p.t2Type, p.t2) }}</span>
+                        <span class="pairing-rnd">R{{ p.rnd }}</span>
+                        @if (p.bAvailable) {
+                            <button class="pairing-pick-btn" title="Select for placement"
+                                    (click)="pairingClicked.emit(p); $event.stopPropagation()">
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+                        } @else {
+                            <i class="bi bi-check-circle-fill pairing-scheduled-icon"></i>
+                        }
+                    </div>
+                }
             }
         </div>
     }

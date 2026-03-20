@@ -101,6 +101,70 @@
   }
 }
 
+// ── Tools dropdown (right-aligned in tab bar) ──
+
+.tools-dropdown-wrapper {
+  position: relative;
+
+  .tools-chevron {
+    font-size: var(--font-size-2xs);
+    margin-left: var(--space-1);
+    transition: transform 0.15s ease;
+
+    &.tools-chevron-open {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.tools-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.tools-dropdown-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 100;
+  min-width: 200px;
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-1) 0;
+}
+
+.tools-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--brand-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: var(--bs-secondary-bg);
+  }
+
+  &.active {
+    color: var(--bs-primary);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .bi {
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+}
+
 // ── Tab content ──
 
 .tab-content {

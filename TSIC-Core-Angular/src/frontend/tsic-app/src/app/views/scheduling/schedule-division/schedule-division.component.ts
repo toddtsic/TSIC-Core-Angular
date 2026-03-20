@@ -92,7 +92,6 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Hub mode ──
     readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('configure');
     readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | 'bracket-seeds' | null>(null);
-    readonly showToolsSection = signal(true);
 
     // ── Scope selection model (replaces separate selectedDivision + selectedAgegroupId) ──
     readonly scope = signal<ScheduleScope>({ level: 'event' });
