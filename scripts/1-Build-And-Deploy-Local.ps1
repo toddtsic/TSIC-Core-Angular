@@ -195,8 +195,8 @@ Write-Host ""
 Write-Host "Step 7: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3  # Give IIS a moment to spin up the worker process
 try {
-    # -SkipCertificateCheck handles self-signed/dev certs
-    $null = Invoke-WebRequest -Uri "https://devapi.teamsportsinfo.com/swagger/v1/swagger.json" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
+    # Hit API root to trigger ASP.NET startup + JIT (Swagger is dev-only, won't exist in IIS)
+    $null = Invoke-WebRequest -Uri "https://devapi.teamsportsinfo.com/api/jobs/tsic" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
     Write-Host "  API warmed up!" -ForegroundColor Green
 } catch {
     Write-Host "  Warmup request failed (app may still be starting): $($_.Exception.Message)" -ForegroundColor Yellow
