@@ -1102,6 +1102,8 @@ public class RegistrationRepository : IRegistrationRepository
             DivisionName = r.AssignedTeam != null && r.AssignedTeam.Div != null
                 ? r.AssignedTeam.Div.DivName : null,
             ClubName = r.ClubName,
+            ClubRepClubName = r.AssignedTeam != null && r.AssignedTeam.ClubrepRegistration != null
+                ? r.AssignedTeam.ClubrepRegistration.ClubName : null,
             FeeTotal = r.FeeTotal,
             PaidTotal = r.PaidTotal,
             OwedTotal = r.OwedTotal,
@@ -1115,9 +1117,18 @@ public class RegistrationRepository : IRegistrationRepository
             .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
             .ToListAsync(ct);
 
-        // Format phone numbers (xxx-xxx-xxxx) after materialization
+        // Post-materialization: format phones + compute assignment display string
         for (var i = 0; i < results.Count; i++)
-            results[i] = results[i] with { Phone = results[i].Phone.FormatPhone() };
+        {
+            var r = results[i];
+            var parts = new[] { r.ClubRepClubName, r.AgegroupName, r.TeamName }
+                .Where(s => !string.IsNullOrWhiteSpace(s));
+            results[i] = r with
+            {
+                Phone = r.Phone.FormatPhone(),
+                Assignment = parts.Any() ? string.Join(" ", parts) : null
+            };
+        }
 
         return new RegistrationSearchResponse
         {

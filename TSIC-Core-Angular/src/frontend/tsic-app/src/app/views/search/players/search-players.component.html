@@ -112,7 +112,7 @@
           </div>
 
           <!-- CADT Tree (conditional) -->
-          @if (hasCadtData()) {
+          @if (hasCadtData() && jobName()) {
             <div class="form-group form-group-tree">
               <label>Club / Agegroup / Division / Team</label>
               <div class="tree-scroll-container">
@@ -145,10 +145,17 @@
               [class.search-dirty]="filtersAreDirty()"
               (click)="executeSearch()"
               [disabled]="isSearching()">
-              @if (isSearching()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+              @if (isSearching()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              } @else {
+                <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              }
               @if (filtersAreDirty() && searchResults()) { Update Results } @else { Search }
             </button>
-            <button type="button" class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+            <button type="button" class="btn btn-secondary" (click)="clearFilters()">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              Clear
+            </button>
             <button type="button" class="btn btn-outline-secondary" (click)="toggleMoreFilters()">
               @if (moreFiltersExpanded()) { Less Filters } @else { More Filters }
               <svg class="toggle-arrow" [class.expanded]="moreFiltersExpanded()" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -157,10 +164,14 @@
             </button>
           </div>
           <div class="action-buttons-right">
-            <button type="button" class="btn btn-info" (click)="onEmailSelected()" [disabled]="!canEmailSelected">
+            <button type="button" class="btn btn-outline-primary" (click)="onEmailSelected()" [disabled]="!canEmailSelected">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
               Email Selected
             </button>
-            <button type="button" class="btn btn-success" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">Export</button>
+            <button type="button" class="btn btn-success" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export
+            </button>
           </div>
         </div>
       </div>
@@ -400,7 +411,23 @@
       @if (searchResults()) {
         <div class="results-summary">
           <span class="result-count">
-            {{ searchResults()!.count }} registration(s) found
+            <span class="result-count-number">{{ searchResults()!.count | number }}</span>
+            <span class="result-count-label">registrations</span>
+          </span>
+          @if (selectedRegistrations().size > 0) {
+            <span class="result-selected">
+              <span class="selected-badge">{{ selectedRegistrations().size }}</span> selected
+            </span>
+          }
+          <span class="result-financials">
+            <span class="financial-item financial-paid">
+              <span class="financial-label">Paid</span>
+              <span class="financial-value">{{ searchResults()!.totalPaid | currency }}</span>
+            </span>
+            <span class="financial-item financial-owed">
+              <span class="financial-label">Owed</span>
+              <span class="financial-value">{{ searchResults()!.totalOwed | currency }}</span>
+            </span>
           </span>
         </div>
 
@@ -410,56 +437,60 @@
           [allowPaging]="true"
           [allowSorting]="true"
           [allowExcelExport]="true"
-          [frozenColumns]="4"
+          [frozenColumns]="1"
           [pageSettings]="pageSettings"
           [sortSettings]="sortSettings"
           (rowSelected)="onRowSelected()"
           (rowDeselected)="onRowSelected()"
-          (queryCellInfo)="queryCellInfo($event)"
           class="tight-table"
         >
           <e-columns>
-            <!-- Frozen columns (checkbox, Row, Name, Active) -->
-            <e-column type="checkbox" width="40"></e-column>
-            <e-column headerText="Row" width="55" textAlign="Center" [allowSorting]="false"></e-column>
-            <e-column field="lastName" headerText="Name" width="170">
+            <!-- Frozen: Name with inline detail icon -->
+            <e-column field="lastName" headerText="Name" width="200">
               <ng-template #template let-data>
-                <a href="javascript:void(0)" (click)="openDetail(data.registrationId)" class="detail-link">
+                <a href="javascript:void(0)" (click)="openDetail(data.registrationId)"
+                   class="detail-link" [class.inactive-name]="!data.active"
+                   title="View details">
+                  <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                  </svg>
                   {{ data.lastName }}, {{ data.firstName }}
                 </a>
               </ng-template>
             </e-column>
-            <e-column field="active" headerText="Active" width="70" textAlign="Center">
+
+            <!-- Scrollable data columns -->
+            <e-column field="roleName" headerText="Role" width="100">
               <ng-template #template let-data>
-                @if (data.active) {
-                  <span class="badge bg-success">Yes</span>
-                } @else {
-                  <span class="badge bg-secondary">No</span>
+                <span class="role-pill" [attr.data-role]="data.roleName?.toLowerCase()">{{ data.roleName }}</span>
+              </ng-template>
+            </e-column>
+            <e-column field="registrationTs" headerText="Registered" width="100" type="date" format="M/d/yyyy"></e-column>
+            <e-column field="phone" headerText="Phone" width="120"></e-column>
+            <e-column field="dob" headerText="DOB" width="100" type="date" format="M/d/yyyy"></e-column>
+            <e-column field="position" headerText="Pos" width="70" textAlign="Center"></e-column>
+            <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right">
+              <ng-template #template let-data>
+                <span class="money-cell money-paid">{{ data.paidTotal | currency }}</span>
+              </ng-template>
+            </e-column>
+            <e-column field="owedTotal" headerText="Owed" width="90" textAlign="Right">
+              <ng-template #template let-data>
+                <span class="money-cell" [class.money-owed]="data.owedTotal > 0" [class.money-zero]="data.owedTotal === 0">
+                  {{ data.owedTotal | currency }}
+                </span>
+              </ng-template>
+            </e-column>
+            <e-column field="assignment" headerText="Assignment" width="220">
+              <ng-template #template let-data>
+                @if (data.assignment) {
+                  <span class="assignment-tag">{{ data.assignment }}</span>
                 }
               </ng-template>
             </e-column>
 
-            <!-- Scrollable columns -->
-            <e-column field="emailOptOut" headerText="OptOut" width="80" textAlign="Center">
-              <ng-template #template let-data>
-                <span class="badge"
-                      [class.bg-warning]="data.emailOptOut"
-                      [class.text-dark]="data.emailOptOut"
-                      [class.bg-light]="!data.emailOptOut"
-                      style="cursor: pointer"
-                      (click)="toggleEmailOptOut(data)">
-                  {{ data.emailOptOut ? 'Yes' : 'No' }}
-                </span>
-              </ng-template>
-            </e-column>
-            <e-column field="registrationTs" headerText="RegDate" width="100" type="date" format="M/d/yyyy"></e-column>
-            <e-column field="roleName" headerText="Role" width="100"></e-column>
-            <e-column field="phone" headerText="CellPhone" width="120"></e-column>
-            <e-column field="dob" headerText="Dob" width="100" type="date" format="M/d/yyyy"></e-column>
-            <e-column field="position" headerText="Psn" width="80"></e-column>
-            <e-column field="paidTotal" headerText="$Paid" width="90" textAlign="Right" format="C2"></e-column>
-            <e-column field="owedTotal" headerText="$Owed" width="90" textAlign="Right" format="C2"></e-column>
-            <e-column field="teamName" headerText="Assignment" width="160"></e-column>
+            <!-- Checkbox last (batch email selection) -->
+            <e-column type="checkbox" headerText="Select" width="55"></e-column>
           </e-columns>
 
           <e-aggregates>

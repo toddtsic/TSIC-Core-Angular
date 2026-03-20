@@ -17,6 +17,8 @@ export type RegistrationSearchResultDto = {
     agegroupName?: string | null;
     divisionName?: string | null;
     clubName?: string | null;
+    clubRepClubName?: string | null;
+    assignment?: string | null;
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;

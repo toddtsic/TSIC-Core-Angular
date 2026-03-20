@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ViewChild, signal, computed, inject, Chan
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
-import { QueryCellInfoEventArgs } from '@syncfusion/ej2-grids';
+
 import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
 import { RegistrationSearchService } from './services/registration-search.service';
@@ -500,26 +500,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
-  queryCellInfo(args: QueryCellInfoEventArgs): void {
-    if (args.column?.headerText === 'Row' && args.cell) {
-      const page = (this.grid.pageSettings.currentPage as number) || 1;
-      const pageSize = (this.grid.pageSettings.pageSize as number) || 20;
-      const currentViewData = this.grid.getCurrentViewRecords();
-      const rowIndex = currentViewData.indexOf(args.data as any);
-      if (rowIndex >= 0) {
-        args.cell.textContent = String((page - 1) * pageSize + rowIndex + 1);
-      }
-    } else if (args.column?.field === 'owedTotal') {
-      const record = args.data as RegistrationSearchResultDto;
-      if (args.cell) {
-        if (record.owedTotal === 0) {
-          args.cell.classList.add('owed-zero');
-        } else if (record.owedTotal > 0) {
-          args.cell.classList.add('owed-positive');
-        }
-      }
-    }
-  }
 
   get canEmailSelected(): boolean {
     return this.selectedRegistrations().size > 0;

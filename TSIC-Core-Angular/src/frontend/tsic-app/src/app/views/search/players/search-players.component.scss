@@ -365,19 +365,92 @@
   min-height: 400px;
 }
 
+// ── Results Summary Bar ──
 .results-summary {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
   background: var(--bs-card-bg);
   border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
 
-  .result-count {
-    font-weight: 600;
-    color: var(--bs-body-color);
-  }
+.result-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.result-count-number {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--bs-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-count-label {
+  font-size: var(--font-size-sm);
+  color: var(--bs-secondary-color);
+  font-weight: 500;
+}
+
+.result-selected {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--bs-secondary-color);
+}
+
+.selected-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--bs-primary);
+  color: var(--bs-white);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.result-financials {
+  display: flex;
+  gap: var(--space-4);
+  margin-left: auto;
+}
+
+.financial-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.financial-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bs-secondary-color);
+  font-weight: 600;
+}
+
+.financial-value {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.financial-paid .financial-value {
+  color: var(--bs-success);
+}
+
+.financial-owed .financial-value {
+  color: var(--bs-danger);
 }
 
 // ── Grid Styling ──
@@ -385,14 +458,18 @@
   ::ng-deep {
     .e-grid {
       border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
+      border-radius: var(--radius-md);
       background: var(--bs-card-bg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
 
       .e-headercell {
         background: var(--bs-secondary-bg);
-        color: var(--bs-body-color);
-        font-weight: 600;
-        font-size: var(--font-size-sm);
+        color: var(--bs-secondary-color);
+        font-weight: 700;
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
         padding: var(--space-2) var(--space-3);
         border-bottom: 2px solid var(--bs-border-color);
       }
@@ -402,49 +479,165 @@
         font-size: var(--font-size-sm);
         color: var(--bs-body-color);
         border-bottom: 1px solid var(--bs-border-color-translucent);
+        vertical-align: middle;
+
       }
 
-      .e-row:hover {
-        background: var(--bs-tertiary-bg);
+      .e-row {
+        transition: background 0.12s ease;
+
+        &:hover {
+          background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
+        }
       }
 
       .e-altrow {
         background: var(--bs-secondary-bg);
+
+        &:hover {
+          background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+        }
+      }
+
+      // Selected row
+      .e-row.e-active,
+      .e-altrow.e-active {
+        background: color-mix(in srgb, var(--bs-primary) 10%, transparent) !important;
       }
 
       .e-gridpager {
         background: var(--bs-card-bg);
         border-top: 1px solid var(--bs-border-color);
-        padding: var(--space-2);
+        padding: var(--space-2) var(--space-3);
 
         .e-pagercontainer {
           color: var(--bs-body-color);
+        }
+
+        .e-numericitem,
+        .e-nextpage,
+        .e-prevpage,
+        .e-firstpage,
+        .e-lastpage {
+          border-radius: var(--radius-sm);
+        }
+
+        .e-currentitem {
+          background: var(--bs-primary) !important;
+          color: var(--bs-white) !important;
+          border-radius: var(--radius-sm);
         }
       }
     }
   }
 }
 
+// ── Name Link with inline detail icon ──
 .detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--bs-primary);
   text-decoration: none;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  .detail-icon {
+    flex-shrink: 0;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+    vertical-align: middle;
+  }
 
   &:hover {
     text-decoration: underline;
-    color: var(--bs-primary-hover);
+
+    .detail-icon {
+      opacity: 1;
+    }
+  }
+
+  &.inactive-name {
+    color: var(--bs-secondary-color);
+    text-decoration: line-through;
+    font-weight: 500;
+    opacity: 0.7;
   }
 }
 
-// ── Financial Cell Styling ──
-.owed-positive {
-  color: var(--bs-danger) !important;
+// ── Role Pill ──
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
   font-weight: 600;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--bs-info) 15%, transparent);
+  color: var(--bs-info);
+
+  &[data-role="player"] {
+    background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+    color: var(--bs-primary);
+  }
+
+  &[data-role="club rep"] {
+    background: color-mix(in srgb, #8b5cf6 15%, transparent);
+    color: #7c3aed;
+  }
+
+  &[data-role="staff"] {
+    background: color-mix(in srgb, var(--bs-warning) 15%, transparent);
+    color: var(--bs-warning);
+  }
+
+  &[data-role="coach"] {
+    background: color-mix(in srgb, var(--bs-success) 12%, transparent);
+    color: var(--bs-success);
+  }
+
+  &[data-role="family"] {
+    background: color-mix(in srgb, #ec4899 12%, transparent);
+    color: #db2777;
+  }
 }
 
-.owed-zero {
-  color: var(--bs-success) !important;
-  font-weight: 600;
+// ── Money Cells ──
+.money-cell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.money-paid {
+  color: var(--bs-body-color);
+}
+
+.money-owed {
+  color: var(--bs-danger);
+  font-weight: 700;
+}
+
+.money-zero {
+  color: var(--bs-success);
+}
+
+// ── Assignment Tag ──
+.assignment-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+  color: var(--bs-body-color);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 // ── Aggregate Row Styling ──
@@ -460,13 +653,6 @@
       background-color: var(--bs-body-bg) !important;
     }
 
-    .aggregate-label {
-      text-align: right;
-      padding-right: var(--space-2);
-      font-weight: 700;
-      color: var(--bs-body-color);
-    }
-
     .aggregate-value {
       text-align: right;
       font-weight: 700;
@@ -475,11 +661,10 @@
   }
 }
 
-// ── Badge Styling ──
-.badge {
-  font-size: var(--font-size-xs);
-  padding: var(--space-1) var(--space-2);
-  font-weight: 600;
+// ── Button Icons ──
+.btn-icon {
+  vertical-align: -2px;
+  margin-right: var(--space-1);
 }
 
 // ── Dirty-state Search button ──

@@ -66,6 +66,10 @@ public record RegistrationSearchResultDto
     public string? AgegroupName { get; init; }
     public string? DivisionName { get; init; }
     public string? ClubName { get; init; }
+    /// <summary>Club name derived from team's club rep registration (null when no club rep).</summary>
+    public string? ClubRepClubName { get; init; }
+    /// <summary>Computed assignment display: "ClubRepClub AgegroupName TeamName" or "AgegroupName TeamName".</summary>
+    public string? Assignment { get; init; }
 
     // Financials
     public required decimal FeeTotal { get; init; }
