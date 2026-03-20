@@ -447,6 +447,17 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   onRowSelected(): void {
     const selectedRecords = this.grid.getSelectedRecords() as RegistrationSearchResultDto[];
+    const pageSize = (this.grid.pageSettings.pageSize as number) || 20;
+    const currentPageRecords = this.grid.getCurrentViewRecords().length;
+
+    // Header "select all" click = open Email All immediately
+    if (selectedRecords.length >= currentPageRecords && currentPageRecords === pageSize) {
+      this.grid.clearSelection();
+      this.selectedRegistrations.set(new Set());
+      this.onEmailAll();
+      return;
+    }
+
     const newSelection = new Set(selectedRecords.map(r => r.registrationId));
     this.selectedRegistrations.set(newSelection);
   }
@@ -501,16 +512,51 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
 
+  // Email mode: 'selected' = checked rows, 'all' = full query results
+  emailMode = signal<'selected' | 'all'>('selected');
+
   get canEmailSelected(): boolean {
     return this.selectedRegistrations().size > 0;
   }
 
-  get selectedRegistrationIds(): string[] {
+  get emailRegistrationIds(): string[] {
+    if (this.emailMode() === 'all') {
+      return this.searchResults()?.result?.map(r => r.registrationId) ?? [];
+    }
     return Array.from(this.selectedRegistrations());
+  }
+
+  get emailRecipientCount(): number {
+    if (this.emailMode() === 'all') {
+      return this.searchResults()?.result?.length ?? 0;
+    }
+    return this.selectedRegistrations().size;
+  }
+
+  get emailRecipients(): { name: string; email: string }[] {
+    if (this.emailMode() === 'all') {
+      return this.searchResults()?.result?.map(r => ({
+        name: `${r.lastName}, ${r.firstName}`,
+        email: r.email
+      })) ?? [];
+    }
+    const records = this.grid.getSelectedRecords() as RegistrationSearchResultDto[];
+    return records.map(r => ({
+      name: `${r.lastName}, ${r.firstName}`,
+      email: r.email
+    }));
   }
 
   onEmailSelected(): void {
     if (this.canEmailSelected) {
+      this.emailMode.set('selected');
+      this.showBatchEmailModal.set(true);
+    }
+  }
+
+  onEmailAll(): void {
+    if (this.searchResults()?.result?.length) {
+      this.emailMode.set('all');
       this.showBatchEmailModal.set(true);
     }
   }

@@ -164,9 +164,19 @@
             </button>
           </div>
           <div class="action-buttons-right">
-            <button type="button" class="btn btn-outline-primary" (click)="onEmailSelected()" [disabled]="!canEmailSelected">
+            <button type="button"
+              class="btn"
+              [class.btn-secondary]="!canEmailSelected"
+              [class.btn-warning]="canEmailSelected"
+              [class.email-pulse]="canEmailSelected"
+              (click)="onEmailSelected()"
+              [disabled]="!canEmailSelected">
               <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-              Email Selected
+              Email Selected ({{ selectedRegistrations().size }})
+            </button>
+            <button type="button" class="btn btn-info" (click)="onEmailAll()" [disabled]="!searchResults()?.result?.length">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              Email All
             </button>
             <button type="button" class="btn btn-success" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">
               <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -459,6 +469,8 @@
                     <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                   </svg>
                   {{ data.lastName }}, {{ data.firstName }}
+                  <span class="email-dot" [class.subscribed]="!data.emailOptOut" [class.unsubscribed]="data.emailOptOut"
+                        [title]="data.emailOptOut ? 'Unsubscribed from emails' : 'Subscribed to emails'"></span>
                 </a>
               </ng-template>
             </e-column>
@@ -548,8 +560,9 @@
 <!-- Batch Email Modal -->
 @if (showBatchEmailModal()) {
   <app-batch-email-modal
-    [registrationIds]="selectedRegistrationIds"
-    [recipientCount]="selectedRegistrations().size"
+    [registrationIds]="emailRegistrationIds"
+    [recipientCount]="emailRecipientCount"
+    [recipients]="emailRecipients"
     [isOpen]="showBatchEmailModal()"
     [activeRoleIds]="searchRequest().roleIds ?? []"
     [roleOptions]="filterOptions()?.roles ?? null"

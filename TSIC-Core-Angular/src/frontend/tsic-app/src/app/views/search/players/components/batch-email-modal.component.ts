@@ -15,10 +15,6 @@ const BASE_TOKENS = [
   { token: '!SEASON', description: 'Season name' },
   { token: '!SPORT', description: 'Sport name' },
   { token: '!CUSTOMERNAME', description: 'Customer name' },
-  { token: '!F-ACCOUNTING', description: 'Formatted accounting table' },
-  { token: '!F-PLAYERS', description: 'Formatted player roster table' },
-  { token: '!J-CONTACTBLOCK', description: 'JSON contact information block' },
-  { token: '!UNSUBSCRIBE', description: 'Unsubscribe link' },
   { token: '!INVITE_LINK', description: 'Personalized registration invitation link (requires target event selection)' }
 ];
 
@@ -38,6 +34,7 @@ export class BatchEmailModalComponent implements OnInit {
 
   registrationIds = input<string[]>([]);
   recipientCount = input<number>(0);
+  recipients = input<{ name: string; email: string }[]>([]);
   isOpen = input<boolean>(false);
 
   // Role context — used to conditionally show !CLUBREP_INVITE_LINK

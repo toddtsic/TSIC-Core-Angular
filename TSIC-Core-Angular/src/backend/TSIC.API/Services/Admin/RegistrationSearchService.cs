@@ -632,6 +632,15 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 var renderedBody = await _textSubstitution.SubstituteAsync(
                     jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.BodyTemplate, inviteTargetJobPath);
 
+                // Auto-append unsubscribe footer to every batch email
+                var unsubscribeUrl = $"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={reg.RegistrationId:D}";
+                renderedBody += $"""
+                    <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e0e0e0; text-align:center; font-size:12px; color:#999;">
+                        <a href="{unsubscribeUrl}" style="color:#999; text-decoration:underline;">Unsubscribe</a>
+                        from emails for this event
+                    </div>
+                    """;
+
                 var emailMsg = new EmailMessageDto
                 {
                     FromAddress = jobConfirmation?.JobName,
