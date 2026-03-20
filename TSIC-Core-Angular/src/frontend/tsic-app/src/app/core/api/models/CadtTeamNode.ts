@@ -5,5 +5,6 @@
 export type CadtTeamNode = {
     teamId: string;
     teamName: string;
+    playerCount?: number;
 };
 

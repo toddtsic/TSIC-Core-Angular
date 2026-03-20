@@ -79,6 +79,24 @@
   white-space: nowrap;
 }
 
+.master-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+
+  &:hover .master-check {
+    color: var(--bs-primary);
+  }
+}
+
+.master-check {
+  font-size: var(--font-size-xs);
+  color: var(--bs-primary);
+  flex-shrink: 0;
+}
+
 .field-header-cell {
   padding: var(--space-2) var(--space-2);
   background: var(--bs-body-bg);

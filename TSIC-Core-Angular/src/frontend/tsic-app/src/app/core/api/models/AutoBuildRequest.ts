@@ -16,5 +16,7 @@ export type AutoBuildRequest = {
     divisionOrder?: any[] | null;
     selectedFieldIds?: any[] | null;
     overrideStartTime?: string | null;
+    overrideBrr?: number;
+    overridePlacement?: string | null;
 };
 

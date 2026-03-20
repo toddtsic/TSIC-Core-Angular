@@ -7,6 +7,8 @@ export type CadtAgegroupNode = {
     agegroupId: string;
     agegroupName: string;
     color?: string | null;
+    teamCount?: number;
+    playerCount?: number;
     divisions: Array<CadtDivisionNode>;
 };
 

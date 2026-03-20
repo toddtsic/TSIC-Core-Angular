@@ -35,7 +35,17 @@
         <table class="matrix-table">
           <thead>
             <tr>
-              <th class="ag-header-cell">Agegroup / Division</th>
+              <th class="ag-header-cell">
+                <div class="master-toggle" (click)="toggleAll()">
+                  <i class="bi master-check"
+                     [ngClass]="{
+                       'bi-check-square-fill': masterState() === 'all',
+                       'bi-dash-square': masterState() === 'some',
+                       'bi-square': masterState() === 'none'
+                     }"></i>
+                  <span>Agegroup / Division</span>
+                </div>
+              </th>
               @for (field of eventFields(); track field.fieldId) {
                 <th class="field-header-cell"
                     (click)="toggleFieldColumn(field.fieldId)">

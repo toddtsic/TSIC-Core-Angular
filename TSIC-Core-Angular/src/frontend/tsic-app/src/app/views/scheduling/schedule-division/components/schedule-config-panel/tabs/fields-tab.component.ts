@@ -262,6 +262,42 @@ export class FieldsTabComponent implements OnInit {
     this.localAssignments.set(updated);
   }
 
+  /** Master state for the entire matrix (top-left corner toggle). */
+  masterState(): 'all' | 'some' | 'none' {
+    const ags = this.agegroups();
+    const fields = this.eventFields();
+    if (ags.length === 0 || fields.length === 0) return 'none';
+    const current = this.localAssignments();
+    let checked = 0;
+    const total = ags.length * fields.length;
+    for (const ag of ags) {
+      const set = current[ag.agegroupId];
+      if (set) {
+        for (const f of fields) {
+          if (set.has(f.fieldId)) checked++;
+        }
+      }
+    }
+    if (checked === 0) return 'none';
+    if (checked === total) return 'all';
+    return 'some';
+  }
+
+  /** Toggle all agegroup×field assignments at once. */
+  toggleAll(): void {
+    const ags = this.agegroups();
+    const fields = this.eventFields();
+    const selectAll = this.masterState() !== 'all';
+
+    const updated: Record<string, Set<string>> = {};
+    for (const ag of ags) {
+      updated[ag.agegroupId] = selectAll
+        ? new Set(fields.map(f => f.fieldId))
+        : new Set<string>();
+    }
+    this.localAssignments.set(updated);
+  }
+
   fieldColumnState(fieldId: string): 'all' | 'some' | 'none' {
     const ags = this.agegroups();
     if (ags.length === 0) return 'none';

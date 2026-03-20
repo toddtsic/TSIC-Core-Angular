@@ -5,6 +5,8 @@
 import type { CadtAgegroupNode } from './CadtAgegroupNode';
 export type CadtClubNode = {
     clubName: string;
+    teamCount?: number;
+    playerCount?: number;
     agegroups: Array<CadtAgegroupNode>;
 };
 

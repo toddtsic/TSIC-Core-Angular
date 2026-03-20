@@ -6,6 +6,8 @@ import type { CadtTeamNode } from './CadtTeamNode';
 export type CadtDivisionNode = {
     divId: string;
     divName: string;
+    teamCount?: number;
+    playerCount?: number;
     teams: Array<CadtTeamNode>;
 };
 
