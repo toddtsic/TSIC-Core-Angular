@@ -388,8 +388,7 @@
                             @if (championshipPlacementMode()) {
                                 <div class="championship-banner">
                                     <i class="bi bi-trophy-fill me-2"></i>
-                                    {{ champBannerText() }}
-                                    Use <strong>Add Row</strong> to create timeslots at championship intervals, then place each game.
+                                    {{ champBannerText() }}&nbsp;Use <strong>Add Row</strong> to create timeslots at championship intervals, then place each game.
                                     @if (unplacedChampCount() === 0) {
                                         <button class="btn btn-sm btn-success ms-3"
                                                 (click)="exitChampionshipPlacementMode()">
@@ -640,6 +639,20 @@
         [gameDates]="modalGameDates()"
         (buildRequested)="onAutoScheduleBuild($event)"
         (cancelled)="closeAutoScheduleModal()" />
+}
+
+<!-- ══════════ Division Build Confirmation Modal ══════════ -->
+@if (showDivBuildConfirm()) {
+    <app-division-build-confirm-modal
+        [divisionName]="selectedDivision()?.divName ?? ''"
+        [agegroupName]="selectedAgegroupName()"
+        [availableFields]="divBuildFields()"
+        [defaultStartTime]="divBuildStartTime()"
+        [defaultPlacement]="divBuildPlacement()"
+        [defaultBrr]="divBuildBrr()"
+        [hasExistingGames]="hasGamesInScope()"
+        (buildRequested)="onDivBuildConfirmed($event)"
+        (cancelled)="showDivBuildConfirm.set(false)" />
 }
 
 <!-- ══════════ Build Results Modal ══════════ -->

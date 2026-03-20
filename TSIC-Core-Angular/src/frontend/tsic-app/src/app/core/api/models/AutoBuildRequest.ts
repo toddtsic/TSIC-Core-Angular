@@ -14,5 +14,7 @@ export type AutoBuildRequest = {
     gameGuarantee?: number;
     divisionWaves?: any | null;
     divisionOrder?: any[] | null;
+    selectedFieldIds?: any[] | null;
+    overrideStartTime?: string | null;
 };
 

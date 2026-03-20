@@ -587,10 +587,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 }
             }
 
-            var effectiveBrr = divBrrMap.GetValueOrDefault(div.DivId)
+            var effectiveBrr = request.OverrideBrr
+                ?? divBrrMap.GetValueOrDefault(div.DivId)
                 ?? agBrrMap.GetValueOrDefault(div.AgegroupId)
                 ?? eventBrr;
-            var effectivePlacement = divPlacementMap.GetValueOrDefault(div.DivId)
+            var effectivePlacement = request.OverridePlacement
+                ?? divPlacementMap.GetValueOrDefault(div.DivId)
                 ?? agPlacementMap.GetValueOrDefault(div.AgegroupId)
                 ?? eventPlacement;
             var guaranteeMaxRound = ComputeRoundCount(teamCount, agGuarantee);
@@ -679,6 +681,43 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 currentWindowStart = agCtx.DefaultWindowStart;
                 effectiveDates = agCtx.Dates.Where(d => d.DivId == null).ToList();
                 effectiveFields = agCtx.Fields.Where(f => f.DivId == null).ToList();
+            }
+
+            // ── One-shot overrides from division build confirmation modal ──
+            var needsRegenCandidates = false;
+
+            // A. Field filter — restrict to selected field IDs only
+            if (request.SelectedFieldIds is { Count: > 0 })
+            {
+                var allowedIds = new HashSet<Guid>(request.SelectedFieldIds);
+                effectiveFields = effectiveFields.Where(f => allowedIds.Contains(f.FieldId)).ToList();
+                needsRegenCandidates = true;
+            }
+
+            // B. Start time override — replace StartTime on all effective fields
+            if (!string.IsNullOrEmpty(request.OverrideStartTime))
+            {
+                effectiveFields = effectiveFields
+                    .Select(f => f with { StartTime = request.OverrideStartTime })
+                    .ToList();
+                needsRegenCandidates = true;
+            }
+
+            // Regenerate candidates + window start if either override was applied
+            if (needsRegenCandidates)
+            {
+                var overrideDates = effectiveDates
+                    .GroupBy(d => d.GDate.Date).Select(g => g.First()).ToList();
+                candidates = GenerateCandidateSlots(overrideDates, effectiveFields);
+
+                currentWindowStart = new Dictionary<DayOfWeek, TimeSpan>();
+                foreach (var field in effectiveFields)
+                {
+                    if (!DateTime.TryParse(field.StartTime, out var stDt)) continue;
+                    if (!Enum.TryParse<DayOfWeek>(field.Dow, true, out var dow)) continue;
+                    if (!currentWindowStart.TryGetValue(dow, out var existing) || stDt.TimeOfDay < existing)
+                        currentWindowStart[dow] = stDt.TimeOfDay;
+                }
             }
 
             if (candidates.Count == 0)

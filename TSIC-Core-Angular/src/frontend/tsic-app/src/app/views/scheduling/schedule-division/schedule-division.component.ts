@@ -34,6 +34,7 @@ import type { DevResetOptions } from './components/schedule-config/schedule-conf
 import { AutoScheduleConfigModalComponent, type AutoScheduleBuildEvent } from './components/auto-schedule-config-modal/auto-schedule-config-modal.component';
 import { CanvasConfigPanelComponent } from './components/canvas-config-panel/canvas-config-panel.component';
 import { BuildResultsPanelComponent } from './components/build-results-panel/build-results-panel.component';
+import { DivisionBuildConfirmModalComponent, type FieldOption, type DivisionBuildOverrides } from './components/division-build-confirm-modal/division-build-confirm-modal.component';
 import { BulkDateAssignModalComponent } from './components/bulk-date-assign-modal/bulk-date-assign-modal.component';
 import { ScheduleConfigPanelComponent } from './components/schedule-config-panel/schedule-config-panel.component';
 import { ManageFieldsComponent } from '../fields/manage-fields.component';
@@ -56,7 +57,7 @@ import { LadtService } from '../../ladt/editor/services/ladt.service';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, MasterScheduleComponent, QaResultsComponent, ReschedulerComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, MasterScheduleComponent, QaResultsComponent, ReschedulerComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -338,6 +339,13 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly showEventBuildConfirm = signal(false);
     readonly modalGameDates = signal<GameDateInfoDto[]>([]);
     readonly isExecuting = signal(false);
+
+    // ── Division build confirmation modal ──
+    readonly showDivBuildConfirm = signal(false);
+    readonly divBuildFields = signal<FieldOption[]>([]);
+    readonly divBuildStartTime = signal('8:00 AM');
+    readonly divBuildPlacement = signal<'H' | 'V'>('H');
+    readonly divBuildBrr = signal(0);
 
     // ── Build results ──
     readonly buildResult = signal<AutoBuildResult | null>(null);
@@ -1309,7 +1317,15 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     private openAutoScheduleModal(): void {
-        // No existing games → skip the modal, build immediately
+        const s = this.scope();
+
+        // Division scope → show the new build confirmation modal with quick-edit params
+        if (s.level === 'division') {
+            this.openDivisionBuildConfirmModal(s.divId, s.agegroupId);
+            return;
+        }
+
+        // Non-division scope: No existing games → skip the modal, build immediately
         if (!this.hasGamesInScope()) {
             this.onAutoScheduleBuild({
                 config: { action: 'build', existingGameMode: 'rebuild' }
@@ -1330,6 +1346,57 @@ export class ScheduleDivisionComponent implements OnInit {
             next: (dates) => this.modalGameDates.set(dates),
             error: () => this.modalGameDates.set([])
         });
+    }
+
+    // ── Division build confirmation modal ──
+
+    private openDivisionBuildConfirmModal(divId: string, agegroupId: string): void {
+        // Fetch timeslot config for this agegroup to get fields + start times
+        this.timeslotSvc.getConfiguration(agegroupId).subscribe({
+            next: (config) => {
+                // Resolve effective fields: division-specific first, fallback to agegroup-level
+                const divFields = config.fields.filter(f => f.divId === divId);
+                const effectiveFields = divFields.length > 0
+                    ? divFields
+                    : config.fields.filter(f => !f.divId);
+
+                // Deduplicate by fieldId (timeslot config has one row per field per DOW)
+                const seen = new Set<string>();
+                const uniqueFields: FieldOption[] = [];
+                for (const f of effectiveFields) {
+                    if (!seen.has(f.fieldId)) {
+                        seen.add(f.fieldId);
+                        uniqueFields.push({ fieldId: f.fieldId, fieldName: f.fieldName });
+                    }
+                }
+                this.divBuildFields.set(uniqueFields);
+
+                // Extract earliest start time (use raw DB value)
+                const startTimes = effectiveFields.map(f => f.startTime).filter(Boolean);
+                this.divBuildStartTime.set(startTimes[0] ?? '8:00 AM');
+
+                // Get cascade values for this division
+                const snapshot = this.cascadeSvc.cascade();
+                const ag = snapshot?.agegroups.find(a => a.agegroupId === agegroupId);
+                const div = ag?.divisions.find(d => d.divisionId === divId);
+                this.divBuildPlacement.set((div?.effectiveGamePlacement as 'H' | 'V') ?? 'H');
+                this.divBuildBrr.set(div?.effectiveBetweenRoundRows ?? 1);
+
+                this.showDivBuildConfirm.set(true);
+            },
+            error: () => {
+                this.toast.show('Failed to load build configuration', 'danger');
+            }
+        });
+    }
+
+    /** Handle build from the division build confirmation modal. */
+    onDivBuildConfirmed(overrides: DivisionBuildOverrides): void {
+        this.showDivBuildConfirm.set(false);
+        this.onAutoScheduleBuild(
+            { config: { action: 'build', existingGameMode: 'rebuild' } },
+            overrides
+        );
     }
 
     onEventBuildConfirmed(): void {
@@ -1448,7 +1515,7 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     /** Handle build/delete event from the auto-schedule config modal child. */
-    onAutoScheduleBuild(event: AutoScheduleBuildEvent): void {
+    onAutoScheduleBuild(event: AutoScheduleBuildEvent, divOverrides?: DivisionBuildOverrides): void {
         this.showAutoScheduleModal.set(false);
         this.showEventBuildConfirm.set(false);
 
@@ -1461,7 +1528,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.isExecuting.set(true);
         this.openOperationModal('Building Your Schedule', 'Placing games and checking constraints...', 'bi-lightning-charge-fill');
         const buildStart = Date.now();
-        const request = this.buildAutoScheduleRequest(event);
+        const request = this.buildAutoScheduleRequest(event, divOverrides);
 
         this.autoBuildSvc.execute(request).subscribe({
             next: (result) => {
@@ -1555,7 +1622,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.setMode('qa');
     }
 
-    private buildAutoScheduleRequest(event: AutoScheduleBuildEvent) {
+    private buildAutoScheduleRequest(event: AutoScheduleBuildEvent, divOverrides?: DivisionBuildOverrides) {
         const s = this.scope();
         const allDivIds = this.agegroups().flatMap(ag => ag.divisions.map(d => d.divId));
         const mode = event.config.existingGameMode ?? 'rebuild';
@@ -1612,7 +1679,7 @@ export class ScheduleDivisionComponent implements OnInit {
             }
         }
 
-        return {
+        const request: any = {
             agegroupOrder,
             excludedDivisionIds,
             divisionWaves: waveAssignments,
@@ -1621,6 +1688,16 @@ export class ScheduleDivisionComponent implements OnInit {
             existingGameMode: mode,
             gameGuarantee: this.gameSummary()?.gameGuarantee ?? undefined,
         };
+
+        // Thread division build confirmation overrides into the request
+        if (divOverrides && s.level === 'division') {
+            request.selectedFieldIds = divOverrides.selectedFieldIds;
+            request.overrideStartTime = divOverrides.overrideStartTime;
+            request.overrideBrr = divOverrides.brr;
+            request.overridePlacement = divOverrides.placement;
+        }
+
+        return request;
     }
 
 

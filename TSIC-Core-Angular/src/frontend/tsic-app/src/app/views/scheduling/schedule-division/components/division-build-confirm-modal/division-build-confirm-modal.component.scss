@@ -1,0 +1,60 @@
+.summary-card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    color: var(--brand-text);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+    margin-bottom: var(--space-4);
+
+    i {
+        color: var(--bs-primary);
+        font-size: var(--font-size-base);
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+}
+
+.config-section {
+    margin-bottom: var(--space-3);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-1);
+}
+
+.field-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.field-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    white-space: nowrap;
+
+    input {
+        margin: 0;
+    }
+}
+
+.btn-group {
+    .btn {
+        font-size: var(--font-size-sm);
+    }
+}

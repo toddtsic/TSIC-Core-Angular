@@ -300,6 +300,22 @@ public record AutoBuildRequest
     /// When present, replaces DivOrdinal + AgOrder interleaving in chip stack.
     /// Derived from source timing or set manually.</summary>
     public List<Guid>? DivisionOrder { get; init; }
+
+    /// <summary>One-shot field filter. When present, engine uses only these field IDs
+    /// for candidate slot generation. Null = all fields from timeslot config (existing behavior).</summary>
+    public List<Guid>? SelectedFieldIds { get; init; }
+
+    /// <summary>One-shot start time override for ALL fields in candidate generation.
+    /// Format: "h:mm tt" (e.g. "8:00 AM"). Null = use per-field DB config.</summary>
+    public string? OverrideStartTime { get; init; }
+
+    /// <summary>One-shot BetweenRoundRows override. Bypasses cascade resolution.
+    /// Null = use cascade-resolved value (existing behavior).</summary>
+    public byte? OverrideBrr { get; init; }
+
+    /// <summary>One-shot GamePlacement override ("H" or "V"). Bypasses cascade resolution.
+    /// Null = use cascade-resolved value (existing behavior).</summary>
+    public string? OverridePlacement { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════

@@ -1,0 +1,112 @@
+<tsic-dialog [open]="true" size="md" (requestClose)="cancelled.emit()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">
+                Build <span class="fw-bold">{{ agegroupName() }}:{{ divisionName() }}</span>
+            </h5>
+            <button type="button" class="btn-close" (click)="cancelled.emit()"></button>
+        </div>
+
+        <div class="modal-body">
+
+            <!-- Summary sentence -->
+            <div class="summary-card">
+                <i class="bi bi-lightning-charge-fill me-2"></i>
+                <span>{{ summaryText() }}</span>
+            </div>
+
+            <!-- Fields -->
+            <div class="config-section">
+                <div class="section-header">
+                    <label class="form-label form-label-sm fw-semibold mb-0">Fields</label>
+                    <button class="btn btn-link btn-sm p-0 text-decoration-none"
+                            (click)="toggleAllFields()">
+                        {{ allFieldsSelected() ? 'Deselect All' : 'Select All' }}
+                    </button>
+                </div>
+                <div class="field-list">
+                    @for (field of availableFields(); track field.fieldId) {
+                        <label class="field-check">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   [checked]="selectedFieldIds().has(field.fieldId)"
+                                   (change)="toggleField(field.fieldId)">
+                            <span>{{ field.fieldName }}</span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <!-- Start Time -->
+            <div class="config-section">
+                <label class="form-label form-label-sm fw-semibold mb-1">Start Time</label>
+                <select class="form-select form-select-sm"
+                        [value]="startTime()"
+                        (change)="onStartTimeChange($any($event.target).value)">
+                    @for (t of timeOptions(); track t) {
+                        <option [value]="t">{{ t }}</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Skip Rows (BRR) -->
+            <div class="config-section">
+                <label class="form-label form-label-sm fw-semibold mb-1">Between-Round Rows</label>
+                <div class="btn-group btn-group-sm w-100" role="group">
+                    <input type="radio" class="btn-check" name="brr" id="brr-0"
+                           [checked]="brr() === 0" (change)="onBrrChange(0)">
+                    <label class="btn btn-outline-secondary" for="brr-0">None (0)</label>
+
+                    <input type="radio" class="btn-check" name="brr" id="brr-1"
+                           [checked]="brr() === 1" (change)="onBrrChange(1)">
+                    <label class="btn btn-outline-secondary" for="brr-1">1 skip row</label>
+
+                    <input type="radio" class="btn-check" name="brr" id="brr-2"
+                           [checked]="brr() === 2" (change)="onBrrChange(2)">
+                    <label class="btn btn-outline-secondary" for="brr-2">2 skip rows</label>
+
+                    <input type="radio" class="btn-check" name="brr" id="brr-3"
+                           [checked]="brr() === 3" (change)="onBrrChange(3)">
+                    <label class="btn btn-outline-secondary" for="brr-3">3 skip rows</label>
+                </div>
+            </div>
+
+            <!-- Direction -->
+            <div class="config-section">
+                <label class="form-label form-label-sm fw-semibold mb-1">Placement Direction</label>
+                <div class="btn-group btn-group-sm w-100" role="group">
+                    <input type="radio" class="btn-check" name="placement" id="placement-h"
+                           [checked]="placement() === 'H'" (change)="onPlacementChange('H')">
+                    <label class="btn btn-outline-secondary" for="placement-h">
+                        <i class="bi bi-arrow-right me-1"></i>Horizontal
+                    </label>
+
+                    <input type="radio" class="btn-check" name="placement" id="placement-v"
+                           [checked]="placement() === 'V'" (change)="onPlacementChange('V')">
+                    <label class="btn btn-outline-secondary" for="placement-v">
+                        <i class="bi bi-arrow-down me-1"></i>Vertical
+                    </label>
+                </div>
+            </div>
+
+            <!-- Existing games warning -->
+            @if (hasExistingGames()) {
+                <div class="alert alert-warning d-flex align-items-center mt-3 mb-0 py-2 px-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <small>Existing games in this division will be deleted and rebuilt.</small>
+                </div>
+            }
+
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-sm btn-outline-secondary" (click)="cancelled.emit()">Cancel</button>
+            <button class="btn btn-sm btn-primary"
+                    [disabled]="!canBuild()"
+                    (click)="onBuild()">
+                <i class="bi bi-lightning-charge-fill me-1"></i>
+                Build Now
+            </button>
+        </div>
+    </div>
+</tsic-dialog>
