@@ -15,6 +15,7 @@ export type RegistrationDetailDto = {
     roleName: string;
     active: boolean;
     teamName?: string | null;
+    assignment?: string | null;
     feeBase: number;
     feeProcessing: number;
     feeDiscount: number;

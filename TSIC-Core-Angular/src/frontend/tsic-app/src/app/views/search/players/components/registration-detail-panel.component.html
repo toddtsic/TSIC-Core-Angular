@@ -9,9 +9,9 @@
         <h3 class="panel-title">{{ reg.firstName }} {{ reg.lastName }}</h3>
         <div class="header-meta">
           <span class="meta-item">{{ reg.roleName }}</span>
-          @if (reg.teamName) {
+          @if (reg.assignment) {
             <span class="meta-separator">&bull;</span>
-            <span class="meta-item">{{ reg.teamName }}</span>
+            <span class="meta-item">{{ reg.assignment }}</span>
           }
           <span class="meta-separator">&bull;</span>
           <span class="badge" [class.badge-success]="reg.active" [class.badge-secondary]="!reg.active">

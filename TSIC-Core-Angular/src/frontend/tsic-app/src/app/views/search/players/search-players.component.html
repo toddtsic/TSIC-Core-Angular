@@ -410,6 +410,9 @@
     <div class="results-container">
       @if (searchResults()) {
         <div class="results-summary">
+          <svg class="results-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          </svg>
           <span class="result-count">
             <span class="result-count-number">{{ searchResults()!.count | number }}</span>
             <span class="result-count-label">registrations</span>
@@ -437,6 +440,7 @@
           [allowPaging]="true"
           [allowSorting]="true"
           [allowExcelExport]="true"
+          [enableStickyHeader]="true"
           [frozenColumns]="1"
           [pageSettings]="pageSettings"
           [sortSettings]="sortSettings"
@@ -465,9 +469,9 @@
                 <span class="role-pill" [attr.data-role]="data.roleName?.toLowerCase()">{{ data.roleName }}</span>
               </ng-template>
             </e-column>
-            <e-column field="registrationTs" headerText="Registered" width="100" type="date" format="M/d/yyyy"></e-column>
+            <e-column field="registrationTs" headerText="Registered" width="105" type="date" format="MM/dd/yyyy" textAlign="Center"></e-column>
             <e-column field="phone" headerText="Phone" width="120"></e-column>
-            <e-column field="dob" headerText="DOB" width="100" type="date" format="M/d/yyyy"></e-column>
+            <e-column field="dob" headerText="DOB" width="105" type="date" format="MM/dd/yyyy" textAlign="Center"></e-column>
             <e-column field="position" headerText="Pos" width="70" textAlign="Center"></e-column>
             <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right">
               <ng-template #template let-data>

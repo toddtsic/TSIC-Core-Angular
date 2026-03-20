@@ -20,6 +20,8 @@ public record RegistrationDetailDto
     public required string RoleName { get; init; }
     public required bool Active { get; init; }
     public string? TeamName { get; init; }
+    /// <summary>Computed: "ClubRepClub AgegroupName TeamName" from live join chain.</summary>
+    public string? Assignment { get; init; }
 
     // Financials (summary)
     public required decimal FeeBase { get; init; }

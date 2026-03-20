@@ -1309,6 +1309,9 @@ public class RegistrationRepository : IRegistrationRepository
             .Include(r => r.User)
             .Include(r => r.Role)
             .Include(r => r.AssignedTeam)
+                .ThenInclude(t => t!.Agegroup)
+            .Include(r => r.AssignedTeam)
+                .ThenInclude(t => t!.ClubrepRegistration)
             .Include(r => r.Job)
             .Include(r => r.FamilyUser)
             .Include(r => r.RegistrationAccounting)
@@ -1386,6 +1389,13 @@ public class RegistrationRepository : IRegistrationRepository
             RoleName = reg.Role?.Name ?? "",
             Active = reg.BActive ?? false,
             TeamName = reg.AssignedTeam?.TeamName,
+            Assignment = reg.AssignedTeam != null
+                ? string.Join(" ", new[] {
+                    reg.AssignedTeam.ClubrepRegistration?.ClubName,
+                    reg.AssignedTeam.Agegroup?.AgegroupName,
+                    reg.AssignedTeam.TeamName
+                  }.Where(s => !string.IsNullOrWhiteSpace(s))) is { Length: > 0 } a ? a : null
+                : null,
             FeeBase = reg.FeeBase,
             FeeProcessing = reg.FeeProcessing,
             FeeDiscount = reg.FeeDiscount,

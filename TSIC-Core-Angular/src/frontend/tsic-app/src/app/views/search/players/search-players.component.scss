@@ -2,23 +2,27 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-8);
   min-height: 100%;
+  // Subtle page-level gradient — warm top fading to neutral
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bs-primary) 3%, var(--bs-body-bg)) 0%,
+    var(--bs-body-bg) 400px
+  );
 }
 
 // ── Filter Panel ──
 .filter-panel {
-  background: var(--bs-card-bg);
   border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius-lg);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
-  box-shadow: var(--shadow-sm);
-  // backdrop-filter banned — creates containing blocks that trap positioned descendants
-  background: linear-gradient(
-    135deg,
-    var(--glass-white-10) 0%,
-    var(--glass-white-5) 100%
-  );
+  box-shadow: var(--shadow-md);
+  // Layered surface: primary-tinted top edge fading to card bg
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bs-primary) 6%, transparent) 0%, transparent 60px),
+    var(--bs-card-bg);
+  border-top: 3px solid var(--bs-primary);
 }
 
 // ── Compact bar (always visible) ──
@@ -289,9 +293,9 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: var(--bs-card-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
+  background: color-mix(in srgb, var(--bs-primary) 4%, var(--bs-card-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 12%, var(--bs-border-color));
+  border-radius: var(--radius-md);
   align-items: center;
 }
 
@@ -365,34 +369,43 @@
   min-height: 400px;
 }
 
-// ── Results Summary Bar ──
+// ── Results Summary Bar (hero treatment) ──
 .results-summary {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  background: var(--bs-card-bg);
-  border: 1px solid var(--bs-border-color);
+  padding: var(--space-3) var(--space-4);
+  background:
+    linear-gradient(135deg, var(--bs-primary), color-mix(in srgb, var(--bs-primary) 80%, var(--bs-info)));
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    var(--shadow-md),
+    0 2px 8px color-mix(in srgb, var(--bs-primary) 25%, transparent);
+  color: var(--bs-white);
+}
+
+.results-icon {
+  flex-shrink: 0;
+  color: var(--bs-white);
 }
 
 .result-count {
   display: flex;
   align-items: baseline;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .result-count-number {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  color: var(--bs-primary);
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  color: var(--bs-white);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .result-count-label {
   font-size: var(--font-size-sm);
-  color: var(--bs-secondary-color);
+  color: color-mix(in srgb, var(--bs-white) 75%, transparent);
   font-weight: 500;
 }
 
@@ -401,7 +414,7 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--font-size-sm);
-  color: var(--bs-secondary-color);
+  color: color-mix(in srgb, var(--bs-white) 80%, transparent);
 }
 
 .selected-badge {
@@ -412,8 +425,8 @@
   height: 22px;
   padding: 0 var(--space-1);
   border-radius: var(--radius-full);
-  background: var(--bs-primary);
-  color: var(--bs-white);
+  background: var(--bs-white);
+  color: var(--bs-primary);
   font-size: var(--font-size-xs);
   font-weight: 700;
 }
@@ -435,22 +448,23 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--bs-secondary-color);
+  color: color-mix(in srgb, var(--bs-white) 60%, transparent);
   font-weight: 600;
 }
 
 .financial-value {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--bs-white);
 }
 
 .financial-paid .financial-value {
-  color: var(--bs-success);
+  color: color-mix(in srgb, #4ade80 90%, var(--bs-white));
 }
 
 .financial-owed .financial-value {
-  color: var(--bs-danger);
+  color: color-mix(in srgb, #fbbf24 90%, var(--bs-white));
 }
 
 // ── Grid Styling ──
@@ -460,8 +474,9 @@
       border: 1px solid var(--bs-border-color);
       border-radius: var(--radius-md);
       background: var(--bs-card-bg);
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-md);
       overflow: hidden;
+      border: 1px solid var(--bs-border-color);
 
       .e-headercell {
         background: var(--bs-secondary-bg);

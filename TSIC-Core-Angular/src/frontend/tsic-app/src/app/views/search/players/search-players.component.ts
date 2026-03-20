@@ -257,8 +257,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       next: (options) => {
         this.filterOptions.set(options);
         this.applyDefaultChecked(options);
-        // Store default state as baseline so any filter change triggers dirty immediately
-        this.lastSearchedRequest.set(JSON.stringify(this.sanitizeRequest(this.searchRequest())));
+        // Auto-search on load with default filters
+        this.executeSearch();
       },
       error: (err) => {
         this.toast.show('Failed to load filter options', 'danger', 4000);
