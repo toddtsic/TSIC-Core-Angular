@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.Scheduling;
 
 namespace TSIC.Contracts.Services;
 
@@ -10,6 +11,7 @@ public interface IRegistrationSearchService
 {
     Task<RegistrationSearchResponse> SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default);
     Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<CadtClubNode>> GetCadtTreeAsync(Guid jobId, CancellationToken ct = default);
     Task<RegistrationDetailDto?> GetRegistrationDetailAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
     Task UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default);
     Task UpdateFamilyContactAsync(Guid jobId, string userId, UpdateFamilyContactRequest request, CancellationToken ct = default);

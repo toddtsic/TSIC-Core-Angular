@@ -3,6 +3,7 @@ using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -61,6 +62,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         Guid jobId, CancellationToken ct = default)
     {
         return await _registrationRepo.GetFilterOptionsAsync(jobId, ct);
+    }
+
+    public async Task<List<CadtClubNode>> GetCadtTreeAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _registrationRepo.GetCadtTreeForJobAsync(jobId, ct);
     }
 
     public async Task<RegistrationDetailDto?> GetRegistrationDetailAsync(

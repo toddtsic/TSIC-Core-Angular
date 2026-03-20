@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -307,6 +308,14 @@ public interface IRegistrationRepository
     Task<List<ClubRegistrationInfo>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
 
     // ── Registration Search methods ──
+
+    /// <summary>
+    /// Returns the CADT tree (Club → Agegroup → Division → Team) for a job.
+    /// Built from active teams that have a ClubRepRegistrationId assigned.
+    /// Club name is resolved from the club rep's registration ClubName.
+    /// Returns empty list when no teams have club reps (no CADT data).
+    /// </summary>
+    Task<List<CadtClubNode>> GetCadtTreeForJobAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
     /// Server-side paged search with multi-criteria filtering and aggregates.

@@ -7,3 +7,4 @@ export type NavVisibilityOptionsDto = {
     jobTypes: Array<string>;
     customers: Array<string>;
 };
+

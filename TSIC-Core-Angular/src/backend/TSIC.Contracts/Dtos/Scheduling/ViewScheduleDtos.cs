@@ -74,6 +74,8 @@ public record ScheduleFilterOptionsDto
 public record CadtClubNode
 {
     public required string ClubName { get; init; }
+    public int TeamCount { get; init; }
+    public int PlayerCount { get; init; }
     public required List<CadtAgegroupNode> Agegroups { get; init; }
 }
 
@@ -83,6 +85,8 @@ public record CadtAgegroupNode
     public required Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
     public string? Color { get; init; }
+    public int TeamCount { get; init; }
+    public int PlayerCount { get; init; }
     public required List<CadtDivisionNode> Divisions { get; init; }
 }
 
@@ -91,6 +95,8 @@ public record CadtDivisionNode
 {
     public required Guid DivId { get; init; }
     public required string DivName { get; init; }
+    public int TeamCount { get; init; }
+    public int PlayerCount { get; init; }
     public required List<CadtTeamNode> Teams { get; init; }
 }
 
@@ -99,6 +105,7 @@ public record CadtTeamNode
 {
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
+    public int PlayerCount { get; init; }
 }
 
 // ── LADT tree nodes (Agegroup → Division → Team — no club level) ────

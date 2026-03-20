@@ -70,7 +70,7 @@
           </div>
 
           <div class="form-group">
-            <label>Club</label>
+            <label>Reg. Club (self-reported)</label>
             <ejs-multiselect
               [dataSource]="filterOptions()?.clubs ?? []"
               [fields]="msFields"
@@ -90,8 +90,9 @@
           </div>
         </div>
 
-        <!-- LADT Tree (essential) -->
-        <div class="filter-row-ladt">
+        <!-- Tree filters (LADT always present, CADT when club data exists) -->
+        <div class="filter-row-trees" [class.dual-tree]="hasCadtData()">
+          <!-- LADT Tree -->
           <div class="form-group form-group-tree">
             <label>League / Agegroup / Division / Team</label>
             <div class="tree-scroll-container">
@@ -109,6 +110,29 @@
               }
             </div>
           </div>
+
+          <!-- CADT Tree (conditional) -->
+          @if (hasCadtData()) {
+            <div class="form-group form-group-tree">
+              <label>Club / Agegroup / Division / Team</label>
+              <div class="tree-scroll-container">
+                @if (cadtTreeLoading()) {
+                  <div class="tree-loading">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <span>Loading tree&hellip;</span>
+                  </div>
+                } @else {
+                  <app-cadt-tree-filter
+                    [treeData]="cadtTree()"
+                    [checkedIds]="cadtCheckedIds()"
+                    [rootLabel]="jobName()"
+                    [showSearch]="false"
+                    (checkedIdsChange)="onCadtCheckedChange($event)">
+                  </app-cadt-tree-filter>
+                }
+              </div>
+            </div>
+          }
         </div>
 
         <!-- Action buttons row -->
@@ -344,17 +368,6 @@
                   <option [ngValue]="15">15</option>
                   <option [ngValue]="20">20</option>
                   <option [ngValue]="25">25</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="rosterClub">Club (optional)</label>
-                <select id="rosterClub" class="form-select"
-                  [ngModel]="searchRequest().rosterThresholdClub ?? ''"
-                  (ngModelChange)="updateRosterThresholdClub($event)">
-                  <option value="">All Clubs</option>
-                  @for (club of filterOptions()?.clubs ?? []; track club.value) {
-                    <option [value]="club.value">{{ club.text }}</option>
-                  }
                 </select>
               </div>
             </div>

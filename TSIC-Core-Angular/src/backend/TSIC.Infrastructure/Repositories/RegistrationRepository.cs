@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -808,6 +809,104 @@ public class RegistrationRepository : IRegistrationRepository
 
     // ── Registration Search methods ──
 
+    public async Task<List<CadtClubNode>> GetCadtTreeForJobAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // Get all active teams with club rep assignments for this job
+        var teamRows = await (
+            from t in _context.Teams.AsNoTracking()
+            where t.JobId == jobId && t.Active == true && t.ClubrepRegistrationid != null
+            join ag in _context.Agegroups.AsNoTracking()
+                on t.AgegroupId equals ag.AgegroupId
+            join div in _context.Divisions.AsNoTracking()
+                on t.DivId equals (Guid?)div.DivId into divJoin
+            from div in divJoin.DefaultIfEmpty()
+            join reg in _context.Registrations.AsNoTracking()
+                on t.ClubrepRegistrationid equals (Guid?)reg.RegistrationId into regJoin
+            from reg in regJoin.DefaultIfEmpty()
+            select new
+            {
+                t.TeamId,
+                t.TeamName,
+                t.AgegroupId,
+                AgegroupName = ag.AgegroupName,
+                AgegroupColor = ag.Color,
+                DivId = div != null ? (Guid?)div.DivId : null,
+                DivName = div != null ? div.DivName : null,
+                ClubName = reg != null ? reg.ClubName : null
+            }
+        ).ToListAsync(ct);
+
+        if (teamRows.Count == 0)
+            return [];
+
+        // Batch-load active player counts per team (single query)
+        var teamIds = teamRows.Select(t => t.TeamId).ToList();
+        var playerCounts = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value) && r.BActive == true)
+            .GroupBy(r => r.AssignedTeamId!.Value)
+            .Select(g => new { TeamId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.TeamId, g => g.Count, ct);
+
+        // Build CADT tree: Club → Agegroup → Division → Team (with counts)
+        return teamRows
+            .Select(t => new
+            {
+                t.TeamId,
+                t.TeamName,
+                t.AgegroupId,
+                t.AgegroupName,
+                t.AgegroupColor,
+                t.DivId,
+                t.DivName,
+                ClubName = t.ClubName ?? "Unaffiliated",
+                PlayerCount = playerCounts.GetValueOrDefault(t.TeamId, 0)
+            })
+            .GroupBy(t => t.ClubName)
+            .OrderBy(c => c.Key)
+            .Select(clubGroup => new CadtClubNode
+            {
+                ClubName = clubGroup.Key,
+                TeamCount = clubGroup.Count(),
+                PlayerCount = clubGroup.Sum(t => t.PlayerCount),
+                Agegroups = clubGroup
+                    .GroupBy(t => new { t.AgegroupId, t.AgegroupName, t.AgegroupColor })
+                    .OrderBy(a => a.Key.AgegroupName)
+                    .Select(agGroup => new CadtAgegroupNode
+                    {
+                        AgegroupId = agGroup.Key.AgegroupId,
+                        AgegroupName = agGroup.Key.AgegroupName ?? "",
+                        Color = agGroup.Key.AgegroupColor,
+                        TeamCount = agGroup.Count(),
+                        PlayerCount = agGroup.Sum(t => t.PlayerCount),
+                        Divisions = agGroup
+                            .Where(t => t.DivId.HasValue)
+                            .GroupBy(t => new { DivId = t.DivId!.Value, t.DivName })
+                            .OrderBy(d => d.Key.DivName)
+                            .Select(divGroup => new CadtDivisionNode
+                            {
+                                DivId = divGroup.Key.DivId,
+                                DivName = divGroup.Key.DivName ?? "",
+                                TeamCount = divGroup.Count(),
+                                PlayerCount = divGroup.Sum(t => t.PlayerCount),
+                                Teams = divGroup
+                                    .OrderBy(t => t.TeamName)
+                                    .Select(t => new CadtTeamNode
+                                    {
+                                        TeamId = t.TeamId,
+                                        TeamName = t.TeamName ?? "",
+                                        PlayerCount = t.PlayerCount
+                                    })
+                                    .ToList()
+                            })
+                            .ToList()
+                    })
+                    .ToList()
+            })
+            .ToList();
+    }
+
     public async Task<RegistrationSearchResponse> SearchAsync(
         Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default)
     {
@@ -964,13 +1063,13 @@ public class RegistrationRepository : IRegistrationRepository
                 .Select(t => t.ClubrepRegistrationid!.Value)
                 .Distinct();
 
-            if (!string.IsNullOrWhiteSpace(request.RosterThresholdClub))
-                underRosteredClubRepIds = underRosteredClubRepIds
-                    .Where(id => _context.Registrations
-                        .Any(r => r.RegistrationId == id && r.ClubName == request.RosterThresholdClub));
-
             query = query.Where(r => underRosteredClubRepIds.Contains(r.RegistrationId));
         }
+
+        // ── CADT tree filter (team ownership via ClubRepRegistrationId) ──
+        if (request.CadtTeamIds is { Count: > 0 })
+            query = query.Where(r => r.AssignedTeamId != null
+                && request.CadtTeamIds.Contains(r.AssignedTeamId.Value));
 
         // Compute count + aggregates BEFORE paging
         var aggregates = await query

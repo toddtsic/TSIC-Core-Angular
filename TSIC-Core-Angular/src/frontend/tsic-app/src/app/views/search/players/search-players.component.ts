@@ -12,6 +12,7 @@ import { RefundModalComponent } from './components/refund-modal.component';
 import { BatchEmailModalComponent } from './components/batch-email-modal.component';
 import { MobileQuickLookupComponent } from './components/mobile-quick-lookup.component';
 import { LadtTreeFilterComponent } from './components/ladt-tree-filter.component';
+import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
 
 import type {
   RegistrationSearchRequest,
@@ -21,7 +22,8 @@ import type {
   RegistrationDetailDto,
   AccountingRecordDto,
   FilterOption,
-  LadtTreeNodeDto
+  LadtTreeNodeDto,
+  CadtClubNode
 } from '@core/api';
 
 interface FilterChip {
@@ -43,7 +45,8 @@ interface FilterChip {
     RefundModalComponent,
     BatchEmailModalComponent,
     MobileQuickLookupComponent,
-    LadtTreeFilterComponent
+    LadtTreeFilterComponent,
+    CadtTreeFilterComponent
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [CheckBoxSelectionService],
@@ -64,6 +67,15 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   ladtTree = signal<LadtTreeNodeDto[]>([]);
   ladtTreeLoading = signal(true);
   ladtCheckedIds = signal<Set<string>>(new Set());
+
+  // CADT tree state (Club → Agegroup → Division → Team via ClubRepRegistrationId)
+  cadtTree = signal<CadtClubNode[]>([]);
+  cadtTreeLoading = signal(true);
+  cadtCheckedIds = signal<Set<string>>(new Set());
+  hasCadtData = computed(() => this.cadtTree().length > 0);
+
+  // Job name derived from LADT root node (level 0) — used as CADT root label
+  jobName = computed(() => this.ladtTree()[0]?.name ?? '');
 
   // Search state — multi-select arrays
   searchRequest = signal<RegistrationSearchRequest>({
@@ -88,7 +100,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     regDateFrom: undefined,
     regDateTo: undefined,
     rosterThreshold: undefined,
-    rosterThresholdClub: undefined
+    cadtTeamIds: []
   });
 
   searchResults = signal<RegistrationSearchResponse | null>(null);
@@ -188,7 +200,38 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.regDateFrom) chips.push({ category: 'From', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.regDateTo) chips.push({ category: 'To', label: req.regDateTo, filterKey: 'regDateTo', value: req.regDateTo });
     if (req.rosterThreshold != null) chips.push({ category: 'Roster <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
-    if (req.rosterThresholdClub) chips.push({ category: 'Roster Club', label: req.rosterThresholdClub, filterKey: 'rosterThresholdClub', value: req.rosterThresholdClub });
+
+    // CADT tree chips — highest-level checked ancestor only (same pattern as LADT)
+    const cadtChecked = this.cadtCheckedIds();
+    if (cadtChecked.size > 0 && this.cadtTree().length > 0) {
+      for (const club of this.cadtTree()) {
+        const clubId = `club:${club.clubName}`;
+        if (cadtChecked.has(clubId)) {
+          chips.push({ category: 'Club Team', label: club.clubName, filterKey: 'cadtTeamIds', value: clubId });
+          continue; // Skip children — club-level chip covers them
+        }
+        for (const ag of club.agegroups ?? []) {
+          const agId = `ag:${club.clubName}|${ag.agegroupId}`;
+          if (cadtChecked.has(agId)) {
+            chips.push({ category: 'Club AG', label: `${club.clubName} › ${ag.agegroupName}`, filterKey: 'cadtTeamIds', value: agId });
+            continue;
+          }
+          for (const div of ag.divisions ?? []) {
+            const divId = `div:${club.clubName}|${div.divId}`;
+            if (cadtChecked.has(divId)) {
+              chips.push({ category: 'Club Div', label: `${club.clubName} › ${div.divName}`, filterKey: 'cadtTeamIds', value: divId });
+              continue;
+            }
+            for (const team of div.teams ?? []) {
+              const teamId = `team:${team.teamId}`;
+              if (cadtChecked.has(teamId)) {
+                chips.push({ category: 'Club Team', label: team.teamName, filterKey: 'cadtTeamIds', value: teamId });
+              }
+            }
+          }
+        }
+      }
+    }
 
     return chips;
   });
@@ -198,6 +241,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     window.addEventListener('resize', this.resizeHandler);
     this.loadFilterOptions();
     this.loadLadtTree();
+    this.loadCadtTree();
   }
 
   ngOnDestroy(): void {
@@ -233,6 +277,20 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error loading LADT tree:', err);
         this.ladtTreeLoading.set(false);
+      }
+    });
+  }
+
+  private loadCadtTree(): void {
+    this.cadtTreeLoading.set(true);
+    this.searchService.getCadtTree().subscribe({
+      next: (clubs) => {
+        this.cadtTree.set(clubs);
+        this.cadtTreeLoading.set(false);
+      },
+      error: () => {
+        // Silent failure — CADT tree is optional (job may have no club reps)
+        this.cadtTreeLoading.set(false);
       }
     });
   }
@@ -295,9 +353,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       regDateFrom: undefined,
       regDateTo: undefined,
       rosterThreshold: undefined,
-      rosterThresholdClub: undefined
+      cadtTeamIds: []
     });
     this.ladtCheckedIds.set(new Set());
+    this.cadtCheckedIds.set(new Set());
     this.searchResults.set(null);
     this.lastSearchedRequest.set(null);
   }
@@ -307,7 +366,17 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   removeFilterChip(chip: FilterChip): void {
-    // Tree-sourced chips: remove node + all descendants + ancestors, then re-derive
+    // CADT tree chips: uncheck the node and re-derive
+    if (chip.filterKey === 'cadtTeamIds') {
+      const updated = new Set(this.cadtCheckedIds());
+      // Find the flat node in the CADT tree and remove it + descendants + ancestors
+      this.removeCadtNode(updated, chip.value);
+      this.onCadtCheckedChange(updated);
+      this.executeSearch();
+      return;
+    }
+
+    // LADT tree-sourced chips: remove node + all descendants + ancestors, then re-derive
     if (chip.filterKey === 'teamIds' || chip.filterKey === 'agegroupIds' || chip.filterKey === 'divisionIds') {
       const updated = new Set(this.ladtCheckedIds());
       updated.delete(chip.value);
@@ -363,8 +432,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         (updated as any)[chip.filterKey] = current.filter((v: any) => String(v) !== chip.value);
       } else if (chip.filterKey === 'rosterThreshold') {
         updated.rosterThreshold = undefined;
-      } else if (chip.filterKey === 'rosterThresholdClub') {
-        updated.rosterThresholdClub = undefined;
       } else {
         (updated as any)[chip.filterKey] = chip.filterKey === 'name' || chip.filterKey === 'email'
           || chip.filterKey === 'phone' || chip.filterKey === 'schoolName' ? '' : undefined;
@@ -518,15 +585,83 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }));
   }
 
+  // ── CADT tree selection handler ──
+
+  onCadtCheckedChange(checkedIds: Set<string>): void {
+    this.cadtCheckedIds.set(checkedIds);
+
+    // Resolve all CADT selections down to team IDs (same pattern as scheduling)
+    const cadtTeamIds: string[] = [];
+    for (const id of checkedIds) {
+      if (id.startsWith('team:')) {
+        cadtTeamIds.push(id.replace('team:', ''));
+      }
+    }
+
+    this.searchRequest.update(req => ({
+      ...req,
+      cadtTeamIds: cadtTeamIds
+    }));
+  }
+
+  /** Remove a CADT node + its descendants + uncheck ancestors */
+  private removeCadtNode(checked: Set<string>, nodeId: string): void {
+    checked.delete(nodeId);
+
+    // Walk the CADT tree to find descendants and remove them
+    const removeDescendants = (clubs: CadtClubNode[]) => {
+      for (const club of clubs) {
+        const clubId = `club:${club.clubName}`;
+        if (clubId === nodeId) {
+          // Remove all descendants of this club
+          for (const ag of club.agegroups ?? []) {
+            checked.delete(`ag:${club.clubName}|${ag.agegroupId}`);
+            for (const div of ag.divisions ?? []) {
+              checked.delete(`div:${club.clubName}|${div.divId}`);
+              for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
+            }
+          }
+          return;
+        }
+        for (const ag of club.agegroups ?? []) {
+          const agId = `ag:${club.clubName}|${ag.agegroupId}`;
+          if (agId === nodeId) {
+            for (const div of ag.divisions ?? []) {
+              checked.delete(`div:${club.clubName}|${div.divId}`);
+              for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
+            }
+            // Uncheck club ancestor
+            checked.delete(clubId);
+            return;
+          }
+          for (const div of ag.divisions ?? []) {
+            const divId = `div:${club.clubName}|${div.divId}`;
+            if (divId === nodeId) {
+              for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
+              checked.delete(agId);
+              checked.delete(clubId);
+              return;
+            }
+            for (const team of div.teams ?? []) {
+              if (`team:${team.teamId}` === nodeId) {
+                checked.delete(divId);
+                checked.delete(agId);
+                checked.delete(clubId);
+                return;
+              }
+            }
+          }
+        }
+      }
+    };
+    removeDescendants(this.cadtTree());
+  }
+
   // ── Roster threshold helpers ──
 
   updateRosterThreshold(value: string): void {
     const num = value === '' || value == null ? undefined : Number(value);
     this.searchRequest.update(req => ({ ...req, rosterThreshold: num }));
-  }
-
-  updateRosterThresholdClub(value: string): void {
-    this.searchRequest.update(req => ({ ...req, rosterThresholdClub: value || undefined }));
   }
 
   // ── Multi-select update helpers ──
@@ -583,7 +718,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
       mobileRegistrationRoles: clean(req.mobileRegistrationRoles),
       rosterThreshold: req.rosterThreshold ?? undefined,
-      rosterThresholdClub: req.rosterThresholdClub || undefined
+      cadtTeamIds: clean(req.cadtTeamIds)
     };
   }
 }

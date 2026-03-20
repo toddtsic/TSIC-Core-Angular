@@ -28,7 +28,6 @@ export type DivisionSizeProfile = {
     gsiMinutes?: number;
     roundLayout?: RoundLayout;
     startTickOffset?: any | null;
-    interRoundGapTicks?: number;
     minTeamGapTicks?: number;
     fieldFairness?: FieldFairness;
 };

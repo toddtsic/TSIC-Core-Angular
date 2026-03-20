@@ -37,7 +37,10 @@ public record RegistrationSearchRequest
 
     // Club roster threshold search
     public int? RosterThreshold { get; init; }
-    public string? RosterThresholdClub { get; init; }
+
+    // CADT tree filter — team IDs resolved from Club/Agegroup/Division/Team tree.
+    // ANDed with all other filters (including LADT tree TeamIds/AgegroupIds/DivisionIds).
+    public List<Guid>? CadtTeamIds { get; init; }
 }
 
 /// <summary>

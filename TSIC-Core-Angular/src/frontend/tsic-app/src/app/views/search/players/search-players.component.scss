@@ -43,9 +43,24 @@
   grid-template-columns: 2fr 1fr;
 }
 
-.filter-row-ladt {
+// ── Tree filters (LADT + optional CADT side-by-side) ──
+.filter-row-trees {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+
+  &.dual-tree {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .form-group-tree .tree-scroll-container {
     max-height: 200px;
+  }
+}
+
+@media (max-width: 992px) {
+  .filter-row-trees.dual-tree {
+    grid-template-columns: 1fr; // Stack on tablet/mobile
   }
 }
 

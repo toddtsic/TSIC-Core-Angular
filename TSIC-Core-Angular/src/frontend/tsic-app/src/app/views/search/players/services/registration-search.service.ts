@@ -20,6 +20,7 @@ import type {
 	EmailPreviewRequest,
 	EmailPreviewResponse,
 	LadtTreeRootDto,
+	CadtClubNode,
 	JobOptionDto,
 	ChangeJobRequest,
 	ChangeJobResponse,
@@ -57,6 +58,7 @@ export type {
 	FilterOption,
 	LadtTreeRootDto,
 	LadtTreeNodeDto,
+	CadtClubNode,
 	JobOptionDto,
 	ChangeJobRequest,
 	ChangeJobResponse,
@@ -121,6 +123,10 @@ export class RegistrationSearchService {
 
 	getLadtTree(): Observable<LadtTreeRootDto> {
 		return this.http.get<LadtTreeRootDto>(`${environment.apiUrl}/ladt/tree`);
+	}
+
+	getCadtTree(): Observable<CadtClubNode[]> {
+		return this.http.get<CadtClubNode[]>(`${this.apiUrl}/cadt-tree`);
 	}
 
 	getInviteTargetJobs(): Observable<JobOptionDto[]> {
