@@ -344,6 +344,7 @@ export class ScheduleDivisionComponent implements OnInit {
     readonly showDivBuildConfirm = signal(false);
     readonly divBuildFields = signal<FieldOption[]>([]);
     readonly divBuildStartTime = signal('8:00 AM');
+    readonly divBuildTimeOptions = signal<string[]>([]);
     readonly divBuildPlacement = signal<'H' | 'V'>('H');
     readonly divBuildBrr = signal(0);
 
@@ -1371,9 +1372,28 @@ export class ScheduleDivisionComponent implements OnInit {
                 }
                 this.divBuildFields.set(uniqueFields);
 
-                // Extract earliest start time (use raw DB value)
-                const startTimes = effectiveFields.map(f => f.startTime).filter(Boolean);
-                this.divBuildStartTime.set(startTimes[0] ?? '8:00 AM');
+                // Compute actual grid times from timeslot config (start + GSI intervals)
+                const timeSet = new Set<number>(); // minutes from midnight
+                for (const f of effectiveFields) {
+                    const parsed = new Date(`2000-01-01 ${f.startTime}`);
+                    if (isNaN(parsed.getTime())) continue;
+                    const startMin = parsed.getHours() * 60 + parsed.getMinutes();
+                    const gsi = f.gamestartInterval > 0 ? f.gamestartInterval : 60;
+                    const maxGames = f.maxGamesPerField > 0 ? f.maxGamesPerField : 1;
+                    for (let g = 0; g < maxGames; g++) {
+                        timeSet.add(startMin + g * gsi);
+                    }
+                }
+                const sortedMins = [...timeSet].sort((a, b) => a - b);
+                const gridTimes = sortedMins.map(m => {
+                    const h = Math.floor(m / 60);
+                    const min = m % 60;
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+                    return `${h12}:${min.toString().padStart(2, '0')} ${ampm}`;
+                });
+                this.divBuildTimeOptions.set(gridTimes);
+                this.divBuildStartTime.set(gridTimes[0] ?? '8:00 AM');
 
                 // Get cascade values for this division
                 const snapshot = this.cascadeSvc.cascade();

@@ -43,7 +43,7 @@
                 <select class="form-select form-select-sm"
                         [value]="startTime()"
                         (change)="onStartTimeChange($any($event.target).value)">
-                    @for (t of timeOptions(); track t) {
+                    @for (t of availableTimeOptions(); track t) {
                         <option [value]="t">{{ t }}</option>
                     }
                 </select>

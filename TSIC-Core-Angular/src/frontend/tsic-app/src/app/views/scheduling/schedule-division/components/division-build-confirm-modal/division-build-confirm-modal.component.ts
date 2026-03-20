@@ -18,56 +18,6 @@ export interface DivisionBuildOverrides {
     brr: number;
 }
 
-/** Format minutes-from-midnight as "h:mm AM/PM". */
-function formatTimeOption(totalMinutes: number): string {
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
-}
-
-/** Generate time options from 7:00 AM to 7:00 PM in 30-min steps. */
-const TIME_OPTIONS: string[] = Array.from({ length: 25 }, (_, i) => formatTimeOption(420 + i * 30));
-
-/**
- * Normalize a start time string from the DB (e.g. "08:00", "8:00 AM", "1/1/0001 8:00:00 AM")
- * into "h:mm AM/PM" format matching TIME_OPTIONS.
- */
-function normalizeStartTime(raw: string): string {
-    if (!raw) return '8:00 AM';
-    // Try to parse with Date — handles many formats including "1/1/0001 8:00:00 AM"
-    const d = new Date(`2000-01-01 ${raw.replace(/^.*?\s(\d)/, '$1')}`);
-    if (!isNaN(d.getTime())) {
-        const h = d.getHours();
-        const m = d.getMinutes();
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-        return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
-    }
-    // If already in "h:mm AM/PM" format, return as-is
-    if (/^\d{1,2}:\d{2}\s?(AM|PM)$/i.test(raw.trim())) return raw.trim();
-    return '8:00 AM';
-}
-
-/** Ensure the DB value is in the options list. */
-function ensureTimeInOptions(options: string[], time: string): string[] {
-    if (options.includes(time)) return options;
-    // Insert in sorted position
-    const allTimes = [...options, time];
-    allTimes.sort((a, b) => {
-        const toMin = (t: string) => {
-            const m = t.match(/(\d+):(\d+)\s?(AM|PM)/i);
-            if (!m) return 0;
-            let h = parseInt(m[1]);
-            if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
-            if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
-            return h * 60 + parseInt(m[2]);
-        };
-        return toMin(a) - toMin(b);
-    });
-    return allTimes;
-}
 
 @Component({
     selector: 'app-division-build-confirm-modal',
@@ -82,6 +32,7 @@ export class DivisionBuildConfirmModalComponent implements OnInit {
     readonly divisionName = input.required<string>();
     readonly agegroupName = input.required<string>();
     readonly availableFields = input.required<FieldOption[]>();
+    readonly availableTimeOptions = input.required<string[]>();
     readonly defaultStartTime = input.required<string>();
     readonly defaultPlacement = input.required<'H' | 'V'>();
     readonly defaultBrr = input.required<number>();
@@ -96,9 +47,6 @@ export class DivisionBuildConfirmModalComponent implements OnInit {
     readonly startTime = signal('8:00 AM');
     readonly placement = signal<'H' | 'V'>('H');
     readonly brr = signal<number>(1);
-
-    // ── Constants for template ──
-    readonly timeOptions = signal<string[]>(TIME_OPTIONS);
 
     // ── Computed ──
 
@@ -150,12 +98,9 @@ export class DivisionBuildConfirmModalComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        // Pre-populate from defaults
         this.selectedFieldIds.set(new Set(this.availableFields().map(f => f.fieldId)));
-        const normalized = normalizeStartTime(this.defaultStartTime());
-        this.normalizedDefault = normalized;
-        this.startTime.set(normalized);
-        this.timeOptions.set(ensureTimeInOptions(TIME_OPTIONS, normalized));
+        this.normalizedDefault = this.defaultStartTime();
+        this.startTime.set(this.defaultStartTime());
         this.placement.set(this.defaultPlacement());
         this.brr.set(this.defaultBrr());
     }
