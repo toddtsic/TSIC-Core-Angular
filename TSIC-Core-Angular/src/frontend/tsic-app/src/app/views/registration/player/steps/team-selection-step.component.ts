@@ -132,7 +132,8 @@ export class TeamSelectionStepComponent {
 
     getAvailableTeams(playerId: string): AvailableTeam[] {
         const eligValue = this.getPlayerEligibility(playerId) ?? null;
-        return this.teamService.filterByEligibility(eligValue);
+        const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
+        return this.teamService.filterByEligibility(eligValue, player?.gender);
     }
 
     getSelectedTeamId(playerId: string): string | null {

@@ -197,7 +197,8 @@ export class PlayerWizardStateService {
         try {
             const ve = getPropertyCI<PreSubmitValidationErrorDto[]>(resp as Record<string, unknown>, 'validationErrors');
             this.jobCtx.setServerValidationErrors((ve && Array.isArray(ve) && ve.length) ? ve : []);
-        } catch {
+        } catch (e) {
+            console.warn('[PlayerWizard] captureServerValidationErrors failed', e);
             this.jobCtx.setServerValidationErrors([]);
         }
     }

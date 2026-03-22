@@ -79,7 +79,7 @@ export class JobContextService {
     readonly jobWaivers = this._jobWaivers.asReadonly();
 
     // ── Server validation errors (from preSubmit) ─────────────────────
-    private _serverValidationErrors: PreSubmitValidationErrorDto[] | undefined;
+    private readonly _serverValidationErrors = signal<PreSubmitValidationErrorDto[]>([]);
 
     // ── Lazy-parsed options cache ─────────────────────────────────────
     private parsedJobOptions: Json | null | undefined;
@@ -96,13 +96,13 @@ export class JobContextService {
     }
 
     setServerValidationErrors(errors: PreSubmitValidationErrorDto[] | undefined): void {
-        this._serverValidationErrors = errors;
+        this._serverValidationErrors.set(errors?.length ? errors : []);
     }
     getServerValidationErrors(): PreSubmitValidationErrorDto[] {
-        return this._serverValidationErrors ? [...this._serverValidationErrors] : [];
+        return this._serverValidationErrors();
     }
     hasServerValidationErrors(): boolean {
-        return !!this._serverValidationErrors?.length;
+        return this._serverValidationErrors().length > 0;
     }
 
     // ── API: load job metadata ────────────────────────────────────────
@@ -220,7 +220,7 @@ export class JobContextService {
             } else {
                 this._verticalInsureOffer.set({ loading: false, data: null, error: null });
             }
-        } catch { /* ignore */ }
+        } catch (e) { console.warn('[JobContext] processInsuranceOffer failed', e); }
     }
 
     // ── API base resolution ───────────────────────────────────────────
@@ -252,7 +252,7 @@ export class JobContextService {
 
     recomputeWaiverAcceptanceOnSelectionChange(selectedPlayerIds: string[], familyPlayers: FamilyPlayerDto[]): void {
         try { this.waiverState.recomputeWaiverAcceptanceOnSelectionChange(selectedPlayerIds, familyPlayers); }
-        catch { /* ignore */ }
+        catch (e) { console.warn('[JobContext] recomputeWaiverAcceptance failed', e); }
     }
 
     // ── Reset ─────────────────────────────────────────────────────────
@@ -274,6 +274,6 @@ export class JobContextService {
         this._profileFieldSchemas.set([]);
         this._aliasFieldMap.set({});
         this._jobWaivers.set({});
-        this._serverValidationErrors = undefined;
+        this._serverValidationErrors.set([]);
     }
 }

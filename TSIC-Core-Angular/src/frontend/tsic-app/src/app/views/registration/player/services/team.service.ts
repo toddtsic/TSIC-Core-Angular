@@ -1,7 +1,8 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
-import { RegistrationWizardService } from './registration-wizard.service';
+import { JobContextService } from '../state/job-context.service';
+import { EligibilityService } from '../state/eligibility.service';
 import { formatHttpError } from '../../shared/utils/error-utils';
 
 // Shared model (aligns with backend AvailableTeamDto)
@@ -28,7 +29,8 @@ interface CacheEntry { data: AvailableTeam[]; ts: number; }
 @Injectable({ providedIn: 'root' })
 export class TeamService {
     private readonly http = inject(HttpClient);
-    private readonly wizard = inject(RegistrationWizardService);
+    private readonly jobCtx = inject(JobContextService);
+    private readonly eligibility = inject(EligibilityService);
 
     // raw teams for current job
     private readonly _teams = signal<AvailableTeam[] | null>(null);
@@ -46,12 +48,11 @@ export class TeamService {
     filteredTeams = computed(() => {
         const teams = this._teams();
         if (!teams) return [] as AvailableTeam[];
-        const constraintType = this.wizard.teamConstraintType();
-        const constraintValue = this.wizard.teamConstraintValue();
+        const constraintType = this.eligibility.teamConstraintType();
+        const constraintValue = this.eligibility.teamConstraintValue();
         if (!constraintType || !constraintValue) return teams;
         switch (constraintType) {
             case 'BYGRADYEAR':
-                // Grad year filtering heuristics: match if name contains the year OR teamName ends with it OR agegroupName includes.
                 return teams.filter(t => {
                     const yr = constraintValue;
                     const n = (t.teamName || '').toLowerCase();
@@ -60,6 +61,10 @@ export class TeamService {
                 });
             case 'BYAGEGROUP':
                 return teams.filter(t => t.agegroupName?.toLowerCase() === constraintValue.toLowerCase());
+            case 'BYAGERANGE': {
+                const rangeName = constraintValue.toLowerCase();
+                return teams.filter(t => (t.teamName || '').toLowerCase().includes(rangeName));
+            }
             case 'BYCLUBNAME': {
                 const needle = constraintValue.toLowerCase();
                 return teams.filter(t => (t.teamName || '').toLowerCase().includes(needle));
@@ -98,23 +103,36 @@ export class TeamService {
     });
 
     // Return teams filtered by a specific eligibility value according to the current job's constraint type
-    filterByEligibility(value: string | null | undefined): AvailableTeam[] {
+    filterByEligibility(value: string | null | undefined, gender?: string | null): AvailableTeam[] {
         const teams = this._teams();
         if (!teams) return [] as AvailableTeam[];
-        const constraintType = this.wizard.teamConstraintType();
+        const constraintType = this.eligibility.teamConstraintType();
         const v = (value ?? '').toString().trim();
         if (!constraintType || !v) return teams;
         switch (constraintType) {
             case 'BYGRADYEAR': {
-                const neddle = v.toLowerCase();
+                const needle = v.toLowerCase();
                 return teams.filter(t => {
                     const n = (t.teamName || '').toLowerCase();
                     const ag = (t.agegroupName || '').toLowerCase();
-                    return n.includes(neddle) || n.endsWith(neddle) || ag.includes(neddle);
+                    return n.includes(needle) || n.endsWith(needle) || ag.includes(needle);
                 });
             }
             case 'BYAGEGROUP':
                 return teams.filter(t => (t.agegroupName || '').toLowerCase() === v.toLowerCase());
+            case 'BYAGERANGE': {
+                const rangeName = v.toLowerCase();
+                const genderWord = (gender === 'M') ? 'boys' : 'girls';
+                // If no team names contain any gender word, skip gender filtering (co-ed events)
+                const anyTeamHasGender = teams.some(t => {
+                    const tn = (t.teamName || '').toLowerCase();
+                    return tn.includes('boys') || tn.includes('girls');
+                });
+                return teams.filter(t => {
+                    const tn = (t.teamName || '').toLowerCase();
+                    return tn.includes(rangeName) && (!anyTeamHasGender || tn.includes(genderWord));
+                });
+            }
             case 'BYCLUBNAME': {
                 const needle = v.toLowerCase();
                 return teams.filter(t => (t.teamName || '').toLowerCase().includes(needle));
@@ -129,21 +147,17 @@ export class TeamService {
         return teams?.find(t => t.teamId === teamId);
     }
 
-    constructor() {
-        // Auto-refetch when jobPath changes. Allow signal writes inside the effect
-        // because ensureLoaded/fetch update local signals like _teams/loading/error.
-        effect(() => {
-            const jobPath = this.wizard.jobPath();
-            if (jobPath) {
-                this.ensureLoaded(jobPath);
-            } else {
-                this._teams.set(null);
-            }
-        });
+    /** Call explicitly when the job context is ready (replaces constructor effect). */
+    loadForJob(jobPath: string): void {
+        if (jobPath) {
+            this.ensureLoaded(jobPath);
+        } else {
+            this._teams.set(null);
+        }
     }
 
     refresh(): void {
-        const jobPath = this.wizard.jobPath();
+        const jobPath = this.jobCtx.jobPath();
         if (jobPath) this.fetch(jobPath, true);
     }
 

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, computed, signal, output, OnInit, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { environment } from '@environments/environment';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import type { JobPulseDto } from '@core/api';
@@ -67,7 +67,7 @@ import type { JobPulseDto } from '@core/api';
           <button type="button" class="btn btn-primary mt-3" (click)="finished.emit()">Finish</button>
 
           @if (showStoreCta()) {
-            <a [routerLink]="storeLink()" class="store-cta btn btn-outline-primary">
+            <a [routerLink]="'../../store'" [relativeTo]="route" class="store-cta btn btn-outline-primary">
               <i class="bi bi-bag-fill me-1"></i>Browse the Store
             </a>
           }
@@ -81,6 +81,7 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
     readonly finished = output<void>();
     private readonly state = inject(PlayerWizardStateService);
     private readonly http = inject(HttpClient);
+    readonly route = inject(ActivatedRoute);
 
     private pollTimer: ReturnType<typeof setInterval> | null = null;
     private safetyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -93,10 +94,6 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
 
     // Store CTA
     readonly showStoreCta = signal(false);
-    readonly storeLink = computed(() => {
-        const jobPath = this.state.jobCtx.jobPath();
-        return `/${jobPath}/store`;
-    });
 
     ngOnInit(): void {
         this.startLoading();

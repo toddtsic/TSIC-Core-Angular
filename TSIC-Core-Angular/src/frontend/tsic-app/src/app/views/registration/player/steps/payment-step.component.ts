@@ -316,7 +316,6 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
     private lastIdemKey: string | null = null;
     private pendingSubmitAfterViConfirm = false;
     private viInitRetries = 0;
-    private hydrateTimeout?: ReturnType<typeof setTimeout>;
     private viInitTimeout?: ReturnType<typeof setTimeout>;
 
     // ── Computed helpers ────────────────────────────────────────────────
@@ -373,7 +372,6 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
     ngAfterViewInit(): void {
         this.loadStoredIdem();
         this.simpleHydrateFromCc(this.familyUser()?.ccInfo);
-        this.hydrateTimeout = setTimeout(() => this.simpleHydrateFromCc(this.familyUser()?.ccInfo), 300);
 
         const fu = this.familyUser();
         if (fu) {
@@ -389,7 +387,6 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
-        clearTimeout(this.hydrateTimeout);
         clearTimeout(this.viInitTimeout);
     }
 
@@ -514,7 +511,7 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
                         viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
                         message: msg,
                     });
-                } catch { /* ignore */ }
+                } catch (e) { console.warn('[Payment] setLastPayment (VI CC-only) failed', e); }
                 this.advance.emit();
             });
         } else {
@@ -589,7 +586,7 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
                     viPolicyCreateDate: rs?.policyCreateDate ?? null,
                     message: response.message ?? null,
                 });
-            } catch { /* ignore */ }
+            } catch (e) { console.warn('[Payment] setLastPayment failed', e); }
             this.advance.emit();
             this.submitting.set(false);
             if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
@@ -623,7 +620,7 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
                     viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
                     message: doneMsg || msg,
                 });
-            } catch { /* ignore */ }
+            } catch (e) { console.warn('[Payment] setLastPayment (insurance-only) failed', e); }
             this.submitting.set(false);
             this.advance.emit();
         });
@@ -663,6 +660,6 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
             if (!el) return false;
             const style = getComputedStyle(el);
             return style.display !== 'none' && style.visibility !== 'hidden' && (el.offsetWidth + el.offsetHeight) > 0;
-        } catch { return false; }
+        } catch (e) { console.warn('[Payment] isViOfferVisible check failed', e); return false; }
     }
 }

@@ -63,7 +63,7 @@ export class EligibilityService {
                 this.playerState.setEligibilityForPlayer(pid, val);
             }
             this.updateUnifiedConstraintValue(selectedPlayerIds, map);
-        } catch { /* ignore */ }
+        } catch (e) { console.warn('[Eligibility] seedEligibilityFromSchemas failed', e); }
     }
 
     /** Seed eligibility for a single newly-selected player from their defaults. */
@@ -82,7 +82,7 @@ export class EligibilityService {
             if (existing && String(existing).trim() !== '') return;
             this.playerState.setEligibilityForPlayer(playerId, String(rawElig).trim());
             this.updateUnifiedConstraintValue(selectedPlayerIds);
-        } catch { /* ignore */ }
+        } catch (e) { console.warn('[Eligibility] applyEligibilityFromDefaults failed', e); }
     }
 
     /** Determine the schema field name for the eligibility constraint. */

@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from './state/player-wizard-state.service';
-import { RegistrationWizardService } from '@views/registration/player/services/registration-wizard.service';
+import { TeamService } from './services/team.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { FamilyCheckStepComponent } from './steps/family-check-step.component';
 import { PlayerSelectionStepComponent } from './steps/player-selection-step.component';
@@ -60,21 +60,8 @@ export class PlayerWizardV2Component implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly toast = inject(ToastService);
+    private readonly teamService = inject(TeamService);
     readonly state = inject(PlayerWizardStateService);
-
-    // Bridge: sync v2 state to old RegistrationWizardService so TeamService auto-loads teams.
-    // TeamService uses effect(wizard.jobPath()) and reads wizard.teamConstraintType/Value.
-    private readonly oldWizard = inject(RegistrationWizardService);
-    private readonly _bridgeJobPath = effect(() => {
-        const jp = this.state.jobCtx.jobPath();
-        if (jp) this.oldWizard.setJobPath(jp);
-    });
-    private readonly _bridgeConstraintType = effect(() => {
-        this.oldWizard.setTeamConstraintType(this.state.eligibility.teamConstraintType());
-    });
-    private readonly _bridgeConstraintValue = effect(() => {
-        this.oldWizard.setTeamConstraintValue(this.state.eligibility.teamConstraintValue());
-    });
 
     private readonly _currentIndex = signal(0);
     readonly currentIndex = this._currentIndex.asReadonly();
@@ -161,6 +148,7 @@ export class PlayerWizardV2Component implements OnInit {
         if (jobPath) {
             this.state.reset();
             this.state.initialize(jobPath);
+            this.teamService.loadForJob(jobPath);
         }
         // Deep-link via query param
         const stepParam = this.route.snapshot.queryParamMap.get('step');
