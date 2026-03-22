@@ -200,6 +200,8 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			next: (options) => {
 				this.filterOptions.set(options);
 				this.lastSearchedRequest.set(JSON.stringify(this.sanitizeRequest(this.searchRequest())));
+				// Auto-search on load with default filters
+				this.executeSearch();
 			},
 			error: (err) => {
 				this.toast.show('Failed to load filter options', 'danger', 4000);

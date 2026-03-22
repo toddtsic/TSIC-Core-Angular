@@ -20,6 +20,7 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
       [ngClass]="sizeClass"
       (keydown.escape)="onEsc()"
       (cancel)="$event.preventDefault()"
+      (mousedown)="onBackdropMousedown($event)"
       (click)="onBackdropClick($event)"
       [tsicFocusTrap]="true"
       aria-modal="true"
@@ -112,12 +113,21 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
         }
     }
 
+    /** Track where mousedown started so drag-from-content doesn't close the dialog */
+    private mousedownTarget: EventTarget | null = null;
+
+    onBackdropMousedown(event: MouseEvent) {
+        this.mousedownTarget = event.target;
+    }
+
     onBackdropClick(event: MouseEvent) {
         if (!this.closeOnBackdrop) return;
         const dialog = this.dialogEl?.nativeElement;
         if (!dialog) return;
-        // Native <dialog> forwards backdrop clicks to the dialog element itself
-        if (event.target === dialog) {
+        // Only close if BOTH mousedown and click landed on the <dialog> itself (backdrop area).
+        // This prevents closing when the user clicks inside an input and the mouseup
+        // drifts onto the dialog element (common with text selection or slight drags).
+        if (event.target === dialog && this.mousedownTarget === dialog) {
             this.requestClose.emit();
         }
     }
