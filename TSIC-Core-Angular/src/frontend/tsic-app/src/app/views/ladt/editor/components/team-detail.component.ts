@@ -103,17 +103,6 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
           </h6>
           <p class="small mb-2">Current club: <strong>{{ team()?.clubName }}</strong></p>
 
-          <div class="btn-group btn-group-sm mb-2">
-            <button type="button" class="btn"
-                    [class.btn-primary]="moveScope() === 'single'"
-                    [class.btn-outline-primary]="moveScope() !== 'single'"
-                    (click)="moveScope.set('single')">Just this team</button>
-            <button type="button" class="btn"
-                    [class.btn-primary]="moveScope() === 'all'"
-                    [class.btn-outline-primary]="moveScope() !== 'all'"
-                    (click)="moveScope.set('all')">All teams from this club</button>
-          </div>
-
           <select class="form-select form-select-sm mb-2"
                   [ngModel]="selectedTargetRegistrationId()"
                   (ngModelChange)="selectedTargetRegistrationId.set($event)"
@@ -317,7 +306,6 @@ export class TeamDetailComponent implements OnChanges {
   showChangeClub = signal(false);
   clubRegistrations = signal<ClubRegistrationDto[]>([]);
   selectedTargetRegistrationId = signal('');
-  moveScope = signal<'single' | 'all'>('single');
   isMoving = signal(false);
   moreOpen = signal(false);
   showChangeClubWarning = signal(false);
@@ -480,7 +468,6 @@ export class TeamDetailComponent implements OnChanges {
     this.showChangeClubWarning.set(false);
     this.saveMessage.set(null);
     this.selectedTargetRegistrationId.set('');
-    this.moveScope.set('single');
     this.ladtService.getClubRegistrationsForJob().subscribe({
       next: (clubs) => {
         // Filter out the current team's club
@@ -504,7 +491,7 @@ export class TeamDetailComponent implements OnChanges {
 
     const request: MoveTeamToClubRequest = {
       targetRegistrationId: targetId,
-      moveAllFromClub: this.moveScope() === 'all'
+      moveAllFromClub: false
     };
 
     this.ladtService.moveTeamToClub(this.teamId, request).subscribe({

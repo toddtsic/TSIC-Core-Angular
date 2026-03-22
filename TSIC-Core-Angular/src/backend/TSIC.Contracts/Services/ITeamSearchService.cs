@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
@@ -55,6 +56,23 @@ public interface ITeamSearchService
     /// Distributes payment ordered by OwedTotal DESC with processing fee adjustments.
     /// </summary>
     Task<TeamCheckOrCorrectionResponse> RecordCheckForClubAsync(Guid jobId, string userId, TeamCheckOrCorrectionRequest request, CancellationToken ct = default);
+
+    // ── Club rep operations ──
+
+    /// <summary>
+    /// Get all club rep registrations for the current job (for target selection dropdowns).
+    /// </summary>
+    Task<List<ClubRegistrationDto>> GetClubRegistrationsForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Move a single team to a different club rep. Syncs accounting for both source and target.
+    /// </summary>
+    Task<ClubOperationResultDto> ChangeClubAsync(Guid teamId, Guid jobId, string userId, ChangeClubRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Transfer all teams from source club rep to target, sync accounting, and deactivate the source registration.
+    /// </summary>
+    Task<ClubOperationResultDto> TransferAllTeamsAndDeactivateAsync(Guid jobId, string userId, TransferAllTeamsRequest request, CancellationToken ct = default);
 
     // ── Shared ──
 

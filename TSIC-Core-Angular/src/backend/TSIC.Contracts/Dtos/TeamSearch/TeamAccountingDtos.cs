@@ -118,3 +118,32 @@ public record TeamPaymentAllocation
     public required decimal ProcessingFeeReduction { get; init; }
     public required decimal NewOwedTotal { get; init; }
 }
+
+// ── Club Rep Operations ──
+
+/// <summary>
+/// Request to change a single team's club rep assignment.
+/// </summary>
+public record ChangeClubRequest
+{
+    public required Guid TargetRegistrationId { get; init; }
+}
+
+/// <summary>
+/// Request to transfer all teams from one club rep to another and deactivate the source.
+/// </summary>
+public record TransferAllTeamsRequest
+{
+    public required Guid SourceRegistrationId { get; init; }
+    public required Guid TargetRegistrationId { get; init; }
+}
+
+/// <summary>
+/// Result for club rep operations (change club / transfer all).
+/// </summary>
+public record ClubOperationResultDto
+{
+    public required int TeamsAffected { get; init; }
+    public required string Message { get; init; }
+    public bool SourceDeactivated { get; init; }
+}

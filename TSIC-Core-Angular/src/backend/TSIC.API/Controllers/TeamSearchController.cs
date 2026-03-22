@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
@@ -176,6 +177,50 @@ public class TeamSearchController : ControllerBase
 
         var result = await _teamSearchService.ProcessRefundAsync(jobId!.Value, userId!, request, ct);
         return Ok(result);
+    }
+
+    // ── Club Rep Operations ──
+
+    [HttpGet("club-registrations")]
+    public async Task<ActionResult<List<ClubRegistrationDto>>> GetClubRegistrations(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var clubs = await _teamSearchService.GetClubRegistrationsForJobAsync(jobId.Value, ct);
+        return Ok(clubs);
+    }
+
+    [HttpPost("{teamId:guid}/change-club")]
+    public async Task<ActionResult<ClubOperationResultDto>> ChangeClub(
+        Guid teamId, [FromBody] ChangeClubRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _teamSearchService.ChangeClubAsync(teamId, jobId!.Value, userId!, request, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost("transfer-all-teams")]
+    public async Task<ActionResult<ClubOperationResultDto>> TransferAllTeams(
+        [FromBody] TransferAllTeamsRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var result = await _teamSearchService.TransferAllTeamsAndDeactivateAsync(jobId!.Value, userId!, request, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
     // ── Shared ──

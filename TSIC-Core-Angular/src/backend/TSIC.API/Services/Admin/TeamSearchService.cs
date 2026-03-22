@@ -1,6 +1,7 @@
 using AuthorizeNet.Api.Contracts.V1;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
@@ -28,6 +29,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IAdnApiService _adnApi;
+    private readonly ILadtService _ladtService;
     private readonly ILogger<TeamSearchService> _logger;
 
     // Known payment method GUIDs (from AccountingPaymentMethods table)
@@ -42,6 +44,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IRegistrationRepository registrationRepo,
         IJobRepository jobRepo,
         IAdnApiService adnApi,
+        ILadtService ladtService,
         ILogger<TeamSearchService> logger)
     {
         _teamRepo = teamRepo;
@@ -49,6 +52,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _registrationRepo = registrationRepo;
         _jobRepo = jobRepo;
         _adnApi = adnApi;
+        _ladtService = ladtService;
         _logger = logger;
     }
 
@@ -597,6 +601,64 @@ public sealed class TeamSearchService : ITeamSearchService
             await _registrationRepo.SynchronizeClubRepFinancialsAsync(request.ClubRepRegistrationId, userId, ct);
             return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Payment error: {ex.Message}" };
         }
+    }
+
+    // ── Club Rep Operations ──
+
+    public async Task<List<ClubRegistrationDto>> GetClubRegistrationsForJobAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _ladtService.GetClubRegistrationsForJobAsync(jobId, ct);
+    }
+
+    public async Task<ClubOperationResultDto> ChangeClubAsync(
+        Guid teamId, Guid jobId, string userId, ChangeClubRequest request, CancellationToken ct = default)
+    {
+        var moveRequest = new MoveTeamToClubRequest
+        {
+            TargetRegistrationId = request.TargetRegistrationId,
+            MoveAllFromClub = false
+        };
+        var result = await _ladtService.MoveTeamToClubAsync(teamId, moveRequest, jobId, userId, ct);
+        return new ClubOperationResultDto
+        {
+            TeamsAffected = result.TeamsAffected,
+            Message = result.Message,
+            SourceDeactivated = false
+        };
+    }
+
+    public async Task<ClubOperationResultDto> TransferAllTeamsAndDeactivateAsync(
+        Guid jobId, string userId, TransferAllTeamsRequest request, CancellationToken ct = default)
+    {
+        // Get any team from the source club rep to pass to the move method
+        var sourceTeams = await _teamRepo.GetTeamsByClubRepRegistrationAsync(jobId, request.SourceRegistrationId, ct);
+        if (sourceTeams.Count == 0)
+            throw new InvalidOperationException("Source club rep has no teams to transfer.");
+
+        var moveRequest = new MoveTeamToClubRequest
+        {
+            TargetRegistrationId = request.TargetRegistrationId,
+            MoveAllFromClub = true
+        };
+        var result = await _ladtService.MoveTeamToClubAsync(sourceTeams[0].TeamId, moveRequest, jobId, userId, ct);
+
+        // Deactivate source club rep registration
+        var sourceReg = await _registrationRepo.GetByIdAsync(request.SourceRegistrationId, ct);
+        if (sourceReg != null)
+        {
+            sourceReg.BActive = false;
+            sourceReg.Modified = DateTime.UtcNow;
+            sourceReg.LebUserId = userId;
+            await _registrationRepo.SaveChangesAsync(ct);
+        }
+
+        return new ClubOperationResultDto
+        {
+            TeamsAffected = result.TeamsAffected,
+            Message = $"{result.Message} Source club rep deactivated.",
+            SourceDeactivated = true
+        };
     }
 
     // ── Shared ──

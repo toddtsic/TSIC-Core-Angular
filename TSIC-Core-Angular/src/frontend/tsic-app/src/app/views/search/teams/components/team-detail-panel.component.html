@@ -92,6 +92,83 @@
               </div>
             </div>
           }
+
+          <!-- Club Rep Operations -->
+          @if (team.clubRepRegistrationId) {
+            <div class="info-section">
+              <h4 class="section-title">Club Rep Operations</h4>
+              <div class="d-flex gap-2 mb-3">
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                  (click)="openChangeClub()" [disabled]="isMoving() || isTransferring()">
+                  <i class="bi bi-arrow-left-right me-1"></i>Change Club
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning"
+                  (click)="openTransferAll()" [disabled]="isMoving() || isTransferring()">
+                  <i class="bi bi-people me-1"></i>Transfer All &amp; Deactivate
+                </button>
+              </div>
+
+              <!-- Change Club inline form -->
+              @if (showChangeClub()) {
+                <div class="alert alert-info mb-0">
+                  <h6 class="alert-heading mb-2">
+                    <i class="bi bi-arrow-left-right me-1"></i>Move Team to Different Club
+                  </h6>
+                  <p class="small mb-2">Move <strong>{{ team.teamName }}</strong> from
+                    <strong>{{ team.clubName }}</strong> to:</p>
+                  <select class="form-select form-select-sm mb-2"
+                    [ngModel]="selectedTargetRegId()"
+                    (ngModelChange)="selectedTargetRegId.set($event)"
+                    [ngModelOptions]="{standalone: true}">
+                    <option value="">Select target club...</option>
+                    @for (club of clubRegistrations(); track club.registrationId) {
+                      <option [value]="club.registrationId">{{ club.clubName }}</option>
+                    }
+                  </select>
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelClubOps()">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary" (click)="doChangeClub()"
+                      [disabled]="!selectedTargetRegId() || isMoving()">
+                      @if (isMoving()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                      }
+                      Move Team
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <!-- Transfer All inline form -->
+              @if (showTransferAll()) {
+                <div class="alert alert-warning mb-0">
+                  <h6 class="alert-heading mb-2">
+                    <i class="bi bi-people me-1"></i>Transfer All Teams &amp; Deactivate Club Rep
+                  </h6>
+                  <p class="small mb-2">Move <strong>all teams</strong> from <strong>{{ team.clubName }}</strong>
+                    to a different club rep. The source club rep will be deactivated.</p>
+                  <select class="form-select form-select-sm mb-2"
+                    [ngModel]="transferTargetRegId()"
+                    (ngModelChange)="transferTargetRegId.set($event)"
+                    [ngModelOptions]="{standalone: true}">
+                    <option value="">Select target club...</option>
+                    @for (club of clubRegistrations(); track club.registrationId) {
+                      <option [value]="club.registrationId">{{ club.clubName }}</option>
+                    }
+                  </select>
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelClubOps()">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-warning" (click)="confirmTransferAll()"
+                      [disabled]="!transferTargetRegId() || isTransferring()">
+                      @if (isTransferring()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                      }
+                      Transfer All Teams
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
         </div>
       }
 
@@ -257,5 +334,17 @@
     confirmVariant="danger"
     (confirmed)="onRefundConfirmed()"
     (cancelled)="onRefundCancelled()">
+  </confirm-dialog>
+}
+
+<!-- Transfer All Confirm Dialog -->
+@if (showTransferConfirm()) {
+  <confirm-dialog
+    title="Transfer All Teams & Deactivate Club Rep"
+    [message]="'This will transfer ALL teams from ' + (detail()?.clubName ?? '') + ' to the selected club rep and DEACTIVATE the source club rep registration. This cannot be easily undone.'"
+    confirmLabel="Transfer & Deactivate"
+    confirmVariant="danger"
+    (confirmed)="doTransferAll()"
+    (cancelled)="showTransferConfirm.set(false)">
   </confirm-dialog>
 }

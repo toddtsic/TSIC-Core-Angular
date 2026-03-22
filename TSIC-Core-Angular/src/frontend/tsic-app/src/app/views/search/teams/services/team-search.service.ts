@@ -16,7 +16,11 @@ import type {
 	RefundResponse,
 	PaymentMethodOptionDto,
 	LadtTreeRootDto,
-	CadtClubNode
+	CadtClubNode,
+	ClubRegistrationDto,
+	ChangeClubRequest,
+	TransferAllTeamsRequest,
+	ClubOperationResultDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -41,7 +45,11 @@ export type {
 	LadtTreeRootDto,
 	LadtTreeNodeDto,
 	CadtClubNode,
-	CreditCardInfo
+	CreditCardInfo,
+	ClubRegistrationDto,
+	ChangeClubRequest,
+	TransferAllTeamsRequest,
+	ClubOperationResultDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -95,5 +103,19 @@ export class TeamSearchService {
 
 	getCadtTree(): Observable<CadtClubNode[]> {
 		return this.http.get<CadtClubNode[]>(`${this.apiUrl}/cadt-tree`);
+	}
+
+	// ── Club Rep Operations ──
+
+	getClubRegistrations(): Observable<ClubRegistrationDto[]> {
+		return this.http.get<ClubRegistrationDto[]>(`${this.apiUrl}/club-registrations`);
+	}
+
+	changeClub(teamId: string, request: ChangeClubRequest): Observable<ClubOperationResultDto> {
+		return this.http.post<ClubOperationResultDto>(`${this.apiUrl}/${teamId}/change-club`, request);
+	}
+
+	transferAllTeams(request: TransferAllTeamsRequest): Observable<ClubOperationResultDto> {
+		return this.http.post<ClubOperationResultDto>(`${this.apiUrl}/transfer-all-teams`, request);
 	}
 }

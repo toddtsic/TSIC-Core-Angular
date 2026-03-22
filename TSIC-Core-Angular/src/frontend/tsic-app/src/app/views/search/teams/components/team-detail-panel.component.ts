@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, inject, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo } from '@core/api';
+import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo, ClubRegistrationDto } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { CcChargeModalComponent } from './cc-charge-modal.component';
@@ -47,6 +47,16 @@ export class TeamDetailPanelComponent {
 	// Refund confirm
 	showRefundConfirm = signal(false);
 	refundTarget = signal<AccountingRecordDto | null>(null);
+
+	// Club rep operations
+	showChangeClub = signal(false);
+	showTransferAll = signal(false);
+	clubRegistrations = signal<ClubRegistrationDto[]>([]);
+	selectedTargetRegId = signal('');
+	transferTargetRegId = signal('');
+	isMoving = signal(false);
+	isTransferring = signal(false);
+	showTransferConfirm = signal(false);
 
 	close(): void {
 		this.closed.emit();
@@ -185,5 +195,89 @@ export class TeamDetailPanelComponent {
 	onCheckPaymentComplete(): void {
 		this.showCheckModal.set(false);
 		this.changed.emit();
+	}
+
+	// ── Club Rep Operations ──
+
+	openChangeClub(): void {
+		this.cancelClubOps();
+		this.searchService.getClubRegistrations().subscribe({
+			next: (clubs) => {
+				const currentRegId = this.detail()?.clubRepRegistrationId;
+				this.clubRegistrations.set(clubs.filter(c => c.registrationId !== currentRegId));
+				this.showChangeClub.set(true);
+			},
+			error: () => this.toast.show('Failed to load club list', 'danger', 4000)
+		});
+	}
+
+	doChangeClub(): void {
+		const d = this.detail();
+		const targetId = this.selectedTargetRegId();
+		if (!d || !targetId) return;
+
+		this.isMoving.set(true);
+		this.searchService.changeClub(d.teamId, { targetRegistrationId: targetId }).subscribe({
+			next: (result) => {
+				this.isMoving.set(false);
+				this.cancelClubOps();
+				this.toast.show(result.message, 'success', 4000);
+				this.changed.emit();
+			},
+			error: (err) => {
+				this.isMoving.set(false);
+				this.toast.show(err.error?.message || 'Failed to change club', 'danger', 4000);
+			}
+		});
+	}
+
+	openTransferAll(): void {
+		this.cancelClubOps();
+		this.searchService.getClubRegistrations().subscribe({
+			next: (clubs) => {
+				const currentRegId = this.detail()?.clubRepRegistrationId;
+				this.clubRegistrations.set(clubs.filter(c => c.registrationId !== currentRegId));
+				this.showTransferAll.set(true);
+			},
+			error: () => this.toast.show('Failed to load club list', 'danger', 4000)
+		});
+	}
+
+	confirmTransferAll(): void {
+		if (!this.transferTargetRegId()) return;
+		this.showTransferConfirm.set(true);
+	}
+
+	doTransferAll(): void {
+		const d = this.detail();
+		const targetId = this.transferTargetRegId();
+		if (!d?.clubRepRegistrationId || !targetId) return;
+
+		this.showTransferConfirm.set(false);
+		this.isTransferring.set(true);
+		this.searchService.transferAllTeams({
+			sourceRegistrationId: d.clubRepRegistrationId,
+			targetRegistrationId: targetId
+		}).subscribe({
+			next: (result) => {
+				this.isTransferring.set(false);
+				this.cancelClubOps();
+				this.toast.show(result.message, 'success', 5000);
+				this.changed.emit();
+			},
+			error: (err) => {
+				this.isTransferring.set(false);
+				this.toast.show(err.error?.message || 'Transfer failed', 'danger', 4000);
+			}
+		});
+	}
+
+	cancelClubOps(): void {
+		this.showChangeClub.set(false);
+		this.showTransferAll.set(false);
+		this.showTransferConfirm.set(false);
+		this.selectedTargetRegId.set('');
+		this.transferTargetRegId.set('');
+		this.clubRegistrations.set([]);
 	}
 }
