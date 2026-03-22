@@ -215,17 +215,49 @@ export interface NavItemFormResult {
                         Sports
                         <span class="text-muted fw-normal">(show only for selected; empty = all)</span>
                       </label>
-                      <div class="checkbox-grid">
-                        @for (sport of visibilityOptions.sports; track sport) {
-                          <div class="form-check form-check-inline">
+                      <div class="multiselect-dropdown">
+                        <button type="button" class="multiselect-trigger" (click)="toggleDropdown('sports')">
+                          <span class="multiselect-placeholder">
+                            @if (selectedSports().length === 0) {
+                              All sports
+                            } @else {
+                              {{ selectedSports().length }} selected
+                            }
+                          </span>
+                          <i class="bi bi-chevron-down"></i>
+                        </button>
+                        @if (selectedSports().length > 0) {
+                          <div class="multiselect-chips">
+                            @for (sport of selectedSports(); track sport) {
+                              <span class="multiselect-chip">
+                                {{ sport }}
+                                <button type="button" class="chip-remove" (click)="toggleSelection('sports', sport)">&times;</button>
+                              </span>
+                            }
+                          </div>
+                        }
+                        @if (openDropdown() === 'sports') {
+                          <div class="multiselect-panel">
                             <input
-                              type="checkbox"
-                              class="form-check-input"
-                              [id]="'sport-' + sport"
-                              [checked]="selectedSports().includes(sport)"
-                              (change)="toggleSelection('sports', sport)"
+                              type="text"
+                              class="form-control form-control-sm multiselect-search"
+                              placeholder="Search sports..."
+                              [ngModel]="searchTerm()"
+                              [ngModelOptions]="{standalone: true}"
+                              (ngModelChange)="searchTerm.set($event)"
                             >
-                            <label class="form-check-label small" [for]="'sport-' + sport">{{ sport }}</label>
+                            <div class="multiselect-options">
+                              @for (sport of filterOptions(visibilityOptions.sports); track sport) {
+                                <label class="multiselect-option">
+                                  <input
+                                    type="checkbox"
+                                    [checked]="selectedSports().includes(sport)"
+                                    (change)="toggleSelection('sports', sport)"
+                                  >
+                                  <span>{{ sport }}</span>
+                                </label>
+                              }
+                            </div>
                           </div>
                         }
                       </div>
@@ -239,17 +271,49 @@ export interface NavItemFormResult {
                         Job Types
                         <span class="text-muted fw-normal">(show only for selected; empty = all)</span>
                       </label>
-                      <div class="checkbox-grid">
-                        @for (jt of visibilityOptions.jobTypes; track jt) {
-                          <div class="form-check form-check-inline">
+                      <div class="multiselect-dropdown">
+                        <button type="button" class="multiselect-trigger" (click)="toggleDropdown('jobTypes')">
+                          <span class="multiselect-placeholder">
+                            @if (selectedJobTypes().length === 0) {
+                              All job types
+                            } @else {
+                              {{ selectedJobTypes().length }} selected
+                            }
+                          </span>
+                          <i class="bi bi-chevron-down"></i>
+                        </button>
+                        @if (selectedJobTypes().length > 0) {
+                          <div class="multiselect-chips">
+                            @for (jt of selectedJobTypes(); track jt) {
+                              <span class="multiselect-chip">
+                                {{ jt }}
+                                <button type="button" class="chip-remove" (click)="toggleSelection('jobTypes', jt)">&times;</button>
+                              </span>
+                            }
+                          </div>
+                        }
+                        @if (openDropdown() === 'jobTypes') {
+                          <div class="multiselect-panel">
                             <input
-                              type="checkbox"
-                              class="form-check-input"
-                              [id]="'jt-' + jt"
-                              [checked]="selectedJobTypes().includes(jt)"
-                              (change)="toggleSelection('jobTypes', jt)"
+                              type="text"
+                              class="form-control form-control-sm multiselect-search"
+                              placeholder="Search job types..."
+                              [ngModel]="searchTerm()"
+                              [ngModelOptions]="{standalone: true}"
+                              (ngModelChange)="searchTerm.set($event)"
                             >
-                            <label class="form-check-label small" [for]="'jt-' + jt">{{ jt }}</label>
+                            <div class="multiselect-options">
+                              @for (jt of filterOptions(visibilityOptions.jobTypes); track jt) {
+                                <label class="multiselect-option">
+                                  <input
+                                    type="checkbox"
+                                    [checked]="selectedJobTypes().includes(jt)"
+                                    (change)="toggleSelection('jobTypes', jt)"
+                                  >
+                                  <span>{{ jt }}</span>
+                                </label>
+                              }
+                            </div>
                           </div>
                         }
                       </div>
@@ -263,17 +327,49 @@ export interface NavItemFormResult {
                         Customers
                         <span class="text-muted fw-normal">(hide from selected; empty = none hidden)</span>
                       </label>
-                      <div class="checkbox-grid">
-                        @for (cust of visibilityOptions.customers; track cust) {
-                          <div class="form-check form-check-inline">
+                      <div class="multiselect-dropdown">
+                        <button type="button" class="multiselect-trigger" (click)="toggleDropdown('customers')">
+                          <span class="multiselect-placeholder">
+                            @if (selectedCustomersDeny().length === 0) {
+                              None hidden
+                            } @else {
+                              {{ selectedCustomersDeny().length }} hidden
+                            }
+                          </span>
+                          <i class="bi bi-chevron-down"></i>
+                        </button>
+                        @if (selectedCustomersDeny().length > 0) {
+                          <div class="multiselect-chips">
+                            @for (cust of selectedCustomersDeny(); track cust) {
+                              <span class="multiselect-chip chip-deny">
+                                {{ cust }}
+                                <button type="button" class="chip-remove" (click)="toggleSelection('customersDeny', cust)">&times;</button>
+                              </span>
+                            }
+                          </div>
+                        }
+                        @if (openDropdown() === 'customers') {
+                          <div class="multiselect-panel">
                             <input
-                              type="checkbox"
-                              class="form-check-input"
-                              [id]="'cust-' + cust"
-                              [checked]="selectedCustomersDeny().includes(cust)"
-                              (change)="toggleSelection('customersDeny', cust)"
+                              type="text"
+                              class="form-control form-control-sm multiselect-search"
+                              placeholder="Search customers..."
+                              [ngModel]="searchTerm()"
+                              [ngModelOptions]="{standalone: true}"
+                              (ngModelChange)="searchTerm.set($event)"
                             >
-                            <label class="form-check-label small" [for]="'cust-' + cust">{{ cust }}</label>
+                            <div class="multiselect-options">
+                              @for (cust of filterOptions(visibilityOptions.customers); track cust) {
+                                <label class="multiselect-option">
+                                  <input
+                                    type="checkbox"
+                                    [checked]="selectedCustomersDeny().includes(cust)"
+                                    (change)="toggleSelection('customersDeny', cust)"
+                                  >
+                                  <span>{{ cust }}</span>
+                                </label>
+                              }
+                            </div>
                           </div>
                         }
                       </div>
@@ -330,13 +426,106 @@ export interface NavItemFormResult {
             color: var(--bs-primary);
         }
         .cursor-pointer { cursor: pointer; }
-        .checkbox-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--space-2) var(--space-4);
-        }
         .rule-section {
             padding-left: var(--space-3);
+        }
+        .multiselect-dropdown {
+            position: relative;
+        }
+        .multiselect-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: var(--space-2) var(--space-3);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+        }
+        .multiselect-trigger:hover {
+            border-color: var(--bs-primary);
+        }
+        .multiselect-trigger i {
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+        }
+        .multiselect-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+            margin-top: var(--space-1);
+        }
+        .multiselect-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: 2px var(--space-2);
+            border-radius: var(--radius-full);
+            background: rgba(var(--bs-primary-rgb), 0.1);
+            color: var(--bs-primary);
+            font-size: var(--font-size-xs);
+            line-height: 1.4;
+        }
+        .multiselect-chip.chip-deny {
+            background: rgba(var(--bs-danger-rgb), 0.1);
+            color: var(--bs-danger);
+        }
+        .chip-remove {
+            border: none;
+            background: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0;
+            font-size: var(--font-size-sm);
+            line-height: 1;
+            opacity: 0.7;
+        }
+        .chip-remove:hover { opacity: 1; }
+        .multiselect-panel {
+            position: absolute;
+            z-index: 10;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: var(--space-1);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            box-shadow: var(--shadow-lg);
+        }
+        .multiselect-search {
+            border: none;
+            border-bottom: 1px solid var(--border-color);
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        }
+        .multiselect-search:focus {
+            box-shadow: none;
+            border-bottom-color: var(--bs-primary);
+        }
+        .multiselect-options {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: var(--space-1) 0;
+        }
+        .multiselect-option {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-1) var(--space-3);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            transition: background 0.1s ease;
+        }
+        .multiselect-option:hover {
+            background: rgba(var(--bs-primary-rgb), 0.06);
+        }
+        .multiselect-option input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
         }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -365,6 +554,8 @@ export class NavItemFormDialogComponent implements OnInit {
     selectedSports = signal<string[]>([]);
     selectedJobTypes = signal<string[]>([]);
     selectedCustomersDeny = signal<string[]>([]);
+    openDropdown = signal<string | null>(null);
+    searchTerm = signal('');
 
     readonly commonIcons = [
         'search', 'gear', 'house', 'person', 'people', 'clipboard', 'calendar',
@@ -440,6 +631,22 @@ export class NavItemFormDialogComponent implements OnInit {
         } else {
             sig.set([...current, value]);
         }
+    }
+
+    toggleDropdown(name: string): void {
+        if (this.openDropdown() === name) {
+            this.openDropdown.set(null);
+            this.searchTerm.set('');
+        } else {
+            this.openDropdown.set(name);
+            this.searchTerm.set('');
+        }
+    }
+
+    filterOptions(options: string[]): string[] {
+        const term = this.searchTerm().toLowerCase().trim();
+        if (!term) return options;
+        return options.filter(o => o.toLowerCase().includes(term));
     }
 
     hasAnyRules(): boolean {
