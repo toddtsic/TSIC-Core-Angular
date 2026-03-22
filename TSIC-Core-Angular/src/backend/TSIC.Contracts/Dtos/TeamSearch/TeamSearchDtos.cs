@@ -42,6 +42,7 @@ public record TeamSearchResultDto
     public string? ClubRepName { get; init; }
     public string? ClubRepEmail { get; init; }
     public string? ClubRepCellphone { get; init; }
+    public bool ClubRepEmailOptOut { get; init; }
     public string? TeamComments { get; init; }
 }
 

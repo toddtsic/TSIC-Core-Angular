@@ -201,34 +201,30 @@
         [allowPaging]="true"
         [allowSorting]="true"
         [allowExcelExport]="true"
-        [frozenColumns]="4"
+        [enableStickyHeader]="true"
+        [frozenColumns]="2"
         [pageSettings]="pageSettings"
         [sortSettings]="sortSettings"
-        (queryCellInfo)="queryCellInfo($event)"
         class="tight-table"
       >
         <e-columns>
           <!-- Frozen columns -->
-          <e-column headerText="Row" width="55" textAlign="Center" [allowSorting]="false"></e-column>
-          <e-column field="active" headerText="Active" width="70" textAlign="Center">
-            <ng-template #template let-data>
-              @if (data.active) {
-                <span class="badge bg-success">Yes</span>
-              } @else {
-                <span class="badge bg-secondary">No</span>
-              }
-            </ng-template>
-          </e-column>
           <e-column field="clubName" headerText="Club" width="150">
             <ng-template #template let-data>
               {{ data.clubName ?? '—' }}
             </ng-template>
           </e-column>
-          <e-column field="teamName" headerText="Team" width="180">
+          <e-column field="teamName" headerText="Team" width="200">
             <ng-template #template let-data>
-              <a href="javascript:void(0)" (click)="openDetail(data.teamId)" class="detail-link">
+              <a href="javascript:void(0)" (click)="openDetail(data.teamId)"
+                 class="detail-link"
+                 title="View details">
+                <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
                 {{ data.teamName }}
-                <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <span class="email-dot" [class.subscribed]="!data.clubRepEmailOptOut" [class.unsubscribed]="data.clubRepEmailOptOut"
+                      [title]="data.clubRepEmailOptOut ? 'Club rep unsubscribed' : 'Club rep subscribed'"></span>
               </a>
             </ng-template>
           </e-column>
@@ -237,10 +233,24 @@
           <e-column field="agegroupName" headerText="Agegroup" width="130"></e-column>
           <e-column field="divName" headerText="Div/Pool" width="120"></e-column>
           <e-column field="levelOfPlay" headerText="LOP" width="90"></e-column>
-          <e-column field="paidTotal" headerText="$Paid" width="100" textAlign="Right" format="C2"></e-column>
-          <e-column field="owedTotal" headerText="$Owed" width="100" textAlign="Right" format="C2"></e-column>
-          <e-column field="regDate" headerText="RegDate" width="100" type="date" format="M/d/yyyy"></e-column>
-          <e-column field="clubRepName" headerText="Club Rep" width="140"></e-column>
+          <e-column field="paidTotal" headerText="Paid" width="100" textAlign="Right">
+            <ng-template #template let-data>
+              <span class="money-cell money-paid">{{ data.paidTotal | currency }}</span>
+            </ng-template>
+          </e-column>
+          <e-column field="owedTotal" headerText="Owed" width="100" textAlign="Right">
+            <ng-template #template let-data>
+              <span class="money-cell" [class.money-owed]="data.owedTotal > 0" [class.money-zero]="data.owedTotal === 0">
+                {{ data.owedTotal | currency }}
+              </span>
+            </ng-template>
+          </e-column>
+          <e-column field="regDate" headerText="RegDate" width="105" type="date" format="MM/dd/yyyy" textAlign="Center"></e-column>
+          <e-column field="clubRepName" headerText="Club Rep" width="140">
+            <ng-template #template let-data>
+              <span [class.inactive-name]="!data.active">{{ data.clubRepName }}</span>
+            </ng-template>
+          </e-column>
           <e-column field="clubRepEmail" headerText="Email" width="180"></e-column>
           <e-column field="clubRepCellphone" headerText="Phone" width="120"></e-column>
           <e-column field="teamComments" headerText="Comments" width="200"></e-column>

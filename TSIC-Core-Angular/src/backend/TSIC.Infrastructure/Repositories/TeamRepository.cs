@@ -810,6 +810,7 @@ public class TeamRepository : ITeamRepository
                 ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
                 ClubRepEmail = x.u != null ? x.u.Email : null,
                 ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
+                ClubRepEmailOptOut = x.r != null && (x.r.BemailOptOut),
                 TeamComments = x.t.TeamComments
             })
             .ToListAsync(ct);

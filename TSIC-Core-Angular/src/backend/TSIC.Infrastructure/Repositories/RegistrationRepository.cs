@@ -1123,10 +1123,14 @@ public class RegistrationRepository : IRegistrationRepository
             var r = results[i];
             var parts = new[] { r.ClubRepClubName, r.AgegroupName, r.TeamName }
                 .Where(s => !string.IsNullOrWhiteSpace(s));
+            // If no team assignment, fall back to registration's own ClubName (club reps)
+            var assignment = parts.Any()
+                ? string.Join(" ", parts)
+                : !string.IsNullOrWhiteSpace(r.ClubName) ? r.ClubName : null;
             results[i] = r with
             {
                 Phone = r.Phone.FormatPhone(),
-                Assignment = parts.Any() ? string.Join(" ", parts) : null
+                Assignment = assignment
             };
         }
 
@@ -1395,7 +1399,7 @@ public class RegistrationRepository : IRegistrationRepository
                     reg.AssignedTeam.Agegroup?.AgegroupName,
                     reg.AssignedTeam.TeamName
                   }.Where(s => !string.IsNullOrWhiteSpace(s))) is { Length: > 0 } a ? a : null
-                : null,
+                : reg.ClubName,
             FeeBase = reg.FeeBase,
             FeeProcessing = reg.FeeProcessing,
             FeeDiscount = reg.FeeDiscount,

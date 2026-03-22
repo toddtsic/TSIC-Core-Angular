@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy, ViewChild, signal, computed, inject, Chan
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
-import { QueryCellInfoEventArgs } from '@syncfusion/ej2-grids';
 import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
 import { TeamSearchService } from './services/team-search.service';
@@ -15,7 +14,6 @@ import type {
 	TeamSearchRequest,
 	TeamSearchResponse,
 	TeamFilterOptionsDto,
-	TeamSearchResultDto,
 	TeamSearchDetailDto,
 	AccountingRecordDto,
 	FilterOption,
@@ -372,27 +370,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		const results = this.searchResults();
 		if (this.grid && results) {
 			this.grid.excelExport({ dataSource: results.result });
-		}
-	}
-
-	queryCellInfo(args: QueryCellInfoEventArgs): void {
-		if (args.column?.headerText === 'Row' && args.cell) {
-			const page = (this.grid.pageSettings.currentPage as number) || 1;
-			const pageSize = (this.grid.pageSettings.pageSize as number) || 20;
-			const currentViewData = this.grid.getCurrentViewRecords();
-			const rowIndex = currentViewData.indexOf(args.data as any);
-			if (rowIndex >= 0) {
-				args.cell.textContent = String((page - 1) * pageSize + rowIndex + 1);
-			}
-		} else if (args.column?.field === 'owedTotal') {
-			const record = args.data as TeamSearchResultDto;
-			if (args.cell) {
-				if (record.owedTotal === 0) {
-					args.cell.classList.add('owed-zero');
-				} else if (record.owedTotal > 0) {
-					args.cell.classList.add('owed-positive');
-				}
-			}
 		}
 	}
 
