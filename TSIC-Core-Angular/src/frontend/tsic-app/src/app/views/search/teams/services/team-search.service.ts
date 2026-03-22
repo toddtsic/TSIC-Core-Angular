@@ -15,7 +15,8 @@ import type {
 	RefundRequest,
 	RefundResponse,
 	PaymentMethodOptionDto,
-	LadtTreeRootDto
+	LadtTreeRootDto,
+	CadtClubNode
 } from '@core/api';
 
 // Re-export for consumers
@@ -39,6 +40,7 @@ export type {
 	FilterOption,
 	LadtTreeRootDto,
 	LadtTreeNodeDto,
+	CadtClubNode,
 	CreditCardInfo
 } from '@core/api';
 
@@ -89,5 +91,9 @@ export class TeamSearchService {
 
 	getLadtTree(): Observable<LadtTreeRootDto> {
 		return this.http.get<LadtTreeRootDto>(`${environment.apiUrl}/ladt/tree`);
+	}
+
+	getCadtTree(): Observable<CadtClubNode[]> {
+		return this.http.get<CadtClubNode[]>(`${this.apiUrl}/cadt-tree`);
 	}
 }

@@ -11,5 +11,6 @@ export type TeamSearchRequest = {
     leagueIds?: any[] | null;
     divisionIds?: any[] | null;
     teamIds?: any[] | null;
+    cadtTeamIds?: any[] | null;
 };
 

@@ -4,6 +4,7 @@ using System.Security.Claims;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Services;
 
@@ -61,6 +62,21 @@ public class TeamSearchController : ControllerBase
 
         var options = await _teamSearchService.GetFilterOptionsAsync(jobId.Value, ct);
         return Ok(options);
+    }
+
+    /// <summary>
+    /// Returns the CADT tree (Club → Agegroup → Division → Team) for team ownership filtering.
+    /// Empty array when no teams have club rep assignments.
+    /// </summary>
+    [HttpGet("cadt-tree")]
+    public async Task<ActionResult<List<CadtClubNode>>> GetCadtTree(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var tree = await _teamSearchService.GetCadtTreeAsync(jobId.Value, ct);
+        return Ok(tree);
     }
 
     // ── Team Detail ──

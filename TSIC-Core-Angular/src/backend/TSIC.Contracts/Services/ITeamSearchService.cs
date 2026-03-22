@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 
 namespace TSIC.Contracts.Services;
@@ -14,6 +15,7 @@ public interface ITeamSearchService
 
     Task<TeamSearchResponse> SearchAsync(Guid jobId, TeamSearchRequest request, CancellationToken ct = default);
     Task<TeamFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<CadtClubNode>> GetCadtTreeAsync(Guid jobId, CancellationToken ct = default);
 
     // ── Team detail ──
 

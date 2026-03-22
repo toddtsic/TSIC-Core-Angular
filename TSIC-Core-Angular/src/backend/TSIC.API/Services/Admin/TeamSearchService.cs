@@ -2,6 +2,7 @@ using AuthorizeNet.Api.Contracts.V1;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Teams;
@@ -70,6 +71,12 @@ public sealed class TeamSearchService : ITeamSearchService
         Guid jobId, CancellationToken ct = default)
     {
         return await _teamRepo.GetTeamSearchFilterOptionsAsync(jobId, ct);
+    }
+
+    public async Task<List<CadtClubNode>> GetCadtTreeAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        return await _registrationRepo.GetCadtTreeForJobAsync(jobId, ct);
     }
 
     // ── Team Detail ──

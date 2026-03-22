@@ -786,6 +786,10 @@ public class TeamRepository : ITeamRepository
                 || teamIds.Contains(x.t.TeamId));
         }
 
+        // CADT tree filter (team ownership via ClubRepRegistrationId)
+        if (request.CadtTeamIds is { Count: > 0 })
+            query = query.Where(x => request.CadtTeamIds.Contains(x.t.TeamId));
+
         return await query
             .OrderBy(x => x.r != null ? x.r.ClubName : "")
             .ThenBy(x => x.ag.AgegroupName)

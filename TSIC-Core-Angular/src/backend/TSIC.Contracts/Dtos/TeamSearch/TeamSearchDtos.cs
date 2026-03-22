@@ -19,6 +19,9 @@ public record TeamSearchRequest
     public List<Guid>? LeagueIds { get; init; }
     public List<Guid>? DivisionIds { get; init; }
     public List<Guid>? TeamIds { get; init; }
+
+    // CADT tree filter (team ownership via ClubRepRegistrationId)
+    public List<Guid>? CadtTeamIds { get; init; }
 }
 
 /// <summary>

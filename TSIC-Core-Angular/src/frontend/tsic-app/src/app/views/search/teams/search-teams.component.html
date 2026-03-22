@@ -86,8 +86,9 @@
         </div>
       </div>
 
-      <!-- LADT Tree -->
-      <div class="filter-row-ladt">
+      <!-- Tree filters (LADT always present, CADT when club data exists) -->
+      <div class="filter-row-trees" [class.dual-tree]="hasCadtData()">
+        <!-- LADT Tree -->
         <div class="form-group form-group-tree">
           <label>League / Agegroup / Division / Team</label>
           <div class="tree-scroll-container">
@@ -105,6 +106,29 @@
             }
           </div>
         </div>
+
+        <!-- CADT Tree (conditional) -->
+        @if (hasCadtData() && jobName()) {
+          <div class="form-group form-group-tree">
+            <label>Club / Agegroup / Division / Team</label>
+            <div class="tree-scroll-container">
+              @if (cadtTreeLoading()) {
+                <div class="tree-loading">
+                  <span class="spinner-border spinner-border-sm"></span>
+                  <span>Loading tree&hellip;</span>
+                </div>
+              } @else {
+                <app-cadt-tree-filter
+                  [treeData]="cadtTree()"
+                  [checkedIds]="cadtCheckedIds()"
+                  [rootLabel]="jobName()"
+                  [showSearch]="false"
+                  (checkedIdsChange)="onCadtCheckedChange($event)">
+                </app-cadt-tree-filter>
+              }
+            </div>
+          </div>
+        }
       </div>
 
       <!-- Action buttons -->
@@ -152,8 +176,22 @@
   <div class="results-container">
     @if (searchResults()) {
       <div class="results-summary">
+        <svg class="results-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
         <span class="result-count">
-          {{ searchResults()!.count }} team(s) found
+          <span class="result-count-number">{{ searchResults()!.count | number }}</span>
+          <span class="result-count-label">teams</span>
+        </span>
+        <span class="result-financials">
+          <span class="financial-item financial-paid">
+            <span class="financial-label">Paid</span>
+            <span class="financial-value">{{ searchResults()!.totalPaid | currency }}</span>
+          </span>
+          <span class="financial-item financial-owed">
+            <span class="financial-label">Owed</span>
+            <span class="financial-value">{{ searchResults()!.totalOwed | currency }}</span>
+          </span>
         </span>
       </div>
 
@@ -190,6 +228,7 @@
             <ng-template #template let-data>
               <a href="javascript:void(0)" (click)="openDetail(data.teamId)" class="detail-link">
                 {{ data.teamName }}
+                <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               </a>
             </ng-template>
           </e-column>
