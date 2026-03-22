@@ -49,7 +49,7 @@
     "**/.git/objects/**": true,
     "**/.git/subtree-cache/**": true,
     "**/reference/**": true,
-    "**/tools/**": true
+    "tools/**": true
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -68,7 +68,7 @@
     "**/.vs": true,
     "**/tsic-deployment-current": true,
     "**/reference": false,
-    "**/tools": true
+    "tools": true
   },
   "typescript.tsserver.maxTsServerMemory": 1536,
   "typescript.disableAutomaticTypeAcquisition": true,

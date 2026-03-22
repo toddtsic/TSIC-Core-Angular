@@ -173,13 +173,7 @@ export const routes: Routes = [
 						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/configure/job-clone/job-clone.component').then(m => m.JobCloneComponent)
 					},
-					{
-						path: 'uniform-upload',
-						canActivate: [authGuard],
-						data: { requireAdmin: true },
-						loadComponent: () => import('./views/configure/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
-					}
-				]
+					]
 			},
 			// Search — player & team lookup
 			{
@@ -303,6 +297,12 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { requireSuperUser: true },
 						loadComponent: () => import('./views/tools/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
+					},
+					{
+						path: 'uniform-upload',
+						canActivate: [authGuard],
+						data: { requireAdmin: true },
+						loadComponent: () => import('./views/tools/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
 					}
 				]
 			},
