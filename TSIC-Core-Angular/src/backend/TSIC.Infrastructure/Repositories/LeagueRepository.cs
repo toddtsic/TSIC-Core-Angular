@@ -35,8 +35,7 @@ public class LeagueRepository : ILeagueRepository
                 SportName = l.Sport != null ? l.Sport.SportName : null,
                 BHideContacts = l.BHideContacts,
                 BHideStandings = l.BHideStandings,
-                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
-                PlayerFeeOverride = l.PlayerFeeOverride
+                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon
             })
             .ToListAsync(cancellationToken);
     }
@@ -59,8 +58,7 @@ public class LeagueRepository : ILeagueRepository
                 SportName = l.Sport != null ? l.Sport.SportName : null,
                 BHideContacts = l.BHideContacts,
                 BHideStandings = l.BHideStandings,
-                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon,
-                PlayerFeeOverride = l.PlayerFeeOverride
+                RescheduleEmailsToAddon = l.RescheduleEmailsToAddon
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

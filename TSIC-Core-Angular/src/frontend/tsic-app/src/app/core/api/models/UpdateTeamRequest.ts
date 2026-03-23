@@ -11,15 +11,6 @@ export type UpdateTeamRequest = {
     maxCount?: number | null;
     bAllowSelfRostering?: boolean | null;
     bHideRoster?: boolean | null;
-    feeBase?: number | null;
-    perRegistrantFee?: number | null;
-    perRegistrantDeposit?: number | null;
-    discountFee?: number | null;
-    discountFeeStart?: string | null;
-    discountFeeEnd?: string | null;
-    lateFee?: number | null;
-    lateFeeStart?: string | null;
-    lateFeeEnd?: string | null;
     startdate?: string | null;
     enddate?: string | null;
     effectiveasofdate?: string | null;

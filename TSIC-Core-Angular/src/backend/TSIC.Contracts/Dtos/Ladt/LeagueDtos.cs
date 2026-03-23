@@ -9,7 +9,6 @@ public record LeagueDetailDto
     public required bool BHideContacts { get; init; }
     public required bool BHideStandings { get; init; }
     public string? RescheduleEmailsToAddon { get; init; }
-    public decimal? PlayerFeeOverride { get; init; }
 }
 
 public record UpdateLeagueRequest
@@ -19,7 +18,6 @@ public record UpdateLeagueRequest
     public required bool BHideContacts { get; init; }
     public required bool BHideStandings { get; init; }
     public string? RescheduleEmailsToAddon { get; init; }
-    public decimal? PlayerFeeOverride { get; init; }
 }
 
 public record SportOptionDto

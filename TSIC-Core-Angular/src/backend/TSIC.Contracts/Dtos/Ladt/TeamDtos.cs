@@ -23,17 +23,6 @@ public record TeamDetailDto
     public bool? BAllowSelfRostering { get; init; }
     public required bool BHideRoster { get; init; }
 
-    // Fees
-    public decimal? FeeBase { get; init; }
-    public decimal? PerRegistrantFee { get; init; }
-    public decimal? PerRegistrantDeposit { get; init; }
-    public decimal? DiscountFee { get; init; }
-    public DateTime? DiscountFeeStart { get; init; }
-    public DateTime? DiscountFeeEnd { get; init; }
-    public decimal? LateFee { get; init; }
-    public DateTime? LateFeeStart { get; init; }
-    public DateTime? LateFeeEnd { get; init; }
-
     // Dates
     public DateTime? Startdate { get; init; }
     public DateTime? Enddate { get; init; }
@@ -82,15 +71,6 @@ public record CreateTeamRequest
     public int MaxCount { get; init; }
     public bool? BAllowSelfRostering { get; init; }
     public bool BHideRoster { get; init; }
-    public decimal? FeeBase { get; init; }
-    public decimal? PerRegistrantFee { get; init; }
-    public decimal? PerRegistrantDeposit { get; init; }
-    public decimal? DiscountFee { get; init; }
-    public DateTime? DiscountFeeStart { get; init; }
-    public DateTime? DiscountFeeEnd { get; init; }
-    public decimal? LateFee { get; init; }
-    public DateTime? LateFeeStart { get; init; }
-    public DateTime? LateFeeEnd { get; init; }
     public DateTime? Startdate { get; init; }
     public DateTime? Enddate { get; init; }
     public DateTime? Effectiveasofdate { get; init; }
@@ -137,15 +117,6 @@ public record UpdateTeamRequest
     public int? MaxCount { get; init; }
     public bool? BAllowSelfRostering { get; init; }
     public bool? BHideRoster { get; init; }
-    public decimal? FeeBase { get; init; }
-    public decimal? PerRegistrantFee { get; init; }
-    public decimal? PerRegistrantDeposit { get; init; }
-    public decimal? DiscountFee { get; init; }
-    public DateTime? DiscountFeeStart { get; init; }
-    public DateTime? DiscountFeeEnd { get; init; }
-    public decimal? LateFee { get; init; }
-    public DateTime? LateFeeStart { get; init; }
-    public DateTime? LateFeeEnd { get; init; }
     public DateTime? Startdate { get; init; }
     public DateTime? Enddate { get; init; }
     public DateTime? Effectiveasofdate { get; init; }

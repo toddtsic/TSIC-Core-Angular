@@ -32,26 +32,8 @@ public record AvailableTeamQueryResult
     public Guid? DivisionId { get; init; }
     public string? DivisionName { get; init; }
     public required int MaxCount { get; init; }
-    public decimal? RawPerRegistrantFee { get; init; }
-    public decimal? RawPerRegistrantDeposit { get; init; }
-    public decimal? RawTeamFee { get; init; }
-    public decimal? RawRosterFee { get; init; }
     public bool? TeamAllowsSelfRostering { get; init; }
     public bool? AgegroupAllowsSelfRostering { get; init; }
-    public decimal? LeaguePlayerFeeOverride { get; init; }
-    public decimal? AgegroupPlayerFeeOverride { get; init; }
-    public int JobTypeId { get; init; }
-}
-
-public record TeamFeeData
-{
-    public decimal? PerRegistrantFee { get; init; }
-    public decimal? PerRegistrantDeposit { get; init; }
-    public decimal? TeamFee { get; init; }
-    public decimal? RosterFee { get; init; }
-    public decimal? LeaguePlayerFeeOverride { get; init; }
-    public decimal? AgegroupPlayerFeeOverride { get; init; }
-    public int JobTypeId { get; init; }
 }
 
 /// <summary>
@@ -168,20 +150,6 @@ public interface ITeamRepository
         Guid jobId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Get team fee data for per-registrant fee calculation.
-    /// </summary>
-    Task<TeamFeeData?> GetTeamFeeDataAsync(
-        Guid teamId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Batch: get team fee data for multiple teams in a single query.
-    /// Used by LADT bulk fee recalculation.
-    /// </summary>
-    Task<Dictionary<Guid, TeamFeeData>> GetTeamFeeDataByTeamIdsAsync(
-        IReadOnlyList<Guid> teamIds,
-        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get team names by team IDs for display purposes.

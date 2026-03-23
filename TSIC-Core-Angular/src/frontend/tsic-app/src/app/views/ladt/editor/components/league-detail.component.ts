@@ -60,10 +60,6 @@ import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../..
             <input class="form-control" [(ngModel)]="form.rescheduleEmailsToAddon" name="rescheduleEmailsToAddon">
             <small class="form-text text-body-secondary">Separate emails with semi-colon, no spaces</small>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Player Fee Override</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.playerFeeOverride" name="playerFeeOverride">
-          </div>
         </div>
 
         <div class="d-flex gap-2 mt-4">
@@ -147,8 +143,7 @@ export class LeagueDetailComponent implements OnChanges {
       sportId: this.form.sportId,
       bHideContacts: this.form.bHideContacts,
       bHideStandings: this.form.bHideStandings,
-      rescheduleEmailsToAddon: this.form.rescheduleEmailsToAddon,
-      playerFeeOverride: this.form.playerFeeOverride
+      rescheduleEmailsToAddon: this.form.rescheduleEmailsToAddon
     };
 
     this.ladtService.updateLeague(this.leagueId, request).subscribe({

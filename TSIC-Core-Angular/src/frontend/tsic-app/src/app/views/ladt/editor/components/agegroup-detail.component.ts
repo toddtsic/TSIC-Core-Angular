@@ -318,24 +318,12 @@ export class AgegroupDetailComponent implements OnChanges {
       gradYearMax: this.form.gradYearMax,
       schoolGradeMin: this.form.schoolGradeMin,
       schoolGradeMax: this.form.schoolGradeMax,
-      // Legacy fee fields — still sent for backward compat but values come from new schema
-      teamFee: this.feeForm.clubRepBalanceDue,
-      teamFeeLabel: this.form.teamFeeLabel,
-      rosterFee: this.feeForm.clubRepDeposit ?? this.feeForm.playerBalanceDue,
-      rosterFeeLabel: this.form.rosterFeeLabel,
-      discountFee: null,
-      discountFeeStart: null,
-      discountFeeEnd: null,
-      lateFee: null,
-      lateFeeStart: null,
-      lateFeeEnd: null,
       maxTeams: this.form.maxTeams,
       maxTeamsPerClub: this.form.maxTeamsPerClub,
       bAllowSelfRostering: this.form.bAllowSelfRostering,
       bChampionsByDivision: this.form.bChampionsByDivision,
       bAllowApiRosterAccess: this.form.bAllowApiRosterAccess,
       bHideStandings: this.form.bHideStandings,
-      playerFeeOverride: this.feeForm.playerBalanceDue,
       sortAge: this.form.sortAge
     };
 

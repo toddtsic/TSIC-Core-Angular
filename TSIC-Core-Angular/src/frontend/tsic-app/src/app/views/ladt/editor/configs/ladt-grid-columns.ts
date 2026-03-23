@@ -20,7 +20,6 @@ export interface LadtColumnDef {
 export const LEAGUE_COLUMNS: LadtColumnDef[] = [
   { field: 'leagueName', header: 'League', type: 'string', frozen: true, width: '180px' },
   { field: 'sportName', header: 'Sport', type: 'string' },
-  { field: 'playerFeeOverride', header: 'Player Fee Override', type: 'currency' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string' },
   { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean' },
   { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean' },
@@ -33,18 +32,6 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'color', header: 'Color', type: 'string' },
   { field: 'gender', header: 'Gender', type: 'string' },
   { field: 'sortAge', header: 'Sort', type: 'number' },
-  // Fees
-  { field: 'teamFee', header: 'Team Fee', type: 'currency', group: 'Fees' },
-  { field: 'teamFeeLabel', header: 'Team Fee Label', type: 'string', group: 'Fees' },
-  { field: 'rosterFee', header: 'Roster Fee', type: 'currency', group: 'Fees' },
-  { field: 'rosterFeeLabel', header: 'Roster Fee Label', type: 'string', group: 'Fees' },
-  { field: 'discountFee', header: 'Discount Fee', type: 'currency', group: 'Fees' },
-  { field: 'discountFeeStart', header: 'Discount Start', type: 'date', group: 'Fees' },
-  { field: 'discountFeeEnd', header: 'Discount End', type: 'date', group: 'Fees' },
-  { field: 'lateFee', header: 'Late Fee', type: 'currency', group: 'Fees' },
-  { field: 'lateFeeStart', header: 'Late Start', type: 'date', group: 'Fees' },
-  { field: 'lateFeeEnd', header: 'Late End', type: 'date', group: 'Fees' },
-  { field: 'playerFeeOverride', header: 'Player Fee Override', type: 'currency', group: 'Fees' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits' },
   { field: 'maxTeamsPerClub', header: 'Max/Club', type: 'number', group: 'Limits' },
@@ -77,16 +64,6 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'maxCount', header: 'Max Roster', type: 'number', group: 'Roster' },
   { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster' },
   { field: 'bHideRoster', header: 'Hide Roster', type: 'boolean', group: 'Roster' },
-  // Fees
-  { field: 'feeBase', header: 'Base Fee', type: 'currency', group: 'Fees' },
-  { field: 'perRegistrantFee', header: 'Per-Player Fee', type: 'currency', group: 'Fees' },
-  { field: 'perRegistrantDeposit', header: 'Per-Player Deposit', type: 'currency', group: 'Fees' },
-  { field: 'discountFee', header: 'Discount Fee', type: 'currency', group: 'Fees' },
-  { field: 'discountFeeStart', header: 'Discount Start', type: 'date', group: 'Fees' },
-  { field: 'discountFeeEnd', header: 'Discount End', type: 'date', group: 'Fees' },
-  { field: 'lateFee', header: 'Late Fee', type: 'currency', group: 'Fees' },
-  { field: 'lateFeeStart', header: 'Late Start', type: 'date', group: 'Fees' },
-  { field: 'lateFeeEnd', header: 'Late End', type: 'date', group: 'Fees' },
   // Dates
   { field: 'startdate', header: 'Start', type: 'date', group: 'Dates' },
   { field: 'enddate', header: 'End', type: 'date', group: 'Dates' },
