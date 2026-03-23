@@ -15,11 +15,13 @@ namespace TSIC.API.Services.Admin;
 public sealed class JobCloneService : IJobCloneService
 {
     private readonly IJobCloneRepository _repo;
+    private readonly IFeeRepository _feeRepo;
     private readonly ILogger<JobCloneService> _logger;
 
-    public JobCloneService(IJobCloneRepository repo, ILogger<JobCloneService> logger)
+    public JobCloneService(IJobCloneRepository repo, IFeeRepository feeRepo, ILogger<JobCloneService> logger)
     {
         _repo = repo;
+        _feeRepo = feeRepo;
         _logger = logger;
     }
 
@@ -107,6 +109,7 @@ public sealed class JobCloneService : IJobCloneService
             }
 
             // ── Steps 9–12: Clone LAD hierarchy ──
+            var agegroupIdMap = new Dictionary<Guid, Guid>();
             var sourceLeague = await _repo.GetSourceLeagueAsync(request.SourceJobId, ct);
             if (sourceLeague != null)
             {
@@ -132,7 +135,7 @@ public sealed class JobCloneService : IJobCloneService
 
                 // Step 11: Clone Agegroups (with grad year logic)
                 var sourceAgegroups = await _repo.GetSourceAgegroupsAsync(sourceLeague.LeagueId, sourceSeasonForAgegroups, ct);
-                var agegroupIdMap = new Dictionary<Guid, Guid>(); // old → new
+                // agegroupIdMap declared in outer scope for fee cloning
 
                 if (sourceAgegroups.Count > 0)
                 {
@@ -154,6 +157,67 @@ public sealed class JobCloneService : IJobCloneService
                         summary.DivisionsCloned = clonedDivisions.Count;
                     }
                 }
+            }
+
+            // ── Step 13: Clone fees.JobFees (with agegroup ID remapping) ──
+            var sourceFees = await _feeRepo.GetJobFeesByJobAsync(request.SourceJobId, ct);
+            if (sourceFees.Count > 0)
+            {
+                var feesCloned = 0;
+                var modifiersCloned = 0;
+                foreach (var sourceFee in sourceFees)
+                {
+                    // Remap agegroup ID if present
+                    Guid? newAgegroupId = null;
+                    if (sourceFee.AgegroupId.HasValue)
+                    {
+                        if (!agegroupIdMap.TryGetValue(sourceFee.AgegroupId.Value, out var mapped))
+                            continue; // agegroup wasn't cloned (filtered out) — skip this fee row
+                        newAgegroupId = mapped;
+                    }
+
+                    // Team-level fees are NOT cloned (teams aren't cloned in job clone)
+                    if (sourceFee.TeamId.HasValue)
+                        continue;
+
+                    var newFeeId = Guid.NewGuid();
+                    _feeRepo.Add(new JobFees
+                    {
+                        JobFeeId = newFeeId,
+                        JobId = newJobId,
+                        RoleId = sourceFee.RoleId,
+                        AgegroupId = newAgegroupId,
+                        TeamId = null,
+                        Deposit = sourceFee.Deposit,
+                        BalanceDue = sourceFee.BalanceDue,
+                        Modified = now,
+                        LebUserId = superUserId
+                    });
+                    feesCloned++;
+
+                    // Clone modifiers for this fee row
+                    if (sourceFee.FeeModifiers != null)
+                    {
+                        foreach (var mod in sourceFee.FeeModifiers)
+                        {
+                            _feeRepo.AddModifier(new FeeModifiers
+                            {
+                                FeeModifierId = Guid.NewGuid(),
+                                JobFeeId = newFeeId,
+                                ModifierType = mod.ModifierType,
+                                Amount = mod.Amount,
+                                StartDate = mod.StartDate,
+                                EndDate = mod.EndDate,
+                                Modified = now,
+                                LebUserId = superUserId
+                            });
+                            modifiersCloned++;
+                        }
+                    }
+                }
+                summary.FeesCloned = feesCloned;
+                _logger.LogInformation("Cloned {FeesCloned} fee rows + {ModifiersCloned} modifiers",
+                    feesCloned, modifiersCloned);
             }
 
             // ── Flush + commit ──
@@ -557,7 +621,6 @@ public sealed class JobCloneService : IJobCloneService
             StrGradYears = source.StrGradYears,
             PointsMethod = source.PointsMethod,
             StandingsSortProfileId = source.StandingsSortProfileId,
-            PlayerFeeOverride = source.PlayerFeeOverride,
             LebUserId = userId,
             Modified = now,
         };
@@ -598,27 +661,16 @@ public sealed class JobCloneService : IJobCloneService
                 SortAge = ag.SortAge,
                 MaxTeams = ag.MaxTeams,
                 MaxTeamsPerClub = ag.MaxTeamsPerClub,
-                TeamFee = ag.TeamFee,
-                TeamFeeLabel = ag.TeamFeeLabel,
-                RosterFee = ag.RosterFee,
-                RosterFeeLabel = ag.RosterFeeLabel,
                 DobMin = ag.DobMin,
                 DobMax = ag.DobMax,
                 SchoolGradeMin = ag.SchoolGradeMin,
                 SchoolGradeMax = ag.SchoolGradeMax,
                 GradYearMin = gradYearMin,
                 GradYearMax = gradYearMax,
-                LateFee = ag.LateFee,
-                LateFeeStart = ag.LateFeeStart,
-                LateFeeEnd = ag.LateFeeEnd,
                 BAllowSelfRostering = ag.BAllowSelfRostering,
-                DiscountFee = ag.DiscountFee,
-                DiscountFeeStart = ag.DiscountFeeStart,
-                DiscountFeeEnd = ag.DiscountFeeEnd,
                 BChampionsByDivision = ag.BChampionsByDivision,
                 BHideStandings = ag.BHideStandings,
                 BAllowApiRosterAccess = ag.BAllowApiRosterAccess,
-                PlayerFeeOverride = ag.PlayerFeeOverride,
                 LebUserId = userId,
                 Modified = now,
             };
@@ -668,6 +720,7 @@ public sealed class JobCloneService : IJobCloneService
         public int LeaguesCloned { get; set; }
         public int AgegroupsCloned { get; set; }
         public int DivisionsCloned { get; set; }
+        public int FeesCloned { get; set; }
 
         public CloneSummary Build() => new()
         {
@@ -679,6 +732,7 @@ public sealed class JobCloneService : IJobCloneService
             LeaguesCloned = LeaguesCloned,
             AgegroupsCloned = AgegroupsCloned,
             DivisionsCloned = DivisionsCloned,
+            FeesCloned = FeesCloned,
         };
 
         public override string ToString() =>

@@ -7,7 +7,7 @@ export type AgeGroupDto = {
     ageGroupName: string;
     maxTeams: number;
     registeredCount: number;
-    rosterFee: number;
-    teamFee: number;
+    deposit: number;
+    balanceDue: number;
 };
 

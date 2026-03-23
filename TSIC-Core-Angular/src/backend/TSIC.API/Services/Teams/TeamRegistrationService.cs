@@ -422,15 +422,23 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var registrationCounts = await _teams.GetRegistrationCountsByAgeGroupAsync(jobId);
 
-        return ageGroupEntities.Select(ag => new AgeGroupDto
+        // Resolve fees for each agegroup from fees.JobFees
+        var result = new List<AgeGroupDto>();
+        foreach (var ag in ageGroupEntities)
         {
-            AgeGroupId = ag.AgegroupId,
-            AgeGroupName = ag.AgegroupName,
-            MaxTeams = ag.MaxTeams,
-            RosterFee = ag.RosterFee ?? 0,
-            TeamFee = ag.TeamFee ?? 0,
-            RegisteredCount = registrationCounts.GetValueOrDefault(ag.AgegroupId, 0)
-        }).ToList();
+            var resolved = await _feeService.ResolveFeeForAgegroupAsync(
+                jobId, RoleConstants.ClubRep, ag.AgegroupId);
+            result.Add(new AgeGroupDto
+            {
+                AgeGroupId = ag.AgegroupId,
+                AgeGroupName = ag.AgegroupName,
+                MaxTeams = ag.MaxTeams,
+                Deposit = resolved?.EffectiveDeposit ?? 0m,
+                BalanceDue = resolved?.EffectiveBalanceDue ?? 0m,
+                RegisteredCount = registrationCounts.GetValueOrDefault(ag.AgegroupId, 0)
+            });
+        }
+        return result;
     }
 
     public async Task<RegisterTeamResponse> RegisterTeamForEventAsync(RegisterTeamRequest request, Guid regId, string userId)

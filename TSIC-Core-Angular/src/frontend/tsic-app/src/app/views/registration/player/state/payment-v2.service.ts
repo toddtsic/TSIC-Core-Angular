@@ -85,7 +85,7 @@ export class PaymentV2Service {
             if (this.getExistingRegistration(li.playerId)?.financials) continue;
             const teamId = selTeams[li.playerId];
             const team = this.teams.getTeamById(teamId as string);
-            sum += Number(team?.perRegistrantDeposit ?? 0) || 0;
+            sum += Number(team?.deposit ?? 0) || 0;
         }
         return sum;
     });
@@ -97,7 +97,7 @@ export class PaymentV2Service {
         if (payable.length === 0) return false;
         return payable.every(li => {
             const team = this.teams.getTeamById(this.playerState.selectedTeams()[li.playerId] as string);
-            return (Number(team?.perRegistrantDeposit) > 0 && Number(team?.perRegistrantFee) > 0);
+            return (Number(team?.deposit) > 0 && Number(team?.fee) > 0);
         });
     });
 
@@ -201,15 +201,15 @@ export class PaymentV2Service {
         return Math.max(0, base - discount - paid);
     }
 
-    private getAmount(team: { perRegistrantFee?: number | string | null } | null | undefined): number {
-        const v = Number(team?.perRegistrantFee ?? 0);
+    private getAmount(team: { fee?: number | string | null } | null | undefined): number {
+        const v = Number(team?.fee ?? 0);
         return Number.isNaN(v) || v <= 0 ? 100 : v;
     }
 
     getDepositForPlayer(playerId: string): number {
         const teamId = this.playerState.selectedTeams()[playerId];
         const team = this.teams.getTeamById(teamId as string);
-        return Number(team?.perRegistrantDeposit ?? 0) || 0;
+        return Number(team?.deposit ?? 0) || 0;
     }
 
     submitPayment(request: PaymentRequestDto): Observable<PaymentResponseDto> {

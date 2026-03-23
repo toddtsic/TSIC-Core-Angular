@@ -135,8 +135,8 @@ public sealed record AgeGroupDto
     public required string AgeGroupName { get; init; }
     public required int MaxTeams { get; init; }
     public required int RegisteredCount { get; init; }
-    public required decimal RosterFee { get; init; }
-    public required decimal TeamFee { get; init; }
+    public required decimal Deposit { get; init; }
+    public required decimal BalanceDue { get; init; }
 }
 
 public sealed record RegisterTeamRequest

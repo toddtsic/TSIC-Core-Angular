@@ -81,8 +81,16 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto } from '@cor
                   <button type="button" class="btn btn-outline-primary w-100 text-start"
                           (click)="registerTeam(ag)">
                     <div class="fw-semibold">{{ ag.ageGroupName }}</div>
-                    @if (ag.teamFee) {
-                      <div class="small text-muted">{{ ag.teamFee | currency }} per team</div>
+                    @if (ag.deposit || ag.balanceDue) {
+                      <div class="small text-muted">
+                        @if (ag.deposit && ag.balanceDue) {
+                          {{ ag.deposit | currency }} deposit + {{ ag.balanceDue | currency }} balance
+                        } @else if (ag.deposit) {
+                          {{ ag.deposit | currency }} per team
+                        } @else {
+                          {{ ag.balanceDue | currency }} per team
+                        }
+                      </div>
                     }
                   </button>
                 </div>

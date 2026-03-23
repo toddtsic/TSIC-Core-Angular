@@ -17,8 +17,8 @@ public record AvailableTeamDto
     public required bool RosterIsFull { get; init; }
     public bool? TeamAllowsSelfRostering { get; init; }
     public bool? AgegroupAllowsSelfRostering { get; init; }
-    public decimal? PerRegistrantFee { get; init; }
-    public decimal? PerRegistrantDeposit { get; init; }
+    public decimal? Fee { get; init; }
+    public decimal? Deposit { get; init; }
     public required bool JobUsesWaitlists { get; init; }
     public Guid? WaitlistTeamId { get; init; } // Placeholder for future waitlist substitution mapping
 }

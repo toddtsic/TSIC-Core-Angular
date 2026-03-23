@@ -70,8 +70,8 @@ public class TeamLookupService : ITeamLookupService
                 RosterIsFull = rosterFull,
                 TeamAllowsSelfRostering = t.TeamAllowsSelfRostering,
                 AgegroupAllowsSelfRostering = t.AgegroupAllowsSelfRostering,
-                PerRegistrantFee = fee,
-                PerRegistrantDeposit = deposit,
+                Fee = fee,
+                Deposit = deposit,
                 JobUsesWaitlists = jobUsesWaitlists,
                 WaitlistTeamId = null
             };

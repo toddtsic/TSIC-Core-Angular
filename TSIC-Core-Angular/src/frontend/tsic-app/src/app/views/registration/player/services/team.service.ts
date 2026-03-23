@@ -18,8 +18,8 @@ export interface AvailableTeam {
     rosterIsFull: boolean;
     teamAllowsSelfRostering?: boolean | null;
     agegroupAllowsSelfRostering?: boolean | null;
-    perRegistrantFee?: number | null;
-    perRegistrantDeposit?: number | null;
+    fee?: number | null;
+    deposit?: number | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
 }

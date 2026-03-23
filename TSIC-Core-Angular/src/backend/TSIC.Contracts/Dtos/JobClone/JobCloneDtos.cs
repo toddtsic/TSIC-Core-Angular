@@ -51,6 +51,7 @@ public record CloneSummary
     public int LeaguesCloned { get; init; }
     public int AgegroupsCloned { get; init; }
     public int DivisionsCloned { get; init; }
+    public int FeesCloned { get; init; }
 }
 
 // ══════════════════════════════════════
