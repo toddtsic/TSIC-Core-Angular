@@ -117,9 +117,11 @@
               />
             } @else {
               <span class="tree-toggle-spacer"></span>
-              <button class="tree-node-btn" (click)="selectNode(node)"
+              <button class="tree-node-btn" [class.wrap-label]="node.level === 0" (click)="selectNode(node)"
                       [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
-                <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+                @if (node.level !== 1 && node.level !== 2) {
+                  <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+                }
                 @if (node.level === 3 && node.clubName) {
                   <span class="tree-label-group">
                     <span class="tree-label-primary">{{ node.clubName }}</span>
@@ -128,6 +130,9 @@
                 } @else {
                   @if (node.level === 1 && node.color) {
                     <span class="tree-color-dot" [style.background]="node.color"></span>
+                  }
+                  @if (node.level === 2 && node.parentColor) {
+                    <span class="tree-color-dot" [style.background]="node.parentColor"></span>
                   }
                   <span class="tree-label">{{ node.name }}</span>
                 }
@@ -167,9 +172,11 @@
               <i class="bi" [class.bi-chevron-right]="!isNodeExpanded(node)"
                  [class.bi-chevron-down]="isNodeExpanded(node)"></i>
             </button>
-            <button class="tree-node-btn" (click)="selectNode(node)"
+            <button class="tree-node-btn" [class.wrap-label]="node.level === 0" (click)="selectNode(node)"
                     [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
-              <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+              @if (node.level !== 1 && node.level !== 2) {
+                <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
+              }
               @if (node.level === 3 && node.clubName) {
                 <span class="tree-label-group">
                   <span class="tree-label-primary">{{ node.clubName }}</span>
@@ -178,6 +185,9 @@
               } @else {
                 @if (node.level === 1 && node.color) {
                   <span class="tree-color-dot" [style.background]="node.color"></span>
+                }
+                @if (node.level === 2 && node.parentColor) {
+                  <span class="tree-color-dot" [style.background]="node.parentColor"></span>
                 }
                 <span class="tree-label">{{ node.name }}</span>
               }

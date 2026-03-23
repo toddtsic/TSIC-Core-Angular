@@ -31,6 +31,7 @@ export interface LadtFlatNode {
   active: boolean;
   clubName: string | null;
   color: string | null;
+  parentColor: string | null;
   isSpecial: boolean;
   isPhantom?: boolean;
 }
@@ -139,6 +140,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           active: true,
           clubName: null,
           color: null,
+          parentColor: parentNode.color,
           isSpecial: false,
           isPhantom: true
         });
@@ -256,7 +258,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   private flattenTree(nodes: LadtTreeNodeDto[]): LadtFlatNode[] {
     const result: LadtFlatNode[] = [];
-    const recurse = (items: LadtTreeNodeDto[]) => {
+    const recurse = (items: LadtTreeNodeDto[], inheritedColor: string | null = null) => {
       for (const node of items) {
         let children = (node.children ?? []) as LadtTreeNodeDto[];
 
@@ -280,6 +282,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           });
         }
 
+        const nodeColor = node.color ?? null;
         result.push({
           id: node.id,
           parentId: node.parentId ?? null,
@@ -291,12 +294,13 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           expandable: children.length > 0,
           active: node.active,
           clubName: node.clubName ?? null,
-          color: node.color ?? null,
+          color: nodeColor,
+          parentColor: inheritedColor,
           isSpecial: (node.level === 1 && this.isSpecialAgegroup(node.name)) ||
                      (node.level === 2 && node.name.toUpperCase() === 'UNASSIGNED')
         });
         if (children.length > 0) {
-          recurse(children);
+          recurse(children, nodeColor ?? inheritedColor);
         }
       }
     };
