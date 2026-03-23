@@ -28,6 +28,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IFeeResolutionService _feeService;
     private readonly IAdnApiService _adnApi;
     private readonly ILadtService _ladtService;
     private readonly ILogger<TeamSearchService> _logger;
@@ -43,6 +44,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IRegistrationAccountingRepository accountingRepo,
         IRegistrationRepository registrationRepo,
         IJobRepository jobRepo,
+        IFeeResolutionService feeService,
         IAdnApiService adnApi,
         ILadtService ladtService,
         ILogger<TeamSearchService> logger)
@@ -51,6 +53,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _accountingRepo = accountingRepo;
         _registrationRepo = registrationRepo;
         _jobRepo = jobRepo;
+        _feeService = feeService;
         _adnApi = adnApi;
         _ladtService = ladtService;
         _logger = logger;
@@ -477,7 +480,7 @@ public sealed class TeamSearchService : ITeamSearchService
             var bAddProcessingFees = feeSettings?.BAddProcessingFees ?? false;
             var bApplyToDeposit = feeSettings?.BApplyProcessingFeesToTeamDeposit ?? false;
             var bFullPayRequired = feeSettings?.BTeamsFullPaymentRequired ?? false;
-            var processingFeePercent = await _jobRepo.GetProcessingFeePercentAsync(jobId, ct) ?? 0;
+            var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
 
             // Get teams — single or all club teams
             var clubTeams = await _teamRepo.GetActiveClubTeamsOrderedByOwedAsync(jobId, request.ClubRepRegistrationId, ct);
@@ -529,14 +532,14 @@ public sealed class TeamSearchService : ITeamSearchService
                         else
                         {
                             processingFeeReduction = decimal.Round(
-                                processingFeePercent * (calculatedTeamCheckAmount - rosterFee),
+                                processingRate * (calculatedTeamCheckAmount - rosterFee),
                                 2, MidpointRounding.AwayFromZero);
                         }
                     }
                     else
                     {
                         processingFeeReduction = decimal.Round(
-                            processingFeePercent * calculatedTeamCheckAmount,
+                            processingRate * calculatedTeamCheckAmount,
                             2, MidpointRounding.AwayFromZero);
                     }
 

@@ -1,9 +1,13 @@
 import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
-import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest } from '../../../../core/api';
+import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
+
+const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
 
 @Component({
   selector: 'app-team-detail',
@@ -168,27 +172,37 @@ import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToC
           </div>
         </div>
 
-        <h6 class="section-label mt-4">Fees</h6>
+        <h6 class="section-label mt-4">Player Fee Override</h6>
+        <p class="text-muted small mb-2">Leave blank to use the agegroup default.</p>
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label">Base Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.feeBase" name="feeBase">
+            <label class="form-label">Deposit</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
+                   placeholder="Agegroup default">
           </div>
           <div class="col-md-4">
-            <label class="form-label">Per Registrant Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.perRegistrantFee" name="perRegistrantFee">
+            <label class="form-label">Balance Due</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue"
+                   placeholder="Agegroup default">
+          </div>
+        </div>
+
+        <h6 class="section-label mt-4">Club Rep Fee Override</h6>
+        <p class="text-muted small mb-2">Leave blank to use the agegroup default.</p>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Deposit</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit"
+                   placeholder="Agegroup default">
           </div>
           <div class="col-md-4">
-            <label class="form-label">Per Registrant Deposit</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.perRegistrantDeposit" name="perRegistrantDeposit">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Discount Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.discountFee" name="discountFee">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Late Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.lateFee" name="lateFee">
+            <label class="form-label">Balance Due</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue"
+                   placeholder="Agegroup default">
           </div>
         </div>
 
@@ -315,6 +329,15 @@ export class TeamDetailComponent implements OnChanges {
 
   form: any = {};
 
+  feeForm = {
+    playerDeposit: null as number | null,
+    playerBalanceDue: null as number | null,
+    clubRepDeposit: null as number | null,
+    clubRepBalanceDue: null as number | null
+  };
+  private playerFeeId: string | null = null;
+  private clubRepFeeId: string | null = null;
+
   ngOnChanges(): void {
     this.loadDetail();
   }
@@ -329,14 +352,29 @@ export class TeamDetailComponent implements OnChanges {
       next: (detail) => {
         this.team.set(detail);
         this.form = { ...detail };
-        // Normalize DateTime strings to YYYY-MM-DD for <input type="date">
-        for (const key of ['startdate', 'enddate', 'effectiveasofdate', 'expireondate',
-                           'discountFeeStart', 'discountFeeEnd', 'lateFeeStart', 'lateFeeEnd']) {
+        for (const key of ['startdate', 'enddate', 'effectiveasofdate', 'expireondate']) {
           if (this.form[key]) {
             this.form[key] = String(this.form[key]).substring(0, 10);
           }
         }
-        this.isLoading.set(false);
+
+        // Load fees for this team's agegroup (includes team-level overrides)
+        this.ladtService.getAgegroupFees(detail.agegroupId).subscribe({
+          next: (fees) => {
+            const playerFee = fees.find((f: JobFeeDto) => f.roleId === PLAYER_ROLE && f.teamId === this.teamId);
+            const clubRepFee = fees.find((f: JobFeeDto) => f.roleId === CLUBREP_ROLE && f.teamId === this.teamId);
+            this.playerFeeId = playerFee?.jobFeeId ?? null;
+            this.clubRepFeeId = clubRepFee?.jobFeeId ?? null;
+            this.feeForm = {
+              playerDeposit: playerFee?.deposit ?? null,
+              playerBalanceDue: playerFee?.balanceDue ?? null,
+              clubRepDeposit: clubRepFee?.deposit ?? null,
+              clubRepBalanceDue: clubRepFee?.balanceDue ?? null
+            };
+            this.isLoading.set(false);
+          },
+          error: () => this.isLoading.set(false)
+        });
       },
       error: () => this.isLoading.set(false)
     });
@@ -355,15 +393,16 @@ export class TeamDetailComponent implements OnChanges {
       maxCount: this.form.maxCount,
       bAllowSelfRostering: this.form.bAllowSelfRostering,
       bHideRoster: this.form.bHideRoster,
+      // Legacy fee fields — kept for backward compat, values from new fee form
       feeBase: this.form.feeBase,
-      perRegistrantFee: this.form.perRegistrantFee,
-      perRegistrantDeposit: this.form.perRegistrantDeposit,
-      discountFee: this.form.discountFee,
-      discountFeeStart: this.form.discountFeeStart,
-      discountFeeEnd: this.form.discountFeeEnd,
-      lateFee: this.form.lateFee,
-      lateFeeStart: this.form.lateFeeStart,
-      lateFeeEnd: this.form.lateFeeEnd,
+      perRegistrantFee: this.feeForm.playerBalanceDue,
+      perRegistrantDeposit: this.feeForm.playerDeposit,
+      discountFee: null,
+      discountFeeStart: null,
+      discountFeeEnd: null,
+      lateFee: null,
+      lateFeeStart: null,
+      lateFeeEnd: null,
       startdate: this.form.startdate,
       enddate: this.form.enddate,
       effectiveasofdate: this.form.effectiveasofdate,
@@ -386,12 +425,45 @@ export class TeamDetailComponent implements OnChanges {
       teamComments: this.form.teamComments
     };
 
-    this.ladtService.updateTeam(this.teamId, request).subscribe({
-      next: (updated) => {
+    const saves: Observable<any>[] = [
+      this.ladtService.updateTeam(this.teamId, request)
+    ];
+
+    const detail = this.team();
+    const agegroupId = detail?.agegroupId;
+
+    // Save player fee override (team-level) if any value set
+    if (agegroupId && (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null)) {
+      saves.push(this.ladtService.saveFee({
+        roleId: PLAYER_ROLE,
+        agegroupId,
+        teamId: this.teamId,
+        deposit: this.feeForm.playerDeposit,
+        balanceDue: this.feeForm.playerBalanceDue
+      }));
+    } else if (this.playerFeeId) {
+      saves.push(this.ladtService.deleteFee(this.playerFeeId));
+    }
+
+    // Save club rep fee override (team-level) if any value set
+    if (agegroupId && (this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null)) {
+      saves.push(this.ladtService.saveFee({
+        roleId: CLUBREP_ROLE,
+        agegroupId,
+        teamId: this.teamId,
+        deposit: this.feeForm.clubRepDeposit,
+        balanceDue: this.feeForm.clubRepBalanceDue
+      }));
+    } else if (this.clubRepFeeId) {
+      saves.push(this.ladtService.deleteFee(this.clubRepFeeId));
+    }
+
+    forkJoin(saves).subscribe({
+      next: (results) => {
+        const updated = results[0] as TeamDetailDto;
         this.team.set(updated);
         this.form = { ...updated };
-        for (const key of ['startdate', 'enddate', 'effectiveasofdate', 'expireondate',
-                           'discountFeeStart', 'discountFeeEnd', 'lateFeeStart', 'lateFeeEnd']) {
+        for (const key of ['startdate', 'enddate', 'effectiveasofdate', 'expireondate']) {
           if (this.form[key]) {
             this.form[key] = String(this.form[key]).substring(0, 10);
           }

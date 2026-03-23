@@ -283,6 +283,9 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 targetOldRanks[t.TeamId] = t.DivRank;
         }
 
+        // Resolve processing rate once for this job (all teams share jobId)
+        var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
+
         // Move source teams → target division
         foreach (var team in sourceTeams)
         {
@@ -319,7 +322,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                         IsFullPaymentRequired = team.Job.BTeamsFullPaymentRequired ?? false,
                         AddProcessingFees = team.Job.BAddProcessingFees,
                         ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
-                        ProcessingFeePercent = team.Job.ProcessingFeePercent
+                        ProcessingFeePercent = processingRate
                     }, ct);
                 feesRecalculated++;
             }
@@ -360,7 +363,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                             IsFullPaymentRequired = team.Job.BTeamsFullPaymentRequired ?? false,
                             AddProcessingFees = team.Job.BAddProcessingFees,
                             ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
-                            ProcessingFeePercent = team.Job.ProcessingFeePercent
+                            ProcessingFeePercent = processingRate
                         }, ct);
                     feesRecalculated++;
                 }
