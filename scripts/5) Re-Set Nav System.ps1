@@ -55,7 +55,7 @@ if (-not (Test-Path $viewsDir)) {
 $skipSections = @('auth', 'errors', 'registration', 'home', 'reporting')
 
 # L2 subfolders to skip (support/internal, not standalone nav items)
-$skipSubfolders = @('shared', 'dashboard', 'auto-build', 'wizards', 'wizards-v2', 'schedule-division')
+$skipSubfolders = @('shared', 'dashboard', 'auto-build', 'wizards', 'wizards-v2')
 
 # Store: only 'admin' subfolder is an admin nav item
 $storeNavItems = @('admin')

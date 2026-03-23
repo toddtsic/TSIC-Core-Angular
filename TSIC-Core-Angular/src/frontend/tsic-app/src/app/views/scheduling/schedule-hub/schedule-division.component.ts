@@ -1113,6 +1113,10 @@ export class ScheduleDivisionComponent implements OnInit {
             this.selectedGame.set(null);
         }
 
+        // Capture navigation targets before delete
+        const targetDivId = game.divId;
+        const targetGid = game.gid;
+
         this.svc.deleteGame(game.gid).subscribe({
             next: () => {
                 this.gridResponse.update(grid => {
@@ -1127,11 +1131,41 @@ export class ScheduleDivisionComponent implements OnInit {
                     });
                     return { ...grid, rows: updatedRows };
                 });
-                const div = this.selectedDivision();
-                if (div) this.loadDivisionPairings(div.divId);
                 this.refreshGameSummary();
+
+                // Navigate to the deleted game's division and highlight its pairing
+                if (targetDivId) {
+                    this.navigateToDivisionAndHighlight(targetDivId, targetGid);
+                } else {
+                    const div = this.selectedDivision();
+                    if (div) this.loadDivisionPairings(div.divId);
+                }
             }
         });
+    }
+
+    /** After deleting a game, navigate to its division's pairings and highlight the affected pairing. */
+    private navigateToDivisionAndHighlight(divId: string, gid: number): void {
+        // Find the agegroup that owns this division
+        const ag = this.agegroups().find(a => a.divisions.some(d => d.divId === divId));
+        if (!ag) return;
+
+        const div = ag.divisions.find(d => d.divId === divId);
+        if (!div) return;
+
+        // Expand agegroup in tree navigator
+        this.navigator?.expandedAgegroups.update(set => {
+            const updated = new Set(set);
+            updated.add(ag.agegroupId);
+            return updated;
+        });
+
+        // Navigate to division scope
+        this.scope.set({ level: 'division', agegroupId: ag.agegroupId, divId });
+        this.loadDivisionData(divId, ag.agegroupId);
+
+        // Highlight the pairing that was unscheduled
+        this.highlightGameGid.set(gid);
     }
 
     // ── Three-tier delete ──

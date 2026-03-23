@@ -76,7 +76,7 @@ export class SchedulingDashboardComponent implements OnInit {
             {
                 title: 'Schedule',
                 icon: 'bi-calendar-check',
-                route: 'schedule-division',
+                route: 'schedule-hub',
                 queryParams: null as Record<string, string> | null,
                 metric: `${s.agegroupsScheduled}/${s.totalAgegroups} agegroups`,
                 detail: 'scheduled',

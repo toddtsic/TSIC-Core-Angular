@@ -223,6 +223,30 @@ app-pairings-panel {
     justify-content: center;
     gap: var(--space-2);
     font-size: var(--font-size-sm);
+
+    // Accent: breadcrumb dropdowns as bordered pills
+    .crumb-dropdown-trigger {
+        padding: 2px var(--space-2);
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-full);
+        background: var(--bs-body-bg);
+
+        &:hover {
+            border-color: var(--bs-primary);
+            background: rgba(var(--bs-primary-rgb), 0.05);
+        }
+
+        &.crumb-current {
+            font-weight: var(--font-weight-bold);
+            border-color: var(--bs-primary);
+            color: var(--bs-primary);
+        }
+    }
+
+    .crumb-current:not(.crumb-dropdown-trigger) {
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-primary);
+    }
 }
 
 .toolbar-right {
@@ -230,6 +254,16 @@ app-pairings-panel {
     align-items: center;
     gap: var(--space-2);
     flex-shrink: 0;
+
+    // Accent: Build button prominent
+    .btn-primary, .btn-outline-primary {
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.01em;
+    }
+
+    .scope-name {
+        font-weight: var(--font-weight-bold);
+    }
 }
 
 // ── Content Area ──

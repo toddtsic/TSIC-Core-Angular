@@ -1,6 +1,6 @@
 /**
  * Shared conflict-detection pure functions for schedule grids.
- * Extracted from schedule-division and rescheduler (identical implementations).
+ * Extracted from schedule-hub and rescheduler (identical implementations).
  */
 
 import type { ScheduleGridRow, ScheduleGameDto } from '@core/api';

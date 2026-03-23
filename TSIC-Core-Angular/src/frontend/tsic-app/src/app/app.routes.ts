@@ -424,7 +424,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'schedule-hub',
-						loadComponent: () => import('./views/scheduling/schedule-division/schedule-division.component').then(m => m.ScheduleDivisionComponent)
+						loadComponent: () => import('./views/scheduling/schedule-hub/schedule-division.component').then(m => m.ScheduleDivisionComponent)
 					},
 					{
 						path: 'qa-results',

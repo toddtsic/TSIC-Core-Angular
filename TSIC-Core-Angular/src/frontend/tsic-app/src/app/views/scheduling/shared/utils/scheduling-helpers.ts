@@ -1,6 +1,6 @@
 /**
  * Shared pure utility functions for all scheduling components.
- * Extracted from schedule-division, manage-pairings, and rescheduler.
+ * Extracted from schedule-hub, manage-pairings, and rescheduler.
  */
 
 import type { AgegroupWithDivisionsDto } from '@core/api';
@@ -73,7 +73,7 @@ export function formatGameDay(iso: string): string {
     return formatDate(iso);
 }
 
-/** Three-tier selection scope for the schedule-division page. */
+/** Three-tier selection scope for the schedule-hub page. */
 export type ScheduleScope =
     | { level: 'event' }
     | { level: 'agegroup'; agegroupId: string }

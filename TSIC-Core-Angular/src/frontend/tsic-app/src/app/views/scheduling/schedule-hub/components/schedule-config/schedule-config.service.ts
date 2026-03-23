@@ -98,7 +98,7 @@ export class ScheduleConfigService {
 
     /**
      * Initialize config by merging all available sources.
-     * Called once when schedule-division loads readiness data.
+     * Called once when schedule-hub loads readiness data.
      *
      * When prior year exists and no saved/current config, fetches the
      * read-only projected config from the backend to pre-populate
