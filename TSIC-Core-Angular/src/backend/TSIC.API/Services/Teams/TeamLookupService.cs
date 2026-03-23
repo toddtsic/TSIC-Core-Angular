@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
-using TSIC.API.Services.Players;
+using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Teams;
 
@@ -9,14 +10,14 @@ public class TeamLookupService : ITeamLookupService
     private readonly ITeamRepository _teamRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IJobRepository _jobRepo;
-    private readonly IPlayerRegistrationFeeService _feeService;
+    private readonly IFeeResolutionService _feeService;
     private readonly ILogger<TeamLookupService> _logger;
 
     public TeamLookupService(
         ITeamRepository teamRepo,
         IRegistrationRepository registrationRepo,
         IJobRepository jobRepo,
-        IPlayerRegistrationFeeService feeService,
+        IFeeResolutionService feeService,
         ILogger<TeamLookupService> logger)
     {
         _teamRepo = teamRepo;
@@ -41,25 +42,20 @@ public class TeamLookupService : ITeamLookupService
         var teamIds = teamsRaw.Select(t => t.TeamId).ToList();
         var rosterCounts = await _registrationRepo.GetRosterCountsByTeamAsync(teamIds);
 
+        // Batch-resolve player fees for all teams in one query
+        var resolvedFees = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, RoleConstants.Player, teamIds);
+
         var dtos = teamsRaw.Select(t =>
         {
             var current = rosterCounts.TryGetValue(t.TeamId, out var c) ? c : 0;
             var rosterFull = current >= t.MaxCount && t.MaxCount > 0;
 
-            // Delegate fee resolution to the unified single source of truth
-            var fee = _feeService.ResolveBaseFee(new TeamFeeData
-            {
-                PerRegistrantFee = t.RawPerRegistrantFee,
-                TeamFee = t.RawTeamFee,
-                RosterFee = t.RawRosterFee,
-                LeaguePlayerFeeOverride = t.LeaguePlayerFeeOverride,
-                AgegroupPlayerFeeOverride = t.AgegroupPlayerFeeOverride,
-                JobTypeId = t.JobTypeId
-            });
-            var deposit = ComputePerRegistrantDeposit(
-                t.RawPerRegistrantDeposit,
-                t.RawTeamFee,
-                t.RawRosterFee);
+            var resolved = resolvedFees.TryGetValue(t.TeamId, out var rf) ? rf : null;
+            var fee = resolved?.EffectiveBalanceDue ?? 0m;
+            var deposit = resolved?.EffectiveDeposit ?? 0m;
+            // If deposit equals balance due, there's no separate deposit concept
+            if (deposit == fee) deposit = 0m;
 
             return new AvailableTeamDto
             {
@@ -86,30 +82,24 @@ public class TeamLookupService : ITeamLookupService
 
     public async Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId)
     {
-        var data = await _teamRepo.GetTeamFeeDataAsync(teamId);
-
-        if (data == null)
+        // Get team's job and agegroup context
+        var teamContext = await _teamRepo.GetTeamWithFeeContextAsync(teamId);
+        if (teamContext == null)
         {
             _logger.LogInformation("ResolvePerRegistrantAsync: team {TeamId} not found; returning zeros.", teamId);
             return (0m, 0m);
         }
 
-        var fee = _feeService.ResolveBaseFee(data);
-        var deposit = ComputePerRegistrantDeposit(
-            data.PerRegistrantDeposit,
-            data.TeamFee,
-            data.RosterFee);
+        var (team, _) = teamContext.Value;
+        var resolved = await _feeService.ResolveFeeAsync(
+            team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+
+        if (resolved == null) return (0m, 0m);
+
+        var fee = resolved.EffectiveBalanceDue;
+        var deposit = resolved.EffectiveDeposit;
+        if (deposit == fee) deposit = 0m;
+
         return (fee, deposit);
-    }
-
-    private static decimal ComputePerRegistrantDeposit(decimal? prDeposit, decimal? agTeamFee, decimal? agRosterFee)
-    {
-        var deposit = prDeposit ?? 0m;
-        var teamFee = agTeamFee ?? 0m;
-        var rosterFee = agRosterFee ?? 0m;
-
-        if (deposit > 0m) return deposit;
-        if (teamFee > 0m && rosterFee > 0m) return rosterFee;
-        return 0m;
     }
 }

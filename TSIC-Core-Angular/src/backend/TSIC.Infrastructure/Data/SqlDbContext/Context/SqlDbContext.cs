@@ -140,6 +140,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<FamilyMembers> FamilyMembers { get; set; }
 
+    public virtual DbSet<FeeModifiers> FeeModifiers { get; set; }
+
     public virtual DbSet<FieldOverridesStartTimeMaxMinGames> FieldOverridesStartTimeMaxMinGames { get; set; }
 
     public virtual DbSet<Fields> Fields { get; set; }
@@ -191,6 +193,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<JobDiscountCodes> JobDiscountCodes { get; set; }
 
     public virtual DbSet<JobDisplayOptions> JobDisplayOptions { get; set; }
+
+    public virtual DbSet<JobFees> JobFees { get; set; }
 
     public virtual DbSet<JobInvoiceNumbers> JobInvoiceNumbers { get; set; }
 
@@ -2127,6 +2131,10 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getutcdate())")
                 .HasColumnType("datetime");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.DivisionProcessingOrder)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_DivisionProcessingOrder_LebUser");
         });
 
         modelBuilder.Entity<DivisionScheduleProfile>(entity =>
@@ -2401,7 +2409,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValueSql("(getdate())", "DF_Family_Members_modified")
                 .HasColumnName("modified");
 
-            entity.HasOne(d => d.FamilyMemberUser).WithMany(p => p.FamilyMembers)
+            entity.HasOne(d => d.FamilyMemberUser).WithMany(p => p.FamilyMembersFamilyMemberUser)
                 .HasForeignKey(d => d.FamilyMemberUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Family_Members_AspNetUsers");
@@ -2410,6 +2418,35 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.FamilyUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Family_Members_Families");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.FamilyMembersLebUser)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_Family_Members_LebUser");
+        });
+
+        modelBuilder.Entity<FeeModifiers>(entity =>
+        {
+            entity.HasKey(e => e.FeeModifierId);
+
+            entity.ToTable("FeeModifiers", "fees");
+
+            entity.HasIndex(e => e.JobFeeId, "IX_FeeModifiers_JobFeeId");
+
+            entity.Property(e => e.FeeModifierId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.ModifierType).HasMaxLength(50);
+
+            entity.HasOne(d => d.JobFee).WithMany(p => p.FeeModifiers)
+                .HasForeignKey(d => d.JobFeeId)
+                .HasConstraintName("FK_FeeModifiers_JobFees");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.FeeModifiers)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_FeeModifiers_LebUser");
         });
 
         modelBuilder.Entity<FieldOverridesStartTimeMaxMinGames>(entity =>
@@ -3975,6 +4012,46 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.LebUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_JobDisplayOptions_AspNetUsers");
+        });
+
+        modelBuilder.Entity<JobFees>(entity =>
+        {
+            entity.HasKey(e => e.JobFeeId);
+
+            entity.ToTable("JobFees", "fees");
+
+            entity.HasIndex(e => e.AgegroupId, "IX_JobFees_AgegroupId").HasFilter("([AgegroupId] IS NOT NULL)");
+
+            entity.HasIndex(e => e.JobId, "IX_JobFees_JobId");
+
+            entity.HasIndex(e => e.TeamId, "IX_JobFees_TeamId").HasFilter("([TeamId] IS NOT NULL)");
+
+            entity.HasIndex(e => new { e.JobId, e.RoleId, e.AgegroupId, e.TeamId }, "UX_JobFees_Scope").IsUnique();
+
+            entity.Property(e => e.JobFeeId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.BalanceDue).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Deposit).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getutcdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Agegroup).WithMany(p => p.JobFees)
+                .HasForeignKey(d => d.AgegroupId)
+                .HasConstraintName("FK_JobFees_Agegroups");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.JobFees)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_JobFees_Jobs");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.JobFees)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_JobFees_LebUser");
+
+            entity.HasOne(d => d.Team).WithMany(p => p.JobFees)
+                .HasForeignKey(d => d.TeamId)
+                .HasConstraintName("FK_JobFees_Teams");
         });
 
         modelBuilder.Entity<JobInvoiceNumbers>(entity =>
@@ -6247,10 +6324,15 @@ public partial class SqlDbContext : DbContext
 
             entity.Property(e => e.AltText).HasMaxLength(200);
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
-            entity.Property(e => e.LebUserId).HasMaxLength(128);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getutcdate())")
                 .HasColumnType("datetime");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.StoreItemImage)
+                .HasForeignKey(d => d.LebUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StoreItemImage_LebUser");
 
             entity.HasOne(d => d.StoreItem).WithMany(p => p.StoreItemImage)
                 .HasForeignKey(d => d.StoreItemId)
@@ -7480,6 +7562,11 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(4)
                 .IsUnicode(false)
                 .IsFixedLength();
+
+            entity.HasOne(d => d.LebUser).WithMany()
+                .HasForeignKey(d => d.LebUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_YN2023Schedule_LebUser");
         });
 
         OnModelCreatingPartial(modelBuilder);

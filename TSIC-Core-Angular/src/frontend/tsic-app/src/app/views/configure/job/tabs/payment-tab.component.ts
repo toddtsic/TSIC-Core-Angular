@@ -19,11 +19,11 @@ export class PaymentTabComponent implements OnInit {
 
   paymentMethodsAllowedCode = linkedSignal(() => this.svc.payment()?.paymentMethodsAllowedCode ?? 1);
   bAddProcessingFees = linkedSignal(() => this.svc.payment()?.bAddProcessingFees ?? false);
-  processingFeePercent = linkedSignal(() => this.svc.payment()?.processingFeePercent ?? 0);
+  processingFeePercent = linkedSignal(() => this.svc.payment()?.processingFeePercent ?? null);
   bApplyProcessingFeesToTeamDeposit = linkedSignal(() => this.svc.payment()?.bApplyProcessingFeesToTeamDeposit ?? null);
-  perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? 0);
-  perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? 0);
-  perMonthCharge = linkedSignal(() => this.svc.payment()?.perMonthCharge ?? 0);
+  perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? null);
+  perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? null);
+  perMonthCharge = linkedSignal(() => this.svc.payment()?.perMonthCharge ?? null);
   payTo = linkedSignal(() => this.svc.payment()?.payTo ?? null);
   mailTo = linkedSignal(() => this.svc.payment()?.mailTo ?? null);
   mailinPaymentWarning = linkedSignal(() => this.svc.payment()?.mailinPaymentWarning ?? null);

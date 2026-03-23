@@ -10,11 +10,11 @@ export type MasterScheduleCell = {
     agDiv: string;
     color: string | null;
     contrastColor: string | null;
-    t1Score: number;
-    t2Score: number;
+    t1Score: number | null;
+    t2Score: number | null;
     t1Ann: string | null;
     t2Ann: string | null;
-    gStatusCode: number;
+    gStatusCode: number | null;
     referees: any[] | null;
 };
 

@@ -16,4 +16,6 @@ public partial class DivisionProcessingOrder
     public DateTime Modified { get; set; }
 
     public string? LebUserId { get; set; }
+
+    public virtual AspNetUsers? LebUser { get; set; }
 }

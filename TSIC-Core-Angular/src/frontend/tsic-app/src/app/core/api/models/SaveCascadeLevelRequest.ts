@@ -4,8 +4,8 @@
 /* eslint-disable */
 export type SaveCascadeLevelRequest = {
     gamePlacement?: string | null;
-    betweenRoundRows?: number;
-    gameGuarantee?: number;
+    betweenRoundRows?: number | null;
+    gameGuarantee?: number | null;
     wavesByDate?: any | null;
 };
 

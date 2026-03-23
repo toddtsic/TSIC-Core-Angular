@@ -19,7 +19,7 @@ export class MobileStoreTabComponent implements OnInit {
   bEnableMobileTeamChat = linkedSignal(() => this.svc.mobileStore()?.bEnableMobileTeamChat ?? null);
   bAllowMobileLogin = linkedSignal(() => this.svc.mobileStore()?.bAllowMobileLogin ?? false);
   bAllowMobileRegn = linkedSignal(() => this.svc.mobileStore()?.bAllowMobileRegn ?? null);
-  mobileScoreHoursPastGameEligible = linkedSignal(() => this.svc.mobileStore()?.mobileScoreHoursPastGameEligible ?? 0);
+  mobileScoreHoursPastGameEligible = linkedSignal(() => this.svc.mobileStore()?.mobileScoreHoursPastGameEligible ?? null);
 
   // SuperUser-only
   mobileJobName = linkedSignal(() => this.svc.mobileStore()?.mobileJobName ?? null);

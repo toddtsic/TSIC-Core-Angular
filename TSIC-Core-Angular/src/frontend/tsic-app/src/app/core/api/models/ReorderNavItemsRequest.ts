@@ -4,7 +4,7 @@
 /* eslint-disable */
 export type ReorderNavItemsRequest = {
     navId: number;
-    parentNavItemId?: number;
+    parentNavItemId?: number | null;
     orderedItemIds: Array<number>;
 };
 

@@ -19,5 +19,7 @@ public partial class StoreItemImage
 
     public string LebUserId { get; set; } = null!;
 
+    public virtual AspNetUsers LebUser { get; set; } = null!;
+
     public virtual StoreItems StoreItem { get; set; } = null!;
 }

@@ -5,7 +5,7 @@
 export type AuthTokenResponse = {
     accessToken: string;
     refreshToken?: string | null;
-    expiresIn?: number;
+    expiresIn?: number | null;
     requiresTosSignature?: boolean;
 };
 

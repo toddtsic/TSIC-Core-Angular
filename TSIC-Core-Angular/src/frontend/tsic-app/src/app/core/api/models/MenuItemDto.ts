@@ -5,7 +5,7 @@
 export type MenuItemDto = {
     menuItemId: string;
     parentMenuItemId?: string | null;
-    index?: number;
+    index?: number | null;
     text?: string | null;
     iconName?: string | null;
     bCollapsed: boolean;

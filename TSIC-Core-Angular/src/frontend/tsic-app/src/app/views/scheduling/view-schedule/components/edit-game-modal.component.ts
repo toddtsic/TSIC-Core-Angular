@@ -384,8 +384,8 @@ export class EditGameModalComponent {
                 this.t2Id.set(g.t2Id ?? null);
                 this.t1Name.set(g.t1Name ?? '');
                 this.t2Name.set(g.t2Name ?? '');
-                this.t1Score.set(g.t1Score);
-                this.t2Score.set(g.t2Score);
+                this.t1Score.set(g.t1Score ?? undefined);
+                this.t2Score.set(g.t2Score ?? undefined);
                 this.t1Ann.set(g.t1Ann ?? '');
                 this.t2Ann.set(g.t2Ann ?? '');
                 this.gStatusCode.set(g.gStatusCode ?? 1);

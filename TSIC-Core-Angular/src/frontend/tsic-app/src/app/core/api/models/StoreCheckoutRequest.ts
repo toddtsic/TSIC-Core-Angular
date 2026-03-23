@@ -7,6 +7,6 @@ export type StoreCheckoutRequest = {
     paymentMethodId: string;
     creditCard?: (null | CreditCardInfo);
     comment?: string | null;
-    discountCodeAi?: number;
+    discountCodeAi?: number | null;
 };
 

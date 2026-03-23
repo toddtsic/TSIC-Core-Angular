@@ -13,8 +13,8 @@ export type JobConfigPlayerDto = {
     playerRegReleaseOfLiability: string | null;
     playerRegCodeOfConduct: string | null;
     playerRegCovid19Waiver: string | null;
-    playerRegMultiPlayerDiscountMin: number;
-    playerRegMultiPlayerDiscountPercent: number;
+    playerRegMultiPlayerDiscountMin: number | null;
+    playerRegMultiPlayerDiscountPercent: number | null;
     bOfferPlayerRegsaverInsurance?: boolean | null;
     momLabel?: string | null;
     dadLabel?: string | null;

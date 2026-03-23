@@ -14,7 +14,7 @@ namespace TSIC.API.Services.Players;
 public class PlayerRegistrationService : IPlayerRegistrationService
 {
     private readonly ILogger<PlayerRegistrationService> _logger;
-    private readonly IPlayerRegistrationFeeService _feeService;
+    private readonly IFeeResolutionService _feeService;
     private readonly IVerticalInsureService _verticalInsure;
     private readonly ITeamLookupService _teamLookupService;
     private readonly IPlayerFormValidationService _validationService;
@@ -38,7 +38,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
     public PlayerRegistrationService(
         ILogger<PlayerRegistrationService> logger,
-        IPlayerRegistrationFeeService feeService,
+        IFeeResolutionService feeService,
         IVerticalInsureService verticalInsure,
         ITeamLookupService teamLookupService,
         IPlayerFormValidationService validationService,
@@ -246,7 +246,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 existing.Modified = DateTime.UtcNow;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
                 FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-                await ApplyInitialFeesAsync(existing, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+                await ApplyInitialFeesAsync(existing, team.JobId, team.AgegroupId, team.TeamId);
                 AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             }
             else
@@ -276,7 +276,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-            await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
         }
@@ -284,16 +284,20 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var existingBase = regToUpdate.FeeBase;
         if (existingBase <= 0 && regToUpdate.AssignedTeamId.HasValue)
         {
-            existingBase = await _feeService.ResolveBaseFeeAsync(team.TeamId);
+            var resolvedExisting = await _feeService.ResolveFeeAsync(
+                team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+            existingBase = resolvedExisting?.EffectiveBalanceDue ?? 0m;
         }
-        var newTeamBase = team.FeeBase ?? team.PerRegistrantFee ?? await _feeService.ResolveBaseFeeAsync(team.TeamId);
+        var resolvedNew = await _feeService.ResolveFeeAsync(
+            team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+        var newTeamBase = resolvedNew?.EffectiveBalanceDue ?? 0m;
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
         FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         if (sameBase)
         {
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed - same cost).", false);
         }
         else
@@ -303,7 +307,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 var assigned = ctx.Teams.Find(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
                 if (assigned != null) regToUpdate.Assignment = $"Player: {assigned.TeamName}";
             }
-            await ApplyInitialFeesAsync(regToUpdate, regToUpdate.AssignedTeamId ?? team.TeamId, team.FeeBase, team.PerRegistrantFee);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, regToUpdate.AssignedTeamId ?? team.TeamId);
             AddResult(teamResults, playerId, regToUpdate.AssignedTeamId ?? team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team change blocked after payment).", false);
         }
     }
@@ -314,7 +318,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             return;
         }
@@ -336,7 +340,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 Assignment = $"Player: {team.TeamName}"
             };
             FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-            await ApplyInitialFeesAsync(newReg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+            await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
             return;
@@ -345,7 +349,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         regToUpdate.AssignedTeamId = team.TeamId;
         regToUpdate.Assignment = $"Player: {team.TeamName}";
         FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-        await ApplyInitialFeesAsync(regToUpdate, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+        await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
     }
 
@@ -365,20 +369,20 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             Assignment = $"Player: {team.TeamName}"
         };
         FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-        await ApplyInitialFeesAsync(reg, team.TeamId, team.FeeBase, team.PerRegistrantFee);
+        await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
     }
 
-    private async Task ApplyInitialFeesAsync(Registrations reg, Guid teamId, decimal? teamFeeBase, decimal? teamPerRegistrantFee)
+    private async Task ApplyInitialFeesAsync(Registrations reg, Guid jobId, Guid agegroupId, Guid teamId)
     {
         if (reg.PaidTotal > 0m) return;
 
-        var baseFee = teamFeeBase ?? teamPerRegistrantFee ?? 0m;
-        if (baseFee <= 0m)
-            baseFee = await _feeService.ResolveBaseFeeAsync(teamId);
+        // Only set fees if not already set (new registration, not recalc)
+        if (reg.FeeBase > 0m) return;
 
-        _feeService.ApplyFees(reg, baseFee, new PlayerFeeContext { IsRecalculation = false });
+        await _feeService.ApplyNewRegistrationFeesAsync(
+            reg, jobId, agegroupId, teamId, new FeeApplicationContext());
     }
 
     // Removed unused ValidateAndAdjustNextTabAsync method (was retained for backward compatibility).

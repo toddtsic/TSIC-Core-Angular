@@ -45,6 +45,7 @@ using TSIC.API.Services.Reporting;
 using TSIC.API.Services;
 using TSIC.API.Services.Referees;
 using TSIC.API.Services.Store;
+using TSIC.API.Services.Fees;
 using TSIC.API.Services.Widgets;
 using TSIC.API.Authorization;
 using Amazon.SimpleEmail;
@@ -135,6 +136,8 @@ builder.Services.AddScoped<IStoreRepository, StoreRepository>();
 builder.Services.AddScoped<IChangePasswordRepository, ChangePasswordRepository>();
 builder.Services.AddScoped<ICustomerJobRevenueRepository, CustomerJobRevenueRepository>();
 builder.Services.AddScoped<IPushNotificationRepository, PushNotificationRepository>();
+// Fees
+builder.Services.AddScoped<IFeeRepository, FeeRepository>();
 
 // FileStorage configuration + Image service
 builder.Services.Configure<FileStorageOptions>(
@@ -165,6 +168,7 @@ builder.Services.AddScoped<TSIC.Application.Services.Teams.ITeamFeeCalculator>(s
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
 builder.Services.AddScoped<IPlayerRegistrationFeeService, PlayerRegistrationFeeService>();
+builder.Services.AddScoped<IFeeResolutionService, FeeResolutionService>();
 builder.Services.AddScoped<IPlayerRegistrationMetadataService, PlayerRegistrationMetadataService>();
 builder.Services.AddScoped<IRegistrationFeeAdjustmentService, RegistrationFeeAdjustmentService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
@@ -443,40 +447,76 @@ builder.Services.AddOpenApi(options =>
     options.AddSchemaTransformer((schema, context, cancellationToken) =>
     {
         // Ensure numeric types are exported as number (not number | string)
+        // and nullable variants include Null in the type union
         var jsonType = context.JsonTypeInfo;
-        if (jsonType.Type == typeof(int) || jsonType.Type == typeof(int?))
+        if (jsonType.Type == typeof(int))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
             schema.Format = "int32";
         }
-        else if (jsonType.Type == typeof(long) || jsonType.Type == typeof(long?))
+        else if (jsonType.Type == typeof(int?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer | Microsoft.OpenApi.JsonSchemaType.Null;
+            schema.Format = "int32";
+        }
+        else if (jsonType.Type == typeof(long))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
             schema.Format = "int64";
         }
-        else if (jsonType.Type == typeof(short) || jsonType.Type == typeof(short?))
+        else if (jsonType.Type == typeof(long?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer | Microsoft.OpenApi.JsonSchemaType.Null;
+            schema.Format = "int64";
+        }
+        else if (jsonType.Type == typeof(short))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
             schema.Format = "int32";
         }
-        else if (jsonType.Type == typeof(byte) || jsonType.Type == typeof(byte?))
+        else if (jsonType.Type == typeof(short?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer | Microsoft.OpenApi.JsonSchemaType.Null;
+            schema.Format = "int32";
+        }
+        else if (jsonType.Type == typeof(byte))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
             schema.Format = "int32";
         }
-        else if (jsonType.Type == typeof(decimal) || jsonType.Type == typeof(decimal?))
+        else if (jsonType.Type == typeof(byte?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer | Microsoft.OpenApi.JsonSchemaType.Null;
+            schema.Format = "int32";
+        }
+        else if (jsonType.Type == typeof(decimal))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Number;
             schema.Format = "double";
         }
-        else if (jsonType.Type == typeof(double) || jsonType.Type == typeof(double?))
+        else if (jsonType.Type == typeof(decimal?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Number | Microsoft.OpenApi.JsonSchemaType.Null;
+            schema.Format = "double";
+        }
+        else if (jsonType.Type == typeof(double))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Number;
             schema.Format = "double";
         }
-        else if (jsonType.Type == typeof(float) || jsonType.Type == typeof(float?))
+        else if (jsonType.Type == typeof(double?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Number | Microsoft.OpenApi.JsonSchemaType.Null;
+            schema.Format = "double";
+        }
+        else if (jsonType.Type == typeof(float))
         {
             schema.Type = Microsoft.OpenApi.JsonSchemaType.Number;
+            schema.Format = "float";
+        }
+        else if (jsonType.Type == typeof(float?))
+        {
+            schema.Type = Microsoft.OpenApi.JsonSchemaType.Number | Microsoft.OpenApi.JsonSchemaType.Null;
             schema.Format = "float";
         }
         return Task.CompletedTask;

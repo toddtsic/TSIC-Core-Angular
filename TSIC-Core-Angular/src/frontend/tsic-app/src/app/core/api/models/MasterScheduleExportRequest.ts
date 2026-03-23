@@ -4,6 +4,6 @@
 /* eslint-disable */
 export type MasterScheduleExportRequest = {
     includeReferees: boolean;
-    dayIndex: number;
+    dayIndex: number | null;
 };
 

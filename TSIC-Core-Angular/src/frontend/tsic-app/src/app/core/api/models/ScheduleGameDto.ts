@@ -14,8 +14,8 @@ export type ScheduleGameDto = {
     color?: string | null;
     t1Type: string;
     t2Type: string;
-    t1No?: number;
-    t2No?: number;
+    t1No?: number | null;
+    t2No?: number | null;
     t1Id?: string | null;
     t2Id?: string | null;
     divId?: string | null;

@@ -6,6 +6,6 @@ export type RegistrationCcChargeResponse = {
     success: boolean;
     error?: string | null;
     transactionId?: string | null;
-    chargedAmount?: number;
+    chargedAmount?: number | null;
 };
 

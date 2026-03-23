@@ -25,8 +25,8 @@ export type JobMetadataResponse = {
     offerPlayerRegsaverInsurance?: boolean;
     offerTeamRegsaverInsurance?: boolean;
     adnArb?: boolean | null;
-    adnArbBillingOccurences?: number;
-    adnArbIntervalLength?: number;
+    adnArbBillingOccurences?: number | null;
+    adnArbIntervalLength?: number | null;
     adnArbStartDate?: string | null;
     bRegistrationAllowPlayer?: boolean;
     bRegistrationAllowTeam?: boolean;

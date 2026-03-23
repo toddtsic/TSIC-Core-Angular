@@ -5,6 +5,6 @@
 export type DowConfigOverride = {
     dow: string;
     baseStartTime?: string | null;
-    maxGamesPerField?: number;
+    maxGamesPerField?: number | null;
 };
 

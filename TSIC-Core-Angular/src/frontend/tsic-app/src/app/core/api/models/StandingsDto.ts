@@ -17,6 +17,6 @@ export type StandingsDto = {
     goalDiffMax9: number;
     points: number;
     pointsPerGame: number;
-    rankOrder?: number;
+    rankOrder?: number | null;
 };
 

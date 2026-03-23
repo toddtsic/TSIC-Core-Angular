@@ -7,6 +7,6 @@ export type TeamDiscountResult = {
     teamName: string;
     success: boolean;
     message: string | null;
-    discountCodeId: number;
+    discountCodeId: number | null;
 };
 

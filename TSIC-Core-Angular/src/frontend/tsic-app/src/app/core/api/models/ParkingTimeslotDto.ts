@@ -6,12 +6,12 @@ export type ParkingTimeslotDto = {
     fieldComplex: string;
     day: string;
     time: string;
-    teamsArriving?: number;
-    teamsDeparting?: number;
+    teamsArriving?: number | null;
+    teamsDeparting?: number | null;
     teamsNet: number;
     teamsOnSite: number;
-    carsArriving?: number;
-    carsDeparting?: number;
+    carsArriving?: number | null;
+    carsDeparting?: number | null;
     carsNet: number;
     carsOnSite: number;
 };

@@ -5,6 +5,6 @@
 export type BulkDateAgegroupEntry = {
     agegroupId: string;
     wave?: number;
-    roundsPerDay?: number;
+    roundsPerDay?: number | null;
 };
 

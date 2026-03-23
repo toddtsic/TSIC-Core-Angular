@@ -5,7 +5,7 @@
 export type NavEditorNavItemDto = {
     navItemId: number;
     navId: number;
-    parentNavItemId?: number;
+    parentNavItemId?: number | null;
     sortOrder: number;
     text?: string | null;
     iconName?: string | null;
@@ -13,8 +13,8 @@ export type NavEditorNavItemDto = {
     navigateUrl?: string | null;
     target?: string | null;
     active: boolean;
-    defaultNavItemId?: number;
-    defaultParentNavItemId?: number;
+    defaultNavItemId?: number | null;
+    defaultParentNavItemId?: number | null;
     visibilityRules?: string | null;
     children: Array<NavEditorNavItemDto>;
 };

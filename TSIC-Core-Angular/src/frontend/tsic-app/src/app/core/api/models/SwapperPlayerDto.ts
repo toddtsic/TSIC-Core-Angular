@@ -8,13 +8,13 @@ export type SwapperPlayerDto = {
     roleName: string;
     bActive: boolean;
     school?: string | null;
-    grade?: number;
-    gradYear?: number;
+    grade?: number | null;
+    gradYear?: number | null;
     position?: string | null;
     dob?: string | null;
     gender?: string | null;
     skillLevel?: string | null;
-    yrsExp?: number;
+    yrsExp?: number | null;
     requests?: string | null;
     prevCoach?: string | null;
     feeBase: number;

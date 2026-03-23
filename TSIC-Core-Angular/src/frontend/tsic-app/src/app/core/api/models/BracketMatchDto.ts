@@ -8,13 +8,13 @@ export type BracketMatchDto = {
     t2Name: string;
     t1Id?: string | null;
     t2Id?: string | null;
-    t1Score?: number;
-    t2Score?: number;
+    t1Score?: number | null;
+    t2Score?: number | null;
     t1Css: string;
     t2Css: string;
     locationTime?: string | null;
     fieldId?: string | null;
     roundType: string;
-    parentGid?: number;
+    parentGid?: number | null;
 };
 

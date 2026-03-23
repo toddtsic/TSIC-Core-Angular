@@ -6,11 +6,11 @@ export type FieldValidation = {
     required?: boolean;
     email?: boolean;
     requiredTrue?: boolean;
-    minLength?: number;
-    maxLength?: number;
+    minLength?: number | null;
+    maxLength?: number | null;
     pattern?: string | null;
-    min?: number;
-    max?: number;
+    min?: number | null;
+    max?: number | null;
     compare?: string | null;
     remote?: string | null;
     message?: string | null;

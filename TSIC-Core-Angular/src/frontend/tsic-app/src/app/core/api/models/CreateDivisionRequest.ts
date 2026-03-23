@@ -5,6 +5,6 @@
 export type CreateDivisionRequest = {
     agegroupId: string;
     divName: string;
-    maxRoundNumberToShow?: number;
+    maxRoundNumberToShow?: number | null;
 };
 

@@ -8,8 +8,8 @@ export type TeamResultDto = {
     location: string;
     opponentName: string;
     opponentTeamId?: string | null;
-    teamScore?: number;
-    opponentScore?: number;
+    teamScore?: number | null;
+    opponentScore?: number | null;
     outcome?: string | null;
     gameType: string;
 };

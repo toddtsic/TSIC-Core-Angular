@@ -4,9 +4,9 @@
 /* eslint-disable */
 export type CreateNavItemRequest = {
     navId: number;
-    parentNavItemId?: number;
-    defaultNavItemId?: number;
-    defaultParentNavItemId?: number;
+    parentNavItemId?: number | null;
+    defaultNavItemId?: number | null;
+    defaultParentNavItemId?: number | null;
     text?: string | null;
     iconName?: string | null;
     routerLink?: string | null;

@@ -5,9 +5,9 @@
 export type StoreSkuDto = {
     storeSkuId: number;
     storeItemId: number;
-    storeColorId?: number;
+    storeColorId?: number | null;
     storeColorName?: string | null;
-    storeSizeId?: number;
+    storeSizeId?: number | null;
     storeSizeName?: string | null;
     active: boolean;
     maxCanSell: number;

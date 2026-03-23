@@ -6,8 +6,8 @@ export type DivisionCascadeDto = {
     divisionId: string;
     divisionName: string;
     gamePlacementOverride?: string | null;
-    betweenRoundRowsOverride?: number;
-    gameGuaranteeOverride?: number;
+    betweenRoundRowsOverride?: number | null;
+    gameGuaranteeOverride?: number | null;
     effectiveGamePlacement: string;
     effectiveBetweenRoundRows: number;
     effectiveGameGuarantee: number;

@@ -6,6 +6,6 @@ export type DivisionDetailDto = {
     divId: string;
     agegroupId: string;
     divName?: string | null;
-    maxRoundNumberToShow?: number;
+    maxRoundNumberToShow?: number | null;
 };
 

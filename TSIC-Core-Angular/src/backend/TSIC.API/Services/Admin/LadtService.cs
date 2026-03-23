@@ -24,7 +24,7 @@ public sealed class LadtService : ILadtService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IRegistrationAccountingRepository _regAcctRepo;
     private readonly IJobRepository _jobRepo;
-    private readonly IPlayerRegistrationFeeService _feeService;
+    private readonly IFeeResolutionService _feeService;
     private readonly IClubTeamRepository _clubTeamRepo;
     private readonly IClubRepository _clubRepo;
     private readonly IScheduleRepository _scheduleRepo;
@@ -37,7 +37,7 @@ public sealed class LadtService : ILadtService
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository regAcctRepo,
         IJobRepository jobRepo,
-        IPlayerRegistrationFeeService feeService,
+        IFeeResolutionService feeService,
         IClubTeamRepository clubTeamRepo,
         IClubRepository clubRepo,
         IScheduleRepository scheduleRepo)
@@ -1147,11 +1147,9 @@ public sealed class LadtService : ILadtService
         var registrations = await _registrationRepo.GetActivePlayerRegistrationsByTeamIdsAsync(jobId, teamIds, cancellationToken);
         if (registrations.Count == 0) return 0;
 
-        // Unified fee resolution — single batch query through the authoritative cascade
-        var feeByTeam = await _feeService.ResolveBaseFeesByTeamIdsAsync(teamIds, cancellationToken);
-
-        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
-        var addProcessingFees = feeSettings?.BAddProcessingFees ?? false;
+        // Batch-resolve player fees from new fee schema
+        var feeByTeam = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, Domain.Constants.RoleConstants.Player, teamIds, cancellationToken);
 
         var regIds = registrations.Select(r => r.RegistrationId).ToList();
         var payments = await _regAcctRepo.GetPaymentSummariesAsync(regIds, cancellationToken);
@@ -1161,7 +1159,8 @@ public sealed class LadtService : ILadtService
         {
             if (!reg.AssignedTeamId.HasValue) continue;
 
-            var resolvedFee = feeByTeam.GetValueOrDefault(reg.AssignedTeamId.Value);
+            var resolved = feeByTeam.TryGetValue(reg.AssignedTeamId.Value, out var rf) ? rf : null;
+            var resolvedFee = resolved?.EffectiveBalanceDue ?? 0m;
             var summary = payments.GetValueOrDefault(reg.RegistrationId);
 
             // Refresh PaidTotal from actual accounting records
@@ -1171,12 +1170,13 @@ public sealed class LadtService : ILadtService
             if (reg.FeeBase == resolvedFee && reg.OwedTotal <= 0)
                 continue;
 
-            _feeService.ApplyFees(reg, resolvedFee, new Players.PlayerFeeContext
-            {
-                IsRecalculation = true,
-                AddProcessingFees = addProcessingFees,
-                NonCcPayments = summary?.NonCcPayments ?? 0m
-            });
+            // Swap-style recalc: only FeeBase changes, modifiers preserved
+            await _feeService.ApplySwapFeesAsync(
+                reg, jobId, reg.AssignedAgegroupId ?? Guid.Empty, reg.AssignedTeamId.Value,
+                new FeeApplicationContext
+                {
+                    NonCcPayments = summary?.NonCcPayments ?? 0m
+                }, cancellationToken);
 
             reg.Modified = DateTime.UtcNow;
             updated++;

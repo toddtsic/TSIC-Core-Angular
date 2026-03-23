@@ -7,8 +7,8 @@ export type AgegroupCascadeDto = {
     agegroupId: string;
     agegroupName: string;
     gamePlacementOverride?: string | null;
-    betweenRoundRowsOverride?: number;
-    gameGuaranteeOverride?: number;
+    betweenRoundRowsOverride?: number | null;
+    gameGuaranteeOverride?: number | null;
     effectiveGamePlacement: string;
     effectiveBetweenRoundRows: number;
     effectiveGameGuarantee: number;

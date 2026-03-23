@@ -4,7 +4,7 @@
 /* eslint-disable */
 export type NavItemDto = {
     navItemId: number;
-    parentNavItemId?: number;
+    parentNavItemId?: number | null;
     sortOrder: number;
     text: string;
     iconName?: string | null;

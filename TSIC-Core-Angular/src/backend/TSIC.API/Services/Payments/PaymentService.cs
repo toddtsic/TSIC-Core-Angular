@@ -16,7 +16,7 @@ public class PaymentService : IPaymentService
     private readonly IRegistrationRepository _registrations;
     private readonly ITeamRepository _teams;
     private readonly IAdnApiService _adnApiService;
-    private readonly IPlayerRegistrationFeeService _feeService;
+    private readonly IFeeResolutionService _feeService;
     private readonly ITeamLookupService _teamLookup;
     private readonly ILogger<PaymentService> _logger;
     private readonly IPlayerRegConfirmationService? _confirmation;
@@ -26,7 +26,7 @@ public class PaymentService : IPaymentService
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate);
 
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerRegistrationFeeService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
     {
         _jobs = jobs;
         _registrations = registrations;
@@ -40,7 +40,7 @@ public class PaymentService : IPaymentService
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IPlayerRegistrationFeeService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
         : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, logger)
     {
         _confirmation = confirmation;
@@ -252,7 +252,7 @@ public class PaymentService : IPaymentService
         var job = v.Job!;
         var registrations = v.Registrations!;
         var cc = v.Card!;
-        await NormalizeFeesAsync(registrations);
+        await NormalizeFeesAsync(registrations, jobId);
         if (request.PaymentOption == PaymentOption.ARB)
             return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
         var charges = await ComputeChargesAsync(registrations, request.PaymentOption);
@@ -407,12 +407,15 @@ public class PaymentService : IPaymentService
         return registrations.Any();
     }
 
-    private async Task NormalizeFeesAsync(IEnumerable<Registrations> registrations)
+    private async Task NormalizeFeesAsync(IEnumerable<Registrations> registrations, Guid jobId)
     {
         foreach (var reg in registrations)
         {
-            if (!reg.AssignedTeamId.HasValue) continue;
-            var baseFee = await _feeService.ResolveBaseFeeAsync(reg.AssignedTeamId.Value);
+            if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobId, Domain.Constants.RoleConstants.Player,
+                reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value);
+            var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
             if (baseFee <= 0) continue;
             if (reg.FeeBase != baseFee) reg.FeeBase = baseFee;
             if (reg.FeeTotal <= 0) reg.FeeTotal = baseFee;

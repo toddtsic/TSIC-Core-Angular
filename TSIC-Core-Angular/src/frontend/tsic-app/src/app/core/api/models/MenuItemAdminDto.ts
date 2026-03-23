@@ -14,7 +14,7 @@ export type MenuItemAdminDto = {
     action?: string | null;
     target?: string | null;
     active: boolean;
-    index?: number;
+    index?: number | null;
     children: Array<MenuItemAdminDto>;
 };
 

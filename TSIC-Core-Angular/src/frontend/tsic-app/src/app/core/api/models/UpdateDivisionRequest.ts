@@ -4,6 +4,6 @@
 /* eslint-disable */
 export type UpdateDivisionRequest = {
     divName?: string | null;
-    maxRoundNumberToShow?: number;
+    maxRoundNumberToShow?: number | null;
 };
 

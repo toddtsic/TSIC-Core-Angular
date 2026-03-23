@@ -1,7 +1,7 @@
 using TSIC.Contracts.Dtos.PoolAssignment;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
-using TSIC.Application.Services.Teams;
+using TSIC.Domain.Constants;
 using Entities = TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
@@ -22,7 +22,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
-    private readonly ITeamFeeCalculator _teamFeeCalc;
+    private readonly IFeeResolutionService _feeService;
 
     public PoolAssignmentService(
         ITeamRepository teamRepo,
@@ -30,14 +30,14 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         IScheduleRepository scheduleRepo,
         IRegistrationRepository registrationRepo,
         IAgeGroupRepository agegroupRepo,
-        ITeamFeeCalculator teamFeeCalc)
+        IFeeResolutionService feeService)
     {
         _teamRepo = teamRepo;
         _divRepo = divRepo;
         _scheduleRepo = scheduleRepo;
         _registrationRepo = registrationRepo;
         _agegroupRepo = agegroupRepo;
-        _teamFeeCalc = teamFeeCalc;
+        _feeService = feeService;
     }
 
     public async Task<List<PoolDivisionOptionDto>> GetDivisionOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -111,17 +111,12 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && targetAgegroup != null && job != null)
             {
-                var (calcFeeBase, calcFeeProcessing) = _teamFeeCalc.CalculateTeamFees(
-                    targetAgegroup.RosterFee ?? 0m,
-                    targetAgegroup.TeamFee ?? 0m,
-                    job.BTeamsFullPaymentRequired ?? false,
-                    job.BAddProcessingFees,
-                    job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    job.ProcessingFeePercent,
-                    team.PaidTotal ?? 0m,
-                    team.FeeTotal ?? 0m);
-                newFeeBase = calcFeeBase;
-                newFeeTotal = calcFeeBase + calcFeeProcessing;
+                var resolved = await _feeService.ResolveFeeForAgegroupAsync(
+                    job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, ct);
+                var deposit = resolved?.EffectiveDeposit ?? 0m;
+                var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+                newFeeBase = (job.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
+                newFeeTotal = newFeeBase; // preview estimate (excludes processing for simplicity)
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
 
@@ -160,17 +155,12 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && sourceAgegroup != null && job != null)
             {
-                var (calcFeeBase, calcFeeProcessing) = _teamFeeCalc.CalculateTeamFees(
-                    sourceAgegroup.RosterFee ?? 0m,
-                    sourceAgegroup.TeamFee ?? 0m,
-                    job.BTeamsFullPaymentRequired ?? false,
-                    job.BAddProcessingFees,
-                    job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    job.ProcessingFeePercent,
-                    team.PaidTotal ?? 0m,
-                    team.FeeTotal ?? 0m);
-                newFeeBase = calcFeeBase;
-                newFeeTotal = calcFeeBase + calcFeeProcessing;
+                var resolved = await _feeService.ResolveFeeForAgegroupAsync(
+                    job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, ct);
+                var deposit = resolved?.EffectiveDeposit ?? 0m;
+                var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+                newFeeBase = (job.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
+                newFeeTotal = newFeeBase;
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
 
@@ -322,16 +312,15 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && targetAgegroup != null)
             {
-                var (newFeeBase, newFeeProcessing) = _teamFeeCalc.CalculateTeamFees(
-                    targetAgegroup.RosterFee ?? 0m,
-                    targetAgegroup.TeamFee ?? 0m,
-                    team.Job.BTeamsFullPaymentRequired ?? false,
-                    team.Job.BAddProcessingFees,
-                    team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    team.Job.ProcessingFeePercent,
-                    team.PaidTotal ?? 0m,
-                    team.FeeTotal ?? 0m);
-                team.ApplyCalculatedFees(newFeeBase, newFeeProcessing);
+                await _feeService.ApplyTeamSwapFeesAsync(
+                    team, team.JobId, targetAgegroup.AgegroupId,
+                    new TeamFeeApplicationContext
+                    {
+                        IsFullPaymentRequired = team.Job.BTeamsFullPaymentRequired ?? false,
+                        AddProcessingFees = team.Job.BAddProcessingFees,
+                        ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
+                        ProcessingFeePercent = team.Job.ProcessingFeePercent
+                    }, ct);
                 feesRecalculated++;
             }
 
@@ -364,16 +353,15 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
                 if (agegroupChanges && sourceAgegroup != null)
                 {
-                    var (newFeeBase, newFeeProcessing) = _teamFeeCalc.CalculateTeamFees(
-                        sourceAgegroup.RosterFee ?? 0m,
-                        sourceAgegroup.TeamFee ?? 0m,
-                        team.Job.BTeamsFullPaymentRequired ?? false,
-                        team.Job.BAddProcessingFees,
-                        team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
-                        team.Job.ProcessingFeePercent,
-                        team.PaidTotal ?? 0m,
-                        team.FeeTotal ?? 0m);
-                    team.ApplyCalculatedFees(newFeeBase, newFeeProcessing);
+                    await _feeService.ApplyTeamSwapFeesAsync(
+                        team, team.JobId, sourceAgegroup.AgegroupId,
+                        new TeamFeeApplicationContext
+                        {
+                            IsFullPaymentRequired = team.Job.BTeamsFullPaymentRequired ?? false,
+                            AddProcessingFees = team.Job.BAddProcessingFees,
+                            ApplyProcessingFeesToDeposit = team.Job.BApplyProcessingFeesToTeamDeposit ?? false,
+                            ProcessingFeePercent = team.Job.ProcessingFeePercent
+                        }, ct);
                     feesRecalculated++;
                 }
 

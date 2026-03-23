@@ -16,10 +16,10 @@ export type JobConfigGeneralDto = {
     searchengineDescription: string | null;
     jobNameQbp?: string | null;
     expiryAdmin?: string | null;
-    jobTypeId?: number;
+    jobTypeId?: number | null;
     sportId?: string | null;
     customerId?: string | null;
-    billingTypeId?: number;
+    billingTypeId?: number | null;
     bSuspendPublic?: boolean | null;
     jobCode?: string | null;
 };

@@ -9,7 +9,7 @@ export type CreateFieldRequest = {
     state?: string | null;
     zip?: string | null;
     directions?: string | null;
-    latitude?: number;
-    longitude?: number;
+    latitude?: number | null;
+    longitude?: number | null;
 };
 

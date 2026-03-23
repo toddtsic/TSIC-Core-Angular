@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type SaveGameGuaranteeResponse = {
-    eventDefault: number;
+    eventDefault: number | null;
     agegroupsUpdated: number;
 };
 

@@ -99,8 +99,8 @@ export type { CascadeDateDeleteResponse } from './models/CascadeDateDeleteRespon
 export type { CascadeRouteRequest } from './models/CascadeRouteRequest';
 export type { CategoryOrderEntry } from './models/CategoryOrderEntry';
 export type { CcInfoDto } from './models/CcInfoDto';
-export type { ChangeJobRequest } from './models/ChangeJobRequest';
 export type { ChangeClubRequest } from './models/ChangeClubRequest';
+export type { ChangeJobRequest } from './models/ChangeJobRequest';
 export type { ChangeJobResponse } from './models/ChangeJobResponse';
 export type { ChangePasswordRoleOptionDto } from './models/ChangePasswordRoleOptionDto';
 export type { ChangePasswordSearchRequest } from './models/ChangePasswordSearchRequest';

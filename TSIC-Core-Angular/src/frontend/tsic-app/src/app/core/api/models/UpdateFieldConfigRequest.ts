@@ -4,8 +4,8 @@
 /* eslint-disable */
 export type UpdateFieldConfigRequest = {
     baseStartTime?: string | null;
-    gamestartInterval?: number;
-    maxGamesPerField?: number;
+    gamestartInterval?: number | null;
+    maxGamesPerField?: number | null;
     entries?: any[] | null;
     dowOverrides?: any[] | null;
     agDowOverrides?: any[] | null;

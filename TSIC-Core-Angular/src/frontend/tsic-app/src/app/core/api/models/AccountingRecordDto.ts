@@ -6,8 +6,8 @@ export type AccountingRecordDto = {
     aId: number;
     date: string | null;
     paymentMethod: string;
-    dueAmount: number;
-    paidAmount: number;
+    dueAmount: number | null;
+    paidAmount: number | null;
     comment?: string | null;
     checkNo?: string | null;
     promoCode?: string | null;

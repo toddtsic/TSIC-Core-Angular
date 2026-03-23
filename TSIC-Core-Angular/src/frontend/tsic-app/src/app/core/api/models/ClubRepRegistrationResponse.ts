@@ -4,7 +4,7 @@
 /* eslint-disable */
 export type ClubRepRegistrationResponse = {
     success: boolean;
-    clubId?: number;
+    clubId?: number | null;
     userId?: string | null;
     message?: string | null;
     similarClubs?: any[] | null;

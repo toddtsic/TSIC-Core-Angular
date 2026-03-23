@@ -77,6 +77,8 @@ public partial class Agegroups
 
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();
 
+    public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
+
     public virtual Leagues League { get; set; } = null!;
 
     public virtual ICollection<LeagueAgeGroupGameDayInfo> LeagueAgeGroupGameDayInfo { get; set; } = new List<LeagueAgeGroupGameDayInfo>();

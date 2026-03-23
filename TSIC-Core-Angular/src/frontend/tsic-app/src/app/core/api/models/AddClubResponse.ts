@@ -5,8 +5,8 @@
 export type AddClubResponse = {
     success: boolean;
     message: string;
-    clubRepId?: number;
-    clubId?: number;
+    clubRepId?: number | null;
+    clubId?: number | null;
     similarClubs?: any[] | null;
 };
 

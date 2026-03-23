@@ -12,6 +12,6 @@ export type StoreItemSummaryDto = {
     skuCount: number;
     activeSkuCount: number;
     imageUrls: Array<string>;
-    singleSkuId?: number;
+    singleSkuId?: number | null;
 };
 

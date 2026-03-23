@@ -11,9 +11,9 @@ export type FamilyPlayerRegistrationDto = {
     assignedTeamName?: string | null;
     adnSubscriptionId?: string | null;
     adnSubscriptionStatus?: string | null;
-    adnSubscriptionAmountPerOccurence?: number;
-    adnSubscriptionBillingOccurences?: number;
-    adnSubscriptionIntervalLength?: number;
+    adnSubscriptionAmountPerOccurence?: number | null;
+    adnSubscriptionBillingOccurences?: number | null;
+    adnSubscriptionIntervalLength?: number | null;
     adnSubscriptionStartDate?: string | null;
     formFieldValues: Record<string, any>;
 };

@@ -6,7 +6,7 @@ export type EmailLogSummaryDto = {
     emailId: number;
     sendTs: string;
     sendFrom?: string | null;
-    count?: number;
+    count?: number | null;
     subject?: string | null;
 };
 

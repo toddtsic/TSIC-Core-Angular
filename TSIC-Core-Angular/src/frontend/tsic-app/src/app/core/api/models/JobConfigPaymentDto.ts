@@ -5,11 +5,11 @@
 export type JobConfigPaymentDto = {
     paymentMethodsAllowedCode: number;
     bAddProcessingFees: boolean;
-    processingFeePercent: number;
+    processingFeePercent: number | null;
     bApplyProcessingFeesToTeamDeposit: boolean | null;
-    perPlayerCharge: number;
-    perTeamCharge: number;
-    perMonthCharge: number;
+    perPlayerCharge: number | null;
+    perTeamCharge: number | null;
+    perMonthCharge: number | null;
     payTo: string | null;
     mailTo: string | null;
     mailinPaymentWarning: string | null;
@@ -18,10 +18,10 @@ export type JobConfigPaymentDto = {
     bAllowRefundsInPriorMonths: boolean | null;
     bAllowCreditAll: boolean | null;
     adnArb?: boolean | null;
-    adnArbBillingOccurrences?: number;
-    adnArbIntervalLength?: number;
+    adnArbBillingOccurrences?: number | null;
+    adnArbIntervalLength?: number | null;
     adnArbStartDate?: string | null;
-    adnArbMinimumTotalCharge?: number;
+    adnArbMinimumTotalCharge?: number | null;
     adminCharges?: any[] | null;
 };
 

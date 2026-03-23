@@ -6,6 +6,6 @@ export type EditScoreRequest = {
     gid: number;
     t1Score: number;
     t2Score: number;
-    gStatusCode?: number;
+    gStatusCode?: number | null;
 };
 

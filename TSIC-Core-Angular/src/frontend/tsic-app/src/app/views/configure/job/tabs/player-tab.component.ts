@@ -29,8 +29,8 @@ export class PlayerTabComponent implements OnInit {
   playerRegReleaseOfLiability = linkedSignal(() => this.svc.player()?.playerRegReleaseOfLiability ?? null);
   playerRegCodeOfConduct = linkedSignal(() => this.svc.player()?.playerRegCodeOfConduct ?? null);
   playerRegCovid19Waiver = linkedSignal(() => this.svc.player()?.playerRegCovid19Waiver ?? null);
-  playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? 0);
-  playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? 0);
+  playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? null);
+  playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? null);
 
   // SuperUser-only
   bOfferPlayerRegsaverInsurance = linkedSignal(() => this.svc.player()?.bOfferPlayerRegsaverInsurance ?? null);

@@ -8,18 +8,18 @@ export type UpdateAgegroupRequest = {
     gender?: string | null;
     dobMin?: string | null;
     dobMax?: string | null;
-    gradYearMin?: number;
-    gradYearMax?: number;
-    schoolGradeMin?: number;
-    schoolGradeMax?: number;
-    teamFee?: number;
+    gradYearMin?: number | null;
+    gradYearMax?: number | null;
+    schoolGradeMin?: number | null;
+    schoolGradeMax?: number | null;
+    teamFee?: number | null;
     teamFeeLabel?: string | null;
-    rosterFee?: number;
+    rosterFee?: number | null;
     rosterFeeLabel?: string | null;
-    discountFee?: number;
+    discountFee?: number | null;
     discountFeeStart?: string | null;
     discountFeeEnd?: string | null;
-    lateFee?: number;
+    lateFee?: number | null;
     lateFeeStart?: string | null;
     lateFeeEnd?: string | null;
     maxTeams?: number;
@@ -28,7 +28,7 @@ export type UpdateAgegroupRequest = {
     bChampionsByDivision?: boolean | null;
     bAllowApiRosterAccess?: boolean | null;
     bHideStandings?: boolean | null;
-    playerFeeOverride?: number;
+    playerFeeOverride?: number | null;
     sortAge?: number;
 };
 

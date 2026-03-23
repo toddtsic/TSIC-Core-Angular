@@ -8,14 +8,14 @@ export type UpdateJobConfigMobileStoreRequest = {
     bEnableMobileTeamChat: boolean | null;
     bAllowMobileLogin: boolean;
     bAllowMobileRegn: boolean | null;
-    mobileScoreHoursPastGameEligible: number;
+    mobileScoreHoursPastGameEligible: number | null;
     mobileJobName?: string | null;
     bEnableStore?: boolean | null;
     benableStp?: boolean | null;
     storeContactEmail?: string | null;
     storeRefundPolicy?: string | null;
     storePickupDetails?: string | null;
-    storeSalesTax?: number;
-    storeTsicrate?: number;
+    storeSalesTax?: number | null;
+    storeTsicrate?: number | null;
 };
 

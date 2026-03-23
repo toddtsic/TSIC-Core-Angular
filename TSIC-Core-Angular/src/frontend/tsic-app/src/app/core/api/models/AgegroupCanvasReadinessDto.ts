@@ -9,14 +9,14 @@ export type AgegroupCanvasReadinessDto = {
     fieldCount: number;
     isConfigured: boolean;
     daysOfWeek: Array<string>;
-    gamestartInterval?: number;
+    gamestartInterval?: number | null;
     startTime?: string | null;
-    maxGamesPerField?: number;
+    maxGamesPerField?: number | null;
     totalGameSlots: number;
     gameDays: Array<GameDayDto>;
     totalRounds: number;
     maxPairingRound: number;
-    gameGuarantee?: number;
+    gameGuarantee?: number | null;
     fieldIds: Array<string>;
 };
 

@@ -10,8 +10,8 @@ export type PairingDto = {
     t2: number;
     t1Type: string;
     t2Type: string;
-    t1GnoRef?: number;
-    t2GnoRef?: number;
+    t1GnoRef?: number | null;
+    t2GnoRef?: number | null;
     t1CalcType?: string | null;
     t2CalcType?: string | null;
     t1Annotation?: string | null;

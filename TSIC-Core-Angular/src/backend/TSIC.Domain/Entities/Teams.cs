@@ -223,6 +223,8 @@ public partial class Teams
 
     public virtual Jobs Job { get; set; } = null!;
 
+    public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
+
     public virtual ICollection<JobPushNotificationsToAll> JobPushNotificationsToAll { get; set; } = new List<JobPushNotificationsToAll>();
 
     public virtual Leagues League { get; set; } = null!;

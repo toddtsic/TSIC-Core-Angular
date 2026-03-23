@@ -261,6 +261,8 @@ public partial class Jobs
 
     public virtual JobDisplayOptions? JobDisplayOptions { get; set; }
 
+    public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
+
     public virtual ICollection<JobLeagues> JobLeagues { get; set; } = new List<JobLeagues>();
 
     public virtual ICollection<JobMenus> JobMenus { get; set; } = new List<JobMenus>();

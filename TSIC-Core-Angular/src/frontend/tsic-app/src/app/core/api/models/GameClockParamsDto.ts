@@ -8,10 +8,10 @@ export type GameClockParamsDto = {
     halfTimeMinutes: number;
     transitionMinutes: number;
     playoffMinutes: number;
-    playoffHalfMinutes?: number;
-    playoffHalfTimeMinutes?: number;
-    quarterMinutes?: number;
-    quarterTimeMinutes?: number;
-    utcOffsetHours?: number;
+    playoffHalfMinutes?: number | null;
+    playoffHalfTimeMinutes?: number | null;
+    quarterMinutes?: number | null;
+    quarterTimeMinutes?: number | null;
+    utcOffsetHours?: number | null;
 };
 

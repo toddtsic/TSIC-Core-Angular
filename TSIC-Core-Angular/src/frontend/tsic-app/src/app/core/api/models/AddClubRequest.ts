@@ -5,6 +5,6 @@
 export type AddClubRequest = {
     clubName: string;
     state?: string | null;
-    useExistingClubId?: number;
+    useExistingClubId?: number | null;
 };
 

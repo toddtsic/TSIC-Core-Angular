@@ -14,8 +14,8 @@ export type AvailableTeamDto = {
     rosterIsFull: boolean;
     teamAllowsSelfRostering?: boolean | null;
     agegroupAllowsSelfRostering?: boolean | null;
-    perRegistrantFee?: number;
-    perRegistrantDeposit?: number;
+    perRegistrantFee?: number | null;
+    perRegistrantDeposit?: number | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
 };

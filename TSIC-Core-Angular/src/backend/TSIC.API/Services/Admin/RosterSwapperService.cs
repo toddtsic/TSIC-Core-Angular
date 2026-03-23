@@ -3,7 +3,6 @@ using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
-using TSIC.API.Services.Players;
 
 namespace TSIC.API.Services.Admin;
 
@@ -20,13 +19,13 @@ public sealed class RosterSwapperService : IRosterSwapperService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IDeviceRepository _deviceRepo;
-    private readonly IPlayerRegistrationFeeService _feeService;
+    private readonly IFeeResolutionService _feeService;
 
     public RosterSwapperService(
         IRegistrationRepository registrationRepo,
         ITeamRepository teamRepo,
         IDeviceRepository deviceRepo,
-        IPlayerRegistrationFeeService feeService)
+        IFeeResolutionService feeService)
     {
         _registrationRepo = registrationRepo;
         _teamRepo = teamRepo;
@@ -160,8 +159,10 @@ public sealed class RosterSwapperService : IRosterSwapperService
             else
             {
                 // FLOW 1: Player → Team (fee recalc via unified service)
-                var newFeeBase = await _feeService.ResolveBaseFeeAsync(targetTeam.TeamId, ct);
-                // Preview estimate: apply same zero-fee rules as ApplyFees
+                var resolved = await _feeService.ResolveFeeAsync(
+                    targetTeam.JobId, RoleConstants.Player, targetTeam.AgegroupId, targetTeam.TeamId, ct);
+                var newFeeBase = resolved?.EffectiveBalanceDue ?? 0m;
+                // Preview estimate: modifiers preserved from original registration
                 var previewDiscount = newFeeBase > 0m ? reg.FeeDiscount : 0m;
                 var previewLatefee = newFeeBase > 0m ? reg.FeeLatefee : 0m;
                 var newTotal = newFeeBase - previewDiscount + reg.FeeDonation + previewLatefee;
@@ -357,9 +358,10 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 }
                 else
                 {
-                    // FLOW 1: Player → Team (fee recalc via unified service)
-                    var newFeeBase = await _feeService.ResolveBaseFeeAsync(targetTeam.TeamId, ct);
-                    _feeService.ApplyFees(reg, newFeeBase, new Players.PlayerFeeContext { IsRecalculation = true });
+                    // FLOW 1: Player → Team (fee recalc via new fee resolution service)
+                    await _feeService.ApplySwapFeesAsync(
+                        reg, targetTeam.JobId, targetTeam.AgegroupId, targetTeam.TeamId,
+                        new FeeApplicationContext(), ct);
 
                     // Entity is already tracked — EF detects property changes automatically
                     playersTransferred++;

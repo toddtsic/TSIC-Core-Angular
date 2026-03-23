@@ -1,7 +1,7 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
 using TSIC.Application.Services.Clubs;
-using TSIC.Application.Services.Teams;
+using TSIC.Domain.Constants;
 using TSIC.Contracts.Repositories;
 using System.Text.RegularExpressions;
 using TSIC.API.Services.Auth;
@@ -25,7 +25,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IUserRepository _users;
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly ITeamFeeCalculator _teamFeeCalculator;
+    private readonly IFeeResolutionService _feeService;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
@@ -43,7 +43,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         IUserRepository users,
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager,
-        ITeamFeeCalculator teamFeeCalculator,
+        IFeeResolutionService feeService,
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
         IJobDiscountCodeRepository discountCodeRepo,
@@ -60,7 +60,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _users = users;
         _tokenService = tokenService;
         _userManager = userManager;
-        _teamFeeCalculator = teamFeeCalculator;
+        _feeService = feeService;
         _textSubstitution = textSubstitution;
         _emailService = emailService;
         _discountCodeRepo = discountCodeRepo;
@@ -518,9 +518,6 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Invalid age group selected");
         }
 
-        var rosterFee = ageGroup.RosterFee ?? 0;
-        var teamFee = ageGroup.TeamFee ?? 0;
-
         // Verify age group has capacity
         var registeredCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId, request.AgeGroupId);
 
@@ -531,17 +528,35 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("This age group is full");
         }
 
-        // Calculate fees using team fee calculator
-        var (feeBase, feeProcessing) = _teamFeeCalculator.CalculateTeamFees(
-            rosterFee: rosterFee,
-            teamFee: teamFee,
-            bTeamsFullPaymentRequired: jobSettings.BTeamsFullPaymentRequired ?? false,
-            bAddProcessingFees: jobSettings.BAddProcessingFees ?? false,
-            bApplyProcessingFeesToTeamDeposit: jobSettings.BApplyProcessingFeesToTeamDeposit ?? false,
-            jobProcessingFeePercent: processingFeePercent ?? 0,
-            paidTotal: 0,  // New team has no payments yet
-            currentFeeTotal: 0  // New team has no fees yet
-        );
+        // Resolve fees from new fee schema
+        var resolved = await _feeService.ResolveFeeForAgegroupAsync(
+            jobId, RoleConstants.ClubRep, request.AgeGroupId);
+        var deposit = resolved?.EffectiveDeposit ?? 0m;
+        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+        var feeBase = (jobSettings.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
+
+        // Evaluate modifiers for new registration
+        var modifiers = await _feeService.EvaluateModifiersAsync(
+            jobId, RoleConstants.ClubRep, request.AgeGroupId, Guid.Empty, DateTime.UtcNow);
+
+        // Calculate processing fee
+        decimal feeProcessing = 0m;
+        if (jobSettings.BAddProcessingFees ?? false)
+        {
+            var percent = processingFeePercent ?? 0m;
+            if (jobSettings.BTeamsFullPaymentRequired ?? false)
+            {
+                feeProcessing = (jobSettings.BApplyProcessingFeesToTeamDeposit ?? false)
+                    ? feeBase * percent
+                    : balanceDue * percent;
+            }
+            else
+            {
+                feeProcessing = (jobSettings.BApplyProcessingFeesToTeamDeposit ?? false)
+                    ? deposit * percent
+                    : 0m;
+            }
+        }
 
         // Resolve or create ClubTeam
         int clubTeamId;
@@ -607,8 +622,11 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubrepRegistrationid = clubRepRegistration.RegistrationId,  // Track which club rep registered this team
             FeeBase = feeBase,
             FeeProcessing = feeProcessing,
-            FeeTotal = feeBase + feeProcessing,  // No discount/donation/latefee at creation
-            OwedTotal = feeBase + feeProcessing,
+            FeeDiscount = modifiers.TotalDiscount,
+            FeeLatefee = modifiers.TotalLateFee,
+            FeeDonation = 0,
+            FeeTotal = feeBase + feeProcessing - modifiers.TotalDiscount + modifiers.TotalLateFee,
+            OwedTotal = feeBase + feeProcessing - modifiers.TotalDiscount + modifiers.TotalLateFee,
             PaidTotal = 0,
             Active = true,
             Createdate = DateTime.UtcNow,
@@ -914,19 +932,20 @@ public class TeamRegistrationService : ITeamRegistrationService
             var oldFeeProcessing = team.FeeProcessing ?? 0;
             var oldFeeTotal = team.FeeTotal ?? 0;
 
-            var (newFeeBase, newFeeProcessing) = _teamFeeCalculator.CalculateTeamFees(
-                rosterFee: team.Agegroup.RosterFee ?? 0,
-                teamFee: team.Agegroup.TeamFee ?? 0,
-                bTeamsFullPaymentRequired: job.BTeamsFullPaymentRequired ?? false,
-                bAddProcessingFees: job.BAddProcessingFees ?? false,
-                bApplyProcessingFeesToTeamDeposit: job.BApplyProcessingFeesToTeamDeposit ?? false,
-                jobProcessingFeePercent: jobProcessingFeePercent,
-                paidTotal: team.PaidTotal ?? 0,
-                currentFeeTotal: oldFeeTotal);
+            await _feeService.ApplyTeamSwapFeesAsync(
+                team, jobId, team.AgegroupId,
+                new TeamFeeApplicationContext
+                {
+                    IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
+                    AddProcessingFees = job.BAddProcessingFees ?? false,
+                    ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
+                    ProcessingFeePercent = jobProcessingFeePercent
+                });
+            var newFeeBase = team.FeeBase ?? 0m;
+            var newFeeProcessing = team.FeeProcessing ?? 0m;
 
             if (newFeeBase != oldFeeBase || newFeeProcessing != oldFeeProcessing)
             {
-                team.ApplyCalculatedFees(newFeeBase, newFeeProcessing);
                 team.LebUserId = userId;
                 team.Modified = DateTime.UtcNow;
 

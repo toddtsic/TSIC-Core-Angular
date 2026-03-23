@@ -11,12 +11,12 @@ export type AutoBuildRequest = {
     divisionStrategies?: any[] | null;
     saveProfiles?: boolean;
     existingGameMode?: string | null;
-    gameGuarantee?: number;
+    gameGuarantee?: number | null;
     divisionWaves?: any | null;
     divisionOrder?: any[] | null;
     selectedFieldIds?: any[] | null;
     overrideStartTime?: string | null;
-    overrideBrr?: number;
+    overrideBrr?: number | null;
     overridePlacement?: string | null;
 };
 

@@ -6,6 +6,6 @@ export type RefundResponse = {
     success: boolean;
     message?: string | null;
     transactionId?: string | null;
-    refundedAmount?: number;
+    refundedAmount?: number | null;
 };
 

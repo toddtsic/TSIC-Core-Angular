@@ -5,8 +5,8 @@
 export type UpdateBracketSeedRequest = {
     gid: number;
     t1SeedDivId?: string | null;
-    t1SeedRank?: number;
+    t1SeedRank?: number | null;
     t2SeedDivId?: string | null;
-    t2SeedRank?: number;
+    t2SeedRank?: number | null;
 };
 

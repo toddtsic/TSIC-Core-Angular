@@ -4,14 +4,14 @@
 /* eslint-disable */
 export type EditPairingRequest = {
     ai: number;
-    gameNumber?: number;
-    rnd?: number;
-    t1?: number;
-    t2?: number;
+    gameNumber?: number | null;
+    rnd?: number | null;
+    t1?: number | null;
+    t2?: number | null;
     t1Type?: string | null;
     t2Type?: string | null;
-    t1GnoRef?: number;
-    t2GnoRef?: number;
+    t1GnoRef?: number | null;
+    t2GnoRef?: number | null;
     t1CalcType?: string | null;
     t2CalcType?: string | null;
     t1Annotation?: string | null;

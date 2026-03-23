@@ -7,9 +7,9 @@ export type EmailHealthStatus = {
     isDevelopment?: boolean;
     sandboxMode?: boolean;
     sesReachable?: boolean;
-    max24HourSend?: number;
-    sentLast24Hours?: number;
-    maxSendRate?: number;
+    max24HourSend?: number | null;
+    sentLast24Hours?: number | null;
+    maxSendRate?: number | null;
     region?: string;
     warning?: string | null;
 };

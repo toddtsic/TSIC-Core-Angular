@@ -8,6 +8,6 @@ export type UpdateLeagueRequest = {
     bHideContacts: boolean;
     bHideStandings: boolean;
     rescheduleEmailsToAddon?: string | null;
-    playerFeeOverride?: number;
+    playerFeeOverride?: number | null;
 };
 

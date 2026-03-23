@@ -9,8 +9,8 @@ export type RankingsTeamDto = {
     clubName?: string | null;
     color?: string | null;
     agegroupName?: string | null;
-    gradYearMin?: number;
-    gradYearMax?: number;
+    gradYearMin?: number | null;
+    gradYearMax?: number | null;
     teamComments?: string | null;
 };
 

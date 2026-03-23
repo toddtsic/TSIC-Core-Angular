@@ -18,4 +18,6 @@ public partial class FamilyMembers
     public virtual AspNetUsers FamilyMemberUser { get; set; } = null!;
 
     public virtual Families FamilyUser { get; set; } = null!;
+
+    public virtual AspNetUsers? LebUser { get; set; }
 }

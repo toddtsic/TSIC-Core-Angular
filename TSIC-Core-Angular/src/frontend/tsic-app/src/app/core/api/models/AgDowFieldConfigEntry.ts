@@ -6,6 +6,6 @@ export type AgDowFieldConfigEntry = {
     agegroupId: string;
     dow: string;
     startTime?: string | null;
-    maxGamesPerField?: number;
+    maxGamesPerField?: number | null;
 };
 

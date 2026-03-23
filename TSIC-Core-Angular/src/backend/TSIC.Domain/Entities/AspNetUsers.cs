@@ -123,6 +123,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<Customers> Customers { get; set; } = new List<Customers>();
 
+    public virtual ICollection<DivisionProcessingOrder> DivisionProcessingOrder { get; set; } = new List<DivisionProcessingOrder>();
+
     public virtual ICollection<DivisionScheduleProfile> DivisionScheduleProfile { get; set; } = new List<DivisionScheduleProfile>();
 
     public virtual ICollection<DivisionWaveAssignment> DivisionWaveAssignment { get; set; } = new List<DivisionWaveAssignment>();
@@ -139,7 +141,11 @@ public partial class AspNetUsers
 
     public virtual ICollection<Families> FamiliesLebUser { get; set; } = new List<Families>();
 
-    public virtual ICollection<FamilyMembers> FamilyMembers { get; set; } = new List<FamilyMembers>();
+    public virtual ICollection<FamilyMembers> FamilyMembersFamilyMemberUser { get; set; } = new List<FamilyMembers>();
+
+    public virtual ICollection<FamilyMembers> FamilyMembersLebUser { get; set; } = new List<FamilyMembers>();
+
+    public virtual ICollection<FeeModifiers> FeeModifiers { get; set; } = new List<FeeModifiers>();
 
     public virtual ICollection<FieldsLeagueSeason> FieldsLeagueSeason { get; set; } = new List<FieldsLeagueSeason>();
 
@@ -154,6 +160,8 @@ public partial class AspNetUsers
     public virtual ICollection<JobDiscountCodes> JobDiscountCodes { get; set; } = new List<JobDiscountCodes>();
 
     public virtual ICollection<JobDisplayOptions> JobDisplayOptions { get; set; } = new List<JobDisplayOptions>();
+
+    public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
 
     public virtual ICollection<JobLeagues> JobLeagues { get; set; } = new List<JobLeagues>();
 
@@ -214,6 +222,8 @@ public partial class AspNetUsers
     public virtual ICollection<StoreCart> StoreCartLebUser { get; set; } = new List<StoreCart>();
 
     public virtual ICollection<StoreColors> StoreColors { get; set; } = new List<StoreColors>();
+
+    public virtual ICollection<StoreItemImage> StoreItemImage { get; set; } = new List<StoreItemImage>();
 
     public virtual ICollection<StoreItemSkus> StoreItemSkus { get; set; } = new List<StoreItemSkus>();
 
