@@ -116,6 +116,42 @@ WHERE j.JobTypeId = 3
 PRINT '5  League player fee team rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
+-- 5B. Director-managed league agegroup fees (type 3, no ClubRep flow)
+--     Same cascade as player-only: RosterFee → Player.BalanceDue
+--     Director-managed = all teams in the job share same clubrep_registrationid (or NULL)
+INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
+SELECT
+    NEWID(), j.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
+    ag.AgegroupId, NULL,
+    NULL,
+    ag.RosterFee,
+    GETUTCDATE()
+FROM Leagues.agegroups ag
+JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
+JOIN Jobs.Jobs j ON jl.JobId = j.JobId
+WHERE j.JobTypeId = 3
+  AND j.Year IN ('2025', '2026')
+  AND ag.RosterFee IS NOT NULL AND ag.RosterFee > 0
+  -- Director-managed: no distinct ClubRepRegistrationId pairs exist
+  AND NOT EXISTS (
+      SELECT 1 FROM Leagues.teams t1
+      JOIN Leagues.teams t2 ON t1.jobID = t2.jobID
+          AND t1.TeamId != t2.TeamId
+      WHERE t1.jobID = j.JobId
+        AND ISNULL(t1.clubrep_registrationid, '00000000-0000-0000-0000-000000000000')
+         != ISNULL(t2.clubrep_registrationid, '00000000-0000-0000-0000-000000000000')
+  )
+  -- Avoid duplicates if step 6 would also seed this job
+  AND NOT EXISTS (
+      SELECT 1 FROM fees.JobFees jf
+      WHERE jf.JobId = j.JobId
+        AND jf.AgegroupId = ag.AgegroupId
+        AND jf.TeamId IS NULL
+        AND jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
+  );
+PRINT '5B Director-managed league agegroup rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+GO
+
 -- 6. League player fee fallback — job level
 INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
 SELECT
