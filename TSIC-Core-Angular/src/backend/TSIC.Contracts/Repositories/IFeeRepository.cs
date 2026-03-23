@@ -66,6 +66,20 @@ public interface IFeeRepository
         Guid jobId, string roleId, IReadOnlyList<Guid> teamIds,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Gets a tracked JobFees row by its scope (for updates).
+    /// Returns null if not found.
+    /// </summary>
+    Task<JobFees?> GetTrackedByScopeAsync(
+        Guid jobId, string roleId, Guid? agegroupId, Guid? teamId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets a tracked JobFees row by ID (for updates/deletes).
+    /// Includes FeeModifiers.
+    /// </summary>
+    Task<JobFees?> GetTrackedByIdAsync(Guid jobFeeId, CancellationToken ct = default);
+
     // Write operations
 
     /// <summary>Adds a new JobFees row.</summary>

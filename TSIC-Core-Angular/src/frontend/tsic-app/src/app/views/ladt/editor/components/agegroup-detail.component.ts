@@ -1,9 +1,14 @@
 import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, HostListener, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
-import type { AgegroupDetailDto, UpdateAgegroupRequest } from '../../../../core/api';
+import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, SaveJobFeeRequest } from '../../../../core/api';
 import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-helpers';
+
+/** Role constants matching backend RoleConstants */
+const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
 
 @Component({
   selector: 'app-agegroup-detail',
@@ -94,35 +99,32 @@ import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-hel
           </div>
         </div>
 
-        <h6 class="section-label mt-4">Fees</h6>
+        <h6 class="section-label mt-4">Player Fees</h6>
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label">Team Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.teamFee" name="teamFee">
+            <label class="form-label">Deposit</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
+                   placeholder="Optional — if blank, full amount due">
           </div>
           <div class="col-md-4">
-            <label class="form-label">Team Fee Label</label>
-            <input class="form-control" [(ngModel)]="form.teamFeeLabel" name="teamFeeLabel">
+            <label class="form-label">Balance Due</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue">
+          </div>
+        </div>
+
+        <h6 class="section-label mt-4">Club Rep / Team Fees</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Deposit</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit">
           </div>
           <div class="col-md-4">
-            <label class="form-label">Roster Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.rosterFee" name="rosterFee">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Roster Fee Label</label>
-            <input class="form-control" [(ngModel)]="form.rosterFeeLabel" name="rosterFeeLabel">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Discount Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.discountFee" name="discountFee">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Late Fee</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.lateFee" name="lateFee">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Player Fee Override</label>
-            <input class="form-control" type="number" step="0.01" [(ngModel)]="form.playerFeeOverride" name="playerFeeOverride">
+            <label class="form-label">Balance Due</label>
+            <input class="form-control" type="number" step="0.01"
+                   [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue">
           </div>
         </div>
 
@@ -196,53 +198,26 @@ import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-hel
       border-bottom: 1px solid var(--bs-border-color);
       padding-bottom: var(--space-1);
     }
-    .color-picker-wrapper {
-      position: relative;
-    }
+    .color-picker-wrapper { position: relative; }
     .color-picker-wrapper .form-select {
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-      cursor: pointer;
+      display: flex; align-items: center; gap: var(--space-1); cursor: pointer;
     }
     .color-dot {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      border: 1px solid var(--bs-border-color);
-      vertical-align: middle;
-      flex-shrink: 0;
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      border: 1px solid var(--bs-border-color); vertical-align: middle; flex-shrink: 0;
     }
     .color-dropdown {
-      position: absolute;
-      z-index: 1050;
-      top: 100%;
-      left: 0;
-      right: 0;
-      max-height: 240px;
-      overflow-y: auto;
-      background: var(--bs-body-bg);
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--bs-border-radius);
-      box-shadow: 0 4px 12px rgba(0,0,0,.15);
-      margin-top: 2px;
+      position: absolute; z-index: 1050; top: 100%; left: 0; right: 0;
+      max-height: 240px; overflow-y: auto; background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,.15); margin-top: 2px;
     }
     .color-option {
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-      padding: var(--space-1) var(--space-2);
-      cursor: pointer;
-      font-size: 0.875rem;
+      display: flex; align-items: center; gap: var(--space-1);
+      padding: var(--space-1) var(--space-2); cursor: pointer; font-size: 0.875rem;
     }
-    .color-option:hover {
-      background: var(--bs-tertiary-bg);
-    }
-    .color-option.active {
-      background: var(--bs-primary-bg-subtle);
-      font-weight: 600;
-    }
+    .color-option:hover { background: var(--bs-tertiary-bg); }
+    .color-option.active { background: var(--bs-primary-bg-subtle); font-weight: 600; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -266,6 +241,20 @@ export class AgegroupDetailComponent implements OnChanges {
   colorOptions = AGEGROUP_COLORS;
   form: any = {};
 
+  // Fee form — separate from agegroup entity form
+  feeForm = {
+    playerDeposit: null as number | null,
+    playerBalanceDue: null as number | null,
+    clubRepDeposit: null as number | null,
+    clubRepBalanceDue: null as number | null
+  };
+
+  // Track original fee values for change detection
+  private originalFees = { ...this.feeForm };
+  // Track fee row IDs for updates
+  private playerFeeId: string | null = null;
+  private clubRepFeeId: string | null = null;
+
   @HostListener('document:click')
   onDocumentClick(): void {
     this.colorDropdownOpen.set(false);
@@ -280,18 +269,39 @@ export class AgegroupDetailComponent implements OnChanges {
     this.saveMessage.set(null);
     this.showDeleteConfirm.set(false);
 
-    this.ladtService.getAgegroup(this.agegroupId).subscribe({
-      next: (detail) => {
+    // Load agegroup detail + fees in parallel
+    forkJoin({
+      detail: this.ladtService.getAgegroup(this.agegroupId),
+      fees: this.ladtService.getAgegroupFees(this.agegroupId)
+    }).subscribe({
+      next: ({ detail, fees }) => {
         this.agegroup.set(detail);
         this.form = { ...detail };
-        // Normalize hex color to uppercase to match dropdown values
-        if (this.form.color) {
-          this.form.color = this.form.color.toUpperCase();
-        }
+        if (this.form.color) this.form.color = this.form.color.toUpperCase();
+
+        // Populate fee form from fee rows
+        this.populateFeeForm(fees);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
     });
+  }
+
+  private populateFeeForm(fees: JobFeeDto[]): void {
+    // Find agegroup-level fee rows (TeamId = null)
+    const playerFee = fees.find(f => f.roleId === PLAYER_ROLE && !f.teamId);
+    const clubRepFee = fees.find(f => f.roleId === CLUBREP_ROLE && !f.teamId);
+
+    this.playerFeeId = playerFee?.jobFeeId ?? null;
+    this.clubRepFeeId = clubRepFee?.jobFeeId ?? null;
+
+    this.feeForm = {
+      playerDeposit: playerFee?.deposit ?? null,
+      playerBalanceDue: playerFee?.balanceDue ?? null,
+      clubRepDeposit: clubRepFee?.deposit ?? null,
+      clubRepBalanceDue: clubRepFee?.balanceDue ?? null
+    };
+    this.originalFees = { ...this.feeForm };
   }
 
   save(): void {
@@ -308,30 +318,64 @@ export class AgegroupDetailComponent implements OnChanges {
       gradYearMax: this.form.gradYearMax,
       schoolGradeMin: this.form.schoolGradeMin,
       schoolGradeMax: this.form.schoolGradeMax,
-      teamFee: this.form.teamFee,
+      // Legacy fee fields — still sent for backward compat but values come from new schema
+      teamFee: this.feeForm.clubRepBalanceDue,
       teamFeeLabel: this.form.teamFeeLabel,
-      rosterFee: this.form.rosterFee,
+      rosterFee: this.feeForm.clubRepDeposit ?? this.feeForm.playerBalanceDue,
       rosterFeeLabel: this.form.rosterFeeLabel,
-      discountFee: this.form.discountFee,
-      discountFeeStart: this.form.discountFeeStart,
-      discountFeeEnd: this.form.discountFeeEnd,
-      lateFee: this.form.lateFee,
-      lateFeeStart: this.form.lateFeeStart,
-      lateFeeEnd: this.form.lateFeeEnd,
+      discountFee: null,
+      discountFeeStart: null,
+      discountFeeEnd: null,
+      lateFee: null,
+      lateFeeStart: null,
+      lateFeeEnd: null,
       maxTeams: this.form.maxTeams,
       maxTeamsPerClub: this.form.maxTeamsPerClub,
       bAllowSelfRostering: this.form.bAllowSelfRostering,
       bChampionsByDivision: this.form.bChampionsByDivision,
       bAllowApiRosterAccess: this.form.bAllowApiRosterAccess,
       bHideStandings: this.form.bHideStandings,
-      playerFeeOverride: this.form.playerFeeOverride,
+      playerFeeOverride: this.feeForm.playerBalanceDue,
       sortAge: this.form.sortAge
     };
 
-    this.ladtService.updateAgegroup(this.agegroupId, request).subscribe({
-      next: (updated) => {
+    // Save agegroup entity + fee rows
+    const saves: Observable<any>[] = [
+      this.ladtService.updateAgegroup(this.agegroupId, request)
+    ];
+
+    // Save player fee row if any value is set
+    if (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null) {
+      saves.push(this.ladtService.saveFee({
+        roleId: PLAYER_ROLE,
+        agegroupId: this.agegroupId,
+        deposit: this.feeForm.playerDeposit,
+        balanceDue: this.feeForm.playerBalanceDue
+      }));
+    } else if (this.playerFeeId) {
+      // Both cleared — delete the row
+      saves.push(this.ladtService.deleteFee(this.playerFeeId));
+    }
+
+    // Save club rep fee row if any value is set
+    if (this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null) {
+      saves.push(this.ladtService.saveFee({
+        roleId: CLUBREP_ROLE,
+        agegroupId: this.agegroupId,
+        deposit: this.feeForm.clubRepDeposit,
+        balanceDue: this.feeForm.clubRepBalanceDue
+      }));
+    } else if (this.clubRepFeeId) {
+      saves.push(this.ladtService.deleteFee(this.clubRepFeeId));
+    }
+
+    forkJoin(saves).subscribe({
+      next: (results) => {
+        // First result is always the agegroup update
+        const updated = results[0] as AgegroupDetailDto;
         this.agegroup.set(updated);
         this.form = { ...updated };
+        this.originalFees = { ...this.feeForm };
         this.isSaving.set(false);
         this.isError.set(false);
         this.saveMessage.set('Age group saved successfully.');
@@ -347,13 +391,10 @@ export class AgegroupDetailComponent implements OnChanges {
 
   hasFeesChanged(): boolean {
     if (this.playerCount === 0) return false;
-    const original = this.agegroup();
-    if (!original) return false;
-    return this.form.teamFee !== original.teamFee ||
-           this.form.rosterFee !== original.rosterFee ||
-           this.form.discountFee !== original.discountFee ||
-           this.form.lateFee !== original.lateFee ||
-           this.form.playerFeeOverride !== original.playerFeeOverride;
+    return this.feeForm.playerDeposit !== this.originalFees.playerDeposit ||
+           this.feeForm.playerBalanceDue !== this.originalFees.playerBalanceDue ||
+           this.feeForm.clubRepDeposit !== this.originalFees.clubRepDeposit ||
+           this.feeForm.clubRepBalanceDue !== this.originalFees.clubRepBalanceDue;
   }
 
   getColorName(hex: string): string {

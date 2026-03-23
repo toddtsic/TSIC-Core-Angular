@@ -15,14 +15,25 @@ namespace TSIC.API.Services.Fees;
 public sealed class FeeResolutionService : IFeeResolutionService
 {
     private readonly IFeeRepository _feeRepo;
+    private readonly IJobRepository _jobRepo;
     private readonly IPlayerFeeCalculator _playerFeeCalc;
 
     public FeeResolutionService(
         IFeeRepository feeRepo,
+        IJobRepository jobRepo,
         IPlayerFeeCalculator playerFeeCalc)
     {
         _feeRepo = feeRepo;
+        _jobRepo = jobRepo;
         _playerFeeCalc = playerFeeCalc;
+    }
+
+    // ── Processing Fee Rate ─────────────────────────────────────
+
+    public async Task<decimal> GetEffectiveProcessingRateAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var jobPercent = await _jobRepo.GetProcessingFeePercentAsync(jobId, ct);
+        return Math.Max(jobPercent ?? FeeConstants.MinProcessingFeePercent, FeeConstants.MinProcessingFeePercent) / 100m;
     }
 
     // ── Resolution ──────────────────────────────────────────────
@@ -85,7 +96,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         reg.FeeLatefee = modifiers.TotalLateFee;
         // FeeDonation — not set here; player sets it in wizard
 
-        ApplyProcessingAndTotals(reg, ctx);
+        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate);
     }
 
     // ── Player Registration: Swap ───────────────────────────────
@@ -104,7 +116,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // FeeLatefee  — KEPT
         // FeeDonation — KEPT
 
-        ApplyProcessingAndTotals(reg, ctx);
+        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate);
     }
 
     // ── Team Entity: New ────────────────────────────────────────
@@ -170,12 +183,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     // ── Private: Processing + Totals ────────────────────────────
 
-    private void ApplyProcessingAndTotals(Registrations reg, FeeApplicationContext ctx)
+    private void ApplyProcessingAndTotals(Registrations reg, FeeApplicationContext ctx, decimal processingRate)
     {
         if (ctx.AddProcessingFees && reg.FeeBase > 0m)
         {
             var adjustedBase = Math.Max(reg.FeeBase - ctx.NonCcPayments, 0m);
-            reg.FeeProcessing = _playerFeeCalc.GetDefaultProcessing(adjustedBase);
+            reg.FeeProcessing = _playerFeeCalc.GetDefaultProcessing(adjustedBase, processingRate);
         }
         else
         {
@@ -193,7 +206,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         decimal feeProcessing = 0m;
         if (ctx.AddProcessingFees)
         {
-            var percent = ctx.ProcessingFeePercent ?? 0m;
+            var percent = ctx.ProcessingFeePercent;
             if (ctx.IsFullPaymentRequired)
             {
                 feeProcessing = ctx.ApplyProcessingFeesToDeposit

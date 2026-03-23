@@ -24,7 +24,9 @@ import type {
   SportOptionDto,
   DivisionNameSyncPreview,
   DivisionNameSyncRequest,
-  DivisionNameSyncResult
+  DivisionNameSyncResult,
+  JobFeeDto,
+  SaveJobFeeRequest
 } from '../../../../core/api';
 
 @Injectable({
@@ -167,6 +169,20 @@ export class LadtService {
 
   updatePlayerFeesToAgegroupFees(agegroupId: string): Observable<number> {
     return this.http.post<number>(`${this.apiUrl}/batch/update-fees/${agegroupId}`, null);
+  }
+
+  // ── Fees (new schema) ──
+
+  getAgegroupFees(agegroupId: string): Observable<JobFeeDto[]> {
+    return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/agegroup/${agegroupId}`);
+  }
+
+  saveFee(request: SaveJobFeeRequest): Observable<JobFeeDto> {
+    return this.http.put<JobFeeDto>(`${environment.apiUrl}/fees`, request);
+  }
+
+  deleteFee(jobFeeId: string): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl}/fees/${jobFeeId}`);
   }
 
   // ── Division Name Sync ──

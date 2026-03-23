@@ -17,6 +17,15 @@ namespace TSIC.Contracts.Services;
 /// </summary>
 public interface IFeeResolutionService
 {
+    // ── Processing Fee Rate ─────────────────────────────────────
+
+    /// <summary>
+    /// Returns the effective processing fee rate as a decimal multiplier (e.g. 0.035 for 3.5%).
+    /// Business rule: Math.Max(Jobs.ProcessingFeePercent ?? 3.5, 3.5) / 100.
+    /// Floor of 3.5% — jobs can only override upward.
+    /// </summary>
+    Task<decimal> GetEffectiveProcessingRateAsync(Guid jobId, CancellationToken ct = default);
+
     // ── Resolution ──────────────────────────────────────────────
 
     /// <summary>
@@ -132,6 +141,9 @@ public record TeamFeeApplicationContext
     /// <summary>Whether processing fees apply to the full amount or team fee only.</summary>
     public bool ApplyProcessingFeesToDeposit { get; init; }
 
-    /// <summary>Job-level processing fee percent override (null = use system default).</summary>
-    public decimal? ProcessingFeePercent { get; init; }
+    /// <summary>
+    /// Effective processing fee rate as a decimal multiplier (e.g. 0.035 for 3.5%).
+    /// Resolved by caller via IFeeResolutionService.GetEffectiveProcessingRateAsync.
+    /// </summary>
+    public required decimal ProcessingFeePercent { get; init; }
 }

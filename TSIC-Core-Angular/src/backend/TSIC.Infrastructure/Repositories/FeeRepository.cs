@@ -206,6 +206,26 @@ public class FeeRepository : IFeeRepository
         return result;
     }
 
+    public async Task<JobFees?> GetTrackedByScopeAsync(
+        Guid jobId, string roleId, Guid? agegroupId, Guid? teamId,
+        CancellationToken ct = default)
+    {
+        return await _context.JobFees
+            .Include(jf => jf.FeeModifiers)
+            .Where(jf => jf.JobId == jobId
+                && jf.RoleId == roleId
+                && jf.AgegroupId == agegroupId
+                && jf.TeamId == teamId)
+            .SingleOrDefaultAsync(ct);
+    }
+
+    public async Task<JobFees?> GetTrackedByIdAsync(Guid jobFeeId, CancellationToken ct = default)
+    {
+        return await _context.JobFees
+            .Include(jf => jf.FeeModifiers)
+            .SingleOrDefaultAsync(jf => jf.JobFeeId == jobFeeId, ct);
+    }
+
     public void Add(JobFees jobFee) => _context.JobFees.Add(jobFee);
     public void AddModifier(FeeModifiers modifier) => _context.FeeModifiers.Add(modifier);
     public void Remove(JobFees jobFee) => _context.JobFees.Remove(jobFee);

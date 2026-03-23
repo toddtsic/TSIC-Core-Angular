@@ -220,6 +220,7 @@ export type { FamilyRegistrationRequest } from './models/FamilyRegistrationReque
 export type { FamilyRegistrationResponse } from './models/FamilyRegistrationResponse';
 export type { FamilyUpdateRequest } from './models/FamilyUpdateRequest';
 export type { FamilyUserSummaryDto } from './models/FamilyUserSummaryDto';
+export type { FeeModifierDto } from './models/FeeModifierDto';
 export type { FieldCondition } from './models/FieldCondition';
 export type { FieldConfigAgegroupEntry } from './models/FieldConfigAgegroupEntry';
 export type { FieldDirectionsDto } from './models/FieldDirectionsDto';
@@ -267,6 +268,7 @@ export type { JobConfigReferenceDataDto } from './models/JobConfigReferenceDataD
 export type { JobConfigSchedulingDto } from './models/JobConfigSchedulingDto';
 export type { JobConfigTeamsDto } from './models/JobConfigTeamsDto';
 export type { JobDdlOptionsDto } from './models/JobDdlOptionsDto';
+export type { JobFeeDto } from './models/JobFeeDto';
 export type { JobImageUploadResultDto } from './models/JobImageUploadResultDto';
 export type { JobMetadataResponse } from './models/JobMetadataResponse';
 export type { JobMonthlyCountDto } from './models/JobMonthlyCountDto';
@@ -451,6 +453,7 @@ export type { SaveFieldAssignmentsRequest } from './models/SaveFieldAssignmentsR
 export type { SaveFieldAssignmentsResponse } from './models/SaveFieldAssignmentsResponse';
 export type { SaveGameGuaranteeRequest } from './models/SaveGameGuaranteeRequest';
 export type { SaveGameGuaranteeResponse } from './models/SaveGameGuaranteeResponse';
+export type { SaveJobFeeRequest } from './models/SaveJobFeeRequest';
 export type { SaveJobOverridesRequest } from './models/SaveJobOverridesRequest';
 export type { SaveProcessingOrderRequest } from './models/SaveProcessingOrderRequest';
 export type { SaveUserWidgetsRequest } from './models/SaveUserWidgetsRequest';
