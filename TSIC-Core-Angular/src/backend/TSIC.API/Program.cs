@@ -16,6 +16,7 @@ using TSIC.Infrastructure.Services;
 using TSIC.Contracts.Services;
 using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Repositories;
+
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Adults;
@@ -159,15 +160,8 @@ builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<TSIC.Contracts.Services.IPlayerFeeCalculator, PlayerFeeCalculator>();
-builder.Services.AddScoped<TSIC.Application.Services.Teams.ITeamFeeCalculator>(sp =>
-{
-    // Read credit card processing percentage from configuration
-    var ccPercent = builder.Configuration.GetValue<decimal?>("CreditCard:ProcessingFee") ?? 0.035m;
-    return new TSIC.Application.Services.Teams.TeamFeeCalculator(ccPercent);
-});
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
-builder.Services.AddScoped<IPlayerRegistrationFeeService, PlayerRegistrationFeeService>();
 builder.Services.AddScoped<IFeeResolutionService, FeeResolutionService>();
 builder.Services.AddScoped<IPlayerRegistrationMetadataService, PlayerRegistrationMetadataService>();
 builder.Services.AddScoped<IRegistrationFeeAdjustmentService, RegistrationFeeAdjustmentService>();

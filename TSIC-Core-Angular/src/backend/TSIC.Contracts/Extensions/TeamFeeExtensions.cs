@@ -1,28 +1,4 @@
-namespace TSIC.Application.Services.Teams;
-
-/// <summary>
-/// Interface for team registration fee calculation.
-/// Handles both deposit and balance due phases with processing fee logic.
-/// </summary>
-public interface ITeamFeeCalculator
-{
-    /// <summary>
-    /// Calculates team registration fees based on job settings and phase.
-    /// Business rules:
-    ///  - Deposit phase (BTeamsFullPaymentRequired=false): FeeBase = RosterFee
-    ///  - Balance due phase (BTeamsFullPaymentRequired=true): FeeBase = RosterFee + TeamFee
-    ///  - Processing fee calculated based on phase, flags, and payment status
-    /// </summary>
-    (decimal FeeBase, decimal FeeProcessing) CalculateTeamFees(
-        decimal rosterFee,
-        decimal teamFee,
-        bool bTeamsFullPaymentRequired,
-        bool bAddProcessingFees,
-        bool bApplyProcessingFeesToTeamDeposit,
-        decimal? jobProcessingFeePercent,
-        decimal paidTotal,
-        decimal currentFeeTotal);
-}
+namespace TSIC.Contracts.Extensions;
 
 /// <summary>
 /// Consistent FeeTotal formula for team entities. Use this everywhere instead of inline math.

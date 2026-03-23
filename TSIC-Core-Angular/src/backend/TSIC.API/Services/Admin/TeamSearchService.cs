@@ -6,7 +6,7 @@ using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Repositories;
-using TSIC.Application.Services.Teams;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 
