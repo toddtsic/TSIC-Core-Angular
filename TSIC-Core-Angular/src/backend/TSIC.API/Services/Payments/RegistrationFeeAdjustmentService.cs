@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Configuration;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 using TeamsEntity = TSIC.Domain.Entities.Teams;
 
@@ -47,12 +47,12 @@ public interface IRegistrationFeeAdjustmentService
 public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentService
 {
     private readonly IJobRepository _jobRepo;
-    private readonly IConfiguration _config;
+    private readonly IFeeResolutionService _feeService;
 
-    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IConfiguration config)
+    public RegistrationFeeAdjustmentService(IJobRepository jobRepo, IFeeResolutionService feeService)
     {
         _jobRepo = jobRepo;
-        _config = config;
+        _feeService = feeService;
     }
 
     public async Task<decimal> ReduceProcessingFeeProportionalAsync(
@@ -76,13 +76,11 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (registration.FeeProcessing <= 0m)
             return 0m;
 
-        // Get CC fee percentage from Job or config
-        var feePercent = feeSettings.BAddProcessingFees == true
-            ? await _jobRepo.GetProcessingFeePercentAsync(jobId) ?? GetDefaultProcessingPercent()
-            : GetDefaultProcessingPercent();
+        // Get effective CC rate (ready-to-multiply decimal, e.g. 0.035 for 3.5%)
+        var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
-        // Calculate proportional reduction: adjustmentAmount × CC percentage
-        var reduction = adjustmentAmount * (feePercent / 100m);
+        // Calculate proportional reduction: adjustmentAmount × CC rate
+        var reduction = adjustmentAmount * rate;
         reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
 
         // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
@@ -129,13 +127,11 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if ((team.FeeProcessing ?? 0m) <= 0m)
             return 0m;
 
-        // Get CC fee percentage from Job or config
-        var feePercent = feeSettings.BAddProcessingFees == true
-            ? await _jobRepo.GetProcessingFeePercentAsync(jobId) ?? GetDefaultProcessingPercent()
-            : GetDefaultProcessingPercent();
+        // Get effective CC rate (ready-to-multiply decimal, e.g. 0.035 for 3.5%)
+        var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
-        // Calculate proportional reduction: adjustmentAmount × CC percentage
-        var reduction = adjustmentAmount * (feePercent / 100m);
+        // Calculate proportional reduction: adjustmentAmount × CC rate
+        var reduction = adjustmentAmount * rate;
         reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
 
         // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
@@ -159,11 +155,5 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
     {
         // Team has deposit scenario if deposit is configured and balance is owed
         return (team.PerRegistrantDeposit ?? 0m) > 0m && (team.OwedTotal ?? 0m) > 0m;
-    }
-
-    private decimal GetDefaultProcessingPercent()
-    {
-        var configValue = _config["Fees:CreditCardPercent"];
-        return decimal.TryParse(configValue, out var pct) ? pct : 2.9m;
     }
 }

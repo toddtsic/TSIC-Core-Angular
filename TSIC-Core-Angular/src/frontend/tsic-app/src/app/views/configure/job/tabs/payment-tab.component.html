@@ -46,7 +46,8 @@
           <label class="form-label">Fee Percent (%)</label>
           <input type="number" class="form-control" step="0.01"
             [ngModel]="processingFeePercent()"
-            (ngModelChange)="processingFeePercent.set($event); onFieldChange()" />
+            (ngModelChange)="processingFeePercent.set($event); onFieldChange()"
+            [disabled]="!bAddProcessingFees()" />
         </div>
         <div class="col-md-4">
           <div class="form-check mt-4">

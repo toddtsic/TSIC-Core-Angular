@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Configuration;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Players;
 
@@ -9,17 +9,6 @@ namespace TSIC.API.Services.Players;
 /// </summary>
 public class PlayerFeeCalculator : IPlayerFeeCalculator
 {
-    private readonly decimal _ccPercent;
-
-    public PlayerFeeCalculator(IConfiguration config)
-    {
-        var raw = config["Fees:CreditCardPercent"];
-        if (!decimal.TryParse(raw, out _ccPercent))
-        {
-            _ccPercent = 0.035m; // safe default 3.5%
-        }
-    }
-
     public (decimal ProcessingFee, decimal FeeTotal) ComputeTotals(decimal feeBase, decimal? feeDiscount = null, decimal? feeDonation = null, decimal? feeProcessingOverride = null)
     {
         if (feeBase < 0m) feeBase = 0m;
@@ -34,9 +23,11 @@ public class PlayerFeeCalculator : IPlayerFeeCalculator
     }
 
     public decimal GetDefaultProcessing(decimal feeBase)
+        => GetDefaultProcessing(feeBase, FeeConstants.MinProcessingFeePercent / 100m);
+
+    public decimal GetDefaultProcessing(decimal feeBase, decimal rate)
     {
         if (feeBase <= 0m) return 0m;
-        var raw = feeBase * _ccPercent;
-        return decimal.Round(raw, 2, MidpointRounding.AwayFromZero);
+        return decimal.Round(feeBase * rate, 2, MidpointRounding.AwayFromZero);
     }
 }

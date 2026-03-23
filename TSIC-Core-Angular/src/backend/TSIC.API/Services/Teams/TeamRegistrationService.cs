@@ -465,7 +465,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Event not found");
         }
 
-        var processingFeePercent = await _jobs.GetProcessingFeePercentAsync(jobId);
+        var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
         // Get club ID from ClubName
         var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
@@ -543,17 +543,16 @@ public class TeamRegistrationService : ITeamRegistrationService
         decimal feeProcessing = 0m;
         if (jobSettings.BAddProcessingFees ?? false)
         {
-            var percent = processingFeePercent ?? 0m;
             if (jobSettings.BTeamsFullPaymentRequired ?? false)
             {
                 feeProcessing = (jobSettings.BApplyProcessingFeesToTeamDeposit ?? false)
-                    ? feeBase * percent
-                    : balanceDue * percent;
+                    ? feeBase * processingRate
+                    : balanceDue * processingRate;
             }
             else
             {
                 feeProcessing = (jobSettings.BApplyProcessingFeesToTeamDeposit ?? false)
-                    ? deposit * percent
+                    ? deposit * processingRate
                     : 0m;
             }
         }
@@ -895,7 +894,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         var job = await _jobs.GetJobFeeSettingsAsync(jobId) ?? throw new KeyNotFoundException($"Job not found: {jobId}");
-        var jobProcessingFeePercent = await _jobs.GetProcessingFeePercentAsync(jobId); // Null when no job override - calculator uses default
+        var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
         var teams = await _teams.GetTeamsWithDetailsForJobAsync(jobId);
         if (request.TeamId.HasValue)
@@ -939,7 +938,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                     IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
                     AddProcessingFees = job.BAddProcessingFees ?? false,
                     ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    ProcessingFeePercent = jobProcessingFeePercent
+                    ProcessingFeePercent = processingRate
                 });
             var newFeeBase = team.FeeBase ?? 0m;
             var newFeeProcessing = team.FeeProcessing ?? 0m;
