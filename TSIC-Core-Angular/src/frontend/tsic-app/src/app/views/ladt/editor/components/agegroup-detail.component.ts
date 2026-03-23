@@ -3,12 +3,20 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
-import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, SaveJobFeeRequest } from '../../../../core/api';
+import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
 import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-helpers';
 
-/** Role constants matching backend RoleConstants */
 const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
 const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+const MODIFIER_TYPES = ['Discount', 'LateFee'] as const;
+
+interface ModifierForm {
+  feeModifierId?: string | null;
+  modifierType: string;
+  amount: number | null;
+  startDate: string | null;
+  endDate: string | null;
+}
 
 @Component({
   selector: 'app-agegroup-detail',
@@ -40,7 +48,6 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
       </div>
     } @else if (agegroup()) {
-      <!-- Delete confirmation -->
       @if (showDeleteConfirm()) {
         <div class="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <span><i class="bi bi-exclamation-triangle me-2"></i>Delete this age group? This cannot be undone.</span>
@@ -99,6 +106,7 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
           </div>
         </div>
 
+        <!-- Player Fees -->
         <h6 class="section-label mt-4">Player Fees</h6>
         <div class="row g-3">
           <div class="col-md-4">
@@ -113,7 +121,44 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
                    [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue">
           </div>
         </div>
+        <!-- Player Modifiers -->
+        @for (mod of playerModifiers; track $index) {
+          <div class="row g-2 mt-2 align-items-end">
+            <div class="col-md-2">
+              <label class="form-label small">Type</label>
+              <select class="form-select form-select-sm" [(ngModel)]="mod.modifierType" [name]="'pModType' + $index">
+                <option value="Discount">Discount</option>
+                <option value="LateFee">Late Fee</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small">Amount</label>
+              <input class="form-control form-control-sm" type="number" step="0.01"
+                     [(ngModel)]="mod.amount" [name]="'pModAmt' + $index">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">Start Date</label>
+              <input class="form-control form-control-sm" type="date"
+                     [(ngModel)]="mod.startDate" [name]="'pModStart' + $index">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">End Date</label>
+              <input class="form-control form-control-sm" type="date"
+                     [(ngModel)]="mod.endDate" [name]="'pModEnd' + $index">
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeModifier(playerModifiers, $index)">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        }
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                (click)="addModifier(playerModifiers)">
+          <i class="bi bi-plus me-1"></i>Add Discount / Late Fee
+        </button>
 
+        <!-- Club Rep Fees -->
         <h6 class="section-label mt-4">Club Rep / Team Fees</h6>
         <div class="row g-3">
           <div class="col-md-4">
@@ -127,6 +172,42 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
                    [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue">
           </div>
         </div>
+        <!-- Club Rep Modifiers -->
+        @for (mod of clubRepModifiers; track $index) {
+          <div class="row g-2 mt-2 align-items-end">
+            <div class="col-md-2">
+              <label class="form-label small">Type</label>
+              <select class="form-select form-select-sm" [(ngModel)]="mod.modifierType" [name]="'cModType' + $index">
+                <option value="Discount">Discount</option>
+                <option value="LateFee">Late Fee</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small">Amount</label>
+              <input class="form-control form-control-sm" type="number" step="0.01"
+                     [(ngModel)]="mod.amount" [name]="'cModAmt' + $index">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">Start Date</label>
+              <input class="form-control form-control-sm" type="date"
+                     [(ngModel)]="mod.startDate" [name]="'cModStart' + $index">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small">End Date</label>
+              <input class="form-control form-control-sm" type="date"
+                     [(ngModel)]="mod.endDate" [name]="'cModEnd' + $index">
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeModifier(clubRepModifiers, $index)">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        }
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                (click)="addModifier(clubRepModifiers)">
+          <i class="bi bi-plus me-1"></i>Add Discount / Late Fee
+        </button>
 
         <h6 class="section-label mt-4">Capacity</h6>
         <div class="row g-3">
@@ -241,7 +322,6 @@ export class AgegroupDetailComponent implements OnChanges {
   colorOptions = AGEGROUP_COLORS;
   form: any = {};
 
-  // Fee form — separate from agegroup entity form
   feeForm = {
     playerDeposit: null as number | null,
     playerBalanceDue: null as number | null,
@@ -249,9 +329,10 @@ export class AgegroupDetailComponent implements OnChanges {
     clubRepBalanceDue: null as number | null
   };
 
-  // Track original fee values for change detection
+  playerModifiers: ModifierForm[] = [];
+  clubRepModifiers: ModifierForm[] = [];
+
   private originalFees = { ...this.feeForm };
-  // Track fee row IDs for updates
   private playerFeeId: string | null = null;
   private clubRepFeeId: string | null = null;
 
@@ -269,7 +350,6 @@ export class AgegroupDetailComponent implements OnChanges {
     this.saveMessage.set(null);
     this.showDeleteConfirm.set(false);
 
-    // Load agegroup detail + fees in parallel
     forkJoin({
       detail: this.ladtService.getAgegroup(this.agegroupId),
       fees: this.ladtService.getAgegroupFees(this.agegroupId)
@@ -278,8 +358,6 @@ export class AgegroupDetailComponent implements OnChanges {
         this.agegroup.set(detail);
         this.form = { ...detail };
         if (this.form.color) this.form.color = this.form.color.toUpperCase();
-
-        // Populate fee form from fee rows
         this.populateFeeForm(fees);
         this.isLoading.set(false);
       },
@@ -288,7 +366,6 @@ export class AgegroupDetailComponent implements OnChanges {
   }
 
   private populateFeeForm(fees: JobFeeDto[]): void {
-    // Find agegroup-level fee rows (TeamId = null)
     const playerFee = fees.find(f => f.roleId === PLAYER_ROLE && !f.teamId);
     const clubRepFee = fees.find(f => f.roleId === CLUBREP_ROLE && !f.teamId);
 
@@ -302,6 +379,39 @@ export class AgegroupDetailComponent implements OnChanges {
       clubRepBalanceDue: clubRepFee?.balanceDue ?? null
     };
     this.originalFees = { ...this.feeForm };
+
+    this.playerModifiers = (playerFee?.modifiers ?? []).map(m => this.toModifierForm(m));
+    this.clubRepModifiers = (clubRepFee?.modifiers ?? []).map(m => this.toModifierForm(m));
+  }
+
+  private toModifierForm(m: FeeModifierDto): ModifierForm {
+    return {
+      feeModifierId: m.feeModifierId,
+      modifierType: m.modifierType,
+      amount: m.amount,
+      startDate: m.startDate ? String(m.startDate).substring(0, 10) : null,
+      endDate: m.endDate ? String(m.endDate).substring(0, 10) : null
+    };
+  }
+
+  private toModifierDtos(mods: ModifierForm[]): FeeModifierDto[] {
+    return mods
+      .filter(m => m.amount != null && m.amount > 0)
+      .map(m => ({
+        feeModifierId: m.feeModifierId,
+        modifierType: m.modifierType,
+        amount: m.amount!,
+        startDate: m.startDate || null,
+        endDate: m.endDate || null
+      }));
+  }
+
+  addModifier(list: ModifierForm[]): void {
+    list.push({ modifierType: 'Discount', amount: null, startDate: null, endDate: null });
+  }
+
+  removeModifier(list: ModifierForm[], index: number): void {
+    list.splice(index, 1);
   }
 
   save(): void {
@@ -327,46 +437,44 @@ export class AgegroupDetailComponent implements OnChanges {
       sortAge: this.form.sortAge
     };
 
-    // Save agegroup entity + fee rows
     const saves: Observable<any>[] = [
       this.ladtService.updateAgegroup(this.agegroupId, request)
     ];
 
-    // Save player fee row if any value is set
-    if (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null) {
+    // Save player fee row + modifiers
+    if (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null
+        || this.playerModifiers.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
         agegroupId: this.agegroupId,
         deposit: this.feeForm.playerDeposit,
-        balanceDue: this.feeForm.playerBalanceDue
+        balanceDue: this.feeForm.playerBalanceDue,
+        modifiers: this.toModifierDtos(this.playerModifiers)
       }));
     } else if (this.playerFeeId) {
-      // Both cleared — delete the row
       saves.push(this.ladtService.deleteFee(this.playerFeeId));
     }
 
-    // Save club rep fee row if any value is set
-    if (this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null) {
+    // Save club rep fee row + modifiers
+    if (this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null
+        || this.clubRepModifiers.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
         agegroupId: this.agegroupId,
         deposit: this.feeForm.clubRepDeposit,
-        balanceDue: this.feeForm.clubRepBalanceDue
+        balanceDue: this.feeForm.clubRepBalanceDue,
+        modifiers: this.toModifierDtos(this.clubRepModifiers)
       }));
     } else if (this.clubRepFeeId) {
       saves.push(this.ladtService.deleteFee(this.clubRepFeeId));
     }
 
     forkJoin(saves).subscribe({
-      next: (results) => {
-        // First result is always the agegroup update
-        const updated = results[0] as AgegroupDetailDto;
-        this.agegroup.set(updated);
-        this.form = { ...updated };
-        this.originalFees = { ...this.feeForm };
+      next: () => {
         this.isSaving.set(false);
         this.isError.set(false);
         this.saveMessage.set('Age group saved successfully.');
+        this.originalFees = { ...this.feeForm };
         this.saved.emit();
       },
       error: (err) => {
