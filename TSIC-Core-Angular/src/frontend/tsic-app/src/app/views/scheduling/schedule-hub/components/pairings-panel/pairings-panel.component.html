@@ -42,6 +42,7 @@
                 <div class="section-label section-label-toggle pairing-section-header"
                      (click)="toggleRrSection()">
                     <i class="bi" [class.bi-chevron-right]="!isRrOpen()" [class.bi-chevron-down]="isRrOpen()"></i>
+                    <i class="bi bi-arrow-repeat section-rr-icon"></i>
                     <span>Round Robin</span>
                     <span class="section-count">{{ rrPairings().length - rrUnplacedCount() }}/{{ rrPairings().length }}</span>
                     @if (allRrScheduled()) {
@@ -70,13 +71,20 @@
                 }
             }
 
-            <!-- Championship section -->
+            <!-- Championship section (collapsed by default) -->
             @if (champPairings().length > 0) {
-                <div class="section-label pairing-section-header">
+                <div class="section-label section-label-toggle pairing-section-header"
+                     (click)="toggleChampSection()">
+                    @if (champSectionOpen()) {
+                        <i class="bi bi-chevron-down"></i>
+                    } @else {
+                        <i class="bi bi-chevron-right"></i>
+                    }
                     <i class="bi bi-trophy-fill section-champ-icon"></i>
                     <span>Championship</span>
                     <span class="section-count">{{ champPairings().length - champUnplacedCount() }}/{{ champPairings().length }}</span>
                 </div>
+                @if (champSectionOpen()) {
                 @for (p of champPairings(); track p.ai) {
                     <div class="pairing-row"
                          [class.pairing-selected]="isPairingSelected(p)"
@@ -95,14 +103,14 @@
                         }
                     </div>
                 }
+                }
             }
-        </div>
-    }
 
     <!-- Who Plays Who matrix (collapsible, collapsed by default) -->
     @if (teamCount() > 0) {
         <div class="section-label section-label-toggle" (click)="whoPlaysWhoOpen.set(!whoPlaysWhoOpen())">
             <i class="bi" [class.bi-chevron-right]="!whoPlaysWhoOpen()" [class.bi-chevron-down]="whoPlaysWhoOpen()"></i>
+            <i class="bi bi-grid-3x3 section-rr-icon"></i>
             Who Plays Who
         </div>
         @if (whoPlaysWhoOpen()) {
@@ -117,6 +125,7 @@
     @if (divisionTeams().length > 0) {
         <div class="section-label section-label-toggle" (click)="divisionTeamsOpen.set(!divisionTeamsOpen())">
             <i class="bi" [class.bi-chevron-right]="!divisionTeamsOpen()" [class.bi-chevron-down]="divisionTeamsOpen()"></i>
+            <i class="bi bi-people-fill section-rr-icon"></i>
             Division Teams
         </div>
         @if (divisionTeamsOpen()) {
@@ -124,5 +133,7 @@
                 [teams]="divisionTeams()"
                 (teamEditRequested)="teamEditRequested.emit($event)" />
         }
+    }
+        </div>
     }
 </div>

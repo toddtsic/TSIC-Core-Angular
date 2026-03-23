@@ -43,6 +43,7 @@ export class PairingsPanelComponent {
     readonly whoPlaysWhoOpen = signal(false);
     readonly divisionTeamsOpen = signal(false);
     readonly rrSectionOpen = signal<boolean | null>(null); // null = use auto default
+    readonly champSectionOpen = signal(false); // always collapsed by default
 
     // ── Helpers ──
     readonly teamDes = teamDes;
@@ -56,6 +57,15 @@ export class PairingsPanelComponent {
 
     toggleRrSection(): void {
         this.rrSectionOpen.set(!this.isRrOpen());
+    }
+
+    toggleChampSection(): void {
+        this.champSectionOpen.set(!this.champSectionOpen());
+    }
+
+    /** Force RR section open and reset manual override. Called by parent on navigation. */
+    forceRrOpen(): void {
+        this.rrSectionOpen.set(true);
     }
 
     isPairingSelected(pairing: PairingDto): boolean {

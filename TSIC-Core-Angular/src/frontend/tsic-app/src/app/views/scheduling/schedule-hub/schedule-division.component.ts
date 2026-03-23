@@ -88,6 +88,7 @@ export class ScheduleDivisionComponent implements OnInit {
     @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
     @ViewChild(ScheduleConfigPanelComponent) configPanel?: ScheduleConfigPanelComponent;
     @ViewChild(DivisionNavigatorComponent) navigator?: DivisionNavigatorComponent;
+    @ViewChild(PairingsPanelComponent) pairingsPanel?: PairingsPanelComponent;
 
     // ── Hub mode ──
     readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('configure');
@@ -1164,8 +1165,9 @@ export class ScheduleDivisionComponent implements OnInit {
         this.scope.set({ level: 'division', agegroupId: ag.agegroupId, divId });
         this.loadDivisionData(divId, ag.agegroupId);
 
-        // Highlight the pairing that was unscheduled
+        // Highlight the pairing and force pairings panel open
         this.highlightGameGid.set(gid);
+        setTimeout(() => this.pairingsPanel?.forceRrOpen());
     }
 
     // ── Three-tier delete ──
@@ -1897,6 +1899,9 @@ export class ScheduleDivisionComponent implements OnInit {
             if (!event.game || event.game.gid !== this.selectedGame()!.game.gid) {
                 this.moveOrSwapGame(event.row, event.colIndex);
             }
+        } else if (event.game?.divId) {
+            // Plain click on an occupied cell — navigate to that game's division
+            this.navigateToDivisionAndHighlight(event.game.divId, event.game.gid);
         }
     }
 
