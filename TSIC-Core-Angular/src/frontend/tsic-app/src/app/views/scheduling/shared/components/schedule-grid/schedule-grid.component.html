@@ -8,9 +8,37 @@
         </span>
     }
     @if (showQaBadges() && breakingConflictCount() > 0) {
-        <span class="badge bg-danger-subtle text-danger-emphasis" title="Slot collisions or same-team double-bookings">
-            <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
-        </span>
+        <div class="breaking-popover-wrapper">
+            <span class="badge bg-danger-subtle text-danger-emphasis breaking-badge"
+                  role="button" (click)="toggleBreakingPopover(); $event.stopPropagation()">
+                <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ breakingConflictCount() }} breaking
+            </span>
+            @if (showBreakingPopover()) {
+                <div class="breaking-popover-backdrop" (click)="showBreakingPopover.set(false)"></div>
+                <div class="breaking-popover">
+                    <div class="breaking-popover-header">
+                        <strong>Breaking Conflicts</strong>
+                        <button class="btn-close btn-close-sm" (click)="showBreakingPopover.set(false)"></button>
+                    </div>
+                    <div class="breaking-popover-body">
+                        @for (item of breakingConflictDetails(); track $index) {
+                            <div class="breaking-item">
+                                <span class="breaking-time">{{ item.time }}</span>
+                                <span class="breaking-type badge"
+                                      [class.bg-danger-subtle]="item.type === 'Time Clash'"
+                                      [class.text-danger-emphasis]="item.type === 'Time Clash'"
+                                      [class.bg-warning-subtle]="item.type === 'Slot Collision'"
+                                      [class.text-warning-emphasis]="item.type === 'Slot Collision'">{{ item.type }}</span>
+                                <span class="breaking-desc">{{ item.description }}</span>
+                            </div>
+                        }
+                        @if (breakingConflictDetails().length === 0) {
+                            <p class="text-muted small mb-0">No details available.</p>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
     }
     @if (showQaBadges() && backToBackGameIds().size > 0) {
         <span class="badge bg-warning-subtle text-warning-emphasis" title="Teams playing consecutive timeslots">

@@ -77,6 +77,55 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     readonly backToBackGameIds = computed(() => computeBackToBackGameIds(this.gridRows()));
     readonly breakingConflictCount = computed(() => computeBreakingConflictCount(this.gridRows(), this.timeClashGameIds()));
 
+    /** Detail list of breaking conflicts for popover display. */
+    readonly breakingConflictDetails = computed(() => {
+        const rows = this.gridRows();
+        const clashIds = this.timeClashGameIds();
+        const details: { time: string; description: string; type: string }[] = [];
+
+        for (const row of rows) {
+            const timeLabel = new Date(row.gDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+            // Time clashes: find teams in multiple games at same time
+            const teamGames = new Map<string, { label: string; games: string[] }>();
+            for (const cell of row.cells) {
+                if (!cell) continue;
+                for (const [tid, label] of [[cell.t1Id, cell.t1Label], [cell.t2Id, cell.t2Label]]) {
+                    if (!tid) continue;
+                    if (!teamGames.has(tid as string)) teamGames.set(tid as string, { label: label as string, games: [] });
+                    teamGames.get(tid as string)!.games.push(`G${cell.gid}`);
+                }
+            }
+            for (const [, entry] of teamGames) {
+                if (entry.games.length > 1) {
+                    details.push({
+                        time: timeLabel,
+                        description: `${entry.label} double-booked in ${entry.games.join(' & ')}`,
+                        type: 'Time Clash'
+                    });
+                }
+            }
+
+            // Slot collisions
+            for (const cell of row.cells) {
+                if (cell?.isSlotCollision) {
+                    details.push({
+                        time: timeLabel,
+                        description: `G${cell.gid} (${cell.agDivLabel}) — slot collision on ${cell.fName}`,
+                        type: 'Slot Collision'
+                    });
+                }
+            }
+        }
+        return details;
+    });
+
+    readonly showBreakingPopover = signal(false);
+
+    toggleBreakingPopover(): void {
+        this.showBreakingPopover.set(!this.showBreakingPopover());
+    }
+
     readonly gridDays = computed(() => {
         const rows = this.gridRows();
         const seen = new Map<string, number>();
@@ -258,13 +307,59 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
         if (e.key === 'Escape' && this.minimapOpen()) {
             this.zone.run(() => this.closeMinimap());
         }
-        if (e.key === 'm' || e.key === 'M') {
-            const el = e.target as HTMLElement;
-            const tag = el?.tagName;
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-            if (el?.isContentEditable) return;
-            this.zone.run(() => this.toggleMinimap());
+
+        // Skip when focus is in a form control
+        const target = e.target as HTMLElement;
+        const tag = target?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) {
+            return;
         }
+
+        if (e.key === 'm' || e.key === 'M') {
+            this.zone.run(() => this.toggleMinimap());
+            return;
+        }
+
+        // Arrow keys: page through the grid (with vertical scroll parent awareness)
+        const gridEl = this.gridScrollEl?.nativeElement;
+        if (!gridEl) return;
+
+        const isArrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                         'Home', 'End'].includes(e.key);
+        if (!isArrow) return;
+
+        e.preventDefault();
+        const scrollOpts: ScrollToOptions = { behavior: 'smooth' };
+
+        // Vertical scroller may be the grid itself or a parent
+        const vScroller = gridEl.scrollHeight > gridEl.clientHeight + 1
+            ? gridEl : this.findScrollParent(gridEl) ?? gridEl;
+
+        switch (e.key) {
+            case 'ArrowLeft':
+                gridEl.scrollBy({ left: -gridEl.clientWidth * 0.8, ...scrollOpts });
+                break;
+            case 'ArrowRight':
+                gridEl.scrollBy({ left: gridEl.clientWidth * 0.8, ...scrollOpts });
+                break;
+            case 'ArrowUp':
+                vScroller.scrollBy({ top: -vScroller.clientHeight * 0.8, ...scrollOpts });
+                break;
+            case 'ArrowDown':
+                vScroller.scrollBy({ top: vScroller.clientHeight * 0.8, ...scrollOpts });
+                break;
+            case 'Home':
+                gridEl.scrollTo({ left: 0, top: 0, ...scrollOpts });
+                vScroller.scrollTo({ top: 0, ...scrollOpts });
+                break;
+            case 'End':
+                gridEl.scrollTo({ left: gridEl.scrollWidth, ...scrollOpts });
+                vScroller.scrollTo({ top: vScroller.scrollHeight, ...scrollOpts });
+                break;
+        }
+
+        // Re-render minimap if open
+        if (this.minimapOpen()) this.renderMinimap();
     };
 
     toggleMinimap(): void {
