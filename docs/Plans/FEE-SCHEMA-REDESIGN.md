@@ -1,7 +1,7 @@
 # Fee Schema Redesign
 
-**Status**: APPROVED — Phase 1 in progress (schema created, EF scaffolded)
-**Date**: 2026-03-22
+**Status**: Phase 1 COMPLETE, Phase 2 COMPLETE — end-to-end testing needed
+**Date**: 2026-03-22 (updated 2026-03-23)
 
 ---
 
@@ -199,24 +199,37 @@ Updates FeeBase + FeeProcessing only. Modifiers stay frozen.
 | 5 | Sales Venue | N/A |
 | 6 | Showcase Registration | Player-only |
 
-### Migration Mapping (FINALIZED)
+### Migration Mapping (FINALIZED — confirmed by Ann 2026-03-22)
 
-**Player-only jobs (types 1, 4, 6):**
+**1A. Camp deposit model (type 4, both RosterFee AND TeamFee set):**
+```
+Agegroups.RosterFee         → Player.Deposit (agegroup level)
+Agegroups.TeamFee - RosterFee → Player.BalanceDue (TeamFee is total, not additional)
+```
+
+**1B. Player-only normal (types 1, 4, 6 — excludes 1A):**
 ```
 Agegroups.RosterFee         → Player.BalanceDue (agegroup level)
-Teams.PerRegistrantFee      → Player.BalanceDue (team level, where set)
+Teams.PerRegistrantFee      → Player.BalanceDue (team level, where differs from agegroup)
 ```
 
-**Team-only jobs (types 2, 3):**
+**3. Team fees — ClubRep (types 2, 3):**
 ```
 Agegroups.RosterFee         → ClubRep.Deposit (agegroup level)
 Agegroups.TeamFee           → ClubRep.BalanceDue (agegroup level)
 ```
 
-**Combined jobs (types 2, 3 with PlayerFeeOverride set):**
+**4. Tournament player fees (type 2):**
 ```
-Same as team-only, plus:
-Agegroups.PlayerFeeOverride → Player.BalanceDue (agegroup level)
+Players pay $0 by default. Only teams with PerRegistrantFee > 0 get a Player fee row.
+Teams.PerRegistrantFee      → Player.BalanceDue (team level)
+No magic strings — admin sets explicitly per team.
+```
+
+**5. League player fees (type 3) — cascade Team → Job:**
+```
+Teams.PerRegistrantFee      → Player.BalanceDue (team level)
+Leagues.PlayerFeeOverride   → Player.BalanceDue (job level, AgegroupId=NULL)
 ```
 
 ### Discount/Late Fee Migration
@@ -238,43 +251,42 @@ Agegroups.PlayerFeeOverride → Player.BalanceDue (agegroup level)
 
 ### Phase 1: Read Path (backend)
 
-1. **Entities** — already scaffolded ✅: `JobFees`, `FeeModifiers`
-2. **New repository**: `IFeeRepository` / `FeeRepository`
-   - `GetResolvedBaseFeeAsync(Guid jobId, string roleId, Guid agegroupId, Guid teamId)` — cascade query
-   - `GetActiveModifiersAsync(Guid jobFeeId, DateTime asOfDate)` — for new registrations
-   - `GetJobFeesByJobAsync(Guid jobId)` — for LADT display
-3. **New service**: `IFeeResolutionService`
-   - `ResolveFee(jobId, roleId, agegroupId, teamId)` — base fee cascade
-   - `EvaluateModifiers(jobFeeId, asOfDate)` — new registrations only
-   - `ApplySwapFees(entity, newBaseFee)` — recalc base + processing, preserve modifiers
-   - Replaces `PlayerRegistrationFeeService` and `TeamFeeCalculator`
-4. **Wire callers**: RosterSwapperService, TeamRegistrationService, player wizard
+1. **Entities** ✅: `JobFees`, `FeeModifiers` scaffolded
+2. **Repository** ✅: `IFeeRepository` / `FeeRepository` — cascade queries, batch resolution, tracked queries
+3. **Service** ✅: `IFeeResolutionService` / `FeeResolutionService` — resolution + application for both player and team entities
+4. **All 8 callers wired** ✅: RosterSwapper, PoolAssignment, TeamLookup, PlayerRegistration, TeamRegistration, Ladt, Payment, TeamSearch
+5. **Dead code removed** ✅: `IPlayerRegistrationFeeService`, `PlayerRegistrationFeeService`, `ITeamFeeCalculator`, `TeamFeeCalculator` deleted
+6. **Seed validated** ✅: 0 mismatches / 11,542 teams
 
-### Phase 2: Write Path (LADT refactor)
+### Phase 2: Write Path (LADT refactor) ✅
 
-The LADT editor is the primary admin UI for fee configuration. It currently writes legacy fields directly on Agegroup and Team entities.
+7. **FeeController** ✅: `GET /api/fees/agegroup/{id}`, `GET /api/fees/job`, `PUT /api/fees`, `DELETE /api/fees/{id}`
+8. **FeeDtos** ✅: `JobFeeDto`, `FeeModifierDto`, `SaveJobFeeRequest`
+9. **Agegroup detail panel** ✅: Legacy fee fields replaced with Player Fees (Deposit + Balance Due) and Club Rep Fees (Deposit + Balance Due). Loads from new endpoint, saves to both new schema + legacy fields for backward compat.
+10. **Team detail panel** ✅: Legacy fee fields replaced with per-role override fields (blank = agegroup default). Same load/save pattern.
+11. **LadtService** ✅: `getAgegroupFees()`, `saveFee()`, `deleteFee()` methods added
 
-#### LADT Agegroup Detail Panel
-- **Remove**: `RosterFee`, `RosterFeeLabel`, `TeamFee`, `TeamFeeLabel`, `PlayerFeeOverride` fields
-- **Add**: Per-role fee section showing Deposit + BalanceDue
-  - For Player role: Deposit (optional) + BalanceDue
-  - For ClubRep role: Deposit + BalanceDue
-  - Future: Coach role, etc.
-- **Add**: Modifier management UI (discount/late fee with date windows)
-- **Backend**: New `LadtFeeService` or extend `LadtService` to read/write `fees.JobFees` + `fees.FeeModifiers`
+### Phase 3: Registration Wizards ✅
+- Backend callers already wired — frontend wizards read fee amounts from backend responses which now resolve from `fees.JobFees`
+- `payment-v2.service.ts` and `team.service.ts` read `perRegistrantFee`/`perRegistrantDeposit` from team entity — these fields are still populated by backend, no frontend change needed
 
-#### LADT Team Detail Panel
-- **Remove**: `PerRegistrantFee`, `PerRegistrantDeposit` fields
-- **Add**: Optional per-role override fields (only shown if different from agegroup default)
-- **Backend**: Write to team-scoped `fees.JobFees` rows
+### Remaining Work
 
-#### LADT Fee Summary
-- Consider adding a read-only fee summary view showing the resolved cascade for each agegroup/team — helps admin see what's actually being charged without mental math
+#### League Detail Panel
+- `PlayerFeeOverride` field on league detail — maps to job-level Player fee row in new schema
+- Low priority: seed script handles this, legacy write still works
 
-### Phase 3: Registration Wizards
-- Player wizard reads resolved Player fee from `IFeeResolutionService`
-- Team wizard reads resolved ClubRep fee from `IFeeResolutionService`
-- Regenerate API models after DTO changes
+#### LADT Grid Columns
+- `ladt-grid-columns.ts` shows legacy field names (RosterFee, TeamFee, etc.) in grid
+- Cosmetic — data still exists in entity, can update labels later
+
+#### Modifier Management UI
+- `fees.FeeModifiers` table exists but no UI to manage discount/late fee date windows
+- New capability — no legacy equivalent, can be added when needed
+
+#### Fee Summary View
+- Read-only cascade view showing resolved fee per agegroup/team
+- Nice-to-have for admin visibility
 
 ### Phase 4: Cleanup
 - Stop reading legacy columns (behind feature flag or hard cutover)
@@ -302,4 +314,5 @@ The LADT editor is the primary admin UI for fee configuration. It currently writ
 |---|---|---|
 | `scripts/create-fees-schema.sql` | ✅ Run | Creates `fees` schema, `JobFees`, `FeeModifiers` tables |
 | `scripts/add-lebUserId-fk.sql` | ✅ Run | Adds missing LebUserId FKs on scheduling + stores tables |
-| `scripts/seed-fees-from-legacy.sql` | TODO | Populates `fees.JobFees` from legacy Agegroup/Team fee columns |
+| `scripts/seed-fees-from-legacy.sql` | ✅ Run | Populates `fees.JobFees` from legacy columns (2025/2026 jobs) |
+| `scripts/verify-fees-concordance.sql` | ✅ Run | 0 mismatches / 11,542 teams — validates seed against legacy logic |
