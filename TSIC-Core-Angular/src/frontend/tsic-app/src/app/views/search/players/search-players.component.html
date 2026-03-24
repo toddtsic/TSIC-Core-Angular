@@ -39,6 +39,7 @@
               [value]="searchRequest().roleIds"
               (change)="updateMultiSelect('roleIds', $event.value)"
               [mode]="'CheckBox'"
+              [allowFiltering]="false"
               [showSelectAll]="true"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
@@ -58,6 +59,7 @@
               [value]="searchRequest().payStatuses"
               (change)="updateMultiSelect('payStatuses', $event.value)"
               [mode]="'CheckBox'"
+              [allowFiltering]="false"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
@@ -76,6 +78,7 @@
               [value]="searchRequest().activeStatuses"
               (change)="updateMultiSelect('activeStatuses', $event.value)"
               [mode]="'CheckBox'"
+              [allowFiltering]="false"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
@@ -147,6 +150,7 @@
               [value]="searchRequest().positions"
               (change)="updateMultiSelect('positions', $event.value)"
               [mode]="'CheckBox'"
+              [allowFiltering]="false"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
@@ -165,6 +169,7 @@
               [value]="searchRequest().gradYears"
               (change)="updateMultiSelect('gradYears', $event.value)"
               [mode]="'CheckBox'"
+              [allowFiltering]="false"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
@@ -178,6 +183,16 @@
         <!-- Action buttons row -->
         <div class="action-row">
           <div class="action-buttons">
+            <button type="button" class="btn btn-more-filters" (click)="toggleMoreFilters()">
+              @if (moreFiltersExpanded()) { Less Filters } @else { More Filters }
+              <svg class="toggle-arrow" [class.expanded]="moreFiltersExpanded()" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <button type="button" class="btn btn-reset" (click)="clearFilters()">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              Reset
+            </button>
             <button type="button"
               class="btn"
               [class.btn-primary]="!filtersAreDirty()"
@@ -191,16 +206,6 @@
                 <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
               }
               @if (filtersAreDirty() && searchResults()) { Update Results } @else { Search }
-            </button>
-            <button type="button" class="btn btn-secondary" (click)="clearFilters()">
-              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              Clear
-            </button>
-            <button type="button" class="btn btn-outline-secondary" (click)="toggleMoreFilters()">
-              @if (moreFiltersExpanded()) { Less Filters } @else { More Filters }
-              <svg class="toggle-arrow" [class.expanded]="moreFiltersExpanded()" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
             </button>
           </div>
           <div class="action-buttons-right">
@@ -248,13 +253,13 @@
                   (ngModelChange)="updatePhone($event)" />
               </div>
               <div class="form-group">
-                <label for="filterDateFrom">Date From</label>
+                <label for="filterDateFrom">Reg Date From</label>
                 <input type="date" id="filterDateFrom" class="form-control"
                   [ngModel]="searchRequest().regDateFrom"
                   (ngModelChange)="updateRegDateFrom($event)" />
               </div>
               <div class="form-group">
-                <label for="filterDateTo">Date To</label>
+                <label for="filterDateTo">Reg Date To</label>
                 <input type="date" id="filterDateTo" class="form-control"
                   [ngModel]="searchRequest().regDateTo"
                   (ngModelChange)="updateRegDateTo($event)" />
@@ -274,6 +279,7 @@
                   [value]="searchRequest().genders"
                   (change)="updateMultiSelect('genders', $event.value)"
                   [mode]="'CheckBox'"
+                  [allowFiltering]="false"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
                   [changeOnBlur]="false"
@@ -290,6 +296,7 @@
                   [value]="searchRequest().grades"
                   (change)="updateMultiSelect('grades', $event.value)"
                   [mode]="'CheckBox'"
+                  [allowFiltering]="false"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
                   [changeOnBlur]="false"
@@ -306,6 +313,7 @@
                   [value]="searchRequest().ageRangeIds"
                   (change)="updateMultiSelect('ageRangeIds', $event.value)"
                   [mode]="'CheckBox'"
+                  [allowFiltering]="false"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
                   [changeOnBlur]="false"
@@ -357,6 +365,7 @@
                   [value]="searchRequest().arbSubscriptionStatuses"
                   (change)="updateMultiSelect('arbSubscriptionStatuses', $event.value)"
                   [mode]="'CheckBox'"
+                  [allowFiltering]="false"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
                   [changeOnBlur]="false"
@@ -373,6 +382,7 @@
                   [value]="searchRequest().mobileRegistrationRoles"
                   (change)="updateMultiSelect('mobileRegistrationRoles', $event.value)"
                   [mode]="'CheckBox'"
+                  [allowFiltering]="false"
                   [showDropDownIcon]="true"
                   [closePopupOnSelect]="false"
                   [changeOnBlur]="false"
