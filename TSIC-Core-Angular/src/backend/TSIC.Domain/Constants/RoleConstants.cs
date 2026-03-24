@@ -21,6 +21,10 @@ namespace TSIC.Domain.Constants
         public const string UnassignedAdult = "C92D71A9-464D-40C5-BA35-DFD9111CC7EA";
         public const string Superuser = "CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9";
 
+        // Synthetic filter sentinels (not real role IDs — used by search filters)
+        public const string PlayerNotWaitlisted = "PLAYER_NOT_WAITLISTED";
+        public const string ClubRepActiveTeams = "CLUBREP_ACTIVE_TEAMS";
+
         // Role Names (for claims and authorization policies)
         public static class Names
         {

@@ -972,11 +972,67 @@ public class RegistrationRepository : IRegistrationRepository
         if (!string.IsNullOrWhiteSpace(request.SchoolName))
             query = query.Where(r => r.SchoolName != null && r.SchoolName.Contains(request.SchoolName));
 
+        // Invoice number filter (searches accounting records)
+        if (!string.IsNullOrWhiteSpace(request.InvoiceNumber))
+            query = query.Where(r => r.RegistrationAccounting
+                .Any(a => a.AdnInvoiceNo != null && a.AdnInvoiceNo.Contains(request.InvoiceNumber)));
+
         // ── Multi-select entity filters ──
 
-        // Roles (multi-select)
+        // Roles (multi-select) — with synthetic sentinel handling
         if (request.RoleIds is { Count: > 0 })
-            query = query.Where(r => r.RoleId != null && request.RoleIds.Contains(r.RoleId));
+        {
+            var hasPlayerNotWaitlisted = request.RoleIds.Contains(RoleConstants.PlayerNotWaitlisted);
+            var hasClubRepActiveTeams = request.RoleIds.Contains(RoleConstants.ClubRepActiveTeams);
+
+            // Standard role IDs (strip out sentinels)
+            var standardRoleIds = request.RoleIds
+                .Where(id => id != RoleConstants.PlayerNotWaitlisted && id != RoleConstants.ClubRepActiveTeams)
+                .ToList();
+
+            // Build registration ID lists for synthetic filters (sequential — DbContext safety)
+            List<Guid>? playerNotWaitlistedRegIds = null;
+            if (hasPlayerNotWaitlisted)
+            {
+                playerNotWaitlistedRegIds = await _context.Registrations
+                    .AsNoTracking()
+                    .Where(r =>
+                        r.JobId == jobId
+                        && r.RoleId == RoleConstants.Player
+                        && r.BActive == true
+                        && r.AssignedTeam != null
+                        && r.AssignedTeam.Active == true
+                        && !r.AssignedTeam.Agegroup!.AgegroupName!.Contains("WAITLIST - ")
+                        && !r.AssignedTeam.Agegroup!.AgegroupName!.Contains("Dropped Teams"))
+                    .Select(r => r.RegistrationId)
+                    .ToListAsync(ct);
+            }
+
+            List<Guid>? clubRepActiveRegIds = null;
+            if (hasClubRepActiveTeams)
+            {
+                clubRepActiveRegIds = await _context.Registrations
+                    .AsNoTracking()
+                    .Where(r =>
+                        r.JobId == jobId
+                        && r.RoleId == RoleConstants.ClubRep
+                        && r.BActive == true
+                        && _context.Teams.Any(t =>
+                            t.JobId == jobId
+                            && t.ClubrepRegistrationid == r.RegistrationId
+                            && t.Active == true
+                            && !t.Agegroup!.AgegroupName!.Contains("WAITLIST - ")
+                            && !t.Agegroup!.AgegroupName!.Contains("Dropped Teams")))
+                    .Select(r => r.RegistrationId)
+                    .ToListAsync(ct);
+            }
+
+            // Apply combined OR filter
+            query = query.Where(r =>
+                (standardRoleIds.Count > 0 && r.RoleId != null && standardRoleIds.Contains(r.RoleId))
+                || (playerNotWaitlistedRegIds != null && playerNotWaitlistedRegIds.Contains(r.RegistrationId))
+                || (clubRepActiveRegIds != null && clubRepActiveRegIds.Contains(r.RegistrationId)));
+        }
 
         // LADT tree filters: OR across levels (tree selections at different levels are unioned)
         var hasTeamIds = request.TeamIds is { Count: > 0 };
@@ -1159,6 +1215,49 @@ public class RegistrationRepository : IRegistrationRepository
             .OrderBy(g => g.Key.Name)
             .Select(g => new FilterOption { Value = g.Key.RoleId!, Text = g.Key.Name ?? "", Count = g.Count() })
             .ToListAsync(ct);
+
+        // ── Synthetic "not waitlisted" role filters (mirrors legacy Search/Index) ──
+
+        var playerNotWaitlistedCount = await baseQuery
+            .CountAsync(r =>
+                r.RoleId == RoleConstants.Player
+                && r.BActive == true
+                && r.AssignedTeam != null
+                && r.AssignedTeam.Active == true
+                && !r.AssignedTeam.Agegroup!.AgegroupName!.Contains("WAITLIST - ")
+                && !r.AssignedTeam.Agegroup!.AgegroupName!.Contains("Dropped Teams"), ct);
+
+        if (playerNotWaitlistedCount > 0)
+        {
+            roles.Add(new FilterOption
+            {
+                Value = RoleConstants.PlayerNotWaitlisted,
+                Text = "Player (NOT WAITLISTED)",
+                Count = playerNotWaitlistedCount
+            });
+        }
+
+        var clubRepActiveTeamsCount = await baseQuery
+            .Where(r =>
+                r.RoleId == RoleConstants.ClubRep
+                && r.BActive == true)
+            .Where(r => _context.Teams.Any(t =>
+                t.JobId == jobId
+                && t.ClubrepRegistrationid == r.RegistrationId
+                && t.Active == true
+                && !t.Agegroup!.AgegroupName!.Contains("WAITLIST - ")
+                && !t.Agegroup!.AgegroupName!.Contains("Dropped Teams")))
+            .CountAsync(ct);
+
+        if (clubRepActiveTeamsCount > 0)
+        {
+            roles.Add(new FilterOption
+            {
+                Value = RoleConstants.ClubRepActiveTeams,
+                Text = "Club Rep (ACTIVE, NOT WAITLISTED)",
+                Count = clubRepActiveTeamsCount
+            });
+        }
 
         var teams = await baseQuery
             .Where(r => r.AssignedTeamId != null && r.AssignedTeam != null)
