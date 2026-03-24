@@ -58,6 +58,18 @@
   margin-left: var(--space-1);
 }
 
+.tree-collapsed {
+  max-height: 30px !important;
+  overflow: hidden !important;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
 
 // ── Filter Panel ──
 .filter-panel {

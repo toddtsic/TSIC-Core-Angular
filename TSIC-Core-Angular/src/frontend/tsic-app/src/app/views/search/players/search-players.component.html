@@ -33,11 +33,12 @@
         <div class="filter-row-4">
           <div class="form-group">
             <label>Role</label>
-            <ejs-multiselect
+            <ejs-multiselect #ms1
               [dataSource]="filterOptions()?.roles ?? []"
               [fields]="msFields"
               [value]="searchRequest().roleIds"
               (change)="updateMultiSelect('roleIds', $event.value)"
+              (open)="onMultiSelectOpen(ms1)"
               [mode]="'CheckBox'"
               [allowFiltering]="false"
               [showSelectAll]="true"
@@ -53,11 +54,12 @@
 
           <div class="form-group">
             <label>Pay Status</label>
-            <ejs-multiselect
+            <ejs-multiselect #ms2
               [dataSource]="filterOptions()?.payStatuses ?? []"
               [fields]="msFields"
               [value]="searchRequest().payStatuses"
               (change)="updateMultiSelect('payStatuses', $event.value)"
+              (open)="onMultiSelectOpen(ms2)"
               [mode]="'CheckBox'"
               [allowFiltering]="false"
               [showDropDownIcon]="true"
@@ -72,11 +74,12 @@
 
           <div class="form-group">
             <label>Status</label>
-            <ejs-multiselect
+            <ejs-multiselect #ms3
               [dataSource]="filterOptions()?.activeStatuses ?? []"
               [fields]="msFields"
               [value]="searchRequest().activeStatuses"
               (change)="updateMultiSelect('activeStatuses', $event.value)"
+              (open)="onMultiSelectOpen(ms3)"
               [mode]="'CheckBox'"
               [allowFiltering]="false"
               [showDropDownIcon]="true"
@@ -103,7 +106,7 @@
           <!-- LADT Tree -->
           <div class="form-group form-group-tree" [class.span-2]="!hasCadtData()">
             <label>League / Agegroup / Division / Team <span class="label-tip">Check nodes to filter</span></label>
-            <div class="tree-scroll-container">
+            <div class="tree-scroll-container" [class.tree-collapsed]="treesCollapsed()" (click)="treesCollapsed() ? expandTrees() : null">
               @if (ladtTreeLoading()) {
                 <div class="tree-loading">
                   <span class="spinner-border spinner-border-sm"></span>
@@ -123,7 +126,7 @@
           @if (hasCadtData() && jobName()) {
             <div class="form-group form-group-tree">
               <label>Club / Agegroup / Division / Team <span class="label-tip">Filter by club roster structure</span></label>
-              <div class="tree-scroll-container">
+              <div class="tree-scroll-container" [class.tree-collapsed]="treesCollapsed()" (click)="treesCollapsed() ? expandTrees() : null">
                 @if (cadtTreeLoading()) {
                   <div class="tree-loading">
                     <span class="spinner-border spinner-border-sm"></span>
@@ -144,11 +147,12 @@
 
           <div class="form-group">
             <label>Position</label>
-            <ejs-multiselect
+            <ejs-multiselect #ms4
               [dataSource]="filterOptions()?.positions ?? []"
               [fields]="msFields"
               [value]="searchRequest().positions"
               (change)="updateMultiSelect('positions', $event.value)"
+              (open)="onMultiSelectOpen(ms4)"
               [mode]="'CheckBox'"
               [allowFiltering]="false"
               [showDropDownIcon]="true"
@@ -163,11 +167,12 @@
 
           <div class="form-group">
             <label>Grad Year</label>
-            <ejs-multiselect
+            <ejs-multiselect #ms5
               [dataSource]="filterOptions()?.gradYears ?? []"
               [fields]="msFields"
               [value]="searchRequest().gradYears"
               (change)="updateMultiSelect('gradYears', $event.value)"
+              (open)="onMultiSelectOpen(ms5)"
               [mode]="'CheckBox'"
               [allowFiltering]="false"
               [showDropDownIcon]="true"
@@ -280,11 +285,12 @@
             <div class="filter-row">
               <div class="form-group">
                 <label>Gender</label>
-                <ejs-multiselect
+                <ejs-multiselect #ms6
                   [dataSource]="filterOptions()?.genders ?? []"
                   [fields]="msFields"
                   [value]="searchRequest().genders"
                   (change)="updateMultiSelect('genders', $event.value)"
+                  (open)="onMultiSelectOpen(ms6)"
                   [mode]="'CheckBox'"
                   [allowFiltering]="false"
                   [showDropDownIcon]="true"
@@ -297,11 +303,12 @@
               </div>
               <div class="form-group">
                 <label>Grade</label>
-                <ejs-multiselect
+                <ejs-multiselect #ms7
                   [dataSource]="filterOptions()?.grades ?? []"
                   [fields]="msFields"
                   [value]="searchRequest().grades"
                   (change)="updateMultiSelect('grades', $event.value)"
+                  (open)="onMultiSelectOpen(ms7)"
                   [mode]="'CheckBox'"
                   [allowFiltering]="false"
                   [showDropDownIcon]="true"
@@ -314,11 +321,12 @@
               </div>
               <div class="form-group">
                 <label>Age Range</label>
-                <ejs-multiselect
+                <ejs-multiselect #ms8
                   [dataSource]="filterOptions()?.ageRanges ?? []"
                   [fields]="msFields"
                   [value]="searchRequest().ageRangeIds"
                   (change)="updateMultiSelect('ageRangeIds', $event.value)"
+                  (open)="onMultiSelectOpen(ms8)"
                   [mode]="'CheckBox'"
                   [allowFiltering]="false"
                   [showDropDownIcon]="true"
@@ -339,11 +347,12 @@
               @if (!isTournament()) {
                 <div class="form-group">
                   <label>Reg. Club (self-reported)</label>
-                  <ejs-multiselect
+                  <ejs-multiselect #ms9
                     [dataSource]="filterOptions()?.clubs ?? []"
                     [fields]="msFields"
                     [value]="searchRequest().clubNames"
                     (change)="updateMultiSelect('clubNames', $event.value)"
+                    (open)="onMultiSelectOpen(ms9)"
                     [mode]="'CheckBox'"
                     [showSelectAll]="true"
                     [showDropDownIcon]="true"
@@ -366,11 +375,12 @@
             <div class="filter-row">
               <div class="form-group">
                 <label>ARB Subscription</label>
-                <ejs-multiselect
+                <ejs-multiselect #ms10
                   [dataSource]="filterOptions()?.arbSubscriptionStatuses ?? []"
                   [fields]="msFields"
                   [value]="searchRequest().arbSubscriptionStatuses"
                   (change)="updateMultiSelect('arbSubscriptionStatuses', $event.value)"
+                  (open)="onMultiSelectOpen(ms10)"
                   [mode]="'CheckBox'"
                   [allowFiltering]="false"
                   [showDropDownIcon]="true"
@@ -383,11 +393,12 @@
               </div>
               <div class="form-group">
                 <label>Mobile Registrations</label>
-                <ejs-multiselect
+                <ejs-multiselect #ms11
                   [dataSource]="filterOptions()?.mobileRegistrations ?? []"
                   [fields]="msFields"
                   [value]="searchRequest().mobileRegistrationRoles"
                   (change)="updateMultiSelect('mobileRegistrationRoles', $event.value)"
+                  (open)="onMultiSelectOpen(ms11)"
                   [mode]="'CheckBox'"
                   [allowFiltering]="false"
                   [showDropDownIcon]="true"
@@ -424,11 +435,12 @@
               </div>
               <div class="form-group">
                 <label>Club</label>
-                <ejs-multiselect
+                <ejs-multiselect #ms12
                   [dataSource]="filterOptions()?.clubRepClubs ?? []"
                   [fields]="msFields"
                   [value]="searchRequest().rosterThresholdClubNames"
                   (change)="updateMultiSelect('rosterThresholdClubNames', $event.value)"
+                  (open)="onMultiSelectOpen(ms12)"
                   [mode]="'CheckBox'"
                   [allowFiltering]="true"
                   [showDropDownIcon]="true"

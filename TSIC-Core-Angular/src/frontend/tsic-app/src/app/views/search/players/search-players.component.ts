@@ -1,9 +1,9 @@
-import { Component, OnInit, OnDestroy, ViewChild, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 
-import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
 import { RegistrationSearchService } from './services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -66,6 +66,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   );
 
   @ViewChild('grid') grid!: GridComponent;
+  @ViewChildren(MultiSelectComponent) multiSelects!: QueryList<MultiSelectComponent>;
 
   // Filter options
   filterOptions = signal<RegistrationFilterOptionsDto | null>(null);
@@ -374,6 +375,28 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   toggleMoreFilters(): void {
     this.moreFiltersExpanded.update(v => !v);
+  }
+
+  /** Trees collapsed state — collapses when a multiselect opens */
+  treesCollapsed = signal(false);
+
+  /** Close all other multiselect popups and collapse trees when one opens */
+  onMultiSelectOpen(opened: MultiSelectComponent): void {
+    this.multiSelects?.forEach(ms => {
+      if (ms !== opened) ms.hidePopup();
+    });
+    this.treesCollapsed.set(true);
+  }
+
+  /** Expand trees and close all multiselect popups */
+  expandTrees(): void {
+    this.treesCollapsed.set(false);
+    this.closeAllMultiSelects();
+  }
+
+  /** Close every multiselect popup */
+  closeAllMultiSelects(): void {
+    this.multiSelects?.forEach(ms => ms.hidePopup());
   }
 
   removeFilterChip(chip: FilterChip): void {
