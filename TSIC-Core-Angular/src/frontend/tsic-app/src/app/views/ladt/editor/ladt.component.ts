@@ -571,16 +571,20 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
             if (treeNode) {
               row.teamCount = treeNode.teamCount;
               row.playerCount = treeNode.playerCount;
+              row.divisionCount = treeNodes.filter(n => n.parentId === treeNode.id).length;
             }
           }
         }
 
-        // Enrich divisions with parent agegroup ID for up-navigation
+        // Enrich divisions with parent agegroup ID + team count for navigation
         if (level === 2) {
           const treeNodes = this.flatNodes();
           for (const row of data) {
             const tn = treeNodes.find(n => n.id === row.divId);
-            if (tn) row._parentAgId = tn.parentId;
+            if (tn) {
+              row._parentAgId = tn.parentId;
+              row.teamCount = tn.teamCount;
+            }
           }
         }
 

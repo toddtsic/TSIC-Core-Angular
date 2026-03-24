@@ -89,16 +89,16 @@ export interface ParentBreadcrumb {
                         <i class="bi bi-arrow-up-short"></i>D
                       </span>
                     }
-                    @if (level === 1) {
-                      <span class="drill-badge" title="Show divisions"
+                    @if (level === 1 && (row['divisionCount'] ?? 0) > 0) {
+                      <span class="drill-badge" title="Show {{ row['divisionCount'] }} divisions"
                             (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
-                        D<i class="bi bi-arrow-down-short"></i>
+                        D<i class="bi bi-arrow-down-short"></i>{{ row['divisionCount'] }}
                       </span>
                     }
-                    @if (level === 2) {
-                      <span class="drill-badge" title="Show teams"
+                    @if (level === 2 && (row['teamCount'] ?? 0) > 0) {
+                      <span class="drill-badge" title="Show {{ row['teamCount'] }} teams"
                             (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
-                        T<i class="bi bi-arrow-down-short"></i>
+                        T<i class="bi bi-arrow-down-short"></i>{{ row['teamCount'] }}
                       </span>
                     }
                   </span>
@@ -439,13 +439,13 @@ export interface ParentBreadcrumb {
     }
 
     .fee-discount {
-      color: var(--bs-success);
-      background: rgba(var(--bs-success-rgb), 0.1);
+      color: var(--bs-success-text-emphasis);
+      background: var(--bs-success-bg-subtle);
     }
 
     .fee-latefee {
-      color: var(--bs-danger);
-      background: rgba(var(--bs-danger-rgb), 0.1);
+      color: var(--bs-danger-text-emphasis);
+      background: var(--bs-danger-bg-subtle);
     }
 
     /* Action column (first column, frozen left) */
@@ -493,21 +493,22 @@ export interface ParentBreadcrumb {
       letter-spacing: 0.03em;
       padding: 2px 5px;
       border-radius: var(--radius-sm);
-      background: rgba(var(--bs-primary-rgb), 0.1);
+      border: 1px solid var(--bs-primary);
+      background: transparent;
       color: var(--bs-primary);
       cursor: pointer;
       transition: all 0.15s;
     }
     .drill-badge:hover {
-      background: rgba(var(--bs-primary-rgb), 0.2);
+      background: var(--bs-primary-bg-subtle);
     }
 
     .drill-up {
-      background: rgba(var(--bs-secondary-rgb), 0.1);
+      border-color: var(--bs-secondary-color);
       color: var(--bs-secondary-color);
     }
     .drill-up:hover {
-      background: rgba(var(--bs-secondary-rgb), 0.2);
+      background: var(--bs-secondary-bg);
     }
 
     .drill-badge i {
@@ -517,7 +518,7 @@ export interface ParentBreadcrumb {
     .nav-badges {
       display: inline-flex;
       align-items: center;
-      gap: 1px;
+      gap: 4px;
     }
 
 
@@ -533,14 +534,15 @@ export interface ParentBreadcrumb {
       letter-spacing: 0.03em;
       padding: 2px 5px;
       border-radius: var(--radius-sm);
-      background: rgba(var(--bs-success-rgb), 0.1);
+      border: 1px solid var(--bs-success);
+      background: transparent;
       color: var(--bs-success);
       cursor: pointer;
       text-decoration: underline;
       transition: all 0.15s;
     }
     .add-badge:hover {
-      background: rgba(var(--bs-success-rgb), 0.2);
+      background: var(--bs-success-bg-subtle);
     }
 
     .breadcrumb-link {
