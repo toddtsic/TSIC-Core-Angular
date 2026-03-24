@@ -378,6 +378,7 @@
 
 // ── Filter Chips Strip (inside results card) ──
 .filter-chips-strip {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -387,6 +388,17 @@
   border-top: 1px solid color-mix(in srgb, var(--bs-primary) 10%, var(--bs-border-color));
   border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 10%, var(--bs-border-color));
   align-items: center;
+}
+
+.results-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  position: absolute;
+  left: var(--space-4);
 }
 
 .filter-chip {

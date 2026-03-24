@@ -369,8 +369,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     });
     this.ladtCheckedIds.set(new Set());
     this.cadtCheckedIds.set(new Set());
-    this.searchResults.set(null);
-    this.lastSearchedRequest.set(null);
+    this.treesCollapsed.set(false);
+    this.executeSearch();
   }
 
   toggleMoreFilters(): void {

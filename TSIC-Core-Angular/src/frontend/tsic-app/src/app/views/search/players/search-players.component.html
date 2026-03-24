@@ -447,9 +447,10 @@
     <div class="results-container">
       @if (searchResults()) {
         <div class="results-panel">
-          <!-- Active filter chips (inside results card, centered) -->
+          <!-- Active filter chips (inside results card) -->
           @if (activeFilterChips().length > 0) {
             <div class="filter-chips-strip">
+              <span class="results-label">Search Results</span>
               @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
                 <span class="filter-chip">
                   <span class="chip-category">{{ chip.category }}:</span>
