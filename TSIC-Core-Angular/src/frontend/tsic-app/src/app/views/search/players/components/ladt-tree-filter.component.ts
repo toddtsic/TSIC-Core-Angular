@@ -60,14 +60,25 @@ interface TreeFlatNode {
           <!-- Name -->
           <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
 
-          <!-- Team count badge -->
-          @if (node.level >= 1) {
-            <span class="tree-badge"
-                  [style.background]="node.color ?? 'var(--bs-info)'"
-                  [style.color]="contrastText(node.color)">{{ node.teamCount }}</span>
-          } @else {
-            <span class="tree-badge badge-default">{{ node.teamCount }}</span>
-          }
+          <!-- Count badges: teams (non-leaf) + players -->
+          <span class="tree-badges">
+            @if (node.isLeaf) {
+              <!-- Team leaf: player count only -->
+              <span class="tree-badge"
+                    [style.background]="node.color ?? 'var(--bs-info)'"
+                    [style.color]="contrastText(node.color)"
+                    title="Players">{{ node.playerCount }}</span>
+            } @else if (node.level >= 1) {
+              <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+              <span class="tree-badge"
+                    [style.background]="node.color ?? 'var(--bs-info)'"
+                    [style.color]="contrastText(node.color)"
+                    title="Players">{{ node.playerCount }}</span>
+            } @else {
+              <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+              <span class="tree-badge badge-default" title="Players">{{ node.playerCount }}</span>
+            }
+          </span>
         </div>
       }
 
@@ -80,8 +91,14 @@ interface TreeFlatNode {
       line-height: 1.4;
     }
 
-    .tree-badge {
+    .tree-badges {
       margin-left: auto;
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .tree-badge {
       flex-shrink: 0;
       display: inline-flex;
       align-items: center;
@@ -98,6 +115,11 @@ interface TreeFlatNode {
     .badge-default {
       background: var(--bs-info);
       color: var(--bs-white);
+    }
+
+    .badge-muted {
+      background: color-mix(in srgb, var(--bs-secondary) 40%, var(--bs-card-bg));
+      color: var(--bs-body-color);
     }
 
     .tree-node {

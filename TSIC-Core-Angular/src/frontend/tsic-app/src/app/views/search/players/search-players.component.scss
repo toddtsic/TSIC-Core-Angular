@@ -95,10 +95,6 @@
     min-width: 0;
   }
 
-  .form-group-tree .tree-scroll-container {
-    max-height: 140px;
-  }
-
   // When no CADT, LADT spans 2 columns
   .span-2 {
     grid-column: span 2;
@@ -127,7 +123,7 @@
 
 .form-group-tree {
   .tree-scroll-container {
-    max-height: 320px;
+    max-height: 140px;
     overflow-y: auto;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);

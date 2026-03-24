@@ -92,8 +92,12 @@ public sealed class LadtService : ILadtService
                     foreach (var team in teams)
                     {
                         var pc = playerCounts.GetValueOrDefault(team.TeamId, 0);
-                        totalPlayers += pc;
-                        totalTeams++;
+                        var isActive = team.Active == true;
+                        if (isActive)
+                        {
+                            totalPlayers += pc;
+                            totalTeams++;
+                        }
 
                         teamNodes.Add(new LadtTreeNodeDto
                         {
@@ -111,8 +115,9 @@ public sealed class LadtService : ILadtService
                         });
                     }
 
-                    var divTeamCount = teamNodes.Count;
-                    var divPlayerCount = teamNodes.Sum(t => t.PlayerCount);
+                    var activeTeamNodes = teamNodes.Where(t => t.Active).ToList();
+                    var divTeamCount = activeTeamNodes.Count;
+                    var divPlayerCount = activeTeamNodes.Sum(t => t.PlayerCount);
 
                     divisionNodes.Add(new LadtTreeNodeDto
                     {
