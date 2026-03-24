@@ -283,6 +283,12 @@ public sealed class LadtService : ILadtService
         var ag = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
 
+        // Detect name change for waitlist cascade (skip if this IS a waitlist agegroup)
+        var oldName = ag.AgegroupName;
+        var nameChanged = oldName != null && request.AgegroupName != null
+            && !string.Equals(oldName, request.AgegroupName, StringComparison.Ordinal)
+            && !oldName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
+
         ag.AgegroupName = request.AgegroupName;
         // Season is immutable (set from Job on creation) — never overwrite
         ag.Color = request.Color;
@@ -302,6 +308,25 @@ public sealed class LadtService : ILadtService
         ag.SortAge = request.SortAge;
         ag.LebUserId = userId;
         ag.Modified = DateTime.UtcNow;
+
+        // Cascade rename to "WAITLIST - {oldName}" sibling if it exists
+        if (nameChanged)
+        {
+            var siblings = await _agegroupRepo.GetByLeagueIdAsync(ag.LeagueId, cancellationToken);
+            var waitlistMatch = siblings.Find(s =>
+                string.Equals(s.AgegroupName, $"WAITLIST - {oldName}", StringComparison.OrdinalIgnoreCase));
+            if (waitlistMatch != null)
+            {
+                // Re-fetch tracked so SaveChanges persists the rename
+                var waitlistMirror = await _agegroupRepo.GetByIdAsync(waitlistMatch.AgegroupId, cancellationToken);
+                if (waitlistMirror != null)
+                {
+                    waitlistMirror.AgegroupName = $"WAITLIST - {request.AgegroupName}";
+                    waitlistMirror.LebUserId = userId;
+                    waitlistMirror.Modified = DateTime.UtcNow;
+                }
+            }
+        }
 
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
 
