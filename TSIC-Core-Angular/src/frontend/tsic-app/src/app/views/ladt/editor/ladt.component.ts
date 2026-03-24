@@ -282,12 +282,12 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           });
         }
 
-        // Sort divisions: "Unassigned" first, then alpha
+        // Sort divisions: "Unassigned" last, then alpha
         if (node.level === 1 && children.length > 0) {
           children = [...children].sort((a, b) => {
             const aUnassigned = a.name.toUpperCase() === 'UNASSIGNED';
             const bUnassigned = b.name.toUpperCase() === 'UNASSIGNED';
-            if (aUnassigned !== bUnassigned) return aUnassigned ? -1 : 1;
+            if (aUnassigned !== bUnassigned) return aUnassigned ? 1 : -1;
             return a.name.localeCompare(b.name);
           });
         }
@@ -575,6 +575,24 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           }
         }
 
+        // Enrich divisions with parent agegroup ID for up-navigation
+        if (level === 2) {
+          const treeNodes = this.flatNodes();
+          for (const row of data) {
+            const tn = treeNodes.find(n => n.id === row.divId);
+            if (tn) row._parentAgId = tn.parentId;
+          }
+        }
+
+        // Enrich teams with parent division ID for up-navigation
+        if (level === 3) {
+          const treeNodes = this.flatNodes();
+          for (const row of data) {
+            const tn = treeNodes.find(n => n.id === row.teamId);
+            if (tn) row._parentDivId = tn.parentId;
+          }
+        }
+
         // Enrich with fee pills
         if (needsFees) {
           this.enrichWithFees(data, level);
@@ -721,7 +739,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     while (current.parentId) {
       const parent = this.flatNodes().find(n => n.id === current.parentId);
       if (!parent) break;
-      parts.unshift({ name: parent.name, level: parent.level });
+      parts.unshift({ name: parent.name, level: parent.level, id: parent.id });
       current = parent;
     }
     return parts;
@@ -764,6 +782,64 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     this.loadTree();
   }
 
+
+  // ── Grid action column callbacks ──
+
+  /** Arrow function so it can be passed as [canDeleteFn] without losing `this` */
+  canDeleteRow = (row: any): boolean => {
+    const selected = this.selectedNode();
+    if (!selected) return false;
+    const level = selected.level; // grid shows children of selected node's level
+    // Agegroups (level 1 grid): can delete if no teams
+    if (level === 1) return (row.teamCount ?? 0) === 0 && !row._isSpecial;
+    // Divisions (level 2 grid): can delete if no teams and not Unassigned
+    if (level === 2) {
+      const name = (row.divName ?? '').toUpperCase();
+      return (row.teamCount ?? 0) === 0 && name !== 'UNASSIGNED';
+    }
+    // Teams (level 3 grid): always deletable (backend handles soft delete)
+    if (level === 3) return true;
+    return false;
+  };
+
+  onGridDrillDown(id: string): void {
+    // Find the node in the tree and select its first child
+    const node = this.flatNodes().find(n => n.id === id);
+    if (!node) return;
+
+    // Expand this node in the tree
+    this.expandedIds.update(ids => {
+      const next = new Set(ids);
+      next.add(node.id);
+      return next;
+    });
+
+    // Find first child node
+    const children = this.flatNodes().filter(n => n.parentId === id);
+    if (children.length > 0) {
+      this.selectNode(children[0]);
+    }
+  }
+
+  onGridDelete(id: string): void {
+    const node = this.flatNodes().find(n => n.id === id);
+    if (node) {
+      this.confirmDelete(node);
+    }
+  }
+
+  onGridNavigate(nodeId: string): void {
+    const node = this.flatNodes().find(n => n.id === nodeId);
+    if (node) {
+      this.selectNode(node);
+    }
+  }
+
+  onGridAdd(): void {
+    const selected = this.selectedNode();
+    if (!selected) return;
+    this.startAdd(selected.id);
+  }
 
   // ── Mobile ──
 

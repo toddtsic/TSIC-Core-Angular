@@ -251,8 +251,15 @@
             [idField]="siblingIdField()"
             [levelLabel]="siblingLevelLabel()"
             [levelIcon]="siblingLevelIcon()"
+            [level]="selectedNode()!.level"
             [parentParts]="siblingParentParts()"
+            [canDeleteFn]="canDeleteRow"
             (rowSelected)="openDetail($event)"
+            (drillDown)="onGridDrillDown($event)"
+            (editRow)="openDetail($event)"
+            (deleteRow)="onGridDelete($event)"
+            (addSibling)="onGridAdd()"
+            (navigateTo)="onGridNavigate($event)"
           />
         }
       </div>

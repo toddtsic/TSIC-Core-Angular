@@ -5,6 +5,7 @@ import type { LadtColumnDef } from '../configs/ladt-grid-columns';
 export interface ParentBreadcrumb {
   name: string;
   level: number;
+  id: string;
 }
 
 @Component({
@@ -17,9 +18,11 @@ export interface ParentBreadcrumb {
       <i class="bi {{ levelIcon }} me-2"></i>
       <span class="fw-semibold">{{ levelLabel }}s</span>
       @if (parentParts.length) {
-        <span class="text-body-secondary ms-2">under</span>
+        <span class="text-body-secondary ms-2">in</span>
         @for (part of parentParts; track part.level) {
-          <span class="badge ms-1" [ngClass]="getBadgeClass(part.level)">
+          <span class="badge ms-1 breadcrumb-link" [ngClass]="getBadgeClass(part.level)"
+                (click)="navigateTo.emit(part.id); $event.stopPropagation()"
+                title="Navigate to {{ part.name }}">
             <i class="bi {{ getPartIcon(part.level) }} me-1"></i>{{ part.name }}
           </span>
         }
@@ -31,7 +34,14 @@ export interface ParentBreadcrumb {
       <table class="sibling-table">
         <thead>
           <tr>
-            <th class="frozen-col row-num-col" [style.left.px]="0">#</th>
+            <th class="action-col-header frozen-col" [style.left.px]="0">
+              @if (level > 0) {
+                <span class="add-badge" title="Add {{ levelLabel }}"
+                      (click)="addSibling.emit(); $event.stopPropagation()">
+                  Add New {{ levelLabel }}
+                </span>
+              }
+            </th>
             @for (col of columns; track col.field) {
               <th [class.frozen-col]="col.frozen"
                   [style.min-width]="col.width ?? '120px'"
@@ -54,7 +64,46 @@ export interface ParentBreadcrumb {
                 [class.inactive-row]="row['active'] === false"
                 [class.special-row]="row['_isSpecial'] === true"
                 (click)="rowSelected.emit(row[idField])">
-              <td class="frozen-col row-num-col cell-num" [style.left.px]="0">{{ i + 1 }}</td>
+              <td class="action-col frozen-col" [style.left.px]="0">
+                <button class="btn-action btn-edit" title="Edit"
+                        (click)="editRow.emit(row[idField]); $event.stopPropagation()">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                @if (canDeleteFn(row)) {
+                  <button class="btn-action btn-del" title="Delete"
+                          (click)="deleteRow.emit(row[idField]); $event.stopPropagation()">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                }
+                @if (!row['_isSpecial']) {
+                  <span class="nav-badges">
+                    @if (level === 2) {
+                      <span class="drill-badge drill-up" title="Navigate to parent agegroup"
+                            (click)="navigateTo.emit(row['_parentAgId']); $event.stopPropagation()">
+                        <i class="bi bi-arrow-up-short"></i>A
+                      </span>
+                    }
+                    @if (level === 3) {
+                      <span class="drill-badge drill-up" title="Navigate to parent division"
+                            (click)="navigateTo.emit(row['_parentDivId']); $event.stopPropagation()">
+                        <i class="bi bi-arrow-up-short"></i>D
+                      </span>
+                    }
+                    @if (level === 1) {
+                      <span class="drill-badge" title="Show divisions"
+                            (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
+                        D<i class="bi bi-arrow-down-short"></i>
+                      </span>
+                    }
+                    @if (level === 2) {
+                      <span class="drill-badge" title="Show teams"
+                            (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
+                        T<i class="bi bi-arrow-down-short"></i>
+                      </span>
+                    }
+                  </span>
+                }
+              </td>
               @for (col of columns; track col.field) {
                 <td [class.frozen-col]="col.frozen"
                     [style.left.px]="col.frozen ? frozenOffsets().get(col.field) : null"
@@ -141,7 +190,7 @@ export interface ParentBreadcrumb {
             </tr>
           } @empty {
             <tr>
-              <td [attr.colspan]="columns.length + 1" class="text-center text-body-secondary py-4">
+              <td [attr.colspan]="columns.length + 2" class="text-center text-body-secondary py-4">
                 No items found.
               </td>
             </tr>
@@ -398,6 +447,110 @@ export interface ParentBreadcrumb {
       color: var(--bs-danger);
       background: rgba(var(--bs-danger-rgb), 0.1);
     }
+
+    /* Action column (first column, frozen left) */
+    .action-col-header {
+      width: 90px;
+      min-width: 90px;
+      text-align: center;
+    }
+
+    .action-col {
+      width: 90px;
+      min-width: 90px;
+      text-align: center;
+      white-space: nowrap;
+      border-right: 2px solid var(--bs-border-color);
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--bs-secondary-color);
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: all 0.15s;
+    }
+
+    .btn-action:hover {
+      background: var(--bs-secondary-bg);
+      color: var(--bs-body-color);
+    }
+
+    .drill-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
+      background: rgba(var(--bs-primary-rgb), 0.1);
+      color: var(--bs-primary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .drill-badge:hover {
+      background: rgba(var(--bs-primary-rgb), 0.2);
+    }
+
+    .drill-up {
+      background: rgba(var(--bs-secondary-rgb), 0.1);
+      color: var(--bs-secondary-color);
+    }
+    .drill-up:hover {
+      background: rgba(var(--bs-secondary-rgb), 0.2);
+    }
+
+    .drill-badge i {
+      font-size: 0.85rem;
+    }
+
+    .nav-badges {
+      display: inline-flex;
+      align-items: center;
+      gap: 1px;
+    }
+
+
+    .btn-drill:hover { color: var(--bs-primary); }
+    .btn-edit:hover { color: var(--bs-info); }
+    .btn-del:hover { color: var(--bs-danger); }
+
+    .add-badge {
+      display: inline-block;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
+      background: rgba(var(--bs-success-rgb), 0.1);
+      color: var(--bs-success);
+      cursor: pointer;
+      text-decoration: underline;
+      transition: all 0.15s;
+    }
+    .add-badge:hover {
+      background: rgba(var(--bs-success-rgb), 0.2);
+    }
+
+    .breadcrumb-link {
+      cursor: pointer;
+      text-decoration: underline;
+      transition: filter 0.15s;
+    }
+    .breadcrumb-link:hover {
+      filter: brightness(0.85);
+    }
   `]
 })
 export class LadtSiblingGridComponent implements OnChanges {
@@ -409,7 +562,24 @@ export class LadtSiblingGridComponent implements OnChanges {
   @Input() levelIcon = 'bi-list';
   @Input() parentParts: ParentBreadcrumb[] = [];
 
+  @Input() level = 0; // 0=league, 1=agegroup, 2=division, 3=team
+  @Input() canDeleteFn: (row: any) => boolean = () => true;
+
   @Output() rowSelected = new EventEmitter<string>();
+  @Output() drillDown = new EventEmitter<string>();
+  @Output() editRow = new EventEmitter<string>();
+  @Output() deleteRow = new EventEmitter<string>();
+  @Output() addSibling = new EventEmitter<void>();
+  @Output() navigateTo = new EventEmitter<string>(); // navigate to a breadcrumb node
+
+  get drillLabel(): string {
+    switch (this.level) {
+      case 0: return 'agegroups';
+      case 1: return 'divisions';
+      case 2: return 'teams';
+      default: return '';
+    }
+  }
 
   // Sort state
   sortField = signal<string | null>(null);
@@ -423,7 +593,11 @@ export class LadtSiblingGridComponent implements OnChanges {
     const field = this.sortField();
 
     return [...rows].sort((a, b) => {
-      // Always push special/inactive rows to the bottom
+      // Always push special/inactive/Unassigned rows to the bottom
+      const aUnassigned = (a['divName'] ?? a['agegroupName'] ?? '').toUpperCase() === 'UNASSIGNED';
+      const bUnassigned = (b['divName'] ?? b['agegroupName'] ?? '').toUpperCase() === 'UNASSIGNED';
+      if (aUnassigned !== bUnassigned) return aUnassigned ? 1 : -1;
+
       const aBottom = a['_isSpecial'] === true || a['active'] === false;
       const bBottom = b['_isSpecial'] === true || b['active'] === false;
       if (aBottom !== bBottom) return aBottom ? 1 : -1;
@@ -444,7 +618,7 @@ export class LadtSiblingGridComponent implements OnChanges {
   // Compute frozen column left offsets dynamically
   frozenOffsets = computed(() => {
     const offsets = new Map<string, number>();
-    let left = 40; // starts after the 40px row-number column
+    let left = 90; // starts after the 90px action column
     for (const col of this.columns) {
       if (col.frozen) {
         offsets.set(col.field, left);
