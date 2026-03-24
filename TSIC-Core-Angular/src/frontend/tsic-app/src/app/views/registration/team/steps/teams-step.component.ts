@@ -158,8 +158,12 @@ export class TeamTeamsStepComponent implements OnInit {
         })
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
-                next: () => {
-                    this.toast.show('Team registered successfully!', 'success', 3000);
+                next: (resp) => {
+                    const msg = resp.isWaitlisted
+                        ? `Team placed on waitlist for ${resp.waitlistAgegroupName ?? ageGroup.ageGroupName}`
+                        : 'Team registered successfully!';
+                    const variant = resp.isWaitlisted ? 'warning' : 'success';
+                    this.toast.show(msg, variant, 4000);
                     this.loadTeamsMetadata();
                 },
                 error: (err: unknown) => {

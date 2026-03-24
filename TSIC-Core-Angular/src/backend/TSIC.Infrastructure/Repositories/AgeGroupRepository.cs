@@ -36,7 +36,9 @@ public class AgeGroupRepository : IAgeGroupRepository
     {
         return await _context.Agegroups
             .AsNoTracking()
-            .Where(ag => ag.LeagueId == leagueId && ag.Season == season && ag.MaxTeams > 0)
+            .Where(ag => ag.LeagueId == leagueId && ag.Season == season && ag.MaxTeams > 0
+                && (ag.AgegroupName == null
+                    || (!ag.AgegroupName.Contains("WAITLIST") && !ag.AgegroupName.Contains("DROPPED"))))
             .OrderBy(ag => ag.AgegroupName)
             .Select(ag => new AgeGroupForRegistration
             {

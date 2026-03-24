@@ -6,5 +6,7 @@ export type RegisterTeamResponse = {
     teamId: string;
     success: boolean;
     message?: string | null;
+    isWaitlisted?: boolean;
+    waitlistAgegroupName?: string | null;
 };
 

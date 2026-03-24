@@ -178,6 +178,8 @@ public sealed record RegisterTeamResponse
     public required Guid TeamId { get; init; }
     public required bool Success { get; init; }
     public string? Message { get; init; }
+    public bool IsWaitlisted { get; init; }
+    public string? WaitlistAgegroupName { get; init; }
 }
 
 

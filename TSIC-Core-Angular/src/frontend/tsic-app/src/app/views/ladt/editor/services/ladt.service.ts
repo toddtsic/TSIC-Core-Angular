@@ -163,10 +163,6 @@ export class LadtService {
 
   // ── Batch ──
 
-  addWaitlistAgegroups(): Observable<number> {
-    return this.http.post<number>(`${this.apiUrl}/batch/waitlist-agegroups`, null);
-  }
-
   updatePlayerFeesToAgegroupFees(agegroupId: string): Observable<number> {
     return this.http.post<number>(`${this.apiUrl}/batch/update-fees/${agegroupId}`, null);
   }

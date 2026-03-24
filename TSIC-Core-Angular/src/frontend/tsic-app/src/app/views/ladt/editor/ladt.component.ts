@@ -514,19 +514,6 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     this.deleteTargetNode.set(null);
   }
 
-  // ── Batch ──
-
-  addWaitlistAgegroups(): void {
-    this.ladtService.addWaitlistAgegroups().subscribe({
-      next: (count) => {
-        this.loadTree();
-        if (count === 0) {
-          this.errorMessage.set('All leagues already have WAITLIST age groups.');
-        }
-      },
-      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to add waitlist groups')
-    });
-  }
 
   // ── Sibling grid ──
 

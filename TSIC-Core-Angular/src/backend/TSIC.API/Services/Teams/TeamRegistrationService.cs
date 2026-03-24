@@ -30,6 +30,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IEmailService _emailService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly IClubTeamRepository _clubTeams;
+    private readonly ITeamPlacementService _placement;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -47,7 +48,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
         IJobDiscountCodeRepository discountCodeRepo,
-        IClubTeamRepository clubTeams)
+        IClubTeamRepository clubTeams,
+        ITeamPlacementService placement)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -65,6 +67,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _emailService = emailService;
         _discountCodeRepo = discountCodeRepo;
         _clubTeams = clubTeams;
+        _placement = placement;
     }
 
     /// <summary>
@@ -526,16 +529,6 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Invalid age group selected");
         }
 
-        // Verify age group has capacity
-        var registeredCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId, request.AgeGroupId);
-
-        if (registeredCount >= ageGroup.MaxTeams)
-        {
-            _logger.LogWarning("Age group {AgeGroupId} is full ({RegisteredCount}/{MaxTeams})",
-                request.AgeGroupId, registeredCount, ageGroup.MaxTeams);
-            throw new InvalidOperationException("This age group is full");
-        }
-
         // Resolve fees from new fee schema
         var resolved = await _feeService.ResolveFeeForAgegroupAsync(
             jobId, RoleConstants.ClubRep, request.AgeGroupId);
@@ -616,13 +609,18 @@ public class TeamRegistrationService : ITeamRegistrationService
                 clubTeamId, teamName, effectiveClubId);
         }
 
+        // Resolve placement (may redirect to waitlist if agegroup is full)
+        var placement = await _placement.ResolvePlacementAsync(
+            jobId, request.AgeGroupId, teamName, userId: userId);
+
         // Create team registration
         var team = new Domain.Entities.Teams
         {
             TeamId = Guid.NewGuid(),
             JobId = jobId,
-            LeagueId = (Guid)leagueId,
-            AgegroupId = request.AgeGroupId,
+            LeagueId = placement.LeagueId,
+            AgegroupId = placement.AgegroupId,
+            DivId = placement.DivisionId,
             TeamName = teamName,
             LevelOfPlay = levelOfPlay,
             ClubTeamId = clubTeamId,
@@ -650,7 +648,11 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             Success = true,
             TeamId = team.TeamId,
-            Message = "Team registered successfully"
+            Message = placement.IsWaitlisted
+                ? $"Team placed on waitlist for {ageGroup.AgegroupName}"
+                : "Team registered successfully",
+            IsWaitlisted = placement.IsWaitlisted,
+            WaitlistAgegroupName = placement.WaitlistAgegroupName
         };
     }
 

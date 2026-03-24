@@ -59,7 +59,6 @@ public interface ILadtService
 
     // ── Batch operations ──
 
-    Task<int> AddWaitlistAgegroupsAsync(Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<int> UpdatePlayerFeesToAgegroupFeesAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
 
     // ── Division Name Sync ──

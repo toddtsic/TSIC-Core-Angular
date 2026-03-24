@@ -28,6 +28,7 @@ public sealed class LadtService : ILadtService
     private readonly IClubTeamRepository _clubTeamRepo;
     private readonly IClubRepository _clubRepo;
     private readonly IScheduleRepository _scheduleRepo;
+    private readonly ITeamPlacementService _placement;
 
     public LadtService(
         ILeagueRepository leagueRepo,
@@ -40,7 +41,8 @@ public sealed class LadtService : ILadtService
         IFeeResolutionService feeService,
         IClubTeamRepository clubTeamRepo,
         IClubRepository clubRepo,
-        IScheduleRepository scheduleRepo)
+        IScheduleRepository scheduleRepo,
+        ITeamPlacementService placement)
     {
         _leagueRepo = leagueRepo;
         _agegroupRepo = agegroupRepo;
@@ -53,6 +55,7 @@ public sealed class LadtService : ILadtService
         _clubTeamRepo = clubTeamRepo;
         _clubRepo = clubRepo;
         _scheduleRepo = scheduleRepo;
+        _placement = placement;
     }
 
     // ═══════════════════════════════════════════
@@ -912,6 +915,13 @@ public sealed class LadtService : ILadtService
         var ag = await _agegroupRepo.GetByIdAsync(div.AgegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {div.AgegroupId} not found.");
 
+        // Resolve placement (admin bypass — places directly into requested division)
+        var teamName = string.IsNullOrWhiteSpace(name) ? "New Team" : name.Trim();
+        var placement = await _placement.ResolvePlacementAsync(
+            jobId, ag.AgegroupId, teamName,
+            divisionName: div.DivName, userId: userId,
+            skipCapacityCheck: true, cancellationToken: cancellationToken);
+
         var nextRank = await _teamRepo.GetNextDivRankAsync(divId, cancellationToken);
         var jobSY = await _jobRepo.GetJobSeasonYearAsync(jobId, cancellationToken);
 
@@ -919,10 +929,10 @@ public sealed class LadtService : ILadtService
         {
             TeamId = Guid.NewGuid(),
             JobId = jobId,
-            LeagueId = ag.LeagueId,
-            AgegroupId = ag.AgegroupId,
-            DivId = divId,
-            TeamName = string.IsNullOrWhiteSpace(name) ? "New Team" : name.Trim(),
+            LeagueId = placement.LeagueId,
+            AgegroupId = placement.AgegroupId,
+            DivId = placement.DivisionId ?? divId,
+            TeamName = teamName,
             Active = true,
             DivRank = nextRank,
             Season = jobSY?.Season,
@@ -1063,51 +1073,6 @@ public sealed class LadtService : ILadtService
     // Batch Operations
     // ═══════════════════════════════════════════
 
-    public async Task<int> AddWaitlistAgegroupsAsync(Guid jobId, string userId, CancellationToken cancellationToken = default)
-    {
-        var leagues = await _leagueRepo.GetLeaguesByJobIdAsync(jobId, cancellationToken);
-        var count = 0;
-
-        foreach (var league in leagues)
-        {
-            var agegroups = await _agegroupRepo.GetByLeagueIdAsync(league.LeagueId, cancellationToken);
-            var hasWaitlist = agegroups.Exists(a =>
-                a.AgegroupName != null && a.AgegroupName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase));
-
-            if (hasWaitlist) continue;
-
-            var waitlistAg = new Agegroups
-            {
-                AgegroupId = Guid.NewGuid(),
-                LeagueId = league.LeagueId,
-                AgegroupName = "WAITLIST",
-                MaxTeams = 999,
-                MaxTeamsPerClub = 999,
-                SortAge = 255,
-                LebUserId = userId,
-                Modified = DateTime.UtcNow
-            };
-            _agegroupRepo.Add(waitlistAg);
-
-            var stubDiv = new Divisions
-            {
-                DivId = Guid.NewGuid(),
-                AgegroupId = waitlistAg.AgegroupId,
-                DivName = UnassignedDivisionName,
-                LebUserId = userId,
-                Modified = DateTime.UtcNow
-            };
-            _divisionRepo.Add(stubDiv);
-
-            count++;
-        }
-
-        if (count > 0)
-            await _agegroupRepo.SaveChangesAsync(cancellationToken);
-
-        return count;
-    }
-
     public async Task<int> UpdatePlayerFeesToAgegroupFeesAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default)
     {
         await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
@@ -1201,8 +1166,15 @@ public sealed class LadtService : ILadtService
 
     private static readonly HashSet<string> ExcludedDivisionNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Unassigned", "WAITLIST", "DROPPED"
+        "Unassigned"
     };
+
+    private static bool IsSpecialAgegroup(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        return name.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("DROPPED", StringComparison.OrdinalIgnoreCase);
+    }
 
     public async Task<List<DivisionNameSyncPreview>> PreviewDivisionNameSyncAsync(
         Guid jobId, List<string> themeNames, CancellationToken cancellationToken = default)
@@ -1304,12 +1276,13 @@ public sealed class LadtService : ILadtService
             foreach (var ag in agegroups)
             {
                 // Skip WAITLIST/DROPPED agegroups entirely
-                if (ag.AgegroupName != null && ExcludedDivisionNames.Contains(ag.AgegroupName))
+                if (IsSpecialAgegroup(ag.AgegroupName))
                     continue;
 
                 var divisions = await _divisionRepo.GetByAgegroupIdAsync(ag.AgegroupId, cancellationToken);
                 var syncable = divisions
-                    .Where(d => !ExcludedDivisionNames.Contains(d.DivName ?? ""))
+                    .Where(d => !ExcludedDivisionNames.Contains(d.DivName ?? "")
+                             && !IsSpecialAgegroup(d.DivName))
                     .ToList();
 
                 if (syncable.Count > 0)

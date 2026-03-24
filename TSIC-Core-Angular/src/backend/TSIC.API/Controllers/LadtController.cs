@@ -454,16 +454,6 @@ public class LadtController : ControllerBase
     // Batch Operations
     // ═══════════════════════════════════════════
 
-    [HttpPost("batch/waitlist-agegroups")]
-    public async Task<ActionResult<int>> AddWaitlistAgegroups(CancellationToken cancellationToken)
-    {
-        var (jobId, userId, error) = await ResolveContext();
-        if (error != null) return error;
-
-        var count = await _ladtService.AddWaitlistAgegroupsAsync(jobId!.Value, userId!, cancellationToken);
-        return Ok(count);
-    }
-
     [HttpPost("batch/update-fees/{agegroupId:guid}")]
     public async Task<ActionResult<int>> UpdatePlayerFeesToAgegroupFees(Guid agegroupId, CancellationToken cancellationToken)
     {
