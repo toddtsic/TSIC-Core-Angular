@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
-import { Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { NavigationEnd, Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import type { NavItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
 import { MenuStateService } from '../../services/menu-state.service';
 
 @Component({
@@ -27,6 +29,15 @@ export class ClientMenuComponent {
     menus = computed(() => this.jobService.navItems());
     menusLoading = computed(() => this.jobService.navLoading());
     menusError = computed(() => this.jobService.navError());
+
+    // Current URL path (lowercase, no query string) — reacts to every navigation
+    private readonly currentUrl = toSignal(
+        this.router.events.pipe(
+            filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+            map(e => e.urlAfterRedirects.split('?')[0].replace(/^\/+/, '').toLowerCase())
+        ),
+        { initialValue: this.router.url.split('?')[0].replace(/^\/+/, '').toLowerCase() }
+    );
 
     // Offcanvas state from shared service
     offcanvasOpen = this.menuState.offcanvasOpen;
@@ -102,6 +113,19 @@ export class ClientMenuComponent {
 
     isExpanded(menuItemId: string | number): boolean {
         return this.expandedItems().has(String(menuItemId));
+    }
+
+    /**
+     * Check if any child route of a parent menu item matches the current URL.
+     * Used to highlight the parent pill when the user is on a child page.
+     */
+    isParentActive(item: NavItemDto): boolean {
+        if (!item.children?.length) return false;
+        const url = this.currentUrl();
+        return item.children.some(child => {
+            const link = child.routerLink?.split('?')[0].replace(/^\/+/, '').toLowerCase();
+            return !!link && url.includes(link);
+        });
     }
 
     /**

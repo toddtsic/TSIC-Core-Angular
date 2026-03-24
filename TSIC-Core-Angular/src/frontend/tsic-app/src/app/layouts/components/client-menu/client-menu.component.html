@@ -17,6 +17,7 @@
                 <button type="button"
                     class="pill-nav__item"
                     [class.pill-nav__item--open]="isExpanded(item.navItemId)"
+                    [class.pill-nav__item--active]="isParentActive(item)"
                     [attr.aria-expanded]="isExpanded(item.navItemId)"
                     [attr.aria-haspopup]="true">
                     <i class="bi bi-{{ getMenuIcon(item) }}" aria-hidden="true"></i>
@@ -123,6 +124,7 @@
                     @if (hasChildren(item)) {
                     <!-- Parent with collapsible children -->
                     <a class="nav-link d-flex justify-content-between align-items-center" href="#"
+                        [class.active]="isParentActive(item)"
                         (click)="$event.preventDefault(); toggleExpanded(item.navItemId)">
                         <span>
                             <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
