@@ -9,11 +9,28 @@
 <!-- Desktop View -->
 @if (!isMobile()) {
   <div class="registration-search-container">
+    <!-- Page Title -->
+    <h1 class="page-title">
+      <svg class="page-title-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        <path d="M8 11a3 3 0 0 1 3-3" opacity="0.5"></path>
+      </svg>
+      Search Registrations
+    </h1>
+
     <!-- Filter Panel -->
     <div class="filter-panel">
+      <!-- Section Header -->
+      <div class="section-header">
+        <span class="section-title">Filters</span>
+        <span class="section-tip">Select more than one filter to narrow your search</span>
+      </div>
+
       <!-- Compact Bar (always visible) -->
       <div class="filter-bar-compact">
-        <div class="filter-row">
+        <!-- Row 1: Role, Pay Status, Status, Name -->
+        <div class="filter-row-4">
           <div class="form-group">
             <label>Role</label>
             <ejs-multiselect
@@ -52,17 +69,17 @@
           </div>
 
           <div class="form-group">
-            <label>Position</label>
+            <label>Status</label>
             <ejs-multiselect
-              [dataSource]="filterOptions()?.positions ?? []"
+              [dataSource]="filterOptions()?.activeStatuses ?? []"
               [fields]="msFields"
-              [value]="searchRequest().positions"
-              (change)="updateMultiSelect('positions', $event.value)"
+              [value]="searchRequest().activeStatuses"
+              (change)="updateMultiSelect('activeStatuses', $event.value)"
               [mode]="'CheckBox'"
               [showDropDownIcon]="true"
               [closePopupOnSelect]="false"
               [changeOnBlur]="false"
-              placeholder="All"
+              placeholder="All Statuses"
               [itemTemplate]="countBadgeTemplate"
               cssClass="filter-ms"
               [popupWidth]="'auto'">
@@ -70,31 +87,19 @@
           </div>
 
           <div class="form-group">
-            <label>Reg. Club (self-reported)</label>
-            <ejs-multiselect
-              [dataSource]="filterOptions()?.clubs ?? []"
-              [fields]="msFields"
-              [value]="searchRequest().clubNames"
-              (change)="updateMultiSelect('clubNames', $event.value)"
-              [mode]="'CheckBox'"
-              [showSelectAll]="true"
-              [showDropDownIcon]="true"
-              [closePopupOnSelect]="false"
-              [changeOnBlur]="false"
-              [enableFiltering]="true"
-              placeholder="All Clubs"
-              [itemTemplate]="countBadgeTemplate"
-              cssClass="filter-ms"
-              [popupWidth]="'auto'">
-            </ejs-multiselect>
+            <label for="filterName">Name</label>
+            <input type="text" id="filterName" class="form-control"
+              placeholder="First or Last"
+              [ngModel]="searchRequest().name"
+              (ngModelChange)="updateName($event)" />
           </div>
         </div>
 
-        <!-- Tree filters (LADT always present, CADT when club data exists) -->
-        <div class="filter-row-trees" [class.dual-tree]="hasCadtData()">
+        <!-- Row 2: LADT (span 2 or 1), CADT (conditional), Position, Grad Year — 4-col grid -->
+        <div class="filter-row-4" [class.no-cadt]="!hasCadtData()">
           <!-- LADT Tree -->
-          <div class="form-group form-group-tree">
-            <label>League / Agegroup / Division / Team</label>
+          <div class="form-group form-group-tree" [class.span-2]="!hasCadtData()">
+            <label>League / Agegroup / Division / Team <span class="label-tip">Check nodes to filter</span></label>
             <div class="tree-scroll-container">
               @if (ladtTreeLoading()) {
                 <div class="tree-loading">
@@ -114,7 +119,7 @@
           <!-- CADT Tree (conditional) -->
           @if (hasCadtData() && jobName()) {
             <div class="form-group form-group-tree">
-              <label>Club / Agegroup / Division / Team</label>
+              <label>Club / Agegroup / Division / Team <span class="label-tip">Filter by club roster structure</span></label>
               <div class="tree-scroll-container">
                 @if (cadtTreeLoading()) {
                   <div class="tree-loading">
@@ -133,6 +138,41 @@
               </div>
             </div>
           }
+
+          <div class="form-group">
+            <label>Position</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.positions ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().positions"
+              (change)="updateMultiSelect('positions', $event.value)"
+              [mode]="'CheckBox'"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
+              placeholder="All"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms"
+              [popupWidth]="'auto'">
+            </ejs-multiselect>
+          </div>
+
+          <div class="form-group">
+            <label>Grad Year</label>
+            <ejs-multiselect
+              [dataSource]="filterOptions()?.gradYears ?? []"
+              [fields]="msFields"
+              [value]="searchRequest().gradYears"
+              (change)="updateMultiSelect('gradYears', $event.value)"
+              [mode]="'CheckBox'"
+              [showDropDownIcon]="true"
+              [closePopupOnSelect]="false"
+              [changeOnBlur]="false"
+              placeholder="All"
+              [itemTemplate]="countBadgeTemplate"
+              cssClass="filter-ms">
+            </ejs-multiselect>
+          </div>
         </div>
 
         <!-- Action buttons row -->
@@ -189,17 +229,10 @@
       <!-- Expandable "More Filters" -->
       @if (moreFiltersExpanded()) {
         <div class="filter-bar-expanded">
-          <!-- Section: General -->
+          <!-- Section: Contact & Dates -->
           <div class="filter-section">
-            <div class="section-label">General</div>
+            <div class="section-label">Contact &amp; Dates</div>
             <div class="filter-row">
-              <div class="form-group">
-                <label for="filterName">Name</label>
-                <input type="text" id="filterName" class="form-control"
-                  placeholder="First or Last"
-                  [ngModel]="searchRequest().name"
-                  (ngModelChange)="updateName($event)" />
-              </div>
               <div class="form-group">
                 <label for="filterEmail">Email</label>
                 <input type="text" id="filterEmail" class="form-control"
@@ -213,23 +246,6 @@
                   placeholder="Cell phone"
                   [ngModel]="searchRequest().phone"
                   (ngModelChange)="updatePhone($event)" />
-              </div>
-              <div class="form-group">
-                <label>Status</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.activeStatuses ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().activeStatuses"
-                  (change)="updateMultiSelect('activeStatuses', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [changeOnBlur]="false"
-                  placeholder="All Statuses"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms"
-                  [popupWidth]="'auto'">
-                </ejs-multiselect>
               </div>
               <div class="form-group">
                 <label for="filterDateFrom">Date From</label>
@@ -246,39 +262,9 @@
             </div>
           </div>
 
-          <!-- Section: Organization -->
+          <!-- Section: Demographics & Organization -->
           <div class="filter-section">
-            <div class="section-label">Organization</div>
-            <div class="filter-row">
-              <div class="form-group">
-                <label for="filterSchool">School</label>
-                <input type="text" id="filterSchool" class="form-control"
-                  placeholder="School name"
-                  [ngModel]="searchRequest().schoolName"
-                  (ngModelChange)="updateSchoolName($event)" />
-              </div>
-              <div class="form-group">
-                <label>Grad Year</label>
-                <ejs-multiselect
-                  [dataSource]="filterOptions()?.gradYears ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().gradYears"
-                  (change)="updateMultiSelect('gradYears', $event.value)"
-                  [mode]="'CheckBox'"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [changeOnBlur]="false"
-                  placeholder="All"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-            </div>
-          </div>
-
-          <!-- Section: Demographics -->
-          <div class="filter-section">
-            <div class="section-label">Demographics</div>
+            <div class="section-label">Demographics &amp; Organization</div>
             <div class="filter-row">
               <div class="form-group">
                 <label>Gender</label>
@@ -328,12 +314,40 @@
                   cssClass="filter-ms">
                 </ejs-multiselect>
               </div>
+              <div class="form-group">
+                <label for="filterSchool">School</label>
+                <input type="text" id="filterSchool" class="form-control"
+                  placeholder="School name"
+                  [ngModel]="searchRequest().schoolName"
+                  (ngModelChange)="updateSchoolName($event)" />
+              </div>
+              @if (!isTournament()) {
+                <div class="form-group">
+                  <label>Reg. Club (self-reported)</label>
+                  <ejs-multiselect
+                    [dataSource]="filterOptions()?.clubs ?? []"
+                    [fields]="msFields"
+                    [value]="searchRequest().clubNames"
+                    (change)="updateMultiSelect('clubNames', $event.value)"
+                    [mode]="'CheckBox'"
+                    [showSelectAll]="true"
+                    [showDropDownIcon]="true"
+                    [closePopupOnSelect]="false"
+                    [changeOnBlur]="false"
+                    [enableFiltering]="true"
+                    placeholder="All Clubs"
+                    [itemTemplate]="countBadgeTemplate"
+                    cssClass="filter-ms"
+                    [popupWidth]="'auto'">
+                  </ejs-multiselect>
+                </div>
+              }
             </div>
           </div>
 
-          <!-- Section: Billing & Mobile -->
+          <!-- Section: Billing & Roster -->
           <div class="filter-section">
-            <div class="section-label">Billing &amp; Mobile</div>
+            <div class="section-label">Billing &amp; Roster</div>
             <div class="filter-row">
               <div class="form-group">
                 <label>ARB Subscription</label>
@@ -367,15 +381,8 @@
                   cssClass="filter-ms">
                 </ejs-multiselect>
               </div>
-            </div>
-          </div>
-
-          <!-- Section: Club Roster Search -->
-          <div class="filter-section">
-            <div class="section-label">Club Roster Search</div>
-            <div class="filter-row">
               <div class="form-group">
-                <label for="rosterThreshold">Teams With Roster Count &lt;=</label>
+                <label for="rosterThreshold">Roster Count &lt;=</label>
                 <select id="rosterThreshold" class="form-select"
                   [ngModel]="searchRequest().rosterThreshold ?? ''"
                   (ngModelChange)="updateRosterThreshold($event)">
@@ -397,67 +404,69 @@
       }
     </div>
 
-    <!-- Filter Chips Strip -->
-    @if (activeFilterChips().length > 0 && searchResults()) {
-      <div class="filter-chips-strip">
-        @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
-          <span class="filter-chip">
-            <span class="chip-category">{{ chip.category }}:</span>
-            <span class="chip-label">{{ chip.label }}</span>
-            <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </span>
-        }
-        <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
-      </div>
-    }
-
     <!-- Results Grid -->
     <div class="results-container">
       @if (searchResults()) {
-        <div class="results-summary">
-          <svg class="results-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
-            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-          </svg>
-          <span class="result-count">
-            <span class="result-count-number">{{ searchResults()!.count | number }}</span>
-            <span class="result-count-label">registrations</span>
-          </span>
-          @if (selectedRegistrations().size > 0) {
-            <span class="result-selected">
-              <span class="selected-badge">{{ selectedRegistrations().size }}</span> selected
-            </span>
+        <div class="results-panel">
+          <!-- Active filter chips (inside results card, centered) -->
+          @if (activeFilterChips().length > 0) {
+            <div class="filter-chips-strip">
+              @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
+                <span class="filter-chip">
+                  <span class="chip-category">{{ chip.category }}:</span>
+                  <span class="chip-label">{{ chip.label }}</span>
+                  <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </span>
+              }
+              <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
+            </div>
           }
-          <span class="result-financials">
-            <span class="financial-item financial-paid">
-              <span class="financial-label">Paid</span>
-              <span class="financial-value">{{ searchResults()!.totalPaid | currency }}</span>
-            </span>
-            <span class="financial-item financial-owed">
-              <span class="financial-label">Owed</span>
-              <span class="financial-value">{{ searchResults()!.totalOwed | currency }}</span>
-            </span>
-          </span>
-        </div>
 
-        <ejs-grid
-          #grid
-          [dataSource]="searchResults()!.result"
-          [allowPaging]="true"
-          [allowSorting]="true"
-          [allowExcelExport]="true"
-          [enableStickyHeader]="true"
-          [frozenColumns]="1"
-          [pageSettings]="pageSettings"
-          [sortSettings]="sortSettings"
-          (rowSelected)="onRowSelected()"
-          (rowDeselected)="onRowSelected()"
-          class="tight-table"
-        >
+          <!-- Summary strip (integrated into card) -->
+          <div class="results-summary">
+            <svg class="results-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" opacity="0.3">
+              <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+            </svg>
+            <span class="result-count">
+              <span class="result-count-number">{{ searchResults()!.count | number }}</span>
+              <span class="result-count-label">registrations</span>
+            </span>
+            @if (selectedRegistrations().size > 0) {
+              <span class="result-selected">
+                <span class="selected-badge">{{ selectedRegistrations().size }}</span> selected
+              </span>
+            }
+            <span class="result-financials">
+              <span class="financial-item financial-paid">
+                <span class="financial-label">Paid</span>
+                <span class="financial-value">{{ searchResults()!.totalPaid | currency }}</span>
+              </span>
+              <span class="financial-item financial-owed">
+                <span class="financial-label">Owed</span>
+                <span class="financial-value">{{ searchResults()!.totalOwed | currency }}</span>
+              </span>
+            </span>
+          </div>
+
+          <ejs-grid
+            #grid
+            [dataSource]="searchResults()!.result"
+            [allowPaging]="true"
+            [allowSorting]="true"
+            [allowExcelExport]="true"
+            [enableStickyHeader]="true"
+            [frozenColumns]="1"
+            [pageSettings]="pageSettings"
+            [sortSettings]="sortSettings"
+            (rowSelected)="onRowSelected()"
+            (rowDeselected)="onRowSelected()"
+            class="tight-table"
+          >
           <e-columns>
             <!-- Frozen: Name with inline detail icon -->
             <e-column field="lastName" headerText="Name" width="200">
@@ -526,6 +535,7 @@
             </e-aggregate>
           </e-aggregates>
         </ejs-grid>
+        </div>
       }
     </div>
   </div>

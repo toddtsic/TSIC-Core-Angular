@@ -7,6 +7,7 @@ import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-ang
 
 import { RegistrationSearchService } from './services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { RegistrationDetailPanelComponent } from './components/registration-detail-panel.component';
 import { RefundModalComponent } from './components/refund-modal.component';
 import { BatchEmailModalComponent } from './components/batch-email-modal.component';
@@ -57,6 +58,12 @@ interface FilterChip {
 export class RegistrationSearchComponent implements OnInit, OnDestroy {
   private readonly searchService = inject(RegistrationSearchService);
   private readonly toast = inject(ToastService);
+  private readonly jobService = inject(JobService);
+
+  /** True when the current job is a tournament — hides self-reported club filter */
+  isTournament = computed(() =>
+    this.jobService.currentJob()?.jobTypeName?.toLowerCase() === 'tournament'
+  );
 
   @ViewChild('grid') grid!: GridComponent;
 
