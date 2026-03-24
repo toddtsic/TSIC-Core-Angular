@@ -44,6 +44,7 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
 
 export const DIVISION_COLUMNS: LadtColumnDef[] = [
   { field: 'divName', header: 'Division', type: 'string', frozen: true, width: '180px' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '280px' },
   { field: 'maxRoundNumberToShow', header: 'Max Round#', type: 'number' },
 ];
 

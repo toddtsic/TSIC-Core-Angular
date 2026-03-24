@@ -145,9 +145,7 @@ export interface ParentBreadcrumb {
                                 <span class="fee-amount text-body-tertiary">—</span>
                               }
                               @if (fee.inherited) {
-                                <span class="fee-source" title="Inherited from {{ fee.source }}">
-                                  <i class="bi bi-arrow-up-short"></i>{{ fee.source === 'job' ? 'job' : 'ag' }}
-                                </span>
+                                <span class="fee-from-badge">from {{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : fee.source }}</span>
                               }
                               @if (fee.activeDiscount) {
                                 <span class="fee-modifier fee-discount" title="Active discount">
@@ -424,10 +422,17 @@ export interface ParentBreadcrumb {
       font-style: italic;
     }
 
-    .fee-source {
-      font-size: 0.6rem;
-      color: var(--bs-secondary-color);
-      margin-left: 2px;
+    .fee-from-badge {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-left: 3px;
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-body-color);
+      color: var(--bs-body-bg);
     }
 
     .fee-modifier {

@@ -547,7 +547,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     else fetch$ = this.ladtService.getTeamSiblings(node.parentId!);
 
     // For levels that show fees, load fees in parallel
-    const needsFees = level === 1 || level === 3;
+    const needsFees = level === 1 || level === 2 || level === 3;
     const feesLoaded = this.jobFees().length > 0;
 
     const combined$ = needsFees && !feesLoaded
@@ -638,7 +638,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   };
 
   /** Build fee pill data for a grid row from cached jobFees */
-  private buildFeePills(scopeId: string, scopeType: 'agegroup' | 'team'): any[] {
+  private buildFeePills(scopeId: string, scopeType: 'agegroup' | 'division' | 'team'): any[] {
     const fees = this.jobFees();
     if (!fees.length) return [];
 
@@ -706,6 +706,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return Array.from(roleMap.entries()).map(([roleId, entry]) => {
       const inherited = scopeType === 'agegroup'
         ? entry.source === 'job'           // agegroup grid: job-level = inherited
+        : scopeType === 'division'
+        ? true                             // division grid: always inherited (divisions don't own fees)
         : entry.source !== 'team';         // team grid: anything not team-level = inherited
 
       const activeModifiers = entry.modifiers.filter(m => m.active);
@@ -728,6 +730,12 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     if (level === 1) {
       for (const row of data) {
         row._fees = this.buildFeePills(row.agegroupId, 'agegroup');
+      }
+    } else if (level === 2) {
+      for (const row of data) {
+        // Divisions inherit from their parent agegroup
+        const parentAgId = row._parentAgId;
+        row._fees = parentAgId ? this.buildFeePills(parentAgId, 'division') : [];
       }
     } else if (level === 3) {
       for (const row of data) {
