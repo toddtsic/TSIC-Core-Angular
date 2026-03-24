@@ -38,6 +38,7 @@ public record RegistrationSearchRequest
 
     // Club roster threshold search
     public int? RosterThreshold { get; init; }
+    public List<string>? RosterThresholdClubNames { get; init; }
 
     // CADT tree filter — team IDs resolved from Club/Agegroup/Division/Team tree.
     // ANDed with all other filters (including LADT tree TeamIds/AgegroupIds/DivisionIds).
@@ -125,6 +126,9 @@ public record RegistrationFilterOptionsDto
     // Billing & Mobile
     public required List<FilterOption> ArbSubscriptionStatuses { get; init; }
     public required List<FilterOption> MobileRegistrations { get; init; }
+
+    // Club rep clubs (for roster threshold companion filter)
+    public required List<FilterOption> ClubRepClubs { get; init; }
 }
 
 public record FilterOption

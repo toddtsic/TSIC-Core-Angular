@@ -1109,11 +1109,22 @@ public class RegistrationRepository : IRegistrationRepository
         if (request.RegDateTo.HasValue)
             query = query.Where(r => r.RegistrationTs <= request.RegDateTo.Value);
 
-        // ── Club roster threshold search ──
+        // ── Club roster threshold search (with optional club name filter) ──
         if (request.RosterThreshold != null)
         {
-            var underRosteredClubRepIds = _context.Teams
-                .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null && t.Active == true)
+            var teamsQuery = _context.Teams
+                .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null && t.Active == true);
+
+            // Narrow to specific club rep clubs when specified
+            if (request.RosterThresholdClubNames is { Count: > 0 })
+            {
+                teamsQuery = teamsQuery.Where(t =>
+                    t.ClubrepRegistration != null
+                    && t.ClubrepRegistration.ClubName != null
+                    && request.RosterThresholdClubNames.Contains(t.ClubrepRegistration.ClubName));
+            }
+
+            var underRosteredClubRepIds = teamsQuery
                 .Where(t => _context.Registrations
                     .Count(r => r.AssignedTeamId == t.TeamId && r.BActive == true) <= request.RosterThreshold.Value)
                 .Select(t => t.ClubrepRegistrationid!.Value)
@@ -1385,6 +1396,21 @@ public class RegistrationRepository : IRegistrationRepository
             new() { Value = "NOT PAYING BY SUBSCRIPTION", Text = "NOT PAYING BY SUBSCRIPTION", Count = withoutSubCount }
         };
 
+        // ── Club rep clubs (distinct club names from club rep registrations with active teams) ──
+        var clubRepClubs = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                && t.Active == true
+                && t.ClubrepRegistrationid != null
+                && t.ClubrepRegistration != null
+                && t.ClubrepRegistration.BActive == true
+                && t.ClubrepRegistration.ClubName != null
+                && t.ClubrepRegistration.ClubName != "")
+            .GroupBy(t => t.ClubrepRegistration!.ClubName!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
         return new RegistrationFilterOptionsDto
         {
             Roles = roles,
@@ -1400,7 +1426,8 @@ public class RegistrationRepository : IRegistrationRepository
             Grades = grades,
             AgeRanges = ageRanges,
             ArbSubscriptionStatuses = arbStatuses,
-            MobileRegistrations = mobileRegs
+            MobileRegistrations = mobileRegs,
+            ClubRepClubs = clubRepClubs
         };
     }
 

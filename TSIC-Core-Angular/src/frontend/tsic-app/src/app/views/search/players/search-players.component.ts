@@ -108,6 +108,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     regDateFrom: undefined,
     regDateTo: undefined,
     rosterThreshold: undefined,
+    rosterThresholdClubNames: [],
     cadtTeamIds: []
   });
 
@@ -207,7 +208,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
     if (req.regDateFrom) chips.push({ category: 'From', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.regDateTo) chips.push({ category: 'To', label: req.regDateTo, filterKey: 'regDateTo', value: req.regDateTo });
-    if (req.rosterThreshold != null) chips.push({ category: 'Roster <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
+    if (req.rosterThreshold != null) chips.push({ category: 'CR Roster <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
+    addArrayChips('CR Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
 
     // CADT tree chips — highest-level checked ancestor only (same pattern as LADT)
     const cadtChecked = this.cadtCheckedIds();
@@ -361,6 +363,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       regDateFrom: undefined,
       regDateTo: undefined,
       rosterThreshold: undefined,
+      rosterThresholdClubNames: [],
       cadtTeamIds: []
     });
     this.ladtCheckedIds.set(new Set());
@@ -756,6 +759,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
       mobileRegistrationRoles: clean(req.mobileRegistrationRoles),
       rosterThreshold: req.rosterThreshold ?? undefined,
+      rosterThresholdClubNames: clean(req.rosterThresholdClubNames),
       cadtTeamIds: clean(req.cadtTeamIds)
     };
   }

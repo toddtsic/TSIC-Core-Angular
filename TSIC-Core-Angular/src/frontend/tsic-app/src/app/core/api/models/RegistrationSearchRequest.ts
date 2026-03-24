@@ -25,6 +25,7 @@ export type RegistrationSearchRequest = {
     regDateFrom?: string | null;
     regDateTo?: string | null;
     rosterThreshold?: number | null;
+    rosterThresholdClubNames?: any[] | null;
     cadtTeamIds?: any[] | null;
 };
 

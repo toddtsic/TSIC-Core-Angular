@@ -398,8 +398,15 @@
                   cssClass="filter-ms">
                 </ejs-multiselect>
               </div>
+            </div>
+          </div>
+
+          <!-- Section: Club Rep Roster -->
+          <div class="filter-section">
+            <div class="section-label">Club Rep Roster</div>
+            <div class="filter-row">
               <div class="form-group">
-                <label for="rosterThreshold">Roster Count &lt;=</label>
+                <label for="rosterThreshold">Teams &lt;=</label>
                 <select id="rosterThreshold" class="form-select"
                   [ngModel]="searchRequest().rosterThreshold ?? ''"
                   (ngModelChange)="updateRosterThreshold($event)">
@@ -414,6 +421,23 @@
                   <option [ngValue]="20">20</option>
                   <option [ngValue]="25">25</option>
                 </select>
+              </div>
+              <div class="form-group">
+                <label>Club</label>
+                <ejs-multiselect
+                  [dataSource]="filterOptions()?.clubRepClubs ?? []"
+                  [fields]="msFields"
+                  [value]="searchRequest().rosterThresholdClubNames"
+                  (change)="updateMultiSelect('rosterThresholdClubNames', $event.value)"
+                  [mode]="'CheckBox'"
+                  [allowFiltering]="true"
+                  [showDropDownIcon]="true"
+                  [closePopupOnSelect]="false"
+                  [changeOnBlur]="false"
+                  placeholder="All Clubs"
+                  [itemTemplate]="countBadgeTemplate"
+                  cssClass="filter-ms">
+                </ejs-multiselect>
               </div>
             </div>
           </div>
