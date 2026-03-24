@@ -399,6 +399,13 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.multiSelects?.forEach(ms => ms.hidePopup());
   }
 
+  /** FAB click: close all dropdowns, collapse trees, fire search */
+  onFabSearch(): void {
+    this.closeAllMultiSelects();
+    this.treesCollapsed.set(true);
+    this.executeSearch();
+  }
+
   removeFilterChip(chip: FilterChip): void {
     // CADT tree chips: uncheck the node and re-derive
     if (chip.filterKey === 'cadtTeamIds') {
