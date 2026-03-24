@@ -167,6 +167,30 @@
   }
 }
 
+// ── Reset button (warning-tinted) ──
+.btn-reset {
+  background: color-mix(in srgb, var(--bs-warning) 15%, var(--bs-card-bg));
+  color: var(--bs-warning);
+  border: 1px solid color-mix(in srgb, var(--bs-warning) 25%, transparent);
+
+  &:hover {
+    background: color-mix(in srgb, var(--bs-warning) 25%, var(--bs-card-bg));
+    color: var(--bs-warning);
+  }
+}
+
+// ── More/Less Filters button ──
+.btn-more-filters {
+  background: color-mix(in srgb, var(--bs-primary) 12%, var(--bs-card-bg));
+  color: var(--bs-primary);
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 20%, transparent);
+
+  &:hover {
+    background: color-mix(in srgb, var(--bs-primary) 20%, var(--bs-card-bg));
+    color: var(--bs-primary);
+  }
+}
+
 .toggle-arrow {
   margin-left: var(--space-1);
   transition: transform 0.2s ease;

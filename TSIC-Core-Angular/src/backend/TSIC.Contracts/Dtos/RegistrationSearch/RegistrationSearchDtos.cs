@@ -12,6 +12,7 @@ public record RegistrationSearchRequest
     public string? Email { get; init; }
     public string? Phone { get; init; }
     public string? SchoolName { get; init; }
+    public string? InvoiceNumber { get; init; }
 
     // Multi-select filters
     public List<string>? RoleIds { get; init; }

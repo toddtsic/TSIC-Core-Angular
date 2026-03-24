@@ -7,6 +7,7 @@ export type RegistrationSearchRequest = {
     email?: string | null;
     phone?: string | null;
     schoolName?: string | null;
+    invoiceNumber?: string | null;
     roleIds?: any[] | null;
     teamIds?: any[] | null;
     agegroupIds?: any[] | null;

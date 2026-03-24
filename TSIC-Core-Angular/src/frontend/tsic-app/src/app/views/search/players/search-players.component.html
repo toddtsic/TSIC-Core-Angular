@@ -253,6 +253,13 @@
                   (ngModelChange)="updatePhone($event)" />
               </div>
               <div class="form-group">
+                <label for="filterInvoice">Invoice #</label>
+                <input type="text" id="filterInvoice" class="form-control"
+                  placeholder="Invoice number"
+                  [ngModel]="searchRequest().invoiceNumber"
+                  (ngModelChange)="updateInvoiceNumber($event)" />
+              </div>
+              <div class="form-group">
                 <label for="filterDateFrom">Reg Date From</label>
                 <input type="date" id="filterDateFrom" class="form-control"
                   [ngModel]="searchRequest().regDateFrom"

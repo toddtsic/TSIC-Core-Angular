@@ -62,7 +62,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   /** True when the current job is a tournament — hides self-reported club filter */
   isTournament = computed(() =>
-    this.jobService.currentJob()?.jobTypeName?.toLowerCase() === 'tournament'
+    this.jobService.currentJob()?.jobTypeName?.toLowerCase().includes('tournament') ?? false
   );
 
   @ViewChild('grid') grid!: GridComponent;
@@ -90,6 +90,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     email: '',
     phone: '',
     schoolName: '',
+    invoiceNumber: '',
     roleIds: [],
     teamIds: [],
     agegroupIds: [],
@@ -717,6 +718,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   updateSchoolName(value: string): void {
     this.searchRequest.update(req => ({ ...req, schoolName: value }));
+  }
+
+  updateInvoiceNumber(value: string): void {
+    this.searchRequest.update(req => ({ ...req, invoiceNumber: value }));
   }
 
   updateRegDateFrom(value: string): void {
