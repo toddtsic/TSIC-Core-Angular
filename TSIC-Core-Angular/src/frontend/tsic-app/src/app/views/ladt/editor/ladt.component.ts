@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, AfterViewChecked, signal, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, AfterViewChecked, HostListener, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CdkTreeModule } from '@angular/cdk/tree';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { LadtService } from './services/ladt.service';
 import { LeagueDetailComponent } from './components/league-detail.component';
 import { AgegroupDetailComponent } from './components/agegroup-detail.component';
@@ -16,7 +16,7 @@ import {
   type LadtColumnDef
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
-import type { LadtTreeNodeDto, DivisionNameSyncPreview } from '../../../core/api';
+import type { LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto } from '../../../core/api';
 
 /** Flat node for CdkTree display */
 export interface LadtFlatNode {
@@ -70,6 +70,9 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   // Scheduled team IDs (raw data from backend, used for KPI computation)
   scheduledTeamIds = signal<Set<string>>(new Set());
+
+  // Fee data for grid enrichment
+  private jobFees = signal<JobFeeDto[]>([]);
 
   // ── Team Status KPIs (computed from tree data) ──
   teamStatusKpis = computed(() => {
@@ -187,6 +190,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   });
   deleteDialogConfirmLabel = computed(() => this.deleteTargetNode()?.level === 3 ? 'Remove' : 'Delete');
 
+  // Fly-in detail panel
+  isDetailOpen = signal(false);
+  detailNode = signal<LadtFlatNode | null>(null);
+
   // Actions dropdown
   actionsOpen = signal(false);
 
@@ -237,6 +244,9 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         }
 
         this.isLoading.set(false);
+
+        // Refresh agegroup badge counts from updated tree data
+        this.refreshAgegroupBadges(flat);
 
         // After adding a child: expand ancestors and select the new node
         if (selectId) {
@@ -536,8 +546,40 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     else if (level === 2) fetch$ = this.ladtService.getDivisionSiblings(node.parentId!);
     else fetch$ = this.ladtService.getTeamSiblings(node.parentId!);
 
-    fetch$.subscribe({
-      next: (data: any[]) => {
+    // For levels that show fees, load fees in parallel
+    const needsFees = level === 1 || level === 3;
+    const feesLoaded = this.jobFees().length > 0;
+
+    const combined$ = needsFees && !feesLoaded
+      ? forkJoin({ data: fetch$, fees: this.ladtService.getJobFees() })
+      : fetch$;
+
+    (combined$ as Observable<any>).subscribe({
+      next: (result: any) => {
+        const data: any[] = result.data ?? result;
+        if (result.fees) {
+          this.jobFees.set(result.fees);
+        }
+
+        // Enrich agegroups with tree counts + special flag
+        if (level === 1) {
+          const treeNodes = this.flatNodes();
+          for (const row of data) {
+            const upper = (row.agegroupName ?? '').toUpperCase();
+            row._isSpecial = upper === 'DROPPED TEAMS' || upper.startsWith('WAITLIST');
+            const treeNode = treeNodes.find(n => n.id === row.agegroupId);
+            if (treeNode) {
+              row.teamCount = treeNode.teamCount;
+              row.playerCount = treeNode.playerCount;
+            }
+          }
+        }
+
+        // Enrich with fee pills
+        if (needsFees) {
+          this.enrichWithFees(data, level);
+        }
+
         this.siblingData.set(data);
         this.isSiblingsLoading.set(false);
       },
@@ -546,6 +588,130 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         this.isSiblingsLoading.set(false);
       }
     });
+  }
+
+  /** Re-stamp teamCount/playerCount on agegroup grid rows from fresh tree data */
+  private refreshAgegroupBadges(treeNodes: LadtFlatNode[]): void {
+    const selected = this.selectedNode();
+    if (!selected || selected.level !== 1) return;
+
+    const data = this.siblingData();
+    if (data.length === 0) return;
+
+    let changed = false;
+    for (const row of data) {
+      const tn = treeNodes.find(n => n.id === row.agegroupId);
+      if (tn && (row.teamCount !== tn.teamCount || row.playerCount !== tn.playerCount)) {
+        row.teamCount = tn.teamCount;
+        row.playerCount = tn.playerCount;
+        changed = true;
+      }
+    }
+    if (changed) this.siblingData.set([...data]);
+  }
+
+  private static readonly ROLE_LABELS: Record<string, string> = {
+    'DAC0C570-94AA-4A88-8D73-6034F1F72F3A': 'Player',
+    '6A26171F-4D94-4928-94FA-2FEFD42C3C3E': 'ClubRep',
+  };
+
+  /** Build fee pill data for a grid row from cached jobFees */
+  private buildFeePills(scopeId: string, scopeType: 'agegroup' | 'team'): any[] {
+    const fees = this.jobFees();
+    if (!fees.length) return [];
+
+    interface FeeEntry {
+      deposit: number | null;
+      balanceDue: number | null;
+      source: 'job' | 'agegroup' | 'team';
+      modifiers: { type: string; amount: number; active: boolean }[];
+    }
+
+    const roleMap = new Map<string, FeeEntry>();
+    const now = new Date();
+
+    const extractModifiers = (f: JobFeeDto) =>
+      (f.modifiers ?? []).map(m => ({
+        type: m.modifierType,
+        amount: m.amount,
+        active: (!m.startDate || new Date(m.startDate) <= now) && (!m.endDate || new Date(m.endDate) >= now)
+      }));
+
+    // Layer 1: Job-level defaults
+    for (const f of fees) {
+      if (!f.agegroupId && !f.teamId && f.roleId) {
+        roleMap.set(f.roleId, {
+          deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
+          source: 'job', modifiers: extractModifiers(f)
+        });
+      }
+    }
+
+    // Layer 2: Agegroup-level
+    let agId: string | undefined;
+    if (scopeType === 'team') {
+      const teamNode = this.flatNodes().find(n => n.id === scopeId);
+      const agNode = teamNode ? this.flatNodes().find(n => n.id === teamNode.parentId) : null;
+      agId = agNode?.level === 2 ? agNode.parentId ?? undefined : agNode?.id;
+    } else {
+      agId = scopeId;
+    }
+
+    if (agId) {
+      for (const f of fees) {
+        if (f.agegroupId === agId && !f.teamId && f.roleId) {
+          roleMap.set(f.roleId, {
+            deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
+            source: 'agegroup', modifiers: extractModifiers(f)
+          });
+        }
+      }
+    }
+
+    // Layer 3: Team-level (only for team scope)
+    if (scopeType === 'team') {
+      for (const f of fees) {
+        if (f.teamId === scopeId && f.roleId) {
+          roleMap.set(f.roleId, {
+            deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
+            source: 'team', modifiers: extractModifiers(f)
+          });
+        }
+      }
+    }
+
+    // Determine what's "inherited" vs "own" based on scope
+    return Array.from(roleMap.entries()).map(([roleId, entry]) => {
+      const inherited = scopeType === 'agegroup'
+        ? entry.source === 'job'           // agegroup grid: job-level = inherited
+        : entry.source !== 'team';         // team grid: anything not team-level = inherited
+
+      const activeModifiers = entry.modifiers.filter(m => m.active);
+
+      return {
+        roleId,
+        roleLabel: LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6),
+        deposit: entry.deposit,
+        balanceDue: entry.balanceDue,
+        inherited,
+        source: entry.source,
+        activeDiscount: activeModifiers.filter(m => m.type === 'Discount').reduce((s, m) => s + m.amount, 0) || null,
+        activeLateFee: activeModifiers.filter(m => m.type === 'LateFee').reduce((s, m) => s + m.amount, 0) || null,
+      };
+    });
+  }
+
+  /** Enrich grid rows with _fees pill data */
+  private enrichWithFees(data: any[], level: number): void {
+    if (level === 1) {
+      for (const row of data) {
+        row._fees = this.buildFeePills(row.agegroupId, 'agegroup');
+      }
+    } else if (level === 3) {
+      for (const row of data) {
+        row._fees = this.buildFeePills(row.teamId, 'team');
+      }
+    }
   }
 
   private getParentParts(node: LadtFlatNode): ParentBreadcrumb[] {
@@ -561,26 +727,43 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return parts;
   }
 
-  onGridRowSelected(id: string): void {
+  // ── Fly-in detail panel ──
+
+  openDetail(id: string): void {
     const node = this.flatNodes().find(n => n.id === id);
     if (node) {
       this.selectedNode.set(node);
+      this.detailNode.set(node);
+      this.isDetailOpen.set(true);
     }
+  }
+
+  closeDetail(): void {
+    this.isDetailOpen.set(false);
+    this.detailNode.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.isDetailOpen()) this.closeDetail();
   }
 
   // ── Detail panel callbacks ──
 
   onDetailSaved(): void {
     const node = this.selectedNode();
+    this.jobFees.set([]); // invalidate fee cache so grid reloads fresh
     this.loadTree();
     if (node) this.loadSiblings(node);
   }
 
   onDetailDeleted(): void {
+    this.closeDetail();
     this.selectedNode.set(null);
     this.siblingData.set([]);
     this.loadTree();
   }
+
 
   // ── Mobile ──
 

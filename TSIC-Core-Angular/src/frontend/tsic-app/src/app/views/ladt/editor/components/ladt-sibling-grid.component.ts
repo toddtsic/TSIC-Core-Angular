@@ -52,6 +52,7 @@ export interface ParentBreadcrumb {
           @for (row of sortedData(); track row[idField]; let i = $index) {
             <tr [class.selected]="row[idField] === selectedId"
                 [class.inactive-row]="row['active'] === false"
+                [class.special-row]="row['_isSpecial'] === true"
                 (click)="rowSelected.emit(row[idField])">
               <td class="frozen-col row-num-col cell-num" [style.left.px]="0">{{ i + 1 }}</td>
               @for (col of columns; track col.field) {
@@ -79,11 +80,60 @@ export interface ParentBreadcrumb {
                     @case ('dateOnly') {
                       {{ formatDateOnly(row[col.field]) }}
                     }
-                    @default {
-                      @if (col.colorField && row[col.colorField]) {
-                        <span class="color-dot" [style.background]="row[col.colorField]"></span>
+                    @case ('fees') {
+                      @if (row['_fees']?.length) {
+                        <div class="fee-pills">
+                          @for (fee of row['_fees']; track fee.roleId) {
+                            <div class="fee-pill" [class.fee-inherited]="fee.inherited">
+                              <span class="fee-role">{{ fee.roleLabel }}</span>
+                              @if (fee.deposit != null && fee.deposit > 0) {
+                                <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}</span>
+                                <span class="fee-sep">→</span>
+                                <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                              } @else if (fee.balanceDue != null && fee.balanceDue > 0) {
+                                <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                              } @else {
+                                <span class="fee-amount text-body-tertiary">—</span>
+                              }
+                              @if (fee.inherited) {
+                                <span class="fee-source" title="Inherited from {{ fee.source }}">
+                                  <i class="bi bi-arrow-up-short"></i>{{ fee.source === 'job' ? 'job' : 'ag' }}
+                                </span>
+                              }
+                              @if (fee.activeDiscount) {
+                                <span class="fee-modifier fee-discount" title="Active discount">
+                                  -\${{ fee.activeDiscount | number:'1.0-0' }}
+                                </span>
+                              }
+                              @if (fee.activeLateFee) {
+                                <span class="fee-modifier fee-latefee" title="Active late fee">
+                                  +\${{ fee.activeLateFee | number:'1.0-0' }}
+                                </span>
+                              }
+                            </div>
+                          }
+                        </div>
+                      } @else {
+                        <span class="text-body-tertiary">—</span>
                       }
-                      {{ row[col.field] ?? '' }}
+                    }
+                    @default {
+                      @if (col.colorField) {
+                        <span class="frozen-cell-flex">
+                          <span class="color-dot"
+                                [class.color-dot--empty]="!row[col.colorField]"
+                                [style.background]="row[col.colorField] ?? 'var(--bs-secondary-bg)'"></span>
+                          <span class="frozen-cell-name">{{ row[col.field] ?? '' }}</span>
+                          @if (row['teamCount'] != null) {
+                            <span class="badge bg-primary-subtle text-primary-emphasis frozen-badge">{{ row['teamCount'] | number }}</span>
+                          }
+                          @if (row['playerCount'] != null) {
+                            <span class="badge bg-success-subtle text-success-emphasis frozen-badge">{{ row['playerCount'] | number }}</span>
+                          }
+                        </span>
+                      } @else {
+                        {{ row[col.field] ?? '' }}
+                      }
                     }
                   }
                 </td>
@@ -232,15 +282,50 @@ export interface ParentBreadcrumb {
       }
     }
 
+    tbody tr.special-row {
+      opacity: 0.6;
+
+      td {
+        font-style: italic;
+        color: var(--bs-secondary-color);
+      }
+    }
+
     /* Color swatch dot for columns with colorField */
     .color-dot {
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
-      margin-right: 4px;
       vertical-align: middle;
       border: 1px solid var(--bs-border-color);
+      flex-shrink: 0;
+    }
+
+    .color-dot--empty {
+      border-style: dashed;
+    }
+
+    /* Frozen cell with color dot + name + badges */
+    .frozen-cell-flex {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .frozen-cell-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .frozen-badge {
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      flex-shrink: 0;
     }
 
     /* Cell type alignment */
@@ -251,6 +336,67 @@ export interface ParentBreadcrumb {
     .cell-num {
       text-align: right;
       font-variant-numeric: tabular-nums;
+    }
+
+    /* Fee pills in grid cells */
+    .fee-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .fee-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .fee-role {
+      font-weight: 600;
+      color: var(--bs-secondary-color);
+      min-width: 52px;
+    }
+
+    .fee-amount {
+      font-weight: 500;
+      color: var(--bs-body-color);
+    }
+
+    .fee-sep {
+      color: var(--bs-secondary-color);
+      font-size: 0.65rem;
+    }
+
+    .fee-inherited {
+      opacity: 0.55;
+      font-style: italic;
+    }
+
+    .fee-source {
+      font-size: 0.6rem;
+      color: var(--bs-secondary-color);
+      margin-left: 2px;
+    }
+
+    .fee-modifier {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0 3px;
+      border-radius: 3px;
+      margin-left: 2px;
+    }
+
+    .fee-discount {
+      color: var(--bs-success);
+      background: rgba(var(--bs-success-rgb), 0.1);
+    }
+
+    .fee-latefee {
+      color: var(--bs-danger);
+      background: rgba(var(--bs-danger-rgb), 0.1);
     }
   `]
 })
@@ -275,10 +421,15 @@ export class LadtSiblingGridComponent implements OnChanges {
   sortedData = computed(() => {
     const rows = this.dataSignal();
     const field = this.sortField();
-    if (!field) return rows;
 
-    const dir = this.sortDirection() === 'asc' ? 1 : -1;
     return [...rows].sort((a, b) => {
+      // Always push special/inactive rows to the bottom
+      const aBottom = a['_isSpecial'] === true || a['active'] === false;
+      const bBottom = b['_isSpecial'] === true || b['active'] === false;
+      if (aBottom !== bBottom) return aBottom ? 1 : -1;
+
+      if (!field) return 0;
+      const dir = this.sortDirection() === 'asc' ? 1 : -1;
       const va = a[field];
       const vb = b[field];
       if (va == null && vb == null) return 0;

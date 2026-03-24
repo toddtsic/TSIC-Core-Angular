@@ -7,7 +7,7 @@
 export interface LadtColumnDef {
   field: string;
   header: string;
-  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly';
+  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees';
   group?: string;
   frozen?: boolean;
   width?: string;
@@ -29,12 +29,10 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
 
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
-  { field: 'color', header: 'Color', type: 'string' },
   { field: 'gender', header: 'Gender', type: 'string' },
-  { field: 'sortAge', header: 'Sort', type: 'number' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '280px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits' },
-  { field: 'maxTeamsPerClub', header: 'Max/Club', type: 'number', group: 'Limits' },
   // Settings
   { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Settings' },
   { field: 'bChampionsByDivision', header: 'Champs by Div', type: 'boolean', group: 'Settings' },
@@ -56,6 +54,7 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
   { field: 'active', header: 'Active', type: 'boolean' },
   { field: 'playerCount', header: 'Players', type: 'number' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '280px' },
   { field: 'divRank', header: 'Rank', type: 'number' },
   { field: 'divisionRequested', header: 'Div Requested', type: 'string' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string' },

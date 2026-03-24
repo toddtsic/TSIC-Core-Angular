@@ -8,8 +8,6 @@ import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-hel
 
 const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
 const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
-const MODIFIER_TYPES = ['Discount', 'LateFee'] as const;
-
 interface ModifierForm {
   feeModifierId?: string | null;
   modifierType: string;
@@ -59,29 +57,31 @@ interface ModifierForm {
       }
 
       <form (ngSubmit)="save()">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Name</label>
-            <input class="form-control" [(ngModel)]="form.agegroupName" name="agegroupName">
+        <!-- ── Settings (identity + config) ── -->
+        <div class="section-card settings-card">
+          <div class="section-card-header">
+            <i class="bi bi-gear"></i> Settings
           </div>
-          <div class="col-md-3">
-            <label class="form-label">Gender</label>
-            <select class="form-select" [(ngModel)]="form.gender" name="gender">
-              <option [ngValue]="null">Any</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="C">Co-Ed</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Color</label>
+          <div class="d-flex align-items-end gap-2 mb-2">
+            <div class="flex-grow-1">
+              <label class="fee-label">Name</label>
+              <input class="form-control form-control-sm" [(ngModel)]="form.agegroupName" name="agegroupName">
+            </div>
+            <div style="min-width: 90px;">
+              <label class="fee-label">Gender</label>
+              <select class="form-select form-select-sm" [(ngModel)]="form.gender" name="gender">
+                <option [ngValue]="null">Any</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="C">Co-Ed</option>
+              </select>
+            </div>
             <div class="color-picker-wrapper" (click)="$event.stopPropagation()">
-              <button type="button" class="form-select text-start" (click)="colorDropdownOpen.set(!colorDropdownOpen())">
+              <button type="button" class="color-trigger" (click)="colorDropdownOpen.set(!colorDropdownOpen())">
                 @if (form.color) {
-                  <span class="color-dot" [style.background]="form.color"></span>
-                  {{ getColorName(form.color) }}
+                  <span class="color-dot-lg" [style.background]="form.color"></span>
                 } @else {
-                  None
+                  <span class="color-dot-lg" style="background: transparent; border: 2px dashed var(--bs-border-color);"></span>
                 }
               </button>
               @if (colorDropdownOpen()) {
@@ -99,149 +99,25 @@ interface ModifierForm {
                 </div>
               }
             </div>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Sort Order</label>
-            <input class="form-control" type="number" [(ngModel)]="form.sortAge" name="sortAge">
-          </div>
-        </div>
-
-        <!-- Player Fees -->
-        <h6 class="section-label mt-4">Player Fees</h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Deposit</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
-                   placeholder="Optional — if blank, full amount due">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Balance Due</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue">
-          </div>
-        </div>
-        <!-- Player Modifiers -->
-        @for (mod of playerModifiers; track $index) {
-          <div class="row g-2 mt-2 align-items-end">
-            <div class="col-md-2">
-              <label class="form-label small">Type</label>
-              <select class="form-select form-select-sm" [(ngModel)]="mod.modifierType" [name]="'pModType' + $index">
-                <option value="Discount">Discount</option>
-                <option value="LateFee">Late Fee</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label small">Amount</label>
-              <input class="form-control form-control-sm" type="number" step="0.01"
-                     [(ngModel)]="mod.amount" [name]="'pModAmt' + $index">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">Start Date</label>
-              <input class="form-control form-control-sm" type="date"
-                     [(ngModel)]="mod.startDate" [name]="'pModStart' + $index">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">End Date</label>
-              <input class="form-control form-control-sm" type="date"
-                     [(ngModel)]="mod.endDate" [name]="'pModEnd' + $index">
-            </div>
-            <div class="col-md-2">
-              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeModifier(playerModifiers, $index)">
-                <i class="bi bi-x-lg"></i>
-              </button>
+            <div>
+              <label class="fee-label">Max Teams</label>
+              <input class="form-control form-control-sm text-center" type="number"
+                     [(ngModel)]="form.maxTeams" name="maxTeams" style="width: 60px;">
             </div>
           </div>
-        }
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                (click)="addModifier(playerModifiers)">
-          <i class="bi bi-plus me-1"></i>Add Discount / Late Fee
-        </button>
-
-        <!-- Club Rep Fees -->
-        <h6 class="section-label mt-4">Club Rep / Team Fees</h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Deposit</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Balance Due</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue">
-          </div>
-        </div>
-        <!-- Club Rep Modifiers -->
-        @for (mod of clubRepModifiers; track $index) {
-          <div class="row g-2 mt-2 align-items-end">
-            <div class="col-md-2">
-              <label class="form-label small">Type</label>
-              <select class="form-select form-select-sm" [(ngModel)]="mod.modifierType" [name]="'cModType' + $index">
-                <option value="Discount">Discount</option>
-                <option value="LateFee">Late Fee</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label class="form-label small">Amount</label>
-              <input class="form-control form-control-sm" type="number" step="0.01"
-                     [(ngModel)]="mod.amount" [name]="'cModAmt' + $index">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">Start Date</label>
-              <input class="form-control form-control-sm" type="date"
-                     [(ngModel)]="mod.startDate" [name]="'cModStart' + $index">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label small">End Date</label>
-              <input class="form-control form-control-sm" type="date"
-                     [(ngModel)]="mod.endDate" [name]="'cModEnd' + $index">
-            </div>
-            <div class="col-md-2">
-              <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeModifier(clubRepModifiers, $index)">
-                <i class="bi bi-x-lg"></i>
-              </button>
-            </div>
-          </div>
-        }
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                (click)="addModifier(clubRepModifiers)">
-          <i class="bi bi-plus me-1"></i>Add Discount / Late Fee
-        </button>
-
-        <h6 class="section-label mt-4">Capacity</h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Max Teams</label>
-            <input class="form-control" type="number" [(ngModel)]="form.maxTeams" name="maxTeams">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Max Teams Per Club</label>
-            <input class="form-control" type="number" [(ngModel)]="form.maxTeamsPerClub" name="maxTeamsPerClub">
-          </div>
-        </div>
-
-        <h6 class="section-label mt-4">Options</h6>
-        <div class="row g-3">
-          <div class="col-md-6">
+          <div class="settings-grid">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering">
-              <label class="form-check-label">Allow Self Rostering</label>
+              <label class="form-check-label">Self Rostering</label>
             </div>
-          </div>
-          <div class="col-md-6">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bChampionsByDivision" name="bChampionsByDivision">
-              <label class="form-check-label">Champions By Division</label>
+              <label class="form-check-label">Champs by Division</label>
             </div>
-          </div>
-          <div class="col-md-6">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowApiRosterAccess" name="bAllowApiRosterAccess">
-              <label class="form-check-label">Allow API Roster Access</label>
+              <label class="form-check-label">API Roster Access</label>
             </div>
-          </div>
-          <div class="col-md-6">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideStandings" name="bHideStandings">
               <label class="form-check-label">Hide Standings</label>
@@ -249,53 +125,227 @@ interface ModifierForm {
           </div>
         </div>
 
-        <div class="d-flex gap-2 mt-4">
-          <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
-            @if (isSaving()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>
-            }
-            Save Changes
+        <!-- ── Player Fees ── -->
+        <div class="section-card fee-card-player">
+          <div class="section-card-header">
+            <i class="bi bi-person"></i> Player Fees
+          </div>
+          <div class="fee-row">
+            <div class="fee-field">
+              <label class="fee-label">Deposit</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
+                       placeholder="Optional">
+              </div>
+            </div>
+            <div class="fee-field">
+              <label class="fee-label">Balance Due</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue">
+              </div>
+            </div>
+          </div>
+          @for (mod of playerModifiers; track $index) {
+            <div class="modifier-row">
+              <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'pModType' + $index">
+                <option value="Discount">Discount</option>
+                <option value="LateFee">Late Fee</option>
+              </select>
+              <div class="input-group input-group-sm mod-amount">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="mod.amount" [name]="'pModAmt' + $index">
+              </div>
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.startDate" [name]="'pModStart' + $index">
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.endDate" [name]="'pModEnd' + $index">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
+                      (click)="removeModifier(playerModifiers, $index)">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
+                  (click)="addModifier(playerModifiers)">
+            <i class="bi bi-plus-circle me-1"></i>Add Discount / Late Fee
           </button>
         </div>
 
-        @if (saveMessage()) {
-          <div class="alert mt-3 py-2" [class.alert-success]="!isError()" [class.alert-danger]="isError()" role="alert">
-            <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
-            {{ saveMessage() }}
+        <!-- ── Club Rep / Team Fees ── -->
+        <div class="section-card fee-card-clubrep">
+          <div class="section-card-header">
+            <i class="bi bi-shield"></i> Club Rep / Team Fees
           </div>
-        }
+          <div class="fee-row">
+            <div class="fee-field">
+              <label class="fee-label">Deposit</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit">
+              </div>
+            </div>
+            <div class="fee-field">
+              <label class="fee-label">Balance Due</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue">
+              </div>
+            </div>
+          </div>
+          @for (mod of clubRepModifiers; track $index) {
+            <div class="modifier-row">
+              <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'cModType' + $index">
+                <option value="Discount">Discount</option>
+                <option value="LateFee">Late Fee</option>
+              </select>
+              <div class="input-group input-group-sm mod-amount">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="mod.amount" [name]="'cModAmt' + $index">
+              </div>
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.startDate" [name]="'cModStart' + $index">
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.endDate" [name]="'cModEnd' + $index">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
+                      (click)="removeModifier(clubRepModifiers, $index)">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
+                  (click)="addModifier(clubRepModifiers)">
+            <i class="bi bi-plus-circle me-1"></i>Add Discount / Late Fee
+          </button>
+        </div>
+
+        <!-- ── Save ── -->
+        <div class="d-flex align-items-center gap-3 mt-3">
+          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
+            @if (isSaving()) {
+              <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            Save
+          </button>
+          @if (saveMessage()) {
+            <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
+              <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
+              {{ saveMessage() }}
+            </span>
+          }
+        </div>
       </form>
     }
   `,
   styles: [`
     :host { display: block; }
-    .detail-header { margin-bottom: var(--space-4); }
-    .section-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--bs-secondary-color);
-      border-bottom: 1px solid var(--bs-border-color);
-      padding-bottom: var(--space-1);
+    .detail-header { margin-bottom: var(--space-3); }
+
+    /* Section cards */
+    .section-card {
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3);
+      margin-bottom: var(--space-3);
     }
+    .settings-card {
+      background: var(--bs-tertiary-bg);
+      border-color: var(--bs-border-color);
+      box-shadow: var(--shadow-sm);
+    }
+    .settings-card .section-card-header { color: var(--bs-secondary-color); }
+
+    .fee-card-player {
+      border-left: 3px solid var(--bs-info);
+      background: rgba(var(--bs-info-rgb), 0.04);
+      box-shadow: var(--shadow-sm);
+    }
+    .fee-card-player .section-card-header { color: var(--bs-info); }
+
+    .fee-card-clubrep {
+      border-left: 3px solid var(--bs-warning);
+      background: rgba(var(--bs-warning-rgb), 0.04);
+      box-shadow: var(--shadow-sm);
+    }
+    .fee-card-clubrep .section-card-header { color: var(--bs-warning); }
+
+    .section-card-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--bs-secondary-color);
+      margin-bottom: var(--space-2);
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+
+    /* Fee layout */
+    .fee-row {
+      display: flex;
+      gap: var(--space-2);
+    }
+    .fee-field { flex: 1; }
+    .fee-label {
+      font-size: 0.75rem;
+      color: var(--bs-secondary-color);
+      margin-bottom: 2px;
+      display: block;
+    }
+
+    /* Modifier rows */
+    .modifier-row {
+      display: flex;
+      gap: 4px;
+      margin-top: var(--space-1);
+      align-items: center;
+    }
+    .mod-type { width: 90px; flex-shrink: 0; }
+    .mod-amount { width: 90px; flex-shrink: 0; }
+    .mod-date { flex: 1; min-width: 0; }
+    .btn-icon { padding: 2px 6px; line-height: 1; }
+
+    /* Settings grid */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2);
+      font-size: 0.85rem;
+    }
+
+    /* Color picker */
     .color-picker-wrapper { position: relative; }
-    .color-picker-wrapper .form-select {
-      display: flex; align-items: center; gap: var(--space-1); cursor: pointer;
+    .color-trigger {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; padding: 0; border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm); background: var(--bs-body-bg); cursor: pointer;
+    }
+    .color-trigger:hover { border-color: var(--bs-primary); }
+    .color-dot-lg {
+      display: block; width: 20px; height: 20px; border-radius: 50%;
+      border: 1px solid var(--bs-border-color);
     }
     .color-dot {
       display: inline-block; width: 14px; height: 14px; border-radius: 50%;
       border: 1px solid var(--bs-border-color); vertical-align: middle; flex-shrink: 0;
     }
     .color-dropdown {
-      position: absolute; z-index: 1050; top: 100%; left: 0; right: 0;
+      position: absolute; z-index: 1050; top: 100%; right: 0; width: 160px;
       max-height: 240px; overflow-y: auto; background: var(--bs-body-bg);
       border: 1px solid var(--bs-border-color); border-radius: var(--bs-border-radius);
-      box-shadow: 0 4px 12px rgba(0,0,0,.15); margin-top: 2px;
+      box-shadow: var(--shadow-lg); margin-top: 2px;
     }
     .color-option {
       display: flex; align-items: center; gap: var(--space-1);
-      padding: var(--space-1) var(--space-2); cursor: pointer; font-size: 0.875rem;
+      padding: var(--space-1) var(--space-2); cursor: pointer; font-size: 0.82rem;
     }
     .color-option:hover { background: var(--bs-tertiary-bg); }
     .color-option.active { background: var(--bs-primary-bg-subtle); font-weight: 600; }

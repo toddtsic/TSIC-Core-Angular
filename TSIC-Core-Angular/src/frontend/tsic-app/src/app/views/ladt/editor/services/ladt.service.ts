@@ -177,6 +177,10 @@ export class LadtService {
     return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/agegroup/${agegroupId}`);
   }
 
+  getJobFees(): Observable<JobFeeDto[]> {
+    return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/job`);
+  }
+
   saveFee(request: SaveJobFeeRequest): Observable<JobFeeDto> {
     return this.http.put<JobFeeDto>(`${environment.apiUrl}/fees`, request);
   }
