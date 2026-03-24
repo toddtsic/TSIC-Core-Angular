@@ -20,5 +20,5 @@ public record AvailableTeamDto
     public decimal? Fee { get; init; }
     public decimal? Deposit { get; init; }
     public required bool JobUsesWaitlists { get; init; }
-    public Guid? WaitlistTeamId { get; init; } // Placeholder for future waitlist substitution mapping
+    public Guid? WaitlistTeamId { get; set; }
 }

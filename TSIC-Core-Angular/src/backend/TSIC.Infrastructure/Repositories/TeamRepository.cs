@@ -30,6 +30,14 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.TeamName != null && teamNames.Contains(t.TeamName))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(decimal? FeeBase, decimal? PerRegistrantFee)> GetTeamFeeInfoAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         var data = await _context.Teams

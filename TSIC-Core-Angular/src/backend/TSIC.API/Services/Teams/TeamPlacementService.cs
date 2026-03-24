@@ -131,6 +131,72 @@ public class TeamPlacementService : ITeamPlacementService
         return waitlistAg;
     }
 
+    public async Task<RosterPlacementResult> ResolveRosterPlacementAsync(
+        Guid jobId,
+        Guid sourceTeamId,
+        string? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var team = await _teamRepo.GetTeamFromTeamId(sourceTeamId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Team {sourceTeamId} not found.");
+
+        // Check roster capacity (MaxCount=0 means unlimited)
+        if (team.MaxCount > 0)
+        {
+            var rosterCount = await _teamRepo.GetPlayerCountAsync(sourceTeamId, cancellationToken);
+            if (rosterCount >= team.MaxCount)
+            {
+                // Roster is full — check if job uses waitlists
+                var usesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId, cancellationToken);
+                if (!usesWaitlists)
+                {
+                    throw new InvalidOperationException("Team roster is full");
+                }
+
+                // Load parent agegroup + division for mirror creation
+                var agegroup = await _agegroupRepo.GetByIdAsync(team.AgegroupId, cancellationToken)
+                    ?? throw new KeyNotFoundException($"Agegroup {team.AgegroupId} not found.");
+
+                string? divName = null;
+                if (team.DivId.HasValue)
+                {
+                    var div = await _divisionRepo.GetByIdReadOnlyAsync(team.DivId.Value, cancellationToken);
+                    divName = div?.DivName;
+                }
+
+                // Reuse same find-or-create for agegroup + division (idempotent with team placement path)
+                var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";
+                var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
+                    agegroup, waitlistAgName, userId, cancellationToken);
+
+                var waitlistDivName = $"WAITLIST - {divName ?? agegroup.AgegroupName}";
+                var waitlistDiv = await FindOrCreateWaitlistDivisionAsync(
+                    waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
+
+                // Find-or-create WAITLIST team mirror
+                var waitlistTeamName = $"WAITLIST - {team.TeamName}";
+                var waitlistTeam = await FindOrCreateWaitlistTeamAsync(
+                    team, waitlistAg, waitlistDiv, waitlistTeamName, jobId, userId, cancellationToken);
+
+                return new RosterPlacementResult
+                {
+                    TeamId = waitlistTeam.TeamId,
+                    IsWaitlisted = true,
+                    WaitlistTeamName = waitlistTeamName
+                };
+            }
+        }
+
+        // Roster has capacity (or unlimited)
+        return new RosterPlacementResult
+        {
+            TeamId = sourceTeamId,
+            IsWaitlisted = false
+        };
+    }
+
+    // ── Find-or-create helpers ──
+
     private async Task<Divisions> FindOrCreateWaitlistDivisionAsync(
         Guid waitlistAgegroupId, string waitlistDivName, string? userId,
         CancellationToken cancellationToken)
@@ -154,5 +220,52 @@ public class TeamPlacementService : ITeamPlacementService
         await _divisionRepo.SaveChangesAsync(cancellationToken);
 
         return waitlistDiv;
+    }
+
+    private async Task<Domain.Entities.Teams> FindOrCreateWaitlistTeamAsync(
+        Domain.Entities.Teams sourceTeam, Agegroups waitlistAg, Divisions waitlistDiv,
+        string waitlistTeamName, Guid jobId, string? userId,
+        CancellationToken cancellationToken)
+    {
+        // Search untracked teams in waitlist agegroup for existing mirror
+        var existingTeams = await _teamRepo.GetByAgegroupIdAsync(waitlistAg.AgegroupId, cancellationToken);
+        var existing = existingTeams.Find(t =>
+            string.Equals(t.TeamName, waitlistTeamName, StringComparison.OrdinalIgnoreCase)
+            && t.DivId == waitlistDiv.DivId);
+
+        if (existing != null)
+        {
+            return await _teamRepo.GetTeamFromTeamId(existing.TeamId, cancellationToken) ?? existing;
+        }
+
+        var nextRank = await _teamRepo.GetNextDivRankAsync(waitlistDiv.DivId, cancellationToken);
+
+        var waitlistTeam = new Domain.Entities.Teams
+        {
+            TeamId = Guid.NewGuid(),
+            JobId = jobId,
+            LeagueId = waitlistAg.LeagueId,
+            AgegroupId = waitlistAg.AgegroupId,
+            DivId = waitlistDiv.DivId,
+            TeamName = waitlistTeamName,
+            MaxCount = 100000,
+            BHideRoster = true,
+            BAllowSelfRostering = true,
+            Active = true,
+            DivRank = nextRank,
+            Gender = sourceTeam.Gender,
+            KeywordPairs = sourceTeam.KeywordPairs,
+            Season = sourceTeam.Season,
+            Year = sourceTeam.Year,
+            Startdate = sourceTeam.Startdate,
+            Enddate = sourceTeam.Enddate,
+            LebUserId = userId,
+            Createdate = DateTime.UtcNow,
+            Modified = DateTime.UtcNow
+        };
+        _teamRepo.Add(waitlistTeam);
+        await _teamRepo.SaveChangesAsync(cancellationToken);
+
+        return waitlistTeam;
     }
 }

@@ -20,3 +20,19 @@ public record TeamPlacementResult
     /// <summary>Name of the waitlist agegroup (for logging/UI). Null if not waitlisted.</summary>
     public string? WaitlistAgegroupName { get; init; }
 }
+
+/// <summary>
+/// Result of resolving where a player should be rostered when a team is full.
+/// If waitlisted, contains the WAITLIST team mirror ID.
+/// </summary>
+public record RosterPlacementResult
+{
+    /// <summary>The team ID to roster the player onto (may be waitlist mirror).</summary>
+    public required Guid TeamId { get; init; }
+
+    /// <summary>True if the player was redirected to a waitlist team mirror.</summary>
+    public required bool IsWaitlisted { get; init; }
+
+    /// <summary>Name of the waitlist team (for logging/UI). Null if not waitlisted.</summary>
+    public string? WaitlistTeamName { get; init; }
+}

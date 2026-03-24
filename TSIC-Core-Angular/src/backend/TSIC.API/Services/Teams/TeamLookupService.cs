@@ -77,6 +77,34 @@ public class TeamLookupService : ITeamLookupService
             };
         }).ToList();
 
+        // Populate WaitlistTeamId for full teams when job uses waitlists
+        if (jobUsesWaitlists)
+        {
+            var fullTeamNames = dtos
+                .Where(d => d.RosterIsFull)
+                .Select(d => $"WAITLIST - {d.TeamName}")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (fullTeamNames.Count > 0)
+            {
+                // Find existing waitlist team mirrors by name
+                var allTeams = await _teamRepo.GetTeamsForJobByNamesAsync(jobId, fullTeamNames);
+                var waitlistLookup = allTeams.ToDictionary(
+                    t => t.TeamName ?? string.Empty,
+                    t => t.TeamId,
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var dto in dtos.Where(d => d.RosterIsFull))
+                {
+                    var wlName = $"WAITLIST - {dto.TeamName}";
+                    if (waitlistLookup.TryGetValue(wlName, out var wlTeamId))
+                    {
+                        dto.WaitlistTeamId = wlTeamId;
+                    }
+                }
+            }
+        }
+
         return dtos;
     }
 

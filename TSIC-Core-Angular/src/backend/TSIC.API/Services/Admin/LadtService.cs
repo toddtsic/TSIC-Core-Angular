@@ -456,6 +456,12 @@ public sealed class LadtService : ILadtService
             && !string.Equals(request.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Cannot rename the 'Unassigned' division.");
 
+        // Detect name change for waitlist cascade
+        var oldDivName = div.DivName;
+        var divNameChanged = oldDivName != null && request.DivName != null
+            && !string.Equals(oldDivName, request.DivName, StringComparison.Ordinal)
+            && !oldDivName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
+
         // Check for duplicate division name within the same age group
         if (!string.Equals(div.DivName, request.DivName, StringComparison.OrdinalIgnoreCase))
         {
@@ -470,6 +476,34 @@ public sealed class LadtService : ILadtService
         div.MaxRoundNumberToShow = request.MaxRoundNumberToShow;
         div.LebUserId = userId;
         div.Modified = DateTime.UtcNow;
+
+        // Cascade rename to WAITLIST division mirror if it exists
+        if (divNameChanged)
+        {
+            var ag = await _agegroupRepo.GetByIdAsync(div.AgegroupId, cancellationToken);
+            if (ag != null)
+            {
+                var agSiblings = await _agegroupRepo.GetByLeagueIdAsync(ag.LeagueId, cancellationToken);
+                var waitlistAg = agSiblings.Find(s =>
+                    string.Equals(s.AgegroupName, $"WAITLIST - {ag.AgegroupName}", StringComparison.OrdinalIgnoreCase));
+                if (waitlistAg != null)
+                {
+                    var waitlistDivs = await _divisionRepo.GetByAgegroupIdAsync(waitlistAg.AgegroupId, cancellationToken);
+                    var waitlistDiv = waitlistDivs.Find(d =>
+                        string.Equals(d.DivName, $"WAITLIST - {oldDivName}", StringComparison.OrdinalIgnoreCase));
+                    if (waitlistDiv != null)
+                    {
+                        var trackedDiv = await _divisionRepo.GetByIdAsync(waitlistDiv.DivId, cancellationToken);
+                        if (trackedDiv != null)
+                        {
+                            trackedDiv.DivName = $"WAITLIST - {request.DivName}";
+                            trackedDiv.LebUserId = userId;
+                            trackedDiv.Modified = DateTime.UtcNow;
+                        }
+                    }
+                }
+            }
+        }
 
         await _divisionRepo.SaveChangesAsync(cancellationToken);
 
@@ -608,6 +642,12 @@ public sealed class LadtService : ILadtService
         var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
 
+        // Detect team name change for waitlist cascade
+        var oldTeamName = team.TeamName;
+        var teamNameChanged = request.TeamName != null && oldTeamName != null
+            && !string.Equals(oldTeamName, request.TeamName, StringComparison.Ordinal)
+            && !oldTeamName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
+
         if (request.TeamName != null) team.TeamName = request.TeamName;
         if (request.Active.HasValue) team.Active = request.Active;
         if (request.DivisionRequested != null) team.DivisionRequested = request.DivisionRequested;
@@ -639,6 +679,34 @@ public sealed class LadtService : ILadtService
         team.TeamComments = request.TeamComments;
         team.LebUserId = userId;
         team.Modified = DateTime.UtcNow;
+
+        // Cascade rename to WAITLIST team mirror if it exists
+        if (teamNameChanged)
+        {
+            var ag = await _agegroupRepo.GetByIdAsync(team.AgegroupId, cancellationToken);
+            if (ag != null)
+            {
+                var agSiblings = await _agegroupRepo.GetByLeagueIdAsync(ag.LeagueId, cancellationToken);
+                var waitlistAg = agSiblings.Find(s =>
+                    string.Equals(s.AgegroupName, $"WAITLIST - {ag.AgegroupName}", StringComparison.OrdinalIgnoreCase));
+                if (waitlistAg != null)
+                {
+                    var waitlistTeams = await _teamRepo.GetByAgegroupIdAsync(waitlistAg.AgegroupId, cancellationToken);
+                    var waitlistTeam = waitlistTeams.Find(t =>
+                        string.Equals(t.TeamName, $"WAITLIST - {oldTeamName}", StringComparison.OrdinalIgnoreCase));
+                    if (waitlistTeam != null)
+                    {
+                        var trackedTeam = await _teamRepo.GetTeamFromTeamId(waitlistTeam.TeamId, cancellationToken);
+                        if (trackedTeam != null)
+                        {
+                            trackedTeam.TeamName = $"WAITLIST - {request.TeamName}";
+                            trackedTeam.LebUserId = userId;
+                            trackedTeam.Modified = DateTime.UtcNow;
+                        }
+                    }
+                }
+            }
+        }
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
 

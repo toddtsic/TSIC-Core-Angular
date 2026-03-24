@@ -21,6 +21,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     private readonly IRegistrationRepository _registrations;
     private readonly ITeamRepository _teams;
     private readonly IJobRepository _jobs;
+    private readonly ITeamPlacementService _placement;
 
     private sealed class PreSubmitContext
     {
@@ -44,7 +45,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         IPlayerFormValidationService validationService,
         IRegistrationRepository registrations,
         ITeamRepository teams,
-        IJobRepository jobs)
+        IJobRepository jobs,
+        ITeamPlacementService placement)
     {
         _logger = logger;
         _feeService = feeService;
@@ -54,6 +56,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _registrations = registrations;
         _teams = teams;
         _jobs = jobs;
+        _placement = placement;
     }
 
     public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
@@ -182,12 +185,29 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             AddResult(teamResults, playerId, teamId, true, "Unknown", "Team not found.", false);
             return;
         }
+        // Check roster capacity — may redirect to waitlist team mirror
         var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
         var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
         if (isFull)
         {
-            AddResult(teamResults, playerId, team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
-            return;
+            try
+            {
+                var rosterPlacement = await _placement.ResolveRosterPlacementAsync(
+                    ctx.JobId, team.TeamId, ctx.FamilyUserId);
+                if (rosterPlacement.IsWaitlisted)
+                {
+                    // Swap to the waitlist team — continue registration on that team
+                    team = ctx.Teams.Find(t => t.TeamId == rosterPlacement.TeamId)
+                        ?? await _teams.GetTeamFromTeamId(rosterPlacement.TeamId)
+                        ?? team;
+                    teamId = rosterPlacement.TeamId;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                AddResult(teamResults, playerId, team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
+                return;
+            }
         }
 
         Registrations? regToUpdate = null;
@@ -234,14 +254,31 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 AddResult(teamResults, playerId, tId, true, "Unknown", "Team not found.", false);
                 continue;
             }
+            // Check roster capacity — may redirect to waitlist team mirror
             var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
             var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+            var effectiveTeamId = team.TeamId;
             if (isFull)
             {
-                AddResult(teamResults, playerId, team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
-                continue;
+                try
+                {
+                    var rosterPlacement = await _placement.ResolveRosterPlacementAsync(
+                        ctx.JobId, team.TeamId, ctx.FamilyUserId);
+                    if (rosterPlacement.IsWaitlisted)
+                    {
+                        team = ctx.Teams.Find(t => t.TeamId == rosterPlacement.TeamId)
+                            ?? await _teams.GetTeamFromTeamId(rosterPlacement.TeamId)
+                            ?? team;
+                        effectiveTeamId = rosterPlacement.TeamId;
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    AddResult(teamResults, playerId, team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
+                    continue;
+                }
             }
-            if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, team.TeamId), out var existing))
+            if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, effectiveTeamId), out var existing))
             {
                 existing.Modified = DateTime.UtcNow;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);

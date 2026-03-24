@@ -101,6 +101,11 @@ public interface ITeamRepository
     Task<List<Teams>> GetTeamsForJobAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Find teams in a job by a set of team names (case-insensitive). Used for waitlist mirror lookups.
+    /// </summary>
+    Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get fee-related information for a single team.
     /// </summary>
     Task<(decimal? FeeBase, decimal? PerRegistrantFee)> GetTeamFeeInfoAsync(Guid teamId, CancellationToken cancellationToken = default);

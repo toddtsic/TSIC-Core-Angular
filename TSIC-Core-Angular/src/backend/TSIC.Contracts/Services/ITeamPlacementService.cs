@@ -23,4 +23,15 @@ public interface ITeamPlacementService
         string? userId = null,
         bool skipCapacityCheck = false,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolve where a player should be rostered when a team is full.
+    /// If BUseWaitlists=true, finds-or-creates WAITLIST agegroup + division + team mirror.
+    /// Uses the same WAITLIST agegroup/division as ResolvePlacementAsync (idempotent).
+    /// </summary>
+    Task<RosterPlacementResult> ResolveRosterPlacementAsync(
+        Guid jobId,
+        Guid sourceTeamId,
+        string? userId = null,
+        CancellationToken cancellationToken = default);
 }
