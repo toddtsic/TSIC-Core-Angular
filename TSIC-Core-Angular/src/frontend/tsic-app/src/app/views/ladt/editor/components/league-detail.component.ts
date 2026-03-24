@@ -22,30 +22,30 @@ import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../..
       </div>
     } @else if (league()) {
       <form (ngSubmit)="save()">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">League Name</label>
-            <input class="form-control" [(ngModel)]="form.leagueName" name="leagueName" required>
+        <!-- ── Settings ── -->
+        <div class="section-card settings-card">
+          <div class="section-card-header">
+            <i class="bi bi-gear"></i> Settings
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Sport</label>
-            <select class="form-select" [(ngModel)]="form.sportId" name="sportId">
-              @for (sport of sports(); track sport.sportId) {
-                <option [ngValue]="sport.sportId">{{ sport.sportName }}</option>
-              }
-            </select>
+          <div class="d-flex align-items-end gap-2 mb-2">
+            <div class="flex-grow-1">
+              <label class="fee-label">League Name</label>
+              <input class="form-control form-control-sm" [(ngModel)]="form.leagueName" name="leagueName" required>
+            </div>
+            <div style="min-width: 120px;">
+              <label class="fee-label">Sport</label>
+              <select class="form-select form-select-sm" [(ngModel)]="form.sportId" name="sportId">
+                @for (sport of sports(); track sport.sportId) {
+                  <option [ngValue]="sport.sportId">{{ sport.sportName }}</option>
+                }
+              </select>
+            </div>
           </div>
-        </div>
-
-        <h6 class="section-label mt-4">Settings</h6>
-        <div class="row g-3">
-          <div class="col-md-6">
+          <div class="settings-grid">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideContacts" name="bHideContacts">
               <label class="form-check-label">Hide Contacts</label>
             </div>
-          </div>
-          <div class="col-md-6">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideStandings" name="bHideStandings">
               <label class="form-check-label">Hide Standings</label>
@@ -53,44 +53,50 @@ import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../..
           </div>
         </div>
 
-        <h6 class="section-label mt-4">Advanced</h6>
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">Reschedule Emails To (addon)</label>
-            <input class="form-control" [(ngModel)]="form.rescheduleEmailsToAddon" name="rescheduleEmailsToAddon">
-            <small class="form-text text-body-secondary">Separate emails with semi-colon, no spaces</small>
+        <!-- ── Advanced ── -->
+        <div class="section-card">
+          <div class="section-card-header">
+            <i class="bi bi-sliders"></i> Advanced
+          </div>
+          <div>
+            <label class="fee-label">Reschedule Emails To (addon)</label>
+            <input class="form-control form-control-sm" [(ngModel)]="form.rescheduleEmailsToAddon" name="rescheduleEmailsToAddon">
+            <small class="form-text text-body-secondary" style="font-size: 0.7rem;">Separate emails with semi-colon, no spaces</small>
           </div>
         </div>
 
-        <div class="d-flex gap-2 mt-4">
-          <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+        <!-- ── Save ── -->
+        <div class="d-flex align-items-center gap-3 mt-3">
+          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
             @if (isSaving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>
             }
-            Save Changes
+            Save
           </button>
+          @if (saveMessage()) {
+            <span class="small text-success">
+              <i class="bi bi-check-circle me-1"></i>{{ saveMessage() }}
+            </span>
+          }
         </div>
-
-        @if (saveMessage()) {
-          <div class="alert alert-success mt-3 py-2" role="alert">
-            <i class="bi bi-check-circle me-1"></i>{{ saveMessage() }}
-          </div>
-        }
       </form>
     }
   `,
   styles: [`
     :host { display: block; }
-    .detail-header { margin-bottom: var(--space-4); }
-    .section-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--bs-secondary-color);
-      border-bottom: 1px solid var(--bs-border-color);
-      padding-bottom: var(--space-1);
+    .detail-header { margin-bottom: var(--space-3); }
+    .section-card {
+      border: 1px solid var(--bs-border-color); border-radius: var(--radius-sm);
+      padding: var(--space-3); margin-bottom: var(--space-3);
     }
+    .section-card-header {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--bs-secondary-color);
+      margin-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-1);
+    }
+    .settings-card { background: var(--bs-tertiary-bg); box-shadow: var(--shadow-sm); }
+    .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); font-size: 0.85rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

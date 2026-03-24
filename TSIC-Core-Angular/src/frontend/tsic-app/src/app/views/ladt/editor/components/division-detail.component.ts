@@ -44,39 +44,57 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
       }
 
       <form (ngSubmit)="save()">
-        <div class="row g-3">
-          <div class="col-md-8">
-            <label class="form-label">Division Name</label>
-            <input class="form-control" [(ngModel)]="form.divName" name="divName"
-                   [disabled]="isUnassigned()">
+        <!-- ── Settings ── -->
+        <div class="section-card settings-card">
+          <div class="section-card-header">
+            <i class="bi bi-gear"></i> Settings
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Max Round # to Show</label>
-            <input class="form-control" type="number" [(ngModel)]="form.maxRoundNumberToShow" name="maxRoundNumberToShow">
+          <div class="d-flex align-items-end gap-2">
+            <div class="flex-grow-1">
+              <label class="fee-label">Division Name</label>
+              <input class="form-control form-control-sm" [(ngModel)]="form.divName" name="divName"
+                     [disabled]="isUnassigned()">
+            </div>
+            <div style="width: 80px;">
+              <label class="fee-label">Max Round#</label>
+              <input class="form-control form-control-sm text-center" type="number"
+                     [(ngModel)]="form.maxRoundNumberToShow" name="maxRoundNumberToShow">
+            </div>
           </div>
         </div>
 
-        <div class="d-flex gap-2 mt-4">
-          <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+        <!-- ── Save ── -->
+        <div class="d-flex align-items-center gap-3 mt-3">
+          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
             @if (isSaving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>
             }
-            Save Changes
+            Save
           </button>
+          @if (saveMessage()) {
+            <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
+              <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
+              {{ saveMessage() }}
+            </span>
+          }
         </div>
-
-        @if (saveMessage()) {
-          <div class="alert mt-3 py-2" [class.alert-success]="!isError()" [class.alert-danger]="isError()" role="alert">
-            <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
-            {{ saveMessage() }}
-          </div>
-        }
       </form>
     }
   `,
   styles: [`
     :host { display: block; }
-    .detail-header { margin-bottom: var(--space-4); }
+    .detail-header { margin-bottom: var(--space-3); }
+    .section-card {
+      border: 1px solid var(--bs-border-color); border-radius: var(--radius-sm);
+      padding: var(--space-3); margin-bottom: var(--space-3);
+    }
+    .section-card-header {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--bs-secondary-color);
+      margin-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-1);
+    }
+    .settings-card { background: var(--bs-tertiary-bg); box-shadow: var(--shadow-sm); }
+    .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

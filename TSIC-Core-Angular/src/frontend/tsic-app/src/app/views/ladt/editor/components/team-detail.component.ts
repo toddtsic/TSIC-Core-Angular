@@ -19,7 +19,7 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
         <i class="bi bi-person-badge text-info"></i>
         <h5 class="mb-0">Team Details</h5>
         @if (team()?.playerCount) {
-          <span class="badge bg-info-subtle text-info-emphasis">{{ team()!.playerCount }} players</span>
+          <span class="badge bg-info-subtle text-info-emphasis">{{ team()!.playerCount | number }} players</span>
         }
       </div>
       <div class="d-flex gap-2">
@@ -131,149 +131,176 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
       }
 
       <form (ngSubmit)="save()">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">Team Name</label>
-            <input class="form-control" [(ngModel)]="form.teamName" name="teamName">
+        <!-- ── Settings ── -->
+        <div class="section-card settings-card">
+          <div class="section-card-header">
+            <i class="bi bi-gear"></i> Settings
           </div>
-          <div class="col-md-3">
-            <div class="form-check form-switch mt-4">
+          <div class="d-flex align-items-end gap-2 mb-2">
+            <div class="flex-grow-1">
+              <label class="fee-label">Team Name</label>
+              <input class="form-control form-control-sm" [(ngModel)]="form.teamName" name="teamName">
+            </div>
+            <div class="form-check form-switch" style="padding-bottom: 4px;">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.active" name="active">
               <label class="form-check-label">Active</label>
             </div>
           </div>
-        </div>
-
-        <h6 class="section-label mt-4">Roster</h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Max Roster Count</label>
-            <input class="form-control" type="number" [(ngModel)]="form.maxCount" name="maxCount">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <label class="fee-label">Max Roster</label>
+            <input class="form-control form-control-sm" type="number" [(ngModel)]="form.maxCount" name="maxCount" style="width: 80px;">
           </div>
-          <div class="col-md-4">
-            <div class="form-check form-switch mt-4">
+          <div class="settings-grid">
+            <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering">
-              <label class="form-check-label">Allow Self Rostering</label>
+              <label class="form-check-label">Self Rostering</label>
             </div>
-          </div>
-          <div class="col-md-4">
-            <div class="form-check form-switch mt-4">
+            <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideRoster" name="bHideRoster">
               <label class="form-check-label">Hide Roster</label>
             </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Division Requested</label>
-            <input class="form-control" [(ngModel)]="form.divisionRequested" name="divisionRequested">
+        </div>
+
+        <!-- ── Player Fee Override ── -->
+        <div class="section-card fee-card-player">
+          <div class="section-card-header">
+            <i class="bi bi-person"></i> Player Fee Override
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Last League Record</label>
-            <input class="form-control" [(ngModel)]="form.lastLeagueRecord" name="lastLeagueRecord">
+          <p class="fee-hint">Leave blank to use the agegroup default.</p>
+          <div class="fee-row">
+            <div class="fee-field">
+              <label class="fee-label">Deposit</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
+                       placeholder="Agegroup default">
+              </div>
+            </div>
+            <div class="fee-field">
+              <label class="fee-label">Balance Due</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue"
+                       placeholder="Agegroup default">
+              </div>
+            </div>
           </div>
         </div>
 
-        <h6 class="section-label mt-4">Player Fee Override</h6>
-        <p class="text-muted small mb-2">Leave blank to use the agegroup default.</p>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Deposit</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
-                   placeholder="Agegroup default">
+        <!-- ── Club Rep Fee Override ── -->
+        <div class="section-card fee-card-clubrep">
+          <div class="section-card-header">
+            <i class="bi bi-shield"></i> Club Rep Fee Override
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Balance Due</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue"
-                   placeholder="Agegroup default">
-          </div>
-        </div>
-
-        <h6 class="section-label mt-4">Club Rep Fee Override</h6>
-        <p class="text-muted small mb-2">Leave blank to use the agegroup default.</p>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Deposit</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit"
-                   placeholder="Agegroup default">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Balance Due</label>
-            <input class="form-control" type="number" step="0.01"
-                   [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue"
-                   placeholder="Agegroup default">
+          <p class="fee-hint">Leave blank to use the agegroup default.</p>
+          <div class="fee-row">
+            <div class="fee-field">
+              <label class="fee-label">Deposit</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit"
+                       placeholder="Agegroup default">
+              </div>
+            </div>
+            <div class="fee-field">
+              <label class="fee-label">Balance Due</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue"
+                       placeholder="Agegroup default">
+              </div>
+            </div>
           </div>
         </div>
 
-        <h6 class="section-label mt-4">Dates</h6>
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label">Start Date</label>
-            <input class="form-control" type="date" [(ngModel)]="form.startdate" name="startdate">
+        <!-- ── Dates ── -->
+        <div class="section-card">
+          <div class="section-card-header">
+            <i class="bi bi-calendar3"></i> Dates
           </div>
-          <div class="col-md-3">
-            <label class="form-label">End Date</label>
-            <input class="form-control" type="date" [(ngModel)]="form.enddate" name="enddate">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Effective As Of</label>
-            <input class="form-control" type="date" [(ngModel)]="form.effectiveasofdate" name="effectiveasofdate">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Expire On</label>
-            <input class="form-control" type="date" [(ngModel)]="form.expireondate" name="expireondate">
-          </div>
-        </div>
-
-        <h6 class="section-label mt-4">Eligibility</h6>
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label">Gender</label>
-            <select class="form-select" [(ngModel)]="form.gender" name="gender">
-              <option [ngValue]="null">Any</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="C">Co-Ed</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Level of Play</label>
-            <input class="form-control" [(ngModel)]="form.levelOfPlay" name="levelOfPlay">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="fee-label">Start Date</label>
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.startdate" name="startdate">
+            </div>
+            <div class="col-6">
+              <label class="fee-label">End Date</label>
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.enddate" name="enddate">
+            </div>
+            <div class="col-6">
+              <label class="fee-label">Effective As Of</label>
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.effectiveasofdate" name="effectiveasofdate">
+            </div>
+            <div class="col-6">
+              <label class="fee-label">Expire On</label>
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.expireondate" name="expireondate">
+            </div>
           </div>
         </div>
 
-        <h6 class="section-label mt-4">Notes</h6>
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">Requests</label>
-            <textarea class="form-control" rows="2" [(ngModel)]="form.requests" name="requests"></textarea>
+        <!-- ── Eligibility ── -->
+        <div class="section-card">
+          <div class="section-card-header">
+            <i class="bi bi-funnel"></i> Eligibility
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Team Comments</label>
-            <textarea class="form-control" rows="2" [(ngModel)]="form.teamComments" name="teamComments"></textarea>
-          </div>
-          <div class="col-md-12">
-            <label class="form-label">Keyword Pairs</label>
-            <input class="form-control" [(ngModel)]="form.keywordPairs" name="keywordPairs">
+          <div class="d-flex gap-2">
+            <div style="min-width: 100px;">
+              <label class="fee-label">Gender</label>
+              <select class="form-select form-select-sm" [(ngModel)]="form.gender" name="gender">
+                <option [ngValue]="null">Any</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="C">Co-Ed</option>
+              </select>
+            </div>
+            <div style="width: 80px;">
+              <label class="fee-label">Level of Play</label>
+              <input class="form-control form-control-sm" [(ngModel)]="form.levelOfPlay" name="levelOfPlay">
+            </div>
           </div>
         </div>
 
-        <div class="d-flex gap-2 mt-4">
-          <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+        <!-- ── Notes ── -->
+        <div class="section-card">
+          <div class="section-card-header">
+            <i class="bi bi-chat-text"></i> Notes
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="fee-label">Requests</label>
+              <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.requests" name="requests"></textarea>
+            </div>
+            <div class="col-6">
+              <label class="fee-label">Team Comments</label>
+              <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.teamComments" name="teamComments"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="fee-label">Keyword Pairs</label>
+              <input class="form-control form-control-sm" [(ngModel)]="form.keywordPairs" name="keywordPairs">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Save ── -->
+        <div class="d-flex align-items-center gap-3 mt-3">
+          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
             @if (isSaving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>
             }
-            Save Changes
+            Save
           </button>
+          @if (saveMessage()) {
+            <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
+              <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
+              {{ saveMessage() }}
+            </span>
+          }
         </div>
-
-        @if (saveMessage()) {
-          <div class="alert mt-3 py-2" [class.alert-success]="!isError()" [class.alert-danger]="isError()" role="alert">
-            <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
-            {{ saveMessage() }}
-          </div>
-        }
       </form>
     }
 
@@ -290,16 +317,29 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
   `,
   styles: [`
     :host { display: block; }
-    .detail-header { margin-bottom: var(--space-4); }
-    .section-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--bs-secondary-color);
-      border-bottom: 1px solid var(--bs-border-color);
-      padding-bottom: var(--space-1);
+    .detail-header { margin-bottom: var(--space-3); }
+    .section-card {
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm);
+      padding: var(--space-3);
+      margin-bottom: var(--space-3);
     }
+    .section-card-header {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--bs-secondary-color);
+      margin-bottom: var(--space-2); display: flex; align-items: center; gap: var(--space-1);
+    }
+    .settings-card { background: var(--bs-tertiary-bg); box-shadow: var(--shadow-sm); }
+    .settings-card .section-card-header { color: var(--bs-secondary-color); }
+    .fee-card-player { border-left: 3px solid var(--bs-info); background: rgba(var(--bs-info-rgb), 0.04); box-shadow: var(--shadow-sm); }
+    .fee-card-player .section-card-header { color: var(--bs-info); }
+    .fee-card-clubrep { border-left: 3px solid var(--bs-warning); background: rgba(var(--bs-warning-rgb), 0.04); box-shadow: var(--shadow-sm); }
+    .fee-card-clubrep .section-card-header { color: var(--bs-warning); }
+    .fee-row { display: flex; gap: var(--space-2); }
+    .fee-field { flex: 1; }
+    .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
+    .fee-hint { font-size: 0.7rem; color: var(--bs-secondary-color); margin: 0 0 var(--space-2) 0; font-style: italic; }
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); font-size: 0.85rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
