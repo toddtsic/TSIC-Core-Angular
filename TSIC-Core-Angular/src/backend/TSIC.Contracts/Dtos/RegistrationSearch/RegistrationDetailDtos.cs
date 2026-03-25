@@ -37,6 +37,9 @@ public record RegistrationDetailDto
     // Metadata schema (from Job.PlayerProfileMetadataJson — for form rendering)
     public string? ProfileMetadataJson { get; init; }
 
+    // Job sport (for sport-aware label rendering, e.g. "USA Lax Number" for Lacrosse)
+    public string? SportName { get; init; }
+
     // Parent/guardian labels (from Jobs entity, defaults "Mom"/"Dad")
     public string MomLabel { get; init; } = "Mom";
     public string DadLabel { get; init; } = "Dad";

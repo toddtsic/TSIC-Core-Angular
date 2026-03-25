@@ -24,6 +24,7 @@ export type RegistrationDetailDto = {
     owedTotal: number;
     profileValues: Record<string, string>;
     profileMetadataJson?: string | null;
+    sportName?: string | null;
     momLabel?: string;
     dadLabel?: string;
     familyContact?: (null | FamilyContactDto);

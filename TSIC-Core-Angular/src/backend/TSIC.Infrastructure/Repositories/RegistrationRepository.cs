@@ -1443,6 +1443,7 @@ public class RegistrationRepository : IRegistrationRepository
             .Include(r => r.AssignedTeam)
                 .ThenInclude(t => t!.ClubrepRegistration)
             .Include(r => r.Job)
+                .ThenInclude(j => j.Sport)
             .Include(r => r.FamilyUser)
             .Include(r => r.RegistrationAccounting)
                 .ThenInclude(a => a.PaymentMethod)
@@ -1534,6 +1535,7 @@ public class RegistrationRepository : IRegistrationRepository
             OwedTotal = reg.OwedTotal,
             ProfileValues = profileValues,
             ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
+            SportName = reg.Job?.Sport?.SportName,
             MomLabel = !string.IsNullOrWhiteSpace(reg.Job?.MomLabel) ? reg.Job.MomLabel : "Mom",
             DadLabel = !string.IsNullOrWhiteSpace(reg.Job?.DadLabel) ? reg.Job.DadLabel : "Dad",
             FamilyContact = reg.FamilyUser != null ? new FamilyContactDto

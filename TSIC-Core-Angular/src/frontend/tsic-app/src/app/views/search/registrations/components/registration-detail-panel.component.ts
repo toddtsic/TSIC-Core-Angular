@@ -113,6 +113,15 @@ export class RegistrationDetailPanelComponent {
     return this.metadataFields().filter(f => !ALWAYS_INCLUDE_KEYS.has(f.key.toLowerCase()));
   });
 
+  // Editable profile fields (excludes always-include keys, reorders for lacrosse)
+  editableProfileFields = computed(() => {
+    const fields = this.metadataFields().filter(f => !ALWAYS_INCLUDE_KEYS.has(f.key.toLowerCase()));
+    return this.reorderForSport(fields);
+  });
+
+  // Profile save state
+  isSavingProfile = signal<boolean>(false);
+
   // Email
   emailSubject = signal<string>('');
   emailBody = signal<string>('');
@@ -205,6 +214,59 @@ export class RegistrationDetailPanelComponent {
     const last = prefix === 'mom' ? fc.momLastName : fc.dadLastName;
     const parts = [first, last].filter(p => p);
     return parts.length > 0 ? parts.join(' ') : null;
+  }
+
+  /** Returns true if a profile checkbox value represents "checked" */
+  isChecked(val: any): boolean {
+    return val === true || val === 'true' || val === 'True' || val === '1';
+  }
+
+  /** Sport-aware field label: renames SportAssnId for Lacrosse jobs */
+  getFieldLabel(field: FieldMetadata): string {
+    const sport = this.detail()?.sportName?.toLowerCase() ?? '';
+    if (sport === 'lacrosse') {
+      if (field.key.toLowerCase() === 'sportassnid') return 'USA Lax Number';
+      if (field.key.toLowerCase() === 'sportassnidexpdate') return 'USA Lax # Expiration';
+    }
+    return field.label;
+  }
+
+  /** For lacrosse: move SportAssnId immediately before SportAssnIdexpDate */
+  private reorderForSport(fields: FieldMetadata[]): FieldMetadata[] {
+    const sport = this.detail()?.sportName?.toLowerCase() ?? '';
+    if (sport !== 'lacrosse') return fields;
+
+    const result = [...fields];
+    const assnIdx = result.findIndex(f => f.key.toLowerCase() === 'sportassnid');
+    const expIdx = result.findIndex(f => f.key.toLowerCase() === 'sportassnidexpdate');
+    if (assnIdx >= 0 && expIdx >= 0 && assnIdx !== expIdx - 1) {
+      const [assnField] = result.splice(assnIdx, 1);
+      const newExpIdx = result.findIndex(f => f.key.toLowerCase() === 'sportassnidexpdate');
+      result.splice(newExpIdx, 0, assnField);
+    }
+    return result;
+  }
+
+  /** Save profile fields independently from contact info */
+  saveProfileInfo(): void {
+    const d = this.detail();
+    if (!d) return;
+
+    this.isSavingProfile.set(true);
+    this.searchService.updateProfile(d.registrationId, {
+      registrationId: d.registrationId,
+      profileValues: this.profileValues()
+    }).subscribe({
+      next: () => {
+        this.isSavingProfile.set(false);
+        this.toast.show('Player profile saved', 'success', 3000);
+        this.saved.emit();
+      },
+      error: (err) => {
+        this.isSavingProfile.set(false);
+        this.toast.show('Failed to save: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
   }
 
   nonPlayerFields(): { label: string; value: string }[] {

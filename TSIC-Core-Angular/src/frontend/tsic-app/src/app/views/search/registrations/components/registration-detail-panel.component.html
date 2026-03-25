@@ -177,30 +177,56 @@
             </div>
           </div>
 
-          <!-- ── Read-Only: Player Profile (metadata-driven, only populated fields) ── -->
+          <!-- ── Editable: Player Profile (metadata-driven) ── -->
           @if (isPlayerRole()) {
-            @let populatedFields = readOnlyMetadataFields();
-            @if (populatedFields.length > 0) {
-              <div class="info-section">
-                <h5 class="info-section-title">Player Profile</h5>
-                <div class="info-grid">
-                  @for (field of populatedFields; track field.key) {
-                    @if (hasValue(profileValues()[field.key])) {
-                      <div class="info-item">
-                        <span class="info-label">{{ field.label }}</span>
-                        <span class="info-value">
-                          @if (field.type === 'checkbox') {
-                            {{ formatCheckboxValue(profileValues()[field.key]) }}
-                          } @else if (field.type === 'date') {
-                            {{ profileValues()[field.key] | date:'mediumDate' }}
-                          } @else {
-                            {{ profileValues()[field.key] }}
-                          }
-                        </span>
+            @let profileFields = editableProfileFields();
+            @if (profileFields.length > 0) {
+              <div class="contact-zone">
+                <h4 class="section-title">Player Profile</h4>
+                <form class="contact-form">
+                  <div class="contact-row">
+                    @for (field of profileFields; track field.key) {
+                      <div class="form-group">
+                        <label [for]="'profile-' + field.key" class="form-label">{{ getFieldLabel(field) }}</label>
+                        @if (field.type === 'select' && field.options?.length) {
+                          <select [id]="'profile-' + field.key" class="form-control form-control-sm"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
+                            [name]="field.key">
+                            <option value="">— Select —</option>
+                            @for (opt of field.options; track opt) {
+                              <option [value]="opt">{{ opt }}</option>
+                            }
+                          </select>
+                        } @else if (field.type === 'checkbox') {
+                          <div class="form-check mt-1">
+                            <input [id]="'profile-' + field.key" type="checkbox" class="form-check-input"
+                              [checked]="isChecked(profileValues()[field.key])"
+                              (change)="updateProfileValue(field.key, $any($event.target).checked ? 'true' : 'false')"
+                              [name]="field.key">
+                          </div>
+                        } @else if (field.type === 'date') {
+                          <input [id]="'profile-' + field.key" type="date" class="form-control form-control-sm"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
+                            [name]="field.key">
+                        } @else if (field.type === 'number') {
+                          <input [id]="'profile-' + field.key" type="number" class="form-control form-control-sm"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
+                            [name]="field.key">
+                        } @else {
+                          <input [id]="'profile-' + field.key" type="text" class="form-control form-control-sm"
+                            [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
+                            [name]="field.key">
+                        }
                       </div>
                     }
-                  }
-                </div>
+                  </div>
+                  <div class="contact-actions">
+                    <button type="button" class="btn btn-primary btn-sm" (click)="saveProfileInfo()" [disabled]="isSavingProfile()">
+                      @if (isSavingProfile()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                      Save
+                    </button>
+                  </div>
+                </form>
               </div>
             }
           }
