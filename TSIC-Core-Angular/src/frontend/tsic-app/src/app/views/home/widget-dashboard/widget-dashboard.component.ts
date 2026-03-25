@@ -57,9 +57,16 @@ export class WidgetDashboardComponent {
 	readonly metrics = signal<DashboardMetricsDto | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
+	readonly activeTab = signal<'dashboard' | 'public'>('dashboard');
 
 	readonly roleName = computed(() =>
 		this.mode() === 'public' ? '' : (this.auth.currentUser()?.role || ''));
+
+	/** Whether tabs should show — only when authenticated AND both workspaces have widgets */
+	readonly showTabs = computed(() => {
+		if (this.isPublic()) return false;
+		return this.hubCategories().length > 0 && this.publicCategories().length > 0;
+	});
 
 	readonly username = computed(() =>
 		this.auth.currentUser()?.username || '');
@@ -148,15 +155,11 @@ export class WidgetDashboardComponent {
 		return ws?.categories ?? [];
 	});
 
-	/** Dashboard categories, excluding bulletins for admin roles.
-	 *  Sorted so chart-tile categories render before content/bulletin categories. */
+	/** Dashboard categories sorted so chart-tile categories render before content categories. */
 	readonly hubCategories = computed(() => {
 		const ws = this.dashboardWorkspace();
 		if (!ws) return [];
-		const cats = this.auth.isAdmin()
-			? ws.categories.filter(cat => !cat.widgets.some(w => w.componentKey === 'bulletins'))
-			: [...ws.categories];
-		// Non-bulletin widgets first: chart-tile → status-tile → content (bulletins)
+		const cats = [...ws.categories];
 		return cats.sort((a, b) => {
 			const typeOrder = (cat: WidgetCategoryGroupDto) => {
 				if (cat.widgets.length > 0 && cat.widgets.every(w => w.widgetType === 'chart-tile')) return 0;
@@ -248,6 +251,11 @@ export class WidgetDashboardComponent {
 		this.isLoading.set(true);
 		this.hasError.set(false);
 		this.configCache.clear();
+
+		const jobPath = this.activeJobPath();
+		if (jobPath) {
+			this.jobService.loadBulletins(jobPath);
+		}
 
 		this.svc.getDashboard().subscribe({
 			next: (data) => {

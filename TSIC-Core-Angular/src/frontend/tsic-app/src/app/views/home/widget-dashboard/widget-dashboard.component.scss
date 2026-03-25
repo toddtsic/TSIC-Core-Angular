@@ -22,6 +22,51 @@
 }
 
 // ═══════════════════════════════════════
+// WORKSPACE TABS
+// ═══════════════════════════════════════
+
+.workspace-tabs {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-4);
+    gap: var(--space-1);
+    border-bottom: 2px solid var(--border-color);
+
+    li {
+        margin-bottom: -2px;
+    }
+}
+
+.workspace-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+
+    &:hover {
+        color: var(--text-primary);
+    }
+
+    &.active {
+        color: var(--bs-primary);
+        border-bottom-color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+// ═══════════════════════════════════════
 // DASHBOARD HERO — branded strip
 // ═══════════════════════════════════════
 
