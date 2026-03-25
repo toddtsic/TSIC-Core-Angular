@@ -50,7 +50,13 @@
 
           <!-- ── Contact Info (editable + read-only identity) ── -->
           <div class="contact-zone">
-            <h4 class="section-title">Contact Info</h4>
+            <div class="section-title-row">
+              <h4 class="section-title">Contact Info</h4>
+              <span class="account-username">
+                <span class="info-label">Account:</span>
+                <span class="account-value">{{ reg.accountUsername }}</span>
+              </span>
+            </div>
             <form class="contact-form">
               <div class="contact-row">
                 <div class="form-group">
@@ -65,16 +71,48 @@
                     [ngModel]="demographics().cellphone" (ngModelChange)="updateDemographicsField('cellphone', $event)"
                     name="cellphone">
                 </div>
-                @if (isPlayerRole()) {
-                  @for (f of ALWAYS_INCLUDE_FIELDS; track f.key) {
-                    <div class="form-group">
-                      <label [for]="'contact-' + f.key" class="form-label">{{ f.label }}</label>
-                      <input [id]="'contact-' + f.key" type="text" class="form-control form-control-sm"
-                        [ngModel]="profileValues()[f.key]" (ngModelChange)="updateProfileValue(f.key, $event)"
-                        [name]="f.key">
-                    </div>
-                  }
-                }
+                <div class="form-group">
+                  <label for="contact-dob" class="form-label">Date of Birth</label>
+                  <input id="contact-dob" type="date" class="form-control form-control-sm"
+                    [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
+                    name="dateOfBirth">
+                </div>
+                <div class="form-group">
+                  <label for="contact-gender" class="form-label">Gender</label>
+                  <select id="contact-gender" class="form-select form-select-sm"
+                    [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
+                    name="gender">
+                    <option value="">—</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                  </select>
+                </div>
+              </div>
+              <div class="address-row">
+                <div class="form-group">
+                  <label for="contact-address" class="form-label">Address</label>
+                  <input id="contact-address" type="text" class="form-control form-control-sm"
+                    [ngModel]="demographics().streetAddress" (ngModelChange)="updateDemographicsField('streetAddress', $event)"
+                    name="streetAddress">
+                </div>
+                <div class="form-group">
+                  <label for="contact-city" class="form-label">City</label>
+                  <input id="contact-city" type="text" class="form-control form-control-sm"
+                    [ngModel]="demographics().city" (ngModelChange)="updateDemographicsField('city', $event)"
+                    name="city">
+                </div>
+                <div class="form-group">
+                  <label for="contact-state" class="form-label">State</label>
+                  <input id="contact-state" type="text" class="form-control form-control-sm"
+                    [ngModel]="demographics().state" (ngModelChange)="updateDemographicsField('state', $event)"
+                    name="state" maxlength="2" style="max-width: 60px;">
+                </div>
+                <div class="form-group">
+                  <label for="contact-zip" class="form-label">Zip</label>
+                  <input id="contact-zip" type="text" class="form-control form-control-sm"
+                    [ngModel]="demographics().postalCode" (ngModelChange)="updateDemographicsField('postalCode', $event)"
+                    name="postalCode" maxlength="10" style="max-width: 90px;">
+                </div>
               </div>
 
               <!-- Family contact (players with family link) -->
@@ -123,36 +161,6 @@
                 </div>
               }
 
-              <!-- Demographics -->
-              <div class="contact-row">
-                <div class="form-group">
-                  <label for="contact-dob" class="form-label">Date of Birth</label>
-                  <input id="contact-dob" type="date" class="form-control form-control-sm"
-                    [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
-                    name="dateOfBirth">
-                </div>
-                <div class="form-group">
-                  <label for="contact-gender" class="form-label">Gender</label>
-                  <select id="contact-gender" class="form-control form-control-sm"
-                    [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
-                    name="gender">
-                    <option value="">— Select —</option>
-                    <option value="M">Male</option>
-                    <option value="F">Female</option>
-                  </select>
-                </div>
-              </div>
-              @if (formatAddress(); as addr) {
-                <div class="contact-demographics">
-                  <div class="info-grid">
-                    <div class="info-item info-item-full">
-                      <span class="info-label">Address</span>
-                      <span class="info-value">{{ addr }}</span>
-                    </div>
-                  </div>
-                </div>
-              }
-
               <div class="contact-actions">
                 <button type="button" class="btn btn-primary btn-sm" (click)="saveContactInfo()" [disabled]="isSavingContact()">
                   @if (isSavingContact()) { <span class="spinner-border spinner-border-sm me-1"></span> }
@@ -193,7 +201,7 @@
                       <div class="form-group">
                         <label [for]="'profile-' + field.key" class="form-label">{{ getFieldLabel(field) }}</label>
                         @if (field.type === 'select' && field.options?.length) {
-                          <select [id]="'profile-' + field.key" class="form-control form-control-sm"
+                          <select [id]="'profile-' + field.key" class="form-select form-select-sm"
                             [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
                             [name]="field.key">
                             <option value="">— Select —</option>

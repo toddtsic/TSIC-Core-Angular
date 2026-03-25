@@ -21,13 +21,10 @@ interface FieldMetadata {
 /** Roles that use the player profile metadata form + family contact section */
 const PLAYER_ROLES = new Set(['player', 'goalie', 'goalkeeper', 'athlete']);
 
-/** Fields that appear as editable inputs in the contact zone for players */
-const ALWAYS_INCLUDE_FIELDS: FieldMetadata[] = [
+/** Fields guaranteed to appear in the Player Profile card even if metadata doesn't include them */
+const PROFILE_GUARANTEED_FIELDS: FieldMetadata[] = [
   { key: 'UniformNo', label: 'Uniform #', type: 'text' }
 ];
-
-/** Keys of always-include fields (lowercase) for filtering from read-only display */
-const ALWAYS_INCLUDE_KEYS = new Set(ALWAYS_INCLUDE_FIELDS.map(f => f.key.toLowerCase()));
 
 /** Non-player profile field display labels */
 const NON_PLAYER_FIELD_LABELS: Record<string, string> = {
@@ -85,8 +82,6 @@ export class RegistrationDetailPanelComponent {
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
 
-  /** Expose for template binding */
-  readonly ALWAYS_INCLUDE_FIELDS = ALWAYS_INCLUDE_FIELDS;
 
   // Tab state
   activeTab = signal<TabType>('details');
@@ -108,15 +103,9 @@ export class RegistrationDetailPanelComponent {
   // Role detection
   isPlayerRole = signal<boolean>(false);
 
-  // Read-only metadata fields (excludes always-include keys like UniformNo)
-  readOnlyMetadataFields = computed(() => {
-    return this.metadataFields().filter(f => !ALWAYS_INCLUDE_KEYS.has(f.key.toLowerCase()));
-  });
-
-  // Editable profile fields (excludes always-include keys, reorders for lacrosse)
+  // Editable profile fields (reorders for lacrosse)
   editableProfileFields = computed(() => {
-    const fields = this.metadataFields().filter(f => !ALWAYS_INCLUDE_KEYS.has(f.key.toLowerCase()));
-    return this.reorderForSport(fields);
+    return this.reorderForSport(this.metadataFields());
   });
 
   // Profile save state
@@ -149,6 +138,7 @@ export class RegistrationDetailPanelComponent {
 
         this.profileValues.set({ ...d.profileValues });
         this.parseMetadata(d.profileMetadataJson, d.jsonOptions);
+        this.normalizeSelectValues();
 
         this.hasFamilyLink.set(!!d.familyContact);
         if (d.familyContact) {
@@ -225,8 +215,8 @@ export class RegistrationDetailPanelComponent {
   getFieldLabel(field: FieldMetadata): string {
     const sport = this.detail()?.sportName?.toLowerCase() ?? '';
     if (sport === 'lacrosse') {
-      if (field.key.toLowerCase() === 'sportassnid') return 'USA Lax Number';
-      if (field.key.toLowerCase() === 'sportassnidexpdate') return 'USA Lax # Expiration';
+      if (field.key.toLowerCase() === 'sportassnid') return 'USA Lacrosse Number';
+      if (field.key.toLowerCase() === 'sportassnidexpdate') return 'USA Lacrosse # Expiration';
     }
     return field.label;
   }
@@ -245,6 +235,24 @@ export class RegistrationDetailPanelComponent {
       result.splice(newExpIdx, 0, assnField);
     }
     return result;
+  }
+
+  /** Normalize stored profile values to match option casing (e.g. "adult m" → "Adult M") */
+  private normalizeSelectValues(): void {
+    const fields = this.metadataFields();
+    const pv = { ...this.profileValues() };
+    let changed = false;
+    for (const field of fields) {
+      if (field.type !== 'select' || !field.options?.length) continue;
+      const stored = pv[field.key];
+      if (!stored) continue;
+      const match = field.options.find(o => o.toLowerCase() === stored.toLowerCase());
+      if (match && match !== stored) {
+        pv[field.key] = match;
+        changed = true;
+      }
+    }
+    if (changed) this.profileValues.set(pv);
   }
 
   /** Save profile fields independently from contact info */
@@ -357,11 +365,11 @@ export class RegistrationDetailPanelComponent {
 
       fields.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
 
-      // Ensure always-include fields exist (for the editable contact zone)
+      // Ensure guaranteed profile fields exist even if metadata doesn't include them
       const existingKeys = new Set(fields.map(f => f.key.toLowerCase()));
-      for (const alwaysField of ALWAYS_INCLUDE_FIELDS) {
-        if (!existingKeys.has(alwaysField.key.toLowerCase())) {
-          fields.unshift(alwaysField);
+      for (const guaranteed of PROFILE_GUARANTEED_FIELDS) {
+        if (!existingKeys.has(guaranteed.key.toLowerCase())) {
+          fields.unshift(guaranteed);
         }
       }
 
@@ -471,14 +479,6 @@ export class RegistrationDetailPanelComponent {
       calls['family'] = this.searchService.updateFamilyContact(d.registrationId, {
         registrationId: d.registrationId,
         familyContact: familyToSave
-      });
-    }
-
-    // Save profile if player (always-include fields like UniformNo)
-    if (this.isPlayerRole()) {
-      calls['profile'] = this.searchService.updateProfile(d.registrationId, {
-        registrationId: d.registrationId,
-        profileValues: this.profileValues()
       });
     }
 

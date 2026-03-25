@@ -1452,6 +1452,18 @@ public class RegistrationRepository : IRegistrationRepository
 
         if (reg == null) return null;
 
+        // Resolve account username: players use family account, non-players use own account
+        string? accountUsername = reg.User?.UserName;
+        if (!string.IsNullOrEmpty(reg.FamilyUserId))
+        {
+            accountUsername = await _context.AspNetUsers
+                .AsNoTracking()
+                .Where(u => u.Id == reg.FamilyUserId)
+                .Select(u => u.UserName)
+                .FirstOrDefaultAsync(ct)
+                ?? accountUsername;
+        }
+
         // Build profile values from entity columns using reflection
         var profileValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var profileProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -1534,6 +1546,7 @@ public class RegistrationRepository : IRegistrationRepository
             PaidTotal = reg.PaidTotal,
             OwedTotal = reg.OwedTotal,
             ProfileValues = profileValues,
+            AccountUsername = accountUsername,
             ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
             SportName = reg.Job?.Sport?.SportName,
             JsonOptions = reg.Job?.JsonOptions,

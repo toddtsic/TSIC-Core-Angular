@@ -37,6 +37,9 @@ public record RegistrationDetailDto
     // Metadata schema (from Job.PlayerProfileMetadataJson — for form rendering)
     public string? ProfileMetadataJson { get; init; }
 
+    // Account username: for players = family account username, for non-players = registrant username
+    public string? AccountUsername { get; init; }
+
     // Job sport (for sport-aware label rendering, e.g. "USA Lax Number" for Lacrosse)
     public string? SportName { get; init; }
 
