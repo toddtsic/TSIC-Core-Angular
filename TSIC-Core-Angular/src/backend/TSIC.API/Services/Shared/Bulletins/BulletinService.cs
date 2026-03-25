@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Bulletin;
 using TSIC.Contracts.Repositories;
@@ -9,11 +10,23 @@ namespace TSIC.API.Services.Shared.Bulletins;
 /// <summary>
 /// Service for managing bulletin business logic including URL translation and token substitution.
 /// </summary>
-public class BulletinService : IBulletinService
+public partial class BulletinService : IBulletinService
 {
     // Token constants for text substitution
     private const string JobNameToken = "!JOBNAME";
     private const string UslaxDateToken = "!USLAXVALIDTHROUGHDATE";
+
+    // Legacy URL patterns for registration wizards
+    // Matches: /JSEG/StartARegistration/Index?bPlayer=true... or full domain URLs
+    [GeneratedRegex(
+        @"(?:https?://[^/""']*)?/[^/""']+/StartARegistration/Index\?bPlayer=true[^""']*",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex PlayerRegistrationUrlPattern();
+
+    [GeneratedRegex(
+        @"(?:https?://[^/""']*)?/[^/""']+/StartARegistration/Index\?bPlayer=false&bClubRep=true[^""']*",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex TeamRegistrationUrlPattern();
 
     private readonly IJobLookupService _jobLookupService;
     private readonly IBulletinRepository _bulletinRepository;
@@ -42,20 +55,22 @@ public class BulletinService : IBulletinService
 
         var bulletins = await _bulletinRepository.GetActiveBulletinsForJobAsync(jobMetadata.JobId, cancellationToken);
 
-        // Process bulletin title and text with job-level token replacement
+        // Process bulletin title and text with token replacement + legacy URL translation
         var jobName = jobMetadata.JobName;
         var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
+        var playerRegUrl = $"/{jobPath}/register-player";
+        var teamRegUrl = $"/{jobPath}/register-team";
 
         var processedBulletins = new List<BulletinDto>();
         foreach (var bulletin in bulletins)
         {
-            var processedTitle = (bulletin.Title ?? string.Empty)
-                .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
-                .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
+            var processedTitle = ReplaceTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
+            var processedText = ReplaceTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
 
-            var processedText = (bulletin.Text ?? string.Empty)
-                .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
-                .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
+            // Translate legacy registration URLs to Angular routes
+            // Team pattern must be checked first (more specific: bPlayer=false&bClubRep=true)
+            processedText = TeamRegistrationUrlPattern().Replace(processedText, teamRegUrl);
+            processedText = PlayerRegistrationUrlPattern().Replace(processedText, playerRegUrl);
 
             processedBulletins.Add(new BulletinDto
             {
@@ -177,5 +192,12 @@ public class BulletinService : IBulletinService
     public async Task<int> BatchUpdateStatusAsync(Guid jobId, bool active, CancellationToken cancellationToken = default)
     {
         return await _bulletinRepository.BatchUpdateActiveStatusAsync(jobId, active, cancellationToken);
+    }
+
+    private static string ReplaceTokens(string text, string jobName, string uslaxDate)
+    {
+        return text
+            .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)
+            .Replace(UslaxDateToken, uslaxDate, StringComparison.OrdinalIgnoreCase);
     }
 }

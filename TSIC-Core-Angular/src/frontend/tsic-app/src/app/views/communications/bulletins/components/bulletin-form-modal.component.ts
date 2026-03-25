@@ -1,12 +1,17 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ViewChild, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
+import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { BulletinAdminService } from '../services/bulletin-admin.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
 import { JOB_CONFIG_RTE_TOOLS } from '../../../configure/job/shared/rte-config';
 import type { BulletinAdminDto, CreateBulletinRequest, UpdateBulletinRequest } from '@core/api';
+
+const BULLETIN_TOKENS = [
+    { token: '!JOBNAME', description: 'Event/league name' },
+    { token: '!USLAXVALIDTHROUGHDATE', description: 'US Lacrosse valid-through date' },
+];
 
 export type ModalMode = 'add' | 'edit';
 
@@ -41,7 +46,7 @@ export type ModalMode = 'add' | 'edit';
                     <!-- Text (RTE) -->
                     <div class="mb-3">
                         <label class="form-label">Content</label>
-                        <ejs-richtexteditor
+                        <ejs-richtexteditor #rteEditor
                             [value]="text()"
                             [toolbarSettings]="rteTools"
                             [height]="rteHeight"
@@ -50,12 +55,14 @@ export type ModalMode = 'add' | 'edit';
                         </ejs-richtexteditor>
                     </div>
 
-                    <!-- Token Hint -->
-                    <div class="token-hint">
-                        <i class="bi bi-info-circle"></i>
-                        <span>
-                            Tokens: <code>!JOBNAME</code> <code>!USLAXVALIDTHROUGHDATE</code>
-                        </span>
+                    <!-- Token chips -->
+                    <div class="token-bar">
+                        <span class="token-label">Insert token:</span>
+                        @for (t of tokens; track t.token) {
+                            <button type="button" class="token-chip"
+                                    (click)="insertToken(t.token)"
+                                    [title]="t.description">{{ t.token }}</button>
+                        }
                     </div>
 
                     <!-- Date Range + Active -->
@@ -120,31 +127,41 @@ export type ModalMode = 'add' | 'edit';
 
         .bulletin-modal .form-label {
             font-size: var(--font-size-xs);
-            font-weight: var(--font-weight-semibold);
+            font-weight: var(--font-weight-bold);
             text-transform: uppercase;
-            letter-spacing: 0.03em;
-            color: var(--text-secondary);
+            letter-spacing: 0.04em;
+            color: var(--brand-text);
             margin-bottom: var(--space-1);
         }
 
-        .token-hint {
+        .token-bar {
             display: flex;
             align-items: center;
             gap: var(--space-2);
-            padding: var(--space-2) var(--space-3);
             margin-bottom: var(--space-4);
-            font-size: var(--font-size-xs);
-            color: var(--text-secondary);
-            background: var(--bg-elevated);
-            border-radius: var(--radius-sm);
         }
 
-        .token-hint code {
+        .token-label {
             font-size: var(--font-size-xs);
-            padding: 1px var(--space-1);
-            border-radius: 3px;
-            background: rgba(var(--bs-primary-rgb), 0.1);
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .token-chip {
+            font-size: var(--font-size-xs);
+            font-family: monospace;
+            padding: 2px var(--space-2);
+            border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+            border-radius: var(--radius-full);
+            background: rgba(var(--bs-primary-rgb), 0.08);
             color: var(--bs-primary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            &:hover {
+                background: rgba(var(--bs-primary-rgb), 0.18);
+                border-color: var(--bs-primary);
+            }
         }
 
         .meta-row {
@@ -178,12 +195,15 @@ export class BulletinFormModalComponent implements OnInit {
     @Output() close = new EventEmitter<void>();
     @Output() saved = new EventEmitter<void>();
 
+    @ViewChild('rteEditor') rteEditor!: RichTextEditorComponent;
+
     private readonly bulletinService = inject(BulletinAdminService);
     private readonly toastService = inject(ToastService);
 
     // RTE config
     rteTools = JOB_CONFIG_RTE_TOOLS;
     rteHeight = 300;
+    tokens = BULLETIN_TOKENS;
 
     // Form fields
     title = signal('');
@@ -210,6 +230,11 @@ export class BulletinFormModalComponent implements OnInit {
 
     onRteChange(event: any): void {
         this.text.set(event.value ?? '');
+    }
+
+    insertToken(token: string): void {
+        this.rteEditor.focusIn();
+        this.rteEditor.executeCommand('insertText', token);
     }
 
     isValid(): boolean {

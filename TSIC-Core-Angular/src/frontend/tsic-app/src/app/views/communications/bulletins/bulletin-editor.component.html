@@ -1,16 +1,30 @@
-<!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
-    <h2 class="mb-0">Bulletin Editor</h2>
-    <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading() || bulletins().length === 0">
-            <i class="bi bi-check-circle me-1"></i>Activate All
-        </button>
-        <button class="btn btn-outline-secondary btn-sm" (click)="deactivateAll()" [disabled]="isLoading() || bulletins().length === 0">
-            <i class="bi bi-x-circle me-1"></i>Deactivate All
-        </button>
-        <div class="vr d-none d-md-block"></div>
-        <button class="btn btn-outline-secondary btn-sm" (click)="loadBulletins()" [disabled]="isLoading()">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+<!-- ═══════ PAGE HEADER ═══════ -->
+<div class="page-header">
+    <div class="page-header-title">
+        <i class="bi bi-megaphone"></i>
+        <h2>Bulletins</h2>
+        @if (!isLoading() && bulletins().length > 0) {
+            <span class="badge-count">{{ bulletins().length }}</span>
+        }
+    </div>
+    <div class="page-header-actions">
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-success" (click)="activateAll()"
+                    [disabled]="isLoading() || bulletins().length === 0"
+                    title="Activate all bulletins">
+                <i class="bi bi-check-circle"></i>
+                <span class="d-none d-md-inline ms-1">Activate All</span>
+            </button>
+            <button class="btn btn-outline-secondary" (click)="deactivateAll()"
+                    [disabled]="isLoading() || bulletins().length === 0"
+                    title="Deactivate all bulletins">
+                <i class="bi bi-x-circle"></i>
+                <span class="d-none d-md-inline ms-1">Deactivate All</span>
+            </button>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadBulletins()" [disabled]="isLoading()"
+                title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
         </button>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Bulletin
@@ -18,98 +32,100 @@
     </div>
 </div>
 
-<!-- Error Alert -->
+<!-- ═══════ ERROR ═══════ -->
 @if (errorMessage()) {
-    <div class="alert alert-danger d-flex align-items-center" role="alert">
+    <div class="alert alert-danger d-flex align-items-center py-2" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         {{ errorMessage() }}
     </div>
 }
 
-<!-- Loading State -->
+<!-- ═══════ LOADING ═══════ -->
 @if (isLoading()) {
-    <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2 text-body-secondary">Loading bulletins...</p>
+    <div class="empty-state">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+        <span class="text-secondary ms-2">Loading bulletins...</span>
     </div>
 }
 
-<!-- Empty State -->
+<!-- ═══════ EMPTY STATE ═══════ -->
 @if (!isLoading() && !errorMessage() && bulletins().length === 0) {
-    <div class="text-center py-5">
-        <i class="bi bi-megaphone fs-1 text-body-secondary"></i>
-        <p class="mt-2 text-body-secondary">No bulletins found for this job.</p>
+    <div class="empty-state">
+        <i class="bi bi-megaphone empty-icon"></i>
+        <p>No bulletins for this job.</p>
         <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Bulletin
         </button>
     </div>
 }
 
-<!-- Data Table -->
+<!-- ═══════ TABLE ═══════ -->
 @if (!isLoading() && bulletins().length > 0) {
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th class="col-row-num">#</th>
-                    <th class="sortable" (click)="toggleSort('title')">
-                        Title <i class="bi" [ngClass]="getSortIcon('title')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('active')">
-                        Status <i class="bi" [ngClass]="getSortIcon('active')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('startDate')">
-                        Start <i class="bi" [ngClass]="getSortIcon('startDate')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('endDate')">
-                        End <i class="bi" [ngClass]="getSortIcon('endDate')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('modified')">
-                        Modified <i class="bi" [ngClass]="getSortIcon('modified')"></i>
-                    </th>
-                    <th class="col-actions">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (bulletin of sortedBulletins(); track bulletin.bulletinId; let i = $index) {
-                    <tr class="editable-row" (dblclick)="openEdit(bulletin)">
-                        <td class="row-num text-body-secondary">{{ i + 1 }}</td>
-                        <td class="fw-semibold">{{ truncateTitle(bulletin.title) }}</td>
-                        <td>
-                            @if (bulletin.active) {
-                                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
-                            } @else {
-                                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
-                            }
-                        </td>
-                        <td class="text-body-secondary small">{{ formatDate(bulletin.startDate) }}</td>
-                        <td class="text-body-secondary small">{{ formatDate(bulletin.endDate) }}</td>
-                        <td class="text-body-secondary small">
-                            {{ getRelativeTime(bulletin.modified) }}
-                            @if (bulletin.modifiedByUsername) {
-                                <span class="d-none d-lg-inline"> &mdash; {{ bulletin.modifiedByUsername }}</span>
-                            }
-                        </td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="icon-btn" (click)="openEdit(bulletin)" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="icon-btn icon-btn-danger" (click)="confirmDelete(bulletin)" title="Delete">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
+    <div class="bulletin-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="col-num">#</th>
+                        <th class="sortable" (click)="toggleSort('title')">
+                            Title <i class="bi" [ngClass]="getSortIcon('title')"></i>
+                        </th>
+                        <th class="sortable col-status" (click)="toggleSort('active')">
+                            Status <i class="bi" [ngClass]="getSortIcon('active')"></i>
+                        </th>
+                        <th class="sortable col-date" (click)="toggleSort('startDate')">
+                            Start <i class="bi" [ngClass]="getSortIcon('startDate')"></i>
+                        </th>
+                        <th class="sortable col-date" (click)="toggleSort('endDate')">
+                            End <i class="bi" [ngClass]="getSortIcon('endDate')"></i>
+                        </th>
+                        <th class="sortable col-modified" (click)="toggleSort('modified')">
+                            Modified <i class="bi" [ngClass]="getSortIcon('modified')"></i>
+                        </th>
+                        <th class="col-actions"></th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @for (bulletin of sortedBulletins(); track bulletin.bulletinId; let i = $index) {
+                        <tr class="bulletin-row" (dblclick)="openEdit(bulletin)">
+                            <td class="cell-num">{{ i + 1 }}</td>
+                            <td class="cell-title">{{ truncateTitle(bulletin.title) }}</td>
+                            <td>
+                                @if (bulletin.active) {
+                                    <span class="status-badge status-active">Active</span>
+                                } @else {
+                                    <span class="status-badge status-inactive">Inactive</span>
+                                }
+                            </td>
+                            <td class="cell-date">{{ formatDate(bulletin.startDate) }}</td>
+                            <td class="cell-date">{{ formatDate(bulletin.endDate) }}</td>
+                            <td class="cell-modified">
+                                {{ getRelativeTime(bulletin.modified) }}
+                                @if (bulletin.modifiedByUsername) {
+                                    <span class="modified-by">&mdash; {{ bulletin.modifiedByUsername }}</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <button class="action-btn" (click)="openEdit(bulletin)"
+                                            title="Edit" aria-label="Edit bulletin">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="action-btn action-btn-danger" (click)="confirmDelete(bulletin)"
+                                            title="Delete" aria-label="Delete bulletin">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 }
 
-<!-- Add Modal -->
+<!-- ═══════ MODALS ═══════ -->
 @if (showAddModal()) {
     <bulletin-form-modal
         mode="add"
@@ -118,7 +134,6 @@
     </bulletin-form-modal>
 }
 
-<!-- Edit Modal -->
 @if (showEditModal()) {
     <bulletin-form-modal
         mode="edit"
@@ -128,11 +143,10 @@
     </bulletin-form-modal>
 }
 
-<!-- Delete Confirmation -->
 @if (showDeleteConfirm()) {
     <confirm-dialog
         title="Delete Bulletin"
-        [message]="'Delete bulletin &quot;' + (deleteTarget()?.title || 'Untitled') + '&quot;? This cannot be undone.'"
+        [message]="'Delete &quot;' + (deleteTarget()?.title || 'Untitled') + '&quot;? This cannot be undone.'"
         confirmLabel="Delete"
         confirmVariant="danger"
         (confirmed)="onDeleteConfirmed()"
