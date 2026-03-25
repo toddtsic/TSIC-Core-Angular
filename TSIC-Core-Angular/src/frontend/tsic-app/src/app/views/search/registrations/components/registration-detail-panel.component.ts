@@ -26,6 +26,9 @@ const PROFILE_GUARANTEED_FIELDS: FieldMetadata[] = [
   { key: 'UniformNo', label: 'Uniform #', type: 'text' }
 ];
 
+/** Fields excluded from the editable Player Profile card (handled elsewhere) */
+const PROFILE_EXCLUDED_KEYS = new Set(['teamid']);
+
 /** Non-player profile field display labels */
 const NON_PLAYER_FIELD_LABELS: Record<string, string> = {
   'ClubName': 'Club Name',
@@ -103,9 +106,10 @@ export class RegistrationDetailPanelComponent {
   // Role detection
   isPlayerRole = signal<boolean>(false);
 
-  // Editable profile fields (reorders for lacrosse)
+  // Editable profile fields (excludes team selection, reorders for lacrosse)
   editableProfileFields = computed(() => {
-    return this.reorderForSport(this.metadataFields());
+    const fields = this.metadataFields().filter(f => !PROFILE_EXCLUDED_KEYS.has(f.key.toLowerCase()));
+    return this.reorderForSport(fields);
   });
 
   // Profile save state

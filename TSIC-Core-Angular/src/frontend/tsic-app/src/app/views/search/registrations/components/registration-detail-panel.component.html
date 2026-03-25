@@ -194,7 +194,15 @@
             @let profileFields = editableProfileFields();
             @if (profileFields.length > 0) {
               <div class="contact-zone">
-                <h4 class="section-title">Player Profile</h4>
+                <div class="section-title-row">
+                  <h4 class="section-title">Player Profile</h4>
+                  @if (reg.assignment || reg.teamName) {
+                    <span class="account-username">
+                      <span class="info-label">Team:</span>
+                      <span class="account-value">{{ reg.assignment || reg.teamName }}</span>
+                    </span>
+                  }
+                </div>
                 <form class="contact-form">
                   <div class="contact-row">
                     @for (field of profileFields; track field.key) {
