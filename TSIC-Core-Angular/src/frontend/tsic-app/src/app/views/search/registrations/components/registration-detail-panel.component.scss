@@ -52,6 +52,13 @@
   white-space: nowrap;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .header-tags {
   display: flex;
   flex-direction: column;
@@ -59,17 +66,11 @@
   margin-top: var(--space-2);
 }
 
-.header-tag-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
 
 .header-tag {
   display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
 
   .header-tag-label {
     font-size: var(--font-size-2xs);
@@ -927,35 +928,15 @@
   }
 }
 
-// Delete Registration Modal
-.delete-confirm-modal {
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 11;
-  width: 420px;
-  max-width: calc(100% - var(--space-8));
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-danger);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
-  animation: fadeIn 0.2s ease;
-}
-
-.modal-header-danger {
-  border-bottom-color: var(--bs-danger);
-}
-
-.delete-warning {
-  color: var(--bs-body-color);
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  margin-bottom: var(--space-2);
-}
 
 .delete-reg-btn {
   font-size: var(--font-size-xs);
+
+  &.disabled-delete {
+    opacity: 0.5;
+    border: 1px solid var(--bs-border-color);
+    color: var(--text-muted);
+  }
 }
 
 .btn-danger {

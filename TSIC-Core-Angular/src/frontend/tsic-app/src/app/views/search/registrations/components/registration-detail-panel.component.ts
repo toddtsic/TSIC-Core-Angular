@@ -6,6 +6,7 @@ import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, User
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AddPaymentModalComponent } from './add-payment-modal.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { EMAIL_TEMPLATE_CATEGORIES, type EmailTemplate } from '../email-templates';
 
 type TabType = 'details' | 'accounting' | 'email';
@@ -70,7 +71,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AddPaymentModalComponent],
+  imports: [CommonModule, FormsModule, AddPaymentModalComponent, ConfirmDialogComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -143,6 +144,11 @@ export class RegistrationDetailPanelComponent {
   // Delete Registration
   showDeleteConfirm = signal<boolean>(false);
   isDeleting = signal<boolean>(false);
+  canDelete = computed(() => {
+    const d = this.detail();
+    if (!d) return false;
+    return !d.accountingRecords || d.accountingRecords.length === 0;
+  });
 
   constructor() {
     effect(() => {
@@ -755,6 +761,16 @@ export class RegistrationDetailPanelComponent {
   confirmDelete(): void { this.showDeleteConfirm.set(true); }
 
   cancelDelete(): void { this.showDeleteConfirm.set(false); }
+
+  showDeleteBlockedReason(): void {
+    const d = this.detail();
+    const count = d?.accountingRecords?.length ?? 0;
+    this.toast.show(
+      `Cannot delete — this registration has ${count} accounting record${count !== 1 ? 's' : ''}. You do have the option to make the registrant inactive.`,
+      'warning',
+      5000
+    );
+  }
 
   executeDelete(): void {
     const d = this.detail();

@@ -7,14 +7,25 @@
     <div class="panel-header">
       <div class="header-top-row">
         <h3 class="panel-title">{{ reg.firstName }} {{ reg.lastName }}</h3>
-        <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
+        <div class="header-actions">
+          @if (canDelete()) {
+            <button type="button" class="btn btn-sm btn-outline-danger delete-reg-btn"
+              (click)="confirmDelete()" [disabled]="isDeleting()">
+              Delete Registration
+            </button>
+          } @else {
+            <button type="button" class="btn btn-sm btn-outline-secondary delete-reg-btn disabled-delete"
+              (click)="showDeleteBlockedReason()">
+              Delete Registration
+            </button>
+          }
+          <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
+        </div>
       </div>
       <div class="header-tags">
-        <div class="header-tag-row">
-          <span class="header-tag">
-            <span class="header-tag-label">Role:</span>
-            <span class="header-tag-value">{{ reg.roleName }}</span>
-          </span>
+        <span class="header-tag">
+          <span class="header-tag-label">Role:</span>
+          <span class="header-tag-value">{{ reg.roleName }}</span>
           <label class="active-toggle-switch" [class.disabled]="isTogglingActive()">
             <input type="checkbox" [checked]="reg.active" (change)="toggleActive()" [disabled]="isTogglingActive()">
             <span class="toggle-track"></span>
@@ -22,18 +33,12 @@
               {{ reg.active ? 'Active' : 'Inactive' }}
             </span>
           </label>
-        </div>
+        </span>
         @if (reg.assignment) {
-          <div class="header-tag-row">
-            <span class="header-tag">
-              <span class="header-tag-label">Assignment:</span>
-              <span class="header-tag-value">{{ reg.assignment }}</span>
-            </span>
-            <button type="button" class="btn btn-sm btn-outline-danger delete-reg-btn"
-              (click)="confirmDelete()" [disabled]="isDeleting()">
-              Delete Registration
-            </button>
-          </div>
+          <span class="header-tag">
+            <span class="header-tag-label">Assignment:</span>
+            <span class="header-tag-value">{{ reg.assignment }}</span>
+          </span>
         }
       </div>
     </div>
@@ -611,28 +616,14 @@
 
     <!-- ═══════════════════════ DELETE REGISTRATION MODAL ═══════════════════════ -->
     @if (showDeleteConfirm()) {
-      <div class="modal-backdrop" (click)="cancelDelete()" (keydown.escape)="cancelDelete()"></div>
-      <div class="delete-confirm-modal">
-        <div class="modal-header modal-header-danger">
-          <h4 class="modal-title">Delete Registration</h4>
-          <button type="button" class="btn-close" (click)="cancelDelete()" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p class="delete-warning">
-            Are you sure you want to permanently delete this registration for
-            <strong>{{ reg.firstName }} {{ reg.lastName }}</strong> ({{ reg.roleName }})?
-          </p>
-          <p class="text-muted">This action cannot be undone.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
-          <button type="button" class="btn btn-danger" (click)="executeDelete()"
-            [disabled]="isDeleting()">
-            @if (isDeleting()) { <span class="spinner-border spinner-border-sm me-1"></span> }
-            Delete Registration
-          </button>
-        </div>
-      </div>
+      <confirm-dialog
+        title="Delete Registration"
+        [message]="'Are you sure you want to permanently delete this registration for <strong>' + reg.firstName + ' ' + reg.lastName + '</strong> (' + reg.roleName + ')?<br><br><span class=\'text-muted\'>This action cannot be undone.</span>'"
+        confirmLabel="Delete Registration"
+        confirmVariant="danger"
+        (confirmed)="executeDelete()"
+        (cancelled)="cancelDelete()">
+      </confirm-dialog>
     }
   }
 </div>
