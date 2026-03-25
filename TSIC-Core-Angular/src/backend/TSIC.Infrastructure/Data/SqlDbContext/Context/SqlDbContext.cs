@@ -2409,7 +2409,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValueSql("(getdate())", "DF_Family_Members_modified")
                 .HasColumnName("modified");
 
-            entity.HasOne(d => d.FamilyMemberUser).WithMany(p => p.FamilyMembersFamilyMemberUser)
+            entity.HasOne(d => d.FamilyMemberUser).WithMany(p => p.FamilyMembers)
                 .HasForeignKey(d => d.FamilyMemberUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Family_Members_AspNetUsers");
@@ -2418,10 +2418,6 @@ public partial class SqlDbContext : DbContext
                 .HasForeignKey(d => d.FamilyUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Family_Members_Families");
-
-            entity.HasOne(d => d.LebUser).WithMany(p => p.FamilyMembersLebUser)
-                .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK_Family_Members_LebUser");
         });
 
         modelBuilder.Entity<FeeModifiers>(entity =>
@@ -7562,11 +7558,6 @@ public partial class SqlDbContext : DbContext
                 .HasMaxLength(4)
                 .IsUnicode(false)
                 .IsFixedLength();
-
-            entity.HasOne(d => d.LebUser).WithMany()
-                .HasForeignKey(d => d.LebUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_YN2023Schedule_LebUser");
         });
 
         OnModelCreatingPartial(modelBuilder);

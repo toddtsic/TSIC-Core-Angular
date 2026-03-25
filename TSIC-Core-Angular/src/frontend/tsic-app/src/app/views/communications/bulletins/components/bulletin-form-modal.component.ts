@@ -16,15 +16,18 @@ export type ModalMode = 'add' | 'edit';
     imports: [CommonModule, TsicDialogComponent, FormsModule, RichTextEditorAllModule],
     template: `
         <tsic-dialog [open]="true" size="lg" (requestClose)="close.emit()">
-            <div class="modal-content">
+            <div class="modal-content bulletin-modal">
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ mode === 'add' ? 'Add Bulletin' : 'Edit Bulletin' }}</h5>
+                    <h5 class="modal-title">
+                        <i class="bi" [class]="mode === 'add' ? 'bi-plus-circle' : 'bi-pencil'"></i>
+                        {{ mode === 'add' ? 'Add Bulletin' : 'Edit Bulletin' }}
+                    </h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <!-- Title -->
                     <div class="mb-3">
-                        <label for="bulletinTitle" class="form-label fw-semibold">Title</label>
+                        <label for="bulletinTitle" class="form-label">Title</label>
                         <input
                             id="bulletinTitle"
                             type="text"
@@ -37,7 +40,7 @@ export type ModalMode = 'add' | 'edit';
 
                     <!-- Text (RTE) -->
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Content</label>
+                        <label class="form-label">Content</label>
                         <ejs-richtexteditor
                             [value]="text()"
                             [toolbarSettings]="rteTools"
@@ -48,66 +51,121 @@ export type ModalMode = 'add' | 'edit';
                     </div>
 
                     <!-- Token Hint -->
-                    <div class="alert alert-info d-flex align-items-start py-2 mb-3" role="note">
-                        <i class="bi bi-info-circle me-2 mt-1"></i>
-                        <small>
-                            <strong>Available tokens:</strong>
-                            <code>!JOBNAME</code> (replaced with job name),
-                            <code>!USLAXVALIDTHROUGHDATE</code> (replaced with US Lacrosse valid-through date)
-                        </small>
+                    <div class="token-hint">
+                        <i class="bi bi-info-circle"></i>
+                        <span>
+                            Tokens: <code>!JOBNAME</code> <code>!USLAXVALIDTHROUGHDATE</code>
+                        </span>
                     </div>
 
-                    <!-- Date Range -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="startDate" class="form-label fw-semibold">Start Date</label>
+                    <!-- Date Range + Active -->
+                    <div class="meta-row">
+                        <div class="meta-field">
+                            <label for="startDate" class="form-label">Start Date</label>
                             <input
                                 id="startDate"
                                 type="date"
-                                class="form-control"
+                                class="form-control form-control-sm"
                                 [value]="startDate()"
                                 (input)="startDate.set($any($event.target).value)" />
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="endDate" class="form-label fw-semibold">End Date</label>
+                        <div class="meta-field">
+                            <label for="endDate" class="form-label">End Date</label>
                             <input
                                 id="endDate"
                                 type="date"
-                                class="form-control"
+                                class="form-control form-control-sm"
                                 [value]="endDate()"
                                 (input)="endDate.set($any($event.target).value)"
                                 [class.is-invalid]="endDate().length > 0 && startDate().length > 0 && endDate() < startDate()" />
                             @if (endDate().length > 0 && startDate().length > 0 && endDate() < startDate()) {
-                                <div class="invalid-feedback">End date must be on or after start date.</div>
+                                <div class="invalid-feedback">End date must be after start date.</div>
                             }
                         </div>
-                    </div>
-
-                    <!-- Active Toggle -->
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input id="activeToggle" type="checkbox" class="form-check-input" role="switch"
-                                [checked]="active()"
-                                (change)="active.set($any($event.target).checked)" />
-                            <label class="form-check-label fw-semibold" for="activeToggle">
-                                {{ active() ? 'Active' : 'Inactive' }}
-                            </label>
+                        <div class="meta-field meta-toggle">
+                            <div class="form-check form-switch">
+                                <input id="activeToggle" type="checkbox" class="form-check-input" role="switch"
+                                    [checked]="active()"
+                                    (change)="active.set($any($event.target).checked)" />
+                                <label class="form-check-label" for="activeToggle">
+                                    {{ active() ? 'Active' : 'Inactive' }}
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" (click)="close.emit()">Cancel</button>
-                    <button type="button" class="btn btn-primary" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        {{ mode === 'add' ? 'Add Bulletin' : 'Save Changes' }}
+                        <i class="bi bi-check-lg me-1"></i>{{ mode === 'add' ? 'Add Bulletin' : 'Save Changes' }}
                     </button>
                 </div>
             </div>
         </tsic-dialog>
     `,
     styles: [`
+        .bulletin-modal .modal-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-lg);
+        }
+
+        .bulletin-modal .modal-body {
+            padding: var(--space-4) var(--space-5);
+        }
+
+        .bulletin-modal .form-label {
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-1);
+        }
+
+        .token-hint {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            margin-bottom: var(--space-4);
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            background: var(--bg-elevated);
+            border-radius: var(--radius-sm);
+        }
+
+        .token-hint code {
+            font-size: var(--font-size-xs);
+            padding: 1px var(--space-1);
+            border-radius: 3px;
+            background: rgba(var(--bs-primary-rgb), 0.1);
+            color: var(--bs-primary);
+        }
+
+        .meta-row {
+            display: flex;
+            gap: var(--space-4);
+            align-items: flex-end;
+        }
+
+        .meta-field {
+            flex: 1;
+        }
+
+        .meta-toggle {
+            flex: 0 0 auto;
+            padding-bottom: var(--space-1);
+        }
+
+        .bulletin-modal .modal-footer {
+            padding: var(--space-3) var(--space-5);
+        }
+
         :host ::ng-deep .e-richtexteditor {
             border-radius: var(--radius-sm);
         }

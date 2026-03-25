@@ -141,9 +141,7 @@ public partial class AspNetUsers
 
     public virtual ICollection<Families> FamiliesLebUser { get; set; } = new List<Families>();
 
-    public virtual ICollection<FamilyMembers> FamilyMembersFamilyMemberUser { get; set; } = new List<FamilyMembers>();
-
-    public virtual ICollection<FamilyMembers> FamilyMembersLebUser { get; set; } = new List<FamilyMembers>();
+    public virtual ICollection<FamilyMembers> FamilyMembers { get; set; } = new List<FamilyMembers>();
 
     public virtual ICollection<FeeModifiers> FeeModifiers { get; set; } = new List<FeeModifiers>();
 

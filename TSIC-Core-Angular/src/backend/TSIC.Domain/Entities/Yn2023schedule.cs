@@ -84,6 +84,4 @@ public partial class Yn2023schedule
     public string? FName { get; set; }
 
     public Guid JobId { get; set; }
-
-    public virtual AspNetUsers LebUser { get; set; } = null!;
 }
