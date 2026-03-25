@@ -38,6 +38,7 @@ using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.Accounting;
+using TSIC.API.Services.Shared.AiCompose;
 using TSIC.API.Services.Shared.Bulletins;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
@@ -148,6 +149,11 @@ builder.Services.AddScoped<IJobImageService, JobImageService>();
 // TsicSettings (default customer for ADN credential defaults)
 builder.Services.Configure<TsicSettings>(
     builder.Configuration.GetSection(TsicSettings.SectionName));
+
+// Anthropic AI Compose (email drafting via Claude Haiku)
+builder.Services.Configure<AnthropicSettings>(
+    builder.Configuration.GetSection(AnthropicSettings.SectionName));
+builder.Services.AddHttpClient<IAiComposeService, AiComposeService>();
 
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();

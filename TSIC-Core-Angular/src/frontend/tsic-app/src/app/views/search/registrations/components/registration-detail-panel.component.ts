@@ -7,7 +7,6 @@ import { RegistrationSearchService } from '../services/registration-search.servi
 import { ToastService } from '@shared-ui/toast.service';
 import { AddPaymentModalComponent } from './add-payment-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
-import { EMAIL_TEMPLATE_CATEGORIES, type EmailTemplate } from '../email-templates';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -124,12 +123,9 @@ export class RegistrationDetailPanelComponent {
   emailSubject = signal<string>('');
   emailBody = signal<string>('');
 
-  // Email template support
-  availableTemplates = computed(() => {
-    const hasSub = this.detail()?.hasSubscription ?? false;
-    return EMAIL_TEMPLATE_CATEGORIES.filter(c => !c.requiresSubscription || hasSub);
-  });
-  selectedTemplateLabel = signal<string>('');
+  // AI compose
+  aiPrompt = signal<string>('');
+  isDraftingAi = signal<boolean>(false);
 
   // Change Job modal
   showChangeJobModal = signal<boolean>(false);
@@ -651,21 +647,22 @@ export class RegistrationDetailPanelComponent {
 
   // ── Email ──
 
-  onTemplateSelected(label: string): void {
-    this.selectedTemplateLabel.set(label);
-    if (!label) {
-      this.emailSubject.set('');
-      this.emailBody.set('');
-      return;
-    }
-    for (const cat of this.availableTemplates()) {
-      const tmpl = cat.templates.find(t => t.label === label);
-      if (tmpl) {
-        this.emailSubject.set(tmpl.subject);
-        this.emailBody.set(tmpl.body);
-        return;
+  draftWithAi(): void {
+    const prompt = this.aiPrompt().trim();
+    if (!prompt) { this.toast.show('Describe the email you want to send', 'warning'); return; }
+
+    this.isDraftingAi.set(true);
+    this.searchService.aiComposeEmail(prompt).subscribe({
+      next: (response) => {
+        this.emailSubject.set(response.subject);
+        this.emailBody.set(response.body);
+        this.isDraftingAi.set(false);
+      },
+      error: (err) => {
+        this.isDraftingAi.set(false);
+        this.toast.show(`AI draft failed: ${err.error?.message || 'Unknown error'}`, 'danger');
       }
-    }
+    });
   }
 
   insertEmailToken(token: string): void { this.emailBody.set(this.emailBody() + token); }

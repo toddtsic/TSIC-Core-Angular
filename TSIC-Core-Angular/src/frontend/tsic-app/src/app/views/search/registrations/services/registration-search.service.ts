@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
+	AiComposeResponse,
 	RegistrationSearchRequest,
 	RegistrationSearchResponse,
 	RegistrationFilterOptionsDto,
@@ -119,6 +120,10 @@ export class RegistrationSearchService {
 
 	previewEmail(request: EmailPreviewRequest): Observable<EmailPreviewResponse> {
 		return this.http.post<EmailPreviewResponse>(`${this.apiUrl}/email-preview`, request);
+	}
+
+	aiComposeEmail(prompt: string): Observable<AiComposeResponse> {
+		return this.http.post<AiComposeResponse>(`${environment.apiUrl}/ai-compose/email`, { prompt });
 	}
 
 	getLadtTree(): Observable<LadtTreeRootDto> {

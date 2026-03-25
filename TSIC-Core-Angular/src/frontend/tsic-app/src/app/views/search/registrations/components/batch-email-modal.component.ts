@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import type { BatchEmailResponse, JobOptionDto, FilterOption } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { EMAIL_TEMPLATE_CATEGORIES, type EmailTemplate } from '../email-templates';
 
 const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
@@ -51,9 +50,9 @@ export class BatchEmailModalComponent implements OnInit {
   sendResult = signal<BatchEmailResponse | null>(null);
   showConfirm = signal<boolean>(false);
 
-  // Email templates
-  readonly availableTemplates = computed(() => EMAIL_TEMPLATE_CATEGORIES);
-  selectedTemplateLabel = signal<string>('');
+  // AI compose
+  aiPrompt = signal<string>('');
+  isDrafting = signal<boolean>(false);
 
   // Invite link support
   inviteTargetJobs = signal<JobOptionDto[]>([]);
@@ -101,21 +100,22 @@ export class BatchEmailModalComponent implements OnInit {
     return this.inviteTargetJobs();
   });
 
-  onTemplateSelected(label: string): void {
-    this.selectedTemplateLabel.set(label);
-    if (!label) {
-      this.subject.set('');
-      this.bodyTemplate.set('');
-      return;
-    }
-    for (const cat of this.availableTemplates()) {
-      const tmpl = cat.templates.find(t => t.label === label);
-      if (tmpl) {
-        this.subject.set(tmpl.subject);
-        this.bodyTemplate.set(tmpl.body);
-        return;
+  draftWithAi(): void {
+    const prompt = this.aiPrompt().trim();
+    if (!prompt) { this.toast.show('Describe the email you want to send', 'danger', 4000); return; }
+
+    this.isDrafting.set(true);
+    this.searchService.aiComposeEmail(prompt).subscribe({
+      next: (response) => {
+        this.subject.set(response.subject);
+        this.bodyTemplate.set(response.body);
+        this.isDrafting.set(false);
+      },
+      error: (err) => {
+        this.isDrafting.set(false);
+        this.toast.show(`AI draft failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000);
       }
-    }
+    });
   }
 
   close(): void { this.closed.emit(); this.resetForm(); }
@@ -172,6 +172,7 @@ export class BatchEmailModalComponent implements OnInit {
     this.sendResult.set(null);
     this.showConfirm.set(false);
     this.selectedInviteTargetJobId.set(null);
-    this.selectedTemplateLabel.set('');
+    this.aiPrompt.set('');
+    this.isDrafting.set(false);
   }
 }

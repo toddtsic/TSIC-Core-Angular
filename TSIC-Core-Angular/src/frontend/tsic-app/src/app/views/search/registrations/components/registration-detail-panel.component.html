@@ -519,23 +519,21 @@
             </div>
 
             <form class="email-form">
-              @if (availableTemplates().length > 0) {
-                <div class="form-group">
-                  <label for="email-template" class="form-label">Template</label>
-                  <select id="email-template" class="form-select form-select-sm"
-                    [ngModel]="selectedTemplateLabel()" (ngModelChange)="onTemplateSelected($event)"
-                    name="template">
-                    <option value="">Compose from scratch</option>
-                    @for (cat of availableTemplates(); track cat.category) {
-                      <optgroup [label]="cat.category">
-                        @for (tmpl of cat.templates; track tmpl.label) {
-                          <option [value]="tmpl.label">{{ tmpl.label }}</option>
-                        }
-                      </optgroup>
-                    }
-                  </select>
+              <!-- AI Compose -->
+              <div class="ai-compose-group">
+                <label class="form-label">Draft with AI</label>
+                <div class="ai-compose-row">
+                  <input type="text" class="form-control form-control-sm"
+                    [ngModel]="aiPrompt()" (ngModelChange)="aiPrompt.set($event)"
+                    (keydown.enter)="draftWithAi()"
+                    name="aiPrompt" placeholder="Describe the email..."
+                    [disabled]="isDraftingAi()">
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="draftWithAi()"
+                    [disabled]="isDraftingAi() || !aiPrompt().trim()">
+                    @if (isDraftingAi()) { Drafting... } @else { Draft }
+                  </button>
                 </div>
-              }
+              </div>
 
               <div class="form-group">
                 <label for="email-subject" class="form-label">Subject</label>

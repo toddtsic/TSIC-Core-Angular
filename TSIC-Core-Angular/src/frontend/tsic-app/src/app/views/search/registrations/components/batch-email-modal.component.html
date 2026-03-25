@@ -25,25 +25,34 @@
           </div>
         </details>
 
-        <div class="email-form">
-          @if (availableTemplates().length > 0) {
-            <div class="form-group">
-              <label for="email-template">Template</label>
-              <select id="email-template" class="form-control"
-                [ngModel]="selectedTemplateLabel()" (ngModelChange)="onTemplateSelected($event)"
-                [disabled]="isSending()">
-                <option value="">Compose from scratch</option>
-                @for (cat of availableTemplates(); track cat.category) {
-                  <optgroup [label]="cat.category">
-                    @for (tmpl of cat.templates; track tmpl.label) {
-                      <option [value]="tmpl.label">{{ tmpl.label }}</option>
-                    }
-                  </optgroup>
-                }
-              </select>
-            </div>
-          }
+        <!-- AI Compose -->
+        <div class="ai-compose-section">
+          <label for="ai-prompt">Draft with AI</label>
+          <div class="ai-compose-row">
+            <input type="text" id="ai-prompt" class="form-control"
+              [ngModel]="aiPrompt()" (ngModelChange)="aiPrompt.set($event)"
+              (keydown.enter)="draftWithAi()"
+              placeholder="Describe the email you want to send..."
+              [disabled]="isDrafting() || isSending()" />
+            <button type="button" class="btn btn-ai" (click)="draftWithAi()"
+              [disabled]="isDrafting() || isSending() || !aiPrompt().trim()">
+              @if (isDrafting()) {
+                <span class="spinner"></span> Drafting...
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                </svg>
+                Draft
+              }
+            </button>
+          </div>
+          <small class="form-text text-muted">
+            e.g. "college recruiting meeting Thursday at 7pm" or "congratulations, you made it off the waitlist"
+          </small>
+        </div>
 
+        <div class="email-form">
           <div class="form-group">
             <label for="email-subject">Subject</label>
             <input type="text" id="email-subject" class="form-control"

@@ -569,6 +569,32 @@
   background: var(--surface-elevated-bg);
 }
 
+.ai-compose-group {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--bs-primary) 5%, var(--bs-card-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 20%, var(--bs-border-color));
+  border-radius: var(--radius-sm);
+
+  .form-label {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-primary);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 2px;
+  }
+}
+
+.ai-compose-row {
+  display: flex;
+  gap: var(--space-2);
+
+  .form-control {
+    flex: 1;
+  }
+}
+
 .email-form {
   display: flex;
   flex-direction: column;
