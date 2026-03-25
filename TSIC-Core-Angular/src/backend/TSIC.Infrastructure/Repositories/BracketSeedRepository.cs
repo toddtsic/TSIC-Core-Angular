@@ -38,14 +38,14 @@ public class BracketSeedRepository : IBracketSeedRepository
                 Gid = s.Gid,
                 AgegroupName = (ag.BChampionsByDivision == true)
                     ? $"{ag.AgegroupName}:{d.DivName}"
-                    : ag.AgegroupName,
+                    : ag.AgegroupName ?? "",
                 WhichSide = bs != null ? bs.WhichSide : null,
-                T1Type = s.T1Type,
+                T1Type = s.T1Type ?? "",
                 T1No = s.T1No ?? 0,
                 T1SeedDivId = bs != null ? bs.T1SeedDivId : null,
                 T1SeedDivName = t1Div != null ? t1Div.DivName : null,
                 T1SeedRank = bs != null ? bs.T1SeedRank : null,
-                T2Type = s.T2Type,
+                T2Type = s.T2Type ?? "",
                 T2No = s.T2No ?? 0,
                 T2SeedDivId = bs != null ? bs.T2SeedDivId : null,
                 T2SeedDivName = t2Div != null ? t2Div.DivName : null,
@@ -101,7 +101,7 @@ public class BracketSeedRepository : IBracketSeedRepository
             .Select(d => new BracketSeedDivisionOptionDto
             {
                 DivId = d.DivId,
-                DivName = d.DivName
+                DivName = d.DivName ?? ""
             })
             .ToListAsync(ct);
     }
@@ -165,8 +165,8 @@ public class BracketSeedRepository : IBracketSeedRepository
             {
                 AgegroupName = (ag.BChampionsByDivision == true)
                     ? $"{ag.AgegroupName}:{d.DivName}"
-                    : ag.AgegroupName,
-                T1Type = s.T1Type,
+                    : ag.AgegroupName ?? "",
+                T1Type = s.T1Type ?? "",
                 T1No = s.T1No ?? 0,
                 T2No = s.T2No ?? 0,
                 T1SeedDivName = t1Div != null ? t1Div.DivName : null,

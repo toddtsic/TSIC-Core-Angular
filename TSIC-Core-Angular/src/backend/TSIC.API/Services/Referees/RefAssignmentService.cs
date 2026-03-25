@@ -124,9 +124,9 @@ public sealed class RefAssignmentService : IRefAssignmentService
         using var reader = new StreamReader(csvStream);
         var lineNumber = 0;
 
-        while (!reader.EndOfStream)
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) != null)
         {
-            var line = await reader.ReadLineAsync(ct);
             lineNumber++;
 
             if (string.IsNullOrWhiteSpace(line))

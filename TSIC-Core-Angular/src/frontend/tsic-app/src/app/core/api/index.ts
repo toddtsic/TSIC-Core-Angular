@@ -478,6 +478,7 @@ export type { SeedWavesRequest } from './models/SeedWavesRequest';
 export type { SendConfirmationEmailRequest } from './models/SendConfirmationEmailRequest';
 export type { SendPushNotificationRequest } from './models/SendPushNotificationRequest';
 export type { SendPushNotificationResponse } from './models/SendPushNotificationResponse';
+export type { SetActiveRequest } from './models/SetActiveRequest';
 export type { SetEmailOptOutRequest } from './models/SetEmailOptOutRequest';
 export type { SetWizardContextRequest } from './models/SetWizardContextRequest';
 export type { ShiftConflict } from './models/ShiftConflict';

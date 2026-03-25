@@ -68,7 +68,7 @@ public class PushNotificationRepository : IPushNotificationRepository
             .FirstOrDefaultAsync(ct);
 
         if (result == null) return null;
-        return (result.JobName, result.LogoHeader);
+        return (result.JobName ?? "", result.LogoHeader);
     }
 
     public void AddNotificationRecord(JobPushNotificationsToAll record)

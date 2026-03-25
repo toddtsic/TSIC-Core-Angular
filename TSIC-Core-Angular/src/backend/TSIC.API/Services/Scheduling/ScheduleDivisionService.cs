@@ -159,7 +159,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
         // Query scheduled games by date range
         var games = await _scheduleRepo.GetGamesForGridByDateRangeAsync(
-            jobId, fieldIds, timeslots.Min().Date, timeslots.Max().Date.AddDays(1), ct);
+            jobId, fieldIds, timeslots.Min.Date, timeslots.Max.Date.AddDays(1), ct);
 
         // Merge game times into timeslot set (games at non-standard intervals)
         foreach (var game in games)

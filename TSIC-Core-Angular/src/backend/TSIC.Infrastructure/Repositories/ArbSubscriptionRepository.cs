@@ -36,11 +36,11 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 BillingOccurrences = r.AdnSubscriptionBillingOccurences,
                 AmountPerOccurrence = r.AdnSubscriptionAmountPerOccurence,
                 IntervalLength = r.AdnSubscriptionIntervalLength,
-                RegistrantName = $"{r.User.LastName}, {r.User.FirstName}",
+                RegistrantName = $"{r.User!.LastName}, {r.User.FirstName}",
                 Assignment = r.Assignment,
                 FamilyUsername = r.FamilyUser != null && r.FamilyUser.FamilyUser != null
                     ? r.FamilyUser.FamilyUser.UserName : null,
-                Role = r.Role.Name,
+                Role = r.Role!.Name,
                 RegistrantEmail = r.User.Email,
                 MomName = r.FamilyUser != null
                     ? $"{r.FamilyUser.MomFirstName} {r.FamilyUser.MomLastName}" : null,
@@ -53,7 +53,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
                 OwedTotal = r.OwedTotal,
-                JobName = r.Job.DisplayName ?? r.Job.JobName,
+                JobName = r.Job!.DisplayName ?? r.Job.JobName,
                 JobPath = r.Job.JobPath,
                 JobId = r.JobId
             })
@@ -88,11 +88,11 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 BillingOccurrences = r.AdnSubscriptionBillingOccurences,
                 AmountPerOccurrence = r.AdnSubscriptionAmountPerOccurence,
                 IntervalLength = r.AdnSubscriptionIntervalLength,
-                RegistrantName = $"{r.User.LastName}, {r.User.FirstName}",
+                RegistrantName = $"{r.User!.LastName}, {r.User.FirstName}",
                 Assignment = r.Assignment,
                 FamilyUsername = r.FamilyUser != null && r.FamilyUser.FamilyUser != null
                     ? r.FamilyUser.FamilyUser.UserName : null,
-                Role = r.Role.Name,
+                Role = r.Role!.Name,
                 RegistrantEmail = r.User.Email,
                 MomName = r.FamilyUser != null
                     ? $"{r.FamilyUser.MomFirstName} {r.FamilyUser.MomLastName}" : null,
@@ -105,7 +105,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
                 OwedTotal = r.OwedTotal,
-                JobName = r.Job.DisplayName ?? r.Job.JobName,
+                JobName = r.Job!.DisplayName ?? r.Job.JobName,
                 JobPath = r.Job.JobPath,
                 JobId = r.JobId
             })
@@ -128,8 +128,8 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 BillingOccurrences = r.AdnSubscriptionBillingOccurences,
                 AmountPerOccurrence = r.AdnSubscriptionAmountPerOccurence,
                 IntervalLength = r.AdnSubscriptionIntervalLength,
-                RegistrantName = $"{r.User.FirstName} {r.User.LastName}",
-                JobName = r.Job.DisplayName ?? r.Job.JobName,
+                RegistrantName = $"{r.User!.FirstName} {r.User.LastName}",
+                JobName = r.Job!.DisplayName ?? r.Job.JobName,
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
                 FirstInvoiceNumber = _context.RegistrationAccounting
@@ -164,12 +164,12 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             .AsNoTracking()
             .Where(r =>
                 jobIds.Contains(r.JobId)
-                && r.Role.Name == "Director"
+                && r.Role!.Name == "Director"
                 && r.BActive == true)
             .Select(r => new ArbDirectorProjection
             {
                 JobId = r.JobId,
-                Name = $"{r.User.FirstName} {r.User.LastName}",
+                Name = $"{r.User!.FirstName} {r.User.LastName}",
                 Email = r.User.Email ?? string.Empty
             })
             .ToListAsync(ct);

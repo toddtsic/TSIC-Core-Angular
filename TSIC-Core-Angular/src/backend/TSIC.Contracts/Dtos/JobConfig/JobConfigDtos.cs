@@ -43,7 +43,6 @@ public record JobConfigGeneralDto
     public Guid? SportId { get; init; }
     public Guid? CustomerId { get; init; }
     public int? BillingTypeId { get; init; }
-    public bool? BSuspendPublic { get; init; }
     public string? JobCode { get; init; }
 }
 
@@ -66,7 +65,6 @@ public record UpdateJobConfigGeneralRequest
     public Guid? SportId { get; init; }
     public Guid? CustomerId { get; init; }
     public int? BillingTypeId { get; init; }
-    public bool? BSuspendPublic { get; init; }
     public string? JobCode { get; init; }
 }
 
@@ -339,6 +337,7 @@ public record GameClockParamsDto
 public record JobConfigMobileStoreDto
 {
     // Mobile — admin-visible
+    public required bool? BSuspendPublic { get; init; }
     public required bool? BEnableTsicteams { get; init; }
     public required bool? BEnableMobileRsvp { get; init; }
     public required bool? BEnableMobileTeamChat { get; init; }
@@ -362,6 +361,7 @@ public record JobConfigMobileStoreDto
 public record UpdateJobConfigMobileStoreRequest
 {
     // Mobile — admin-visible
+    public required bool? BSuspendPublic { get; init; }
     public required bool? BEnableTsicteams { get; init; }
     public required bool? BEnableMobileRsvp { get; init; }
     public required bool? BEnableMobileTeamChat { get; init; }

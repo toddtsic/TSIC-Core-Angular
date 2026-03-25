@@ -939,7 +939,6 @@ public class TeamRegistrationService : ITeamRegistrationService
 
             var oldFeeBase = team.FeeBase ?? 0;
             var oldFeeProcessing = team.FeeProcessing ?? 0;
-            var oldFeeTotal = team.FeeTotal ?? 0;
 
             await _feeService.ApplyTeamSwapFeesAsync(
                 team, jobId, team.AgegroupId,

@@ -2,6 +2,27 @@
   <div class="tab-panel">
     <div class="form-section">
       <h6 class="section-title">Mobile Features</h6>
+
+      <div class="d-flex align-items-center gap-3 p-3 rounded-2 mb-3"
+           [style.background]="tsicEventsEnabled() ? 'rgba(var(--bs-success-rgb), 0.1)' : 'rgba(var(--bs-danger-rgb), 0.1)'"
+           [style.border]="'1px solid ' + (tsicEventsEnabled() ? 'rgba(var(--bs-success-rgb), 0.3)' : 'rgba(var(--bs-danger-rgb), 0.3)')">
+        <div class="form-check form-switch mb-0">
+          <input type="checkbox" class="form-check-input" id="bTsicEventsEnabled" role="switch"
+            [ngModel]="tsicEventsEnabled()"
+            (ngModelChange)="tsicEventsEnabled.set($event); onFieldChange()" />
+          <label class="form-check-label fw-semibold" for="bTsicEventsEnabled">
+            <i class="bi me-1" [ngClass]="tsicEventsEnabled() ? 'bi-phone' : 'bi-phone-x'"></i>
+            TSIC-Events Enabled
+          </label>
+        </div>
+        <small class="text-secondary">
+          @if (tsicEventsEnabled()) {
+            This event is visible in the TSIC-Events mobile app.
+          } @else {
+            This event is hidden from the TSIC-Events mobile app.
+          }
+        </small>
+      </div>
       <div class="row g-3">
         <div class="col-md-4">
           <div class="form-check">

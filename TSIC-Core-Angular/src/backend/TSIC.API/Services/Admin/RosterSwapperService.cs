@@ -136,7 +136,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
         if (targetContext == null)
             throw new ArgumentException("Target team not found.");
 
-        var (targetTeam, targetAgegroup) = targetContext.Value;
+        var (targetTeam, _) = targetContext.Value;
 
         foreach (var reg in registrations)
         {
@@ -329,7 +329,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
         {
             var targetContext = await _teamRepo.GetTeamWithFeeContextAsync(request.TargetPoolId, ct)
                 ?? throw new ArgumentException("Target team not found.");
-            var (targetTeam, targetAgegroup) = targetContext;
+            var (targetTeam, _) = targetContext;
 
             // Capacity check
             var currentCount = await _teamRepo.GetPlayerCountAsync(request.TargetPoolId, ct);

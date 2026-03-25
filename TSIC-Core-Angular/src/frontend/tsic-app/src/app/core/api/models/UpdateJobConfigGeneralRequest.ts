@@ -18,7 +18,6 @@ export type UpdateJobConfigGeneralRequest = {
     sportId?: string | null;
     customerId?: string | null;
     billingTypeId?: number | null;
-    bSuspendPublic?: boolean | null;
     jobCode?: string | null;
 };
 

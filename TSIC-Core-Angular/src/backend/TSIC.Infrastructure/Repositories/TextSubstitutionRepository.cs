@@ -354,7 +354,7 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
             .Where(r => r.RegistrationId == registrationId)
             .Select(r => new StaffRegistrationInfo
             {
-                UserId = r.UserId,
+                UserId = r.UserId!,
                 JobId = r.JobId,
                 SpecialRequests = r.SpecialRequests ?? string.Empty
             }).SingleOrDefaultAsync(cancellationToken);

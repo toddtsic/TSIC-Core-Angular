@@ -3,11 +3,9 @@ using TSIC.Contracts.Dtos.Scheduling;
 namespace TSIC.API.Services.Scheduling;
 
 /// <summary>
-/// V1 helper for finding the next available timeslot by walking
+/// Helper for finding the next available timeslot by walking
 /// dates × fields × game intervals. Used by ScheduleDivisionService.
-/// V2 uses PlacementScorer with CandidateSlot generation instead.
 /// </summary>
-[Obsolete("V1 vertical-fill approach. V2 uses PlacementScorer + CandidateSlot generation.")]
 public static class TimeslotSlotFinder
 {
     /// <summary>

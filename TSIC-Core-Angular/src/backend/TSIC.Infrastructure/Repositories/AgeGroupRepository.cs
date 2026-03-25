@@ -112,7 +112,7 @@ public class AgeGroupRepository : IAgeGroupRepository
             .AsNoTracking()
             .Where(t => t.JobId == jobId
                         && t.Active == true
-                        && !t.Agegroup.AgegroupName.Contains("DROPPED")
+                        && !t.Agegroup!.AgegroupName!.Contains("DROPPED")
                         && !t.Agegroup.AgegroupName.Contains("WAITLIST"))
             .GroupBy(t => new { t.Agegroup.AgegroupId, t.Agegroup.AgegroupName })
             .OrderBy(g => g.Key.AgegroupName)

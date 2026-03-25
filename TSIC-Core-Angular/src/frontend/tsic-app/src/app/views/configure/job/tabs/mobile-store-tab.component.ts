@@ -14,6 +14,11 @@ import type { UpdateJobConfigMobileStoreRequest } from '@core/api';
 export class MobileStoreTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
+  // Inverted: DB stores bSuspendPublic (true=disabled), UI shows "enabled" (true=enabled)
+  tsicEventsEnabled = linkedSignal(() => {
+    const val = this.svc.mobileStore()?.bSuspendPublic;
+    return val == null ? null : !val;
+  });
   bEnableTsicteams = linkedSignal(() => this.svc.mobileStore()?.bEnableTsicteams ?? null);
   bEnableMobileRsvp = linkedSignal(() => this.svc.mobileStore()?.bEnableMobileRsvp ?? null);
   bEnableMobileTeamChat = linkedSignal(() => this.svc.mobileStore()?.bEnableMobileTeamChat ?? null);
@@ -35,6 +40,7 @@ export class MobileStoreTabComponent implements OnInit {
     const m = this.svc.mobileStore();
     if (!m) return '';
     const req: UpdateJobConfigMobileStoreRequest = {
+      bSuspendPublic: m.bSuspendPublic,
       bEnableTsicteams: m.bEnableTsicteams,
       bEnableMobileRsvp: m.bEnableMobileRsvp,
       bEnableMobileTeamChat: m.bEnableMobileTeamChat,
@@ -72,7 +78,9 @@ export class MobileStoreTabComponent implements OnInit {
   }
 
   private buildPayload(): UpdateJobConfigMobileStoreRequest {
+    const enabled = this.tsicEventsEnabled();
     const req: UpdateJobConfigMobileStoreRequest = {
+      bSuspendPublic: enabled == null ? null : !enabled,
       bEnableTsicteams: this.bEnableTsicteams(),
       bEnableMobileRsvp: this.bEnableMobileRsvp(),
       bEnableMobileTeamChat: this.bEnableMobileTeamChat(),

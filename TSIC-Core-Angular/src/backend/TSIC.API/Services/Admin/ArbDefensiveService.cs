@@ -99,7 +99,7 @@ public class ArbDefensiveService : IArbDefensiveService
             {
                 var mostRecentPayment = reg.SubscriptionStartDate.Value
                     .AddMonths(reg.IntervalLength.Value * (occurrences - 1));
-                if (Math.Abs((DateTime.Now - mostRecentPayment).TotalHours) < GraceHours)
+                if (Math.Abs((DateTime.UtcNow - mostRecentPayment).TotalHours) < GraceHours)
                     continue;
             }
 
@@ -305,7 +305,7 @@ public class ArbDefensiveService : IArbDefensiveService
             {
                 var mostRecent = detail.SubscriptionStartDate.Value
                     .AddMonths(detail.IntervalLength.Value * (occurrences - 1));
-                if (Math.Abs((DateTime.Now - mostRecent).TotalHours) < GraceHours)
+                if (Math.Abs((DateTime.UtcNow - mostRecent).TotalHours) < GraceHours)
                     balanceDue -= detail.AmountPerOccurrence.Value;
             }
             balanceDue = Math.Max(0, balanceDue);

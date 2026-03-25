@@ -41,8 +41,8 @@ public sealed class ScheduleQaService : IScheduleQaService
         // Future: new("Boys Summer", [ ... ]),
     ];
 
-    private record ComparisonGroup(string Name, ComparisonEvent[] Events);
-    private record ComparisonEvent(string NamePattern, string Abbreviation, int SortRank);
+    private sealed record ComparisonGroup(string Name, ComparisonEvent[] Events);
+    private sealed record ComparisonEvent(string NamePattern, string Abbreviation, int SortRank);
 
     public async Task<AutoBuildQaResult> RunValidationAsync(
         Guid jobId, CancellationToken ct = default)

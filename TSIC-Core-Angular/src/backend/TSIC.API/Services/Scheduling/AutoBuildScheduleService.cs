@@ -74,10 +74,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         var divisions = await _autoBuildRepo.GetCurrentDivisionSummariesAsync(jobId, ct);
         var gameCounts = await _scheduleRepo.GetRoundRobinGameCountsByDivisionAsync(jobId, ct);
 
-        // Get actual pairing counts per pool size (team count) from PairingsLeagueSeason
         var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
-        var pairingsByPoolSize = await _pairingsRepo.GetRoundRobinPairingCountsByPoolSizeAsync(
-            leagueId, season, ct);
 
         // Get max round per pool size — this reflects the scheduler's game guarantee
         var maxRoundByPoolSize = await _pairingsRepo.GetMaxRoundByPoolSizeAsync(
@@ -247,9 +244,6 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
         // NOTE: pass original source names — ExtractProfiles joins patterns to summaries by name
         var profiles = AttributeExtractor.ExtractProfiles(
             patterns, sourceDivisionsRaw, currentDivCountByTCnt, sourceWindow);
-        var sourceDivisions = yearDelta != 0
-            ? RemapSourceDivisionNames(sourceDivisionsRaw, yearDelta)
-            : sourceDivisionsRaw;
 
         // Translate source field names → current field names (address-based mapping)
         var fieldMap = await BuildFieldNameMapAsync(patterns, leagueId, season, ct);

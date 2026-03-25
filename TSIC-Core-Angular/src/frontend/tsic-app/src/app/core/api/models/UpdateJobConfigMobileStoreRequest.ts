@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UpdateJobConfigMobileStoreRequest = {
+    bSuspendPublic: boolean | null;
     bEnableTsicteams: boolean | null;
     bEnableMobileRsvp: boolean | null;
     bEnableMobileTeamChat: boolean | null;

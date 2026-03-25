@@ -76,7 +76,6 @@ public class JobConfigService : IJobConfigService
             if (req.SportId.HasValue) job.SportId = req.SportId.Value;
             if (req.CustomerId.HasValue) job.CustomerId = req.CustomerId.Value;
             if (req.BillingTypeId.HasValue) job.BillingTypeId = req.BillingTypeId.Value;
-            if (req.BSuspendPublic.HasValue) job.BSuspendPublic = req.BSuspendPublic.Value;
             job.JobCode = req.JobCode;
         }
 
@@ -278,6 +277,7 @@ public class JobConfigService : IJobConfigService
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
         // Admin-editable — Mobile
+        if (req.BSuspendPublic.HasValue) job.BSuspendPublic = req.BSuspendPublic.Value;
         job.BEnableTsicteams = req.BEnableTsicteams;
         job.BEnableMobileRsvp = req.BEnableMobileRsvp;
         job.BEnableMobileTeamChat = req.BEnableMobileTeamChat;
@@ -499,7 +499,6 @@ public class JobConfigService : IJobConfigService
         SportId = isSuperUser ? job.SportId : null,
         CustomerId = isSuperUser ? job.CustomerId : null,
         BillingTypeId = isSuperUser ? job.BillingTypeId : null,
-        BSuspendPublic = isSuperUser ? job.BSuspendPublic : null,
         JobCode = isSuperUser ? job.JobCode : null,
     };
 
@@ -624,6 +623,7 @@ public class JobConfigService : IJobConfigService
 
     private static JobConfigMobileStoreDto MapMobileStore(Jobs job, bool isSuperUser) => new()
     {
+        BSuspendPublic = job.BSuspendPublic,
         BEnableTsicteams = job.BEnableTsicteams,
         BEnableMobileRsvp = job.BEnableMobileRsvp,
         BEnableMobileTeamChat = job.BEnableMobileTeamChat,

@@ -74,7 +74,7 @@ public class StoreCartRepository : IStoreCartRepository
                 FeeTotal = cbs.FeeTotal,
                 LineTotal = cbs.UnitPrice * cbs.Quantity + cbs.FeeTotal,
                 DirectToRegId = cbs.DirectToRegId,
-                DirectToPlayerName = cbs.DirectToReg != null
+                DirectToPlayerName = cbs.DirectToReg != null && cbs.DirectToReg.User != null
                     ? cbs.DirectToReg.User.FirstName + " " + cbs.DirectToReg.User.LastName
                     : null,
                 Active = cbs.Active

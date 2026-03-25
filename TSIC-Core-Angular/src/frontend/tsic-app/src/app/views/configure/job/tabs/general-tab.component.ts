@@ -30,7 +30,6 @@ export class GeneralTabComponent implements OnInit {
   sportId = linkedSignal(() => this.svc.general()?.sportId ?? null);
   customerId = linkedSignal(() => this.svc.general()?.customerId ?? null);
   billingTypeId = linkedSignal(() => this.svc.general()?.billingTypeId);
-  bSuspendPublic = linkedSignal(() => this.svc.general()?.bSuspendPublic ?? null);
   jobCode = linkedSignal(() => this.svc.general()?.jobCode ?? null);
 
   private readonly cleanSnapshot = computed(() => {
@@ -54,7 +53,6 @@ export class GeneralTabComponent implements OnInit {
       req.sportId = g.sportId ?? null;
       req.customerId = g.customerId ?? null;
       req.billingTypeId = g.billingTypeId;
-      req.bSuspendPublic = g.bSuspendPublic ?? null;
       req.jobCode = g.jobCode ?? null;
     }
     return JSON.stringify(req);
@@ -95,7 +93,6 @@ export class GeneralTabComponent implements OnInit {
       req.sportId = this.sportId();
       req.customerId = this.customerId();
       req.billingTypeId = this.billingTypeId();
-      req.bSuspendPublic = this.bSuspendPublic();
       req.jobCode = this.jobCode();
     }
     return req;

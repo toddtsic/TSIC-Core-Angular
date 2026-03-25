@@ -24,55 +24,49 @@
   margin: 0;
 }
 
-// ── Tab bar (card treatment matching filter-panel) ──
+// ── Tab bar (underline strip, wraps gracefully) ──
+.tab-bar-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bs-card-bg);
+  border-bottom: 1px solid var(--bs-border-color);
+  box-shadow: var(--shadow-sm);
+}
+
 .tab-bar {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding: var(--space-3) var(--space-4);
-  scrollbar-width: thin;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bs-primary) 6%, transparent) 0%, transparent 60px),
-    var(--bs-card-bg);
-  border-top: 3px solid var(--bs-primary);
-
-  &::-webkit-scrollbar {
-    height: 4px;
-  }
+  gap: 0;
+  padding: 0 var(--space-3);
 }
 
 .tab-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bs-body-bg);
+  padding: var(--space-3) var(--space-3);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
   color: var(--brand-text-muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 
   &:hover {
-    background: var(--bs-secondary-bg);
     color: var(--brand-text);
+    background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
   }
 
   &.active {
-    background: var(--bs-primary);
-    color: var(--bs-light);
-    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+    border-bottom-color: var(--bs-primary);
+    font-weight: var(--font-weight-semibold);
   }
 
   &:focus-visible {
@@ -232,19 +226,19 @@
     padding: var(--space-3) var(--space-3) var(--space-8);
   }
 
-  .tab-bar {
-    padding: var(--space-2) var(--space-3);
-  }
-
   .tab-label {
     display: none;
   }
 
+  .tab-bar {
+    padding: 0 var(--space-1);
+  }
+
   .tab-btn {
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-2);
 
     .bi {
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
   }
 
@@ -258,11 +252,6 @@
 @media (max-width: 480px) {
   .job-config-shell {
     padding: var(--space-2) var(--space-2) var(--space-8);
-  }
-
-  .tab-bar {
-    gap: var(--space-1);
-    padding: var(--space-2);
   }
 
   .tab-content ::ng-deep {

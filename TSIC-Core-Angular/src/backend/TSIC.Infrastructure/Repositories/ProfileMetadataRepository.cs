@@ -39,7 +39,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .Where(j => j.JobId == jobId)
             .Select(j => new JobBasicInfo
             {
-                JobName = j.JobName,
+                JobName = j.JobName ?? "",
                 CustomerName = string.Empty,
                 CoreRegformPlayer = j.RegformNamePlayer ?? string.Empty,
                 PlayerProfileMetadataJson = j.PlayerProfileMetadataJson ?? string.Empty,
@@ -71,7 +71,7 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .Select(j => new JobForProfileSummary
             {
                 JobId = j.JobId,
-                JobName = j.JobName,
+                JobName = j.JobName ?? "",
                 CoreRegformPlayer = j.CoreRegformPlayer ?? string.Empty,
                 PlayerProfileMetadataJson = j.PlayerProfileMetadataJson ?? string.Empty
             })
