@@ -322,6 +322,28 @@ public class RegistrationSearchController : ControllerBase
         }
     }
 
+    [HttpPut("{registrationId:guid}/active")]
+    public async Task<ActionResult> SetActive(
+        Guid registrationId, [FromBody] SetActiveRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _searchService.SetActiveAsync(jobId!.Value, registrationId, request.Active, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("batch-email")]
     public async Task<ActionResult<BatchEmailResponse>> SendBatchEmail(
         [FromBody] BatchEmailRequest request, CancellationToken ct)

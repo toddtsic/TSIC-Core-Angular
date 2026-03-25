@@ -172,4 +172,8 @@ export class RegistrationSearchService {
 	setEmailOptOut(registrationId: string, optOut: boolean): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/email-opt-out`, { optOut });
 	}
+
+	setActive(registrationId: string, active: boolean): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/${registrationId}/active`, { active });
+	}
 }

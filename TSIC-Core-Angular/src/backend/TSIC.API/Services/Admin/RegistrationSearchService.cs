@@ -836,4 +836,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         await _registrationRepo.SetEmailOptOutAsync(registrationId, optOut, ct);
     }
+
+    public async Task SetActiveAsync(Guid jobId, Guid registrationId, bool active, CancellationToken ct = default)
+    {
+        var regs = await _registrationRepo.GetByIdsAsync(new List<Guid> { registrationId }, ct);
+        var reg = regs.FirstOrDefault();
+        if (reg == null)
+            throw new KeyNotFoundException($"Registration {registrationId} not found.");
+        if (reg.JobId != jobId)
+            throw new InvalidOperationException("Registration does not belong to this job.");
+
+        await _registrationRepo.SetActiveAsync(registrationId, active, ct);
+    }
 }

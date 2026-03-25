@@ -1869,6 +1869,17 @@ public class RegistrationRepository : IRegistrationRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public async Task SetActiveAsync(Guid registrationId, bool active, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .FirstOrDefaultAsync(r => r.RegistrationId == registrationId, ct);
+
+        if (reg == null) return;
+
+        reg.BActive = active;
+        await _context.SaveChangesAsync(ct);
+    }
+
     public async Task<List<UniformTemplateRow>> GetPlayerRosterForTemplateAsync(Guid jobId, CancellationToken ct = default)
     {
         return await (

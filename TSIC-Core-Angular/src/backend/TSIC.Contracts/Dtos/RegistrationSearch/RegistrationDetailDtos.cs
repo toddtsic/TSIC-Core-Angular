@@ -151,6 +151,14 @@ public record SetEmailOptOutRequest
 }
 
 /// <summary>
+/// Request to set the active (bActive) flag on a registration.
+/// </summary>
+public record SetActiveRequest
+{
+    public required bool Active { get; init; }
+}
+
+/// <summary>
 /// Email preview request — renders tokens for N recipients without sending.
 /// </summary>
 public record EmailPreviewRequest

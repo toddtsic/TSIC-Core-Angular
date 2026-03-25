@@ -407,6 +407,11 @@ public interface IRegistrationRepository
     Task SetEmailOptOutAsync(Guid registrationId, bool optOut, CancellationToken ct = default);
 
     /// <summary>
+    /// Set the BActive flag on a registration.
+    /// </summary>
+    Task SetActiveAsync(Guid registrationId, bool active, CancellationToken ct = default);
+
+    /// <summary>
     /// Get player roster data for uniform number template export.
     /// Joins Registrations → Users → Teams, filtered to Player role for the given job. AsNoTracking.
     /// </summary>

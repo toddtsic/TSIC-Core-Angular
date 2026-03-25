@@ -124,6 +124,9 @@ export class RegistrationDetailPanelComponent {
   isChangingJob = signal<boolean>(false);
   isLoadingJobOptions = signal<boolean>(false);
 
+  // Active toggle
+  isTogglingActive = signal<boolean>(false);
+
   // Delete Registration
   showDeleteConfirm = signal<boolean>(false);
   isDeleting = signal<boolean>(false);
@@ -557,6 +560,26 @@ export class RegistrationDetailPanelComponent {
   }
 
   // ── Delete Registration ──
+
+  toggleActive(): void {
+    const d = this.detail();
+    if (!d) return;
+
+    const newValue = !d.active;
+    this.isTogglingActive.set(true);
+    this.searchService.setActive(d.registrationId, newValue).subscribe({
+      next: () => {
+        (d as Record<string, unknown>)['active'] = newValue;
+        this.isTogglingActive.set(false);
+        this.toast.show(newValue ? 'Registration activated' : 'Registration deactivated', 'success', 3000);
+        this.saved.emit();
+      },
+      error: (err) => {
+        this.isTogglingActive.set(false);
+        this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+      }
+    });
+  }
 
   confirmDelete(): void { this.showDeleteConfirm.set(true); }
 

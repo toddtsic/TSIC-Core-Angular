@@ -737,6 +737,20 @@
 }
 
 
+// ── Active Badge (read-only in grid) ──
+.active-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+
+  &.active-yes {
+    color: var(--bs-success);
+  }
+
+  &.active-no {
+    color: var(--bs-danger);
+  }
+}
+
 // ── Role Pill ──
 .role-pill {
   display: inline-flex;

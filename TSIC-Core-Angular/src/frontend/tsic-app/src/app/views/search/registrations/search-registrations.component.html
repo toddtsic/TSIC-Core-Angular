@@ -523,6 +523,15 @@
               </ng-template>
             </e-column>
 
+            <!-- Active status (read-only) -->
+            <e-column field="active" headerText="Active" width="65" textAlign="Center">
+              <ng-template #template let-data>
+                <span class="active-badge" [class.active-yes]="data.active" [class.active-no]="!data.active">
+                  {{ data.active ? 'Yes' : 'No' }}
+                </span>
+              </ng-template>
+            </e-column>
+
             <!-- Scrollable data columns -->
             <e-column field="roleName" headerText="Role" width="100">
               <ng-template #template let-data>

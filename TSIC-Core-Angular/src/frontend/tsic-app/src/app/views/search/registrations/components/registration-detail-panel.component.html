@@ -14,9 +14,13 @@
             <span class="meta-item">{{ reg.assignment }}</span>
           }
           <span class="meta-separator">&bull;</span>
-          <span class="badge" [class.badge-success]="reg.active" [class.badge-secondary]="!reg.active">
-            {{ reg.active ? 'Active' : 'Inactive' }}
-          </span>
+          <label class="active-toggle-switch" [class.disabled]="isTogglingActive()">
+            <input type="checkbox" [checked]="reg.active" (change)="toggleActive()" [disabled]="isTogglingActive()">
+            <span class="toggle-track"></span>
+            <span class="toggle-label" [class.text-success]="reg.active" [class.text-danger]="!reg.active">
+              {{ reg.active ? 'Active' : 'Inactive' }}
+            </span>
+          </label>
           @if (isPlayerRole()) {
             <button type="button" class="btn btn-sm btn-outline-warning ms-2 change-job-btn"
               (click)="openChangeJobModal()" [disabled]="isLoadingJobOptions()">
