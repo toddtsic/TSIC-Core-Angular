@@ -1,5 +1,5 @@
 @if (isOpen()) {
-  <div class="detail-backdrop" (click)="close()"></div>
+  <div class="detail-backdrop" (click)="close()" (keydown.escape)="close()"></div>
 }
 
 <div class="detail-panel" [class.open]="isOpen()">
@@ -414,7 +414,7 @@
 
     <!-- ═══════════════════════ CHANGE JOB MODAL ═══════════════════════ -->
     @if (showChangeJobModal()) {
-      <div class="modal-backdrop" (click)="cancelChangeJob()"></div>
+      <div class="modal-backdrop" (click)="cancelChangeJob()" (keydown.escape)="cancelChangeJob()"></div>
       <div class="change-job-modal">
         <div class="modal-header">
           <h4 class="modal-title">Change Registrant's Job</h4>
@@ -449,7 +449,7 @@
 
     <!-- ═══════════════════════ DELETE REGISTRATION MODAL ═══════════════════════ -->
     @if (showDeleteConfirm()) {
-      <div class="modal-backdrop" (click)="cancelDelete()"></div>
+      <div class="modal-backdrop" (click)="cancelDelete()" (keydown.escape)="cancelDelete()"></div>
       <div class="delete-confirm-modal">
         <div class="modal-header modal-header-danger">
           <h4 class="modal-title">Delete Registration</h4>
