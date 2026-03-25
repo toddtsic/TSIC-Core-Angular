@@ -9,8 +9,21 @@ import type {
 	AlignedTeamDto,
 	RankingEntryDto,
 	RankingsTeamDto,
-	ImportCommentsResultDto
+	ImportRankingsResultDto,
 } from '@core/api';
+
+/** Client-side shape for the NationalRankingData JSON blob stored on teams */
+interface NationalRankingDataDto {
+	rank: number;
+	team: string;
+	state: string;
+	record: string;
+	rating: number;
+	agd: number;
+	sched: number;
+	matchScore: number;
+	matchedAt: string;
+}
 
 type TabId = 'align' | 'import' | 'manage';
 
@@ -46,7 +59,7 @@ export class UsLaxRankingsComponent {
 
 	// ── Alignment results (immutable API response for metadata) ──
 	readonly alignment = signal<AlignmentResultDto | null>(null);
-	readonly importResult = signal<ImportCommentsResultDto | null>(null);
+	readonly importResult = signal<ImportRankingsResultDto | null>(null);
 
 	// ── Mutable match state (populated from API, modified by manual overrides) ──
 	readonly matchedTeams = signal<AlignedTeamDto[]>([]);
@@ -92,11 +105,11 @@ export class UsLaxRankingsComponent {
 
 	readonly hasResults = computed(() => this.alignment() !== null);
 
-	/** True when any matched team's expected comment differs from its stored teamComments */
+	/** True when any matched team's expected ranking JSON differs from its stored NationalRankingData */
 	readonly hasDirtyMatches = computed(() =>
 		this.matchedTeams().some(m => {
-			const expected = `${m.ranking.rank.toString().padStart(3, '0')}:${m.ranking.team}`;
-			return m.registeredTeam.teamComments !== expected;
+			const stored = this.parseRankingData(m.registeredTeam.nationalRankingData);
+			return !stored || stored.rank !== m.ranking.rank || stored.team !== m.ranking.team;
 		}));
 
 	constructor() {
@@ -162,7 +175,7 @@ export class UsLaxRankingsComponent {
 					this.errorMessage.set(result.errorMessage ?? 'Alignment failed.');
 				}
 			},
-			error: err => {
+			error: (err: { error?: { message?: string } }) => {
 				this.isLoading.set(false);
 				this.errorMessage.set(err.error?.message ?? 'Failed to align rankings.');
 			}
@@ -171,31 +184,26 @@ export class UsLaxRankingsComponent {
 
 	// ── Manual match ──
 
-	/** Start matching from unmatched registered team → pick a ranking */
 	startMatchFromTeam(teamId: string): void {
 		this.matchingTeamId.set(this.matchingTeamId() === teamId ? null : teamId);
 		this.matchingRankIndex.set(null);
 	}
 
-	/** Start matching from unmatched ranking → pick a registered team */
 	startMatchFromRanking(rankIndex: number): void {
 		this.matchingRankIndex.set(this.matchingRankIndex() === rankIndex ? null : rankIndex);
 		this.matchingTeamId.set(null);
 	}
 
-	/** Complete manual match: registered team selected from ranking picker */
 	selectTeamForRanking(ranking: RankingEntryDto, team: RankingsTeamDto): void {
 		this.applyManualMatch(ranking, team);
 		this.matchingRankIndex.set(null);
 	}
 
-	/** Complete manual match: ranking selected from team picker */
 	selectRankingForTeam(team: RankingsTeamDto, ranking: RankingEntryDto): void {
 		this.applyManualMatch(ranking, team);
 		this.matchingTeamId.set(null);
 	}
 
-	/** Move a ranking+team pair from unmatched → matched with Manual confidence */
 	private applyManualMatch(ranking: RankingEntryDto, team: RankingsTeamDto): void {
 		const newMatch: AlignedTeamDto = {
 			ranking,
@@ -208,11 +216,9 @@ export class UsLaxRankingsComponent {
 		this.unmatchedRankings.set(this.unmatchedRankings().filter(r => r.rank !== ranking.rank));
 		this.unmatchedTeams.set(this.unmatchedTeams().filter(t => t.teamId !== team.teamId));
 
-		// Immediately persist the comment
-		this.persistComment(team.teamId, ranking);
+		this.persistRanking(team.teamId, ranking, MANUAL_MATCH_SCORE);
 	}
 
-	/** Remove a manual match → move pieces back to unmatched */
 	undoManualMatch(match: AlignedTeamDto): void {
 		this.matchedTeams.set(this.matchedTeams().filter(m => m !== match));
 		this.unmatchedRankings.set([...this.unmatchedRankings(), match.ranking]
@@ -232,19 +238,16 @@ export class UsLaxRankingsComponent {
 		this.matchingRankIndex.set(null);
 	}
 
-	/** Swap current ranking for a new one: old ranking → unmatched, new ranking → matched */
 	reassignMatch(currentMatch: AlignedTeamDto, newRanking: RankingEntryDto): void {
 		if (!newRanking) {
 			this.reassigningTeamId.set(null);
 			return;
 		}
 
-		// Send old ranking back to unmatched
 		this.unmatchedRankings.set(
 			[...this.unmatchedRankings().filter(r => r.rank !== newRanking.rank), currentMatch.ranking]
 				.sort((a, b) => a.rank - b.rank));
 
-		// Replace the match with the new ranking (marked Manual)
 		this.matchedTeams.set(this.matchedTeams().map(m =>
 			m === currentMatch
 				? { ranking: newRanking, registeredTeam: currentMatch.registeredTeam,
@@ -253,30 +256,29 @@ export class UsLaxRankingsComponent {
 
 		this.reassigningTeamId.set(null);
 
-		// Immediately persist the updated comment
-		this.persistComment(currentMatch.registeredTeam.teamId, newRanking);
+		this.persistRanking(currentMatch.registeredTeam.teamId, newRanking, MANUAL_MATCH_SCORE);
 	}
 
-	/** Save a single team comment and update local teamComments to keep dirty tracking in sync */
-	private persistComment(teamId: string, ranking: RankingEntryDto): void {
-		const comment = `${ranking.rank.toString().padStart(3, '0')}:${ranking.team}`;
-		this.rankingsService.updateTeamComment(teamId, comment).subscribe({
-			next: () => this.updateLocalTeamComments(teamId, comment),
-			error: err => this.errorMessage.set(err.error?.message ?? 'Failed to save comment.')
+	/** Serialize ranking data to JSON and save to NationalRankingData */
+	private persistRanking(teamId: string, ranking: RankingEntryDto, matchScore: number): void {
+		const json = this.buildRankingJson(ranking, matchScore);
+		this.rankingsService.updateTeamRanking(teamId, json).subscribe({
+			next: () => this.updateLocalRankingData(teamId, json),
+			error: (err: { error?: { message?: string } }) =>
+				this.errorMessage.set(err.error?.message ?? 'Failed to save ranking.')
 		});
 	}
 
-	/** Patch teamComments on the local signal entry so hasDirtyMatches recomputes */
-	private updateLocalTeamComments(teamId: string, comment: string): void {
+	private updateLocalRankingData(teamId: string, json: string): void {
 		this.matchedTeams.set(this.matchedTeams().map(m =>
 			m.registeredTeam.teamId === teamId
-				? { ...m, registeredTeam: { ...m.registeredTeam, teamComments: comment } }
+				? { ...m, registeredTeam: { ...m.registeredTeam, nationalRankingData: json } }
 				: m));
 	}
 
 	// ── Import ──
 
-	importComments(): void {
+	importRankings(): void {
 		const scraped = this.selectedScrapedAg();
 		const registered = this.selectedRegisteredAg();
 
@@ -294,8 +296,7 @@ export class UsLaxRankingsComponent {
 		this.errorMessage.set(null);
 		this.successMessage.set(null);
 
-		// Save auto-matches via backend bulk import
-		this.rankingsService.importComments({
+		this.rankingsService.importRankings({
 			registeredTeamAgeGroupId: registered,
 			confidenceCategory: this.confidenceCategory(),
 			v,
@@ -307,7 +308,6 @@ export class UsLaxRankingsComponent {
 			next: result => {
 				this.importResult.set(result);
 
-				// Also save manual matches individually
 				const manualOnes = this.manualMatches();
 				if (manualOnes.length > 0) {
 					this.saveManualMatchesBatch(manualOnes, result);
@@ -320,15 +320,14 @@ export class UsLaxRankingsComponent {
 					}
 				}
 			},
-			error: err => {
+			error: (err: { error?: { message?: string } }) => {
 				this.isLoading.set(false);
 				this.errorMessage.set(err.error?.message ?? 'Import failed.');
 			}
 		});
 	}
 
-	/** Save manual matches one at a time (DbContext is not thread-safe) */
-	private saveManualMatchesBatch(matches: AlignedTeamDto[], importResult: ImportCommentsResultDto): void {
+	private saveManualMatchesBatch(matches: AlignedTeamDto[], importResult: ImportRankingsResultDto): void {
 		let saved = 0;
 		let failed = 0;
 		const total = matches.length;
@@ -344,11 +343,11 @@ export class UsLaxRankingsComponent {
 			}
 
 			const match = matches[index];
-			const comment = `${match.ranking.rank.toString().padStart(3, '0')}:${match.ranking.team}`;
-			this.rankingsService.updateTeamComment(match.registeredTeam.teamId, comment).subscribe({
+			const json = this.buildRankingJson(match.ranking, match.matchScore);
+			this.rankingsService.updateTeamRanking(match.registeredTeam.teamId, json).subscribe({
 				next: () => {
 					saved++;
-					this.updateLocalTeamComments(match.registeredTeam.teamId, comment);
+					this.updateLocalRankingData(match.registeredTeam.teamId, json);
 					saveNext(index + 1);
 				},
 				error: () => { failed++; saveNext(index + 1); }
@@ -358,9 +357,9 @@ export class UsLaxRankingsComponent {
 		saveNext(0);
 	}
 
-	// ── Save all matched team comments ──
+	// ── Save all matched team rankings ──
 
-	saveAllMatchedComments(): void {
+	saveAllMatchedRankings(): void {
 		const matches = this.matchedTeams();
 		if (matches.length === 0) return;
 
@@ -374,17 +373,17 @@ export class UsLaxRankingsComponent {
 			if (index >= matches.length) {
 				this.isSavingComments.set(false);
 				this.successMessage.set(
-					`Updated ${saved} team comments.` +
+					`Updated ${saved} team rankings.` +
 					(failed > 0 ? ` (${failed} failed)` : ''));
 				return;
 			}
 
 			const match = matches[index];
-			const comment = `${match.ranking.rank.toString().padStart(3, '0')}:${match.ranking.team}`;
-			this.rankingsService.updateTeamComment(match.registeredTeam.teamId, comment).subscribe({
+			const json = this.buildRankingJson(match.ranking, match.matchScore);
+			this.rankingsService.updateTeamRanking(match.registeredTeam.teamId, json).subscribe({
 				next: () => {
 					saved++;
-					this.updateLocalTeamComments(match.registeredTeam.teamId, comment);
+					this.updateLocalRankingData(match.registeredTeam.teamId, json);
 					saveNext(index + 1);
 				},
 				error: () => { failed++; saveNext(index + 1); }
@@ -394,9 +393,9 @@ export class UsLaxRankingsComponent {
 		saveNext(0);
 	}
 
-	// ── Clear comments ──
+	// ── Clear rankings ──
 
-	confirmClearComments(): void {
+	confirmClearRankings(): void {
 		if (!this.selectedRegisteredAg()) {
 			this.errorMessage.set('Select a registered age group first.');
 			return;
@@ -404,7 +403,7 @@ export class UsLaxRankingsComponent {
 		this.showClearConfirm.set(true);
 	}
 
-	clearComments(): void {
+	clearRankings(): void {
 		this.showClearConfirm.set(false);
 		const registered = this.selectedRegisteredAg();
 		if (!registered) {
@@ -415,17 +414,16 @@ export class UsLaxRankingsComponent {
 		this.isLoading.set(true);
 		this.errorMessage.set(null);
 
-		this.rankingsService.clearTeamComments(registered).subscribe({
+		this.rankingsService.clearTeamRankings(registered).subscribe({
 			next: () => {
 				this.isLoading.set(false);
-				this.successMessage.set('Team comments cleared.');
-				// Clear local teamComments so UI reflects the change
+				this.successMessage.set('Team rankings cleared.');
 				this.matchedTeams.set(this.matchedTeams().map(m =>
-					({ ...m, registeredTeam: { ...m.registeredTeam, teamComments: null } })));
+					({ ...m, registeredTeam: { ...m.registeredTeam, nationalRankingData: null } })));
 			},
-			error: err => {
+			error: (err: { error?: { message?: string } }) => {
 				this.isLoading.set(false);
-				this.errorMessage.set(err.error?.message ?? 'Failed to clear comments.');
+				this.errorMessage.set(err.error?.message ?? 'Failed to clear rankings.');
 			}
 		});
 	}
@@ -443,14 +441,17 @@ export class UsLaxRankingsComponent {
 	}
 
 	saveEdit(teamId: string): void {
-		const comment = this.editComment();
-		this.rankingsService.updateTeamComment(teamId, comment).subscribe({
+		const match = this.matchedTeams().find(m => m.registeredTeam.teamId === teamId);
+		if (!match) return;
+		const json = this.buildRankingJson(match.ranking, match.matchScore);
+		this.rankingsService.updateTeamRanking(teamId, json).subscribe({
 			next: () => {
 				this.editingTeamId.set(null);
-				this.updateLocalTeamComments(teamId, comment);
-				this.successMessage.set('Comment updated.');
+				this.updateLocalRankingData(teamId, json);
+				this.successMessage.set('Ranking updated.');
 			},
-			error: err => this.errorMessage.set(err.error?.message ?? 'Update failed.')
+			error: (err: { error?: { message?: string } }) =>
+				this.errorMessage.set(err.error?.message ?? 'Update failed.')
 		});
 	}
 
@@ -474,7 +475,8 @@ export class UsLaxRankingsComponent {
 				a.click();
 				URL.revokeObjectURL(url);
 			},
-			error: err => this.errorMessage.set(err.error?.message ?? 'Export failed.')
+			error: (err: { error?: { message?: string } }) =>
+				this.errorMessage.set(err.error?.message ?? 'Export failed.')
 		});
 	}
 
@@ -490,5 +492,31 @@ export class UsLaxRankingsComponent {
 	formatPercent(score: number): string {
 		if (score === MANUAL_MATCH_SCORE) return 'Manual';
 		return `${Math.round(score * 100)}%`;
+	}
+
+	/** Build a NationalRankingDataDto JSON string from a ranking entry */
+	private buildRankingJson(ranking: RankingEntryDto, matchScore: number): string {
+		const dto: NationalRankingDataDto = {
+			rank: ranking.rank,
+			team: ranking.team,
+			state: ranking.state,
+			record: ranking.record,
+			rating: ranking.rating,
+			agd: ranking.agd,
+			sched: ranking.sched,
+			matchScore,
+			matchedAt: new Date().toISOString()
+		};
+		return JSON.stringify(dto);
+	}
+
+	/** Safely parse NationalRankingData JSON, returns null on failure */
+	private parseRankingData(json: string | null | undefined): NationalRankingDataDto | null {
+		if (!json) return null;
+		try {
+			return JSON.parse(json) as NationalRankingDataDto;
+		} catch {
+			return null;
+		}
 	}
 }

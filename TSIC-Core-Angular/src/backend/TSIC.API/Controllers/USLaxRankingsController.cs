@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
@@ -11,7 +12,7 @@ namespace TSIC.API.Controllers;
 
 /// <summary>
 /// US Lacrosse Girls National rankings — scrape usclublax.com, align with registered teams,
-/// and import ranking data into TeamComments for pool seeding.
+/// and import ranking data into NationalRankingData (JSON) for pool seeding.
 /// </summary>
 [ApiController]
 [Route("api/uslax-rankings")]
@@ -23,6 +24,11 @@ public class USLaxRankingsController : ControllerBase
     private readonly ITeamRepository _teamRepo;
     private readonly IAgeGroupRepository _ageGroupRepo;
     private readonly IJobLookupService _jobLookupService;
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     public USLaxRankingsController(
         IUSLaxScrapingService scrapingService,
@@ -136,13 +142,12 @@ public class USLaxRankingsController : ControllerBase
     // ── Import / update endpoints ──
 
     /// <summary>
-    /// Bulk-import aligned ranking data into TeamComments for all matches above
+    /// Bulk-import aligned ranking data into NationalRankingData (JSON) for all matches above
     /// the specified confidence category threshold.
-    /// Format written: "{rank:D3}:{teamName}" (e.g., "012:Maryland United")
     /// </summary>
-    [HttpPost("import-comments")]
-    public async Task<ActionResult<ImportCommentsResultDto>> ImportComments(
-        [FromBody] ImportCommentsRequest request,
+    [HttpPost("import-rankings")]
+    public async Task<ActionResult<ImportRankingsResultDto>> ImportRankings(
+        [FromBody] ImportRankingsRequest request,
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -153,7 +158,7 @@ public class USLaxRankingsController : ControllerBase
             request.V, request.Alpha, request.Yr, ct);
 
         if (!scrapeResult.Success)
-            return Ok(new ImportCommentsResultDto
+            return Ok(new ImportRankingsResultDto
             {
                 Success = false,
                 Message = scrapeResult.ErrorMessage ?? "Scrape failed.",
@@ -176,14 +181,15 @@ public class USLaxRankingsController : ControllerBase
             _ => 0.50
         };
 
+        var now = DateTime.UtcNow;
         var teamsToUpdate = alignment.AlignedTeams
             .Where(a => a.MatchScore >= minScore)
             .ToDictionary(
                 a => a.RegisteredTeam.TeamId,
-                a => (string?)$"{a.Ranking.Rank:D3}:{a.Ranking.Team}");
+                a => (string?)SerializeRankingData(a.Ranking, a.MatchScore, now));
 
         if (teamsToUpdate.Count == 0)
-            return Ok(new ImportCommentsResultDto
+            return Ok(new ImportRankingsResultDto
             {
                 Success = true,
                 Message = "No matches met the confidence threshold.",
@@ -192,12 +198,12 @@ public class USLaxRankingsController : ControllerBase
                 ConfidenceCategory = request.ConfidenceCategory
             });
 
-        var updatedCount = await _teamRepo.BulkUpdateTeamCommentsAsync(teamsToUpdate, ct);
+        var updatedCount = await _teamRepo.BulkUpdateNationalRankingDataAsync(teamsToUpdate, ct);
 
-        return Ok(new ImportCommentsResultDto
+        return Ok(new ImportRankingsResultDto
         {
             Success = true,
-            Message = $"Updated {updatedCount} team comments.",
+            Message = $"Updated {updatedCount} team rankings.",
             UpdatedCount = updatedCount,
             TotalMatches = alignment.TotalMatches,
             ConfidenceCategory = request.ConfidenceCategory
@@ -205,12 +211,12 @@ public class USLaxRankingsController : ControllerBase
     }
 
     /// <summary>
-    /// Update a single team's comment (manual override).
+    /// Update a single team's national ranking data (JSON string).
     /// </summary>
-    [HttpPut("team-comment/{teamId:guid}")]
-    public async Task<IActionResult> UpdateTeamComment(
+    [HttpPut("team-ranking/{teamId:guid}")]
+    public async Task<IActionResult> UpdateTeamRanking(
         Guid teamId,
-        [FromBody] UpdateTeamCommentRequest request,
+        [FromBody] UpdateTeamRankingRequest request,
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -223,26 +229,26 @@ public class USLaxRankingsController : ControllerBase
         if (team.JobId != jobId.Value)
             return BadRequest(new { message = "Team does not belong to the current job." });
 
-        var update = new Dictionary<Guid, string?> { [teamId] = request.Comment };
-        await _teamRepo.BulkUpdateTeamCommentsAsync(update, ct);
+        var update = new Dictionary<Guid, string?> { [teamId] = request.RankingData };
+        await _teamRepo.BulkUpdateNationalRankingDataAsync(update, ct);
 
-        return Ok(new { message = "Team comment updated." });
+        return Ok(new { message = "Team ranking updated." });
     }
 
     /// <summary>
-    /// Clear all TeamComments for teams in the specified age group.
+    /// Clear all NationalRankingData for teams in the specified age group.
     /// </summary>
-    [HttpDelete("team-comments/{agegroupId:guid}")]
-    public async Task<IActionResult> ClearTeamComments(
+    [HttpDelete("team-rankings/{agegroupId:guid}")]
+    public async Task<IActionResult> ClearTeamRankings(
         Guid agegroupId,
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
 
-        var cleared = await _teamRepo.ClearTeamCommentsForAgegroupAsync(jobId.Value, agegroupId, ct);
+        var cleared = await _teamRepo.ClearNationalRankingDataForAgegroupAsync(jobId.Value, agegroupId, ct);
 
-        return Ok(new { message = $"Cleared comments for {cleared} teams.", count = cleared });
+        return Ok(new { message = $"Cleared rankings for {cleared} teams.", count = cleared });
     }
 
     // ── Export endpoint ──
@@ -281,6 +287,23 @@ public class USLaxRankingsController : ControllerBase
     }
 
     // ── Private helpers ──
+
+    private static string SerializeRankingData(RankingEntryDto ranking, double matchScore, DateTime matchedAt)
+    {
+        var dto = new NationalRankingDataDto
+        {
+            Rank = ranking.Rank,
+            Team = ranking.Team,
+            State = ranking.State,
+            Record = ranking.Record,
+            Rating = ranking.Rating,
+            Agd = ranking.Agd,
+            Sched = ranking.Sched,
+            MatchScore = matchScore,
+            MatchedAt = matchedAt
+        };
+        return JsonSerializer.Serialize(dto, JsonOpts);
+    }
 
     private static string BuildCsv(AlignmentResultDto alignment)
     {

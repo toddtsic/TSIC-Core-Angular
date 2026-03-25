@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ImportCommentsRequest = {
+export type ImportRankingsRequest = {
     registeredTeamAgeGroupId: string;
     confidenceCategory: string;
     'v': string;

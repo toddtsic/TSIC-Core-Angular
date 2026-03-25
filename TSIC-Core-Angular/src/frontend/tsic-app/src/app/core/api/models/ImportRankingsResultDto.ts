@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ImportCommentsResultDto = {
+export type ImportRankingsResultDto = {
     success: boolean;
     message?: string | null;
     updatedCount: number;

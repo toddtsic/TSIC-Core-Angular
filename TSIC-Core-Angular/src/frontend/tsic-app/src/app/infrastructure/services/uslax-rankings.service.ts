@@ -6,9 +6,9 @@ import type {
 	AgeGroupOptionDto,
 	ScrapeResultDto,
 	AlignmentResultDto,
-	ImportCommentsRequest,
-	ImportCommentsResultDto,
-	UpdateTeamCommentRequest
+	ImportRankingsRequest,
+	ImportRankingsResultDto,
+	UpdateTeamRankingRequest
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -46,20 +46,20 @@ export class UsLaxRankingsService {
 		return this.http.get<AlignmentResultDto>(`${this.base}/align`, { params });
 	}
 
-	/** Bulk-import ranking data into TeamComments */
-	importComments(request: ImportCommentsRequest): Observable<ImportCommentsResultDto> {
-		return this.http.post<ImportCommentsResultDto>(`${this.base}/import-comments`, request);
+	/** Bulk-import ranking data into NationalRankingData */
+	importRankings(request: ImportRankingsRequest): Observable<ImportRankingsResultDto> {
+		return this.http.post<ImportRankingsResultDto>(`${this.base}/import-rankings`, request);
 	}
 
-	/** Update a single team's comment */
-	updateTeamComment(teamId: string, comment: string): Observable<unknown> {
-		const body: UpdateTeamCommentRequest = { comment };
-		return this.http.put(`${this.base}/team-comment/${teamId}`, body);
+	/** Update a single team's national ranking data (JSON string) */
+	updateTeamRanking(teamId: string, rankingData: string): Observable<unknown> {
+		const body: UpdateTeamRankingRequest = { rankingData };
+		return this.http.put(`${this.base}/team-ranking/${teamId}`, body);
 	}
 
-	/** Clear all team comments for an age group */
-	clearTeamComments(agegroupId: string): Observable<unknown> {
-		return this.http.delete(`${this.base}/team-comments/${agegroupId}`);
+	/** Clear all national ranking data for an age group */
+	clearTeamRankings(agegroupId: string): Observable<unknown> {
+		return this.http.delete(`${this.base}/team-rankings/${agegroupId}`);
 	}
 
 	/** Export aligned rankings as CSV */

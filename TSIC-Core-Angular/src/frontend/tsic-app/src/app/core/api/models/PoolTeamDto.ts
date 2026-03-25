@@ -10,6 +10,7 @@ export type PoolTeamDto = {
     levelOfPlay?: string | null;
     registrationTs?: string | null;
     teamComments?: string | null;
+    nationalRankingData?: string | null;
     active: boolean;
     divRank: number;
     rosterCount: number;

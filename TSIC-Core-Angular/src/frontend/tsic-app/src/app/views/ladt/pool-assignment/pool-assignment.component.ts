@@ -10,6 +10,16 @@ import {
 } from './services/pool-assignment.service';
 import { contrastText } from '../../scheduling/shared/utils/scheduling-helpers';
 
+/** Client-side shape for the NationalRankingData JSON blob stored on teams */
+interface NationalRankingDataDto {
+    rank: number | null;
+    team: string;
+    rating: number;
+    record: string;
+    agd: number;
+    sched: number;
+}
+
 interface AgegroupGroup {
     label: string;
     agegroupColor: string | null;
@@ -193,6 +203,19 @@ export class PoolAssignmentComponent {
     private sortTeams(teams: PoolTeamDto[], col: SortColumn, dir: SortDir): PoolTeamDto[] {
         if (!col || !dir) return teams;
         const mult = dir === 'asc' ? 1 : -1;
+
+        // Special handling for nationalRankingData — sort by parsed rank number
+        if (col === 'nationalRankingData') {
+            return [...teams].sort((a, b) => {
+                const aRank = this.getNationalRank(a);
+                const bRank = this.getNationalRank(b);
+                if (aRank == null && bRank == null) return 0;
+                if (aRank == null) return 1;  // unranked always last
+                if (bRank == null) return -1;
+                return (aRank - bRank) * mult;
+            });
+        }
+
         return [...teams].sort((a, b) => {
             const aVal = a[col];
             const bVal = b[col];
@@ -467,6 +490,24 @@ export class PoolAssignmentComponent {
             t.teamName.toLowerCase().includes(lower) ||
             (t.clubName ?? '').toLowerCase().includes(lower) ||
             (t.clubRepName ?? '').toLowerCase().includes(lower));
+    }
+
+    /** Extract the national rank number from the JSON field, or null if unranked */
+    getNationalRank(team: PoolTeamDto): number | null {
+        if (!team.nationalRankingData) return null;
+        try {
+            const data = JSON.parse(team.nationalRankingData) as NationalRankingDataDto;
+            return data.rank ?? null;
+        } catch { return null; }
+    }
+
+    /** Build a tooltip string from ranking JSON (rating, record, AGD, schedule) */
+    getRankingTooltip(team: PoolTeamDto): string {
+        if (!team.nationalRankingData) return '';
+        try {
+            const d = JSON.parse(team.nationalRankingData) as NationalRankingDataDto;
+            return `${d.team}\nRating: ${d.rating} | Record: ${d.record}\nAGD: ${d.agd} | Sched: ${d.sched}`;
+        } catch { return ''; }
     }
 
     private groupByAgegroup(divisions: PoolDivisionOptionDto[]): AgegroupGroup[] {

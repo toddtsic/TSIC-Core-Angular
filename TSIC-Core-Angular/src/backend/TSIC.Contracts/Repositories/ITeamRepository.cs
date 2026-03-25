@@ -379,6 +379,19 @@ public interface ITeamRepository
     /// </summary>
     Task<int> ClearTeamCommentsForAgegroupAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk update NationalRankingData (JSON) for multiple teams. Returns count of rows affected.
+    /// </summary>
+    Task<int> BulkUpdateNationalRankingDataAsync(
+        Dictionary<Guid, string?> rankingData, CancellationToken ct = default);
+
+    /// <summary>
+    /// Clear (null) NationalRankingData for all active teams in a specific agegroup.
+    /// Returns count of teams whose ranking data was non-null and got cleared.
+    /// </summary>
+    Task<int> ClearNationalRankingDataForAgegroupAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

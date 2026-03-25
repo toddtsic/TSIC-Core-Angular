@@ -119,6 +119,9 @@
                     <th class="sortable" (click)="onSort('source', 'registrationTs')">
                       RegDate <i class="bi" [ngClass]="sortIcon('source', 'registrationTs')"></i>
                     </th>
+                    <th class="sortable text-center" (click)="onSort('source', 'nationalRankingData')">
+                      Nat'l <i class="bi" [ngClass]="sortIcon('source', 'nationalRankingData')"></i>
+                    </th>
                     <th class="sortable" (click)="onSort('source', 'teamComments')">
                       Comments <i class="bi" [ngClass]="sortIcon('source', 'teamComments')"></i>
                     </th>
@@ -154,6 +157,14 @@
                       <td class="text-nowrap">{{ team.clubRepName }}</td>
                       <td>{{ team.levelOfPlay }}</td>
                       <td class="text-nowrap">{{ team.registrationTs | date:'M/d/yy' }}</td>
+                      <td class="text-center">
+                        @if (getNationalRank(team); as rank) {
+                          <span class="badge bg-primary-subtle text-primary-emphasis"
+                                [title]="getRankingTooltip(team)">{{ rank }}</span>
+                        } @else {
+                          <span class="text-body-tertiary">&mdash;</span>
+                        }
+                      </td>
                       <td class="col-comments">{{ team.teamComments }}</td>
                       <td class="text-center">
                         @if (editingDivRankTeamId() === team.teamId) {
@@ -300,6 +311,9 @@
                     <th class="sortable" (click)="onSort('target', 'registrationTs')">
                       RegDate <i class="bi" [ngClass]="sortIcon('target', 'registrationTs')"></i>
                     </th>
+                    <th class="sortable text-center" (click)="onSort('target', 'nationalRankingData')">
+                      Nat'l <i class="bi" [ngClass]="sortIcon('target', 'nationalRankingData')"></i>
+                    </th>
                     <th class="sortable" (click)="onSort('target', 'teamComments')">
                       Comments <i class="bi" [ngClass]="sortIcon('target', 'teamComments')"></i>
                     </th>
@@ -335,6 +349,14 @@
                       <td class="text-nowrap">{{ team.clubRepName }}</td>
                       <td>{{ team.levelOfPlay }}</td>
                       <td class="text-nowrap">{{ team.registrationTs | date:'M/d/yy' }}</td>
+                      <td class="text-center">
+                        @if (getNationalRank(team); as rank) {
+                          <span class="badge bg-primary-subtle text-primary-emphasis"
+                                [title]="getRankingTooltip(team)">{{ rank }}</span>
+                        } @else {
+                          <span class="text-body-tertiary">&mdash;</span>
+                        }
+                      </td>
                       <td class="col-comments">{{ team.teamComments }}</td>
                       <td class="text-center">
                         @if (editingDivRankTeamId() === team.teamId) {

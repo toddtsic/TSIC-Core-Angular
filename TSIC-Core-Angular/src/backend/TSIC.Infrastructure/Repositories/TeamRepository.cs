@@ -533,6 +533,7 @@ public class TeamRepository : ITeamRepository
                 TeamName = t.TeamName ?? "Unnamed Team",
                 t.LevelOfPlay,
                 t.TeamComments,
+                t.NationalRankingData,
                 t.Createdate,
                 t.AgegroupId,
                 AgegroupName = t.Agegroup.AgegroupName ?? "",
@@ -559,6 +560,7 @@ public class TeamRepository : ITeamRepository
             LevelOfPlay = t.LevelOfPlay,
             RegistrationTs = t.Createdate,
             TeamComments = t.TeamComments,
+            NationalRankingData = t.NationalRankingData,
             Active = t.Active,
             DivRank = t.DivRank,
             RosterCount = t.RosterCount,
@@ -949,7 +951,8 @@ public class TeamRepository : ITeamRepository
                 AgegroupName = t.Agegroup.AgegroupName ?? "",
                 GradYearMin = t.Agegroup.GradYearMin,
                 GradYearMax = t.Agegroup.GradYearMax,
-                TeamComments = t.TeamComments
+                TeamComments = t.TeamComments,
+                NationalRankingData = t.NationalRankingData
             })
             .ToListAsync(ct);
     }
@@ -985,6 +988,44 @@ public class TeamRepository : ITeamRepository
 
         foreach (var team in teams)
             team.TeamComments = null;
+
+        if (teams.Count > 0)
+            await _context.SaveChangesAsync(ct);
+
+        return teams.Count;
+    }
+
+    public async Task<int> BulkUpdateNationalRankingDataAsync(
+        Dictionary<Guid, string?> rankingData, CancellationToken ct = default)
+    {
+        if (rankingData.Count == 0) return 0;
+
+        var teamIds = rankingData.Keys.ToList();
+        var teams = await _context.Teams
+            .Where(t => teamIds.Contains(t.TeamId))
+            .ToListAsync(ct);
+
+        foreach (var team in teams)
+        {
+            if (rankingData.TryGetValue(team.TeamId, out var data))
+                team.NationalRankingData = data;
+        }
+
+        return await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> ClearNationalRankingDataForAgegroupAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default)
+    {
+        var teams = await _context.Teams
+            .Where(t => t.JobId == jobId
+                        && t.Active == true
+                        && t.AgegroupId == agegroupId
+                        && t.NationalRankingData != null)
+            .ToListAsync(ct);
+
+        foreach (var team in teams)
+            team.NationalRankingData = null;
 
         if (teams.Count > 0)
             await _context.SaveChangesAsync(ct);

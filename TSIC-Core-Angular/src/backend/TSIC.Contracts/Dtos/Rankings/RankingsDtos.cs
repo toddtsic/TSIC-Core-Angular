@@ -49,6 +49,24 @@ public record RankingsTeamDto
     public int? GradYearMin { get; init; }
     public int? GradYearMax { get; init; }
     public string? TeamComments { get; init; }
+    public string? NationalRankingData { get; init; }
+}
+
+/// <summary>
+/// JSON-serializable national ranking data stored on Teams.NationalRankingData.
+/// Contains the full scraped row from usclublax.com plus match metadata.
+/// </summary>
+public record NationalRankingDataDto
+{
+    public required int Rank { get; init; }
+    public required string Team { get; init; }
+    public required string State { get; init; }
+    public required string Record { get; init; }
+    public required decimal Rating { get; init; }
+    public required decimal Agd { get; init; }
+    public required decimal Sched { get; init; }
+    public required double MatchScore { get; init; }
+    public required DateTime MatchedAt { get; init; }
 }
 
 /// <summary>
@@ -80,9 +98,9 @@ public record AlignmentResultDto
 }
 
 /// <summary>
-/// Request to bulk-import ranking data into TeamComments
+/// Request to bulk-import ranking data into NationalRankingData
 /// </summary>
-public record ImportCommentsRequest
+public record ImportRankingsRequest
 {
     public required Guid RegisteredTeamAgeGroupId { get; init; }
     public required string ConfidenceCategory { get; init; }
@@ -96,7 +114,7 @@ public record ImportCommentsRequest
 /// <summary>
 /// Result of a bulk import operation
 /// </summary>
-public record ImportCommentsResultDto
+public record ImportRankingsResultDto
 {
     public required bool Success { get; init; }
     public string? Message { get; init; }
@@ -106,9 +124,9 @@ public record ImportCommentsResultDto
 }
 
 /// <summary>
-/// Request to update a single team's comment
+/// Request to update a single team's national ranking data (JSON string)
 /// </summary>
-public record UpdateTeamCommentRequest
+public record UpdateTeamRankingRequest
 {
-    public required string Comment { get; init; }
+    public required string RankingData { get; init; }
 }

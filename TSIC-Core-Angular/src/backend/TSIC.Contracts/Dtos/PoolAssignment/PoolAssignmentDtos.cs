@@ -30,6 +30,7 @@ public record PoolTeamDto
     public string? LevelOfPlay { get; init; }
     public DateTime? RegistrationTs { get; init; }
     public string? TeamComments { get; init; }
+    public string? NationalRankingData { get; init; }
     public required bool Active { get; init; }
     public required int DivRank { get; init; }
     public required int RosterCount { get; init; }

@@ -95,7 +95,7 @@
 						}
 					</button>
 					<button class="btn btn-outline-danger"
-						(click)="confirmClearComments()"
+						(click)="confirmClearRankings()"
 						[disabled]="isLoading() || !selectedRegisteredAg()"
 						title="Delete all team comments for this age group">
 						<i class="bi bi-trash"></i>
@@ -132,7 +132,7 @@
 							<h6 class="mb-0">Matched Teams ({{ matchedTeams().length }}/{{ totalTeamsInAgeGroup() }})</h6>
 							@if (hasDirtyMatches()) {
 								<button class="btn btn-success btn-sm"
-									(click)="saveAllMatchedComments()"
+									(click)="saveAllMatchedRankings()"
 									[disabled]="isLoading() || isSavingComments()">
 									@if (isSavingComments()) {
 										<span class="spinner-border spinner-border-sm me-1"></span>
@@ -373,7 +373,7 @@
 					</div>
 
 					<button class="btn btn-success"
-						(click)="importComments()"
+						(click)="importRankings()"
 						[disabled]="isLoading()">
 						@if (isLoading()) {
 							<span class="spinner-border spinner-border-sm me-1"></span>
@@ -460,7 +460,7 @@
 					Remove ranking comments from all teams in the selected registered age group.
 				</p>
 				<button class="btn btn-outline-danger btn-sm"
-					(click)="confirmClearComments()"
+					(click)="confirmClearRankings()"
 					[disabled]="isLoading() || !selectedRegisteredAg()">
 					<i class="bi bi-trash me-1"></i>Clear Comments
 				</button>
@@ -476,7 +476,7 @@
 		message="This will delete the comment field from <strong>every team in the selected registered age group</strong>, not just matched teams. All ranking data stored in Team Comments will be permanently removed. This cannot be undone."
 		confirmLabel="Delete All Comments"
 		confirmVariant="danger"
-		(confirmed)="clearComments()"
+		(confirmed)="clearRankings()"
 		(cancelled)="showClearConfirm.set(false)">
 	</confirm-dialog>
 }

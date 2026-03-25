@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UpdateTeamCommentRequest = {
-    comment: string;
+export type UpdateTeamRankingRequest = {
+    rankingData: string;
 };
 
