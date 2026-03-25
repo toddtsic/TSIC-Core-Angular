@@ -401,21 +401,32 @@
   left: var(--space-4);
 }
 
+.filters-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+}
+
 .filter-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  background: var(--bs-primary);
-  color: var(--bs-white);
-  border-radius: var(--bs-border-radius);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: color-mix(in srgb, var(--bs-primary) 14%, var(--bs-card-bg));
+  color: var(--bs-body-color);
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, var(--bs-border-color));
+  border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: 500;
   line-height: 1.2;
+  box-shadow: var(--shadow-xs);
 }
 
 .chip-category {
-  opacity: 0.8;
+  color: var(--bs-primary);
   font-weight: 600;
 }
 
@@ -427,21 +438,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   padding: 0;
-  margin-left: var(--space-1);
-  background: transparent;
+  margin-left: 2px;
+  background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
   border: none;
   border-radius: 50%;
-  color: var(--bs-white);
+  color: var(--bs-primary);
   cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.15s, background 0.15s;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
 
   &:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--bs-danger);
+    color: var(--bs-white);
   }
 }
 
@@ -889,18 +901,24 @@
     color: rgba(226, 232, 240, 0.85);
   }
 
-  // Filter chips — dark solid bg with subtle border, readable text
+  // Filter chips — outlined pill style in dark mode
   .filter-chip {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     color: #e2e8f0;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .chip-category {
+    color: color-mix(in srgb, var(--bs-primary) 50%, #e2e8f0);
   }
 
   .chip-remove {
     color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.06);
 
     &:hover {
-      background: rgba(255, 255, 255, 0.15);
+      background: var(--bs-danger);
+      color: var(--bs-white);
     }
   }
 
