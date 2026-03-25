@@ -14,6 +14,8 @@ namespace TSIC.API.Controllers;
 [Authorize(Policy = "AdminOnly")]
 public class RegistrationSearchController : ControllerBase
 {
+    private const string RegistrationContextRequired = "Registration context required";
+
     private readonly IRegistrationSearchService _searchService;
     private readonly IJobLookupService _jobLookupService;
 
@@ -29,7 +31,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return (null, null, BadRequest(new { message = "Registration context required" }));
+            return (null, null, BadRequest(new { message = RegistrationContextRequired }));
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId))
@@ -44,7 +46,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var result = await _searchService.SearchAsync(jobId.Value, request, ct);
         return Ok(result);
@@ -55,7 +57,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var options = await _searchService.GetFilterOptionsAsync(jobId.Value, ct);
         return Ok(options);
@@ -70,7 +72,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var tree = await _searchService.GetCadtTreeAsync(jobId.Value, ct);
         return Ok(tree);
@@ -82,7 +84,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var detail = await _searchService.GetRegistrationDetailAsync(registrationId, jobId.Value, ct);
         if (detail == null)
@@ -152,6 +154,30 @@ public class RegistrationSearchController : ControllerBase
         try
         {
             await _searchService.UpdateUserDemographicsAsync(jobId!.Value, userId!, sanitized, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{registrationId:guid}/family-demographics")]
+    public async Task<ActionResult> UpdateFamilyAccountDemographics(
+        Guid registrationId, [FromBody] UpdateUserDemographicsRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var sanitized = request with { RegistrationId = registrationId };
+
+        try
+        {
+            await _searchService.UpdateFamilyAccountDemographicsAsync(jobId!.Value, userId!, sanitized, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -304,7 +330,7 @@ public class RegistrationSearchController : ControllerBase
     public async Task<ActionResult> SetEmailOptOut(
         Guid registrationId, [FromBody] SetEmailOptOutRequest request, CancellationToken ct)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -326,7 +352,7 @@ public class RegistrationSearchController : ControllerBase
     public async Task<ActionResult> SetActive(
         Guid registrationId, [FromBody] SetActiveRequest request, CancellationToken ct)
     {
-        var (jobId, userId, error) = await ResolveContext();
+        var (jobId, _, error) = await ResolveContext();
         if (error != null) return error;
 
         try
@@ -368,7 +394,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var result = await _searchService.PreviewEmailAsync(jobId.Value, request, ct);
         return Ok(result);
@@ -379,7 +405,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var options = await _searchService.GetChangeJobOptionsAsync(jobId.Value, ct);
         return Ok(options);
@@ -390,7 +416,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var options = await _searchService.GetFutureJobOptionsAsync(jobId.Value, ct);
         return Ok(options);
@@ -401,7 +427,7 @@ public class RegistrationSearchController : ControllerBase
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
-            return BadRequest(new { message = "Registration context required" });
+            return BadRequest(new { message = RegistrationContextRequired });
 
         var options = await _searchService.GetChangeJobOptionsAsync(jobId.Value, ct);
         return Ok(options);

@@ -58,62 +58,137 @@
               </span>
             </div>
             <form class="contact-form">
-              <div class="contact-row">
-                <div class="form-group">
-                  <label for="contact-email" class="form-label">Email</label>
-                  <input id="contact-email" type="email" class="form-control form-control-sm"
-                    [ngModel]="demographics().email" (ngModelChange)="updateDemographicsField('email', $event)"
-                    name="email">
+              @if (isPlayerRole() && hasFamilyLink()) {
+                <!-- Player registration: family account is primary contact -->
+                <div class="contact-row">
+                  <div class="form-group">
+                    <label for="family-email" class="form-label">Family Email</label>
+                    <input id="family-email" type="email" class="form-control form-control-sm"
+                      [ngModel]="familyDemographics().email" (ngModelChange)="updateFamilyDemographicsField('email', $event)"
+                      name="familyEmail">
+                  </div>
+                  <div class="form-group">
+                    <label for="family-cellphone" class="form-label">Family Cell</label>
+                    <input id="family-cellphone" type="tel" class="form-control form-control-sm"
+                      [ngModel]="familyDemographics().cellphone" (ngModelChange)="updateFamilyDemographicsField('cellphone', $event)"
+                      name="familyCellphone">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="contact-cellphone" class="form-label">Cellphone</label>
-                  <input id="contact-cellphone" type="tel" class="form-control form-control-sm"
-                    [ngModel]="demographics().cellphone" (ngModelChange)="updateDemographicsField('cellphone', $event)"
-                    name="cellphone">
+                <div class="address-row">
+                  <div class="form-group">
+                    <label for="family-address" class="form-label">Address</label>
+                    <input id="family-address" type="text" class="form-control form-control-sm"
+                      [ngModel]="familyDemographics().streetAddress" (ngModelChange)="updateFamilyDemographicsField('streetAddress', $event)"
+                      name="familyStreetAddress">
+                  </div>
+                  <div class="form-group">
+                    <label for="family-city" class="form-label">City</label>
+                    <input id="family-city" type="text" class="form-control form-control-sm"
+                      [ngModel]="familyDemographics().city" (ngModelChange)="updateFamilyDemographicsField('city', $event)"
+                      name="familyCity">
+                  </div>
+                  <div class="form-group">
+                    <label for="family-state" class="form-label">State</label>
+                    <input id="family-state" type="text" class="form-control form-control-sm"
+                      [ngModel]="familyDemographics().state" (ngModelChange)="updateFamilyDemographicsField('state', $event)"
+                      name="familyState" maxlength="2" style="max-width: 60px;">
+                  </div>
+                  <div class="form-group">
+                    <label for="family-zip" class="form-label">Zip</label>
+                    <input id="family-zip" type="text" class="form-control form-control-sm"
+                      [ngModel]="familyDemographics().postalCode" (ngModelChange)="updateFamilyDemographicsField('postalCode', $event)"
+                      name="familyPostalCode" maxlength="10" style="max-width: 90px;">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="contact-dob" class="form-label">Date of Birth</label>
-                  <input id="contact-dob" type="date" class="form-control form-control-sm"
-                    [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
-                    name="dateOfBirth">
+                <div class="contact-row">
+                  <div class="form-group">
+                    <label for="player-email" class="form-label">Player Email</label>
+                    <input id="player-email" type="email" class="form-control form-control-sm"
+                      [ngModel]="demographics().email" (ngModelChange)="updateDemographicsField('email', $event)"
+                      name="playerEmail">
+                  </div>
+                  <div class="form-group">
+                    <label for="player-cellphone" class="form-label">Player Cell</label>
+                    <input id="player-cellphone" type="tel" class="form-control form-control-sm"
+                      [ngModel]="demographics().cellphone" (ngModelChange)="updateDemographicsField('cellphone', $event)"
+                      name="playerCellphone">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-dob" class="form-label">Date of Birth</label>
+                    <input id="contact-dob" type="date" class="form-control form-control-sm"
+                      [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
+                      name="dateOfBirth">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-gender" class="form-label">Gender</label>
+                    <select id="contact-gender" class="form-select form-select-sm"
+                      [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
+                      name="gender">
+                      <option value="">—</option>
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="contact-gender" class="form-label">Gender</label>
-                  <select id="contact-gender" class="form-select form-select-sm"
-                    [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
-                    name="gender">
-                    <option value="">—</option>
-                    <option value="M">Male</option>
-                    <option value="F">Female</option>
-                  </select>
+              } @else {
+                <!-- Non-player registration: registrant is their own contact -->
+                <div class="contact-row">
+                  <div class="form-group">
+                    <label for="contact-email" class="form-label">Email</label>
+                    <input id="contact-email" type="email" class="form-control form-control-sm"
+                      [ngModel]="demographics().email" (ngModelChange)="updateDemographicsField('email', $event)"
+                      name="email">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-cellphone" class="form-label">Cellphone</label>
+                    <input id="contact-cellphone" type="tel" class="form-control form-control-sm"
+                      [ngModel]="demographics().cellphone" (ngModelChange)="updateDemographicsField('cellphone', $event)"
+                      name="cellphone">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-dob" class="form-label">Date of Birth</label>
+                    <input id="contact-dob-np" type="date" class="form-control form-control-sm"
+                      [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
+                      name="dateOfBirth">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-gender" class="form-label">Gender</label>
+                    <select id="contact-gender-np" class="form-select form-select-sm"
+                      [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
+                      name="gender">
+                      <option value="">—</option>
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div class="address-row">
-                <div class="form-group">
-                  <label for="contact-address" class="form-label">Address</label>
-                  <input id="contact-address" type="text" class="form-control form-control-sm"
-                    [ngModel]="demographics().streetAddress" (ngModelChange)="updateDemographicsField('streetAddress', $event)"
-                    name="streetAddress">
+                <div class="address-row">
+                  <div class="form-group">
+                    <label for="contact-address" class="form-label">Address</label>
+                    <input id="contact-address" type="text" class="form-control form-control-sm"
+                      [ngModel]="demographics().streetAddress" (ngModelChange)="updateDemographicsField('streetAddress', $event)"
+                      name="streetAddress">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-city" class="form-label">City</label>
+                    <input id="contact-city" type="text" class="form-control form-control-sm"
+                      [ngModel]="demographics().city" (ngModelChange)="updateDemographicsField('city', $event)"
+                      name="city">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-state" class="form-label">State</label>
+                    <input id="contact-state" type="text" class="form-control form-control-sm"
+                      [ngModel]="demographics().state" (ngModelChange)="updateDemographicsField('state', $event)"
+                      name="state" maxlength="2" style="max-width: 60px;">
+                  </div>
+                  <div class="form-group">
+                    <label for="contact-zip" class="form-label">Zip</label>
+                    <input id="contact-zip" type="text" class="form-control form-control-sm"
+                      [ngModel]="demographics().postalCode" (ngModelChange)="updateDemographicsField('postalCode', $event)"
+                      name="postalCode" maxlength="10" style="max-width: 90px;">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label for="contact-city" class="form-label">City</label>
-                  <input id="contact-city" type="text" class="form-control form-control-sm"
-                    [ngModel]="demographics().city" (ngModelChange)="updateDemographicsField('city', $event)"
-                    name="city">
-                </div>
-                <div class="form-group">
-                  <label for="contact-state" class="form-label">State</label>
-                  <input id="contact-state" type="text" class="form-control form-control-sm"
-                    [ngModel]="demographics().state" (ngModelChange)="updateDemographicsField('state', $event)"
-                    name="state" maxlength="2" style="max-width: 60px;">
-                </div>
-                <div class="form-group">
-                  <label for="contact-zip" class="form-label">Zip</label>
-                  <input id="contact-zip" type="text" class="form-control form-control-sm"
-                    [ngModel]="demographics().postalCode" (ngModelChange)="updateDemographicsField('postalCode', $event)"
-                    name="postalCode" maxlength="10" style="max-width: 90px;">
-                </div>
-              </div>
+              }
 
               <!-- Family contact (players with family link) -->
               @if (isPlayerRole() && hasFamilyLink()) {

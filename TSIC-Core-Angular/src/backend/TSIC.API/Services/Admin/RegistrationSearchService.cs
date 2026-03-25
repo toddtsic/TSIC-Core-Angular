@@ -94,6 +94,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         await _registrationRepo.UpdateUserDemographicsAsync(jobId, userId, request, ct);
     }
 
+    public async Task UpdateFamilyAccountDemographicsAsync(
+        Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default)
+    {
+        await _registrationRepo.UpdateFamilyAccountDemographicsAsync(jobId, userId, request, ct);
+    }
+
     public async Task<AccountingRecordDto> CreateAccountingRecordAsync(
         Guid jobId, string userId, CreateAccountingRecordRequest request, CancellationToken ct = default)
     {

@@ -100,8 +100,11 @@ export class RegistrationDetailPanelComponent {
   familyContact = signal<FamilyContactDto>({});
   hasFamilyLink = signal<boolean>(false);
 
-  // User demographics (editable: email, cellphone)
+  // User demographics (player's own — editable: email, cellphone, dob, gender)
   demographics = signal<UserDemographicsDto>({});
+
+  // Family account demographics (player roles only — email, cell, address)
+  familyDemographics = signal<UserDemographicsDto>({});
 
   // Role detection
   isPlayerRole = signal<boolean>(false);
@@ -162,6 +165,14 @@ export class RegistrationDetailPanelComponent {
           this.demographics.set(demo);
         } else {
           this.demographics.set({});
+        }
+
+        if (d.familyAccountDemographics) {
+          const fDemo = { ...d.familyAccountDemographics };
+          fDemo.cellphone = formatPhone(fDemo.cellphone);
+          this.familyDemographics.set(fDemo);
+        } else {
+          this.familyDemographics.set({});
         }
 
         this.emailSubject.set('');
@@ -297,6 +308,10 @@ export class RegistrationDetailPanelComponent {
 
   updateDemographicsField(field: keyof UserDemographicsDto, value: string | null): void {
     this.demographics.set({ ...this.demographics(), [field]: value || null });
+  }
+
+  updateFamilyDemographicsField(field: keyof UserDemographicsDto, value: string | null): void {
+    this.familyDemographics.set({ ...this.familyDemographics(), [field]: value || null });
   }
 
   updateFamilyField(field: keyof FamilyContactDto, value: string | null): void {
@@ -466,12 +481,21 @@ export class RegistrationDetailPanelComponent {
     this.isSavingContact.set(true);
     const calls: Record<string, any> = {};
 
-    // Always save demographics (email + cellphone) — strip phone to digits for storage
+    // Save player/registrant demographics — strip phone to digits for storage
     const demoToSave = { ...this.demographics(), cellphone: stripPhoneToDigits(this.demographics().cellphone) };
     calls['demographics'] = this.searchService.updateDemographics(d.registrationId, {
       registrationId: d.registrationId,
       demographics: demoToSave
     });
+
+    // Save family account demographics if player with family link
+    if (this.isPlayerRole() && this.hasFamilyLink()) {
+      const familyDemoToSave = { ...this.familyDemographics(), cellphone: stripPhoneToDigits(this.familyDemographics().cellphone) };
+      calls['familyDemographics'] = this.searchService.updateFamilyAccountDemographics(d.registrationId, {
+        registrationId: d.registrationId,
+        demographics: familyDemoToSave
+      });
+    }
 
     // Save family contact if player with family link — strip phones to digits for storage
     if (this.isPlayerRole() && this.hasFamilyLink()) {

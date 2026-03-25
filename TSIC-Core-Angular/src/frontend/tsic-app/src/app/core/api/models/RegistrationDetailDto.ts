@@ -31,6 +31,7 @@ export type RegistrationDetailDto = {
     dadLabel?: string;
     familyContact?: (null | FamilyContactDto);
     userDemographics?: (null | UserDemographicsDto);
+    familyAccountDemographics?: (null | UserDemographicsDto);
     registrationDate?: string | null;
     modifiedDate?: string | null;
     hasSubscription?: boolean;

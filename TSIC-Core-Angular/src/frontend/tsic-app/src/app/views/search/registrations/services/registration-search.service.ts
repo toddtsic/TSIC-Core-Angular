@@ -173,6 +173,10 @@ export class RegistrationSearchService {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/email-opt-out`, { optOut });
 	}
 
+	updateFamilyAccountDemographics(registrationId: string, request: UpdateUserDemographicsRequest): Observable<void> {
+		return this.http.put<void>(`${this.apiUrl}/${registrationId}/family-demographics`, request);
+	}
+
 	setActive(registrationId: string, active: boolean): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/active`, { active });
 	}

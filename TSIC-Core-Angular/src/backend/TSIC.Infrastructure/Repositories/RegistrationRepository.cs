@@ -1452,16 +1452,29 @@ public class RegistrationRepository : IRegistrationRepository
 
         if (reg == null) return null;
 
-        // Resolve account username: players use family account, non-players use own account
+        // Resolve account username and family account demographics
         string? accountUsername = reg.User?.UserName;
+        UserDemographicsDto? familyAccountDemographics = null;
         if (!string.IsNullOrEmpty(reg.FamilyUserId))
         {
-            accountUsername = await _context.AspNetUsers
+            var familyUser = await _context.AspNetUsers
                 .AsNoTracking()
                 .Where(u => u.Id == reg.FamilyUserId)
-                .Select(u => u.UserName)
-                .FirstOrDefaultAsync(ct)
-                ?? accountUsername;
+                .FirstOrDefaultAsync(ct);
+
+            if (familyUser != null)
+            {
+                accountUsername = familyUser.UserName ?? accountUsername;
+                familyAccountDemographics = new UserDemographicsDto
+                {
+                    Email = familyUser.Email,
+                    Cellphone = familyUser.Cellphone,
+                    StreetAddress = familyUser.StreetAddress,
+                    City = familyUser.City,
+                    State = familyUser.State,
+                    PostalCode = familyUser.PostalCode,
+                };
+            }
         }
 
         // Build profile values from entity columns using reflection
@@ -1563,6 +1576,7 @@ public class RegistrationRepository : IRegistrationRepository
                 DadCellphone = reg.FamilyUser.DadCellphone,
                 DadEmail = reg.FamilyUser.DadEmail,
             } : null,
+            FamilyAccountDemographics = familyAccountDemographics,
             UserDemographics = reg.User != null ? new UserDemographicsDto
             {
                 Email = reg.User.Email,
@@ -1692,6 +1706,35 @@ public class RegistrationRepository : IRegistrationRepository
         user.Cellphone = demo.Cellphone;
         user.Gender = demo.Gender;
         user.Dob = demo.DateOfBirth;
+        user.StreetAddress = demo.StreetAddress;
+        user.City = demo.City;
+        user.State = demo.State;
+        user.PostalCode = demo.PostalCode;
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task UpdateFamilyAccountDemographicsAsync(
+        Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == request.RegistrationId && r.JobId == jobId)
+            .Select(r => new { r.FamilyUserId })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Registration not found or does not belong to this job.");
+
+        if (string.IsNullOrEmpty(reg.FamilyUserId))
+            throw new InvalidOperationException("This registration has no linked family account.");
+
+        var user = await _context.AspNetUsers
+            .Where(u => u.Id == reg.FamilyUserId)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Family account user not found.");
+
+        var demo = request.Demographics;
+        user.Email = demo.Email;
+        user.Cellphone = demo.Cellphone;
         user.StreetAddress = demo.StreetAddress;
         user.City = demo.City;
         user.State = demo.State;

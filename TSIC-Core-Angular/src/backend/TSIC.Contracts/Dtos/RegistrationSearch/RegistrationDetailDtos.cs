@@ -53,8 +53,11 @@ public record RegistrationDetailDto
     // Family contact info (from Families entity, null if no family link)
     public FamilyContactDto? FamilyContact { get; init; }
 
-    // User demographics (from AspNetUsers)
+    // User demographics (from AspNetUsers — the registrant/player)
     public UserDemographicsDto? UserDemographics { get; init; }
+
+    // Family account demographics (from AspNetUsers via FamilyUserId — email, phone, address)
+    public UserDemographicsDto? FamilyAccountDemographics { get; init; }
 
     // Registration timestamps
     public DateTime? RegistrationDate { get; init; }

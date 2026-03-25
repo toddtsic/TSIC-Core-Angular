@@ -412,6 +412,11 @@ public interface IRegistrationRepository
     Task SetActiveAsync(Guid registrationId, bool active, CancellationToken ct = default);
 
     /// <summary>
+    /// Update the family account user's demographics (email, phone, address). Does NOT touch DOB/Gender.
+    /// </summary>
+    Task UpdateFamilyAccountDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Get player roster data for uniform number template export.
     /// Joins Registrations → Users → Teams, filtered to Player role for the given job. AsNoTracking.
     /// </summary>
