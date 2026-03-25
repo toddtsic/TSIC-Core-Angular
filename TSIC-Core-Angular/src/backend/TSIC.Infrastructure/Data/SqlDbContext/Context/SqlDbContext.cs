@@ -6863,6 +6863,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("modified");
+            entity.Property(e => e.NationalRankingData).IsUnicode(false);
             entity.Property(e => e.OldCoach).IsUnicode(false);
             entity.Property(e => e.OldTeamName).IsUnicode(false);
             entity.Property(e => e.OwedTotal)

@@ -195,6 +195,8 @@ public partial class Teams
 
     public int? ClubTeamId { get; set; }
 
+    public string? NationalRankingData { get; set; }
+
     public virtual Agegroups Agegroup { get; set; } = null!;
 
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
