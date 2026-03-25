@@ -40,6 +40,9 @@ public record RegistrationDetailDto
     // Job sport (for sport-aware label rendering, e.g. "USA Lax Number" for Lacrosse)
     public string? SportName { get; init; }
 
+    // Job option sets (for resolving dataSource-driven select field options)
+    public string? JsonOptions { get; init; }
+
     // Parent/guardian labels (from Jobs entity, defaults "Mom"/"Dad")
     public string MomLabel { get; init; } = "Mom";
     public string DadLabel { get; init; } = "Dad";

@@ -1536,6 +1536,7 @@ public class RegistrationRepository : IRegistrationRepository
             ProfileValues = profileValues,
             ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
             SportName = reg.Job?.Sport?.SportName,
+            JsonOptions = reg.Job?.JsonOptions,
             MomLabel = !string.IsNullOrWhiteSpace(reg.Job?.MomLabel) ? reg.Job.MomLabel : "Mom",
             DadLabel = !string.IsNullOrWhiteSpace(reg.Job?.DadLabel) ? reg.Job.DadLabel : "Dad",
             FamilyContact = reg.FamilyUser != null ? new FamilyContactDto

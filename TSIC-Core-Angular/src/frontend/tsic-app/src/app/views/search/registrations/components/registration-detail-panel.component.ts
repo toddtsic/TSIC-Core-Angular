@@ -148,7 +148,7 @@ export class RegistrationDetailPanelComponent {
         this.isPlayerRole.set(PLAYER_ROLES.has(role));
 
         this.profileValues.set({ ...d.profileValues });
-        this.parseMetadata(d.profileMetadataJson);
+        this.parseMetadata(d.profileMetadataJson, d.jsonOptions);
 
         this.hasFamilyLink.set(!!d.familyContact);
         if (d.familyContact) {
@@ -298,14 +298,15 @@ export class RegistrationDetailPanelComponent {
 
   // ── Metadata Parsing ──
 
-  parseMetadata(metadataJson: string | null | undefined): void {
-    this.metadataFields.set(this.parseMetadataFields(metadataJson));
+  parseMetadata(metadataJson: string | null | undefined, jsonOptions?: string | null): void {
+    this.metadataFields.set(this.parseMetadataFields(metadataJson, jsonOptions));
   }
 
-  private parseMetadataFields(metadataJson: string | null | undefined): FieldMetadata[] {
+  private parseMetadataFields(metadataJson: string | null | undefined, jsonOptions?: string | null): FieldMetadata[] {
     if (!metadataJson) return [];
     try {
       const raw = JSON.parse(metadataJson);
+      const optionSets = this.parseOptionSets(jsonOptions);
       const fields: FieldMetadata[] = [];
 
       const items = Array.isArray(raw) ? raw : (raw.fields && Array.isArray(raw.fields) ? raw.fields : null);
@@ -320,12 +321,7 @@ export class RegistrationDetailPanelComponent {
 
           if (isWaiverField(key, label, inputType)) continue;
 
-          let options: string[] | undefined;
-          if (f.options && Array.isArray(f.options)) {
-            options = f.options.map((o: any) => typeof o === 'string' ? o : (o.value || o.label || ''));
-          } else if (f.choices && Array.isArray(f.choices)) {
-            options = f.choices;
-          }
+          const options = this.resolveFieldOptions(f, key, label, optionSets);
 
           let mappedType = this.mapFieldType(inputType);
           if (mappedType === 'select' && (!options || options.length === 0)) mappedType = 'text';
@@ -345,15 +341,15 @@ export class RegistrationDetailPanelComponent {
           const inputType = value.type || 'text';
           if (isWaiverField(key, label, inputType)) continue;
 
-          const legacyOptions = value.options || value.choices || undefined;
+          const options = this.resolveFieldOptions(value, key, label, optionSets);
           let legacyType = this.mapFieldType(inputType);
-          if (legacyType === 'select' && (!legacyOptions || legacyOptions.length === 0)) legacyType = 'text';
+          if (legacyType === 'select' && (!options || options.length === 0)) legacyType = 'text';
 
           fields.push({
             key,
             label,
             type: legacyType,
-            options: legacyOptions,
+            options,
             required: value.required || false
           });
         }
@@ -374,6 +370,66 @@ export class RegistrationDetailPanelComponent {
       console.error('Failed to parse profile metadata:', error);
       return [];
     }
+  }
+
+  /** Parse Job.JsonOptions into a case-insensitive lookup of option set arrays */
+  private parseOptionSets(jsonOptions: string | null | undefined): Record<string, any[]> | null {
+    if (!jsonOptions) return null;
+    try {
+      const parsed = JSON.parse(jsonOptions);
+      if (typeof parsed !== 'object' || parsed === null) return null;
+      // Build case-insensitive lookup
+      const sets: Record<string, any[]> = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (Array.isArray(v)) sets[k.toLowerCase()] = v;
+      }
+      return sets;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Resolve options for a field: inline options → dataSource → fuzzy key match */
+  private resolveFieldOptions(f: any, key: string, label: string, optionSets: Record<string, any[]> | null): string[] | undefined {
+    // 1. Direct inline options
+    if (f.options && Array.isArray(f.options) && f.options.length > 0) {
+      return f.options.map((o: any) => typeof o === 'string' ? o : (o.value || o.Value || o.label || o.Text || ''));
+    }
+    if (f.choices && Array.isArray(f.choices) && f.choices.length > 0) {
+      return f.choices;
+    }
+    if (!optionSets) return undefined;
+
+    // 2. Explicit dataSource reference
+    const dsKey = (f.dataSource || f.optionsSource || '').trim().toLowerCase();
+    if (dsKey && optionSets[dsKey]) {
+      return optionSets[dsKey].map((v: any) => String(v?.value ?? v?.Value ?? v?.Text ?? v));
+    }
+
+    // 3. Fuzzy match: field name as key
+    const keyLower = key.toLowerCase();
+    if (optionSets[keyLower]) {
+      return optionSets[keyLower].map((v: any) => String(v?.value ?? v?.Value ?? v?.Text ?? v));
+    }
+
+    // 4. Fuzzy match: common naming patterns (List_X, ListSizes_X)
+    const fuzzyKeys = [`list_${keyLower}`, `listsizes_${keyLower}`];
+    for (const fk of fuzzyKeys) {
+      if (optionSets[fk]) {
+        return optionSets[fk].map((v: any) => String(v?.value ?? v?.Value ?? v?.Text ?? v));
+      }
+    }
+
+    // 5. Label-based fuzzy match for sizing fields
+    const lLabel = label.toLowerCase();
+    for (const sizeWord of ['kilt', 'jersey', 'shorts', 'tshirt', 't-shirt', 'gloves', 'sweatshirt', 'sweatpants', 'reversible', 'shoes']) {
+      if (lLabel.includes(sizeWord) || keyLower.includes(sizeWord)) {
+        const match = Object.keys(optionSets).find(k => k.includes(sizeWord));
+        if (match) return optionSets[match].map((v: any) => String(v?.value ?? v?.Value ?? v?.Text ?? v));
+      }
+    }
+
+    return undefined;
   }
 
   private mapFieldType(type: string): FieldMetadata['type'] {
