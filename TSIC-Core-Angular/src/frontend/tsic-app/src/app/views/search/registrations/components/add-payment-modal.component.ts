@@ -33,26 +33,49 @@ export class AddPaymentModalComponent {
   showConfirm = signal<boolean>(false);
 
   // CC fields — pre-fill from detail, reset on new detail
+  // For player registrations: use family account demographics (address, email, phone)
+  // For non-player registrations: use the registrant's own demographics
   ccNumber = linkedSignal({ source: () => this.detail(), computation: () => '' });
   ccExpiry = linkedSignal({ source: () => this.detail(), computation: () => '' });
   ccCvv = linkedSignal({ source: () => this.detail(), computation: () => '' });
-  ccFirstName = linkedSignal(() => this.detail()?.firstName || '');
-  ccLastName = linkedSignal(() => this.detail()?.lastName || '');
-  ccAddress = linkedSignal(() => this.detail()?.userDemographics?.streetAddress || '');
-  ccZip = linkedSignal(() => this.detail()?.userDemographics?.postalCode || '');
+  ccFirstName = linkedSignal(() => {
+    const d = this.detail();
+    if (!d) return '';
+    // Player: use parent/contact 1 first name, fallback to registrant
+    if (d.familyAccountDemographics && d.familyContact) return d.familyContact.momFirstName || d.firstName || '';
+    return d.firstName || '';
+  });
+  ccLastName = linkedSignal(() => {
+    const d = this.detail();
+    if (!d) return '';
+    if (d.familyAccountDemographics && d.familyContact) return d.familyContact.momLastName || d.lastName || '';
+    return d.lastName || '';
+  });
+  ccAddress = linkedSignal(() => {
+    const d = this.detail();
+    if (!d) return '';
+    return (d.familyAccountDemographics?.streetAddress || d.userDemographics?.streetAddress || '');
+  });
+  ccZip = linkedSignal(() => {
+    const d = this.detail();
+    if (!d) return '';
+    return (d.familyAccountDemographics?.postalCode || d.userDemographics?.postalCode || '');
+  });
   ccEmail = linkedSignal(() => {
     const d = this.detail();
     if (!d) return '';
-    if (d.familyContact) return d.familyContact.momEmail || d.familyContact.dadEmail || d.email || '';
-    if (d.userDemographics) return d.userDemographics.email || d.email || '';
-    return '';
+    // Player: family account email first, then parent contacts, then player
+    if (d.familyAccountDemographics?.email) return d.familyAccountDemographics.email;
+    if (d.familyContact) return d.familyContact.momEmail || d.familyContact.dadEmail || '';
+    return d.userDemographics?.email || d.email || '';
   });
   ccPhone = linkedSignal(() => {
     const d = this.detail();
     if (!d) return '';
+    // Player: family account phone first, then parent contacts
+    if (d.familyAccountDemographics?.cellphone) return d.familyAccountDemographics.cellphone;
     if (d.familyContact) return d.familyContact.momCellphone || d.familyContact.dadCellphone || '';
-    if (d.userDemographics) return d.userDemographics.cellphone || '';
-    return '';
+    return d.userDemographics?.cellphone || '';
   });
 
   get owedTotal(): number {

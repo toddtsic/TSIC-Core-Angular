@@ -336,127 +336,132 @@
       <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
-          <div class="financial-summary">
-            <div class="summary-item">
-              <span class="summary-label">Total Fees:</span>
-              <span class="summary-value">{{ getFinancialSummary().fees | currency }}</span>
+          <!-- ── Payment Ledger Card ── -->
+          <div class="accounting-zone">
+            <div class="section-title-row">
+              <h4 class="section-title">Payment Ledger</h4>
             </div>
-            <div class="summary-item">
-              <span class="summary-label">Total Paid:</span>
-              <span class="summary-value text-success">{{ getFinancialSummary().paid | currency }}</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Amount Owed:</span>
-              <span class="summary-value" [class.text-danger]="getFinancialSummary().owed > 0">
-                {{ getFinancialSummary().owed | currency }}
-              </span>
-            </div>
-          </div>
 
-          @if (reg.accountingRecords && reg.accountingRecords.length > 0) {
-            <table class="table table-sm accounting-table mb-0">
-              <thead>
-                <tr>
-                  <th>Transaction</th>
-                  <th class="text-end">Due</th>
-                  <th class="text-end">Paid</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (record of reg.accountingRecords; track record.aId) {
-                  @if (editingAId() === record.aId) {
-                    <tr class="editing-row">
-                      <td>
-                        <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc-digits">****{{ record.adnCc4 }}</span>}</div>
-                      </td>
-                      <td class="text-end col-amount">{{ record.dueAmount | currency }}</td>
-                      <td class="text-end col-amount">{{ record.paidAmount | currency }}</td>
-                      <td></td>
-                    </tr>
-                    <tr class="editing-row edit-fields-row">
-                      <td colspan="4">
-                        <div class="acct-edit-fields">
-                          <input type="text" class="form-control form-control-sm inline-edit"
-                            [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
-                            placeholder="Comment" [disabled]="isSavingEdit()" />
-                          <input type="text" class="form-control form-control-sm inline-edit"
-                            [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
-                            placeholder="Check #" [disabled]="isSavingEdit()" />
-                          <div class="edit-actions">
-                            <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
+            <div class="financial-summary">
+              <div class="summary-item">
+                <span class="summary-label">Total Fees</span>
+                <span class="summary-value">{{ getFinancialSummary().fees | currency }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Total Paid</span>
+                <span class="summary-value text-success">{{ getFinancialSummary().paid | currency }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Amount Owed</span>
+                <span class="summary-value" [class.text-danger]="getFinancialSummary().owed > 0">
+                  {{ getFinancialSummary().owed | currency }}
+                </span>
+              </div>
+            </div>
+
+            @if (reg.accountingRecords && reg.accountingRecords.length > 0) {
+              <table class="table table-sm accounting-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Transaction</th>
+                    <th class="text-end">Due</th>
+                    <th class="text-end">Paid</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (record of reg.accountingRecords; track record.aId) {
+                    @if (editingAId() === record.aId) {
+                      <tr class="editing-row">
+                        <td>
+                          <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc-digits">****{{ record.adnCc4 }}</span>}</div>
+                        </td>
+                        <td class="text-end col-amount">{{ record.dueAmount | currency }}</td>
+                        <td class="text-end col-amount">{{ record.paidAmount | currency }}</td>
+                        <td></td>
+                      </tr>
+                      <tr class="editing-row edit-fields-row">
+                        <td colspan="4">
+                          <div class="acct-edit-fields">
+                            <input type="text" class="form-control form-control-sm inline-edit"
+                              [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
+                              placeholder="Comment" [disabled]="isSavingEdit()" />
+                            <input type="text" class="form-control form-control-sm inline-edit"
+                              [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
+                              placeholder="Check #" [disabled]="isSavingEdit()" />
+                            <div class="edit-actions">
+                              <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  } @else {
-                    <tr>
-                      <td>
-                        <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc-digits">****{{ record.adnCc4 }}</span>}</div>
-                        @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
-                      </td>
-                      <td class="text-end col-amount">{{ record.dueAmount | currency }}</td>
-                      <td class="text-end col-amount text-success">{{ record.paidAmount | currency }}</td>
-                      <td class="col-actions">
-                        @if (record.canRefund) {
-                          <button type="button" class="btn-icon text-danger" title="Refund" (click)="onRefundClick(record)"><i class="bi bi-arrow-counterclockwise"></i></button>
-                        }
-                        @if (isEditable(record)) {
-                          <button type="button" class="btn-icon text-muted" title="Edit" (click)="startEditRecord(record)"><i class="bi bi-pencil"></i></button>
-                        }
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    } @else {
+                      <tr>
+                        <td>
+                          <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc-digits">****{{ record.adnCc4 }}</span>}</div>
+                          @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
+                        </td>
+                        <td class="text-end col-amount">{{ record.dueAmount | currency }}</td>
+                        <td class="text-end col-amount text-success">{{ record.paidAmount | currency }}</td>
+                        <td class="col-actions">
+                          @if (record.canRefund) {
+                            <button type="button" class="btn-icon text-danger" title="Refund" (click)="onRefundClick(record)"><i class="bi bi-arrow-counterclockwise"></i></button>
+                          }
+                          @if (isEditable(record)) {
+                            <button type="button" class="btn-icon text-muted" title="Edit" (click)="startEditRecord(record)"><i class="bi bi-pencil"></i></button>
+                          }
+                        </td>
+                      </tr>
+                    }
                   }
-                }
-              </tbody>
-            </table>
-          } @else {
-            <div class="alert alert-info">No accounting records found.</div>
-          }
+                </tbody>
+              </table>
+            } @else {
+              <div class="text-muted mt-2">No records yet.</div>
+            }
 
-          <div class="form-actions">
-            <button type="button" class="btn btn-outline-primary" (click)="openPaymentModal()">+ Add Payment Record</button>
+            <div class="form-actions">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPaymentModal()">+ Add Accounting Record</button>
+            </div>
           </div>
 
-          <!-- ARB Subscription Section -->
+          <!-- ── ARB Subscription Card ── -->
           @if (reg.hasSubscription) {
-            <div class="subscription-section">
-              <h4>ARB Subscription</h4>
+            <div class="accounting-zone">
+              <div class="section-title-row">
+                <h4 class="section-title">ARB Subscription</h4>
+                @if (subscription(); as sub) {
+                  <span class="badge" [class.bg-success]="sub.status === 'active'" [class.bg-secondary]="sub.status !== 'active'">{{ sub.status }}</span>
+                }
+              </div>
               @if (isLoadingSubscription()) {
-                <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading subscription details...</div>
+                <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</div>
               } @else if (subscription(); as sub) {
-                <div class="subscription-details">
-                  <div class="detail-row">
-                    <span class="label">Status:</span>
-                    <span class="value">
-                      <span class="badge" [class.bg-success]="sub.status === 'active'" [class.bg-secondary]="sub.status !== 'active'">{{ sub.status }}</span>
-                    </span>
+                <div class="sub-grid">
+                  <div class="sub-field">
+                    <span class="sub-label">Subscription ID</span>
+                    <span class="sub-value">{{ sub.subscriptionId }}</span>
                   </div>
-                  <div class="detail-row">
-                    <span class="label">Amount:</span>
-                    <span class="value">{{ sub.perOccurrenceAmount | currency }} / {{ sub.intervalLabel }}</span>
+                  <div class="sub-field">
+                    <span class="sub-label">Start Date</span>
+                    <span class="sub-value">{{ sub.startDate | date:'M/d/yy' }}</span>
                   </div>
-                  <div class="detail-row">
-                    <span class="label">Schedule:</span>
-                    <span class="value">{{ sub.totalOccurrences }} occurrences</span>
+                  <div class="sub-field">
+                    <span class="sub-label">Amount</span>
+                    <span class="sub-value">{{ sub.perOccurrenceAmount | currency }} / {{ sub.intervalLabel }}</span>
                   </div>
-                  <div class="detail-row">
-                    <span class="label">Start:</span>
-                    <span class="value">{{ sub.startDate | date:'mediumDate' }}</span>
-                  </div>
-                  <div class="detail-row">
-                    <span class="label">Total:</span>
-                    <span class="value">{{ sub.totalAmount | currency }}</span>
+                  <div class="sub-field">
+                    <span class="sub-label">Occurrences</span>
+                    <span class="sub-value">{{ sub.totalOccurrences }}</span>
                   </div>
                 </div>
                 @if (sub.status === 'active') {
-                  <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="confirmCancelSubscription()" [disabled]="isCancellingSubscription()">
+                  <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="confirmCancelSubscription()" [disabled]="isCancellingSubscription()">
                     @if (isCancellingSubscription()) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel Subscription
                   </button>
                 }
 
-                <!-- Cancel Subscription Confirmation -->
                 @if (showCancelSubConfirm()) {
                   <div class="cancel-sub-confirm mt-3">
                     <div class="alert alert-danger d-flex flex-column gap-2 mb-0">
@@ -492,32 +497,45 @@
       <!-- ═══════════════════════ EMAIL TAB ═══════════════════════ -->
       @if (activeTab() === 'email') {
         <div class="tab-content">
-          <form class="email-form">
-            <div class="token-chips">
-              <span class="token-label">Insert Token:</span>
-              <button type="button" class="token-chip" (click)="insertEmailToken('!PERSON')">!PERSON</button>
-              <button type="button" class="token-chip" (click)="insertEmailToken('!EMAIL')">!EMAIL</button>
-              <button type="button" class="token-chip" (click)="insertEmailToken('!JOBNAME')">!JOBNAME</button>
-              <button type="button" class="token-chip" (click)="insertEmailToken('!AMTFEES')">!AMTFEES</button>
-              <button type="button" class="token-chip" (click)="insertEmailToken('!AMTPAID')">!AMTPAID</button>
-              <button type="button" class="token-chip" (click)="insertEmailToken('!AMTOWED')">!AMTOWED</button>
+          <!-- ── Compose Email Card ── -->
+          <div class="email-zone">
+            <div class="section-title-row">
+              <h4 class="section-title">Compose Email</h4>
             </div>
-            <div class="form-group">
-              <label for="email-subject" class="form-label">Subject</label>
-              <input id="email-subject" type="text" class="form-control"
-                [ngModel]="emailSubject()" (ngModelChange)="emailSubject.set($event)"
-                name="subject" placeholder="Enter email subject">
-            </div>
-            <div class="form-group">
-              <label for="email-body" class="form-label">Message</label>
-              <textarea id="email-body" class="form-control"
-                [ngModel]="emailBody()" (ngModelChange)="emailBody.set($event)"
-                name="body" rows="8" placeholder="Enter email message (use tokens like !PERSON, !AMTOWED, etc.)"></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="!emailSubject() || !emailBody()">Send Email</button>
-            </div>
-          </form>
+
+            <form class="email-form">
+              <div class="form-group">
+                <label for="email-subject" class="form-label">Subject</label>
+                <input id="email-subject" type="text" class="form-control form-control-sm"
+                  [ngModel]="emailSubject()" (ngModelChange)="emailSubject.set($event)"
+                  name="subject" placeholder="Email subject line">
+              </div>
+              <div class="form-group">
+                <label for="email-body" class="form-label">Message</label>
+                <textarea id="email-body" class="form-control form-control-sm"
+                  [ngModel]="emailBody()" (ngModelChange)="emailBody.set($event)"
+                  name="body" rows="8" placeholder="Compose your message..."></textarea>
+              </div>
+
+              <div class="token-section">
+                <span class="token-section-label">Insert Token</span>
+                <div class="token-chips">
+                  <button type="button" class="token-chip" (click)="insertEmailToken('!PERSON')">!PERSON</button>
+                  <button type="button" class="token-chip" (click)="insertEmailToken('!EMAIL')">!EMAIL</button>
+                  <button type="button" class="token-chip" (click)="insertEmailToken('!JOBNAME')">!JOBNAME</button>
+                  <button type="button" class="token-chip" (click)="insertEmailToken('!AMTFEES')">!AMTFEES</button>
+                  <button type="button" class="token-chip" (click)="insertEmailToken('!AMTPAID')">!AMTPAID</button>
+                  <button type="button" class="token-chip" (click)="insertEmailToken('!AMTOWED')">!AMTOWED</button>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn btn-sm btn-primary" (click)="sendEmail()" [disabled]="!emailSubject() || !emailBody()">
+                  <i class="bi bi-send me-1"></i> Send Email
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       }
     </div>

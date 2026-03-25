@@ -373,15 +373,22 @@
 }
 
 // Accounting Tab
+.accounting-zone {
+  padding: var(--space-4);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+  background: var(--surface-elevated-bg);
+}
+
 .financial-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4);
-  padding: var(--space-4);
-  background: var(--surface-elevated-bg);
-  // backdrop-filter banned — creates containing blocks that trap positioned descendants
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-5);
+  padding: var(--space-3);
+  background: var(--bs-tertiary-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
 }
 
 .summary-item {
@@ -508,89 +515,102 @@
   }
 }
 
-// Subscription Section
-.subscription-section {
-  margin-top: var(--space-4);
-  padding: var(--space-4);
-  background: var(--bs-secondary-bg);
-  border-radius: var(--radius-md);
+// Subscription grid (inside .accounting-zone card)
+.sub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+}
 
-  h4 {
-    margin: 0 0 var(--space-3) 0;
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    color: var(--bs-heading-color);
-  }
+.sub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-  .subscription-details {
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      padding: var(--space-2) 0;
-      border-bottom: 1px solid var(--bs-border-color);
+.sub-label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
 
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .label {
-        font-weight: 500;
-        color: var(--bs-secondary-color);
-      }
-
-      .value {
-        font-weight: 600;
-        color: var(--bs-body-color);
-      }
-    }
-  }
+.sub-value {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
 }
 
 // Email Tab
+.email-zone {
+  padding: var(--space-4);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+  background: var(--surface-elevated-bg);
+}
+
 .email-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+
+  .form-label {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: 2px;
+  }
+
+  textarea.form-control {
+    resize: vertical;
+    min-height: 120px;
+  }
+}
+
+.token-section {
+  padding: var(--space-3);
+  background: var(--bs-tertiary-bg);
+  border-radius: var(--radius-md);
+}
+
+.token-section-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-2);
 }
 
 .token-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  background: var(--surface-elevated-bg);
-  // backdrop-filter banned — creates containing blocks that trap positioned descendants
-  border-radius: var(--radius-lg);
-  align-items: center;
-}
-
-.token-label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-muted);
-  margin-right: var(--space-2);
+  gap: var(--space-1);
 }
 
 .token-chip {
-  padding: var(--space-1) var(--space-3);
-  background: var(--bs-primary);
-  color: var(--bs-white);
-  border: none;
+  padding: 2px var(--space-2);
+  background: transparent;
+  color: var(--bs-primary);
+  border: 1px solid var(--bs-primary);
   border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  font-family: var(--font-family-mono);
+  font-family: monospace;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 
   &:hover {
-    background: var(--bs-primary-hover);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+    background: var(--bs-primary);
+    color: var(--neutral-0);
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(0.96);
   }
 }
 
