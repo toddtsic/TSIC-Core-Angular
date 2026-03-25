@@ -130,7 +130,7 @@ CREATE TABLE #MenuManifest (
 );
 
 -- Search (requireAdmin)
-INSERT INTO #MenuManifest VALUES ('Search', 'search', 1, 'Players', 'people', 'search/players', 1, 'admin');
+INSERT INTO #MenuManifest VALUES ('Search', 'search', 1, 'Registrations', 'people', 'search/registrations', 1, 'admin');
 INSERT INTO #MenuManifest VALUES ('Search', 'search', 1, 'Teams', 'shield', 'search/teams', 2, 'admin');
 
 -- Configure (mixed guards)

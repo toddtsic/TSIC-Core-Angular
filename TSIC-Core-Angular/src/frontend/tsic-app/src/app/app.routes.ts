@@ -180,10 +180,10 @@ export const routes: Routes = [
 				path: 'search',
 				children: [
 					{
-						path: 'players',
+						path: 'registrations',
 						canActivate: [authGuard],
 						data: { requireAdmin: true },
-						loadComponent: () => import('./views/search/players/search-players.component').then(m => m.RegistrationSearchComponent)
+						loadComponent: () => import('./views/search/registrations/search-registrations.component').then(m => m.RegistrationSearchComponent)
 					},
 					{
 						path: 'teams',

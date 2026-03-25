@@ -624,7 +624,7 @@ VALUES (179, 6, NULL, 1, 8, N'Store', N'cart', NULL, NULL, NULL, GETDATE());
 
 -- Children
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (2, 1, 1, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (2, 1, 1, 1, 1, N'Registrations', N'people', N'search/registrations', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (3, 1, 1, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -664,7 +664,7 @@ VALUES (26, 1, 24, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings',
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (28, 1, 27, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (30, 2, 29, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (30, 2, 29, 1, 1, N'Registrations', N'people', N'search/registrations', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (31, 2, 29, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -704,7 +704,7 @@ VALUES (54, 2, 52, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings',
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (56, 2, 55, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (58, 3, 57, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (58, 3, 57, 1, 1, N'Registrations', N'people', N'search/registrations', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (59, 3, 57, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -768,7 +768,7 @@ VALUES (94, 3, 88, 1, 13, N'Job Revenue', N'cash-stack', N'tools/customer-job-re
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (96, 3, 95, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (98, 4, 97, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (98, 4, 97, 1, 1, N'Registrations', N'people', N'search/registrations', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (99, 4, 97, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -808,7 +808,7 @@ VALUES (122, 4, 120, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (124, 4, 123, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (126, 5, 125, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (126, 5, 125, 1, 1, N'Registrations', N'people', N'search/registrations', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (127, 5, 125, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
@@ -848,7 +848,7 @@ VALUES (150, 5, 148, 1, 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (152, 5, 151, 1, 1, N'Store Admin', N'shop', N'store/admin', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
-VALUES (154, 6, 153, 1, 1, N'Players', N'people', N'search/players', NULL, NULL, GETDATE());
+VALUES (154, 6, 153, 1, 1, N'Registrations', N'people', N'search/registrations', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])
 VALUES (155, 6, 153, 1, 2, N'Teams', N'shield', N'search/teams', NULL, NULL, GETDATE());
 INSERT INTO [nav].[NavItem] ([NavItemId], [NavId], [ParentNavItemId], [Active], [SortOrder], [Text], [IconName], [RouterLink], [NavigateUrl], [Target], [Modified])

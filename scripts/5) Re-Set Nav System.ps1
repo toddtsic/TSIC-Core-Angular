@@ -162,7 +162,7 @@ $itemNameOverrides = @{
 }
 
 $itemIconMap = @{
-    'search/players'             = 'people'
+    'search/registrations'       = 'people'
     'search/teams'               = 'shield'
     'configure/job'              = 'briefcase'
     'configure/age-ranges'       = 'sliders'

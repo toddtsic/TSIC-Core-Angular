@@ -279,7 +279,7 @@ Write-Host "  Widgets:     $($categories.Rows.Count) categories, $($widgets.Rows
 
 $menuManifest = @(
     # Search (requireAdmin)
-    @{ Controller='Search'; Icon='search'; Sort=1; Action='Players'; ActionIcon='people'; Route='search/players'; ActionSort=1; Guard='admin' }
+    @{ Controller='Search'; Icon='search'; Sort=1; Action='Registrations'; ActionIcon='people'; Route='search/registrations'; ActionSort=1; Guard='admin' }
     @{ Controller='Search'; Icon='search'; Sort=1; Action='Teams'; ActionIcon='shield'; Route='search/teams'; ActionSort=2; Guard='admin' }
     # Configure (mixed guards)
     @{ Controller='Configure'; Icon='gear'; Sort=2; Action='Job'; ActionIcon='briefcase'; Route='configure/job'; ActionSort=1; Guard='admin' }
