@@ -195,7 +195,7 @@ public class BracketSeedRepository : IBracketSeedRepository
                 Gid = s.Gid,
                 AgegroupName = (ag.BChampionsByDivision == true)
                     ? $"{ag.AgegroupName}:{d.DivName}"
-                    : ag.AgegroupName,
+                    : ag.AgegroupName ?? "",
                 T1Type = s.T1Type ?? "",
                 T1No = s.T1No ?? 0,
                 T2No = s.T2No ?? 0,

@@ -52,7 +52,7 @@ public class ArbDefensiveService : IArbDefensiveService
         var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
 
         var response = _adnApi.ARBGetSubscriptionListRequest(
-            env, creds.AdnLoginId, creds.AdnTransactionKey,
+            env, creds.AdnLoginId!, creds.AdnTransactionKey!,
             ARBGetSubscriptionListSearchTypeEnum.cardExpiringThisMonth);
 
         if (response?.messages?.resultCode != messageTypeEnum.Ok
@@ -121,7 +121,7 @@ public class ArbDefensiveService : IArbDefensiveService
                 try
                 {
                     var statusResponse = _adnApi.GetSubscriptionStatus(
-                        env, creds.AdnLoginId, creds.AdnTransactionKey,
+                        env, creds.AdnLoginId!, creds.AdnTransactionKey!,
                         reg.SubscriptionId);
 
                     var liveStatus = statusResponse.status.ToString();
@@ -348,8 +348,8 @@ public class ArbDefensiveService : IArbDefensiveService
         var authResponse = _adnApi.ADN_Authorize(new AdnAuthorizeRequest
         {
             Env = env,
-            LoginId = creds.AdnLoginId,
-            TransactionKey = creds.AdnTransactionKey,
+            LoginId = creds.AdnLoginId!,
+            TransactionKey = creds.AdnTransactionKey!,
             CardNumber = request.CardNumber,
             CardCode = request.CardCode,
             Expiry = expiry,
@@ -377,8 +377,8 @@ public class ArbDefensiveService : IArbDefensiveService
         var updateResponse = _adnApi.ADN_UpdateSubscription(new AdnArbUpdateRequest
         {
             Env = env,
-            LoginId = creds.AdnLoginId,
-            TransactionKey = creds.AdnTransactionKey,
+            LoginId = creds.AdnLoginId!,
+            TransactionKey = creds.AdnTransactionKey!,
             SubscriptionId = request.SubscriptionId,
             ChargePerOccurrence = detail.AmountPerOccurrence ?? 0,
             CardNumber = request.CardNumber,
@@ -407,8 +407,8 @@ public class ArbDefensiveService : IArbDefensiveService
             var chargeResponse = _adnApi.ADN_Charge(new AdnChargeRequest
             {
                 Env = env,
-                LoginId = creds.AdnLoginId,
-                TransactionKey = creds.AdnTransactionKey,
+                LoginId = creds.AdnLoginId!,
+                TransactionKey = creds.AdnTransactionKey!,
                 CardNumber = request.CardNumber,
                 CardCode = request.CardCode,
                 Expiry = chargeExpiry,

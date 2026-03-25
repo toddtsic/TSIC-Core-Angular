@@ -221,15 +221,12 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     public async Task<ProfileExtractionResponse> ExtractProfilesAsync(
         Guid jobId, Guid sourceJobId, CancellationToken ct = default)
     {
-        var (leagueId, season, year) = await _contextResolver.ResolveAsync(jobId, ct);
+        var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
 
         // Extract raw patterns and division summaries from source
         var patterns = await _autoBuildRepo.ExtractPatternAsync(sourceJobId, ct);
         var sourceDivisionsRaw = await _autoBuildRepo.GetSourceDivisionSummariesAsync(sourceJobId, ct);
-
-        // Apply graduation year offset so source "2026 Boys" matches current "2027 Boys"
         var sourceYear = await _autoBuildRepo.GetJobYearAsync(sourceJobId, ct);
-        var yearDelta = ComputeYearDelta(sourceYear, year);
 
         // Get source job's timeslot window (earliest field start per DOW)
         var sourceWindow = await GetSourceTimeslotWindowAsync(sourceJobId, ct);
@@ -3428,8 +3425,10 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
     /// Retained in case we ever move to auto-scheduling championship games (unlikely).
     /// Was previously called from PreconfigureFromSourceAsync (step 4.5), removed 2026-03-17.
     /// </summary>
+#pragma warning disable S1144 // Retained for potential future use — see XML doc above
     private async Task<int> CopyChampionshipPairingsFromSourceAsync(
         Guid jobId, string userId, Guid sourceJobId, CancellationToken ct = default)
+#pragma warning restore S1144
     {
         var (srcLeagueId, srcSeason, _) = await _contextResolver.ResolveAsync(sourceJobId, ct);
         var (tgtLeagueId, tgtSeason, _) = await _contextResolver.ResolveAsync(jobId, ct);

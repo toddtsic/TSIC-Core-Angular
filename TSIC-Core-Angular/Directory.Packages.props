@@ -44,7 +44,6 @@
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="RichardSzalay.MockHttp" Version="7.0.0" />
     <PackageVersion Include="Syncfusion.Pdf.Net.Core" Version="32.2.7" />
-    <PackageVersion Include="System.Net.Http.Json" Version="10.0.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <!-- Static Code Analysis -->
@@ -52,8 +51,7 @@
     <!-- Authorize.Net -->
     <PackageVersion Include="AuthorizeNet.Core" Version="8.0.1" />
     <!-- MimeKit for constructing raw email messages -->
-    <!-- Upgraded MimeKit to address GHSA-gmc6-fwg3-75m5 vulnerability (was 4.5.1 resolved to 4.6.0). Assume patched version >= 4.12.0 is safe. -->
-    <PackageVersion Include="MimeKit" Version="4.12.0" />
+    <PackageVersion Include="MimeKit" Version="4.15.1" />
     <!-- Amazon SES (email service) -->
     <PackageVersion Include="AWSSDK.SimpleEmail" Version="3.7.300.6" />
     <!-- Hosting + Logging primitives (used in Application services) -->

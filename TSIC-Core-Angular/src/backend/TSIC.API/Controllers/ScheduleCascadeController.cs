@@ -59,7 +59,7 @@ public class ScheduleCascadeController : ControllerBase
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var snapshot = await _service.ResolveAsync(jobId!.Value, userId, ct);
+        var snapshot = await _service.ResolveAsync(jobId!.Value, userId!, ct);
         return Ok(snapshot);
     }
 
@@ -243,7 +243,7 @@ public class ScheduleCascadeController : ControllerBase
             jobId!.Value, divisionWaves, agegroupDates, userId!, ct);
 
         // Return updated snapshot
-        var snapshot = await _service.ResolveAsync(jobId!.Value, userId, ct);
+        var snapshot = await _service.ResolveAsync(jobId!.Value, userId!, ct);
         return Ok(snapshot);
     }
 

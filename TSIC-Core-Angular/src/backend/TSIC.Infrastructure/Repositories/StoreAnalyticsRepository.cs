@@ -233,8 +233,8 @@ public class StoreAnalyticsRepository : IStoreAnalyticsRepository
             {
                 StoreCartBatchSkuId = cbs.StoreCartBatchSkuId,
                 ItemName = item.StoreItemName,
-                ColorName = sku.StoreColor != null ? sku.StoreColor.StoreColorName : null,
-                SizeName = sku.StoreSize != null ? sku.StoreSize.StoreSizeName : null,
+                ColorName = sku.StoreColor != null ? sku.StoreColor!.StoreColorName : null,
+                SizeName = sku.StoreSize != null ? sku.StoreSize!.StoreSizeName : null,
                 Quantity = cbs.Quantity,
                 PaidTotal = cbs.PaidTotal,
                 RefundedTotal = cbs.RefundedTotal,

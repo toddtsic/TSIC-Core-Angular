@@ -472,7 +472,7 @@ public class TimeslotRepository : ITimeslotRepository
 
         return new FieldScheduleDefaults
         {
-            StartTime = dominant.StartTime,
+            StartTime = dominant.StartTime ?? "",
             GamestartInterval = dominant.GamestartInterval,
             MaxGamesPerField = dominant.MaxGamesPerField
         };

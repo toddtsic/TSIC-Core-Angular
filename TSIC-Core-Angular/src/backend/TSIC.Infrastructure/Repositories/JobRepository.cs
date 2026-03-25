@@ -363,7 +363,7 @@ public class JobRepository : IJobRepository
             .AsNoTracking()
             .Where(j => j.CustomerId == customerId
                 && j.JobId != jobId
-                && (!j.ExpiryUsers.HasValue || j.ExpiryUsers > DateTime.UtcNow))
+                && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.UtcNow))
             .OrderBy(j => j.JobName)
             .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
             {

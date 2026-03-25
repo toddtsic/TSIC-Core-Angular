@@ -942,8 +942,8 @@ public class TeamRepository : ITeamRepository
             .Select(t => new RankingsTeamDto
             {
                 TeamId = t.TeamId,
-                TeamName = t.TeamName,
-                AgeGroup = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName ?? "",
+                AgeGroup = t.Agegroup!.AgegroupName,
                 ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName ?? "" : "",
                 Color = t.Color ?? "",
                 AgegroupName = t.Agegroup.AgegroupName ?? "",
