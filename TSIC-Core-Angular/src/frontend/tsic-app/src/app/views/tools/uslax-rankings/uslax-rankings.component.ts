@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@a
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UsLaxRankingsService } from '@infrastructure/services/uslax-rankings.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type {
 	AgeGroupOptionDto,
@@ -40,6 +41,9 @@ const MANUAL_MATCH_SCORE = -1;
 })
 export class UsLaxRankingsComponent {
 	private readonly rankingsService = inject(UsLaxRankingsService);
+	private readonly jobService = inject(JobService);
+
+	readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'your event');
 
 	// ── Tab state ──
 	readonly activeTab = signal<TabId>('align');
