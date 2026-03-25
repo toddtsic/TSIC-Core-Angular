@@ -28,6 +28,9 @@ dist/
 src/backend/TSIC.API/logs/
 *.log
 
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
 # Scratch / temp working files
 tmp/
 
