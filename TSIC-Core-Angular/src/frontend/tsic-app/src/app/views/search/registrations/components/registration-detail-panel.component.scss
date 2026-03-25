@@ -454,9 +454,8 @@
   .txn-comment {
     font-size: var(--font-size-xs);
     color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
   }
 
   .col-amount {
