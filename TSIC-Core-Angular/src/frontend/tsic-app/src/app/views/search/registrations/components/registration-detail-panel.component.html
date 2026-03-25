@@ -5,15 +5,16 @@
 <div class="detail-panel" [class.open]="isOpen()">
   @if (detail(); as reg) {
     <div class="panel-header">
-      <div class="header-content">
+      <div class="header-top-row">
         <h3 class="panel-title">{{ reg.firstName }} {{ reg.lastName }}</h3>
-        <div class="header-meta">
-          <span class="meta-item">{{ reg.roleName }}</span>
-          @if (reg.assignment) {
-            <span class="meta-separator">&bull;</span>
-            <span class="meta-item">{{ reg.assignment }}</span>
-          }
-          <span class="meta-separator">&bull;</span>
+        <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
+      </div>
+      <div class="header-tags">
+        <div class="header-tag-row">
+          <span class="header-tag">
+            <span class="header-tag-label">Role:</span>
+            <span class="header-tag-value">{{ reg.roleName }}</span>
+          </span>
           <label class="active-toggle-switch" [class.disabled]="isTogglingActive()">
             <input type="checkbox" [checked]="reg.active" (change)="toggleActive()" [disabled]="isTogglingActive()">
             <span class="toggle-track"></span>
@@ -21,20 +22,20 @@
               {{ reg.active ? 'Active' : 'Inactive' }}
             </span>
           </label>
-          @if (isPlayerRole()) {
-            <button type="button" class="btn btn-sm btn-outline-warning ms-2 change-job-btn"
-              (click)="openChangeJobModal()" [disabled]="isLoadingJobOptions()">
-              @if (isLoadingJobOptions()) { <span class="spinner-border spinner-border-sm me-1"></span> }
-              Change Job
-            </button>
-          }
-          <button type="button" class="btn btn-sm btn-outline-danger ms-2 delete-reg-btn"
-            (click)="confirmDelete()" [disabled]="isDeleting()">
-            Delete
-          </button>
         </div>
+        @if (reg.assignment) {
+          <div class="header-tag-row">
+            <span class="header-tag">
+              <span class="header-tag-label">Assignment:</span>
+              <span class="header-tag-value">{{ reg.assignment }}</span>
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-danger delete-reg-btn"
+              (click)="confirmDelete()" [disabled]="isDeleting()">
+              Delete Registration
+            </button>
+          </div>
+        }
       </div>
-      <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
     </div>
 
     <div class="tab-bar">
@@ -233,7 +234,16 @@
 
           <!-- ── Read-Only: Registration Info ── -->
           <div class="info-section">
-            <h5 class="info-section-title">Registration <span class="reg-id">(Id: <span class="reg-id-guid">{{ reg.registrationId }}</span>)</span></h5>
+            <div class="section-title-row">
+              <h5 class="info-section-title">Registration <span class="reg-id">(Id: <span class="reg-id-guid">{{ reg.registrationId }}</span>)</span></h5>
+              @if (isPlayerRole()) {
+                <button type="button" class="btn btn-sm btn-outline-warning change-job-btn"
+                  (click)="openChangeJobModal()" [disabled]="isLoadingJobOptions()">
+                  @if (isLoadingJobOptions()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                  Change Job
+                </button>
+              }
+            </div>
             <div class="info-grid">
               @if (reg.registrationDate) {
                 <div class="info-item">
@@ -504,6 +514,24 @@
             </div>
 
             <form class="email-form">
+              @if (availableTemplates().length > 0) {
+                <div class="form-group">
+                  <label for="email-template" class="form-label">Template</label>
+                  <select id="email-template" class="form-select form-select-sm"
+                    [ngModel]="selectedTemplateLabel()" (ngModelChange)="onTemplateSelected($event)"
+                    name="template">
+                    <option value="">Compose from scratch</option>
+                    @for (cat of availableTemplates(); track cat.category) {
+                      <optgroup [label]="cat.category">
+                        @for (tmpl of cat.templates; track tmpl.label) {
+                          <option [value]="tmpl.label">{{ tmpl.label }}</option>
+                        }
+                      </optgroup>
+                    }
+                  </select>
+                </div>
+              }
+
               <div class="form-group">
                 <label for="email-subject" class="form-label">Subject</label>
                 <input id="email-subject" type="text" class="form-control form-control-sm"
@@ -526,6 +554,12 @@
                   <button type="button" class="token-chip" (click)="insertEmailToken('!AMTFEES')">!AMTFEES</button>
                   <button type="button" class="token-chip" (click)="insertEmailToken('!AMTPAID')">!AMTPAID</button>
                   <button type="button" class="token-chip" (click)="insertEmailToken('!AMTOWED')">!AMTOWED</button>
+                  @if (detail()?.hasSubscription) {
+                    <button type="button" class="token-chip" (click)="insertEmailToken('!FAMILYUSERNAME')">!FAMILYUSERNAME</button>
+                    <button type="button" class="token-chip" (click)="insertEmailToken('!JOBLINK')">!JOBLINK</button>
+                    <button type="button" class="token-chip" (click)="insertEmailToken('!SUBSCRIPTIONID')">!SUBSCRIPTIONID</button>
+                    <button type="button" class="token-chip" (click)="insertEmailToken('!SUBSCRIPTIONSTATUS')">!SUBSCRIPTIONSTATUS</button>
+                  }
                 </div>
               </div>
 

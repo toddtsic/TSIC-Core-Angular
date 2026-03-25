@@ -6,6 +6,7 @@ import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, User
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AddPaymentModalComponent } from './add-payment-modal.component';
+import { EMAIL_TEMPLATE_CATEGORIES, type EmailTemplate } from '../email-templates';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -121,6 +122,13 @@ export class RegistrationDetailPanelComponent {
   // Email
   emailSubject = signal<string>('');
   emailBody = signal<string>('');
+
+  // Email template support
+  availableTemplates = computed(() => {
+    const hasSub = this.detail()?.hasSubscription ?? false;
+    return EMAIL_TEMPLATE_CATEGORIES.filter(c => !c.requiresSubscription || hasSub);
+  });
+  selectedTemplateLabel = signal<string>('');
 
   // Change Job modal
   showChangeJobModal = signal<boolean>(false);
@@ -636,6 +644,23 @@ export class RegistrationDetailPanelComponent {
   }
 
   // ── Email ──
+
+  onTemplateSelected(label: string): void {
+    this.selectedTemplateLabel.set(label);
+    if (!label) {
+      this.emailSubject.set('');
+      this.emailBody.set('');
+      return;
+    }
+    for (const cat of this.availableTemplates()) {
+      const tmpl = cat.templates.find(t => t.label === label);
+      if (tmpl) {
+        this.emailSubject.set(tmpl.subject);
+        this.emailBody.set(tmpl.body);
+        return;
+      }
+    }
+  }
 
   insertEmailToken(token: string): void { this.emailBody.set(this.emailBody() + token); }
 
