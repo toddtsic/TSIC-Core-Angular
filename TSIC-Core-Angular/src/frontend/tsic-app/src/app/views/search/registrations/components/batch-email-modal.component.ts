@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import type { BatchEmailResponse, JobOptionDto, FilterOption } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { EMAIL_TEMPLATE_CATEGORIES, type EmailTemplate } from '../email-templates';
 
 const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
@@ -50,6 +51,10 @@ export class BatchEmailModalComponent implements OnInit {
   sendResult = signal<BatchEmailResponse | null>(null);
   showConfirm = signal<boolean>(false);
 
+  // Email templates
+  readonly availableTemplates = computed(() => EMAIL_TEMPLATE_CATEGORIES);
+  selectedTemplateLabel = signal<string>('');
+
   // Invite link support
   inviteTargetJobs = signal<JobOptionDto[]>([]);
   clubRepInviteTargetJobs = signal<JobOptionDto[]>([]);
@@ -95,6 +100,23 @@ export class BatchEmailModalComponent implements OnInit {
     if (body.includes('!CLUBREP_INVITE_LINK')) return this.clubRepInviteTargetJobs();
     return this.inviteTargetJobs();
   });
+
+  onTemplateSelected(label: string): void {
+    this.selectedTemplateLabel.set(label);
+    if (!label) {
+      this.subject.set('');
+      this.bodyTemplate.set('');
+      return;
+    }
+    for (const cat of this.availableTemplates()) {
+      const tmpl = cat.templates.find(t => t.label === label);
+      if (tmpl) {
+        this.subject.set(tmpl.subject);
+        this.bodyTemplate.set(tmpl.body);
+        return;
+      }
+    }
+  }
 
   close(): void { this.closed.emit(); this.resetForm(); }
 
@@ -150,5 +172,6 @@ export class BatchEmailModalComponent implements OnInit {
     this.sendResult.set(null);
     this.showConfirm.set(false);
     this.selectedInviteTargetJobId.set(null);
+    this.selectedTemplateLabel.set('');
   }
 }
