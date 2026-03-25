@@ -17,7 +17,7 @@
 <div class="alert alert-info d-flex mb-4" role="alert">
 	<i class="bi bi-info-circle-fill me-2 mt-1"></i>
 	<div>
-		Teams registered in your event and teams listed on USClub Lacrosse often have different names.
+		Teams registered in your event and teams listed in national rankings often have different names.
 		AI matching compares club name, team color, graduation year, and state to figure out which ranked
 		team corresponds to which registered team. <strong>You</strong> review every proposed match, override
 		any that are wrong, manually match any it missed, and decide when to save. Nothing is written to your
@@ -70,7 +70,7 @@
 			<div class="row g-3 mb-4">
 				<!-- Scraped age group (from usclublax.com) -->
 				<div class="col-md-5">
-					<label class="form-label fw-medium">Ranked Age Group (usclublax.com)</label>
+					<label class="form-label fw-medium">National Rankings Source</label>
 					<select class="form-select"
 						[ngModel]="selectedScrapedAg()"
 						(ngModelChange)="selectedScrapedAg.set($event)">
