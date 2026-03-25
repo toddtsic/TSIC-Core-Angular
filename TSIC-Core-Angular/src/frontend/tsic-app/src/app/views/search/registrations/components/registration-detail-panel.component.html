@@ -354,60 +354,63 @@
           </div>
 
           @if (reg.accountingRecords && reg.accountingRecords.length > 0) {
-            <div class="table-responsive">
-              <table class="table table-sm accounting-table">
-                <thead>
-                  <tr><th>#</th><th>Date</th><th>Method</th><th>Due</th><th>Paid</th><th>Comment</th><th></th></tr>
-                </thead>
-                <tbody>
-                  @for (record of reg.accountingRecords; track record.aId; let idx = $index) {
-                    @if (editingAId() === record.aId) {
-                      <!-- Inline edit row -->
-                      <tr class="editing-row">
-                        <td>{{ idx + 1 }}</td>
-                        <td>{{ record.date | date:'short' }}</td>
-                        <td>{{ record.paymentMethod }}</td>
-                        <td>{{ record.dueAmount | currency }}</td>
-                        <td>{{ record.paidAmount | currency }}</td>
-                        <td>
+            <table class="table table-sm accounting-table mb-0">
+              <thead>
+                <tr>
+                  <th>Transaction</th>
+                  <th class="text-end">Due</th>
+                  <th class="text-end">Paid</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (record of reg.accountingRecords; track record.aId) {
+                  @if (editingAId() === record.aId) {
+                    <tr class="editing-row">
+                      <td>
+                        <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc-digits">****{{ record.adnCc4 }}</span>}</div>
+                      </td>
+                      <td class="text-end col-amount">{{ record.dueAmount | currency }}</td>
+                      <td class="text-end col-amount">{{ record.paidAmount | currency }}</td>
+                      <td></td>
+                    </tr>
+                    <tr class="editing-row edit-fields-row">
+                      <td colspan="4">
+                        <div class="acct-edit-fields">
                           <input type="text" class="form-control form-control-sm inline-edit"
                             [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
                             placeholder="Comment" [disabled]="isSavingEdit()" />
-                          <input type="text" class="form-control form-control-sm inline-edit mt-1"
+                          <input type="text" class="form-control form-control-sm inline-edit"
                             [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
                             placeholder="Check #" [disabled]="isSavingEdit()" />
-                        </td>
-                        <td class="edit-actions">
-                          <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
-                          <button type="button" class="btn btn-sm btn-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
-                        </td>
-                      </tr>
-                    } @else {
-                      <!-- Normal display row -->
-                      <tr>
-                        <td>{{ idx + 1 }}</td>
-                        <td>{{ record.date | date:'short' }}</td>
-                        <td>
-                          {{ record.paymentMethod }}
-                          @if (record.adnCc4) { <span class="text-muted"> (****{{ record.adnCc4 }})</span> }
-                        </td>
-                        <td>{{ record.dueAmount | currency }}</td>
-                        <td>{{ record.paidAmount | currency }}</td>
-                        <td><small class="text-muted">{{ record.comment || '—' }}</small></td>
-                        <td class="action-cell">
-                          @if (record.canRefund) {
-                            <button type="button" class="btn btn-sm btn-outline-danger" (click)="onRefundClick(record)">Refund</button>
-                          }
-                          @if (isEditable(record)) {
-                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="startEditRecord(record)">Edit</button>
-                          }
-                        </td>
-                      </tr>
-                    }
+                          <div class="edit-actions">
+                            <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  } @else {
+                    <tr>
+                      <td>
+                        <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc-digits">****{{ record.adnCc4 }}</span>}</div>
+                        @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
+                      </td>
+                      <td class="text-end col-amount">{{ record.dueAmount | currency }}</td>
+                      <td class="text-end col-amount text-success">{{ record.paidAmount | currency }}</td>
+                      <td class="col-actions">
+                        @if (record.canRefund) {
+                          <button type="button" class="btn-icon text-danger" title="Refund" (click)="onRefundClick(record)"><i class="bi bi-arrow-counterclockwise"></i></button>
+                        }
+                        @if (isEditable(record)) {
+                          <button type="button" class="btn-icon text-muted" title="Edit" (click)="startEditRecord(record)"><i class="bi bi-pencil"></i></button>
+                        }
+                      </td>
+                    </tr>
                   }
-                </tbody>
-              </table>
-            </div>
+                }
+              </tbody>
+            </table>
           } @else {
             <div class="alert alert-info">No accounting records found.</div>
           }
