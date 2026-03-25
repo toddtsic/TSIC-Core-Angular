@@ -81,7 +81,7 @@
               @if (isPlayerRole() && hasFamilyLink()) {
                 <div class="family-contact-row">
                   <div class="family-contact-col">
-                    <span class="family-label">{{ reg.momLabel || 'Mom' }}</span>
+                    <span class="family-label">Contact/Parent 1</span>
                     @if (familyName('mom'); as name) {
                       <span class="family-name">{{ name }}</span>
                     }
@@ -101,7 +101,7 @@
                     </div>
                   </div>
                   <div class="family-contact-col">
-                    <span class="family-label">{{ reg.dadLabel || 'Dad' }}</span>
+                    <span class="family-label">Contact/Parent 2</span>
                     @if (familyName('dad'); as name) {
                       <span class="family-name">{{ name }}</span>
                     }
@@ -123,28 +123,32 @@
                 </div>
               }
 
-              <!-- Demographics (read-only, inline within contact card) -->
-              @if (hasValue(demographics().dateOfBirth) || hasValue(demographics().gender) || formatAddress()) {
+              <!-- Demographics -->
+              <div class="contact-row">
+                <div class="form-group">
+                  <label for="contact-dob" class="form-label">Date of Birth</label>
+                  <input id="contact-dob" type="date" class="form-control form-control-sm"
+                    [ngModel]="demographics().dateOfBirth" (ngModelChange)="updateDemographicsField('dateOfBirth', $event)"
+                    name="dateOfBirth">
+                </div>
+                <div class="form-group">
+                  <label for="contact-gender" class="form-label">Gender</label>
+                  <select id="contact-gender" class="form-control form-control-sm"
+                    [ngModel]="demographics().gender" (ngModelChange)="updateDemographicsField('gender', $event)"
+                    name="gender">
+                    <option value="">— Select —</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                  </select>
+                </div>
+              </div>
+              @if (formatAddress(); as addr) {
                 <div class="contact-demographics">
                   <div class="info-grid">
-                    @if (hasValue(demographics().dateOfBirth)) {
-                      <div class="info-item">
-                        <span class="info-label">Date of Birth</span>
-                        <span class="info-value">{{ demographics().dateOfBirth | date:'mediumDate' }}</span>
-                      </div>
-                    }
-                    @if (hasValue(demographics().gender)) {
-                      <div class="info-item">
-                        <span class="info-label">Gender</span>
-                        <span class="info-value">{{ demographics().gender }}</span>
-                      </div>
-                    }
-                    @if (formatAddress(); as addr) {
-                      <div class="info-item info-item-full">
-                        <span class="info-label">Address</span>
-                        <span class="info-value">{{ addr }}</span>
-                      </div>
-                    }
+                    <div class="info-item info-item-full">
+                      <span class="info-label">Address</span>
+                      <span class="info-value">{{ addr }}</span>
+                    </div>
                   </div>
                 </div>
               }
