@@ -190,8 +190,8 @@
 											<td>{{ match.registeredTeam.teamName }}</td>
 											<td>{{ match.registeredTeam.clubName }}</td>
 											<td>
-											@if (match.registeredTeam.teamComments) {
-												<code>{{ match.registeredTeam.teamComments }}</code>
+											@if (match.registeredTeam.nationalRankingData) {
+												<span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>saved</span>
 											} @else {
 												<span class="badge bg-warning-subtle text-warning">unsaved</span>
 											}
