@@ -455,30 +455,14 @@
 									<td>{{ match.registeredTeam.teamName }}</td>
 									<td>{{ match.registeredTeam.clubName }}</td>
 									<td>
-										@if (editingTeamId() === match.registeredTeam.teamId) {
-											<input class="form-control form-control-sm"
-												[ngModel]="editComment()"
-												(ngModelChange)="editComment.set($event)">
-										} @else {
-											<code>{{ match.ranking.rank.toString().padStart(3, '0') }}:{{ match.ranking.team }}</code>
-										}
+										#{{ match.ranking.rank }} {{ match.ranking.team }} &mdash; Rating: {{ match.ranking.rating | number:'1.2-2' }}
 									</td>
 									<td>
-										@if (editingTeamId() === match.registeredTeam.teamId) {
-											<button class="btn btn-sm btn-success me-1"
-												(click)="saveEdit(match.registeredTeam.teamId)">
-												<i class="bi bi-check"></i>
-											</button>
-											<button class="btn btn-sm btn-outline-secondary"
-												(click)="cancelEdit()">
-												<i class="bi bi-x"></i>
-											</button>
-										} @else {
-											<button class="btn btn-sm btn-outline-primary"
-												(click)="startEdit(match)">
-												<i class="bi bi-pencil"></i>
-											</button>
-										}
+										<button class="btn btn-sm btn-outline-primary"
+											(click)="saveEdit(match.registeredTeam.teamId)"
+											title="Re-save this ranking to the team">
+											<i class="bi bi-cloud-upload me-1"></i>Re-save
+										</button>
 									</td>
 								</tr>
 							}
