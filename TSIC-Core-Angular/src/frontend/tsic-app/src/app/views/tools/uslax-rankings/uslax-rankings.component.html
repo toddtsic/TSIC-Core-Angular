@@ -67,6 +67,12 @@
 @if (activeTab() === 'align') {
 	<div class="card shadow-sm">
 		<div class="card-body">
+			<p class="text-body-secondary small mb-3">
+				<i class="bi bi-lightbulb me-1"></i>
+				Select a national ranking age group and your event's age group, then click <strong>Find Matches</strong>.
+				The AI will propose matches &mdash; review the results below, manually fix any misses, then move to
+				<strong>Save to Teams</strong> when you're satisfied.
+			</p>
 			<div class="row g-3 mb-4">
 				<!-- Scraped age group (from usclublax.com) -->
 				<div class="col-md-5">
@@ -321,9 +327,10 @@
 	<div class="card shadow-sm">
 		<div class="card-body">
 			@if (hasResults()) {
-				<p class="text-body-secondary mb-3">
-					Choose which matches to save. Only matches above your chosen confidence threshold will be written.
-					Review the list below, then click <strong>Save</strong> when you're ready &mdash; nothing is committed until you do.
+				<p class="text-body-secondary small mb-3">
+					<i class="bi bi-lightbulb me-1"></i>
+					Choose a confidence threshold to filter which AI matches to keep. Review the list below,
+					then click <strong>Save</strong> when you're ready &mdash; nothing is written to your teams until you do.
 				</p>
 
 				<!-- Confidence selector -->
@@ -415,8 +422,9 @@
 @if (activeTab() === 'manage') {
 	<div class="card shadow-sm">
 		<div class="card-body">
-			<p class="text-body-secondary mb-3">
-				Edit or clear saved ranking data for individual teams.
+			<p class="text-body-secondary small mb-3">
+				<i class="bi bi-lightbulb me-1"></i>
+				View and edit ranking data already saved to your teams, or clear all rankings for an age group to start over.
 			</p>
 
 			@if (matchedTeams().length > 0) {
