@@ -330,11 +330,14 @@
 	<div class="card shadow-sm">
 		<div class="card-body">
 			@if (hasResults()) {
-				<p class="text-body-secondary small mb-3">
-					<i class="bi bi-lightbulb me-1"></i>
-					Choose a confidence threshold to filter which AI matches to keep. Review the list below,
-					then click <strong>Save</strong> when you're ready &mdash; nothing is written to your teams until you do.
-				</p>
+				<div class="alert alert-primary d-flex mb-3 py-2">
+					<i class="bi bi-signpost-split fs-5 me-2 mt-1"></i>
+					<div>
+						<strong>Step 1:</strong> Choose a confidence threshold &mdash; <strong>High</strong> (75%+) keeps only strong matches, <strong>Medium</strong> (50%+) includes more<br>
+						<strong>Step 2:</strong> Review the filtered list below &mdash; these are the matches that will be saved<br>
+						<strong>Step 3:</strong> Click <strong class="text-primary">Save Rankings</strong> &mdash; any manual overrides you made on the Match Rankings tab are included automatically. Nothing is written until you do
+					</div>
+				</div>
 
 				<!-- Confidence selector -->
 				<div class="mb-4">
@@ -425,10 +428,14 @@
 @if (activeTab() === 'manage') {
 	<div class="card shadow-sm">
 		<div class="card-body">
-			<p class="text-body-secondary small mb-3">
-				<i class="bi bi-lightbulb me-1"></i>
-				View and edit ranking data already saved to your teams, or clear all rankings for an age group to start over.
-			</p>
+			<div class="alert alert-primary d-flex mb-3 py-2">
+				<i class="bi bi-signpost-split fs-5 me-2 mt-1"></i>
+				<div>
+					Rankings shown here have already been saved to your teams. You can:<br>
+					<strong>Edit</strong> &mdash; change an individual team's ranking data<br>
+					<strong>Clear All</strong> &mdash; remove all saved rankings for an age group to start over
+				</div>
+			</div>
 
 			@if (matchedTeams().length > 0) {
 				<div class="table-responsive mb-4">
