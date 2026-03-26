@@ -180,7 +180,7 @@
 										<th>Club</th>
 										<th>Saved</th>
 										<th style="width: 90px">Confidence</th>
-										<th style="width: 90px"></th>
+										<th style="width: 90px">Override</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -218,8 +218,8 @@
 													<button class="btn btn-outline-secondary btn-sm"
 														(click)="startReassign(match.registeredTeam.teamId)"
 														[disabled]="unmatchedRankings().length === 0"
-														title="Reassign to different ranking">
-														<i class="bi bi-arrow-repeat"></i>
+														title="Wrong match? Pick a different ranking for this team">
+														<i class="bi bi-pencil-square me-1"></i>Change
 													</button>
 												}
 											</td>
