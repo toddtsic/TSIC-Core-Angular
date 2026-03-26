@@ -11,7 +11,6 @@ export type RankingsTeamDto = {
     agegroupName?: string | null;
     gradYearMin?: number | null;
     gradYearMax?: number | null;
-    teamComments?: string | null;
     nationalRankingData?: string | null;
 };
 

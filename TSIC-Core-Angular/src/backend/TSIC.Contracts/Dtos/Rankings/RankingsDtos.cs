@@ -48,7 +48,6 @@ public record RankingsTeamDto
     public string? AgegroupName { get; init; }
     public int? GradYearMin { get; init; }
     public int? GradYearMax { get; init; }
-    public string? TeamComments { get; init; }
     public string? NationalRankingData { get; init; }
 }
 

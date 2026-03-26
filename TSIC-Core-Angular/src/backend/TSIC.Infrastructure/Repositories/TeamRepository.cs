@@ -951,7 +951,6 @@ public class TeamRepository : ITeamRepository
                 AgegroupName = t.Agegroup.AgegroupName ?? "",
                 GradYearMin = t.Agegroup.GradYearMin,
                 GradYearMax = t.Agegroup.GradYearMax,
-                TeamComments = t.TeamComments,
                 NationalRankingData = t.NationalRankingData
             })
             .ToListAsync(ct);
