@@ -81,7 +81,7 @@
 				<div class="selector-field">
 					<label class="form-label fw-bold"><i class="bi bi-globe2 me-1 text-primary"></i>National Rankings Agegroups</label>
 					<select class="form-select form-select-sm"
-						[ngModel]="selectedScrapedAg()" (ngModelChange)="selectedScrapedAg.set($event)">
+						[ngModel]="selectedScrapedAg()" (ngModelChange)="onScrapedAgChange($event)">
 						<option value="">Select ranking age group...</option>
 						@for (ag of scrapedAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
 					</select>
@@ -89,7 +89,7 @@
 				<div class="selector-field">
 					<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
 					<select class="form-select form-select-sm"
-						[ngModel]="selectedRegisteredAg()" (ngModelChange)="selectedRegisteredAg.set($event)">
+						[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
 						<option value="">Select your event's age group...</option>
 						@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
 					</select>
@@ -98,6 +98,7 @@
 					<button class="btn btn-primary btn-sm btn-find"
 						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
 						@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Matching... }
+						@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Re-Match }
 						@else { <i class="bi bi-stars me-1"></i>Find Matches }
 					</button>
 					<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()"
@@ -165,7 +166,7 @@
 									<th class="sortable-th" style="width:55px" (click)="toggleSort('rank')">Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
 									<th class="sortable-th" (click)="toggleSort('rankedAs')">Ranked As <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
 									<th class="sortable-th" style="width:80px" (click)="toggleSort('conf')">Conf. <i class="bi" [class]="sortIcon('conf')"></i></th>
-									<th style="width:85px">Action</th>
+									<th style="width:70px">Action</th>
 								</tr></thead>
 								<tbody>
 									@for (row of filteredTableRows(); track row.team.teamId; let idx = $index) {
@@ -185,8 +186,12 @@
 														<button class="btn btn-outline-danger btn-sm btn-action" (click)="undoMatch(row.match!)"><i class="bi bi-x-circle me-1"></i>Undo</button>
 													} @else {
 														<button class="btn btn-outline-secondary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
-															[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
-															<i class="bi bi-pencil-square me-1"></i>Change</button>
+															[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0"
+															title="Reassign to a different ranking">
+															<i class="bi bi-pencil-square"></i></button>
+														<button class="btn btn-outline-danger btn-sm btn-action ms-1" (click)="undoMatch(row.match!)"
+															title="Remove match">
+															<i class="bi bi-x-circle"></i></button>
 													}
 												</td>
 											} @else {
@@ -202,34 +207,41 @@
 						</div>
 					</div>
 
-					@if (allRankings().length > 0) {
+					@if (unmatchedRankings().length > 0) {
 						<div class="sidebar-panel" [class.sidebar-active]="activeMatchTeamId() !== null">
 							<div class="sidebar-header">
-								<span class="sidebar-title">Nationally Ranked Teams for {{ selectedScrapedAgName() }}</span>
-								<span class="badge bg-secondary">{{ allRankings().length }}</span>
+								<span class="sidebar-title">Unmatched National Rankings for {{ selectedScrapedAgName() }}</span>
+								<span class="badge bg-secondary">{{ unmatchedRankings().length }}</span>
 							</div>
 							@if (activeMatchTeamId()) {
-								<div class="sidebar-hint"><i class="bi bi-cursor-fill me-1"></i>Click any ranking to assign</div>
+								<div class="sidebar-hint"><i class="bi bi-cursor-fill me-1"></i>Click to assign</div>
 							}
 							<div class="sidebar-search">
 								<input type="text" class="form-control form-control-sm" placeholder="Filter..."
 									[ngModel]="sidebarSearch()" (ngModelChange)="sidebarSearch.set($event)">
 							</div>
+							<div class="sidebar-col-headers">
+								<span class="sidebar-col sortable-col" (click)="toggleSidebarSort('rank')"># <i class="bi" [class]="sidebarSortIcon('rank')"></i></span>
+								<span class="sidebar-col sidebar-col-team sortable-col" (click)="toggleSidebarSort('team')">Team <i class="bi" [class]="sidebarSortIcon('team')"></i></span>
+								<span class="sidebar-col sidebar-col-state sortable-col" (click)="toggleSidebarSort('state')">St <i class="bi" [class]="sidebarSortIcon('state')"></i></span>
+								<span class="sidebar-col sidebar-col-stat">W-L</span>
+								<span class="sidebar-col sidebar-col-stat sortable-col" (click)="toggleSidebarSort('rating')">Rtg <i class="bi" [class]="sidebarSortIcon('rating')"></i></span>
+								<span class="sidebar-col sidebar-col-stat">AGD</span>
+								<span class="sidebar-col sidebar-col-stat">Sch</span>
+							</div>
 							<div class="sidebar-list">
-								@for (sr of filteredSidebarRankings(); track sr.ranking.rank) {
+								@for (r of filteredSidebarRankings(); track r.rank) {
 									<button class="sidebar-item"
 										[class.sidebar-item-active]="activeMatchTeamId() !== null"
-										[class.sidebar-item-assigned]="sr.assignedToTeam !== null"
 										[disabled]="activeMatchTeamId() === null"
-										(click)="assignRankingToActiveTeam(sr)">
-										<span class="sidebar-rank">#{{ sr.ranking.rank }}</span>
-										<span class="sidebar-team">
-											{{ sr.ranking.team }}
-											@if (sr.assignedToTeam) {
-												<span class="sidebar-assigned">→ {{ sr.assignedToTeam }}</span>
-											}
-										</span>
-										<span class="sidebar-meta">{{ sr.ranking.state }} · {{ sr.ranking.rating | number:'1.1-1' }}</span>
+										(click)="assignRankingToActiveTeam(r)">
+										<span class="sidebar-rank">#{{ r.rank }}</span>
+										<span class="sidebar-team">{{ r.team }}</span>
+										<span class="sidebar-state">{{ r.state }}</span>
+										<span class="sidebar-stat">{{ r.record }}</span>
+										<span class="sidebar-stat">{{ r.rating | number:'1.1-1' }}</span>
+										<span class="sidebar-stat">{{ r.agd | number:'1.1-1' }}</span>
+										<span class="sidebar-stat">{{ r.sched | number:'1.1-1' }}</span>
 									</button>
 								}
 							</div>

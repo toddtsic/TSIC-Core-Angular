@@ -39,12 +39,6 @@ type SaveThreshold = 'high' | 'medium' | 'all';
 type SortCol = 'team' | 'club' | 'rank' | 'rankedAs' | 'conf';
 type SortDir = 'asc' | 'desc';
 
-/** Sidebar ranking with optional assignment info */
-interface SidebarRanking {
-	ranking: RankingEntryDto;
-	assignedToTeam: string | null;  // team name if assigned, null if available
-}
-
 /** Sentinel score for manually matched teams */
 const MANUAL_MATCH_SCORE = -1;
 
@@ -87,7 +81,6 @@ export class UsLaxRankingsComponent {
 	readonly matchedTeams = signal<AlignedTeamDto[]>([]);
 	readonly unmatchedRankings = signal<RankingEntryDto[]>([]);
 	readonly unmatchedTeams = signal<RankingsTeamDto[]>([]);
-	readonly allRankings = signal<RankingEntryDto[]>([]);
 	readonly totalTeamsInAgeGroup = signal(0);
 
 	// ── Match interaction: single signal for which team row is in "pick a ranking" mode ──
@@ -96,11 +89,13 @@ export class UsLaxRankingsComponent {
 	// ── Toolbar filters ──
 	readonly tableFilter = signal<TableFilter>('all');
 	readonly sidebarSearch = signal('');
+	readonly sidebarSortCol = signal<'rank' | 'team' | 'state' | 'rating'>('team');
+	readonly sidebarSortDir = signal<SortDir>('asc');
 	readonly saveThreshold = signal<SaveThreshold>('high');
 
 	// ── Sort ──
-	readonly sortCol = signal<SortCol | null>('rank');
-	readonly sortDir = signal<SortDir>('asc');
+	readonly sortCol = signal<SortCol | null>('conf');
+	readonly sortDir = signal<SortDir>('desc');
 
 	// ── Saved Rankings tab ──
 	readonly savedTeams = signal<RankingsTeamDto[]>([]);
@@ -173,29 +168,27 @@ export class UsLaxRankingsComponent {
 		});
 	});
 
-	// ── Computed: all sidebar rankings with assignment status ──
-	readonly sidebarRankings = computed<SidebarRanking[]>(() => {
-		const all = this.allRankings();
-		const matched = this.matchedTeams();
-		const assignmentMap = new Map<number, string>();
-		for (const m of matched) {
-			assignmentMap.set(m.ranking.rank, m.registeredTeam.teamName);
-		}
-		return all.map(r => ({
-			ranking: r,
-			assignedToTeam: assignmentMap.get(r.rank) ?? null
-		}));
-	});
-
+	// ── Computed: filtered + sorted sidebar rankings (unmatched only) ──
 	readonly filteredSidebarRankings = computed(() => {
-		const rankings = this.sidebarRankings();
+		let rankings = this.unmatchedRankings();
 		const search = this.sidebarSearch().trim().toLowerCase();
-		if (!search) return rankings;
-		return rankings.filter(r =>
-			r.ranking.team.toLowerCase().includes(search) ||
-			r.ranking.state.toLowerCase().includes(search) ||
-			String(r.ranking.rank).includes(search) ||
-			(r.assignedToTeam?.toLowerCase().includes(search) ?? false));
+		if (search) {
+			rankings = rankings.filter(r =>
+				r.team.toLowerCase().includes(search) ||
+				r.state.toLowerCase().includes(search) ||
+				String(r.rank).includes(search));
+		}
+		const col = this.sidebarSortCol();
+		const mult = this.sidebarSortDir() === 'asc' ? 1 : -1;
+		return [...rankings].sort((a, b) => {
+			switch (col) {
+				case 'rank': return (a.rank - b.rank) * mult;
+				case 'team': return a.team.localeCompare(b.team) * mult;
+				case 'state': return a.state.localeCompare(b.state) * mult;
+				case 'rating': return (a.rating - b.rating) * mult;
+				default: return 0;
+			}
+		});
 	});
 
 	// ── Computed: counts for summary chips ──
@@ -292,6 +285,24 @@ export class UsLaxRankingsComponent {
 		});
 	}
 
+	// ── Dropdown change handlers ──
+
+	onScrapedAgChange(value: string): void {
+		this.selectedScrapedAg.set(value);
+		this.autoAlign();
+	}
+
+	onRegisteredAgChange(value: string): void {
+		this.selectedRegisteredAg.set(value);
+		this.autoAlign();
+	}
+
+	private autoAlign(): void {
+		if (this.selectedScrapedAg() && this.selectedRegisteredAg() && !this.hasResults()) {
+			this.align();
+		}
+	}
+
 	// ── Align ──
 
 	align(): void {
@@ -314,7 +325,6 @@ export class UsLaxRankingsComponent {
 		this.matchedTeams.set([]);
 		this.unmatchedRankings.set([]);
 		this.unmatchedTeams.set([]);
-		this.allRankings.set([]);
 		this.activeMatchTeamId.set(null);
 		this.tableFilter.set('all');
 
@@ -324,12 +334,6 @@ export class UsLaxRankingsComponent {
 				this.matchedTeams.set([...result.alignedTeams]);
 				this.unmatchedRankings.set([...result.unmatchedRankings]);
 				this.unmatchedTeams.set([...result.unmatchedTeams]);
-				// All rankings = matched rankings + unmatched rankings (full list, never shrinks)
-				const allRanked = [
-					...result.alignedTeams.map(a => a.ranking),
-					...result.unmatchedRankings
-				].sort((a, b) => a.rank - b.rank);
-				this.allRankings.set(allRanked);
 				this.totalTeamsInAgeGroup.set(result.totalTeamsInAgeGroup);
 				this.isLoading.set(false);
 				if (!result.success) {
@@ -350,44 +354,35 @@ export class UsLaxRankingsComponent {
 	}
 
 	/** Called when user clicks a ranking in the sidebar while a team row is active.
-	 *  Handles all cases: new match, reassign, and stealing a ranking from another team. */
-	assignRankingToActiveTeam(sidebarItem: SidebarRanking): void {
+	 *  Handles new match and reassign (sidebar only shows unmatched rankings). */
+	assignRankingToActiveTeam(ranking: RankingEntryDto): void {
 		const teamId = this.activeMatchTeamId();
 		if (!teamId) return;
 
-		const ranking = sidebarItem.ranking;
-		let matched = [...this.matchedTeams()];
-		let unmatchedT = [...this.unmatchedTeams()];
-		let unmatchedR = [...this.unmatchedRankings()];
+		// Check if this is a reassignment (team already matched) or new match
+		const existingMatch = this.matchedTeams().find(m => m.registeredTeam.teamId === teamId);
+		const unmatchedTeam = this.unmatchedTeams().find(t => t.teamId === teamId);
 
-		// 1. If this ranking is currently assigned to another team, cascade: that team becomes unmatched
-		const currentHolder = matched.find(m => m.ranking.rank === ranking.rank);
-		if (currentHolder && currentHolder.registeredTeam.teamId !== teamId) {
-			matched = matched.filter(m => m !== currentHolder);
-			unmatchedT = [...unmatchedT, currentHolder.registeredTeam];
-		}
-
-		// 2. If the target team already has a match, return its old ranking to unmatched
-		const targetMatch = matched.find(m => m.registeredTeam.teamId === teamId);
-		if (targetMatch) {
-			unmatchedR = [...unmatchedR.filter(r => r.rank !== ranking.rank), targetMatch.ranking];
-			matched = matched.map(m =>
+		if (existingMatch) {
+			// Reassign: return old ranking to sidebar, assign new one
+			this.unmatchedRankings.set(
+				[...this.unmatchedRankings().filter(r => r.rank !== ranking.rank), existingMatch.ranking]
+					.sort((a, b) => a.rank - b.rank));
+			this.matchedTeams.set(this.matchedTeams().map(m =>
 				m.registeredTeam.teamId === teamId
-					? { ranking, registeredTeam: m.registeredTeam, matchScore: MANUAL_MATCH_SCORE, matchReason: 'Manual assignment by user' }
-					: m);
-		} else {
-			// 3. Target team was unmatched — create new match
-			const team = unmatchedT.find(t => t.teamId === teamId);
-			if (!team) { this.activeMatchTeamId.set(null); return; }
-			matched = [...matched, { ranking, registeredTeam: team, matchScore: MANUAL_MATCH_SCORE, matchReason: 'Manual match by user' }];
-			unmatchedT = unmatchedT.filter(t => t.teamId !== teamId);
-			unmatchedR = unmatchedR.filter(r => r.rank !== ranking.rank);
+					? { ranking, registeredTeam: m.registeredTeam, matchScore: MANUAL_MATCH_SCORE, matchReason: 'Manual reassignment by user' }
+					: m));
+			this.persistRanking(teamId, ranking, MANUAL_MATCH_SCORE);
+		} else if (unmatchedTeam) {
+			// New manual match
+			this.matchedTeams.set([...this.matchedTeams(), {
+				ranking, registeredTeam: unmatchedTeam, matchScore: MANUAL_MATCH_SCORE, matchReason: 'Manual match by user'
+			}]);
+			this.unmatchedRankings.set(this.unmatchedRankings().filter(r => r.rank !== ranking.rank));
+			this.unmatchedTeams.set(this.unmatchedTeams().filter(t => t.teamId !== teamId));
+			this.persistRanking(teamId, ranking, MANUAL_MATCH_SCORE);
 		}
 
-		this.matchedTeams.set(matched);
-		this.unmatchedTeams.set(unmatchedT);
-		this.unmatchedRankings.set(unmatchedR.sort((a, b) => a.rank - b.rank));
-		this.persistRanking(teamId, ranking, MANUAL_MATCH_SCORE);
 		this.activeMatchTeamId.set(null);
 	}
 
@@ -601,6 +596,20 @@ export class UsLaxRankingsComponent {
 	}
 
 	// ── Filter + Sort ──
+
+	toggleSidebarSort(col: 'rank' | 'team' | 'state' | 'rating'): void {
+		if (this.sidebarSortCol() === col) {
+			this.sidebarSortDir.set(this.sidebarSortDir() === 'asc' ? 'desc' : 'asc');
+		} else {
+			this.sidebarSortCol.set(col);
+			this.sidebarSortDir.set('asc');
+		}
+	}
+
+	sidebarSortIcon(col: string): string {
+		if (this.sidebarSortCol() !== col) return 'bi-chevron-expand';
+		return this.sidebarSortDir() === 'asc' ? 'bi-chevron-up' : 'bi-chevron-down';
+	}
 
 	setFilter(filter: TableFilter): void {
 		this.tableFilter.set(filter);

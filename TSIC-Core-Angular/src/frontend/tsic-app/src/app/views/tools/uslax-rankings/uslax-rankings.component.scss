@@ -214,7 +214,7 @@
 }
 
 .sidebar-panel {
-	width: 280px; flex-shrink: 0;
+	width: 440px; flex-shrink: 0;
 	border: 1px solid var(--bs-border-color); border-radius: var(--radius-md);
 	background: var(--bs-card-bg);
 	display: flex; flex-direction: column; max-height: 560px;
@@ -232,6 +232,36 @@
 .sidebar-title { font-size: var(--font-size-xs); font-weight: 700; color: var(--bs-body-color); line-height: var(--line-height-tight); }
 .sidebar-hint { padding: var(--space-1) var(--space-2); font-size: var(--font-size-xs); font-weight: 600; color: var(--bs-primary); background: color-mix(in srgb, var(--bs-primary) 8%, var(--bs-card-bg)); border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 15%, var(--bs-border-color)); }
 .sidebar-search { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--bs-border-color-translucent); }
+.sidebar-col-headers {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: 2px var(--space-2);
+	border-bottom: 2px solid var(--bs-border-color);
+	background: var(--bg-elevated);
+}
+
+.sidebar-col {
+	font-size: 9px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--bs-secondary-color);
+	white-space: nowrap;
+	min-width: 28px;
+
+	&.sidebar-col-team { flex: 1; }
+	&.sidebar-col-state { min-width: 22px; text-align: center; }
+	&.sidebar-col-stat { min-width: 34px; text-align: right; }
+}
+
+.sortable-col {
+	cursor: pointer;
+	user-select: none;
+	&:hover { color: var(--bs-primary); }
+	.bi { font-size: 8px; opacity: 0.5; margin-left: 1px; }
+}
+
 .sidebar-list { overflow-y: auto; flex: 1; }
 .sidebar-item {
 	display: flex; align-items: baseline; gap: var(--space-1); width: 100%; padding: 3px var(--space-2);
@@ -242,19 +272,9 @@
 }
 .sidebar-rank { font-weight: 700; color: var(--bs-body-color); min-width: 28px; }
 .sidebar-team { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sidebar-meta { font-size: 10px; color: var(--bs-secondary-color); white-space: nowrap; }
+.sidebar-state { min-width: 22px; text-align: center; color: var(--bs-secondary-color); }
+.sidebar-stat { min-width: 34px; text-align: right; color: var(--bs-secondary-color); font-size: 10px; }
 
-.sidebar-item-assigned {
-	opacity: 0.55;
-	.sidebar-rank { color: var(--bs-secondary-color); }
-}
-
-.sidebar-assigned {
-	font-size: 10px;
-	color: var(--bs-success);
-	font-weight: 600;
-	margin-left: var(--space-1);
-}
 
 // ═══════════════════ Table ═══════════════════
 
