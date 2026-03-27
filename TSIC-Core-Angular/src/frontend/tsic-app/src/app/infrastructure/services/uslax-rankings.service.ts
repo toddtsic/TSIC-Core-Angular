@@ -8,6 +8,7 @@ import type {
 	AlignmentResultDto,
 	ImportRankingsRequest,
 	ImportRankingsResultDto,
+	RankingsTeamDto,
 	UpdateTeamRankingRequest
 } from '@core/api';
 
@@ -24,6 +25,11 @@ export class UsLaxRankingsService {
 	/** Get registered age groups from the current job */
 	getRegisteredAgeGroups(): Observable<AgeGroupOptionDto[]> {
 		return this.http.get<AgeGroupOptionDto[]>(`${this.base}/registered-age-groups`);
+	}
+
+	/** Get teams with saved ranking data for an age group */
+	getSavedRankings(agegroupId: string): Observable<RankingsTeamDto[]> {
+		return this.http.get<RankingsTeamDto[]>(`${this.base}/saved-rankings/${agegroupId}`);
 	}
 
 	/** Scrape rankings for specific parameters */

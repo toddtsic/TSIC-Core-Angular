@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { UsLaxRankingsService } from '@infrastructure/services/uslax-rankings.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -33,7 +34,7 @@ interface MasterRow {
 	match: AlignedTeamDto | null;
 }
 
-type TabId = 'match' | 'saved';
+// Single-tab page now — TabId kept for future extensibility
 type TableFilter = 'all' | 'unmatched' | 'high' | 'medium';
 type SaveThreshold = 'high' | 'medium' | 'all';
 type SortCol = 'team' | 'club' | 'rank' | 'rankedAs' | 'conf';
@@ -45,7 +46,7 @@ const MANUAL_MATCH_SCORE = -1;
 @Component({
 	selector: 'app-uslax-rankings',
 	standalone: true,
-	imports: [DecimalPipe, FormsModule, ConfirmDialogComponent],
+	imports: [DecimalPipe, FormsModule, RouterLink, ConfirmDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './uslax-rankings.component.html',
 	styleUrl: './uslax-rankings.component.scss'
@@ -56,8 +57,7 @@ export class UsLaxRankingsComponent {
 
 	readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'your event');
 
-	// ── Tab state ──
-	readonly activeTab = signal<TabId>('match');
+	// ── (single-page, no tabs) ──
 
 	// ── Dropdown options ──
 	readonly scrapedAgeGroups = signal<AgeGroupOptionDto[]>([]);
@@ -66,7 +66,6 @@ export class UsLaxRankingsComponent {
 	// ── Selections ──
 	readonly selectedScrapedAg = signal('');
 	readonly selectedRegisteredAg = signal('');
-	readonly savedTabAg = signal('');
 
 	// ── Loading / messages ──
 	readonly isLoading = signal(false);
@@ -97,9 +96,6 @@ export class UsLaxRankingsComponent {
 	readonly sortCol = signal<SortCol | null>('conf');
 	readonly sortDir = signal<SortDir>('desc');
 
-	// ── Saved Rankings tab ──
-	readonly savedTeams = signal<RankingsTeamDto[]>([]);
-	readonly savedTeamsLoading = signal(false);
 
 	// ── Dialogs ──
 	readonly showHelp = signal(false);
@@ -245,32 +241,6 @@ export class UsLaxRankingsComponent {
 		this.showSaveDropdown.set(false);
 	}
 
-	// ── Tab navigation ──
-
-	selectTab(tab: TabId): void {
-		this.activeTab.set(tab);
-		this.errorMessage.set(null);
-		this.successMessage.set(null);
-		if (tab === 'saved') {
-			this.loadSavedRankings();
-		}
-	}
-
-	loadSavedRankings(): void {
-		const agId = this.savedTabAg() || this.selectedRegisteredAg();
-		if (!agId) return;
-		this.savedTeamsLoading.set(true);
-		this.rankingsService.getSavedRankings(agId).subscribe({
-			next: teams => {
-				this.savedTeams.set(teams);
-				this.savedTeamsLoading.set(false);
-			},
-			error: (err: { error?: { message?: string } }) => {
-				this.savedTeamsLoading.set(false);
-				this.errorMessage.set(err.error?.message ?? 'Failed to load saved rankings.');
-			}
-		});
-	}
 
 	// ── Load age groups ──
 
@@ -527,8 +497,7 @@ export class UsLaxRankingsComponent {
 	// ── Clear rankings ──
 
 	confirmClearRankings(): void {
-		const ag = this.activeTab() === 'saved' ? this.savedTabAg() : this.selectedRegisteredAg();
-		if (!ag) {
+		if (!this.selectedRegisteredAg()) {
 			this.errorMessage.set('Select a registered age group first.');
 			return;
 		}
@@ -537,7 +506,7 @@ export class UsLaxRankingsComponent {
 
 	clearRankings(): void {
 		this.showClearConfirm.set(false);
-		const ag = this.activeTab() === 'saved' ? this.savedTabAg() : this.selectedRegisteredAg();
+		const ag = this.selectedRegisteredAg();
 		if (!ag) return;
 
 		this.isLoading.set(true);
@@ -549,24 +518,11 @@ export class UsLaxRankingsComponent {
 				this.successMessage.set('Team rankings cleared.');
 				this.matchedTeams.set(this.matchedTeams().map(m =>
 					({ ...m, registeredTeam: { ...m.registeredTeam, nationalRankingData: null } })));
-				if (this.activeTab() === 'saved') this.loadSavedRankings();
 			},
 			error: (err: { error?: { message?: string } }) => {
 				this.isLoading.set(false);
 				this.errorMessage.set(err.error?.message ?? 'Failed to clear rankings.');
 			}
-		});
-	}
-
-	/** Remove ranking data from a single team (Saved tab) */
-	removeSingleRanking(teamId: string): void {
-		this.rankingsService.updateTeamRanking(teamId, '').subscribe({
-			next: () => {
-				this.savedTeams.set(this.savedTeams().filter(t => t.teamId !== teamId));
-				this.successMessage.set('Ranking removed.');
-			},
-			error: (err: { error?: { message?: string } }) =>
-				this.errorMessage.set(err.error?.message ?? 'Failed to remove ranking.')
 		});
 	}
 
@@ -659,18 +615,20 @@ export class UsLaxRankingsComponent {
 		catch { return null; }
 	}
 
-	parseSavedRank(json: string | null | undefined): string {
-		const d = this.parseRankingData(json);
-		return d ? `#${d.rank}` : '—';
+	/** Returns drift info if saved rank differs from current match rank */
+	getSavedDrift(row: MasterRow): { savedRank: number; savedDate: string } | null {
+		if (!row.match) return null;
+		const saved = this.parseRankingData(row.team.nationalRankingData);
+		if (!saved) return null;
+		if (saved.rank === row.match.ranking.rank) return null;
+		const date = saved.matchedAt ? new Date(saved.matchedAt) : null;
+		const dateStr = date ? `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` : '';
+		return { savedRank: saved.rank, savedDate: dateStr };
 	}
 
-	parseSavedTeamName(json: string | null | undefined): string {
-		const d = this.parseRankingData(json);
-		return d?.team ?? '—';
+	/** True if this row has saved data (regardless of drift) */
+	isSaved(row: MasterRow): boolean {
+		return !!row.team.nationalRankingData;
 	}
 
-	parseSavedRating(json: string | null | undefined): string {
-		const d = this.parseRankingData(json);
-		return d ? d.rating.toFixed(2) : '—';
-	}
 }

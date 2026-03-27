@@ -73,6 +73,23 @@ public class USLaxRankingsController : ControllerBase
     }
 
     /// <summary>
+    /// Get teams with saved NationalRankingData for a specific age group.
+    /// Returns only teams that have ranking data persisted.
+    /// </summary>
+    [HttpGet("saved-rankings/{agegroupId:guid}")]
+    public async Task<ActionResult<List<RankingsTeamDto>>> GetSavedRankings(
+        Guid agegroupId,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest(new { message = "Unable to resolve job from token." });
+
+        var teams = await _teamRepo.GetTeamsForRankingsAsync(jobId.Value, agegroupId, ct);
+        var withRankings = teams.Where(t => t.NationalRankingData != null).ToList();
+        return Ok(withRankings);
+    }
+
+    /// <summary>
     /// Scrape rankings from usclublax.com for a specific age group.
     /// v = ranking version (20=Overall, 21=National), alpha = sort, yr = grad year
     /// </summary>

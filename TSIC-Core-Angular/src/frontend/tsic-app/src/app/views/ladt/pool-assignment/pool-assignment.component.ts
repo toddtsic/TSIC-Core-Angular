@@ -1,7 +1,9 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
+import { JobService } from '@infrastructure/services/job.service';
 import {
     PoolAssignmentService,
     PoolDivisionOptionDto,
@@ -32,7 +34,7 @@ type SortColumn = keyof PoolTeamDto | null;
 @Component({
     selector: 'app-pool-assignment',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, RouterLink],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './pool-assignment.component.html',
     styleUrl: './pool-assignment.component.scss'
@@ -40,6 +42,9 @@ type SortColumn = keyof PoolTeamDto | null;
 export class PoolAssignmentComponent {
     private readonly poolService = inject(PoolAssignmentService);
     private readonly toast = inject(ToastService);
+    private readonly jobService = inject(JobService);
+
+    readonly isLacrosseJob = computed(() => !!this.jobService.currentJob()?.usLaxNumberValidThroughDate);
 
     // Division options
     readonly divisionOptions = signal<PoolDivisionOptionDto[]>([]);

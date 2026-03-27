@@ -85,40 +85,15 @@
 	margin-top: var(--space-1);
 }
 
-// ═══════════════════ Stepper ═══════════════════
+// ═══════════════════ Workflow Hint ═══════════════════
 
-.stepper {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: var(--space-2) var(--space-4);
+.workflow-hint {
+	text-align: center;
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+	margin: 0;
+	padding: var(--space-1) var(--space-4);
 }
-
-.step { display: flex; align-items: center; gap: var(--space-2); }
-
-.step-dot {
-	width: 28px; height: 28px;
-	display: flex; align-items: center; justify-content: center;
-	border-radius: 50%;
-	font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);
-	border: 2px solid var(--bs-border-color);
-	color: var(--bs-secondary-color); background: var(--bs-card-bg);
-	transition: all 0.2s ease;
-}
-
-.step-text { font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--bs-secondary-color); }
-
-.step-active {
-	.step-dot { border-color: var(--bs-primary); background: var(--bs-primary); color: var(--neutral-0); box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.15); }
-	.step-text { color: var(--bs-body-color); font-weight: var(--font-weight-semibold); }
-}
-
-.step-done {
-	.step-dot { border-color: var(--bs-success); background: var(--bs-success); color: var(--neutral-0); }
-	.step-text { color: var(--bs-success); }
-}
-
-.step-line { width: 48px; height: 2px; background: var(--bs-border-color); margin: 0 var(--space-2); &.step-line-done { background: var(--bs-success); } }
 
 // ═══════════════════ Selector ═══════════════════
 
@@ -297,6 +272,14 @@
 	text-align: center;
 }
 
+.rank-drift {
+	display: block;
+	font-size: 9px;
+	font-weight: 400;
+	color: var(--bs-warning);
+	white-space: nowrap;
+}
+
 .row-unmatched { background: color-mix(in srgb, var(--bs-warning) 6%, transparent); }
 .row-manual { background: color-mix(in srgb, var(--bs-info) 8%, transparent); }
 .row-active { background: color-mix(in srgb, var(--bs-primary) 12%, transparent) !important; outline: 2px solid var(--bs-primary); outline-offset: -2px; }
@@ -317,10 +300,6 @@
 .confidence-medium { background-color: rgba(var(--bs-warning-rgb), 0.15); color: var(--bs-warning); }
 .confidence-low { background-color: rgba(var(--bs-danger-rgb), 0.15); color: var(--bs-danger); }
 
-// ═══════════════════ Saved Tab ═══════════════════
-
-.saved-panel { border: 1px solid var(--bs-border-color); border-radius: var(--radius-md); background: var(--bs-card-bg); overflow: hidden; margin: 0 var(--space-4); }
-.saved-footer { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--bs-border-color); }
 
 .empty-state { text-align: center; padding: var(--space-8) var(--space-4); color: var(--bs-secondary-color); p { margin-bottom: var(--space-3); } }
 .empty-state-icon { font-size: 2.5rem; display: block; margin-bottom: var(--space-2); opacity: 0.2; }
@@ -356,7 +335,5 @@
 	.action-bar { flex-direction: column; align-items: stretch; }
 	.filter-group { flex-wrap: wrap; justify-content: center; }
 	.help-dialog { width: 95vw; }
-	.stepper { flex-wrap: wrap; gap: var(--space-1); }
-	.step-line { width: 24px; }
 	.selector-panel, .score-cards, .action-bar, .match-layout, .match-hint, .saved-panel { margin-left: var(--space-2); margin-right: var(--space-2); }
 }

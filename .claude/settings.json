@@ -38,7 +38,9 @@
       "Bash(echo \"Copied wizards-v2/shared -> registration/shared\")",
       "Bash(mkdir -p $REG/entry)",
       "Bash(cp -r $REG/registration-entry/* $REG/entry/)",
-      "Bash(echo \"Copied registration-entry -> registration/entry\")"
+      "Bash(echo \"Copied registration-entry -> registration/entry\")",
+      "Bash(dotnet build:*)",
+      "Bash(npx ng:*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",

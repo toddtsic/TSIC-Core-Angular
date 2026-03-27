@@ -18,7 +18,10 @@
 			</div>
 		</div>
 		<div class="title-actions">
-			<button class="btn btn-outline-primary btn-sm" (click)="showHelp.set(true)">
+			<a class="btn btn-outline-primary btn-sm" routerLink="../../ladt/pool-assignment">
+				<i class="bi bi-grid-3x3-gap me-1"></i>Pool Assignment
+			</a>
+			<button class="btn btn-outline-secondary btn-sm" (click)="showHelp.set(true)">
 				<i class="bi bi-book me-1"></i>How It Works
 			</button>
 			@if (hasResults()) {
@@ -29,20 +32,7 @@
 		</div>
 	</div>
 
-	<!-- Tabs -->
-	<ul class="nav nav-tabs" role="tablist">
-		<li class="nav-item" role="presentation">
-			<button class="nav-link" [class.active]="activeTab() === 'match'" (click)="selectTab('match')" role="tab">
-				<i class="bi bi-bullseye me-1"></i>Match &amp; Review
-			</button>
-		</li>
-		<li class="nav-item" role="presentation">
-			<button class="nav-link" [class.active]="activeTab() === 'saved'" (click)="selectTab('saved')" role="tab">
-				<i class="bi bi-collection me-1"></i>Saved Rankings
-			</button>
-		</li>
-	</ul>
-
+	<!-- Messages -->
 	@if (errorMessage()) {
 		<div class="alert alert-danger d-flex align-items-center" role="alert">
 			<i class="bi bi-exclamation-triangle-fill me-2"></i>{{ errorMessage() }}
@@ -54,257 +44,196 @@
 		</div>
 	}
 
-	<!-- ═══════════════════ MATCH & REVIEW ═══════════════════ -->
-	@if (activeTab() === 'match') {
+	<!-- Workflow hint -->
+	<p class="workflow-hint">
+		<strong>Select</strong> age groups and match → <strong>Review</strong> and fix any misses → <strong>Save</strong> rankings to teams
+	</p>
 
-		<!-- Stepper -->
-		<div class="stepper">
-			<div class="step" [class.step-done]="hasResults()" [class.step-active]="!hasResults()">
-				<div class="step-dot">@if (hasResults()) { <i class="bi bi-check-lg"></i> } @else { 1 }</div>
-				<span class="step-text">Select &amp; Match</span>
+	<!-- Selector -->
+	<div class="selector-panel">
+		<div class="selector-row">
+			<div class="selector-field">
+				<label class="form-label fw-bold"><i class="bi bi-globe2 me-1 text-primary"></i>National Rankings Agegroups</label>
+				<select class="form-select form-select-sm"
+					[ngModel]="selectedScrapedAg()" (ngModelChange)="onScrapedAgChange($event)">
+					<option value="">Select ranking age group...</option>
+					@for (ag of scrapedAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
+				</select>
 			</div>
-			<div class="step-line" [class.step-line-done]="hasResults()"></div>
-			<div class="step" [class.step-active]="hasResults() && hasDirtyMatches()">
-				<div class="step-dot">2</div>
-				<span class="step-text">Review &amp; Fix</span>
+			<div class="selector-field">
+				<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
+				<select class="form-select form-select-sm"
+					[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
+					<option value="">Select your event's age group...</option>
+					@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
+				</select>
 			</div>
-			<div class="step-line"></div>
-			<div class="step">
-				<div class="step-dot">3</div>
-				<span class="step-text">Save to Teams</span>
-			</div>
-		</div>
-
-		<!-- Selector -->
-		<div class="selector-panel">
-			<div class="selector-row">
-				<div class="selector-field">
-					<label class="form-label fw-bold"><i class="bi bi-globe2 me-1 text-primary"></i>National Rankings Agegroups</label>
-					<select class="form-select form-select-sm"
-						[ngModel]="selectedScrapedAg()" (ngModelChange)="onScrapedAgChange($event)">
-						<option value="">Select ranking age group...</option>
-						@for (ag of scrapedAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
-					</select>
-				</div>
-				<div class="selector-field">
-					<label class="form-label fw-bold"><i class="bi bi-people me-1 text-primary"></i>{{ jobName() }} Agegroups</label>
-					<select class="form-select form-select-sm"
-						[ngModel]="selectedRegisteredAg()" (ngModelChange)="onRegisteredAgChange($event)">
-						<option value="">Select your event's age group...</option>
-						@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
-					</select>
-				</div>
-				<div class="selector-actions">
-					<button class="btn btn-primary btn-sm btn-find"
-						(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
-						@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Matching... }
-						@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Re-Match }
-						@else { <i class="bi bi-stars me-1"></i>Find Matches }
-					</button>
-					<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()"
-						[disabled]="isLoading() || !selectedRegisteredAg()" title="Clear all ranking data">
-						<i class="bi bi-trash"></i>
-					</button>
-				</div>
+			<div class="selector-actions">
+				<button class="btn btn-primary btn-sm btn-find"
+					(click)="align()" [disabled]="isLoading() || !selectedScrapedAg() || !selectedRegisteredAg()">
+					@if (isLoading()) { <span class="spinner-border spinner-border-sm me-1"></span>Matching... }
+					@else if (hasResults()) { <i class="bi bi-arrow-repeat me-1"></i>Re-Match }
+					@else { <i class="bi bi-stars me-1"></i>Find Matches }
+				</button>
+				<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()"
+					[disabled]="isLoading() || !selectedRegisteredAg()" title="Clear all ranking data">
+					<i class="bi bi-trash"></i>
+				</button>
 			</div>
 		</div>
+	</div>
 
-		<!-- Results -->
-		@if (alignment(); as result) {
-			@if (result.success) {
+	<!-- Results -->
+	@if (alignment(); as result) {
+		@if (result.success) {
 
-				<!-- Results Summary -->
-				<div class="results-bar">
-					Of <strong>{{ totalTeamsInAgeGroup() }}</strong> teams in <strong>{{ jobName() }}:{{ selectedAgName() }}</strong>,
-					<strong class="text-success">{{ matchedCount() }}</strong> matched by AI
-					(<strong class="text-primary">{{ formatPercent(matchRate()) }}</strong>),
-					<strong [class.text-warning]="unmatchedTeamCount() > 0">{{ unmatchedTeamCount() }}</strong> unmatched
+			<!-- Results Summary -->
+			<div class="results-bar">
+				Of <strong>{{ totalTeamsInAgeGroup() }}</strong> teams in <strong>{{ jobName() }}:{{ selectedAgName() }}</strong>,
+				<strong class="text-success">{{ matchedCount() }}</strong> matched by AI
+				(<strong class="text-primary">{{ formatPercent(matchRate()) }}</strong>),
+				<strong [class.text-warning]="unmatchedTeamCount() > 0">{{ unmatchedTeamCount() }}</strong> unmatched
+			</div>
+
+			<!-- Action Bar -->
+			<div class="action-bar">
+				<div class="filter-group">
+					<span class="filter-label">Show:</span>
+					<button class="filter-btn" [class.active]="tableFilter() === 'all'" (click)="setFilter('all')">All</button>
+					<button class="filter-btn" [class.active]="tableFilter() === 'high'" (click)="setFilter('high')">75%+</button>
+					<button class="filter-btn" [class.active]="tableFilter() === 'medium'" (click)="setFilter('medium')">50–74%</button>
+					<button class="filter-btn" [class.active]="tableFilter() === 'unmatched'" (click)="setFilter('unmatched')">
+						Unmatched @if (unmatchedTeamCount() > 0) { <span class="filter-badge">{{ unmatchedTeamCount() }}</span> }
+					</button>
 				</div>
-
-				<!-- Action Bar -->
-				<div class="action-bar">
-					<div class="filter-group">
-						<span class="filter-label">Show:</span>
-						<button class="filter-btn" [class.active]="tableFilter() === 'all'" (click)="setFilter('all')">All</button>
-						<button class="filter-btn" [class.active]="tableFilter() === 'high'" (click)="setFilter('high')">75%+</button>
-						<button class="filter-btn" [class.active]="tableFilter() === 'medium'" (click)="setFilter('medium')">50–74%</button>
-						<button class="filter-btn" [class.active]="tableFilter() === 'unmatched'" (click)="setFilter('unmatched')">
-							Unmatched @if (unmatchedTeamCount() > 0) { <span class="filter-badge">{{ unmatchedTeamCount() }}</span> }
+				@if (hasDirtyMatches()) {
+					<div class="save-dropdown-wrapper">
+						<button class="btn btn-success btn-sm save-btn" (click)="toggleSaveDropdown()" [disabled]="isSaving()">
+							@if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span>Saving... }
+							@else { <i class="bi bi-cloud-upload me-1"></i>Save Rankings <i class="bi bi-chevron-down ms-1"></i> }
 						</button>
-					</div>
-					@if (hasDirtyMatches()) {
-						<div class="save-dropdown-wrapper">
-							<button class="btn btn-success btn-sm save-btn" (click)="toggleSaveDropdown()" [disabled]="isSaving()">
-								@if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span>Saving... }
-								@else { <i class="bi bi-cloud-upload me-1"></i>Save Rankings <i class="bi bi-chevron-down ms-1"></i> }
-							</button>
-							@if (showSaveDropdown()) {
-								<div class="save-dropdown" (click)="$event.stopPropagation()">
-									<button class="save-option" (click)="saveWithThreshold('high')">
-										<span class="badge confidence-high me-2">75%+</span>High confidence<span class="text-muted ms-auto">{{ saveCountByThreshold().high }}</span>
-									</button>
-									<button class="save-option" (click)="saveWithThreshold('medium')">
-										<span class="badge confidence-medium me-2">50%+</span>Medium+<span class="text-muted ms-auto">{{ saveCountByThreshold().medium }}</span>
-									</button>
-									<button class="save-option" (click)="saveWithThreshold('all')">
-										<span class="badge bg-secondary me-2">All</span>Every match<span class="text-muted ms-auto">{{ saveCountByThreshold().all }}</span>
-									</button>
-								</div>
-							}
-						</div>
-					}
-				</div>
-
-				<!-- Table + Sidebar -->
-				<div class="match-layout">
-					<div class="master-table-panel">
-						<div class="table-responsive">
-							<table class="table table-sm table-striped table-hover align-middle mb-0">
-								<thead><tr>
-									<th style="width:40px">#</th>
-									<th class="sortable-th" (click)="toggleSort('team')">Registered Team <i class="bi" [class]="sortIcon('team')"></i></th>
-									<th class="sortable-th" style="width:55px" (click)="toggleSort('rank')">Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
-									<th class="sortable-th" (click)="toggleSort('rankedAs')">Ranked As <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
-									<th class="sortable-th" style="width:80px" (click)="toggleSort('conf')">Conf. <i class="bi" [class]="sortIcon('conf')"></i></th>
-									<th style="width:70px">Action</th>
-								</tr></thead>
-								<tbody>
-									@for (row of filteredTableRows(); track row.team.teamId; let idx = $index) {
-										<tr [class.row-unmatched]="row.type === 'unmatched'" [class.row-manual]="row.type === 'manual'"
-											[class.row-active]="activeMatchTeamId() === row.team.teamId">
-											<td class="row-num">{{ idx + 1 }}</td>
-											<td class="fw-medium">{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</td>
-											@if (row.match) {
-												<td class="fw-medium">#{{ row.match.ranking.rank }}</td>
-												<td>{{ row.match.ranking.team }}</td>
-												<td>
-													@if (isManualMatch(row.match)) { <span class="text-muted">—</span> }
-													@else { <span class="badge" [class]="confidenceClass(row.match.matchScore)">{{ formatPercent(row.match.matchScore) }}</span> }
-												</td>
-												<td>
-													@if (row.type === 'manual') {
-														<button class="btn btn-outline-danger btn-sm btn-action" (click)="undoMatch(row.match!)"><i class="bi bi-x-circle me-1"></i>Undo</button>
-													} @else {
-														<button class="btn btn-outline-secondary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
-															[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0"
-															title="Reassign to a different ranking">
-															<i class="bi bi-pencil-square"></i></button>
-														<button class="btn btn-outline-danger btn-sm btn-action ms-1" (click)="undoMatch(row.match!)"
-															title="Remove match">
-															<i class="bi bi-x-circle"></i></button>
-													}
-												</td>
-											} @else {
-												<td class="text-muted">—</td><td class="text-muted">—</td><td class="text-muted">—</td>
-												<td><button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
-													[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
-													<i class="bi bi-link-45deg me-1"></i>Match</button></td>
-											}
-										</tr>
-									}
-								</tbody>
-							</table>
-						</div>
-					</div>
-
-					@if (unmatchedRankings().length > 0) {
-						<div class="sidebar-panel" [class.sidebar-active]="activeMatchTeamId() !== null">
-							<div class="sidebar-header">
-								<span class="sidebar-title">Unmatched National Rankings for {{ selectedScrapedAgName() }}</span>
-								<span class="badge bg-secondary">{{ unmatchedRankings().length }}</span>
+						@if (showSaveDropdown()) {
+							<div class="save-dropdown" (click)="$event.stopPropagation()">
+								<button class="save-option" (click)="saveWithThreshold('high')">
+									<span class="badge confidence-high me-2">75%+</span>High confidence<span class="text-muted ms-auto">{{ saveCountByThreshold().high }}</span>
+								</button>
+								<button class="save-option" (click)="saveWithThreshold('medium')">
+									<span class="badge confidence-medium me-2">50%+</span>Medium+<span class="text-muted ms-auto">{{ saveCountByThreshold().medium }}</span>
+								</button>
+								<button class="save-option" (click)="saveWithThreshold('all')">
+									<span class="badge bg-secondary me-2">All</span>Every match<span class="text-muted ms-auto">{{ saveCountByThreshold().all }}</span>
+								</button>
 							</div>
-							@if (activeMatchTeamId()) {
-								<div class="sidebar-hint"><i class="bi bi-cursor-fill me-1"></i>Click to assign</div>
-							}
-							<div class="sidebar-search">
-								<input type="text" class="form-control form-control-sm" placeholder="Filter..."
-									[ngModel]="sidebarSearch()" (ngModelChange)="sidebarSearch.set($event)">
-							</div>
-							<div class="sidebar-col-headers">
-								<span class="sidebar-col sortable-col" (click)="toggleSidebarSort('rank')"># <i class="bi" [class]="sidebarSortIcon('rank')"></i></span>
-								<span class="sidebar-col sidebar-col-team sortable-col" (click)="toggleSidebarSort('team')">Team <i class="bi" [class]="sidebarSortIcon('team')"></i></span>
-								<span class="sidebar-col sidebar-col-state sortable-col" (click)="toggleSidebarSort('state')">St <i class="bi" [class]="sidebarSortIcon('state')"></i></span>
-								<span class="sidebar-col sidebar-col-stat">W-L</span>
-								<span class="sidebar-col sidebar-col-stat sortable-col" (click)="toggleSidebarSort('rating')">Rtg <i class="bi" [class]="sidebarSortIcon('rating')"></i></span>
-								<span class="sidebar-col sidebar-col-stat">AGD</span>
-								<span class="sidebar-col sidebar-col-stat">Sch</span>
-							</div>
-							<div class="sidebar-list">
-								@for (r of filteredSidebarRankings(); track r.rank) {
-									<button class="sidebar-item"
-										[class.sidebar-item-active]="activeMatchTeamId() !== null"
-										[disabled]="activeMatchTeamId() === null"
-										(click)="assignRankingToActiveTeam(r)">
-										<span class="sidebar-rank">#{{ r.rank }}</span>
-										<span class="sidebar-team">{{ r.team }}</span>
-										<span class="sidebar-state">{{ r.state }}</span>
-										<span class="sidebar-stat">{{ r.record }}</span>
-										<span class="sidebar-stat">{{ r.rating | number:'1.1-1' }}</span>
-										<span class="sidebar-stat">{{ r.agd | number:'1.1-1' }}</span>
-										<span class="sidebar-stat">{{ r.sched | number:'1.1-1' }}</span>
-									</button>
-								}
-							</div>
-						</div>
-					}
-				</div>
-
-				@if (activeMatchTeamId()) {
-					<div class="match-hint">
-						<i class="bi bi-arrow-right-circle-fill me-2"></i>Select a ranking from the sidebar — <kbd>Esc</kbd> to cancel
+						}
 					</div>
 				}
+			</div>
+
+			<!-- Table + Sidebar -->
+			<div class="match-layout">
+				<div class="master-table-panel">
+					<div class="table-responsive">
+						<table class="table table-sm table-striped table-hover align-middle mb-0">
+							<thead><tr>
+								<th style="width:40px">#</th>
+								<th class="sortable-th" (click)="toggleSort('team')">Registered Team <i class="bi" [class]="sortIcon('team')"></i></th>
+								<th class="sortable-th" style="width:55px" (click)="toggleSort('rank')">Rank <i class="bi" [class]="sortIcon('rank')"></i></th>
+								<th class="sortable-th" (click)="toggleSort('rankedAs')">Ranked As <i class="bi" [class]="sortIcon('rankedAs')"></i></th>
+								<th class="sortable-th" style="width:80px" (click)="toggleSort('conf')">Conf. <i class="bi" [class]="sortIcon('conf')"></i></th>
+								<th style="width:70px">Action</th>
+							</tr></thead>
+							<tbody>
+								@for (row of filteredTableRows(); track row.team.teamId; let idx = $index) {
+									<tr [class.row-unmatched]="row.type === 'unmatched'" [class.row-manual]="row.type === 'manual'"
+										[class.row-active]="activeMatchTeamId() === row.team.teamId">
+										<td class="row-num">{{ idx + 1 }}</td>
+										<td class="fw-medium">{{ row.team.clubName ? row.team.clubName + ':' : '' }}{{ row.team.teamName }}</td>
+										@if (row.match) {
+											<td class="fw-medium">
+												#{{ row.match.ranking.rank }}
+												@if (getSavedDrift(row); as drift) {
+													<span class="rank-drift" title="Previously saved rank">was #{{ drift.savedRank }} on {{ drift.savedDate }}</span>
+												}
+											</td>
+											<td>{{ row.match.ranking.team }}</td>
+											<td>
+												@if (isManualMatch(row.match)) { <span class="text-muted">—</span> }
+												@else { <span class="badge" [class]="confidenceClass(row.match.matchScore)">{{ formatPercent(row.match.matchScore) }}</span> }
+											</td>
+											<td>
+												@if (row.type === 'manual') {
+													<button class="btn btn-outline-danger btn-sm btn-action" (click)="undoMatch(row.match!)" title="Remove"><i class="bi bi-x-circle me-1"></i>Undo</button>
+												} @else {
+													<button class="btn btn-outline-secondary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
+														[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0"
+														title="Reassign"><i class="bi bi-pencil-square"></i></button>
+													<button class="btn btn-outline-danger btn-sm btn-action ms-1" (click)="undoMatch(row.match!)"
+														title="Remove match"><i class="bi bi-x-circle"></i></button>
+												}
+											</td>
+										} @else {
+											<td class="text-muted">—</td><td class="text-muted">—</td><td class="text-muted">—</td>
+											<td><button class="btn btn-outline-primary btn-sm btn-action" (click)="startMatch(row.team.teamId)"
+												[class.active]="activeMatchTeamId() === row.team.teamId" [disabled]="unmatchedRankings().length === 0">
+												<i class="bi bi-link-45deg me-1"></i>Match</button></td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				@if (unmatchedRankings().length > 0) {
+					<div class="sidebar-panel" [class.sidebar-active]="activeMatchTeamId() !== null">
+						<div class="sidebar-header">
+							<span class="sidebar-title">Unmatched National Rankings for {{ selectedScrapedAgName() }}</span>
+							<span class="badge bg-secondary">{{ unmatchedRankings().length }}</span>
+						</div>
+						@if (activeMatchTeamId()) {
+							<div class="sidebar-hint"><i class="bi bi-cursor-fill me-1"></i>Click to assign</div>
+						}
+						<div class="sidebar-search">
+							<input type="text" class="form-control form-control-sm" placeholder="Filter..."
+								[ngModel]="sidebarSearch()" (ngModelChange)="sidebarSearch.set($event)">
+						</div>
+						<div class="sidebar-col-headers">
+							<span class="sidebar-col sortable-col" (click)="toggleSidebarSort('rank')"># <i class="bi" [class]="sidebarSortIcon('rank')"></i></span>
+							<span class="sidebar-col sidebar-col-team sortable-col" (click)="toggleSidebarSort('team')">Team <i class="bi" [class]="sidebarSortIcon('team')"></i></span>
+							<span class="sidebar-col sidebar-col-state sortable-col" (click)="toggleSidebarSort('state')">St <i class="bi" [class]="sidebarSortIcon('state')"></i></span>
+							<span class="sidebar-col sidebar-col-stat">W-L</span>
+							<span class="sidebar-col sidebar-col-stat sortable-col" (click)="toggleSidebarSort('rating')">Rtg <i class="bi" [class]="sidebarSortIcon('rating')"></i></span>
+							<span class="sidebar-col sidebar-col-stat">AGD</span>
+							<span class="sidebar-col sidebar-col-stat">Sch</span>
+						</div>
+						<div class="sidebar-list">
+							@for (r of filteredSidebarRankings(); track r.rank) {
+								<button class="sidebar-item"
+									[class.sidebar-item-active]="activeMatchTeamId() !== null"
+									[disabled]="activeMatchTeamId() === null"
+									(click)="assignRankingToActiveTeam(r)">
+									<span class="sidebar-rank">#{{ r.rank }}</span>
+									<span class="sidebar-team">{{ r.team }}</span>
+									<span class="sidebar-state">{{ r.state }}</span>
+									<span class="sidebar-stat">{{ r.record }}</span>
+									<span class="sidebar-stat">{{ r.rating | number:'1.1-1' }}</span>
+									<span class="sidebar-stat">{{ r.agd | number:'1.1-1' }}</span>
+									<span class="sidebar-stat">{{ r.sched | number:'1.1-1' }}</span>
+								</button>
+							}
+						</div>
+					</div>
+				}
+			</div>
+
+			@if (activeMatchTeamId()) {
+				<div class="match-hint">
+					<i class="bi bi-arrow-right-circle-fill me-2"></i>Select a ranking from the sidebar — <kbd>Esc</kbd> to cancel
+				</div>
 			}
 		}
 	}
 
-	<!-- ═══════════════════ SAVED RANKINGS ═══════════════════ -->
-	@if (activeTab() === 'saved') {
-		<div class="selector-panel">
-			<div class="selector-row">
-				<div class="selector-field">
-					<label class="form-label"><i class="bi bi-people me-1 text-primary"></i>Age Group</label>
-					<select class="form-select form-select-sm"
-						[ngModel]="savedTabAg()" (ngModelChange)="savedTabAg.set($event); loadSavedRankings()">
-						<option value="">Select an age group...</option>
-						@for (ag of registeredAgeGroups(); track ag.value) { <option [value]="ag.value">{{ ag.text }}</option> }
-					</select>
-				</div>
-			</div>
-		</div>
-
-		@if (savedTeamsLoading()) {
-			<div class="text-center py-4"><span class="spinner-border spinner-border-sm text-primary"></span></div>
-		} @else if (!savedTabAg() && !selectedRegisteredAg()) {
-			<div class="empty-state"><i class="bi bi-collection empty-state-icon"></i><p>Select an age group to view saved rankings.</p></div>
-		} @else if (savedTeams().length > 0) {
-			<div class="saved-panel">
-				<div class="table-responsive">
-					<table class="table table-sm table-hover align-middle mb-0">
-						<thead><tr><th>Registered Team</th><th>Club</th><th style="width:55px">Rank</th><th>Ranked As</th><th style="width:70px">Rating</th><th style="width:50px"></th></tr></thead>
-						<tbody>
-							@for (team of savedTeams(); track team.teamId) {
-								<tr>
-									<td class="fw-medium">{{ team.teamName }}</td><td>{{ team.clubName }}</td>
-									<td class="fw-medium">{{ parseSavedRank(team.nationalRankingData) }}</td>
-									<td>{{ parseSavedTeamName(team.nationalRankingData) }}</td>
-									<td>{{ parseSavedRating(team.nationalRankingData) }}</td>
-									<td><button class="btn btn-outline-danger btn-sm btn-action" (click)="removeSingleRanking(team.teamId)"><i class="bi bi-x-circle"></i></button></td>
-								</tr>
-							}
-						</tbody>
-					</table>
-				</div>
-				<div class="saved-footer">
-					<button class="btn btn-outline-danger btn-sm" (click)="confirmClearRankings()" [disabled]="isLoading()"><i class="bi bi-trash me-1"></i>Clear All</button>
-				</div>
-			</div>
-		} @else {
-			<div class="empty-state"><i class="bi bi-inbox empty-state-icon"></i><p>No rankings saved for this age group.</p>
-				<button class="btn btn-outline-primary btn-sm" (click)="selectTab('match')"><i class="bi bi-bullseye me-1"></i>Match &amp; Review</button>
-			</div>
-		}
-	}
 </div>
 
 <!-- Dialogs -->
@@ -325,7 +254,8 @@
 		<div class="help-body">
 			<dl class="help-dl">
 				<dt><i class="bi bi-stars text-primary"></i> AI Matching</dt>
-				<dd>AI discovers published national rankings on the internet, then compares club name,
+				<dd>
+					AI discovers published national rankings on the internet, then compares club name,
 					team color, graduation year, and state against your registered teams.
 					<div class="confidence-key">
 						<span class="badge confidence-high">75%+</span>
