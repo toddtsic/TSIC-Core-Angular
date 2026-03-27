@@ -243,9 +243,9 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Fallback: parse current URL for first non-empty segment that isn't 'tsic'
     const url = this.router.url || '';
     const seg = url.split('?')[0].split('#')[0].split('/').find(s => !!s) || '';
-    // Ignore known app shell segments like 'tsic' and feature routes like 'register-player'
+    // Ignore known app shell segments like 'tsic'
     const lower = seg.toLowerCase();
-    if (lower && lower !== 'tsic' && lower !== 'register-player') return seg;
+    if (lower && lower !== 'tsic') return seg;
     // Still unknown
     if (claimPath) return claimPath;
     return null;

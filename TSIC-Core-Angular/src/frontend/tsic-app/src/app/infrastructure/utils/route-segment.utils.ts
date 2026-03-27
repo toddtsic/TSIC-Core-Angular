@@ -8,16 +8,12 @@
  * 
  * Examples:
  * - /aim-cac-2026 → jSeg: 'aim-cac-2026', controller: 'job-landing', action: 'Index'
- * - /aim-cac-2026/register-player → jSeg: 'aim-cac-2026', controller: 'register-player', action: 'Index'
  * - /aim-cac-2026/registration/player → jSeg: 'aim-cac-2026', controller: 'registration', action: 'player'
  */
 
 // Segments that are structural and not job identifiers
 const NON_JOB_SEGMENTS = new Set([
     'tsic',
-    'register-player',
-    'register-team',
-    'family-account',
     'login',
     'admin'
 ]);

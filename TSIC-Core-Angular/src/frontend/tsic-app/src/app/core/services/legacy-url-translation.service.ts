@@ -14,28 +14,28 @@ export class LegacyUrlTranslationService {
      * @returns The translated Angular route or original URL if no pattern matches
      * 
      * Translation patterns:
-     * - StartARegistration + bPlayer=true → /{jobPath}/register-player
-     * - StartARegistration + bClubRep=true → /{jobPath}/register-team
+     * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
+     * - StartARegistration + bStaff=true → /{jobPath}/registration/adult
+     * - StartARegistration + bPlayer=true → /{jobPath}/registration/player
      */
     public static translateUrl(url: string, jobPath: string): string {
         if (!url || !jobPath) {
             return url;
         }
 
-        // Check for StartARegistration with bPlayer=true parameter
-        if (
-            url.toLowerCase().includes('startaregistration') &&
-            url.toLowerCase().includes('bplayer=true')
-        ) {
-            return `/${jobPath}/register-player`;
-        }
+        const lower = url.toLowerCase();
 
-        // Check for StartARegistration with bClubRep=true parameter
-        if (
-            url.toLowerCase().includes('startaregistration') &&
-            url.toLowerCase().includes('bclubrep=true')
-        ) {
-            return `/${jobPath}/register-team`;
+        if (lower.includes('startaregistration')) {
+            // More specific patterns first
+            if (lower.includes('bclubrep=true')) {
+                return `/${jobPath}/registration/team`;
+            }
+            if (lower.includes('bstaff=true')) {
+                return `/${jobPath}/registration/adult`;
+            }
+            if (lower.includes('bplayer=true')) {
+                return `/${jobPath}/registration/player`;
+            }
         }
 
         // No translation pattern matched - return original URL
@@ -50,8 +50,8 @@ export class LegacyUrlTranslationService {
     public static isLegacyUrl(url: string): boolean {
         if (!url) return false;
 
-        const lowerUrl = url.toLowerCase();
-        return lowerUrl.includes('startaregistration') &&
-            (lowerUrl.includes('bplayer=true') || lowerUrl.includes('bclubrep=true'));
+        const lower = url.toLowerCase();
+        return lower.includes('startaregistration') &&
+            (lower.includes('bplayer=true') || lower.includes('bclubrep=true') || lower.includes('bstaff=true'));
     }
 }

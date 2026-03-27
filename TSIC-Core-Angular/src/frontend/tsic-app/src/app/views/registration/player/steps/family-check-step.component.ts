@@ -167,8 +167,8 @@ export class FamilyCheckStepComponent implements OnInit {
 
     goToFamilyWizard(): void {
         const jobPath = this.jobService.getCurrentJob()?.jobPath || '';
-        this.router.navigate([`/${jobPath}/family-account`], {
-            queryParams: { next: 'register-player' },
+        this.router.navigate([`/${jobPath}/registration/family`], {
+            queryParams: { next: 'registration/player' },
         });
     }
 }

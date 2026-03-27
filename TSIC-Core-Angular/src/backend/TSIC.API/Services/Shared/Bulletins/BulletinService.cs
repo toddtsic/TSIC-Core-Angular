@@ -28,6 +28,12 @@ public partial class BulletinService : IBulletinService
         RegexOptions.IgnoreCase)]
     private static partial Regex TeamRegistrationUrlPattern();
 
+    // Matches: /JSEG/StartARegistration/Index?...bStaff=true... (coach/staff registration)
+    [GeneratedRegex(
+        @"(?:https?://[^/""']*)?/[^/""']+/StartARegistration/Index\?[^""']*bStaff=true[^""']*",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex StaffRegistrationUrlPattern();
+
     private readonly IJobLookupService _jobLookupService;
     private readonly IBulletinRepository _bulletinRepository;
     private readonly ILogger<BulletinService> _logger;
@@ -58,8 +64,9 @@ public partial class BulletinService : IBulletinService
         // Process bulletin title and text with token replacement + legacy URL translation
         var jobName = jobMetadata.JobName;
         var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
-        var playerRegUrl = $"/{jobPath}/register-player";
-        var teamRegUrl = $"/{jobPath}/register-team";
+        var playerRegUrl = $"/{jobPath}/registration/player";
+        var teamRegUrl = $"/{jobPath}/registration/team";
+        var staffRegUrl = $"/{jobPath}/registration/adult";
 
         var processedBulletins = new List<BulletinDto>();
         foreach (var bulletin in bulletins)
@@ -68,8 +75,9 @@ public partial class BulletinService : IBulletinService
             var processedText = ReplaceTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
 
             // Translate legacy registration URLs to Angular routes
-            // Team pattern must be checked first (more specific: bPlayer=false&bClubRep=true)
+            // More specific patterns first: team (bClubRep=true), staff (bStaff=true), then player (bPlayer=true)
             processedText = TeamRegistrationUrlPattern().Replace(processedText, teamRegUrl);
+            processedText = StaffRegistrationUrlPattern().Replace(processedText, staffRegUrl);
             processedText = PlayerRegistrationUrlPattern().Replace(processedText, playerRegUrl);
 
             processedBulletins.Add(new BulletinDto

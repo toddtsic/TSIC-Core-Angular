@@ -100,7 +100,7 @@ export class TeamLoginStepComponent implements OnInit {
 
     returnUrl(): string {
         const jobPath = this.state.jobPath();
-        return jobPath ? `/${jobPath}/register-team` : '/tsic/role-selection';
+        return jobPath ? `/${jobPath}/registration/team` : '/tsic/role-selection';
     }
 
     continueWithLogin(): void {

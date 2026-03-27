@@ -44,7 +44,7 @@ export class JobPulseWidgetComponent implements OnInit {
 				title: 'Player Registration',
 				subtitle: 'Now accepting players',
 				cta: 'Register a Player',
-				link: `/${jobPath}/register-player`,
+				link: `/${jobPath}/registration/player`,
 				style: 'active',
 				accent: 'success',
 			});
@@ -56,7 +56,7 @@ export class JobPulseWidgetComponent implements OnInit {
 				title: 'Team Registration',
 				subtitle: 'Now accepting teams',
 				cta: 'Register Your Team',
-				link: `/${jobPath}/register-team`,
+				link: `/${jobPath}/registration/team`,
 				style: 'active',
 				accent: 'primary',
 			});

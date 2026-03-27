@@ -7,8 +7,9 @@ import { Pipe, PipeTransform } from '@angular/core';
  * <div [innerHTML]="htmlContent | translateLegacyUrls:jobPath"></div>
  * 
  * Translations:
- * - StartARegistration + bPlayer=true → /{jobPath}/register-player
- * - StartARegistration + bClubRep=true → /{jobPath}/register-team
+ * - StartARegistration + bPlayer=true → /{jobPath}/registration/player
+ * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
+ * - StartARegistration + bStaff=true → /{jobPath}/registration/adult
  */
 @Pipe({
     name: 'translateLegacyUrls',
@@ -41,24 +42,23 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
     private translateUrl(url: string, jobPath: string): string {
         if (!url) return url;
 
-        // Check for StartARegistration with bPlayer=true parameter
-        if (
-            url.toLowerCase().includes('startaregistration') &&
-            url.toLowerCase().includes('bplayer=true')
-        ) {
-            return `/${jobPath}/register-player`;
-        }
+        const lower = url.toLowerCase();
 
-        // Check for StartARegistration with bClubRep=true parameter
-        if (
-            url.toLowerCase().includes('startaregistration') &&
-            url.toLowerCase().includes('bclubrep=true')
-        ) {
-            return `/${jobPath}/register-team`;
+        if (lower.includes('startaregistration')) {
+            // More specific patterns first
+            if (lower.includes('bclubrep=true')) {
+                return `/${jobPath}/registration/team`;
+            }
+            if (lower.includes('bstaff=true')) {
+                return `/${jobPath}/registration/adult`;
+            }
+            if (lower.includes('bplayer=true')) {
+                return `/${jobPath}/registration/player`;
+            }
         }
 
         // Check for JobAdministrator/Admin
-        if (url.toLowerCase().includes('jobadministrator/admin')) {
+        if (lower.includes('jobadministrator/admin')) {
             return `/${jobPath}/configure/administrators`;
         }
 

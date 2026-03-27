@@ -4,9 +4,6 @@ import { ActivatedRoute } from '@angular/router';
 // Segments that are structural and not job identifiers.
 const NON_JOB_SEGMENTS = new Set([
     'tsic',
-    'register-player',
-    'register-team',
-    'family-account',
     'login',
     'admin'
 ]);
