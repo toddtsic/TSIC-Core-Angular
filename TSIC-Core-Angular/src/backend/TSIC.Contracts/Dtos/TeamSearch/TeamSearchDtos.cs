@@ -22,6 +22,9 @@ public record TeamSearchRequest
 
     // CADT tree filter (team ownership via ClubRepRegistrationId)
     public List<Guid>? CadtTeamIds { get; init; }
+
+    // Single-value DDL: "WAITLISTED", "NOT_WAITLISTED", "SCHEDULED", "NOT_SCHEDULED"
+    public string? WaitlistScheduledStatus { get; init; }
 }
 
 /// <summary>
@@ -68,4 +71,5 @@ public record TeamFilterOptionsDto
     public required List<FilterOption> AgeGroups { get; init; }
     public required List<FilterOption> ActiveStatuses { get; init; }
     public required List<FilterOption> PayStatuses { get; init; }
+    public required List<FilterOption> WaitlistScheduledStatuses { get; init; }
 }

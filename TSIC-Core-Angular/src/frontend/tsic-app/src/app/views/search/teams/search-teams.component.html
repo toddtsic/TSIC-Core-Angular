@@ -24,35 +24,17 @@
       <span class="tip">Select more than one filter to narrow your search</span>
     </div>
     <div class="filter-bar-compact">
-      <div class="filter-row">
-        <div class="form-group">
-          <label>Club</label>
-          <ejs-multiselect
-            [dataSource]="filterOptions()?.clubs ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().clubNames"
-            (change)="updateMultiSelect('clubNames', $event.value)"
-            [mode]="'CheckBox'"
-            [showSelectAll]="true"
-            [showDropDownIcon]="true"
-            [closePopupOnSelect]="false"
-            [changeOnBlur]="false"
-            [enableFiltering]="true"
-            placeholder="All Clubs"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'auto'">
-          </ejs-multiselect>
-        </div>
-
+      <div class="filter-row-4">
         <div class="form-group">
           <label>Level of Play</label>
-          <ejs-multiselect
+          <ejs-multiselect #ms1
             [dataSource]="filterOptions()?.levelOfPlays ?? []"
             [fields]="msFields"
             [value]="searchRequest().levelOfPlays"
             (change)="updateMultiSelect('levelOfPlays', $event.value)"
+            (open)="onMultiSelectOpen(ms1)"
             [mode]="'CheckBox'"
+            [allowFiltering]="false"
             [showDropDownIcon]="true"
             [closePopupOnSelect]="false"
             [changeOnBlur]="false"
@@ -65,12 +47,14 @@
 
         <div class="form-group">
           <label>Active Status</label>
-          <ejs-multiselect
+          <ejs-multiselect #ms2
             [dataSource]="filterOptions()?.activeStatuses ?? []"
             [fields]="msFields"
             [value]="searchRequest().activeStatuses"
             (change)="updateMultiSelect('activeStatuses', $event.value)"
+            (open)="onMultiSelectOpen(ms2)"
             [mode]="'CheckBox'"
+            [allowFiltering]="false"
             [showDropDownIcon]="true"
             [closePopupOnSelect]="false"
             [changeOnBlur]="false"
@@ -83,12 +67,14 @@
 
         <div class="form-group">
           <label>Pay Status</label>
-          <ejs-multiselect
+          <ejs-multiselect #ms3
             [dataSource]="filterOptions()?.payStatuses ?? []"
             [fields]="msFields"
             [value]="searchRequest().payStatuses"
             (change)="updateMultiSelect('payStatuses', $event.value)"
+            (open)="onMultiSelectOpen(ms3)"
             [mode]="'CheckBox'"
+            [allowFiltering]="false"
             [showDropDownIcon]="true"
             [closePopupOnSelect]="false"
             [changeOnBlur]="false"
@@ -97,6 +83,22 @@
             cssClass="filter-ms"
             [popupWidth]="'auto'">
           </ejs-multiselect>
+        </div>
+
+        <div class="form-group">
+          <label>Waitlist / Scheduled</label>
+          <ejs-dropdownlist
+            [dataSource]="filterOptions()?.waitlistScheduledStatuses ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().waitlistScheduledStatus"
+            (change)="updateWaitlistScheduledStatus($event.value)"
+            [allowFiltering]="false"
+            [showClearButton]="true"
+            placeholder="All"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-dropdownlist>
         </div>
       </div>
 

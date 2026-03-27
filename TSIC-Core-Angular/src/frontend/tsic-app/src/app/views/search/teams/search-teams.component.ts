@@ -1,8 +1,7 @@
-import { Component, OnInit, OnDestroy, ViewChild, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
-import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService, DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
 
 import { TeamSearchService } from './services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -33,9 +32,9 @@ interface FilterChip {
 	standalone: true,
 	imports: [
 		CommonModule,
-		FormsModule,
 		GridAllModule,
 		MultiSelectModule,
+		DropDownListModule,
 		TeamDetailPanelComponent,
 		LadtTreeFilterComponent,
 		CadtTreeFilterComponent
@@ -51,6 +50,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	private readonly toast = inject(ToastService);
 
 	@ViewChild('grid') grid!: GridComponent;
+	@ViewChildren(MultiSelectComponent) multiSelects!: QueryList<MultiSelectComponent>;
 
 	// Filter options
 	filterOptions = signal<TeamFilterOptionsDto | null>(null);
@@ -69,14 +69,14 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	// Search state
 	searchRequest = signal<TeamSearchRequest>({
-		clubNames: [],
 		levelOfPlays: [],
 		agegroupIds: [],
 		divisionIds: [],
 		teamIds: [],
 		activeStatuses: ['True'],
 		payStatuses: [],
-		cadtTeamIds: []
+		cadtTeamIds: [],
+		waitlistScheduledStatus: null
 	});
 
 	searchResults = signal<TeamSearchResponse | null>(null);
@@ -120,10 +120,14 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			}
 		};
 
-		addArrayChips('Club', 'clubNames', req.clubNames, opts?.clubs);
 		addArrayChips('LOP', 'levelOfPlays', req.levelOfPlays, opts?.levelOfPlays);
 		addArrayChips('Status', 'activeStatuses', req.activeStatuses, opts?.activeStatuses);
 		addArrayChips('Pay', 'payStatuses', req.payStatuses, opts?.payStatuses);
+
+		if (req.waitlistScheduledStatus) {
+			const label = opts?.waitlistScheduledStatuses?.find(o => o.value === req.waitlistScheduledStatus)?.text ?? req.waitlistScheduledStatus;
+			chips.push({ category: 'W/S', label, filterKey: 'waitlistScheduledStatus' as keyof TeamSearchRequest, value: req.waitlistScheduledStatus });
+		}
 
 		// LADT tree chips
 		const treeCheckedIds = this.ladtCheckedIds();
@@ -257,14 +261,14 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	clearFilters(): void {
 		this.searchRequest.set({
-			clubNames: [],
 			levelOfPlays: [],
 			agegroupIds: [],
 			divisionIds: [],
 			teamIds: [],
 			activeStatuses: ['True'],
 			payStatuses: [],
-			cadtTeamIds: []
+			cadtTeamIds: [],
+			waitlistScheduledStatus: null
 		});
 		this.ladtCheckedIds.set(new Set());
 		this.cadtCheckedIds.set(new Set());
@@ -273,6 +277,13 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	}
 
 	removeFilterChip(chip: FilterChip): void {
+		// Single-value DDL — clear the field
+		if (chip.filterKey === 'waitlistScheduledStatus') {
+			this.searchRequest.update(req => ({ ...req, waitlistScheduledStatus: null }));
+			this.executeSearch();
+			return;
+		}
+
 		// CADT tree chips: uncheck the node and re-derive
 		if (chip.filterKey === 'cadtTeamIds') {
 			const updated = new Set(this.cadtCheckedIds());
@@ -395,6 +406,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		classify(this.ladtTree());
 
 		this.searchRequest.update(req => ({ ...req, teamIds, agegroupIds, divisionIds }));
+		this.executeSearch();
 	}
 
 	onCadtCheckedChange(checkedIds: Set<string>): void {
@@ -412,6 +424,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			...req,
 			cadtTeamIds
 		}));
+		this.executeSearch();
 	}
 
 	/** Remove a CADT node + its descendants + uncheck ancestors */
@@ -464,22 +477,34 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		removeDescendants(this.cadtTree());
 	}
 
+	onMultiSelectOpen(opened: MultiSelectComponent): void {
+		this.multiSelects?.forEach(ms => {
+			if (ms !== opened) ms.hidePopup();
+		});
+	}
+
 	updateMultiSelect(field: keyof TeamSearchRequest, values: string[]): void {
 		this.searchRequest.update(req => ({ ...req, [field]: values ?? [] }));
+		this.executeSearch();
+	}
+
+	updateWaitlistScheduledStatus(value: string): void {
+		this.searchRequest.update(req => ({ ...req, waitlistScheduledStatus: value || null }));
+		this.executeSearch();
 	}
 
 	private sanitizeRequest(req: TeamSearchRequest): TeamSearchRequest {
 		const clean = (arr: any[] | null | undefined) => arr?.length ? arr : undefined;
 		return {
 			...req,
-			clubNames: clean(req.clubNames),
 			levelOfPlays: clean(req.levelOfPlays),
 			agegroupIds: clean(req.agegroupIds),
 			divisionIds: clean(req.divisionIds),
 			teamIds: clean(req.teamIds),
 			activeStatuses: clean(req.activeStatuses),
 			payStatuses: clean(req.payStatuses),
-			cadtTeamIds: clean(req.cadtTeamIds)
+			cadtTeamIds: clean(req.cadtTeamIds),
+			waitlistScheduledStatus: req.waitlistScheduledStatus || undefined
 		};
 	}
 }

@@ -45,6 +45,17 @@
     margin-bottom: 0;
 }
 
+// Spacing between title and subtitle when marks are present
+.login-title + .login-subtitle {
+    margin-top: var(--space-2);
+}
+
+.login-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+    margin-bottom: 0;
+}
+
 // ─── Form fields ──────────────────────────────────
 .login-field {
     margin-bottom: var(--space-5);

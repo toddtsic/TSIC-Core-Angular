@@ -9,5 +9,6 @@ export type TeamFilterOptionsDto = {
     ageGroups: Array<FilterOption>;
     activeStatuses: Array<FilterOption>;
     payStatuses: Array<FilterOption>;
+    waitlistScheduledStatuses: Array<FilterOption>;
 };
 

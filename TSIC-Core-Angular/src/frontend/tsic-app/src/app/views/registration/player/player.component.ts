@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from './state/player-wizard-state.service';
 import { TeamService } from './services/team.service';
@@ -142,9 +143,18 @@ export class PlayerWizardV2Component implements OnInit {
         return 'Continue';
     });
 
+    private readonly authService = inject(AuthService);
+
     // ── Lifecycle ─────────────────────────────────────────────────────
     ngOnInit(): void {
+        // Start clean unless user already holds a Family/Player role for this job
+        const user = this.authService.currentUser();
         const jobPath = this.route.snapshot.paramMap.get('jobPath') || '';
+        const validRole = user?.role === 'Family' || user?.role === 'Player';
+        const sameJob = user?.jobPath?.toLowerCase() === jobPath.toLowerCase();
+        if (!validRole || !sameJob) {
+            this.authService.logoutLocal();
+        }
         if (jobPath) {
             this.state.reset();
             this.state.initialize(jobPath);

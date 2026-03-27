@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { Roles } from '@infrastructure/constants/roles.constants';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { LoginComponent } from '../../../auth/login/login.component';
 
@@ -101,21 +100,15 @@ import { LoginComponent } from '../../../auth/login/login.component';
         </div>
       } @else if (auth.isAuthenticated()) {
         <div class="auth-banner">
-          <i class="bi bi-check-circle-fill"></i>
-          <div class="d-flex align-items-center flex-wrap gap-2">
-            <span>Signed in as <strong>{{ auth.getCurrentUser()?.username }}</strong></span>
-            <button type="button" class="btn btn-sm btn-primary" (click)="onContinue()"
-                    [disabled]="loading()">
-              {{ loading() ? 'Loading...' : 'Continue' }}
-            </button>
-          </div>
+          <span class="spinner-border spinner-border-sm text-primary"></span>
+          <span>Loading player data for <strong>{{ auth.getCurrentUser()?.username }}</strong>...</span>
         </div>
       } @else {
         <app-login
           [theme]="'player'"
           [embedded]="true"
-          [headerText]="'Family Account Sign In'"
-          [subHeaderText]="'Use your family account username and password'"
+          [headerText]="'<mark>Family Account</mark> Sign In'"
+          [subHeaderText]="'Use your <mark>family account</mark> username and password'"
           [returnUrl]="returnUrl()" />
 
         <div class="or-divider">or</div>
@@ -134,8 +127,6 @@ import { LoginComponent } from '../../../auth/login/login.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FamilyCheckStepComponent implements OnInit {
-    /** Roles that are valid for player registration */
-    private static readonly ALLOWED_ROLES: ReadonlySet<string> = new Set([Roles.Family, Roles.Player]);
 
     readonly advance = output<void>();
     readonly auth = inject(AuthService);
@@ -149,11 +140,10 @@ export class FamilyCheckStepComponent implements OnInit {
     readonly loadError = signal<string | null>(null);
 
     ngOnInit(): void {
+        // Parent wizard always calls logoutLocal() on init, so we start unauthenticated.
+        // If somehow still authenticated (deep-link edge case), auto-advance.
         if (this.auth.isAuthenticated()) {
-            const role = this.auth.currentUser()?.role;
-            if (role && !FamilyCheckStepComponent.ALLOWED_ROLES.has(role)) {
-                this.auth.logoutLocal();
-            }
+            this.onContinue();
         }
     }
 

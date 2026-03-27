@@ -5,8 +5,8 @@
       <div class="card-body">
         <div class="text-center login-hero">
           <img src="favicon.svg" alt="" aria-hidden="true" class="login-favicon" />
-          <h2 id="login-title" class="login-title">{{ headerText }}</h2>
-          <p class="login-subtitle">{{ subHeaderText }}</p>
+          <h2 id="login-title" class="login-title" [innerHTML]="headerText"></h2>
+          <p class="login-subtitle" [innerHTML]="subHeaderText"></p>
         </div>
 
         <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" name="login" id="login-form"

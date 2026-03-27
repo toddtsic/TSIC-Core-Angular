@@ -232,7 +232,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     // For player intent, fallback to Players step if jobPath known (Start step retired)
     if (this._intent === 'player-register' && jobPathFromToken) {
-      return `/${jobPathFromToken}/register-player?step=players`;
+      return `/${jobPathFromToken}/registration/player?step=players`;
     }
     // Default: role-selection
     return '/tsic/role-selection';
@@ -250,6 +250,6 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Internal intent metadata captured at init
   private _intent: string | null = null;
-  private _intentJobPath: string | null = null; // retained for future use (may be removed later)
+  private _intentJobPath: string | null = null;
   private _returnUrlFromQuery: string | null = null;
 }

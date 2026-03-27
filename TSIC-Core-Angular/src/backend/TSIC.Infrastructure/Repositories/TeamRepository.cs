@@ -752,6 +752,28 @@ public class TeamRepository : ITeamRepository
         if (request.CadtTeamIds is { Count: > 0 })
             query = query.Where(x => request.CadtTeamIds.Contains(x.t.TeamId));
 
+        // Waitlist / Scheduled status (single-value DDL)
+        if (!string.IsNullOrEmpty(request.WaitlistScheduledStatus))
+        {
+            switch (request.WaitlistScheduledStatus)
+            {
+                case "WAITLISTED":
+                    query = query.Where(x => x.ag.AgegroupName != null && x.ag.AgegroupName.Contains("WAITLIST"));
+                    break;
+                case "NOT_WAITLISTED":
+                    query = query.Where(x => x.ag.AgegroupName == null || !x.ag.AgegroupName.Contains("WAITLIST"));
+                    break;
+                case "SCHEDULED":
+                    var scheduledIds = await GetScheduledTeamIdsAsync(jobId, ct);
+                    query = query.Where(x => scheduledIds.Contains(x.t.TeamId));
+                    break;
+                case "NOT_SCHEDULED":
+                    var scheduledIds2 = await GetScheduledTeamIdsAsync(jobId, ct);
+                    query = query.Where(x => !scheduledIds2.Contains(x.t.TeamId));
+                    break;
+            }
+        }
+
         return await query
             .OrderBy(x => x.r != null ? x.r.ClubName : "")
             .ThenBy(x => x.ag.AgegroupName)
@@ -829,13 +851,37 @@ public class TeamRepository : ITeamRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
+        // Waitlist / Scheduled status counts (active teams only)
+        var activeTeams = baseQuery.Where(t => t.Active == true);
+
+        var waitlistedCount = await activeTeams
+            .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => ag.AgegroupName)
+            .CountAsync(name => name != null && name.Contains("WAITLIST"), ct);
+
+        var activeTotal = await activeTeams.CountAsync(ct);
+        var notWaitlistedCount = activeTotal - waitlistedCount;
+
+        var scheduledTeamIds = await GetScheduledTeamIdsAsync(jobId, ct);
+        var activeTeamIds = await activeTeams.Select(t => t.TeamId).ToListAsync(ct);
+        var scheduledCount = activeTeamIds.Count(id => scheduledTeamIds.Contains(id));
+        var notScheduledCount = activeTotal - scheduledCount;
+
+        var waitlistScheduledStatuses = new List<FilterOption>
+        {
+            new() { Value = "WAITLISTED", Text = "Waitlisted", Count = waitlistedCount },
+            new() { Value = "NOT_WAITLISTED", Text = "Non-Waitlisted", Count = notWaitlistedCount },
+            new() { Value = "SCHEDULED", Text = "Scheduled", Count = scheduledCount },
+            new() { Value = "NOT_SCHEDULED", Text = "Not Scheduled", Count = notScheduledCount }
+        };
+
         return new TeamFilterOptionsDto
         {
             Clubs = clubs,
             LevelOfPlays = lops,
             AgeGroups = ageGroups,
             ActiveStatuses = activeStatuses,
-            PayStatuses = payStatuses
+            PayStatuses = payStatuses,
+            WaitlistScheduledStatuses = waitlistScheduledStatuses
         };
     }
 
