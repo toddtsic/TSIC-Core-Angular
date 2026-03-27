@@ -819,14 +819,15 @@
     }
 }
 
-/* Export — green/success tint */
+/* Export — matches Paid green (#4ade80) */
 .btn-results-export {
-    background: rgba(74, 222, 128, 0.2);
-    border-color: rgba(74, 222, 128, 0.5);
+    background: rgba(74, 222, 128, 0.25);
+    border-color: rgba(74, 222, 128, 0.55);
+    color: color-mix(in srgb, #4ade80 90%, var(--bs-white));
 
     &:hover:not(:disabled) {
-        background: rgba(74, 222, 128, 0.35);
-        border-color: rgba(74, 222, 128, 0.7);
+        background: rgba(74, 222, 128, 0.38);
+        border-color: rgba(74, 222, 128, 0.75);
     }
 }
 
