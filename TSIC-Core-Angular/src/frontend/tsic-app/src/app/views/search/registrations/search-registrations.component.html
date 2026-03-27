@@ -24,7 +24,7 @@
       <!-- Section Header -->
       <div class="section-header">
         <span class="section-title">Filters</span>
-        <span class="section-tip">Select more than one filter to narrow your search</span>
+        <span class="tip">Select more than one filter to narrow your search</span>
       </div>
 
       <!-- Compact Bar (always visible) -->
@@ -193,30 +193,6 @@
               <svg class="toggle-arrow" [class.expanded]="moreFiltersExpanded()" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
-            </button>
-            <button type="button" class="btn btn-reset" (click)="clearFilters()">
-              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              Reset
-            </button>
-          </div>
-          <div class="action-buttons-right">
-            <button type="button" class="btn btn-success" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">
-              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Export
-            </button>
-            <button type="button"
-              class="btn"
-              [class.btn-secondary]="!canEmailSelected"
-              [class.btn-warning]="canEmailSelected"
-              [class.email-pulse]="canEmailSelected"
-              (click)="onEmailSelected()"
-              [disabled]="!canEmailSelected">
-              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-              Email Selected ({{ selectedRegistrations().size }})
-            </button>
-            <button type="button" class="btn btn-info" (click)="onEmailAll()" [disabled]="!searchResults()?.result?.length">
-              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-              Email All
             </button>
           </div>
         </div>
@@ -443,58 +419,90 @@
       }
     </div>
 
+    <!-- Filter Chips Strip -->
+    @if (activeFilterChips().length > 0 && searchResults()) {
+      <div class="filter-chips-strip">
+        <span class="chip-strip-label">Selected Filters</span>
+        @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
+          <span class="filter-chip">
+            <span class="chip-category">{{ chip.category }}:</span>
+            <span class="chip-label">{{ chip.label }}</span>
+            <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </span>
+        }
+        <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
+        <span class="chip-strip-spacer"></span>
+        <button type="button"
+          class="btn btn-chip-search"
+          [class.btn-chip-search--dirty]="filtersAreDirty()"
+          (click)="onFabSearch()"
+          [disabled]="isSearching()">
+          @if (isSearching()) {
+            <span class="spinner-border spinner-border-sm"></span>
+          } @else {
+            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          }
+          @if (filtersAreDirty() && searchResults()) { Update } @else { Search }
+        </button>
+        <button type="button" class="btn btn-reset" (click)="clearFilters()">
+          <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          Reset
+        </button>
+      </div>
+    }
+
     <!-- Results Grid -->
     <div class="results-container">
       @if (searchResults()) {
-        <div class="results-panel">
-          <!-- Active filter chips (inside results card) -->
-          @if (activeFilterChips().length > 0) {
-            <div class="filter-chips-strip">
-              <span class="results-label">Search Results</span>
-              <span class="filters-label">Active Filters</span>
-              @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
-                <span class="filter-chip">
-                  <span class="chip-category">{{ chip.category }}:</span>
-                  <span class="chip-label">{{ chip.label }}</span>
-                  <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </button>
-                </span>
-              }
-              <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
-            </div>
+        <div class="results-summary">
+          <span class="results-summary-label">Search Results:</span>
+          <svg class="results-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" opacity="0.8">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          </svg>
+          <span class="result-count">
+            <span class="result-count-number">{{ searchResults()!.count | number }}</span>
+            <span class="result-count-label">registrations</span>
+          </span>
+          @if (selectedRegistrations().size > 0) {
+            <span class="result-selected">
+              <span class="selected-badge">{{ selectedRegistrations().size }}</span> selected
+            </span>
           }
-
-          <!-- Summary strip (integrated into card) -->
-          <div class="results-summary">
-            <svg class="results-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" opacity="0.8">
-              <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-            </svg>
-            <span class="result-count">
-              <span class="result-count-number">{{ searchResults()!.count | number }}</span>
-              <span class="result-count-label">registrations</span>
+          <span class="result-financials">
+            <span class="financial-item financial-paid">
+              <span class="financial-label">Paid</span>
+              <span class="financial-value">{{ searchResults()!.totalPaid | currency }}</span>
             </span>
-            @if (selectedRegistrations().size > 0) {
-              <span class="result-selected">
-                <span class="selected-badge">{{ selectedRegistrations().size }}</span> selected
-              </span>
-            }
-            <span class="result-financials">
-              <span class="financial-item financial-paid">
-                <span class="financial-label">Paid</span>
-                <span class="financial-value">{{ searchResults()!.totalPaid | currency }}</span>
-              </span>
-              <span class="financial-item financial-owed">
-                <span class="financial-label">Owed</span>
-                <span class="financial-value">{{ searchResults()!.totalOwed | currency }}</span>
-              </span>
+            <span class="financial-item financial-owed">
+              <span class="financial-label">Owed</span>
+              <span class="financial-value">{{ searchResults()!.totalOwed | currency }}</span>
             </span>
+          </span>
+          <div class="results-actions">
+            <button type="button" class="btn btn-results-action btn-results-export" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Export
+            </button>
+            <button type="button"
+              class="btn btn-results-action btn-results-email-selected"
+              [class.btn-results-email-selected--active]="canEmailSelected"
+              (click)="onEmailSelected()">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              Email Selected ({{ selectedRegistrations().size }})
+            </button>
+            <button type="button" class="btn btn-results-action btn-results-email-all" (click)="onEmailAll()" [disabled]="!searchResults()?.result?.length">
+              <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              Email All
+            </button>
           </div>
+        </div>
 
-          <ejs-grid
+        <ejs-grid
             #grid
             [dataSource]="searchResults()!.result"
             [allowPaging]="true"
@@ -593,7 +601,6 @@
             </e-aggregate>
           </e-aggregates>
         </ejs-grid>
-        </div>
       }
     </div>
 
