@@ -40,7 +40,8 @@
       "Bash(cp -r $REG/registration-entry/* $REG/entry/)",
       "Bash(echo \"Copied registration-entry -> registration/entry\")",
       "Bash(dotnet build:*)",
-      "Bash(npx ng:*)"
+      "Bash(npx ng:*)",
+      "Bash(git push:*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Administrator\\source\\TSIC-Core-Angular\\TSIC-Core-Angular\\src\\frontend\\tsic-app\\src\\app\\views\\admin",
