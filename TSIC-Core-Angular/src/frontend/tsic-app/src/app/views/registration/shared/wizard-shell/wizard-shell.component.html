@@ -1,45 +1,47 @@
 <main class="wizard-shell" [wizardTheme]="config().theme"
       aria-labelledby="wz-title-mobile wz-title-desktop">
 
-  <!-- Fixed header: title + step indicator + action bar -->
   <div class="wizard-header">
 
-    <!-- Mobile: compact title + optional badge -->
-    <div class="d-md-none text-center">
-      <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
-        <h2 id="wz-title-mobile" class="wizard-title mb-0">{{ config().title }}</h2>
+    <!-- Title row: Back | Title | Continue -->
+    <div class="wizard-title-row">
+      @if (showActionBar() && currentIndex() > 0) {
+      <button type="button" class="wz-nav-btn wz-back" (click)="back.emit()"
+        aria-label="Go back to previous step">
+        <i class="bi bi-chevron-left"></i> Back
+      </button>
+      } @else {
+      <span class="wz-nav-spacer"></span>
+      }
+
+      <div class="wizard-title-center">
+        <h2 class="wizard-title mb-0"
+          [id]="'wz-title'"
+          aria-labelledby="wz-title">{{ config().title }}</h2>
         @if (config().badge) {
-        <span class="wizard-badge">{{ config().badge }}</span>
+        <div class="mt-2">
+          <span class="wizard-badge">{{ config().badge }}</span>
+        </div>
         }
       </div>
-    </div>
 
-    <!-- Desktop: full title + optional badge -->
-    <div class="d-none d-md-block text-center">
-      <h2 id="wz-title-desktop" class="wizard-title mb-0">{{ config().title }}</h2>
-      @if (config().badge) {
-      <div class="d-flex align-items-center justify-content-center mt-1">
-        <span class="wizard-badge">{{ config().badge }}</span>
-      </div>
+      @if (showActionBar() && showContinue()) {
+      <button type="button" class="wz-nav-btn wz-continue"
+        [disabled]="!canContinue()"
+        (click)="continue.emit()"
+        [attr.aria-label]="'Proceed: ' + continueLabel()">
+        {{ continueLabel() }} <i class="bi bi-chevron-right"></i>
+      </button>
+      } @else {
+      <span class="wz-nav-spacer"></span>
       }
     </div>
 
-    <!-- Step indicator -->
+    <!-- Step indicator (hidden on first step — constraint type not yet known) -->
+    @if (showActionBar()) {
     <div class="wizard-steps">
       <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" />
     </div>
-
-    <!-- Action bar (hidden on first step — first step has its own CTAs) -->
-    @if (showActionBar()) {
-    <app-wizard-action-bar
-      [canBack]="currentIndex() > 0"
-      [canContinue]="canContinue()"
-      [continueLabel]="continueLabel()"
-      [showContinue]="showContinue()"
-      [detailsBadgeLabel]="detailsBadgeLabel()"
-      [detailsBadgeClass]="detailsBadgeClass()"
-      (back)="back.emit()"
-      (continue)="continue.emit()" />
     }
   </div>
 

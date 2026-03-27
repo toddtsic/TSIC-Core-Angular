@@ -72,7 +72,7 @@ export class PlayerWizardV2Component implements OnInit {
         { id: 'family-check', label: 'Account', enabled: true },
         { id: 'players', label: 'Players', enabled: true },
         {
-            id: 'eligibility', label: 'Eligibility',
+            id: 'eligibility', label: this.eligibilityStepLabel(),
             enabled: !!this.state.eligibility.teamConstraintType(),
         },
         { id: 'teams', label: 'Teams', enabled: true },
@@ -94,10 +94,21 @@ export class PlayerWizardV2Component implements OnInit {
         return active[idx]?.id ?? 'family-check';
     });
 
+    readonly eligibilityStepLabel = computed(() => {
+        const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
+        if (ct === 'BYGRADYEAR') return 'Grad Year';
+        if (ct === 'BYAGEGROUP') return 'Age Group';
+        if (ct === 'BYAGERANGE') return 'Age Range';
+        if (ct === 'BYCLUBNAME') return 'Club';
+        return 'Eligibility';
+    });
+
     readonly shellConfig = computed<WizardShellConfig>(() => ({
         title: 'Player Registration',
         theme: 'player',
-        badge: this.state.familyPlayers.familyUser()?.displayName ?? null,
+        badge: this.state.familyPlayers.familyUser()?.userName
+            ? `Family Account: ${this.state.familyPlayers.familyUser()!.userName}`
+            : null,
     }));
 
     // ── canContinue ───────────────────────────────────────────────────

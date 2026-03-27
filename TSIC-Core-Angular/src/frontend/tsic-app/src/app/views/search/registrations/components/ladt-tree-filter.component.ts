@@ -348,6 +348,15 @@ export class LadtTreeFilterComponent implements OnChanges {
     return true;
   }
 
+  expandAll(): void {
+    const all = new Set(this.flatNodes().filter(n => n.expandable).map(n => n.id));
+    this.expandedIds.set(all);
+  }
+
+  collapseAll(): void {
+    this.expandedIds.set(new Set());
+  }
+
   toggleExpand(node: TreeFlatNode): void {
     if (!node.expandable) return;
     this.expandedIds.update(ids => {

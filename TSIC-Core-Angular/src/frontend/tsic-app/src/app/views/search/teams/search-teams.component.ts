@@ -50,6 +50,8 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	private readonly toast = inject(ToastService);
 
 	@ViewChild('grid') grid!: GridComponent;
+	@ViewChild('ladtTreeRef') ladtTreeRef?: LadtTreeFilterComponent;
+	@ViewChild('cadtTreeRef') cadtTreeRef?: CadtTreeFilterComponent;
 	@ViewChildren(MultiSelectComponent) multiSelects!: QueryList<MultiSelectComponent>;
 
 	// Filter options
@@ -490,7 +492,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	updateWaitlistScheduledStatus(value: string): void {
 		this.searchRequest.update(req => ({ ...req, waitlistScheduledStatus: value || null }));
-		this.executeSearch();
 	}
 
 	private sanitizeRequest(req: TeamSearchRequest): TeamSearchRequest {

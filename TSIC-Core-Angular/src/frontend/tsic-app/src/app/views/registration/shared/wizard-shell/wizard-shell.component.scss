@@ -1,5 +1,4 @@
-// Wizard Shell — constrained, elevated layout
-// Header is a subtle surface; content is the main card area.
+// Wizard Shell — constrained layout with branded header
 
 :host {
   display: block;
@@ -12,92 +11,182 @@
   padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 
   @media (max-width: 575.98px) {
     padding: var(--space-2) var(--space-2);
-    gap: var(--space-2);
+    gap: var(--space-3);
   }
 }
 
-// ── Header: title + steps + action bar ──────────────────
-// Subtle theme tint connects the header to the wizard's accent color
+// ── Header ──────────────────────────────────────────────
 .wizard-header {
+  position: relative;
   text-align: center;
-  padding: var(--space-4) var(--space-4) var(--space-3);
+  padding: var(--space-3);
   background:
     linear-gradient(
       180deg,
-      rgba(var(--bs-primary-rgb), 0.04) 0%,
-      rgba(var(--bs-primary-rgb), 0.01) 100%
-    ),
-    var(--brand-surface);
+      rgba(var(--bs-primary-rgb), 0.08) 0%,
+      rgba(var(--bs-primary-rgb), 0.02) 60%,
+      var(--brand-surface) 100%
+    );
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-md);
 
   @media (max-width: 575.98px) {
-    padding: var(--space-3) var(--space-3) var(--space-2);
+    padding: var(--space-2);
   }
 }
 
-// Dark mode: slightly stronger tint since dark surfaces absorb more
 :root[data-bs-theme='dark'] .wizard-header,
 [data-bs-theme='dark'] .wizard-header {
   background:
     linear-gradient(
       180deg,
-      rgba(var(--bs-primary-rgb), 0.08) 0%,
-      rgba(var(--bs-primary-rgb), 0.03) 100%
-    ),
-    var(--brand-surface);
+      rgba(var(--bs-primary-rgb), 0.14) 0%,
+      rgba(var(--bs-primary-rgb), 0.04) 60%,
+      var(--brand-surface) 100%
+    );
 }
 
+// ── Title row — Back | Title | Continue ─────────────────
+.wizard-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+
+  @media (max-width: 575.98px) {
+    gap: var(--space-1);
+  }
+}
+
+.wizard-title-center {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+// Invisible spacer keeps title centered when a button is missing
+.wz-nav-spacer {
+  width: 80px;
+  flex-shrink: 0;
+
+  @media (max-width: 575.98px) {
+    width: 40px;
+  }
+}
+
+// ── Nav buttons ─────────────────────────────────────────
+.wz-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  border: none;
+  background: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  i { font-size: 0.7em; }
+
+  @media (max-width: 575.98px) {
+    font-size: 10px;
+    padding: 3px var(--space-2);
+  }
+}
+
+.wz-back {
+  color: var(--brand-text-muted);
+  border: 1px solid var(--border-color);
+
+  &:hover {
+    color: var(--brand-text);
+    background: rgba(var(--bs-body-color-rgb), 0.06);
+    border-color: var(--neutral-400);
+  }
+}
+
+.wz-continue {
+  color: var(--neutral-0);
+  background: var(--bs-primary);
+  box-shadow: var(--shadow-xs);
+  margin-left: auto;
+
+  &:hover:not(:disabled) {
+    background: var(--brand-primary-dark);
+    box-shadow: var(--shadow-sm);
+  }
+
+  &:disabled {
+    background: rgba(var(--bs-primary-rgb), 0.35);
+    color: rgba(255, 255, 255, 0.7);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}
+
+// ── Title + badge ───────────────────────────────────────
 .wizard-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--brand-text);
   letter-spacing: -0.01em;
 
   @media (min-width: 768px) {
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-xl);
+  }
+
+  @media (max-width: 575.98px) {
+    font-size: var(--font-size-base);
   }
 }
 
 .wizard-badge {
   display: inline-block;
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   padding: 2px var(--space-2);
   border-radius: var(--radius-full);
-  background: rgba(var(--bs-warning-rgb), 0.12);
-  color: var(--bs-warning-emphasis);
-  border: 1px solid rgba(var(--bs-warning-rgb), 0.25);
+  background: rgba(var(--bs-body-color-rgb), 0.06);
+  color: var(--brand-text-muted);
+  border: 1px solid var(--border-color);
+
+  // Hide on small screens — the progress bar label is enough context
+  @media (max-width: 575.98px) {
+    display: none;
+  }
 }
 
 .wizard-steps {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 
   @media (max-width: 575.98px) {
-    margin-top: var(--space-2);
+    margin-top: var(--space-1);
   }
 }
 
 // ── Content area ────────────────────────────────────────
-// Barely-there neutral tint so inner cards (login, forms) lift off the surface
 .wizard-content {
-  background: var(--neutral-50);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
-  padding: var(--space-5) var(--space-5);
+  padding: var(--space-3) 0;
 
   @media (max-width: 575.98px) {
-    padding: var(--space-3) var(--space-3);
+    padding: var(--space-2) 0;
   }
 }
 
-:root[data-bs-theme='dark'] .wizard-content,
-[data-bs-theme='dark'] .wizard-content {
-  background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.03);
+@media (prefers-reduced-motion: reduce) {
+  .wz-nav-btn { transition: none; }
 }

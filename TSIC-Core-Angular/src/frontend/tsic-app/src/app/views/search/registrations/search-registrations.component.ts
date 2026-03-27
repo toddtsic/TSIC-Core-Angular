@@ -66,6 +66,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   );
 
   @ViewChild('grid') grid!: GridComponent;
+  @ViewChild('ladtTreeRef') ladtTreeRef?: LadtTreeFilterComponent;
+  @ViewChild('cadtTreeRef') cadtTreeRef?: CadtTreeFilterComponent;
   @ViewChildren(MultiSelectComponent) multiSelects!: QueryList<MultiSelectComponent>;
 
   // Filter options

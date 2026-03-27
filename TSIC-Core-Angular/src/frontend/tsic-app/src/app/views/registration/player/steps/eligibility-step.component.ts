@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 
@@ -12,37 +12,134 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
     imports: [FormsModule],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Eligibility</h5>
+      <div class="card-header card-header-subtle border-0 py-2">
+        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">{{ cardTitle() }}</h5>
       </div>
-      <div class="card-body">
-        <p class="text-muted small mb-3">
+      <div class="card-body pt-3">
+        <p class="wizard-tip">
           Select the {{ constraintLabel() }} for each player.
         </p>
-        @for (pid of selectedPlayerIds(); track pid) {
-          <div class="mb-3">
-            <label class="form-label fw-semibold" [for]="'elig-' + pid">
-              {{ getPlayerName(pid) }}
-            </label>
-            <select
-              class="form-select"
-              [id]="'elig-' + pid"
-              [ngModel]="state.eligibility.getEligibilityForPlayer(pid) || ''"
-              (ngModelChange)="onEligibilityChange(pid, $event)">
-              <option value="">— Select —</option>
-              @for (opt of eligibilityOptions(); track opt) {
-                <option [value]="opt">{{ opt }}</option>
+        <div class="player-list">
+          @for (pid of selectedPlayerIds(); track pid) {
+            <div class="player-row" [class.is-set]="!!state.eligibility.getEligibilityForPlayer(pid)">
+              <i class="bi bi-person-fill player-icon"></i>
+              <div class="player-info">
+                <label class="player-name" [for]="'elig-' + pid">
+                  {{ getPlayerName(pid) }}
+                </label>
+                <select
+                  class="elig-select"
+                  [id]="'elig-' + pid"
+                  [ngModel]="state.eligibility.getEligibilityForPlayer(pid) || ''"
+                  (ngModelChange)="onEligibilityChange(pid, $event)">
+                  <option value="">— Select —</option>
+                  @for (opt of eligibilityOptions(); track opt) {
+                    <option [value]="opt">{{ opt }}</option>
+                  }
+                </select>
+              </div>
+              @if (state.eligibility.getEligibilityForPlayer(pid)) {
+                <i class="bi bi-check-circle-fill set-icon"></i>
               }
-            </select>
-          </div>
-        }
+            </div>
+          }
+        </div>
       </div>
     </div>
   `,
+    styles: [`
+      .player-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .player-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        background: var(--brand-surface);
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+
+        &.is-set {
+          border-color: rgba(var(--bs-primary-rgb), 0.3);
+          background: rgba(var(--bs-primary-rgb), 0.03);
+        }
+      }
+
+      .player-icon {
+        font-size: var(--font-size-xl);
+        color: var(--neutral-400);
+
+        .is-set & { color: var(--bs-primary); }
+      }
+
+      .player-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+
+      .player-name {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        cursor: pointer;
+        margin-bottom: 0;
+      }
+
+      .elig-select {
+        appearance: none;
+        width: 100%;
+        padding: var(--space-1) var(--space-3);
+        padding-right: var(--space-8);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        background-color: var(--neutral-50);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2378716c' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right var(--space-2) center;
+        background-size: 14px 10px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+
+        &:hover:not(:focus) {
+          border-color: var(--neutral-400);
+        }
+
+        &:focus {
+          outline: none;
+          border-color: var(--bs-primary);
+          background-color: var(--brand-surface);
+          box-shadow: var(--shadow-focus);
+        }
+      }
+
+      .set-icon {
+        font-size: var(--font-size-lg);
+        color: var(--bs-primary);
+        flex-shrink: 0;
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EligibilityStepComponent {
     readonly state = inject(PlayerWizardStateService);
+
+    readonly cardTitle = computed(() => {
+        const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
+        if (ct === 'BYGRADYEAR') return 'Graduation Year';
+        if (ct === 'BYAGEGROUP') return 'Age Group';
+        if (ct === 'BYAGERANGE') return 'Age Range';
+        if (ct === 'BYCLUBNAME') return 'Club';
+        return 'Eligibility';
+    });
 
     selectedPlayerIds(): string[] {
         return this.state.familyPlayers.selectedPlayerIds();

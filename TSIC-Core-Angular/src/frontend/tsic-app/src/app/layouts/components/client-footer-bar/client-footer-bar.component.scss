@@ -20,10 +20,10 @@
             font-size: var(--font-size-sm);
             color: var(--brand-text-muted);
 
-            // Compact on mobile — single line, smaller font
+            // Compact on mobile
             @media (max-width: 767px) {
-                font-size: var(--font-size-xs);
-                gap: var(--space-2);
+                font-size: 10px;
+                gap: var(--space-1);
             }
 
             .copyright {
@@ -33,17 +33,29 @@
             .separator {
                 color: var(--brand-border);
                 user-select: none;
+
+                @media (max-width: 767px) {
+                    display: none;
+                }
             }
 
             .tagline {
                 font-style: italic;
                 opacity: 0.8;
+
+                @media (max-width: 767px) {
+                    display: none;
+                }
             }
 
             .build-version {
                 font-size: var(--font-size-xs);
                 opacity: 0.5;
                 font-variant-numeric: tabular-nums;
+
+                @media (max-width: 767px) {
+                    display: none;
+                }
             }
         }
     }

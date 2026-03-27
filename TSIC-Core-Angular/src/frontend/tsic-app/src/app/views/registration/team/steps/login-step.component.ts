@@ -51,7 +51,8 @@ export interface LoginStepResult {
                 [embedded]="true"
                 [headerText]="'Club Rep Sign In'"
                 [subHeaderText]="'Sign in with your club rep account'"
-                [returnUrl]="returnUrl()" />
+                [returnUrl]="returnUrl()"
+                (loginSuccess)="continueWithLogin()" />
             </div>
             <div class="col-12 col-md-6 d-flex">
               <div class="card border rounded flex-fill" style="border-color: var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); background: var(--brand-surface);">

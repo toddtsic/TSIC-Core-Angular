@@ -5,6 +5,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
+import { TeamService } from '../services/team.service';
 import { LoginComponent } from '../../../auth/login/login.component';
 
 /**
@@ -63,9 +64,19 @@ import { LoginComponent } from '../../../auth/login/login.component';
         display: flex;
         align-items: center;
         gap: var(--space-3);
-        margin: var(--space-5) 0;
+        margin: var(--space-4) 0;
         color: var(--brand-text-muted);
         font-size: var(--font-size-sm);
+      }
+      @media (max-width: 575.98px) {
+        .or-divider {
+          margin: var(--space-2) 0;
+          font-size: var(--font-size-xs);
+        }
+        .create-cta p {
+          font-size: var(--font-size-xs);
+          margin-bottom: var(--space-2);
+        }
       }
       .or-divider::before,
       .or-divider::after {
@@ -107,9 +118,10 @@ import { LoginComponent } from '../../../auth/login/login.component';
         <app-login
           [theme]="'player'"
           [embedded]="true"
-          [headerText]="'<mark>Family Account</mark> Sign In'"
-          [subHeaderText]="'Use your <mark>family account</mark> username and password'"
-          [returnUrl]="returnUrl()" />
+          [headerText]="'Family Account Sign In'"
+          [subHeaderText]="'Use your family account username and password'"
+          [returnUrl]="returnUrl()"
+          (loginSuccess)="onContinue()" />
 
         <div class="or-divider">or</div>
 
@@ -135,6 +147,7 @@ export class FamilyCheckStepComponent implements OnInit {
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly state = inject(PlayerWizardStateService);
+    private readonly teamService = inject(TeamService);
 
     readonly loading = signal(false);
     readonly loadError = signal<string | null>(null);
@@ -180,6 +193,7 @@ export class FamilyCheckStepComponent implements OnInit {
                 next: () => {
                     this.loading.set(false);
                     this.state.initialize(jobPath);
+                    this.teamService.loadForJob(jobPath);
                     this.advance.emit();
                 },
                 error: (err: unknown) => {

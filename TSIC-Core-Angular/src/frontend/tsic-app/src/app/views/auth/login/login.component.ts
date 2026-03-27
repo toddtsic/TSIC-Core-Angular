@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject, output } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -36,6 +36,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() returnUrl: string | null | undefined = undefined;
   // When true, strips wrapper padding and card max-width for side-by-side layouts
   @Input() embedded = false;
+
+  /** Emitted when login succeeds in embedded mode (parent handles navigation). */
+  readonly loginSuccess = output<void>();
 
   // Escape route query params (switching themes while preserving context)
   public escapeQueryParams: Record<string, any> = {};
@@ -172,6 +175,12 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
         this.authService.loginLoading.set(false);
         const user = this.authService.getCurrentUser();
         if (!user) return;
+
+        // Embedded mode: parent owns post-login flow — just signal success
+        if (this.embedded) {
+          this.loginSuccess.emit();
+          return;
+        }
 
         const intendedDestination = this._computeReturnUrl(user.jobPath);
 

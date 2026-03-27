@@ -16,7 +16,8 @@
 				[embedded]="true"
 				[headerText]="'Family Sign In'"
 				[subHeaderText]="'Already registered? Use your family credentials'"
-				[returnUrl]="storeReturnUrl()" />
+				[returnUrl]="storeReturnUrl()"
+				(loginSuccess)="onLoginSuccess()" />
 		</div>
 
 		<!-- Right: guest walk-up option -->

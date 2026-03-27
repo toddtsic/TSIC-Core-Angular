@@ -13,8 +13,8 @@
           method="post" action="/" novalidate>
 
           <div class="login-field">
-            <label for="username" class="form-label fw-medium">Username</label>
-            <input #usernameInput id="username" name="username" type="text" class="form-control form-control-lg"
+            <label for="username" class="form-label">Username</label>
+            <input #usernameInput id="username" name="username" type="text" class="form-control"
               formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
               [class.is-invalid]="submitted() && form.get('username')?.invalid">
             @if (submitted() && form.get('username')?.invalid) {
@@ -25,10 +25,10 @@
           </div>
 
           <div class="login-field">
-            <label for="password" class="form-label fw-medium">Password</label>
+            <label for="password" class="form-label">Password</label>
             <div class="position-relative">
               <input #passwordInput id="password" name="password" [type]="showPassword() ? 'text' : 'password'"
-                class="form-control form-control-lg pe-5" formControlName="password"
+                class="form-control pe-5" formControlName="password"
                 placeholder="Enter your password" [attr.autocomplete]="'current-password'" autocapitalize="none"
                 spellcheck="false" aria-label="Password"
                 [class.is-invalid]="submitted() && form.get('password')?.invalid">
@@ -51,7 +51,7 @@
           </div>
           }
 
-          <button type="submit" class="btn btn-lg w-100 fw-semibold btn-primary login-submit"
+          <button type="submit" class="btn w-100 fw-semibold btn-primary login-submit"
             [disabled]="auth.loginLoading()">
             @if (!auth.loginLoading()) {
             <span>Sign In</span>

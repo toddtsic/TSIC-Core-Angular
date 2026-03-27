@@ -544,6 +544,21 @@ export class CadtTreeFilterComponent implements OnChanges {
     return true;
   }
 
+  expandAll(): void {
+    const all = new Set(this.flatNodes().filter(n => n.expandable).map(n => n.id));
+    this.expandedIds.set(all);
+  }
+
+  collapseAll(): void {
+    // When hideRootLevel, keep root nodes expanded (they're invisible but need to stay open)
+    if (this.hideRootLevel) {
+      const roots = new Set(this.flatNodes().filter(n => n.level === 0).map(n => n.id));
+      this.expandedIds.set(roots);
+    } else {
+      this.expandedIds.set(new Set());
+    }
+  }
+
   toggleExpand(node: CadtFlatNode): void {
     if (!node.expandable) return;
     this.expandedIds.update(ids => {

@@ -1,8 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { isStoreEligible } from '@infrastructure/constants/roles.constants';
 import { LoginComponent } from '@views/auth/login/login.component';
 import { environment } from '@environments/environment';
 import type { JobPulseDto } from '@core/api';
@@ -85,14 +84,24 @@ export class StoreLoginComponent implements OnInit {
 		});
 	}
 
-	/** Watch for successful login — navigate away once a store-eligible role is active */
-	private readonly _authNav = effect(() => {
+	/** Called when embedded LoginComponent completes authentication */
+	onLoginSuccess(): void {
 		const user = this.auth.currentUser();
-		if (user && this.auth.isAuthenticated() && isStoreEligible(user.role)) {
-			const target = this.returnUrl() || this.storeReturnUrl();
-			if (target) {
-				this.router.navigateByUrl(target);
-			}
+		if (!user) return;
+
+		// Phase 1 only (no regId) — need role selection first, then back to store
+		if (!user.regId) {
+			const jp = user.jobPath || this.jobPath || 'tsic';
+			this.router.navigate([`/${jp}/role-selection`], {
+				queryParams: { returnUrl: this.storeReturnUrl() },
+			});
+			return;
 		}
-	});
+
+		// Phase 2 complete — go to store
+		const target = this.storeReturnUrl();
+		if (target) {
+			this.router.navigateByUrl(target);
+		}
+	}
 }
