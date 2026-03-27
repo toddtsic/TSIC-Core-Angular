@@ -501,6 +501,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
     const newSelection = new Set(selectedRecords.map(r => r.registrationId));
     this.selectedRegistrations.set(newSelection);
+    if (newSelection.size > 0) {
+      this.emailMode.set('selected');
+    }
   }
 
   openDetail(registrationId: string): void {
@@ -597,6 +600,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   onEmailAll(): void {
     if (this.searchResults()?.result?.length) {
+      this.grid.clearSelection();
+      this.selectedRegistrations.set(new Set());
       this.emailMode.set('all');
       this.showBatchEmailModal.set(true);
     }

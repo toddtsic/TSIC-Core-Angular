@@ -880,14 +880,114 @@
     50% { transform: translateX(100%); }
 }
 
-/* Email All — teal/info tint */
+/* Email All — crisp white outline, stands out on any gradient */
 .btn-results-email-all {
-    background: rgba(56, 189, 248, 0.2);
-    border-color: rgba(56, 189, 248, 0.45);
+    background: rgba(255, 255, 255, 0.18);
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
 
     &:hover:not(:disabled) {
-        background: rgba(56, 189, 248, 0.35);
-        border-color: rgba(56, 189, 248, 0.65);
+        background: rgba(255, 255, 255, 0.32);
+        border-color: var(--bs-white);
+    }
+}
+
+/* ============================================
+   Segmented Button Group (Email Selected | All)
+   Sits on gradient surfaces — white-on-color design
+   ============================================ */
+.btn-segment-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-segment-icon {
+    color: var(--bs-white);
+    margin: 0 var(--space-1) 0 var(--space-2);
+    flex-shrink: 0;
+}
+
+.btn-segment {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.15);
+        color: var(--bs-white);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    /* "All" — always solid/ready */
+    &--left {
+        background: rgba(255, 255, 255, 0.22);
+        color: var(--bs-white);
+        font-weight: 700;
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
+
+        &:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.35);
+        }
+    }
+
+    /* "Selected" — ghosted until rows checked */
+    &--right {
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 500;
+    }
+
+    /* Active state — row(s) selected, inverted solid */
+    &--active {
+        background: var(--bs-white);
+        color: var(--page-accent, var(--bs-primary));
+        font-weight: 700;
+
+        &:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.88);
+            color: var(--page-accent, var(--bs-primary));
+        }
+    }
+}
+
+/* Segmented button — dark mode */
+:host-context([data-bs-theme='dark']) .btn-segment-group,
+[data-bs-theme='dark'] .btn-segment-group {
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+:host-context([data-bs-theme='dark']) .btn-segment,
+[data-bs-theme='dark'] .btn-segment {
+    color: rgba(226, 232, 240, 0.65);
+
+    &:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e2e8f0;
+    }
+
+    &--active {
+        background: rgba(255, 255, 255, 0.9);
+        color: #1e293b;
+
+        &:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.8);
+            color: #1e293b;
+        }
     }
 }
 
