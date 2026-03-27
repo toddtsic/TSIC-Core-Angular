@@ -104,17 +104,11 @@
     margin-top: var(--space-3);
 }
 
-// ─── Embedded mode (side-by-side in wizard steps) ─
+// ─── Embedded mode (inside wizard steps) ─
+// Centered card with natural max-width, minimal padding.
+// Escape link hidden via template logic.
 :host(.login-embedded) {
-    height: 100%;
-
     .login-wrapper {
-        padding: 0;
-        height: 100%;
-    }
-
-    .login-card {
-        max-width: none;
-        height: 100%;
+        padding: var(--space-2) 0 0;
     }
 }

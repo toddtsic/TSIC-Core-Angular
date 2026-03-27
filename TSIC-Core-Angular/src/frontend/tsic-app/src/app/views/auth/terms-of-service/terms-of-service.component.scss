@@ -1,28 +1,147 @@
-.tos-content {
-    max-height: 500px;
-    overflow-y: auto;
-    border-bottom: 2px solid var(--bs-border-color);
-    padding: var(--space-8);
+// Terms of Service — two-card layout (document + acceptance)
 
-    h4 {
-        color: var(--bs-primary);
-        margin-bottom: var(--space-4);
-    }
-
-    h5 {
-        color: var(--bs-heading-color);
-        margin-top: var(--space-6);
-        margin-bottom: var(--space-3);
-        font-size: var(--font-size-lg);
-    }
-
-    p {
-        margin-bottom: var(--space-3);
-        line-height: 1.6;
-    }
+:host {
+  display: block;
 }
 
-.form-check-label {
-    font-weight: var(--font-weight-medium);
-    user-select: none;
+.tos-page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  @media (max-width: 575.98px) {
+    padding: var(--space-2) var(--space-2) var(--space-6);
+  }
+}
+
+// ── Header card ─────────────────────────────────────────
+.tos-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--brand-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+
+  @media (max-width: 575.98px) {
+    padding: var(--space-3) var(--space-3);
+  }
+}
+
+.tos-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--brand-text);
+  margin: 0;
+}
+
+.tos-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: rgba(var(--bs-warning-rgb), 0.1);
+  border: 1px solid rgba(var(--bs-warning-rgb), 0.2);
+}
+
+// ── Document card ───────────────────────────────────────
+.tos-card {
+  background: var(--brand-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+// ── Scrollable TOS text ─────────────────────────────────
+.tos-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: var(--space-5);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  color: var(--brand-text);
+
+  @media (max-width: 575.98px) {
+    max-height: 350px;
+    padding: var(--space-3);
+  }
+
+  h4 {
+    color: var(--bs-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    margin-top: var(--space-5);
+    margin-bottom: var(--space-2);
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  p {
+    margin-bottom: var(--space-3);
+  }
+
+  ol {
+    padding-left: var(--space-5);
+    margin-bottom: var(--space-3);
+
+    li {
+      margin-bottom: var(--space-2);
+    }
+  }
+
+  a {
+    color: var(--bs-primary);
+    text-decoration: underline;
+  }
+}
+
+// ── Acceptance card ─────────────────────────────────────
+.tos-accept-card {
+  background: var(--brand-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4) var(--space-5);
+
+  @media (max-width: 575.98px) {
+    padding: var(--space-3) var(--space-3);
+  }
+}
+
+.tos-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--font-size-sm);
+  color: var(--brand-text);
+  line-height: 1.4;
+
+  input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    accent-color: var(--bs-primary);
+    cursor: pointer;
+  }
+}
+
+.tos-submit {
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-semibold);
 }

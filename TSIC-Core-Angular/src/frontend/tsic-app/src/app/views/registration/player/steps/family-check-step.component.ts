@@ -19,81 +19,116 @@ import { LoginComponent } from '../../../auth/login/login.component';
     standalone: true,
     imports: [LoginComponent],
     styles: [`
-      .create-account-card {
-        border-color: var(--border-color);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-        background: var(--brand-surface);
+      :host { display: block; }
+
+      .account-step {
+        max-width: 460px;
+        margin: 0 auto;
       }
-      .create-account-card .card-body {
-        padding: var(--space-6);
+
+      /* Authenticated state */
+      .auth-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        background: rgba(var(--bs-success-rgb), 0.08);
+        border: 1px solid rgba(var(--bs-success-rgb), 0.2);
       }
-      .create-account-icon {
-        font-size: 2.5rem;
-        color: var(--bs-primary);
-        margin-bottom: var(--space-4);
+      .auth-banner i {
+        font-size: var(--font-size-xl);
+        color: var(--bs-success);
+        flex-shrink: 0;
       }
-      .create-account-card h5 { color: var(--brand-text); }
-      .create-account-card p { color: var(--brand-text-muted); font-size: var(--font-size-sm); }
-      .create-account-card .btn { border-radius: var(--radius-sm); }
+
+      /* Error state */
+      .error-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        background: rgba(var(--bs-danger-rgb), 0.08);
+        border: 1px solid rgba(var(--bs-danger-rgb), 0.2);
+      }
+      .error-banner > i {
+        font-size: var(--font-size-xl);
+        color: var(--bs-danger);
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      /* Divider */
+      .or-divider {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin: var(--space-5) 0;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+      }
+      .or-divider::before,
+      .or-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border-color);
+      }
+
+      /* Create account CTA */
+      .create-cta {
+        text-align: center;
+      }
+      .create-cta p {
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        margin-bottom: var(--space-3);
+      }
     `],
     template: `
-    <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Family Account</h5>
-      </div>
-      <div class="card-body">
-        @if (loadError()) {
-          <div class="alert alert-danger d-flex align-items-start" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
-            <div>
-              <div class="fw-semibold mb-1">Failed to load player data</div>
-              <div class="small">{{ loadError() }}</div>
-              <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="retryLoad()">Retry</button>
-            </div>
+    <div class="account-step">
+      @if (loadError()) {
+        <div class="error-banner" role="alert">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div>
+            <div class="fw-semibold mb-1">Failed to load player data</div>
+            <div class="small text-muted">{{ loadError() }}</div>
+            <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="retryLoad()">
+              Retry
+            </button>
           </div>
-        } @else if (auth.isAuthenticated()) {
-          <div class="alert alert-success d-flex align-items-start" role="alert">
-            <i class="bi bi-check-circle me-2 mt-1"></i>
-            <div>
-              Signed in as <strong>{{ auth.getCurrentUser()?.username }}</strong>.
-              <button type="button" class="btn btn-sm btn-primary ms-3" (click)="onContinue()"
-                      [disabled]="loading()">
-                {{ loading() ? 'Loading...' : 'Continue' }}
-              </button>
-            </div>
+        </div>
+      } @else if (auth.isAuthenticated()) {
+        <div class="auth-banner">
+          <i class="bi bi-check-circle-fill"></i>
+          <div class="d-flex align-items-center flex-wrap gap-2">
+            <span>Signed in as <strong>{{ auth.getCurrentUser()?.username }}</strong></span>
+            <button type="button" class="btn btn-sm btn-primary" (click)="onContinue()"
+                    [disabled]="loading()">
+              {{ loading() ? 'Loading...' : 'Continue' }}
+            </button>
           </div>
-        } @else {
-          <p class="text-muted">
-            Sign in with your family account to register players.
-            If you don't have a family account yet, create one first.
-          </p>
-          <div class="row g-3 align-items-stretch">
-            <div class="col-12 col-md-6 d-flex">
-              <app-login class="flex-fill"
-                [theme]="'player'"
-                [embedded]="true"
-                [headerText]="'Sign In'"
-                [subHeaderText]="'Sign in with your family account'"
-                [returnUrl]="returnUrl()" />
-            </div>
-            <div class="col-12 col-md-6 d-flex">
-              <div class="card border rounded flex-fill create-account-card">
-                <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
-                  <i class="bi bi-people-fill create-account-icon"></i>
-                  <h5 class="fw-bold mb-2">New to Registration?</h5>
-                  <p class="mb-4">
-                    Create a family account to get started. You'll use it to register players for this event.
-                  </p>
-                  <button type="button" class="btn btn-primary btn-lg fw-semibold w-100" (click)="goToFamilyWizard()">
-                    Create Family Account
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        }
-      </div>
+        </div>
+      } @else {
+        <app-login
+          [theme]="'player'"
+          [embedded]="true"
+          [headerText]="'Family Account Sign In'"
+          [subHeaderText]="'Use your family account username and password'"
+          [returnUrl]="returnUrl()" />
+
+        <div class="or-divider">or</div>
+
+        <div class="create-cta">
+          <p>Don't have an account yet?</p>
+          <button type="button"
+                  class="btn btn-outline-primary fw-semibold w-100"
+                  (click)="goToFamilyWizard()">
+            <i class="bi bi-people-fill me-2"></i>Create Family Account
+          </button>
+        </div>
+      }
     </div>
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -124,7 +159,7 @@ export class FamilyCheckStepComponent implements OnInit {
 
     returnUrl(): string {
         const jobPath = this.jobService.getCurrentJob()?.jobPath;
-        return jobPath ? `/${jobPath}/register-player` : '/tsic/role-selection';
+        return jobPath ? `/${jobPath}/registration/player` : '/tsic/role-selection';
     }
 
     onContinue(): void {

@@ -1,10 +1,103 @@
-/*
- * WizardShellComponent styles.
- *
- * All heavy lifting done by global wizard styles:
- *   - src/styles/_wizard.scss           (theme scopes, step indicator, toolbar)
- *   - shared-ui/styles/_wizard-globals.scss (container, card-theme mixins)
- *   - shared-ui/styles/_wizard-themes.scss  (theme mixins, light/dark mode)
- *
- * This file only adds shell-specific overrides if needed.
- */
+// Wizard Shell — constrained, elevated layout
+// Header is a subtle surface; content is the main card area.
+
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.wizard-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  @media (max-width: 575.98px) {
+    padding: var(--space-2) var(--space-2);
+    gap: var(--space-2);
+  }
+}
+
+// ── Header: title + steps + action bar ──────────────────
+// Subtle theme tint connects the header to the wizard's accent color
+.wizard-header {
+  text-align: center;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--bs-primary-rgb), 0.04) 0%,
+      rgba(var(--bs-primary-rgb), 0.01) 100%
+    ),
+    var(--brand-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+
+  @media (max-width: 575.98px) {
+    padding: var(--space-3) var(--space-3) var(--space-2);
+  }
+}
+
+// Dark mode: slightly stronger tint since dark surfaces absorb more
+:root[data-bs-theme='dark'] .wizard-header,
+[data-bs-theme='dark'] .wizard-header {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--bs-primary-rgb), 0.08) 0%,
+      rgba(var(--bs-primary-rgb), 0.03) 100%
+    ),
+    var(--brand-surface);
+}
+
+.wizard-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--brand-text);
+  letter-spacing: -0.01em;
+
+  @media (min-width: 768px) {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+.wizard-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: rgba(var(--bs-warning-rgb), 0.12);
+  color: var(--bs-warning-emphasis);
+  border: 1px solid rgba(var(--bs-warning-rgb), 0.25);
+}
+
+.wizard-steps {
+  margin-top: var(--space-3);
+
+  @media (max-width: 575.98px) {
+    margin-top: var(--space-2);
+  }
+}
+
+// ── Content area ────────────────────────────────────────
+// Barely-there neutral tint so inner cards (login, forms) lift off the surface
+.wizard-content {
+  background: var(--neutral-50);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  padding: var(--space-5) var(--space-5);
+
+  @media (max-width: 575.98px) {
+    padding: var(--space-3) var(--space-3);
+  }
+}
+
+:root[data-bs-theme='dark'] .wizard-content,
+[data-bs-theme='dark'] .wizard-content {
+  background: rgba(var(--neutral-0-rgb, 255, 255, 255), 0.03);
+}

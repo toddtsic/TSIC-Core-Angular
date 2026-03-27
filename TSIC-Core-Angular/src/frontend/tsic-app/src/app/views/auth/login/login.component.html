@@ -69,7 +69,7 @@
             </a>
           </div>
 
-          @if (theme !== 'login') {
+          @if (theme !== 'login' && !embedded) {
           <div class="text-center login-escape">
             <a [routerLink]="['/tsic/login']" [queryParams]="escapeQueryParams" class="small text-decoration-underline">
               Not your login type? Switch

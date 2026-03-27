@@ -1,13 +1,6 @@
 // Shared wizard styling
 // Provides consistent card, alert, and container styling across all wizards.
 
-@mixin wizard-container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100%;
-    gap: var(--space-3);
-}
-
 @mixin wizard-card-theme {
     border-radius: var(--radius-lg);
     border: 1px solid var(--bs-border-color);
@@ -65,17 +58,7 @@
     }
 }
 
-@mixin wizard-title {
-    color: var(--bs-body-color);
-    transition: color 0.3s ease;
-}
-
-// Containers
-.rw-wizard-container {
-    @include wizard-container;
-}
-
-// Card themes
+// Card themes (used by step components that wrap content in .card)
 .card.wizard-theme-player {
     @include wizard-card-theme;
 }
@@ -84,26 +67,18 @@
     @include wizard-card-theme;
 }
 
-// Titles
-h2#rw-title {
-    @include wizard-title;
-}
-
-h2#tw-title {
-    @include wizard-title;
-}
-
 // Print stylesheet — hide wizard chrome, show content
 @media print {
-
-    .wizard-fixed-header,
-    .wizard-action-bar-container {
+    .wizard-header,
+    app-wizard-action-bar {
         display: none !important;
     }
 
-    .wizard-scrollable-content {
+    .wizard-content {
         overflow: visible !important;
         max-height: none !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 
     .confirmation-content {

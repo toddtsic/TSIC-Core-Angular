@@ -1,123 +1,120 @@
-/* Shared step indicator styling - light/dark mode support via CSS variables */
-/* Responsive: mobile shows compact bar, desktop shows full badges + connectors */
+// Step indicator — compact, clean design
+// Mobile: progress bar + label. Desktop: circles + connectors.
 
-/* --- Mobile compact bar --- */
+// ── Mobile compact bar ──────────────────────────────────
 .mobile-step-bar {
-    padding: var(--space-1) 0;
+  padding: var(--space-1) 0;
 
-    .progress {
-        height: 3px;
-        background-color: var(--bs-gray-300);
-        border-radius: var(--radius-sm);
-        overflow: hidden;
-    }
+  .progress {
+    height: 3px;
+    background-color: var(--bs-gray-300);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
 
-    .progress-bar {
-        background-color: var(--bs-primary);
-        transition: width 0.3s ease;
-    }
+  .progress-bar {
+    background-color: var(--bs-primary);
+    transition: width 0.3s ease;
+  }
 }
 
-/* --- Desktop full indicator --- */
+// ── Desktop full indicator ──────────────────────────────
 .step-container {
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
 }
 
 .step-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 64px;
 
-    /* Future step - muted */
-    &.future {
-        .step-badge {
-            background-color: var(--bs-body-bg);
-            border-color: var(--bs-gray-400);
-            color: var(--bs-gray-500);
-            font-weight: 400;
-        }
-
-        .step-label {
-            color: var(--bs-gray-500);
-            font-weight: 400;
-        }
+  // Future step — muted
+  &.future {
+    .step-badge {
+      background-color: var(--bs-body-bg);
+      border-color: var(--bs-gray-300);
+      color: var(--bs-gray-400);
     }
-
-    /* Active step - highlighted */
-    &.active {
-        .step-badge {
-            background-color: var(--bs-primary);
-            border-color: var(--bs-primary);
-            color: var(--bs-white);
-            font-weight: 700;
-            box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.15);
-        }
-
-        .step-label {
-            color: var(--bs-primary);
-            font-weight: 700;
-        }
+    .step-label {
+      color: var(--bs-gray-400);
     }
+  }
 
-    /* Completed step - success */
-    &.completed {
-        .step-badge {
-            background-color: var(--bs-success);
-            border-color: var(--bs-success);
-            color: var(--bs-white);
-            font-size: var(--font-size-xl);
-        }
-
-        .step-label {
-            color: var(--bs-success);
-            font-weight: 600;
-        }
+  // Active step — primary accent
+  &.active {
+    .step-badge {
+      background-color: var(--bs-primary);
+      border-color: var(--bs-primary);
+      color: var(--bs-white);
+      font-weight: 700;
+      box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
     }
+    .step-label {
+      color: var(--bs-primary);
+      font-weight: 600;
+    }
+  }
+
+  // Completed step — success check
+  &.completed {
+    .step-badge {
+      background-color: var(--bs-success);
+      border-color: var(--bs-success);
+      color: var(--bs-white);
+      font-size: var(--font-size-sm);
+    }
+    .step-label {
+      color: var(--bs-success);
+      font-weight: 500;
+    }
+  }
 }
 
 .step-badge {
-    width: var(--space-10);
-    height: var(--space-10);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid;
-    transition: all 0.3s ease;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .step-label {
-    font-size: var(--font-size-sm);
-    text-align: center;
-    transition: all 0.3s ease;
-    color: var(--bs-body-color);
+  font-size: 11px;
+  text-align: center;
+  color: var(--bs-body-color);
+  line-height: 1.2;
+  transition: color 0.2s ease;
 }
 
 .step-connector {
-    flex: 1;
-    height: 2px;
-    max-width: 60px;
-    transition: background-color 0.3s ease;
-    background-color: var(--bs-gray-400);
-    align-self: flex-start;
-    margin-top: calc(var(--space-10) / 2);
+  flex: 1;
+  height: 2px;
+  max-width: 40px;
+  background-color: var(--bs-gray-300);
+  align-self: flex-start;
+  margin-top: 13px; // center on 28px badge
+  transition: background-color 0.2s ease;
 
-    /* Connector after completed step should be success color */
-    &.completed {
-        background-color: var(--bs-success);
-    }
+  &.completed {
+    background-color: var(--bs-success);
+  }
 }
 
-/* Reduced motion support */
+// Reduced motion
 @media (prefers-reduced-motion: reduce) {
-    .step-badge,
-    .step-label,
-    .step-connector,
-    .mobile-step-bar .progress-bar {
-        transition: none;
-    }
+  .step-badge,
+  .step-label,
+  .step-connector,
+  .mobile-step-bar .progress-bar {
+    transition: none;
+  }
 }
