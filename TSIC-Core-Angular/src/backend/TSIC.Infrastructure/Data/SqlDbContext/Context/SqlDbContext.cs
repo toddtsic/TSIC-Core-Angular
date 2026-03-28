@@ -4496,6 +4496,7 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("bAllowRefundsInPriorMonths");
             entity.Property(e => e.BAllowRosterViewAdult).HasColumnName("bAllowRosterViewAdult");
             entity.Property(e => e.BAllowRosterViewPlayer).HasColumnName("bAllowRosterViewPlayer");
+            entity.Property(e => e.BAllowStoreWalkup).HasColumnName("bAllowStoreWalkup");
             entity.Property(e => e.BApplyProcessingFeesToTeamDeposit)
                 .HasDefaultValue(false)
                 .HasColumnName("bApplyProcessingFeesToTeamDeposit");

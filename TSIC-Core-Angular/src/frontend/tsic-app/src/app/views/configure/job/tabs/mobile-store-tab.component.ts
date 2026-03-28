@@ -29,6 +29,7 @@ export class MobileStoreTabComponent implements OnInit {
   // SuperUser-only
   mobileJobName = linkedSignal(() => this.svc.mobileStore()?.mobileJobName ?? null);
   bEnableStore = linkedSignal(() => this.svc.mobileStore()?.bEnableStore ?? null);
+  bAllowStoreWalkup = linkedSignal(() => this.svc.mobileStore()?.bAllowStoreWalkup ?? null);
   benableStp = linkedSignal(() => this.svc.mobileStore()?.benableStp ?? null);
   storeContactEmail = linkedSignal(() => this.svc.mobileStore()?.storeContactEmail ?? null);
   storeRefundPolicy = linkedSignal(() => this.svc.mobileStore()?.storeRefundPolicy ?? null);
@@ -51,6 +52,7 @@ export class MobileStoreTabComponent implements OnInit {
     if (this.svc.isSuperUser()) {
       req.mobileJobName = m.mobileJobName ?? null;
       req.bEnableStore = m.bEnableStore ?? null;
+      req.bAllowStoreWalkup = m.bAllowStoreWalkup ?? null;
       req.benableStp = m.benableStp ?? null;
       req.storeContactEmail = m.storeContactEmail ?? null;
       req.storeRefundPolicy = m.storeRefundPolicy ?? null;
@@ -91,6 +93,7 @@ export class MobileStoreTabComponent implements OnInit {
     if (this.svc.isSuperUser()) {
       req.mobileJobName = this.mobileJobName();
       req.bEnableStore = this.bEnableStore();
+      req.bAllowStoreWalkup = this.bAllowStoreWalkup();
       req.benableStp = this.benableStp();
       req.storeContactEmail = this.storeContactEmail();
       req.storeRefundPolicy = this.storeRefundPolicy();

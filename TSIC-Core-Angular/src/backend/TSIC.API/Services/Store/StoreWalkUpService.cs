@@ -15,6 +15,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 {
 	private readonly UserManager<ApplicationUser> _userManager;
 	private readonly IJobLookupService _jobLookupService;
+	private readonly IJobRepository _jobRepo;
 	private readonly IFamiliesRepository _familiesRepo;
 	private readonly IRegistrationRepository _registrationRepo;
 	private readonly ITeamRepository _teamRepo;
@@ -25,6 +26,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 	public StoreWalkUpService(
 		UserManager<ApplicationUser> userManager,
 		IJobLookupService jobLookupService,
+		IJobRepository jobRepo,
 		IFamiliesRepository familiesRepo,
 		IRegistrationRepository registrationRepo,
 		ITeamRepository teamRepo,
@@ -34,6 +36,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 	{
 		_userManager = userManager;
 		_jobLookupService = jobLookupService;
+		_jobRepo = jobRepo;
 		_familiesRepo = familiesRepo;
 		_registrationRepo = registrationRepo;
 		_teamRepo = teamRepo;
@@ -48,17 +51,21 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 		var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath)
 			?? throw new InvalidOperationException("Invalid job path");
 
+		// 2. Gate: reject if walk-up is disabled for this job
+		if (!await _jobRepo.IsStoreWalkupAllowedAsync(jobId))
+			throw new InvalidOperationException("Walk-up registration is not enabled for this event.");
+
 		var jobMeta = await _jobLookupService.GetJobMetadataAsync(request.JobPath);
 		var jobLogo = jobMeta?.JobLogoPath;
 
-		// 2. Generate username: {First}{Last}{PhoneLast4}{4RandomGuid}
+		// 3. Generate username: {First}{Last}{PhoneLast4}{4RandomGuid}
 		var phoneLast4 = request.Phone.Length >= 4
 			? request.Phone[^4..]
 			: request.Phone;
 		var guidSuffix = Guid.NewGuid().ToString("N")[..4];
 		var username = $"{request.FirstName}{request.LastName}{phoneLast4}{guidSuffix}";
 
-		// 3. Create user
+		// 4. Create user
 		var user = new ApplicationUser
 		{
 			UserName = username,
@@ -82,7 +89,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 			throw new InvalidOperationException($"Failed to create walk-up user: {msg}");
 		}
 
-		// 4. Create family record
+		// 5. Create family record
 		var family = new TSIC.Domain.Entities.Families
 		{
 			FamilyUserId = user.Id,
@@ -96,10 +103,10 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 		_familiesRepo.Add(family);
 		await _familiesRepo.SaveChangesAsync();
 
-		// 5. Find "Store Merch" team (under "Dropped Teams" agegroup)
+		// 6. Find "Store Merch" team (under "Dropped Teams" agegroup)
 		var storeMerchTeamId = await _teamRepo.GetStoreMerchTeamIdAsync(jobId);
 
-		// 6. Create registration
+		// 7. Create registration
 		var regId = Guid.NewGuid();
 		var registration = new Registrations
 		{
@@ -119,7 +126,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 		_registrationRepo.Add(registration);
 		await _registrationRepo.SaveChangesAsync();
 
-		// 7. Issue JWT
+		// 8. Issue JWT
 		var accessToken = _tokenService.GenerateEnrichedJwtToken(
 			user,
 			regId.ToString(),

@@ -9,6 +9,7 @@ export type JobPulseDto = {
     teamRegRequiresToken: boolean;
     storeEnabled: boolean;
     storeHasActiveItems: boolean;
+    allowStoreWalkup: boolean;
     schedulePublished: boolean;
     playerRegistrationPlanned: boolean;
     adultRegistrationPlanned: boolean;

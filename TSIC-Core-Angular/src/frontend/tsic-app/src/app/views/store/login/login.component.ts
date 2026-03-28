@@ -37,6 +37,9 @@ export class StoreLoginComponent implements OnInit {
 	/** Whether the page is ready to render (pulse loaded) */
 	readonly ready = signal(false);
 
+	/** Whether walk-up guest registration is allowed for this job */
+	readonly allowWalkup = signal(false);
+
 	/** Computed returnUrl to pass to the embedded LoginComponent */
 	readonly storeReturnUrl = computed(() => {
 		const url = this.returnUrl();
@@ -70,8 +73,10 @@ export class StoreLoginComponent implements OnInit {
 
 		this.http.get<JobPulseDto>(`${environment.apiUrl}/jobs/${jp}/pulse`).subscribe({
 			next: pulse => {
-				if (!pulse.playerRegistrationOpen) {
-					// No player registration → no family accounts exist → skip to walk-up
+				this.allowWalkup.set(pulse.allowStoreWalkup);
+
+				if (pulse.allowStoreWalkup && !pulse.playerRegistrationOpen) {
+					// Walk-up allowed + no player registration → no family accounts exist → skip to walk-up
 					this.router.navigate(['../walk-up'], { relativeTo: this.route, replaceUrl: true });
 				} else {
 					this.ready.set(true);

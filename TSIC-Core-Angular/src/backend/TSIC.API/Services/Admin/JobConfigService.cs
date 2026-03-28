@@ -290,6 +290,7 @@ public class JobConfigService : IJobConfigService
         {
             job.MobileJobName = req.MobileJobName;
             if (req.BEnableStore.HasValue) job.BEnableStore = req.BEnableStore.Value;
+            if (req.BAllowStoreWalkup.HasValue) job.BAllowStoreWalkup = req.BAllowStoreWalkup.Value;
             if (req.BenableStp.HasValue) job.BenableStp = req.BenableStp.Value;
             job.StoreContactEmail = req.StoreContactEmail;
             job.StoreRefundPolicy = req.StoreRefundPolicy;
@@ -633,6 +634,7 @@ public class JobConfigService : IJobConfigService
         // SuperUser-only
         MobileJobName = isSuperUser ? job.MobileJobName : null,
         BEnableStore = isSuperUser ? job.BEnableStore : null,
+        BAllowStoreWalkup = isSuperUser ? job.BAllowStoreWalkup : null,
         BenableStp = isSuperUser ? job.BenableStp : null,
         StoreContactEmail = isSuperUser ? job.StoreContactEmail : null,
         StoreRefundPolicy = isSuperUser ? job.StoreRefundPolicy : null,

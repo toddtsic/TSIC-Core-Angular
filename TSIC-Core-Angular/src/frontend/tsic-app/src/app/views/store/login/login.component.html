@@ -7,10 +7,10 @@
 		<p class="store-login-subtitle">Sign in with your family account to shop</p>
 	</div>
 
-	<!-- Two-card layout -->
+	<!-- Two-card layout (or single card when walk-up is disabled) -->
 	<div class="row g-3 align-items-stretch justify-content-center">
 		<!-- Left: embedded family login -->
-		<div class="col-12 col-md-6 d-flex store-card-col">
+		<div class="d-flex store-card-col" [class]="allowWalkup() ? 'col-12 col-md-6' : 'col-12 col-md-8'">
 			<app-login class="flex-fill"
 				[theme]="'family'"
 				[embedded]="true"
@@ -20,7 +20,8 @@
 				(loginSuccess)="onLoginSuccess()" />
 		</div>
 
-		<!-- Right: guest walk-up option -->
+		<!-- Right: guest walk-up option (only when allowed) -->
+		@if (allowWalkup()) {
 		<div class="col-12 col-md-6 d-flex store-card-col">
 			<div class="card border rounded flex-fill guest-card">
 				<div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
@@ -35,6 +36,7 @@
 				</div>
 			</div>
 		</div>
+		}
 	</div>
 </div>
 }

@@ -408,6 +408,7 @@ public class JobRepository : IJobRepository
                 StoreHasActiveItems = j.BEnableStore == true
                     && _context.Stores.Any(s => s.JobId == j.JobId
                         && _context.StoreItems.Any(si => si.StoreId == s.StoreId && si.Active)),
+                AllowStoreWalkup = j.BAllowStoreWalkup,
                 SchedulePublished = j.BScheduleAllowPublicAccess == true,
                 PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
                     && j.BRegistrationAllowPlayer != true,
@@ -446,6 +447,15 @@ public class JobRepository : IJobRepository
                 JobName = j.JobName ?? "Unknown",
                 Year = j.Year!
             })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsStoreWalkupAllowedAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BAllowStoreWalkup)
             .FirstOrDefaultAsync(cancellationToken);
     }
 

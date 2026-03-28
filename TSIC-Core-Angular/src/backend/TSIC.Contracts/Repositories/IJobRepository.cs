@@ -213,6 +213,11 @@ public interface IJobRepository
     /// </summary>
     Task<PriorYearJobInfo?> GetPriorYearJobAsync(Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Check whether store walk-up registration is allowed for a given job.
+    /// </summary>
+    Task<bool> IsStoreWalkupAllowedAsync(Guid jobId, CancellationToken cancellationToken = default);
+
 }
 
 public record JobAuthInfo

@@ -350,6 +350,7 @@ public record JobConfigMobileStoreDto
 
     // SuperUser-only — Store
     public bool? BEnableStore { get; init; }
+    public bool? BAllowStoreWalkup { get; init; }
     public bool? BenableStp { get; init; }
     public string? StoreContactEmail { get; init; }
     public string? StoreRefundPolicy { get; init; }
@@ -372,6 +373,7 @@ public record UpdateJobConfigMobileStoreRequest
     // SuperUser-only (ignored for non-super callers)
     public string? MobileJobName { get; init; }
     public bool? BEnableStore { get; init; }
+    public bool? BAllowStoreWalkup { get; init; }
     public bool? BenableStp { get; init; }
     public string? StoreContactEmail { get; init; }
     public string? StoreRefundPolicy { get; init; }

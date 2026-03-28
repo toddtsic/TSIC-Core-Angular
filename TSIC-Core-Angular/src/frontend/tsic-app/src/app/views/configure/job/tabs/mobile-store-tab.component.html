@@ -105,6 +105,14 @@
           </div>
           <div class="col-md-4">
             <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="bAllowStoreWalkup"
+                [ngModel]="bAllowStoreWalkup()"
+                (ngModelChange)="bAllowStoreWalkup.set($event); onFieldChange()" />
+              <label class="form-check-label" for="bAllowStoreWalkup">Allow Store Walk-up</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check">
               <input type="checkbox" class="form-check-input" id="bStp"
                 [ngModel]="benableStp()"
                 (ngModelChange)="benableStp.set($event); onFieldChange()" />

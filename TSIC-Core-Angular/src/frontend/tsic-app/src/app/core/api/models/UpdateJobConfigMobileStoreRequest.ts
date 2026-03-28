@@ -12,6 +12,7 @@ export type UpdateJobConfigMobileStoreRequest = {
     mobileScoreHoursPastGameEligible: number | null;
     mobileJobName?: string | null;
     bEnableStore?: boolean | null;
+    bAllowStoreWalkup?: boolean | null;
     benableStp?: boolean | null;
     storeContactEmail?: string | null;
     storeRefundPolicy?: string | null;

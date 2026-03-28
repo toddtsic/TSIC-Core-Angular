@@ -1,10 +1,12 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { StoreService } from '../../../infrastructure/services/store.service';
-import type { StoreWalkUpRegisterRequest } from '@core/api';
+import type { StoreWalkUpRegisterRequest, JobPulseDto } from '@core/api';
 import { AuthService } from '../../../infrastructure/services/auth.service';
+import { environment } from '@environments/environment';
 
 @Component({
 	selector: 'app-walk-up',
@@ -14,14 +16,18 @@ import { AuthService } from '../../../infrastructure/services/auth.service';
 	templateUrl: './walk-up.component.html',
 	styleUrl: './walk-up.component.scss',
 })
-export class StoreWalkUpComponent {
+export class StoreWalkUpComponent implements OnInit {
 	private readonly route = inject(ActivatedRoute);
 	private readonly router = inject(Router);
+	private readonly http = inject(HttpClient);
 	private readonly store = inject(StoreService);
 	private readonly auth = inject(AuthService);
 
 	readonly isLoading = signal(false);
 	readonly errorMessage = signal<string | null>(null);
+
+	/** Whether walk-up is confirmed allowed (page won't render until verified) */
+	readonly ready = signal(false);
 
 	// Form fields
 	readonly firstName = signal('');
@@ -32,6 +38,29 @@ export class StoreWalkUpComponent {
 	readonly city = signal('');
 	readonly state = signal('');
 	readonly zip = signal('');
+
+	ngOnInit(): void {
+		const jp = this.jobPath;
+		if (!jp) {
+			this.ready.set(true);
+			return;
+		}
+
+		this.http.get<JobPulseDto>(`${environment.apiUrl}/jobs/${jp}/pulse`).subscribe({
+			next: pulse => {
+				if (!pulse.allowStoreWalkup) {
+					// Walk-up disabled → redirect to store login
+					this.router.navigate(['../login'], { relativeTo: this.route, replaceUrl: true });
+				} else {
+					this.ready.set(true);
+				}
+			},
+			error: () => {
+				// Pulse unavailable — allow access, backend will gate the POST
+				this.ready.set(true);
+			},
+		});
+	}
 
 	private get jobPath(): string {
 		// jobPath lives on the :jobPath parent route, not this segment
