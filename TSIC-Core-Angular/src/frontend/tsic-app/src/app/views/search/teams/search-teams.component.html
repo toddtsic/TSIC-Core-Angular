@@ -306,7 +306,7 @@
               </span>
             </ng-template>
           </e-column>
-          <e-column field="regDate" headerText="RegDate" width="105" type="date" format="MM/dd/yyyy" textAlign="Center"></e-column>
+          <e-column field="regDate" headerText="RegDate" width="145" type="date" format="M/d/yyyy h:mm a" textAlign="Center"></e-column>
           <e-column field="clubRepName" headerText="Club Rep" width="140">
             <ng-template #template let-data>
               <span [class.inactive-name]="!data.active">{{ data.clubRepName }}</span>
