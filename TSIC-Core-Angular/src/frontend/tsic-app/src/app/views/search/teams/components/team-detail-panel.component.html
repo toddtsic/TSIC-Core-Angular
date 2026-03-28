@@ -5,24 +5,38 @@
 <div class="detail-panel" [class.open]="isOpen()">
   @if (detail(); as team) {
     <div class="panel-header">
-      <div class="header-content">
-        <h3 class="panel-title">
-          @if (team.clubName) { {{ team.clubName }}: }
-          {{ team.teamName }}
-        </h3>
-        <div class="header-meta">
-          <span class="meta-item">{{ team.agegroupName }}</span>
-          @if (team.divName) {
-            <span class="meta-separator">&bull;</span>
-            <span class="meta-item">{{ team.divName }}</span>
-          }
-          <span class="meta-separator">&bull;</span>
+      <div class="header-top-row">
+        <div class="header-content">
+          <h3 class="panel-title">
+            @if (team.clubName) { {{ team.clubName }}: }
+            {{ team.teamName }}
+          </h3>
+        </div>
+        <div class="header-actions">
           <span class="badge" [class.badge-success]="team.active" [class.badge-secondary]="!team.active">
             {{ team.active ? 'Active' : 'Inactive' }}
           </span>
+          <button type="button" class="btn-close" (click)="close()" aria-label="Close">&times;</button>
         </div>
       </div>
-      <button type="button" class="btn-close" (click)="close()" aria-label="Close">&times;</button>
+      <div class="header-meta">
+        <span class="header-tag">
+          <span class="header-tag-label">Agegroup</span>
+          <span class="header-tag-value">{{ team.agegroupName }}</span>
+        </span>
+        @if (team.divName) {
+        <span class="header-tag">
+          <span class="header-tag-label">Division</span>
+          <span class="header-tag-value">{{ team.divName }}</span>
+        </span>
+        }
+        @if (team.levelOfPlay) {
+        <span class="header-tag">
+          <span class="header-tag-label">LOP</span>
+          <span class="header-tag-value">{{ team.levelOfPlay }}</span>
+        </span>
+        }
+      </div>
     </div>
 
     <div class="tab-bar">

@@ -355,6 +355,33 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		this.clearFilters();
 	}
 
+	onActionComplete(args: any): void {
+		if (args.requestType === 'sorting' || args.requestType === 'paging') {
+			this.refreshRowNumbers();
+		}
+	}
+
+	refreshRowNumbers(): void {
+		const pageSize = this.grid.pageSettings.pageSize as number ?? 20;
+		const currentPage = this.grid.pageSettings.currentPage ?? 1;
+		const start = (currentPage - 1) * pageSize;
+		const gridEl = this.grid.element;
+		if (!gridEl) return;
+		// Target frozen pane rows (row # column is frozen)
+		const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
+		if (rows.length) {
+			rows.forEach((row, i) => {
+				const cell = row.querySelector('td.e-rowcell');
+				if (cell) cell.textContent = String(start + i + 1);
+			});
+		} else {
+			this.grid.getRows().forEach((row, i) => {
+				const cell = row.querySelector('td.e-rowcell');
+				if (cell) cell.textContent = String(start + i + 1);
+			});
+		}
+	}
+
 	openDetail(teamId: string): void {
 		this.searchService.getTeamDetail(teamId).subscribe({
 			next: (detail) => {

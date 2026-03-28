@@ -508,6 +508,32 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
+  onActionComplete(args: any): void {
+    if (args.requestType === 'sorting' || args.requestType === 'paging') {
+      this.refreshRowNumbers();
+    }
+  }
+
+  refreshRowNumbers(): void {
+    const pageSize = this.grid.pageSettings.pageSize as number ?? 20;
+    const currentPage = this.grid.pageSettings.currentPage ?? 1;
+    const start = (currentPage - 1) * pageSize;
+    const gridEl = this.grid.element;
+    if (!gridEl) return;
+    const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
+    if (rows.length) {
+      rows.forEach((row, i) => {
+        const cell = row.querySelector('td.e-rowcell');
+        if (cell) cell.textContent = String(start + i + 1);
+      });
+    } else {
+      this.grid.getRows().forEach((row, i) => {
+        const cell = row.querySelector('td.e-rowcell');
+        if (cell) cell.textContent = String(start + i + 1);
+      });
+    }
+  }
+
   openDetail(registrationId: string): void {
     this.searchService.getRegistrationDetail(registrationId).subscribe({
       next: (detail) => {
