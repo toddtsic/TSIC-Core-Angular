@@ -46,17 +46,12 @@
 
 .panel-title {
   margin: 0;
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--bs-body-color);
   line-height: var(--line-height-tight);
-}
 
-.club-name {
-  margin-top: var(--space-1);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--bs-primary);
+
 }
 
 .header-meta {

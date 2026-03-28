@@ -185,7 +185,7 @@ export class FamilyCheckStepComponent implements OnInit {
         const user = this.auth.currentUser();
         if (user?.role && user.role !== 'Family' && user.role !== 'Player') {
             this.auth.logoutLocal();
-            this.wizardError.set('This is not a family account. Please sign in with your family account username and password.');
+            this.wizardError.set('This is not a valid family account. Please sign in with a family account or create one below.');
             return;
         }
 
@@ -230,7 +230,9 @@ export class FamilyCheckStepComponent implements OnInit {
                     // 400 with a message = business rule (not a family account, etc.)
                     if (httpErr?.status === 400 && serverMsg) {
                         this.auth.logoutLocal();
-                        this.wizardError.set(serverMsg);
+                        this.wizardError.set(
+                            'This is not a valid family account. Please sign in with a family account or create one below.',
+                        );
                         return;
                     }
 

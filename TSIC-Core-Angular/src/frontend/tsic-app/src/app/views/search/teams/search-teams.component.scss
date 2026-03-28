@@ -107,6 +107,15 @@
   }
 }
 
+// ── Active Badge ──
+.active-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+
+  &.active-yes { color: var(--bs-success); }
+  &.active-no { color: var(--bs-danger); }
+}
+
 // ── Name Link with inline detail icon ──
 .detail-link {
   display: inline-flex;
@@ -121,10 +130,12 @@
 
   .detail-icon {
     flex-shrink: 0;
+    font-size: 11px;
     opacity: 0.4;
     transition: opacity 0.15s;
-    vertical-align: middle;
   }
+
+
 
   &:hover {
     text-decoration: underline;

@@ -265,23 +265,27 @@
       >
         <e-columns>
           <!-- Frozen columns -->
-          <e-column field="clubName" headerText="Club" width="150">
-            <ng-template #template let-data>
-              {{ data.clubName ?? '—' }}
-            </ng-template>
-          </e-column>
-          <e-column field="teamName" headerText="Team" width="200">
+          <e-column field="teamName" headerText="Team" width="280">
             <ng-template #template let-data>
               <a href="javascript:void(0)" (click)="openDetail(data.teamId)"
                  class="detail-link"
                  title="View details">
-                <svg class="detail-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                </svg>
+                <i class="bi bi-search detail-icon"></i>
+                @if (data.clubName) { {{ data.clubName }}: }
                 {{ data.teamName }}
-                <span class="email-dot" [class.subscribed]="!data.clubRepEmailOptOut" [class.unsubscribed]="data.clubRepEmailOptOut"
-                      [title]="data.clubRepEmailOptOut ? 'Club rep unsubscribed' : 'Club rep subscribed'"></span>
+                @if (data.clubRepEmailOptOut) {
+                  <span class="email-dot unsubscribed" title="Club rep unsubscribed from emails"></span>
+                }
               </a>
+            </ng-template>
+          </e-column>
+
+          <!-- Active status -->
+          <e-column field="active" headerText="Active" width="75" textAlign="Center">
+            <ng-template #template let-data>
+              <span class="active-badge" [class.active-yes]="data.active" [class.active-no]="!data.active">
+                {{ data.active ? 'Yes' : 'No' }}
+              </span>
             </ng-template>
           </e-column>
 

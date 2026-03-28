@@ -6,10 +6,10 @@
   @if (detail(); as team) {
     <div class="panel-header">
       <div class="header-content">
-        <h3 class="panel-title">{{ team.teamName }}</h3>
-        @if (team.clubName) {
-          <div class="club-name">{{ team.clubName }}</div>
-        }
+        <h3 class="panel-title">
+          @if (team.clubName) { {{ team.clubName }}: }
+          {{ team.teamName }}
+        </h3>
         <div class="header-meta">
           <span class="meta-item">{{ team.agegroupName }}</span>
           @if (team.divName) {
