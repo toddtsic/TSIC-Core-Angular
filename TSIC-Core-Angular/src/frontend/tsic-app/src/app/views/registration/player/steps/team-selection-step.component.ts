@@ -283,7 +283,13 @@ export class TeamSelectionStepComponent {
     getAvailableTeams(playerId: string): AvailableTeam[] {
         const eligValue = this.getPlayerEligibility(playerId) ?? null;
         const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
-        return this.teamService.filterByEligibility(eligValue, player?.gender);
+        const teams = this.teamService.filterByEligibility(eligValue, player?.gender);
+
+        // Hide full teams whose waitlist replacement exists in the list
+        const teamIdsInList = new Set(teams.map(t => t.teamId));
+        return teams.filter(t =>
+            !(t.rosterIsFull && t.waitlistTeamId && teamIdsInList.has(t.waitlistTeamId)),
+        );
     }
 
     getSelectedTeamId(playerId: string): string | null {
@@ -318,9 +324,10 @@ export class TeamSelectionStepComponent {
     }
 
     getCapacityLabel(team: AvailableTeam): string {
+        if (team.rosterIsFull && team.jobUsesWaitlists) return '· Waitlist';
+        if (team.rosterIsFull) return '· Full';
         const remaining = team.maxRosterSize - team.currentRosterSize;
-        if (team.rosterIsFull) return '[FULL]';
-        if (remaining <= 5 && team.maxRosterSize > 0) return `[${remaining} spots]`;
+        if (remaining <= 5 && team.maxRosterSize > 0) return '· Almost full';
         return '';
     }
 
