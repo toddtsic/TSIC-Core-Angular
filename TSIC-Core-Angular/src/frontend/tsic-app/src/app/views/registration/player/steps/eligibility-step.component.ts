@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 
@@ -131,6 +131,7 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 })
 export class EligibilityStepComponent {
     readonly state = inject(PlayerWizardStateService);
+    readonly advance = output<void>();
 
     readonly cardTitle = computed(() => {
         const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
@@ -170,5 +171,12 @@ export class EligibilityStepComponent {
     onEligibilityChange(playerId: string, value: string): void {
         this.state.eligibility.setEligibilityForPlayer(playerId, value || null);
         this.state.eligibility.updateUnifiedConstraintValue(this.selectedPlayerIds());
+
+        // Auto-advance when every player has a value
+        if (value) {
+            const allSet = this.selectedPlayerIds()
+                .every(id => !!this.state.eligibility.getEligibilityForPlayer(id));
+            if (allSet) this.advance.emit();
+        }
     }
 }

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, computed, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService, type AvailableTeam } from '@views/registration/player/services/team.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
@@ -12,7 +13,7 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
 @Component({
     selector: 'app-prw-team-selection-step',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, DropDownListModule],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-2">
@@ -74,19 +75,28 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
                       </div>
                     }
 
-                    <select class="team-select" [id]="'team-' + pid"
-                            [ngModel]="isMultiTeamMode() ? '' : (getSelectedTeamId(pid) || '')"
-                            (ngModelChange)="onTeamChange(pid, $event)">
-                      <option value="">— Select Team —</option>
-                      @for (team of getAvailableTeams(pid); track team.teamId) {
-                        <option [value]="team.teamId"
-                                [disabled]="isTeamFull(team) || isTeamAlreadySelected(pid, team.teamId)">
-                          {{ team.teamName }}
-                          @if (team.divisionName) { · {{ team.divisionName }} }
-                          {{ getCapacityLabel(team) }}
-                        </option>
-                      }
-                    </select>
+                    <ejs-dropdownlist
+                      [dataSource]="getTeamDropdownItems(pid)"
+                      [fields]="teamDdlFields"
+                      [value]="isMultiTeamMode() ? null : (getSelectedTeamId(pid) || null)"
+                      (change)="onTeamDdlChange(pid, $event)"
+                      [placeholder]="'— Select Team —'"
+                      [itemTemplate]="teamItemTpl"
+                      [allowFiltering]="false"
+                      cssClass="team-ddl">
+                      <ng-template #teamItemTpl let-data="">
+                        <div class="team-item">
+                          <span class="team-item-name">{{ data.text }}</span>
+                          @if (data.status === 'almost-full') {
+                            <span class="team-item-badge badge-warning">Almost full</span>
+                          } @else if (data.status === 'waitlist') {
+                            <span class="team-item-badge badge-info">Waitlist</span>
+                          } @else if (data.status === 'full') {
+                            <span class="team-item-badge badge-danger">Full</span>
+                          }
+                        </div>
+                      </ng-template>
+                    </ejs-dropdownlist>
                   }
                 </div>
               </div>
@@ -237,12 +247,81 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
           box-shadow: var(--shadow-focus);
         }
       }
+
+      /* Syncfusion dropdown item template */
+      .team-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding: var(--space-1) 0;
+      }
+
+      .team-item-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .team-item-badge {
+        flex-shrink: 0;
+        font-size: 10px;
+        font-weight: var(--font-weight-semibold);
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-full);
+        white-space: nowrap;
+      }
+
+      .badge-warning {
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        color: var(--bs-warning-emphasis);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
+      }
+
+      .badge-danger {
+        background: rgba(var(--bs-danger-rgb), 0.12);
+        color: var(--bs-danger-emphasis);
+        border: 1px solid rgba(var(--bs-danger-rgb), 0.25);
+      }
+
+      .badge-info {
+        background: rgba(var(--bs-info-rgb), 0.12);
+        color: var(--bs-info-emphasis);
+        border: 1px solid rgba(var(--bs-info-rgb), 0.25);
+      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamSelectionStepComponent {
     readonly state = inject(PlayerWizardStateService);
     readonly teamService = inject(TeamService);
+    readonly advance = output<void>();
+
+    readonly teamDdlFields = { text: 'text', value: 'value' };
+
+    getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
+        return this.getAvailableTeams(playerId).map(team => {
+            let label = team.teamName;
+            if (team.divisionName) label += ` · ${team.divisionName}`;
+
+            let status = '';
+            if (team.rosterIsFull && team.jobUsesWaitlists) status = 'waitlist';
+            else if (team.rosterIsFull) status = 'full';
+            else {
+                const remaining = team.maxRosterSize - team.currentRosterSize;
+                if (remaining <= 5 && team.maxRosterSize > 0) status = 'almost-full';
+            }
+
+            return { text: label, value: team.teamId, status };
+        });
+    }
+
+    onTeamDdlChange(playerId: string, event: any): void {
+        const teamId = event.value as string;
+        if (teamId) this.onTeamChange(playerId, teamId);
+    }
 
     selectedPlayerIds(): string[] {
         return this.state.familyPlayers.selectedPlayerIds();
@@ -342,6 +421,13 @@ export class TeamSelectionStepComponent {
             current[playerId] = teamId;
         }
         this.state.eligibility.setSelectedTeams(current);
+
+        // Auto-advance when every player has a team (single-select mode only)
+        if (!this.isMultiTeamMode()) {
+            const allSet = this.selectedPlayerIds()
+                .every(id => !!current[id]);
+            if (allSet) this.advance.emit();
+        }
     }
 
     removeTeam(playerId: string, teamId: string): void {

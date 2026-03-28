@@ -115,6 +115,12 @@ import { LoginComponent } from '../../../auth/login/login.component';
           <span>Loading player data for <strong>{{ auth.getCurrentUser()?.username }}</strong>...</span>
         </div>
       } @else {
+        @if (wizardError()) {
+          <div class="alert alert-danger d-flex align-items-start gap-2 mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <span>{{ wizardError() }}</span>
+          </div>
+        }
         <app-login
           [theme]="'player'"
           [embedded]="true"
@@ -151,12 +157,21 @@ export class FamilyCheckStepComponent implements OnInit {
 
     readonly loading = signal(false);
     readonly loadError = signal<string | null>(null);
+    readonly wizardError = signal<string | null>(null);
 
     ngOnInit(): void {
-        // Parent wizard always calls logoutLocal() on init, so we start unauthenticated.
-        // If somehow still authenticated (deep-link edge case), auto-advance.
+        // Reset local UI state (may persist from prior navigation)
+        this.loading.set(false);
+        this.loadError.set(null);
+        this.wizardError.set(null);
+
+        // Parent wizard calls logoutLocal() on init for non-Family roles.
+        // Only auto-advance if still authenticated as Family/Player.
         if (this.auth.isAuthenticated()) {
-            this.onContinue();
+            const role = this.auth.currentUser()?.role;
+            if (role === 'Family' || role === 'Player') {
+                this.onContinue();
+            }
         }
     }
 
@@ -166,6 +181,14 @@ export class FamilyCheckStepComponent implements OnInit {
     }
 
     onContinue(): void {
+        // Verify the logged-in account is a Family/Player — reject other roles
+        const user = this.auth.currentUser();
+        if (user?.role && user.role !== 'Family' && user.role !== 'Player') {
+            this.auth.logoutLocal();
+            this.wizardError.set('This is not a family account. Please sign in with your family account username and password.');
+            return;
+        }
+
         this.state.familyPlayers.setHasFamilyAccount('yes');
         const jobPath = this.jobService.getCurrentJob()?.jobPath || '';
         if (jobPath) {
@@ -199,6 +222,18 @@ export class FamilyCheckStepComponent implements OnInit {
                 error: (err: unknown) => {
                     this.loading.set(false);
                     console.error('[FamilyCheck] setWizardContext failed', err);
+
+                    // Extract server message if available
+                    const httpErr = err as { error?: { message?: string }; status?: number };
+                    const serverMsg = httpErr?.error?.message;
+
+                    // 400 with a message = business rule (not a family account, etc.)
+                    if (httpErr?.status === 400 && serverMsg) {
+                        this.auth.logoutLocal();
+                        this.wizardError.set(serverMsg);
+                        return;
+                    }
+
                     this.loadError.set('Could not load player data. Please check your connection and try again.');
                 },
             });

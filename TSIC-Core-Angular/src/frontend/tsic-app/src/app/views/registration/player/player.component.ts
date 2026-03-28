@@ -44,8 +44,8 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       @switch (currentStepId()) {
         @case ('family-check') { <app-prw-family-check-step (advance)="next()" /> }
         @case ('players') { <app-prw-player-selection-step /> }
-        @case ('eligibility') { <app-prw-eligibility-step /> }
-        @case ('teams') { <app-prw-team-selection-step /> }
+        @case ('eligibility') { <app-prw-eligibility-step (advance)="next()" /> }
+        @case ('teams') { <app-prw-team-selection-step (advance)="next()" /> }
         @case ('forms') { <app-prw-player-forms-step /> }
         @case ('waivers') { <app-prw-waivers-step /> }
         @case ('review') { <app-prw-review-step (advance)="next()" /> }
@@ -158,18 +158,26 @@ export class PlayerWizardV2Component implements OnInit {
 
     // ── Lifecycle ─────────────────────────────────────────────────────
     ngOnInit(): void {
+        const jobPath = this.resolveJobPath();
+
         // Start clean unless user already holds a Family/Player role for this job
         const user = this.authService.currentUser();
-        const jobPath = this.route.snapshot.paramMap.get('jobPath') || '';
         const validRole = user?.role === 'Family' || user?.role === 'Player';
         const sameJob = user?.jobPath?.toLowerCase() === jobPath.toLowerCase();
         if (!validRole || !sameJob) {
             this.authService.logoutLocal();
         }
+
+        // Always reset wizard state (clears stale errors from prior sessions)
+        this.state.reset();
+
         if (jobPath) {
-            this.state.reset();
-            this.state.initialize(jobPath);
-            this.teamService.loadForJob(jobPath);
+            this.state.jobCtx.setJobPath(jobPath);
+            // Only pre-load if already authenticated as Family/Player for this job
+            if (validRole && sameJob) {
+                this.state.initialize(jobPath);
+                this.teamService.loadForJob(jobPath);
+            }
         }
         // Deep-link via query param
         const stepParam = this.route.snapshot.queryParamMap.get('step');
@@ -206,7 +214,16 @@ export class PlayerWizardV2Component implements OnInit {
     }
 
     finish(): void {
-        const jobPath = this.route.snapshot.paramMap.get('jobPath') || '';
-        this.router.navigate([`/${jobPath}`]);
+        this.router.navigate([`/${this.resolveJobPath()}`]);
+    }
+
+    private resolveJobPath(): string {
+        let snap: import('@angular/router').ActivatedRouteSnapshot | null = this.route.snapshot;
+        while (snap) {
+            const jp = snap.paramMap.get('jobPath');
+            if (jp) return jp;
+            snap = snap.parent;
+        }
+        return '';
     }
 }
