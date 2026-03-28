@@ -548,14 +548,17 @@
             [allowSorting]="true"
             [allowExcelExport]="true"
             [enableStickyHeader]="true"
-            [frozenColumns]="1"
+            [frozenColumns]="2"
             [pageSettings]="pageSettings"
             [sortSettings]="sortSettings"
             (rowSelected)="onRowSelected()"
             (rowDeselected)="onRowSelected()"
+            (dataBound)="stampRowNumbers()"
             class="tight-table"
           >
           <e-columns>
+            <!-- Row number -->
+            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
             <!-- Frozen: Name with inline detail icon -->
             <e-column field="lastName" headerText="Name" width="200">
               <ng-template #template let-data>

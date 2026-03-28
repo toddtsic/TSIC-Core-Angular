@@ -98,7 +98,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	// Grid configuration
 	pageSettings: PageSettingsModel = { pageSize: 20, pageSizes: [20, 50, 100, 'All'] };
-	sortSettings: SortSettingsModel = { columns: [{ field: 'clubName', direction: 'Ascending' }] };
+	sortSettings: SortSettingsModel = { columns: [{ field: 'teamName', direction: 'Ascending' }] };
 
 	// Syncfusion MultiSelect fields
 	msFields = { value: 'value', text: 'text' };
@@ -353,6 +353,31 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	clearAllChips(): void {
 		this.clearFilters();
+	}
+
+	stampRowNumbers(): void {
+		const pageSize = this.grid.pageSettings.pageSize as number ?? 20;
+		const currentPage = this.grid.pageSettings.currentPage ?? 1;
+		const start = (currentPage - 1) * pageSize;
+		// With frozen columns, the # column is in the frozen pane
+		const frozenRows = (this.grid as any).getRowsObject?.() ?? [];
+		const gridEl = this.grid.element;
+		if (!gridEl) return;
+		// Query all frozen-pane body rows
+		const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
+		if (rows.length) {
+			rows.forEach((row, i) => {
+				const cell = (row as HTMLTableRowElement).cells[0];
+				if (cell) cell.textContent = String(start + i + 1);
+			});
+		} else {
+			// Fallback: no frozen pane (single table)
+			const allRows = this.grid.getRows() as HTMLTableRowElement[];
+			allRows.forEach((row, i) => {
+				const cell = row.cells[0];
+				if (cell) cell.textContent = String(start + i + 1);
+			});
+		}
 	}
 
 	openDetail(teamId: string): void {
