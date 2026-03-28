@@ -258,15 +258,13 @@
         [allowSorting]="true"
         [allowExcelExport]="true"
         [enableStickyHeader]="true"
-        [frozenColumns]="3"
+        [frozenColumns]="2"
         [pageSettings]="pageSettings"
         [sortSettings]="sortSettings"
-        (dataBound)="stampRowNumbers()"
+        [rowHeight]="36"
         class="tight-table"
       >
         <e-columns>
-          <!-- Row number -->
-          <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
           <!-- Frozen columns -->
           <e-column field="teamName" headerText="Team" width="280">
             <ng-template #template let-data>
