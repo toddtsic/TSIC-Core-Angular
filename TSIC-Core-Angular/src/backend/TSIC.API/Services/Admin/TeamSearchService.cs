@@ -100,6 +100,9 @@ public sealed class TeamSearchService : ITeamSearchService
             ? await _teamRepo.GetClubTeamSummariesAsync(jobId, detail.ClubRepRegistrationId.Value, ct)
             : new List<ClubTeamSummaryDto>();
 
+        var lopOptions = await GetLopOptionsAsync(jobId, ct);
+        var distinctClubCount = await _teamRepo.GetDistinctClubCountAsync(jobId, ct);
+
         return new TeamSearchDetailDto
         {
             TeamId = detail.TeamId,
@@ -115,13 +118,50 @@ public sealed class TeamSearchService : ITeamSearchService
             PaidTotal = detail.PaidTotal,
             OwedTotal = detail.OwedTotal,
             TeamComments = detail.TeamComments,
+            LopOptions = lopOptions,
+            JobDistinctClubCount = distinctClubCount,
             ClubRepRegistrationId = detail.ClubRepRegistrationId,
             ClubRepName = detail.ClubRepName,
             ClubRepEmail = detail.ClubRepEmail,
             ClubRepCellphone = detail.ClubRepCellphone,
+            ClubRepStreetAddress = detail.ClubRepStreetAddress,
+            ClubRepCity = detail.ClubRepCity,
+            ClubRepState = detail.ClubRepState,
+            ClubRepPostalCode = detail.ClubRepPostalCode,
             AccountingRecords = accountingRecords,
             ClubTeamSummaries = clubTeamSummaries
         };
+    }
+
+    /// <summary>
+    /// Extract LOP options from Jobs.JsonOptions → List_Lops.
+    /// </summary>
+    private async Task<List<string>> GetLopOptionsAsync(Guid jobId, CancellationToken ct)
+    {
+        var metadata = await _jobRepo.GetJobMetadataAsync(jobId, ct);
+        if (string.IsNullOrWhiteSpace(metadata?.JsonOptions)) return [];
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(metadata.JsonOptions);
+            if (!doc.RootElement.TryGetProperty("List_Lops", out var lopsElement)) return [];
+            if (lopsElement.ValueKind != System.Text.Json.JsonValueKind.Array) return [];
+
+            var result = new List<string>();
+            foreach (var item in lopsElement.EnumerateArray())
+            {
+                var value = item.TryGetProperty("Value", out var v) ? v.GetString()
+                          : item.TryGetProperty("value", out var v2) ? v2.GetString()
+                          : null;
+                if (!string.IsNullOrWhiteSpace(value))
+                    result.Add(value);
+            }
+            return result;
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     public async Task EditTeamAsync(

@@ -341,6 +341,11 @@ public interface ITeamRepository
     Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// Count distinct club rep registrations for a job (for hiding club ops when only 1 club).
+    /// </summary>
+    Task<int> GetDistinctClubCountAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get all active club teams for a club rep in a job, ordered by OwedTotal DESC.
     /// Returns tracked entities for cross-club payment mutation.
     /// </summary>
@@ -433,5 +438,9 @@ public record TeamDetailQueryResult
     public string? ClubRepName { get; init; }
     public string? ClubRepEmail { get; init; }
     public string? ClubRepCellphone { get; init; }
+    public string? ClubRepStreetAddress { get; init; }
+    public string? ClubRepCity { get; init; }
+    public string? ClubRepState { get; init; }
+    public string? ClubRepPostalCode { get; init; }
     public Guid JobId { get; init; }
 }

@@ -916,9 +916,23 @@ public class TeamRepository : ITeamRepository
                 ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
                 ClubRepEmail = x.u != null ? x.u.Email : null,
                 ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
+                ClubRepStreetAddress = x.u != null ? x.u.StreetAddress : null,
+                ClubRepCity = x.u != null ? x.u.City : null,
+                ClubRepState = x.u != null ? x.u.State : null,
+                ClubRepPostalCode = x.u != null ? x.u.PostalCode : null,
                 JobId = x.t.JobId
             })
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<int> GetDistinctClubCountAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null)
+            .Select(t => t.ClubrepRegistrationid)
+            .Distinct()
+            .CountAsync(ct);
     }
 
     public async Task<List<Teams>> GetActiveClubTeamsOrderedByOwedAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)

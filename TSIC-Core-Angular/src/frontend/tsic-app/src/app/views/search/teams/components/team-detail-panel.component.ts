@@ -1,7 +1,7 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, inject, linkedSignal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo, ClubRegistrationDto } from '@core/api';
+import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo, ClubRegistrationDto, EditAccountingRecordRequest } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { CcChargeModalComponent } from './cc-charge-modal.component';
@@ -10,6 +10,14 @@ import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/con
 
 type TabType = 'info' | 'accounting';
 type Scope = 'team' | 'club';
+
+/** Formats a 10-digit phone string as xxx-xxx-xxxx. */
+function formatPhone(value: string | null | undefined): string | null {
+	if (!value) return value ?? null;
+	const digits = value.replace(/\D/g, '');
+	if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+	return value;
+}
 
 @Component({
 	selector: 'app-team-detail-panel',
@@ -44,9 +52,21 @@ export class TeamDetailPanelComponent {
 	showCheckModal = signal(false);
 	checkModalType = signal<'Check' | 'Correction'>('Check');
 
+	// Active toggle (header)
+	isTogglingActive = signal(false);
+
 	// Refund confirm
 	showRefundConfirm = signal(false);
 	refundTarget = signal<AccountingRecordDto | null>(null);
+
+	// Inline editing for accounting records
+	editingAId = signal<number | null>(null);
+	editComment = signal('');
+	editCheckNo = signal('');
+	isSavingEdit = signal(false);
+
+	// Move team confirm
+	showMoveTeamConfirm = signal(false);
 
 	// Club rep operations
 	showChangeClub = signal(false);
@@ -58,8 +78,18 @@ export class TeamDetailPanelComponent {
 	isTransferring = signal(false);
 	showTransferConfirm = signal(false);
 
+	@HostListener('document:keydown.escape')
+	onEscapeKey(): void {
+		if (this.isOpen()) { this.close(); }
+	}
+
 	close(): void {
 		this.closed.emit();
+	}
+
+	/** Format phone for display */
+	formatPhone(value: string | null | undefined): string | null {
+		return formatPhone(value);
 	}
 
 	setActiveTab(tab: TabType): void {
@@ -132,6 +162,75 @@ export class TeamDetailPanelComponent {
 				this.isSaving.set(false);
 			}
 		});
+	}
+
+	// ── Active Toggle (header) ──
+
+	toggleActive(): void {
+		const d = this.detail();
+		if (!d) return;
+
+		this.isTogglingActive.set(true);
+		const req: EditTeamRequest = {
+			teamName: d.teamName,
+			active: !d.active,
+			levelOfPlay: d.levelOfPlay || undefined,
+			teamComments: d.teamComments || undefined
+		};
+
+		this.searchService.editTeam(d.teamId, req).subscribe({
+			next: () => {
+				(d as Record<string, unknown>)['active'] = !d.active;
+				this.isTogglingActive.set(false);
+				this.editActive.set(d.active);
+				this.toast.show(d.active ? 'Team activated' : 'Team deactivated', 'success', 3000);
+				this.changed.emit();
+			},
+			error: (err) => {
+				this.isTogglingActive.set(false);
+				this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+			}
+		});
+	}
+
+	// ── Inline Editing (Accounting Records) ──
+
+	startEditRecord(record: AccountingRecordDto): void {
+		this.editingAId.set(record.aId);
+		this.editComment.set(record.comment || '');
+		this.editCheckNo.set(record.checkNo || '');
+	}
+
+	cancelEditRecord(): void {
+		this.editingAId.set(null);
+	}
+
+	saveEditRecord(): void {
+		const aId = this.editingAId();
+		if (aId == null) return;
+
+		this.isSavingEdit.set(true);
+		this.searchService.editAccountingRecord(aId, {
+			comment: this.editComment() || null,
+			checkNo: this.editCheckNo() || null
+		}).subscribe({
+			next: () => {
+				this.isSavingEdit.set(false);
+				this.editingAId.set(null);
+				this.toast.show('Record updated', 'success', 3000);
+				this.changed.emit();
+			},
+			error: (err) => {
+				this.isSavingEdit.set(false);
+				this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+			}
+		});
+	}
+
+	/** Check/Correction/Cash records are editable (not CC records). */
+	isEditable(record: AccountingRecordDto): boolean {
+		const method = (record.paymentMethod || '').toLowerCase();
+		return method.includes('check') || method.includes('correction') || method.includes('cash');
 	}
 
 	// ── Modals ──
@@ -211,11 +310,17 @@ export class TeamDetailPanelComponent {
 		});
 	}
 
+	confirmChangeClub(): void {
+		if (!this.selectedTargetRegId()) return;
+		this.showMoveTeamConfirm.set(true);
+	}
+
 	doChangeClub(): void {
 		const d = this.detail();
 		const targetId = this.selectedTargetRegId();
 		if (!d || !targetId) return;
 
+		this.showMoveTeamConfirm.set(false);
 		this.isMoving.set(true);
 		this.searchService.changeClub(d.teamId, { targetRegistrationId: targetId }).subscribe({
 			next: (result) => {

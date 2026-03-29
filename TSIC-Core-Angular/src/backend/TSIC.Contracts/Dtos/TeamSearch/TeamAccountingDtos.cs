@@ -24,11 +24,21 @@ public record TeamSearchDetailDto
     public required decimal OwedTotal { get; init; }
     public string? TeamComments { get; init; }
 
+    // LOP dropdown options (from Jobs.JsonOptions → List_Lops)
+    public List<string> LopOptions { get; init; } = [];
+
+    // Job-level club count (for hiding club ops when only 1 club exists)
+    public int JobDistinctClubCount { get; init; }
+
     // Club rep info
     public Guid? ClubRepRegistrationId { get; init; }
     public string? ClubRepName { get; init; }
     public string? ClubRepEmail { get; init; }
     public string? ClubRepCellphone { get; init; }
+    public string? ClubRepStreetAddress { get; init; }
+    public string? ClubRepCity { get; init; }
+    public string? ClubRepState { get; init; }
+    public string? ClubRepPostalCode { get; init; }
 
     // Accounting records for this team
     public required List<AccountingRecordDto> AccountingRecords { get; init; }

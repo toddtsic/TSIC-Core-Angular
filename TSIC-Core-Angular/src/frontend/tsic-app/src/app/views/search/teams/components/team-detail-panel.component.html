@@ -13,9 +13,13 @@
           </h3>
         </div>
         <div class="header-actions">
-          <span class="badge" [class.badge-success]="team.active" [class.badge-secondary]="!team.active">
-            {{ team.active ? 'Active' : 'Inactive' }}
-          </span>
+          <label class="active-toggle-switch" [class.disabled]="isTogglingActive()">
+            <input type="checkbox" [checked]="team.active" (change)="toggleActive()" [disabled]="isTogglingActive()">
+            <span class="toggle-track"></span>
+            <span class="toggle-label" [class.text-success]="team.active" [class.text-danger]="!team.active">
+              {{ team.active ? 'Active' : 'Inactive' }}
+            </span>
+          </label>
           <button type="button" class="btn-close" (click)="close()" aria-label="Close">&times;</button>
         </div>
       </div>
@@ -30,17 +34,11 @@
           <span class="header-tag-value">{{ team.divName }}</span>
         </span>
         }
-        @if (team.levelOfPlay) {
-        <span class="header-tag">
-          <span class="header-tag-label">LOP</span>
-          <span class="header-tag-value">{{ team.levelOfPlay }}</span>
-        </span>
-        }
       </div>
     </div>
 
     <div class="tab-bar">
-      <button type="button" class="tab-button" [class.active]="activeTab() === 'info'" (click)="setActiveTab('info')">Info</button>
+      <button type="button" class="tab-button" [class.active]="activeTab() === 'info'" (click)="setActiveTab('info')">Details</button>
       <button type="button" class="tab-button" [class.active]="activeTab() === 'accounting'" (click)="setActiveTab('accounting')">Accounting</button>
     </div>
 
@@ -48,7 +46,7 @@
       <!-- ═══════════════════════ INFO TAB ═══════════════════════ -->
       @if (activeTab() === 'info') {
         <div class="tab-content">
-          <div class="info-section">
+          <div class="contact-zone">
             <h4 class="section-title">Team Details</h4>
             <form class="edit-form" (ngSubmit)="saveTeamInfo()">
               <div class="form-group">
@@ -57,21 +55,23 @@
                   [ngModel]="editTeamName()" (ngModelChange)="editTeamName.set($event)" name="teamName" />
               </div>
               <div class="form-group">
-                <label>Active</label>
-                <div class="form-check">
-                  <input type="checkbox" id="editActive" class="form-check-input"
-                    [ngModel]="editActive()" (ngModelChange)="editActive.set($event)" name="editActive" />
-                  <label for="editActive" class="form-check-label">Team is active</label>
-                </div>
-              </div>
-              <div class="form-group">
                 <label for="editLop">Level of Play</label>
-                <input type="text" id="editLop" class="form-control"
-                  [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop" />
+                @if (detail()?.lopOptions?.length) {
+                  <select id="editLop" class="form-select"
+                    [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop">
+                    <option value="">— Select —</option>
+                    @for (opt of detail()!.lopOptions!; track opt) {
+                      <option [value]="opt">{{ opt }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input type="text" id="editLop" class="form-control"
+                    [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop" />
+                }
               </div>
               <div class="form-group">
                 <label for="editComments">Comments</label>
-                <textarea id="editComments" class="form-control" rows="3"
+                <textarea id="editComments" class="form-control" rows="2"
                   [ngModel]="editComments()" (ngModelChange)="editComments.set($event)" name="editComments">
                 </textarea>
               </div>
@@ -84,103 +84,129 @@
 
           <!-- Club Rep Contact (read-only) -->
           @if (team.clubRepName) {
-            <div class="info-section">
+            <div class="contact-zone">
               <h4 class="section-title">Club Rep Contact</h4>
-              <div class="read-only-fields">
-                <div class="field-row">
-                  <span class="field-label">Name</span>
-                  <span class="field-value">{{ team.clubRepName }}</span>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">Name</span>
+                  <span class="info-value">{{ team.clubRepName }}</span>
                 </div>
-                @if (team.clubRepEmail) {
-                  <div class="field-row">
-                    <span class="field-label">Email</span>
-                    <span class="field-value">{{ team.clubRepEmail }}</span>
+                @if (team.clubRepCellphone) {
+                  <div class="info-item">
+                    <span class="info-label">Phone</span>
+                    <span class="info-value">{{ formatPhone(team.clubRepCellphone) }}</span>
                   </div>
                 }
-                @if (team.clubRepCellphone) {
-                  <div class="field-row">
-                    <span class="field-label">Phone</span>
-                    <span class="field-value">{{ team.clubRepCellphone }}</span>
+                @if (team.clubRepEmail) {
+                  <div class="info-item info-item-full">
+                    <span class="info-label">Email</span>
+                    <a class="info-value info-link" [href]="'mailto:' + team.clubRepEmail">{{ team.clubRepEmail }}</a>
                   </div>
                 }
               </div>
+              @if (team.clubRepStreetAddress || team.clubRepCity) {
+                <div class="address-row">
+                  @if (team.clubRepStreetAddress) {
+                    <div class="form-group">
+                      <span class="info-label">Address</span>
+                      <span class="info-value">{{ team.clubRepStreetAddress }}</span>
+                    </div>
+                  }
+                  @if (team.clubRepCity) {
+                    <div class="form-group">
+                      <span class="info-label">City</span>
+                      <span class="info-value">{{ team.clubRepCity }}</span>
+                    </div>
+                  }
+                  @if (team.clubRepState) {
+                    <div class="form-group">
+                      <span class="info-label">State</span>
+                      <span class="info-value">{{ team.clubRepState }}</span>
+                    </div>
+                  }
+                  @if (team.clubRepPostalCode) {
+                    <div class="form-group">
+                      <span class="info-label">Zip</span>
+                      <span class="info-value">{{ team.clubRepPostalCode }}</span>
+                    </div>
+                  }
+                </div>
+              }
             </div>
           }
 
-          <!-- Club Rep Operations -->
-          @if (team.clubRepRegistrationId) {
-            <div class="info-section">
-              <h4 class="section-title">Club Rep Operations</h4>
-              <div class="d-flex gap-2 mb-3">
-                <button type="button" class="btn btn-sm btn-outline-primary"
-                  (click)="openChangeClub()" [disabled]="isMoving() || isTransferring()">
-                  <i class="bi bi-arrow-left-right me-1"></i>Change Club
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-warning"
-                  (click)="openTransferAll()" [disabled]="isMoving() || isTransferring()">
-                  <i class="bi bi-people me-1"></i>Transfer All &amp; Deactivate
-                </button>
+          <!-- Club/Team Assignment Operations -->
+          @if (team.clubRepRegistrationId && (team.jobDistinctClubCount ?? 0) > 1) {
+            <div class="contact-zone">
+              <h4 class="section-title">Change Team/Club Assignments</h4>
+              <p class="tip">Club Rep accounting will adjust to reflect these changes.</p>
+              <div class="d-flex flex-column gap-3">
+                <!-- Move This Team -->
+                <div>
+                  <button type="button" class="btn btn-sm btn-info"
+                    (click)="openChangeClub()" [disabled]="isMoving() || isTransferring()">
+                    <i class="bi bi-arrow-left-right me-1"></i>Move This Team To a Different Club
+                  </button>
+                  @if (showChangeClub()) {
+                    <div class="alert alert-info mt-2 mb-0">
+                      <p class="small mb-2">Move <strong>{{ team.teamName }}</strong> from
+                        <strong>{{ team.clubName }}</strong> to:</p>
+                      <select class="form-select form-select-sm mb-2"
+                        [ngModel]="selectedTargetRegId()"
+                        (ngModelChange)="selectedTargetRegId.set($event)"
+                        [ngModelOptions]="{standalone: true}">
+                        <option value="">Select target club...</option>
+                        @for (club of clubRegistrations(); track club.registrationId) {
+                          <option [value]="club.registrationId">{{ club.clubName }}</option>
+                        }
+                      </select>
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelClubOps()">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-primary" (click)="confirmChangeClub()"
+                          [disabled]="!selectedTargetRegId() || isMoving()">
+                          @if (isMoving()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                          }
+                          Move Team
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- Move All Teams From This Club -->
+                <div>
+                  <button type="button" class="btn btn-sm btn-warning"
+                    (click)="openTransferAll()" [disabled]="isMoving() || isTransferring()">
+                    <i class="bi bi-people me-1"></i>Move All Teams From This Club to a Different Club
+                  </button>
+                  @if (showTransferAll()) {
+                    <div class="alert alert-warning mt-2 mb-0">
+                      <p class="small mb-2">Move <strong>all teams</strong> from <strong>{{ team.clubName }}</strong>
+                        to a different club rep. The source club rep will be deactivated.</p>
+                      <select class="form-select form-select-sm mb-2"
+                        [ngModel]="transferTargetRegId()"
+                        (ngModelChange)="transferTargetRegId.set($event)"
+                        [ngModelOptions]="{standalone: true}">
+                        <option value="">Select target club...</option>
+                        @for (club of clubRegistrations(); track club.registrationId) {
+                          <option [value]="club.registrationId">{{ club.clubName }}</option>
+                        }
+                      </select>
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelClubOps()">Cancel</button>
+                        <button type="button" class="btn btn-sm btn-warning" (click)="confirmTransferAll()"
+                          [disabled]="!transferTargetRegId() || isTransferring()">
+                          @if (isTransferring()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                          }
+                          Transfer All Teams
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
               </div>
-
-              <!-- Change Club inline form -->
-              @if (showChangeClub()) {
-                <div class="alert alert-info mb-0">
-                  <h6 class="alert-heading mb-2">
-                    <i class="bi bi-arrow-left-right me-1"></i>Move Team to Different Club
-                  </h6>
-                  <p class="small mb-2">Move <strong>{{ team.teamName }}</strong> from
-                    <strong>{{ team.clubName }}</strong> to:</p>
-                  <select class="form-select form-select-sm mb-2"
-                    [ngModel]="selectedTargetRegId()"
-                    (ngModelChange)="selectedTargetRegId.set($event)"
-                    [ngModelOptions]="{standalone: true}">
-                    <option value="">Select target club...</option>
-                    @for (club of clubRegistrations(); track club.registrationId) {
-                      <option [value]="club.registrationId">{{ club.clubName }}</option>
-                    }
-                  </select>
-                  <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelClubOps()">Cancel</button>
-                    <button type="button" class="btn btn-sm btn-primary" (click)="doChangeClub()"
-                      [disabled]="!selectedTargetRegId() || isMoving()">
-                      @if (isMoving()) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                      }
-                      Move Team
-                    </button>
-                  </div>
-                </div>
-              }
-
-              <!-- Transfer All inline form -->
-              @if (showTransferAll()) {
-                <div class="alert alert-warning mb-0">
-                  <h6 class="alert-heading mb-2">
-                    <i class="bi bi-people me-1"></i>Transfer All Teams &amp; Deactivate Club Rep
-                  </h6>
-                  <p class="small mb-2">Move <strong>all teams</strong> from <strong>{{ team.clubName }}</strong>
-                    to a different club rep. The source club rep will be deactivated.</p>
-                  <select class="form-select form-select-sm mb-2"
-                    [ngModel]="transferTargetRegId()"
-                    (ngModelChange)="transferTargetRegId.set($event)"
-                    [ngModelOptions]="{standalone: true}">
-                    <option value="">Select target club...</option>
-                    @for (club of clubRegistrations(); track club.registrationId) {
-                      <option [value]="club.registrationId">{{ club.clubName }}</option>
-                    }
-                  </select>
-                  <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelClubOps()">Cancel</button>
-                    <button type="button" class="btn btn-sm btn-warning" (click)="confirmTransferAll()"
-                      [disabled]="!transferTargetRegId() || isTransferring()">
-                      @if (isTransferring()) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                      }
-                      Transfer All Teams
-                    </button>
-                  </div>
-                </div>
-              }
             </div>
           }
         </div>
@@ -239,75 +265,103 @@
             </div>
           }
 
-          <!-- Financial Summary -->
-          <div class="financial-summary">
-            <div class="summary-item">
-              <span class="summary-label">Fee Total</span>
-              <span class="summary-value">{{ scope() === 'team' ? (teamFeeTotal | currency) : (clubFeeTotal | currency) }}</span>
+          <!-- Payment Ledger Card -->
+          <div class="accounting-zone">
+            <div class="section-title-row">
+              <h4 class="section-title">Payment Ledger</h4>
             </div>
-            <div class="summary-item">
-              <span class="summary-label">Paid</span>
-              <span class="summary-value summary-paid">{{ scope() === 'team' ? (teamPaidTotal | currency) : (clubPaidTotal | currency) }}</span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Owed</span>
-              <span class="summary-value" [class.summary-owed]="(scope() === 'team' ? teamOwedTotal : clubOwedTotal) > 0">
-                {{ scope() === 'team' ? (teamOwedTotal | currency) : (clubOwedTotal | currency) }}
-              </span>
-            </div>
-          </div>
 
-          <!-- Accounting Records -->
-          <div class="accounting-records">
-            <h5 class="section-title">Transaction History</h5>
+            <div class="financial-summary">
+              <div class="summary-item">
+                <span class="summary-label">Total Fees</span>
+                <span class="summary-value">{{ scope() === 'team' ? (teamFeeTotal | currency) : (clubFeeTotal | currency) }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Total Paid</span>
+                <span class="summary-value text-success">{{ scope() === 'team' ? (teamPaidTotal | currency) : (clubPaidTotal | currency) }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Amount Owed</span>
+                <span class="summary-value" [class.text-danger]="(scope() === 'team' ? teamOwedTotal : clubOwedTotal) > 0">
+                  {{ scope() === 'team' ? (teamOwedTotal | currency) : (clubOwedTotal | currency) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Accounting Records (compact format matching registration panel) -->
             @if (team.accountingRecords.length) {
-              <table class="records-table">
+              <table class="table table-sm accounting-table mb-0">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Method</th>
+                    <th>Transaction</th>
                     <th class="text-end">Due</th>
                     <th class="text-end">Paid</th>
-                    <th>Comment</th>
-                    <th>CC4</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (rec of team.accountingRecords; track rec.aId) {
-                    <tr>
-                      <td class="text-nowrap">{{ rec.date | date:'M/d/yy' }}</td>
-                      <td>{{ rec.paymentMethod }}</td>
-                      <td class="text-end">{{ rec.dueAmount | currency }}</td>
-                      <td class="text-end">{{ rec.paidAmount | currency }}</td>
-                      <td class="comment-cell">{{ rec.comment }}</td>
-                      <td>{{ rec.adnCc4 }}</td>
-                      <td>
-                        @if (rec.canRefund) {
-                          <button type="button" class="btn btn-sm btn-outline-danger" (click)="onRefundRequested(rec)">
-                            Refund
-                          </button>
-                        }
-                      </td>
-                    </tr>
+                    @if (editingAId() === rec.aId) {
+                      <tr class="editing-row">
+                        <td>
+                          <div class="txn-primary">{{ rec.date | date:'M/d/yy' }} · {{ rec.paymentMethod }}@if (rec.adnCc4) { <span class="cc-digits">****{{ rec.adnCc4 }}</span>}</div>
+                        </td>
+                        <td class="text-end col-amount">{{ rec.dueAmount | currency }}</td>
+                        <td class="text-end col-amount">{{ rec.paidAmount | currency }}</td>
+                        <td></td>
+                      </tr>
+                      <tr class="editing-row edit-fields-row">
+                        <td colspan="4">
+                          <div class="acct-edit-fields">
+                            <input type="text" class="form-control form-control-sm inline-edit"
+                              [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
+                              placeholder="Comment" [disabled]="isSavingEdit()" name="editComment" />
+                            <input type="text" class="form-control form-control-sm inline-edit"
+                              [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
+                              placeholder="Check #" [disabled]="isSavingEdit()" name="editCheckNo" />
+                            <div class="edit-actions">
+                              <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    } @else {
+                      <tr>
+                        <td>
+                          <div class="txn-primary">{{ rec.date | date:'M/d/yy' }} · {{ rec.paymentMethod }}@if (rec.adnCc4) { <span class="cc-digits">****{{ rec.adnCc4 }}</span>}</div>
+                          @if (rec.comment) { <div class="txn-comment">{{ rec.comment }}</div> }
+                        </td>
+                        <td class="text-end col-amount">{{ rec.dueAmount | currency }}</td>
+                        <td class="text-end col-amount text-success">{{ rec.paidAmount | currency }}</td>
+                        <td class="col-actions">
+                          @if (rec.canRefund) {
+                            <button type="button" class="btn-icon text-danger" title="Refund" (click)="onRefundRequested(rec)"><i class="bi bi-arrow-counterclockwise"></i></button>
+                          }
+                          @if (isEditable(rec)) {
+                            <button type="button" class="btn-icon text-muted" title="Edit" (click)="startEditRecord(rec)"><i class="bi bi-pencil"></i></button>
+                          }
+                        </td>
+                      </tr>
+                    }
                   }
                 </tbody>
               </table>
             } @else {
-              <p class="no-records">No accounting records.</p>
+              <div class="text-muted mt-2">No records yet.</div>
             }
           </div>
 
           <!-- Action Buttons -->
-          <div class="action-buttons">
-            <button type="button" class="btn btn-primary" (click)="openCcCharge()">
-              Charge CC for {{ scopeLabel }}
+          <div class="action-buttons justify-content-center">
+            <button type="button" class="btn btn-sm btn-primary" (click)="openCcCharge()">
+              <i class="bi bi-credit-card me-1"></i>Charge CC
             </button>
-            <button type="button" class="btn btn-success" (click)="openCheckPayment()">
-              Enter Check for {{ scopeLabel }}
+            <button type="button" class="btn btn-sm btn-success" (click)="openCheckPayment()">
+              <i class="bi bi-cash me-1"></i>Enter Check
             </button>
-            <button type="button" class="btn btn-warning" (click)="openCorrection()">
-              Enter Correction for {{ scopeLabel }}
+            <button type="button" class="btn btn-sm btn-outline-warning" (click)="openCorrection()">
+              <i class="bi bi-pencil-square me-1"></i>Enter Correction
             </button>
           </div>
         </div>
@@ -348,6 +402,18 @@
     confirmVariant="danger"
     (confirmed)="onRefundConfirmed()"
     (cancelled)="onRefundCancelled()">
+  </confirm-dialog>
+}
+
+<!-- Move Team Confirm Dialog -->
+@if (showMoveTeamConfirm()) {
+  <confirm-dialog
+    title="Move Team to Different Club"
+    [message]="'Move <strong>' + (detail()?.teamName ?? '') + '</strong> from <strong>' + (detail()?.clubName ?? '') + '</strong> to the selected club? Club Rep accounting will adjust to reflect this change.'"
+    confirmLabel="Move Team"
+    confirmVariant="primary"
+    (confirmed)="doChangeClub()"
+    (cancelled)="showMoveTeamConfirm.set(false)">
   </confirm-dialog>
 }
 

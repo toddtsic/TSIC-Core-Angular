@@ -18,10 +18,16 @@ export type TeamSearchDetailDto = {
     paidTotal: number;
     owedTotal: number;
     teamComments?: string | null;
+    lopOptions?: Array<string>;
+    jobDistinctClubCount?: number;
     clubRepRegistrationId?: string | null;
     clubRepName?: string | null;
     clubRepEmail?: string | null;
     clubRepCellphone?: string | null;
+    clubRepStreetAddress?: string | null;
+    clubRepCity?: string | null;
+    clubRepState?: string | null;
+    clubRepPostalCode?: string | null;
     accountingRecords: Array<AccountingRecordDto>;
     clubTeamSummaries: Array<ClubTeamSummaryDto>;
 };

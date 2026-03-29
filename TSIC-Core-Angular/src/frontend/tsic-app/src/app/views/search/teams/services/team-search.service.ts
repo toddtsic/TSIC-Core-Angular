@@ -8,6 +8,7 @@ import type {
 	TeamFilterOptionsDto,
 	TeamSearchDetailDto,
 	EditTeamRequest,
+	EditAccountingRecordRequest,
 	TeamCcChargeRequest,
 	TeamCcChargeResponse,
 	TeamCheckOrCorrectionRequest,
@@ -32,6 +33,7 @@ export type {
 	TeamSearchDetailDto,
 	ClubTeamSummaryDto,
 	EditTeamRequest,
+	EditAccountingRecordRequest,
 	TeamCcChargeRequest,
 	TeamCcChargeResponse,
 	TeamCheckOrCorrectionRequest,
@@ -103,6 +105,12 @@ export class TeamSearchService {
 
 	getCadtTree(): Observable<CadtClubNode[]> {
 		return this.http.get<CadtClubNode[]>(`${this.apiUrl}/cadt-tree`);
+	}
+
+	// ── Accounting Record Editing ──
+	// Reuses the universal registration-search endpoint (operates on aId, not entity-type-specific)
+	editAccountingRecord(aId: number, request: EditAccountingRecordRequest): Observable<void> {
+		return this.http.put<void>(`${environment.apiUrl}/registration-search/accounting/${aId}`, request);
 	}
 
 	// ── Club Rep Operations ──
