@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RecordEditEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
+import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 type TabType = 'details' | 'accounting' | 'email';
@@ -536,16 +536,6 @@ export class RegistrationDetailPanelComponent {
   // ── Accounting (delegated to shared AccountingLedgerComponent) ──
 
   onRefundClick(record: AccountingRecordDto): void { this.refundRequested.emit(record); }
-
-  onRecordEdited(event: RecordEditEvent): void {
-    this.searchService.editAccountingRecord(event.aId, {
-      comment: event.comment,
-      checkNo: event.checkNo
-    }).subscribe({
-      next: () => { this.toast.show('Record updated', 'success', 3000); this.saved.emit(); },
-      error: (err) => { this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000); }
-    });
-  }
 
   onCcCharge(event: CcChargeEvent): void {
     const d = this.detail();

@@ -39,34 +39,6 @@
       </thead>
       <tbody>
         @for (record of records(); track record.aId) {
-          @if (editingAId() === record.aId) {
-            <!-- Editing mode: record summary + inline fields -->
-            <tr class="editing-row">
-              <td>
-                <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
-              </td>
-              <td class="text-end amount">{{ record.dueAmount | currency }}</td>
-              <td class="text-end amount">{{ record.paidAmount | currency }}</td>
-              <td></td>
-            </tr>
-            <tr class="editing-row edit-fields-row">
-              <td colspan="4">
-                <div class="edit-fields">
-                  <input type="text" class="form-control form-control-sm edit-input"
-                    [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
-                    placeholder="Comment" name="editComment" />
-                  <input type="text" class="form-control form-control-sm edit-input"
-                    [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
-                    placeholder="Check #" name="editCheckNo" />
-                  <div class="edit-actions">
-                    <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()">Save</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()">Cancel</button>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          } @else {
-            <!-- Normal row -->
             <tr>
               <td>
                 <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
@@ -140,14 +112,8 @@
                     <i class="bi bi-arrow-counterclockwise"></i>
                   </button>
                 }
-                @if (isEditable(record)) {
-                  <button type="button" class="icon-btn text-muted" title="Edit" (click)="startEditRecord(record)">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                }
               </td>
             </tr>
-          }
         }
       </tbody>
     </table>
@@ -294,7 +260,7 @@
               <div class="input-group input-group-sm">
                 <span class="input-group-text">$</span>
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
-                  [ngModel]="amount()" (ngModelChange)="amount.set($event)" step="0.01" />
+                  [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="0.01" min="0" />
               </div>
               @if (paymentType() !== 'correction') {
                 <div class="owed-badge" [class.text-danger]="owedTotal() > 0" [class.text-success]="owedTotal() <= 0">

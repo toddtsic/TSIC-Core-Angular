@@ -19,12 +19,6 @@ export interface CheckOrCorrectionEvent {
 	paymentType: 'Check' | 'Correction';
 }
 
-/** Emitted when user saves an inline edit on a record. Parent handles the API call. */
-export interface RecordEditEvent {
-	aId: number;
-	comment: string | null;
-	checkNo: string | null;
-}
 
 @Component({
 	selector: 'app-accounting-ledger',
@@ -50,14 +44,8 @@ export class AccountingLedgerComponent {
 
 	// ── Outputs (callback pattern — parent handles API calls) ──
 	refundRequested = output<AccountingRecordDto>();
-	recordEdited = output<RecordEditEvent>();
 	ccChargeSubmitted = output<CcChargeEvent>();
 	checkSubmitted = output<CheckOrCorrectionEvent>();
-
-	// ── Inline editing state ──
-	editingAId = signal<number | null>(null);
-	editComment = signal('');
-	editCheckNo = signal('');
 
 	// ── Payment modal state ──
 	showPaymentModal = signal(false);
@@ -108,34 +96,6 @@ export class AccountingLedgerComponent {
 
 	// ── Transaction table ──
 
-	/** Check/Correction/Cash records are editable (not CC records). */
-	isEditable(record: AccountingRecordDto): boolean {
-		const method = (record.paymentMethod || '').toLowerCase();
-		return method.includes('check') || method.includes('correction') || method.includes('cash');
-	}
-
-	startEditRecord(record: AccountingRecordDto): void {
-		this.editingAId.set(record.aId);
-		this.editComment.set(record.comment || '');
-		this.editCheckNo.set(record.checkNo || '');
-	}
-
-	cancelEditRecord(): void {
-		this.editingAId.set(null);
-	}
-
-	saveEditRecord(): void {
-		const aId = this.editingAId();
-		if (aId == null) return;
-
-		this.recordEdited.emit({
-			aId,
-			comment: this.editComment() || null,
-			checkNo: this.editCheckNo() || null
-		});
-		this.editingAId.set(null);
-	}
-
 	onRefundClick(record: AccountingRecordDto): void {
 		this.refundRequested.emit(record);
 	}
@@ -162,6 +122,11 @@ export class AccountingLedgerComponent {
 
 	closePaymentModal(): void {
 		this.showPaymentModal.set(false);
+	}
+
+	/** Restrict amount to 2 decimal places */
+	setAmount(value: number): void {
+		this.amount.set(Math.round((value ?? 0) * 100) / 100);
 	}
 
 	selectPaymentType(type: PaymentType): void {

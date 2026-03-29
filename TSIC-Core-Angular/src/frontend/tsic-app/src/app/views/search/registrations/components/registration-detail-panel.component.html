@@ -357,7 +357,6 @@
             [paidTotal]="reg.paidTotal ?? 0"
             [owedTotal]="reg.owedTotal ?? 0"
             (refundRequested)="onRefundClick($event)"
-            (recordEdited)="onRecordEdited($event)"
             (ccChargeSubmitted)="onCcCharge($event)"
             (checkSubmitted)="onCheckSubmitted($event)">
           </app-accounting-ledger>

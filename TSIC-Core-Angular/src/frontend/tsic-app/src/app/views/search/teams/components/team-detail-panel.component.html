@@ -273,7 +273,6 @@
             [owedTotal]="scope() === 'team' ? teamOwedTotal : clubOwedTotal"
             [clubBreakdown]="scope() === 'club' ? team.clubTeamSummaries : undefined"
             (refundRequested)="onRefundRequested($event)"
-            (recordEdited)="onRecordEdited($event)"
             (ccChargeSubmitted)="onCcCharge($event)"
             (checkSubmitted)="onCheckSubmitted($event)">
           </app-accounting-ledger>

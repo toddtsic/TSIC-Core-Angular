@@ -102,18 +102,10 @@
       border-bottom: 1px solid var(--bs-border-color);
     }
 
-    tr:hover:not(.editing-row):not(.edit-fields-row) {
+    tr:hover {
       background: var(--bs-tertiary-bg);
     }
 
-    .editing-row {
-      background: var(--bs-tertiary-bg);
-    }
-
-    .edit-fields-row td {
-      padding-top: 0;
-      border-bottom: 2px solid var(--bs-primary);
-    }
   }
 }
 
@@ -169,26 +161,6 @@
   }
 }
 
-// Inline edit fields
-.edit-fields {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.edit-input {
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  color: var(--bs-body-color);
-  font-size: var(--font-size-sm);
-  flex: 1;
-  min-width: 100px;
-}
-
-.edit-actions {
-  white-space: nowrap;
-}
 
 // ── Transaction Detail Popover ──
 
