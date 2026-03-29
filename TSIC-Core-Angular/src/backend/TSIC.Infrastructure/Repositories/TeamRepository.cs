@@ -1022,10 +1022,8 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .AsNoTracking()
             .Where(t => t.JobId == jobId
-                && t.ClubrepRegistrationid == clubRepRegistrationId
-                && t.Active == true)
+                && t.ClubrepRegistrationid == clubRepRegistrationId)
             .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
-            .Where(x => x.ag.AgegroupName != null && !x.ag.AgegroupName.Contains("WAITLIST") && !x.ag.AgegroupName.Contains("DROPPED"))
             .OrderBy(x => x.ag.AgegroupName)
             .ThenBy(x => x.t.TeamName)
             .Select(x => new ClubTeamSummaryDto

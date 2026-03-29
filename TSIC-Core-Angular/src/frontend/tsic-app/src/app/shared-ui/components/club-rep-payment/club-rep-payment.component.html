@@ -7,25 +7,34 @@
   <div class="alert alert-danger">{{ loadError() }}</div>
 } @else if (data(); as d) {
 
-  <!-- Scope Selector (only when multiple teams AND a teamId was provided for team-level view) -->
-  @if (clubTeamCount() > 1 && teamId()) {
+  <!-- Scope Selector (shown when multiple teams, regardless of entry point) -->
+  @if (clubTeamCount() > 1) {
     <div class="scope-selector">
-      <button type="button" class="scope-btn" [class.active]="scope() === 'team'" (click)="setScope('team')">
-        This Team: {{ selectedTeam()?.teamName }}
-      </button>
+      @if (teamId()) {
+        <button type="button" class="scope-btn" [class.active]="scope() === 'team'" (click)="setScope('team')">
+          This Team: {{ selectedTeam()?.teamName }}
+        </button>
+      }
       <button type="button" class="scope-btn scope-btn-club" [class.active]="scope() === 'club'" (click)="setScope('club')">
         All Club Teams: {{ clubName() }} ({{ clubTeamCount() }} teams, {{ clubOwedTotal() | currency }} owed)
       </button>
     </div>
   }
 
-  <!-- Club Team Summary (shown when scope = club and multiple teams) -->
-  @if (scope() === 'club' && clubTeamCount() > 1) {
+  <!-- Club Team Summary -->
+  @if (scope() === 'club') {
     <div class="club-summary-card">
-      <h5 class="section-title">Club Teams Breakdown</h5>
-      <table class="summary-table">
+      <div class="summary-header">
+        <h5 class="section-title">Club Teams Breakdown</h5>
+        <label class="active-filter">
+          <input type="checkbox" [checked]="showActiveOnly()" (change)="showActiveOnly.set(!showActiveOnly())">
+          Active
+        </label>
+      </div>
+      <table class="summary-table summary-table-compact">
         <thead>
           <tr>
+            <th>Agegroup</th>
             <th>Team</th>
             <th class="text-end">Fee</th>
             <th class="text-end">Paid</th>
@@ -34,7 +43,8 @@
         </thead>
         <tbody>
           @for (ct of teams(); track ct.teamId) {
-            <tr>
+            <tr [class.inactive-row]="!ct.active">
+              <td>{{ ct.agegroupName }}</td>
               <td>{{ ct.teamName }}</td>
               <td class="text-end">{{ ct.feeTotal | currency }}</td>
               <td class="text-end">{{ ct.paidTotal | currency }}</td>
@@ -42,16 +52,49 @@
                 {{ ct.owedTotal | currency }}
               </td>
             </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="text-center text-muted">No {{ showActiveOnly() ? 'inactive' : '' }} teams to display</td>
+            </tr>
           }
         </tbody>
         <tfoot>
           <tr>
-            <td><strong>Total</strong></td>
+            <td colspan="2"><strong>Total ({{ teams().length }} teams)</strong></td>
             <td class="text-end"><strong>{{ clubFeeTotal() | currency }}</strong></td>
             <td class="text-end"><strong>{{ clubPaidTotal() | currency }}</strong></td>
             <td class="text-end"><strong>{{ clubOwedTotal() | currency }}</strong></td>
           </tr>
         </tfoot>
+      </table>
+    </div>
+  }
+
+  <!-- Single Team Summary (team scope) -->
+  @if (scope() === 'team' && selectedTeam(); as team) {
+    <div class="club-summary-card">
+      <h5 class="section-title">Team Breakdown</h5>
+      <table class="summary-table summary-table-compact">
+        <thead>
+          <tr>
+            <th>Agegroup</th>
+            <th>Team</th>
+            <th class="text-end">Fee</th>
+            <th class="text-end">Paid</th>
+            <th class="text-end">Owed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ team.agegroupName }}</td>
+            <td>{{ team.teamName }}</td>
+            <td class="text-end">{{ team.feeTotal | currency }}</td>
+            <td class="text-end">{{ team.paidTotal | currency }}</td>
+            <td class="text-end" [class.owed-positive]="team.owedTotal > 0" [class.owed-zero]="team.owedTotal === 0">
+              {{ team.owedTotal | currency }}
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
   }

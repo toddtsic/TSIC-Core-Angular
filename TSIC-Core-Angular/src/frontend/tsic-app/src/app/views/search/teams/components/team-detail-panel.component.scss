@@ -72,7 +72,7 @@
 
 .header-tag {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
 
   .header-tag-label {
@@ -88,6 +88,16 @@
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
     color: var(--bs-primary);
+  }
+
+  .club-rep-email {
+    color: var(--bs-primary);
+    text-decoration: underline;
+
+    &:hover {
+      color: var(--bs-primary);
+      opacity: 0.8;
+    }
   }
 }
 

@@ -41,8 +41,18 @@ export class ClubRepPaymentComponent {
   showRefundConfirm = signal(false);
   refundTarget = signal<AccountingRecordDto | null>(null);
 
+  // Active filter toggle
+  showActiveOnly = signal(true);
+
   // Computed summaries
-  teams = computed(() => this.data()?.teams ?? []);
+  allTeams = computed(() => this.data()?.teams ?? []);
+  teams = computed(() => {
+    const all = this.allTeams();
+    if (!this.showActiveOnly()) return all;
+    return all.filter(t => t.active
+      && !t.agegroupName.toUpperCase().startsWith('WAITLIST')
+      && !t.agegroupName.toUpperCase().startsWith('DROPPED'));
+  });
   clubTeamCount = computed(() => this.teams().length);
 
   clubFeeTotal = computed(() => this.teams().reduce((s, t) => s + t.feeTotal, 0));
@@ -67,7 +77,14 @@ export class ClubRepPaymentComponent {
     this.scope() === 'club' ? this.teams() : undefined
   );
 
-  accountingRecords = computed(() => this.data()?.accountingRecords ?? []);
+  allAccountingRecords = computed(() => this.data()?.accountingRecords ?? []);
+  accountingRecords = computed(() => {
+    const records = this.allAccountingRecords();
+    if (this.scope() !== 'team') return records;
+    const tid = this.teamId();
+    if (!tid) return records;
+    return records.filter(r => r.teamId === tid);
+  });
   clubName = computed(() => this.data()?.clubName ?? '');
 
   scopeLabel = computed(() => {

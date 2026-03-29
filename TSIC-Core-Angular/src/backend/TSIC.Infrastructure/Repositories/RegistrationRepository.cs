@@ -1590,6 +1590,7 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(a => new AccountingRecordDto
             {
                 AId = a.AId,
+                TeamId = a.TeamId,
                 Date = a.Createdate,
                 PaymentMethod = a.PaymentMethod?.PaymentMethod ?? a.Paymeth ?? "",
                 DueAmount = a.Dueamt,

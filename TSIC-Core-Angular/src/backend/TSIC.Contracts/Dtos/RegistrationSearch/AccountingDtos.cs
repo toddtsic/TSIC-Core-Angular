@@ -8,6 +8,7 @@ namespace TSIC.Contracts.Dtos.RegistrationSearch;
 public record AccountingRecordDto
 {
     public required int AId { get; init; }
+    public Guid? TeamId { get; init; }
     public required DateTime? Date { get; init; }
     public required string PaymentMethod { get; init; }
     public required decimal? DueAmount { get; init; }

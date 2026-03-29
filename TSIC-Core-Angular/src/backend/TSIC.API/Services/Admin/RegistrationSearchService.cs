@@ -143,6 +143,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         return new AccountingRecordDto
         {
             AId = entity.AId,
+            TeamId = entity.TeamId,
             Date = entity.Createdate,
             PaymentMethod = "",
             DueAmount = entity.Dueamt,

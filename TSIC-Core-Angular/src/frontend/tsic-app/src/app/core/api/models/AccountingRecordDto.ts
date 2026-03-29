@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type AccountingRecordDto = {
     aId: number;
+    teamId?: string | null;
     date: string | null;
     paymentMethod: string;
     dueAmount: number | null;

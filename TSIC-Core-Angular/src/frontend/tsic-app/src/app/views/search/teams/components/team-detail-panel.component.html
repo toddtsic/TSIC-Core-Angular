@@ -24,6 +24,12 @@
         </div>
       </div>
       <div class="header-meta">
+        @if (team.clubRepName) {
+        <span class="header-tag">
+          <span class="header-tag-label">Club Rep</span>
+          <span class="header-tag-value">{{ team.clubRepName }}@if (team.clubRepCellphone) { · {{ formatPhone(team.clubRepCellphone) }}}@if (team.clubRepEmail) { · <a [href]="'mailto:' + team.clubRepEmail" class="club-rep-email">{{ team.clubRepEmail }}</a>}</span>
+        </span>
+        }
         <span class="header-tag">
           <span class="header-tag-label">Agegroup</span>
           <span class="header-tag-value">{{ team.agegroupName }}</span>

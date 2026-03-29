@@ -95,6 +95,7 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .Select(x => new AccountingRecordDto
             {
                 AId = x.a.AId,
+                TeamId = x.a.TeamId,
                 Date = x.a.Createdate,
                 PaymentMethod = x.pm.PaymentMethod ?? x.a.Paymeth ?? "",
                 DueAmount = x.a.Dueamt,
@@ -134,6 +135,7 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .Select(x => new AccountingRecordDto
             {
                 AId = x.a.AId,
+                TeamId = x.a.TeamId,
                 Date = x.a.Createdate,
                 PaymentMethod = x.pm.PaymentMethod ?? x.a.Paymeth ?? "",
                 DueAmount = x.a.Dueamt,
