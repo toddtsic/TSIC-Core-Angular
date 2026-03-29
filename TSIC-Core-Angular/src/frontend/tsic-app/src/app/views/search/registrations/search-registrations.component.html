@@ -101,7 +101,7 @@
           </div>
         </div>
 
-        <!-- Row 2: Active Status, Position, Grad Year -->
+        <!-- Row 2: Active Status, Position, Grad Year + LADT in col 4 when no CADT -->
         <div class="filter-row-4">
           <div class="form-group">
             <label>Active Status</label>
@@ -161,11 +161,49 @@
               cssClass="filter-ms">
             </ejs-multiselect>
           </div>
+
+          <!-- LADT in col 4 when no CADT -->
+          @if (!hasCadtData()) {
+            <div class="form-group form-group-tree">
+              <label>League / Agegroup / Division / Team <span class="label-tip">Check nodes to filter</span>
+                <span class="tree-toggle-btns">
+                  <button class="tree-toggle-btn" title="Expand all" (click)="ladtTreeRef?.expandAll()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="7 8 12 13 17 8"></polyline>
+                      <polyline points="7 14 12 19 17 14"></polyline>
+                    </svg>
+                  </button>
+                  <button class="tree-toggle-btn" title="Collapse all" (click)="ladtTreeRef?.collapseAll()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="7 13 12 8 17 13"></polyline>
+                      <polyline points="7 19 12 14 17 19"></polyline>
+                    </svg>
+                  </button>
+                </span>
+              </label>
+              <div class="tree-scroll-container" [class.tree-collapsed]="treesCollapsed()" (click)="treesCollapsed() ? expandTrees() : null">
+                @if (ladtTreeLoading()) {
+                  <div class="tree-loading">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <span>Loading tree&hellip;</span>
+                  </div>
+                } @else {
+                  <app-ladt-tree-filter #ladtTreeRef
+                    [treeData]="ladtTree()"
+                    [checkedIds]="ladtCheckedIds()"
+                    (checkedIdsChange)="onLadtCheckedChange($event)">
+                  </app-ladt-tree-filter>
+                }
+              </div>
+            </div>
+          }
         </div>
 
-        <!-- Trees row: CADT (conditional) + LADT -->
-        <div class="filter-row-trees" [class.dual-tree]="hasCadtData()">
-          @if (hasCadtData() && jobName()) {
+        <!-- Trees row: CADT + LADT (only when CADT exists) -->
+        @if (hasCadtData() && jobName()) {
+          <div class="filter-row-trees dual-tree">
             <div class="form-group form-group-tree">
               <label>Club / Agegroup / Division / Team <span class="label-tip">Filter by club roster structure</span>
                 <span class="tree-toggle-btns">
@@ -202,43 +240,43 @@
                 }
               </div>
             </div>
-          }
 
-          <div class="form-group form-group-tree">
-            <label>League / Agegroup / Division / Team <span class="label-tip">Check nodes to filter</span>
-              <span class="tree-toggle-btns">
-                <button class="tree-toggle-btn" title="Expand all" (click)="ladtTreeRef?.expandAll()">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                       fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="7 8 12 13 17 8"></polyline>
-                    <polyline points="7 14 12 19 17 14"></polyline>
-                  </svg>
-                </button>
-                <button class="tree-toggle-btn" title="Collapse all" (click)="ladtTreeRef?.collapseAll()">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                       fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="7 13 12 8 17 13"></polyline>
-                    <polyline points="7 19 12 14 17 19"></polyline>
-                  </svg>
-                </button>
-              </span>
-            </label>
-            <div class="tree-scroll-container" [class.tree-collapsed]="treesCollapsed()" (click)="treesCollapsed() ? expandTrees() : null">
-              @if (ladtTreeLoading()) {
-                <div class="tree-loading">
-                  <span class="spinner-border spinner-border-sm"></span>
-                  <span>Loading tree&hellip;</span>
-                </div>
-              } @else {
-                <app-ladt-tree-filter #ladtTreeRef
-                  [treeData]="ladtTree()"
-                  [checkedIds]="ladtCheckedIds()"
-                  (checkedIdsChange)="onLadtCheckedChange($event)">
-                </app-ladt-tree-filter>
-              }
+            <div class="form-group form-group-tree">
+              <label>League / Agegroup / Division / Team <span class="label-tip">Check nodes to filter</span>
+                <span class="tree-toggle-btns">
+                  <button class="tree-toggle-btn" title="Expand all" (click)="ladtTreeRef?.expandAll()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="7 8 12 13 17 8"></polyline>
+                      <polyline points="7 14 12 19 17 14"></polyline>
+                    </svg>
+                  </button>
+                  <button class="tree-toggle-btn" title="Collapse all" (click)="ladtTreeRef?.collapseAll()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="7 13 12 8 17 13"></polyline>
+                      <polyline points="7 19 12 14 17 19"></polyline>
+                    </svg>
+                  </button>
+                </span>
+              </label>
+              <div class="tree-scroll-container" [class.tree-collapsed]="treesCollapsed()" (click)="treesCollapsed() ? expandTrees() : null">
+                @if (ladtTreeLoading()) {
+                  <div class="tree-loading">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <span>Loading tree&hellip;</span>
+                  </div>
+                } @else {
+                  <app-ladt-tree-filter #ladtTreeRef
+                    [treeData]="ladtTree()"
+                    [checkedIds]="ladtCheckedIds()"
+                    (checkedIdsChange)="onLadtCheckedChange($event)">
+                  </app-ladt-tree-filter>
+                }
+              </div>
             </div>
           </div>
-        </div>
+        }
 
         <!-- Action buttons row -->
         <div class="action-row">

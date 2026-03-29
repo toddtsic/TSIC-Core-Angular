@@ -945,13 +945,11 @@ public class RegistrationRepository : IRegistrationRepository
                     a.Active == true && request.PaymentTypes.Contains(a.PaymentMethod.PaymentMethod!)));
         }
 
-        // Accounting: Discount Code — registration has at least one accounting record with this discount code
+        // Discount Code — from registration entity (a registrant has at most 1 discount code)
         if (request.DiscountCodes is { Count: > 0 })
         {
             query = query.Where(r =>
-                r.RegistrationAccounting.Any(a =>
-                    a.Active == true && a.DiscountCodeAiNavigation != null
-                    && request.DiscountCodes.Contains(a.DiscountCodeAiNavigation.CodeName)));
+                r.DiscountCode != null && request.DiscountCodes.Contains(r.DiscountCode.CodeName));
         }
 
         // ── Text filters ──
@@ -1437,12 +1435,10 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
-        // Discount codes — distinct codes used in accounting records for this job
-        var discountCodes = await _context.RegistrationAccounting
-            .AsNoTracking()
-            .Where(a => a.Registration != null && a.Registration.JobId == jobId
-                && a.Active == true && a.DiscountCodeAiNavigation != null)
-            .GroupBy(a => a.DiscountCodeAiNavigation!.CodeName)
+        // Discount codes — from registration entity (registrant has at most 1 code)
+        var discountCodes = await baseQuery
+            .Where(r => r.DiscountCode != null)
+            .GroupBy(r => r.DiscountCode!.CodeName)
             .OrderBy(g => g.Key)
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);

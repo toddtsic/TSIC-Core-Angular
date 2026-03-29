@@ -739,14 +739,11 @@ public class TeamRepository : ITeamRepository
                     && request.PaymentTypes.Contains(a.PaymentMethod.PaymentMethod!)));
         }
 
-        // Accounting: Discount Code — team has at least one accounting record with this discount code
+        // Discount Code — from team entity (team has at most 1 discount code)
         if (request.DiscountCodes is { Count: > 0 })
         {
             query = query.Where(x =>
-                _context.RegistrationAccounting.Any(a =>
-                    a.TeamId == x.t.TeamId && a.Active == true
-                    && a.DiscountCodeAiNavigation != null
-                    && request.DiscountCodes.Contains(a.DiscountCodeAiNavigation.CodeName)));
+                x.t.DiscountCode != null && request.DiscountCodes.Contains(x.t.DiscountCode.CodeName));
         }
 
         if (request.AgegroupIds?.Count > 0)
@@ -903,11 +900,10 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(ct);
 
         // Discount codes — distinct codes used in team accounting records
-        var discountCodes = await _context.RegistrationAccounting
-            .AsNoTracking()
-            .Where(a => a.Team != null && a.Team.JobId == jobId
-                && a.Active == true && a.DiscountCodeAiNavigation != null)
-            .GroupBy(a => a.DiscountCodeAiNavigation!.CodeName)
+        // Discount codes — from team entity (team has at most 1 code)
+        var discountCodes = await baseQuery
+            .Where(t => t.DiscountCode != null)
+            .GroupBy(t => t.DiscountCode!.CodeName)
             .OrderBy(g => g.Key)
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
