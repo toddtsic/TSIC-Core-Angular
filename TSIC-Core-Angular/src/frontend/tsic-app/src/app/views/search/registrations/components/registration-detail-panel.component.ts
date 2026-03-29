@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { AddPaymentModalComponent } from './add-payment-modal.component';
+import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RecordEditEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 type TabType = 'details' | 'accounting' | 'email';
@@ -70,7 +70,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AddPaymentModalComponent, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -533,64 +533,62 @@ export class RegistrationDetailPanelComponent {
     });
   }
 
-  // ── Accounting ──
-
-  showPaymentModal = signal<boolean>(false);
-  editingAId = signal<number | null>(null);
-  editComment = signal<string>('');
-  editCheckNo = signal<string>('');
-  isSavingEdit = signal<boolean>(false);
+  // ── Accounting (delegated to shared AccountingLedgerComponent) ──
 
   onRefundClick(record: AccountingRecordDto): void { this.refundRequested.emit(record); }
 
-  openPaymentModal(): void { this.showPaymentModal.set(true); }
-
-  onPaymentRecorded(): void {
-    this.showPaymentModal.set(false);
-    this.saved.emit();
-  }
-
-  startEditRecord(record: AccountingRecordDto): void {
-    this.editingAId.set(record.aId);
-    this.editComment.set(record.comment || '');
-    this.editCheckNo.set(record.checkNo || '');
-  }
-
-  cancelEditRecord(): void {
-    this.editingAId.set(null);
-  }
-
-  saveEditRecord(): void {
-    const aId = this.editingAId();
-    if (aId == null) return;
-
-    this.isSavingEdit.set(true);
-    this.searchService.editAccountingRecord(aId, {
-      comment: this.editComment() || null,
-      checkNo: this.editCheckNo() || null
+  onRecordEdited(event: RecordEditEvent): void {
+    this.searchService.editAccountingRecord(event.aId, {
+      comment: event.comment,
+      checkNo: event.checkNo
     }).subscribe({
-      next: () => {
-        this.isSavingEdit.set(false);
-        this.editingAId.set(null);
-        this.toast.show('Record updated', 'success', 3000);
-        this.saved.emit();
-      },
-      error: (err) => {
-        this.isSavingEdit.set(false);
-        this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
-      }
+      next: () => { this.toast.show('Record updated', 'success', 3000); this.saved.emit(); },
+      error: (err) => { this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000); }
     });
   }
 
-  /** Check/Correction/Cash records are editable (not CC records). */
-  isEditable(record: AccountingRecordDto): boolean {
-    const method = (record.paymentMethod || '').toLowerCase();
-    return method.includes('check') || method.includes('correction') || method.includes('cash');
+  onCcCharge(event: CcChargeEvent): void {
+    const d = this.detail();
+    if (!d) return;
+
+    this.searchService.chargeCc(d.registrationId, {
+      registrationId: d.registrationId,
+      creditCard: event.creditCard,
+      amount: event.amount
+    }).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.toast.show(`CC charge successful: $${event.amount.toFixed(2)}`, 'success', 3000);
+          this.saved.emit();
+        } else {
+          this.toast.show(`CC charge failed: ${response.error || 'Unknown error'}`, 'danger', 5000);
+        }
+      },
+      error: (err) => { this.toast.show(`CC charge failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000); }
+    });
   }
 
-  getFinancialSummary() {
+  onCheckSubmitted(event: CheckOrCorrectionEvent): void {
     const d = this.detail();
-    return { fees: d?.feeTotal || 0, paid: d?.paidTotal || 0, owed: d?.owedTotal || 0 };
+    if (!d) return;
+
+    this.searchService.recordPayment(d.registrationId, {
+      registrationId: d.registrationId,
+      amount: event.amount,
+      paymentType: event.paymentType,
+      checkNo: event.checkNo,
+      comment: event.comment
+    }).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.toast.show(`${event.paymentType} recorded: $${event.amount.toFixed(2)}`, 'success', 3000);
+          this.saved.emit();
+        } else {
+          this.toast.show(`Failed: ${response.error || 'Unknown error'}`, 'danger', 5000);
+        }
+      },
+      error: (err) => { this.toast.show(`Failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000); }
+    });
   }
 
   // ── Subscription ──

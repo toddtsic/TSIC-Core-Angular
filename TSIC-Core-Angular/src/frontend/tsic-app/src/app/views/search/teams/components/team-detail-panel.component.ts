@@ -1,10 +1,10 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo, ClubRegistrationDto, EditAccountingRecordRequest } from '@core/api';
+import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo, ClubRegistrationDto } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { AddTeamPaymentModalComponent } from './add-team-payment-modal.component';
+import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RecordEditEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 type TabType = 'info' | 'accounting';
@@ -21,7 +21,7 @@ function formatPhone(value: string | null | undefined): string | null {
 @Component({
 	selector: 'app-team-detail-panel',
 	standalone: true,
-	imports: [CommonModule, FormsModule, AddTeamPaymentModalComponent, ConfirmDialogComponent],
+	imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -46,21 +46,12 @@ export class TeamDetailPanelComponent {
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
 
-	// Payment modal
-	showPaymentModal = signal(false);
-
 	// Active toggle (header)
 	isTogglingActive = signal(false);
 
 	// Refund confirm
 	showRefundConfirm = signal(false);
 	refundTarget = signal<AccountingRecordDto | null>(null);
-
-	// Inline editing for accounting records
-	editingAId = signal<number | null>(null);
-	editComment = signal('');
-	editCheckNo = signal('');
-	isSavingEdit = signal(false);
 
 	// Move team confirm
 	showMoveTeamConfirm = signal(false);
@@ -190,55 +181,66 @@ export class TeamDetailPanelComponent {
 		});
 	}
 
-	// ── Inline Editing (Accounting Records) ──
+	// ── Accounting Ledger Handlers (delegated to shared component) ──
 
-	startEditRecord(record: AccountingRecordDto): void {
-		this.editingAId.set(record.aId);
-		this.editComment.set(record.comment || '');
-		this.editCheckNo.set(record.checkNo || '');
-	}
-
-	cancelEditRecord(): void {
-		this.editingAId.set(null);
-	}
-
-	saveEditRecord(): void {
-		const aId = this.editingAId();
-		if (aId == null) return;
-
-		this.isSavingEdit.set(true);
-		this.searchService.editAccountingRecord(aId, {
-			comment: this.editComment() || null,
-			checkNo: this.editCheckNo() || null
+	onRecordEdited(event: RecordEditEvent): void {
+		this.searchService.editAccountingRecord(event.aId, {
+			comment: event.comment,
+			checkNo: event.checkNo
 		}).subscribe({
-			next: () => {
-				this.isSavingEdit.set(false);
-				this.editingAId.set(null);
-				this.toast.show('Record updated', 'success', 3000);
-				this.changed.emit();
-			},
-			error: (err) => {
-				this.isSavingEdit.set(false);
-				this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
-			}
+			next: () => { this.toast.show('Record updated', 'success', 3000); this.changed.emit(); },
+			error: (err) => { this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000); }
 		});
 	}
 
-	/** Check/Correction/Cash records are editable (not CC records). */
-	isEditable(record: AccountingRecordDto): boolean {
-		const method = (record.paymentMethod || '').toLowerCase();
-		return method.includes('check') || method.includes('correction') || method.includes('cash');
+	onCcCharge(event: CcChargeEvent): void {
+		const d = this.detail();
+		if (!d?.clubRepRegistrationId) return;
+
+		const request = { clubRepRegistrationId: d.clubRepRegistrationId, creditCard: event.creditCard };
+		const call = this.scope() === 'team'
+			? this.searchService.chargeCcForTeam(d.teamId, request)
+			: this.searchService.chargeCcForClub(d.clubRepRegistrationId, request);
+
+		call.subscribe({
+			next: (result) => {
+				if (result.success) {
+					this.toast.show(`CC charge successful: $${event.amount.toFixed(2)}`, 'success', 3000);
+					this.changed.emit();
+				} else {
+					this.toast.show(`CC charge failed: ${result.error || 'Unknown error'}`, 'danger', 5000);
+				}
+			},
+			error: (err) => { this.toast.show(`CC charge failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000); }
+		});
 	}
 
-	// ── Payment Modal ──
+	onCheckSubmitted(event: CheckOrCorrectionEvent): void {
+		const d = this.detail();
+		if (!d?.clubRepRegistrationId) return;
 
-	openPaymentModal(): void {
-		this.showPaymentModal.set(true);
-	}
+		const request = {
+			clubRepRegistrationId: d.clubRepRegistrationId,
+			amount: event.amount,
+			checkNo: event.checkNo || undefined,
+			comment: event.comment || undefined,
+			paymentType: event.paymentType
+		};
+		const call = this.scope() === 'team'
+			? this.searchService.recordCheckForTeam(d.teamId, request)
+			: this.searchService.recordCheckForClub(d.clubRepRegistrationId, request);
 
-	onPaymentRecorded(): void {
-		this.showPaymentModal.set(false);
-		this.changed.emit();
+		call.subscribe({
+			next: (result) => {
+				if (result.success) {
+					this.toast.show(`${event.paymentType} recorded: $${event.amount.toFixed(2)}`, 'success', 3000);
+					this.changed.emit();
+				} else {
+					this.toast.show(`Failed: ${result.error || 'Unknown error'}`, 'danger', 5000);
+				}
+			},
+			error: (err) => { this.toast.show(`Failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000); }
+		});
 	}
 
 	onRefundRequested(record: AccountingRecordDto): void {

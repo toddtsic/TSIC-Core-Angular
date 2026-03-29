@@ -265,110 +265,23 @@
             </div>
           }
 
-          <!-- Payment Ledger Card -->
-          <div class="accounting-zone">
-            <div class="section-title-row">
-              <h4 class="section-title">Payment Ledger</h4>
-            </div>
-
-            <div class="financial-summary">
-              <div class="summary-item">
-                <span class="summary-label">Total Fees</span>
-                <span class="summary-value">{{ scope() === 'team' ? (teamFeeTotal | currency) : (clubFeeTotal | currency) }}</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Total Paid</span>
-                <span class="summary-value text-success">{{ scope() === 'team' ? (teamPaidTotal | currency) : (clubPaidTotal | currency) }}</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-label">Amount Owed</span>
-                <span class="summary-value" [class.text-danger]="(scope() === 'team' ? teamOwedTotal : clubOwedTotal) > 0">
-                  {{ scope() === 'team' ? (teamOwedTotal | currency) : (clubOwedTotal | currency) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Accounting Records (compact format matching registration panel) -->
-            @if (team.accountingRecords.length) {
-              <table class="table table-sm accounting-table mb-0">
-                <thead>
-                  <tr>
-                    <th>Transaction</th>
-                    <th class="text-end">Due</th>
-                    <th class="text-end">Paid</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (rec of team.accountingRecords; track rec.aId) {
-                    @if (editingAId() === rec.aId) {
-                      <tr class="editing-row">
-                        <td>
-                          <div class="txn-primary">{{ rec.date | date:'M/d/yy' }} · {{ rec.paymentMethod }}@if (rec.adnCc4) { <span class="cc-digits">****{{ rec.adnCc4 }}</span>}</div>
-                        </td>
-                        <td class="text-end col-amount">{{ rec.dueAmount | currency }}</td>
-                        <td class="text-end col-amount">{{ rec.paidAmount | currency }}</td>
-                        <td></td>
-                      </tr>
-                      <tr class="editing-row edit-fields-row">
-                        <td colspan="4">
-                          <div class="acct-edit-fields">
-                            <input type="text" class="form-control form-control-sm inline-edit"
-                              [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
-                              placeholder="Comment" [disabled]="isSavingEdit()" name="editComment" />
-                            <input type="text" class="form-control form-control-sm inline-edit"
-                              [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
-                              placeholder="Check #" [disabled]="isSavingEdit()" name="editCheckNo" />
-                            <div class="edit-actions">
-                              <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()" [disabled]="isSavingEdit()">Save</button>
-                              <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()" [disabled]="isSavingEdit()">Cancel</button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    } @else {
-                      <tr>
-                        <td>
-                          <div class="txn-primary">{{ rec.date | date:'M/d/yy' }} · {{ rec.paymentMethod }}@if (rec.adnCc4) { <span class="cc-digits">****{{ rec.adnCc4 }}</span>}</div>
-                          @if (rec.comment) { <div class="txn-comment">{{ rec.comment }}</div> }
-                        </td>
-                        <td class="text-end col-amount">{{ rec.dueAmount | currency }}</td>
-                        <td class="text-end col-amount text-success">{{ rec.paidAmount | currency }}</td>
-                        <td class="col-actions">
-                          @if (rec.canRefund) {
-                            <button type="button" class="btn-icon text-danger" title="Refund" (click)="onRefundRequested(rec)"><i class="bi bi-arrow-counterclockwise"></i></button>
-                          }
-                          @if (isEditable(rec)) {
-                            <button type="button" class="btn-icon text-muted" title="Edit" (click)="startEditRecord(rec)"><i class="bi bi-pencil"></i></button>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  }
-                </tbody>
-              </table>
-            } @else {
-              <div class="text-muted mt-2">No records yet.</div>
-            }
-
-            <div class="form-actions justify-content-center">
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPaymentModal()">+ Add Accounting Record</button>
-            </div>
-          </div>
+          <!-- Payment Ledger (shared component) -->
+          <app-accounting-ledger
+            [records]="team.accountingRecords"
+            [feeTotal]="scope() === 'team' ? teamFeeTotal : clubFeeTotal"
+            [paidTotal]="scope() === 'team' ? teamPaidTotal : clubPaidTotal"
+            [owedTotal]="scope() === 'team' ? teamOwedTotal : clubOwedTotal"
+            [clubBreakdown]="scope() === 'club' ? team.clubTeamSummaries : undefined"
+            (refundRequested)="onRefundRequested($event)"
+            (recordEdited)="onRecordEdited($event)"
+            (ccChargeSubmitted)="onCcCharge($event)"
+            (checkSubmitted)="onCheckSubmitted($event)">
+          </app-accounting-ledger>
         </div>
       }
     </div>
   }
 </div>
-
-<!-- Unified Payment Modal -->
-<app-add-team-payment-modal
-  [detail]="detail()"
-  [scope]="scope()"
-  [isOpen]="showPaymentModal()"
-  (closed)="showPaymentModal.set(false)"
-  (paymentRecorded)="onPaymentRecorded()"
-></app-add-team-payment-modal>
 
 <!-- Refund Confirm Dialog -->
 @if (showRefundConfirm()) {

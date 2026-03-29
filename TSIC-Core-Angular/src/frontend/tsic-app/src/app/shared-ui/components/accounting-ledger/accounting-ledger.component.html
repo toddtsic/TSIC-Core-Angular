@@ -1,0 +1,368 @@
+<!-- ═══════════════════════════════════════════════════════════════════
+     Accounting Ledger — Shared component for payment ledger display.
+     Used by both registration and team detail panels.
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div class="ledger-card">
+  <div class="ledger-header">
+    <h4 class="ledger-title">Payment Ledger</h4>
+  </div>
+
+  <!-- ── Financial Summary ── -->
+  <div class="financial-summary">
+    <div class="summary-item">
+      <span class="summary-label">Total Fees</span>
+      <span class="summary-value">{{ feeTotal() | currency }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Total Paid</span>
+      <span class="summary-value summary-paid">{{ paidTotal() | currency }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Amount Owed</span>
+      <span class="summary-value" [class.summary-owed]="owedTotal() > 0">
+        {{ owedTotal() | currency }}
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Transaction Table ── -->
+  @if (records().length > 0) {
+    <table class="ledger-table">
+      <thead>
+        <tr>
+          <th>Transaction</th>
+          <th class="col-due">Due</th>
+          <th class="col-paid">Paid</th>
+          <th class="col-actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (record of records(); track record.aId) {
+          @if (editingAId() === record.aId) {
+            <!-- Editing mode: record summary + inline fields -->
+            <tr class="editing-row">
+              <td>
+                <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
+              </td>
+              <td class="text-end amount">{{ record.dueAmount | currency }}</td>
+              <td class="text-end amount">{{ record.paidAmount | currency }}</td>
+              <td></td>
+            </tr>
+            <tr class="editing-row edit-fields-row">
+              <td colspan="4">
+                <div class="edit-fields">
+                  <input type="text" class="form-control form-control-sm edit-input"
+                    [ngModel]="editComment()" (ngModelChange)="editComment.set($event)"
+                    placeholder="Comment" name="editComment" />
+                  <input type="text" class="form-control form-control-sm edit-input"
+                    [ngModel]="editCheckNo()" (ngModelChange)="editCheckNo.set($event)"
+                    placeholder="Check #" name="editCheckNo" />
+                  <div class="edit-actions">
+                    <button type="button" class="btn btn-sm btn-success" (click)="saveEditRecord()">Save</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="cancelEditRecord()">Cancel</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          } @else {
+            <!-- Normal row -->
+            <tr>
+              <td>
+                <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
+                @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
+              </td>
+              <td class="text-end amount">{{ record.dueAmount | currency }}</td>
+              <td class="text-end amount paid-amount">{{ record.paidAmount | currency }}</td>
+              <td class="actions">
+                @if (hasDetails(record)) {
+                  <span class="popover-anchor">
+                    <button type="button" class="icon-btn text-muted" title="Details" (click)="togglePopover(record); $event.stopPropagation()">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
+                    @if (popoverAId() === record.aId) {
+                      <div class="txn-popover" (click)="$event.stopPropagation()">
+                        <div class="txn-popover-header">
+                          <span class="txn-popover-title">Transaction Details</span>
+                          <button type="button" class="icon-btn" (click)="closePopover()" aria-label="Close">
+                            <i class="bi bi-x"></i>
+                          </button>
+                        </div>
+                        <div class="txn-popover-body">
+                          <!-- CC-specific fields -->
+                          @if (isCcRecord(record)) {
+                            @if (record.adnTransactionId) {
+                              <div class="txn-popover-field">
+                                <span class="txn-popover-label">Transaction ID</span>
+                                <span class="txn-popover-value mono">{{ record.adnTransactionId }}</span>
+                              </div>
+                            }
+                            @if (record.adnInvoiceNo) {
+                              <div class="txn-popover-field">
+                                <span class="txn-popover-label">Invoice #</span>
+                                <span class="txn-popover-value mono">{{ record.adnInvoiceNo }}</span>
+                              </div>
+                            }
+                            @if (record.adnCc4) {
+                              <div class="txn-popover-field">
+                                <span class="txn-popover-label">Card</span>
+                                <span class="txn-popover-value">****{{ record.adnCc4 }}@if (record.adnCcExpDate) { <span class="cc-exp">exp {{ record.adnCcExpDate }}</span>}</span>
+                              </div>
+                            }
+                          }
+                          <!-- Check-specific fields -->
+                          @if (isCheckRecord(record) && record.checkNo) {
+                            <div class="txn-popover-field">
+                              <span class="txn-popover-label">Check #</span>
+                              <span class="txn-popover-value mono">{{ record.checkNo }}</span>
+                            </div>
+                          }
+                          <!-- Shared fields (all types) -->
+                          @if (record.promoCode) {
+                            <div class="txn-popover-field">
+                              <span class="txn-popover-label">Promo Code</span>
+                              <span class="txn-popover-value">{{ record.promoCode }}</span>
+                            </div>
+                          }
+                          @if (record.comment) {
+                            <div class="txn-popover-field">
+                              <span class="txn-popover-label">Comment</span>
+                              <span class="txn-popover-value">{{ record.comment }}</span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </span>
+                }
+                @if (record.canRefund) {
+                  <button type="button" class="icon-btn text-danger" title="Refund" (click)="onRefundClick(record)">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                }
+                @if (isEditable(record)) {
+                  <button type="button" class="icon-btn text-muted" title="Edit" (click)="startEditRecord(record)">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  } @else {
+    <div class="empty-state">No records yet.</div>
+  }
+
+  <!-- ── Add Payment Button ── -->
+  <div class="ledger-footer">
+    <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPaymentModal()">
+      + Add Accounting Record
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Payment Modal — CC / Check / Correction
+     ═══════════════════════════════════════════════════════════════════ -->
+
+@if (showPaymentModal()) {
+  <div class="modal-overlay" (click)="closePaymentModal()" (keydown.escape)="closePaymentModal()">
+    <div class="modal-card" [class.modal-card--wide]="paymentType() === 'cc'"
+         (click)="$event.stopPropagation()" (keydown.escape)="closePaymentModal()">
+
+      <div class="modal-header">
+        <h3>Add Accounting Record</h3>
+        <button type="button" class="btn-close-x" (click)="closePaymentModal()" aria-label="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Payment Type Selector -->
+        <div class="type-selector">
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'cc'" (click)="selectPaymentType('cc')">
+            <i class="bi bi-credit-card me-1"></i> Credit Card
+          </button>
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'check'" (click)="selectPaymentType('check')">
+            <i class="bi bi-bank me-1"></i> Check
+          </button>
+          <button type="button" class="type-btn" [class.active]="paymentType() === 'correction'" (click)="selectPaymentType('correction')">
+            <i class="bi bi-pencil-square me-1"></i> Correction
+          </button>
+        </div>
+
+        <!-- CC Fields -->
+        @if (paymentType() === 'cc') {
+          <div class="cc-form">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="ledger-cc-number" class="form-label">Card Number</label>
+                <input type="text" id="ledger-cc-number" class="form-control form-control-sm"
+                  placeholder="1234 5678 9012 3456"
+                  [ngModel]="ccNumber()" (ngModelChange)="formatCcNumber($event)" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ledger-cc-expiry" class="form-label">Expiry</label>
+                <input type="text" id="ledger-cc-expiry" class="form-control form-control-sm"
+                  placeholder="MM / YY"
+                  [ngModel]="ccExpiry()" (ngModelChange)="formatExpiry($event)" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label for="ledger-cc-cvv" class="form-label">CVV</label>
+                <input type="text" id="ledger-cc-cvv" class="form-control form-control-sm"
+                  placeholder="123"
+                  [ngModel]="ccCvv()" (ngModelChange)="formatCvv($event)" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ledger-cc-first" class="form-label">First Name</label>
+                <input type="text" id="ledger-cc-first" class="form-control form-control-sm"
+                  [ngModel]="ccFirstName()" (ngModelChange)="ccFirstName.set($event)" />
+              </div>
+              <div class="form-group">
+                <label for="ledger-cc-last" class="form-label">Last Name</label>
+                <input type="text" id="ledger-cc-last" class="form-control form-control-sm"
+                  [ngModel]="ccLastName()" (ngModelChange)="ccLastName.set($event)" />
+              </div>
+            </div>
+            <div class="avs-hint">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Address &amp; ZIP must match the billing address on the credit card.
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="ledger-cc-address" class="form-label">Billing Address</label>
+                <input type="text" id="ledger-cc-address" class="form-control form-control-sm"
+                  [ngModel]="ccAddress()" (ngModelChange)="ccAddress.set($event)" />
+              </div>
+              <div class="form-group">
+                <label for="ledger-cc-zip" class="form-label">Billing ZIP</label>
+                <input type="text" id="ledger-cc-zip" class="form-control form-control-sm"
+                  [ngModel]="ccZip()" (ngModelChange)="ccZip.set($event)" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ledger-cc-email" class="form-label">Email</label>
+                <input type="email" id="ledger-cc-email" class="form-control form-control-sm"
+                  [ngModel]="ccEmail()" (ngModelChange)="ccEmail.set($event)" />
+              </div>
+              <div class="form-group">
+                <label for="ledger-cc-phone" class="form-label">Phone</label>
+                <input type="text" id="ledger-cc-phone" class="form-control form-control-sm"
+                  [ngModel]="ccPhone()" (ngModelChange)="formatPhone($event)" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Club breakdown for CC scope -->
+          @if (clubBreakdown()?.length) {
+            <div class="club-breakdown">
+              <h6 class="breakdown-title">Teams to be charged:</h6>
+              @for (ct of clubBreakdown()!; track ct.teamId) {
+                @if (ct.owedTotal > 0) {
+                  <div class="breakdown-row">
+                    <span>{{ ct.teamName }}</span>
+                    <span class="breakdown-amount">{{ ct.owedTotal | currency }}</span>
+                  </div>
+                }
+              }
+            </div>
+          }
+        }
+
+        <!-- Check Fields -->
+        @if (paymentType() === 'check') {
+          <div class="form-group">
+            <label for="ledger-check-no" class="form-label">Check Number</label>
+            <input type="text" id="ledger-check-no" class="form-control form-control-sm"
+              [ngModel]="checkNo()" (ngModelChange)="checkNo.set($event)"
+              placeholder="Enter check number" />
+          </div>
+        }
+
+        <!-- Common Fields (Amount + Comment) -->
+        <div class="common-fields">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ledger-amount" class="form-label">Amount</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input type="number" id="ledger-amount" class="form-control form-control-sm"
+                  [ngModel]="amount()" (ngModelChange)="amount.set($event)" step="0.01" />
+              </div>
+              @if (paymentType() !== 'correction') {
+                <div class="owed-badge" [class.text-danger]="owedTotal() > 0" [class.text-success]="owedTotal() <= 0">
+                  Balance Due: <strong>{{ owedTotal() | currency }}</strong>
+                </div>
+              } @else {
+                <small class="form-text text-muted">(+) payment &nbsp; (&ndash;) refund</small>
+              }
+            </div>
+            <div class="form-group">
+              <label for="ledger-comment" class="form-label">Comment</label>
+              <input type="text" id="ledger-comment" class="form-control form-control-sm"
+                [ngModel]="comment()" (ngModelChange)="comment.set($event)"
+                placeholder="Optional" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Club allocation preview for check/correction -->
+        @if (paymentType() !== 'cc' && clubBreakdown()?.length && amount() > 0) {
+          <div class="club-breakdown">
+            <h6 class="breakdown-title">Allocation Preview</h6>
+            <p class="breakdown-note">Payment will be distributed starting with highest balance:</p>
+            @for (ct of clubBreakdown()!; track ct.teamId) {
+              @if (ct.owedTotal > 0) {
+                <div class="breakdown-row">
+                  <span>{{ ct.teamName }}</span>
+                  <span class="breakdown-amount">owes {{ ct.owedTotal | currency }}</span>
+                </div>
+              }
+            }
+          </div>
+        }
+
+        <!-- CC Confirmation -->
+        @if (showCcConfirm()) {
+          <div class="cc-confirm">
+            <strong>Confirm Credit Card Charge</strong>
+            <p class="cc-confirm-detail">
+              Charging <strong>{{ amount() | currency }}</strong> to card ending in <strong>{{ ccLast4() }}</strong>.
+            </p>
+            <p class="cc-confirm-warning">Processes immediately via Authorize.Net. Cannot be undone.</p>
+            <div class="cc-confirm-actions">
+              <button type="button" class="btn btn-sm btn-danger" (click)="confirmCcCharge()">
+                Yes, Charge {{ amount() | currency }}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissCcConfirm()">
+                Go Back
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (!showCcConfirm()) {
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePaymentModal()">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary" (click)="submitPayment()" [disabled]="!canSubmitPayment()">
+            @if (paymentType() === 'cc') {
+              <i class="bi bi-credit-card me-1"></i> Charge Card
+            } @else if (paymentType() === 'check') {
+              <i class="bi bi-bank me-1"></i> Record Check
+            } @else {
+              <i class="bi bi-pencil-square me-1"></i> Record Correction
+            }
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
