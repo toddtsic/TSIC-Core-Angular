@@ -125,6 +125,8 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		addArrayChips('LOP', 'levelOfPlays', req.levelOfPlays, opts?.levelOfPlays);
 		addArrayChips('Status', 'activeStatuses', req.activeStatuses, opts?.activeStatuses);
 		addArrayChips('Pay', 'payStatuses', req.payStatuses, opts?.payStatuses);
+		addArrayChips('Payment Type', 'paymentTypes', req.paymentTypes, opts?.paymentTypes);
+		addArrayChips('Discount Code', 'discountCodes', req.discountCodes, opts?.discountCodes);
 
 		if (req.waitlistScheduledStatus) {
 			const label = opts?.waitlistScheduledStatuses?.find(o => o.value === req.waitlistScheduledStatus)?.text ?? req.waitlistScheduledStatus;
@@ -513,7 +515,14 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	}
 
 	updateMultiSelect(field: keyof TeamSearchRequest, values: string[]): void {
-		this.searchRequest.update(req => ({ ...req, [field]: values ?? [] }));
+		this.searchRequest.update(req => {
+			const updated = { ...req, [field]: values ?? [] };
+			// Selecting a payment method implies searching across all active statuses
+			if (field === 'paymentTypes' && values?.length) {
+				updated.activeStatuses = [];
+			}
+			return updated;
+		});
 		this.executeSearch();
 	}
 
@@ -531,6 +540,8 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			teamIds: clean(req.teamIds),
 			activeStatuses: clean(req.activeStatuses),
 			payStatuses: clean(req.payStatuses),
+			paymentTypes: clean(req.paymentTypes),
+			discountCodes: clean(req.discountCodes),
 			cadtTeamIds: clean(req.cadtTeamIds),
 			waitlistScheduledStatus: req.waitlistScheduledStatus || undefined
 		};

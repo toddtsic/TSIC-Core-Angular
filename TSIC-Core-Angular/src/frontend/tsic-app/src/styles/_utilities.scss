@@ -1529,6 +1529,7 @@ mark {
     .form-select {
         font-size: var(--font-size-xs);
         padding: var(--space-1) var(--space-2);
+        min-height: 28px;
         border: 1px solid var(--bs-border-color);
         border-radius: var(--bs-border-radius);
         background: var(--bs-body-bg);
@@ -1544,6 +1545,20 @@ mark {
 }
 
 /* Tree filter containers */
+.form-group-pair {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-2);
+
+    .pair-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+}
+
 .form-group-tree {
     .tree-scroll-container {
         max-height: 300px;
@@ -1642,8 +1657,23 @@ mark {
 
 /* Syncfusion MultiSelect compact overrides */
 .filter-ms {
-    &.e-multiselect {
+    &.e-multiselect,
+    &.e-ddl {
         font-size: var(--font-size-xs);
+    }
+
+    // Syncfusion dropdownlist — match multiselect height
+    &.e-ddl .e-input-group {
+        min-height: 28px;
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--bs-border-radius);
+        background: var(--bs-body-bg);
+        padding: 2px var(--space-1);
+
+        &.e-input-focus {
+            border-color: var(--bs-primary);
+            box-shadow: 0 0 0 0.2rem var(--bs-primary-fade-20);
+        }
     }
 
     .e-multi-select-wrapper {

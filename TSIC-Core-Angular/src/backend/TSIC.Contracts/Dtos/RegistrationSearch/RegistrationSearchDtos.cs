@@ -32,6 +32,10 @@ public record RegistrationSearchRequest
     public List<string>? ArbSubscriptionStatuses { get; init; }
     public List<string>? MobileRegistrationRoles { get; init; }
 
+    // Accounting filters (multi-select)
+    public List<string>? PaymentTypes { get; init; }
+    public List<string>? DiscountCodes { get; init; }
+
     // Date range
     public DateTime? RegDateFrom { get; init; }
     public DateTime? RegDateTo { get; init; }
@@ -126,6 +130,10 @@ public record RegistrationFilterOptionsDto
     // Billing & Mobile
     public required List<FilterOption> ArbSubscriptionStatuses { get; init; }
     public required List<FilterOption> MobileRegistrations { get; init; }
+
+    // Accounting
+    public required List<FilterOption> PaymentTypes { get; init; }
+    public required List<FilterOption> DiscountCodes { get; init; }
 
     // Club rep clubs (for roster threshold companion filter)
     public required List<FilterOption> ClubRepClubs { get; init; }

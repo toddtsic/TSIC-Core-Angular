@@ -204,6 +204,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     addArrayChips('Age Range', 'ageRangeIds', req.ageRangeIds, opts?.ageRanges);
     addArrayChips('Subscription', 'arbSubscriptionStatuses', req.arbSubscriptionStatuses, opts?.arbSubscriptionStatuses);
     addArrayChips('Mobile Reg', 'mobileRegistrationRoles', req.mobileRegistrationRoles, opts?.mobileRegistrations);
+    addArrayChips('Payment Type', 'paymentTypes', req.paymentTypes, opts?.paymentTypes);
+    addArrayChips('Discount Code', 'discountCodes', req.discountCodes, opts?.discountCodes);
 
     if (req.name) chips.push({ category: 'Name', label: req.name, filterKey: 'name', value: req.name });
     if (req.email) chips.push({ category: 'Email', label: req.email, filterKey: 'email', value: req.email });
@@ -767,7 +769,14 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   // ── Multi-select update helpers ──
 
   updateMultiSelect(field: keyof RegistrationSearchRequest, values: string[]): void {
-    this.searchRequest.update(req => ({ ...req, [field]: values ?? [] }));
+    this.searchRequest.update(req => {
+      const updated = { ...req, [field]: values ?? [] };
+      // Selecting a payment method implies searching across all active statuses
+      if (field === 'paymentTypes' && values?.length) {
+        updated.activeStatuses = [];
+      }
+      return updated;
+    });
   }
 
   updateName(value: string): void {
@@ -821,6 +830,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       payStatuses: clean(req.payStatuses),
       arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
       mobileRegistrationRoles: clean(req.mobileRegistrationRoles),
+      paymentTypes: clean(req.paymentTypes),
+      discountCodes: clean(req.discountCodes),
       rosterThreshold: req.rosterThreshold ?? undefined,
       rosterThresholdClubNames: clean(req.rosterThresholdClubNames),
       cadtTeamIds: clean(req.cadtTeamIds)

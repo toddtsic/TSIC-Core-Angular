@@ -937,6 +937,23 @@ public class RegistrationRepository : IRegistrationRepository
                 (hasOver && r.OwedTotal < 0));
         }
 
+        // Accounting: Payment Type — registration has at least one accounting record with this payment method
+        if (request.PaymentTypes is { Count: > 0 })
+        {
+            query = query.Where(r =>
+                r.RegistrationAccounting.Any(a =>
+                    a.Active == true && request.PaymentTypes.Contains(a.PaymentMethod.PaymentMethod!)));
+        }
+
+        // Accounting: Discount Code — registration has at least one accounting record with this discount code
+        if (request.DiscountCodes is { Count: > 0 })
+        {
+            query = query.Where(r =>
+                r.RegistrationAccounting.Any(a =>
+                    a.Active == true && a.DiscountCodeAiNavigation != null
+                    && request.DiscountCodes.Contains(a.DiscountCodeAiNavigation.CodeName)));
+        }
+
         // ── Text filters ──
 
         // Name filter (searches first + last, supports "John Smith" split)
@@ -1411,6 +1428,25 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
+        // Payment types — distinct payment methods used in accounting records for this job
+        var paymentTypes = await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(a => a.Registration != null && a.Registration.JobId == jobId && a.Active == true)
+            .GroupBy(a => a.PaymentMethod.PaymentMethod!)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Discount codes — distinct codes used in accounting records for this job
+        var discountCodes = await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(a => a.Registration != null && a.Registration.JobId == jobId
+                && a.Active == true && a.DiscountCodeAiNavigation != null)
+            .GroupBy(a => a.DiscountCodeAiNavigation!.CodeName)
+            .OrderBy(g => g.Key)
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
         return new RegistrationFilterOptionsDto
         {
             Roles = roles,
@@ -1427,7 +1463,9 @@ public class RegistrationRepository : IRegistrationRepository
             AgeRanges = ageRanges,
             ArbSubscriptionStatuses = arbStatuses,
             MobileRegistrations = mobileRegs,
-            ClubRepClubs = clubRepClubs
+            ClubRepClubs = clubRepClubs,
+            PaymentTypes = paymentTypes,
+            DiscountCodes = discountCodes
         };
     }
 

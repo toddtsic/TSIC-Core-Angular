@@ -22,6 +22,8 @@ export type RegistrationSearchRequest = {
     payStatuses?: any[] | null;
     arbSubscriptionStatuses?: any[] | null;
     mobileRegistrationRoles?: any[] | null;
+    paymentTypes?: any[] | null;
+    discountCodes?: any[] | null;
     regDateFrom?: string | null;
     regDateTo?: string | null;
     rosterThreshold?: number | null;

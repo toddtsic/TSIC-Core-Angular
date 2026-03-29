@@ -24,6 +24,7 @@
       <span class="tip">Select more than one filter to narrow your search</span>
     </div>
     <div class="filter-bar-compact">
+      <!-- Row 1: Waitlist, Active Status, Pay Status, Pay Meth -->
       <div class="filter-row-4">
         <div class="form-group">
           <label>Waitlist / Scheduled</label>
@@ -39,26 +40,6 @@
             cssClass="filter-ms"
             [popupWidth]="'auto'">
           </ejs-dropdownlist>
-        </div>
-
-        <div class="form-group">
-          <label>Pay Status</label>
-          <ejs-multiselect #ms3
-            [dataSource]="filterOptions()?.payStatuses ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().payStatuses"
-            (change)="updateMultiSelect('payStatuses', $event.value)"
-            (open)="onMultiSelectOpen(ms3)"
-            [mode]="'CheckBox'"
-            [allowFiltering]="false"
-            [showDropDownIcon]="true"
-            [closePopupOnSelect]="false"
-            [changeOnBlur]="false"
-            placeholder="All"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'auto'">
-          </ejs-multiselect>
         </div>
 
         <div class="form-group">
@@ -82,13 +63,33 @@
         </div>
 
         <div class="form-group">
-          <label>Level of Play</label>
-          <ejs-multiselect #ms1
-            [dataSource]="filterOptions()?.levelOfPlays ?? []"
+          <label>Pay Status</label>
+          <ejs-multiselect #ms3
+            [dataSource]="filterOptions()?.payStatuses ?? []"
             [fields]="msFields"
-            [value]="searchRequest().levelOfPlays"
-            (change)="updateMultiSelect('levelOfPlays', $event.value)"
-            (open)="onMultiSelectOpen(ms1)"
+            [value]="searchRequest().payStatuses"
+            (change)="updateMultiSelect('payStatuses', $event.value)"
+            (open)="onMultiSelectOpen(ms3)"
+            [mode]="'CheckBox'"
+            [allowFiltering]="false"
+            [showDropDownIcon]="true"
+            [closePopupOnSelect]="false"
+            [changeOnBlur]="false"
+            placeholder="All"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-multiselect>
+        </div>
+
+        <div class="form-group">
+          <label>Pay Meth</label>
+          <ejs-multiselect #ms6
+            [dataSource]="filterOptions()?.paymentTypes ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().paymentTypes"
+            (change)="updateMultiSelect('paymentTypes', $event.value)"
+            (open)="onMultiSelectOpen(ms6)"
             [mode]="'CheckBox'"
             [allowFiltering]="false"
             [showDropDownIcon]="true"
@@ -102,9 +103,8 @@
         </div>
       </div>
 
-      <!-- Tree filters (LADT always present, CADT when club data exists) -->
-      <div class="filter-row-trees" [class.dual-tree]="hasCadtData()">
-        <!-- CADT Tree (conditional) -->
+      <!-- Row 2: CADT, LADT, LOP -->
+      <div class="filter-row-4">
         @if (hasCadtData() && jobName()) {
           <div class="form-group form-group-tree">
             <label>Club / Agegroup / Division / Team
@@ -144,7 +144,6 @@
           </div>
         }
 
-        <!-- LADT Tree -->
         <div class="form-group form-group-tree">
           <label>League / Agegroup / Division / Team
             <span class="tree-toggle-btns">
@@ -178,6 +177,26 @@
               </app-ladt-tree-filter>
             }
           </div>
+        </div>
+
+        <div class="form-group">
+          <label>Level of Play</label>
+          <ejs-multiselect #ms1
+            [dataSource]="filterOptions()?.levelOfPlays ?? []"
+            [fields]="msFields"
+            [value]="searchRequest().levelOfPlays"
+            (change)="updateMultiSelect('levelOfPlays', $event.value)"
+            (open)="onMultiSelectOpen(ms1)"
+            [mode]="'CheckBox'"
+            [allowFiltering]="false"
+            [showDropDownIcon]="true"
+            [closePopupOnSelect]="false"
+            [changeOnBlur]="false"
+            placeholder="All"
+            [itemTemplate]="countBadgeTemplate"
+            cssClass="filter-ms"
+            [popupWidth]="'auto'">
+          </ejs-multiselect>
         </div>
       </div>
 
