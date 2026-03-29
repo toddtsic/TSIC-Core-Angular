@@ -721,8 +721,9 @@ public class RegistrationRepository : IRegistrationRepository
             .Where(t => t.ClubrepRegistrationid == clubRepRegistrationId
                 && t.Active == true
                 && t.Agegroup != null
-                && !t.Agegroup.AgegroupName.Contains("WAITLIST")
-                && !t.Agegroup.AgegroupName.Contains("DROPPED"))
+                && t.Agegroup!.AgegroupName != null
+                && !t.Agegroup!.AgegroupName.Contains("WAITLIST")
+                && !t.Agegroup!.AgegroupName.Contains("DROPPED"))
             .GroupBy(t => 1) // Dummy groupby to enable aggregate
             .Select(g => new
             {

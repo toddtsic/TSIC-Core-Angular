@@ -596,7 +596,7 @@ public class TeamRegistrationController : ControllerBase
         }
 
         // Check club rep one-DC-per-registrant rule: resolve club rep from first team
-        var firstTeam = await _teamRepository.GetTeamFromTeamId(request.TeamIds.First());
+        var firstTeam = await _teamRepository.GetTeamFromTeamId(request.TeamIds[0]);
         if (firstTeam?.ClubrepRegistrationid != null)
         {
             var clubRep = await _registrationRepository.GetByIdAsync(firstTeam.ClubrepRegistrationid.Value);
