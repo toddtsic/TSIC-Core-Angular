@@ -205,6 +205,21 @@
 }
 
 
+// ── Discount Code Badge (inline tag icon next to name) ──
+.dc-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bs-warning);
+  font-size: 10px;
+  flex-shrink: 0;
+  opacity: 0.8;
+  cursor: default;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
 // ── Active Badge (read-only in grid) ──
 .active-badge {
   font-size: var(--font-size-xs);

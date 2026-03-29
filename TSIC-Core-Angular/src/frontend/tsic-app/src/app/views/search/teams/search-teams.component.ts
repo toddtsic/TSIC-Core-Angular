@@ -126,8 +126,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		addArrayChips('Status', 'activeStatuses', req.activeStatuses, opts?.activeStatuses);
 		addArrayChips('Pay', 'payStatuses', req.payStatuses, opts?.payStatuses);
 		addArrayChips('Payment Type', 'paymentTypes', req.paymentTypes, opts?.paymentTypes);
-		addArrayChips('Discount Code', 'discountCodes', req.discountCodes, opts?.discountCodes);
-
 		if (req.waitlistScheduledStatus) {
 			const label = opts?.waitlistScheduledStatuses?.find(o => o.value === req.waitlistScheduledStatus)?.text ?? req.waitlistScheduledStatus;
 			chips.push({ category: 'W/S', label, filterKey: 'waitlistScheduledStatus' as keyof TeamSearchRequest, value: req.waitlistScheduledStatus });
@@ -541,7 +539,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			activeStatuses: clean(req.activeStatuses),
 			payStatuses: clean(req.payStatuses),
 			paymentTypes: clean(req.paymentTypes),
-			discountCodes: clean(req.discountCodes),
 			cadtTeamIds: clean(req.cadtTeamIds),
 			waitlistScheduledStatus: req.waitlistScheduledStatus || undefined
 		};

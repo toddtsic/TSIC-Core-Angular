@@ -730,20 +730,36 @@ public class TeamRepository : ITeamRepository
                 || (request.PayStatuses.Contains("OVER PAID") && x.t.OwedTotal < 0));
         }
 
-        // Accounting: Payment Type — team has at least one accounting record with this payment method
+        // Payment Method / Discount Code combined filter
+        // "dc:*" = any discount code; "dc:CODE" = specific code; others = payment method names
         if (request.PaymentTypes is { Count: > 0 })
         {
-            query = query.Where(x =>
-                _context.RegistrationAccounting.Any(a =>
-                    a.TeamId == x.t.TeamId && a.Active == true
-                    && request.PaymentTypes.Contains(a.PaymentMethod.PaymentMethod!)));
-        }
+            var payMethods = request.PaymentTypes.Where(v => !v.StartsWith("dc:")).ToList();
+            var dcValues = request.PaymentTypes.Where(v => v.StartsWith("dc:")).Select(v => v[3..]).ToList();
+            var allDc = dcValues.Contains("*");
+            var specificDcCodes = dcValues.Where(v => v != "*").ToList();
 
-        // Discount Code — from team entity (team has at most 1 discount code)
-        if (request.DiscountCodes is { Count: > 0 })
-        {
-            query = query.Where(x =>
-                x.t.DiscountCode != null && request.DiscountCodes.Contains(x.t.DiscountCode.CodeName));
+            if (payMethods.Count > 0 && (allDc || specificDcCodes.Count > 0))
+            {
+                query = query.Where(x =>
+                    _context.RegistrationAccounting.Any(a => a.TeamId == x.t.TeamId && a.Active == true && payMethods.Contains(a.PaymentMethod.PaymentMethod!))
+                    || (allDc && x.t.DiscountCode != null)
+                    || (specificDcCodes.Count > 0 && x.t.DiscountCode != null && specificDcCodes.Contains(x.t.DiscountCode.CodeName)));
+            }
+            else if (payMethods.Count > 0)
+            {
+                query = query.Where(x =>
+                    _context.RegistrationAccounting.Any(a => a.TeamId == x.t.TeamId && a.Active == true && payMethods.Contains(a.PaymentMethod.PaymentMethod!)));
+            }
+            else if (allDc)
+            {
+                query = query.Where(x => x.t.DiscountCode != null);
+            }
+            else if (specificDcCodes.Count > 0)
+            {
+                query = query.Where(x =>
+                    x.t.DiscountCode != null && specificDcCodes.Contains(x.t.DiscountCode.CodeName));
+            }
         }
 
         if (request.AgegroupIds?.Count > 0)
@@ -890,8 +906,8 @@ public class TeamRepository : ITeamRepository
             new() { Value = "NOT_SCHEDULED", Text = "Not Scheduled", Count = notScheduledCount }
         };
 
-        // Payment types — distinct payment methods used in team accounting records
-        var paymentTypes = await _context.RegistrationAccounting
+        // Payment methods — from accounting records
+        var paymentMethods = await _context.RegistrationAccounting
             .AsNoTracking()
             .Where(a => a.Team != null && a.Team.JobId == jobId && a.Active == true)
             .GroupBy(a => a.PaymentMethod.PaymentMethod!)
@@ -899,14 +915,29 @@ public class TeamRepository : ITeamRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
-        // Discount codes — distinct codes used in team accounting records
-        // Discount codes — from team entity (team has at most 1 code)
-        var discountCodes = await baseQuery
+        // Discount codes — from team entity with detail (%, flat, amount)
+        var dcRaw = await baseQuery
             .Where(t => t.DiscountCode != null)
-            .GroupBy(t => t.DiscountCode!.CodeName)
-            .OrderBy(g => g.Key)
-            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .GroupBy(t => new { t.DiscountCode!.CodeName, t.DiscountCode.BAsPercent, t.DiscountCode.CodeAmount })
+            .OrderBy(g => g.Key.CodeName)
+            .Select(g => new { g.Key.CodeName, g.Key.BAsPercent, g.Key.CodeAmount, Count = g.Count() })
             .ToListAsync(ct);
+
+        var discountCodeOptions = dcRaw.Select(dc =>
+        {
+            var detail = dc.BAsPercent
+                ? $"{dc.CodeAmount:0}%"
+                : $"${dc.CodeAmount:0.00}";
+            return new FilterOption { Value = "dc:" + dc.CodeName, Text = $"DC: {dc.CodeName} ({detail})", Count = dc.Count };
+        }).ToList();
+
+        var totalDcCount = dcRaw.Sum(dc => dc.Count);
+        var paymentTypes = paymentMethods.ToList();
+        if (discountCodeOptions.Count > 0)
+        {
+            paymentTypes.Add(new FilterOption { Value = "dc:*", Text = $"ALL Discount Codes", Count = totalDcCount });
+            paymentTypes.AddRange(discountCodeOptions);
+        }
 
         return new TeamFilterOptionsDto
         {
@@ -916,7 +947,6 @@ public class TeamRepository : ITeamRepository
             ActiveStatuses = activeStatuses,
             PayStatuses = payStatuses,
             PaymentTypes = paymentTypes,
-            DiscountCodes = discountCodes,
             WaitlistScheduledStatuses = waitlistScheduledStatuses
         };
     }

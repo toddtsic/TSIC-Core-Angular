@@ -937,19 +937,37 @@ public class RegistrationRepository : IRegistrationRepository
                 (hasOver && r.OwedTotal < 0));
         }
 
-        // Accounting: Payment Type — registration has at least one accounting record with this payment method
+        // Payment Method / Discount Code combined filter
+        // "dc:*" = any discount code; "dc:CODE" = specific code; others = payment method names
         if (request.PaymentTypes is { Count: > 0 })
         {
-            query = query.Where(r =>
-                r.RegistrationAccounting.Any(a =>
-                    a.Active == true && request.PaymentTypes.Contains(a.PaymentMethod.PaymentMethod!)));
-        }
+            var payMethods = request.PaymentTypes.Where(v => !v.StartsWith("dc:")).ToList();
+            var dcValues = request.PaymentTypes.Where(v => v.StartsWith("dc:")).Select(v => v[3..]).ToList();
+            var allDc = dcValues.Contains("*");
+            var specificDcCodes = dcValues.Where(v => v != "*").ToList();
 
-        // Discount Code — from registration entity (a registrant has at most 1 discount code)
-        if (request.DiscountCodes is { Count: > 0 })
-        {
-            query = query.Where(r =>
-                r.DiscountCode != null && request.DiscountCodes.Contains(r.DiscountCode.CodeName));
+            // Build OR predicate: matches payment method OR matches discount code
+            if (payMethods.Count > 0 && (allDc || specificDcCodes.Count > 0))
+            {
+                query = query.Where(r =>
+                    r.RegistrationAccounting.Any(a => a.Active == true && payMethods.Contains(a.PaymentMethod.PaymentMethod!))
+                    || (allDc && r.DiscountCode != null)
+                    || (specificDcCodes.Count > 0 && r.DiscountCode != null && specificDcCodes.Contains(r.DiscountCode.CodeName)));
+            }
+            else if (payMethods.Count > 0)
+            {
+                query = query.Where(r =>
+                    r.RegistrationAccounting.Any(a => a.Active == true && payMethods.Contains(a.PaymentMethod.PaymentMethod!)));
+            }
+            else if (allDc)
+            {
+                query = query.Where(r => r.DiscountCode != null);
+            }
+            else if (specificDcCodes.Count > 0)
+            {
+                query = query.Where(r =>
+                    r.DiscountCode != null && specificDcCodes.Contains(r.DiscountCode.CodeName));
+            }
         }
 
         // ── Text filters ──
@@ -1191,6 +1209,7 @@ public class RegistrationRepository : IRegistrationRepository
             OwedTotal = r.OwedTotal,
             RegistrationTs = r.RegistrationTs,
             Modified = r.Modified,
+            DiscountCodeName = r.DiscountCode != null ? r.DiscountCode.CodeName : null,
             EmailOptOut = r.BemailOptOut
         });
 
@@ -1426,8 +1445,8 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
-        // Payment types — distinct payment methods used in accounting records for this job
-        var paymentTypes = await _context.RegistrationAccounting
+        // Payment methods — from accounting records
+        var paymentMethods = await _context.RegistrationAccounting
             .AsNoTracking()
             .Where(a => a.Registration != null && a.Registration.JobId == jobId && a.Active == true)
             .GroupBy(a => a.PaymentMethod.PaymentMethod!)
@@ -1435,13 +1454,29 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
-        // Discount codes — from registration entity (registrant has at most 1 code)
-        var discountCodes = await baseQuery
+        // Discount codes — from registration entity with detail (%, flat, amount)
+        var dcRaw = await baseQuery
             .Where(r => r.DiscountCode != null)
-            .GroupBy(r => r.DiscountCode!.CodeName)
-            .OrderBy(g => g.Key)
-            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
+            .GroupBy(r => new { r.DiscountCode!.CodeName, r.DiscountCode.BAsPercent, r.DiscountCode.CodeAmount })
+            .OrderBy(g => g.Key.CodeName)
+            .Select(g => new { g.Key.CodeName, g.Key.BAsPercent, g.Key.CodeAmount, Count = g.Count() })
             .ToListAsync(ct);
+
+        var discountCodeOptions = dcRaw.Select(dc =>
+        {
+            var detail = dc.BAsPercent
+                ? $"{dc.CodeAmount:0}%"
+                : $"${dc.CodeAmount:0.00}";
+            return new FilterOption { Value = "dc:" + dc.CodeName, Text = $"DC: {dc.CodeName} ({detail})", Count = dc.Count };
+        }).ToList();
+
+        var totalDcCount = dcRaw.Sum(dc => dc.Count);
+        var paymentTypes = paymentMethods.ToList();
+        if (discountCodeOptions.Count > 0)
+        {
+            paymentTypes.Add(new FilterOption { Value = "dc:*", Text = $"ALL Discount Codes", Count = totalDcCount });
+            paymentTypes.AddRange(discountCodeOptions);
+        }
 
         return new RegistrationFilterOptionsDto
         {
@@ -1460,8 +1495,7 @@ public class RegistrationRepository : IRegistrationRepository
             ArbSubscriptionStatuses = arbStatuses,
             MobileRegistrations = mobileRegs,
             ClubRepClubs = clubRepClubs,
-            PaymentTypes = paymentTypes,
-            DiscountCodes = discountCodes
+            PaymentTypes = paymentTypes
         };
     }
 

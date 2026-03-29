@@ -9,7 +9,6 @@ export type TeamSearchRequest = {
     activeStatuses?: any[] | null;
     payStatuses?: any[] | null;
     paymentTypes?: any[] | null;
-    discountCodes?: any[] | null;
     leagueIds?: any[] | null;
     divisionIds?: any[] | null;
     teamIds?: any[] | null;

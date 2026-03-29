@@ -205,8 +205,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     addArrayChips('Subscription', 'arbSubscriptionStatuses', req.arbSubscriptionStatuses, opts?.arbSubscriptionStatuses);
     addArrayChips('Mobile Reg', 'mobileRegistrationRoles', req.mobileRegistrationRoles, opts?.mobileRegistrations);
     addArrayChips('Payment Type', 'paymentTypes', req.paymentTypes, opts?.paymentTypes);
-    addArrayChips('Discount Code', 'discountCodes', req.discountCodes, opts?.discountCodes);
-
     if (req.name) chips.push({ category: 'Name', label: req.name, filterKey: 'name', value: req.name });
     if (req.email) chips.push({ category: 'Email', label: req.email, filterKey: 'email', value: req.email });
     if (req.phone) chips.push({ category: 'Phone', label: req.phone, filterKey: 'phone', value: req.phone });
@@ -831,7 +829,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
       mobileRegistrationRoles: clean(req.mobileRegistrationRoles),
       paymentTypes: clean(req.paymentTypes),
-      discountCodes: clean(req.discountCodes),
       rosterThreshold: req.rosterThreshold ?? undefined,
       rosterThresholdClubNames: clean(req.rosterThresholdClubNames),
       cadtTeamIds: clean(req.cadtTeamIds)

@@ -24,6 +24,7 @@ export type RegistrationSearchResultDto = {
     owedTotal: number;
     registrationTs: string;
     modified?: string | null;
+    discountCodeName?: string | null;
     emailOptOut: boolean;
 };
 

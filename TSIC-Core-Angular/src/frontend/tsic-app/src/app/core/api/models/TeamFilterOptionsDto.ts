@@ -10,7 +10,6 @@ export type TeamFilterOptionsDto = {
     activeStatuses: Array<FilterOption>;
     payStatuses: Array<FilterOption>;
     paymentTypes: Array<FilterOption>;
-    discountCodes: Array<FilterOption>;
     waitlistScheduledStatuses: Array<FilterOption>;
 };
 

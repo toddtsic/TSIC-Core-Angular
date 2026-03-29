@@ -15,9 +15,8 @@ public record TeamSearchRequest
     public List<string>? ActiveStatuses { get; init; }
     public List<string>? PayStatuses { get; init; }
 
-    // Accounting filters (multi-select)
+    // Accounting filter (multi-select — includes payment methods + discount codes prefixed with "dc:")
     public List<string>? PaymentTypes { get; init; }
-    public List<string>? DiscountCodes { get; init; }
 
     // LADT tree filter IDs (derived from tree checkbox selection)
     public List<Guid>? LeagueIds { get; init; }
@@ -76,6 +75,5 @@ public record TeamFilterOptionsDto
     public required List<FilterOption> ActiveStatuses { get; init; }
     public required List<FilterOption> PayStatuses { get; init; }
     public required List<FilterOption> PaymentTypes { get; init; }
-    public required List<FilterOption> DiscountCodes { get; init; }
     public required List<FilterOption> WaitlistScheduledStatuses { get; init; }
 }

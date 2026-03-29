@@ -19,7 +19,6 @@ export type RegistrationFilterOptionsDto = {
     arbSubscriptionStatuses: Array<FilterOption>;
     mobileRegistrations: Array<FilterOption>;
     paymentTypes: Array<FilterOption>;
-    discountCodes: Array<FilterOption>;
     clubRepClubs: Array<FilterOption>;
 };
 
