@@ -28,15 +28,19 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IPaymentService _paymentService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
+    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
     private readonly IRegistrationRepository _registrations;
     private readonly IPlayerFeeCalculator _feeCalc;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
 
+    private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
+
     public PlayerRegistrationPaymentController(
         IJobLookupService jobLookupService,
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
+        IRegistrationAccountingRepository accountingRepo,
         IRegistrationRepository registrations,
         IPlayerFeeCalculator feeCalc,
         IRegistrationFeeAdjustmentService feeAdjustment,
@@ -45,6 +49,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _jobLookupService = jobLookupService;
         _paymentService = paymentService;
         _discountCodeRepo = discountCodeRepo;
+        _accountingRepo = accountingRepo;
         _registrations = registrations;
         _feeCalc = feeCalc;
         _feeAdjustment = feeAdjustment;
@@ -140,7 +145,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         }
 
         var total = items.Sum(i => i.Amount);
-        var (bAsPercent, codeAmount) = rec.Value;
+        var (discountCodeAi, bAsPercent, codeAmount) = rec.Value;
         var amount = codeAmount ?? 0m;
         if (amount <= 0m || total <= 0m)
         {
@@ -268,6 +273,27 @@ public class PlayerRegistrationPaymentController : ControllerBase
             reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = familyUserId;
+
+            // 100% DC: create correction accounting record so registration isn't invisible in ledger
+            if (reg.OwedTotal <= 0m)
+            {
+                var detail = (bAsPercent ?? false) ? $"{amount:0}%" : $"${amount:0.00}";
+                _accountingRepo.Add(new Domain.Entities.RegistrationAccounting
+                {
+                    RegistrationId = reg.RegistrationId,
+                    PaymentMethodId = CorrectionMethodId,
+                    DiscountCodeAi = discountCodeAi,
+                    Dueamt = d,
+                    Payamt = d,
+                    Comment = $"DC: {request.Code.Trim()} ({detail})",
+                    Active = true,
+                    Createdate = DateTime.UtcNow,
+                    Modified = DateTime.UtcNow,
+                    LebUserId = familyUserId
+                });
+                reg.PaidTotal += d;
+                reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
+            }
 
             updatedFinancials[reg.UserId!] = new RegistrationFinancialsDto
             {

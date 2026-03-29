@@ -1,4 +1,5 @@
 using AuthorizeNet.Api.Contracts.V1;
+using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos;
@@ -24,6 +25,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IAdnApiService _adnApi;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
+    private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs
@@ -40,6 +42,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IAdnApiService adnApi,
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
+        IRegistrationFeeAdjustmentService feeAdjustment,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -49,6 +52,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _adnApi = adnApi;
         _textSubstitution = textSubstitution;
         _emailService = emailService;
+        _feeAdjustment = feeAdjustment;
         _logger = logger;
     }
 
@@ -337,14 +341,20 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             ?? throw new InvalidOperationException("Registration not found.");
 
         reg.PaidTotal += request.Amount;
+
+        // Non-CC payments reduce processing fee proportionally (core accounting principle)
+        await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
+
+        // Recalculate totals after processing fee change
+        reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
         reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
         reg.Modified = DateTime.UtcNow;
         reg.LebUserId = userId;
 
         await _accountingRepo.SaveChangesAsync(ct);
 
-        _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}",
-            request.PaymentType, request.RegistrationId, request.Amount);
+        _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}, ProcessingFeeReduced={Reduced}",
+            request.PaymentType, request.RegistrationId, request.Amount, reg.FeeProcessing);
 
         return new RegistrationCheckOrCorrectionResponse { Success = true };
     }

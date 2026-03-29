@@ -18,7 +18,7 @@ public class JobDiscountCodeRepository : IJobDiscountCodeRepository
         _context = context;
     }
 
-    public async Task<(bool? BAsPercent, decimal? CodeAmount)?> GetActiveCodeAsync(
+    public async Task<(int Ai, bool? BAsPercent, decimal? CodeAmount)?> GetActiveCodeAsync(
         Guid jobId,
         string codeNameLower,
         DateTime currentTime,
@@ -31,10 +31,10 @@ public class JobDiscountCodeRepository : IJobDiscountCodeRepository
                         && d.CodeStartDate <= currentTime
                         && d.CodeEndDate >= currentTime
                         && d.CodeName.ToLower() == codeNameLower)
-            .Select(d => new { d.BAsPercent, d.CodeAmount })
+            .Select(d => new { d.Ai, d.BAsPercent, d.CodeAmount })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return result != null ? (result.BAsPercent, result.CodeAmount) : null;
+        return result != null ? (result.Ai, result.BAsPercent, result.CodeAmount) : null;
     }
 
     public async Task<(bool? BAsPercent, decimal? CodeAmount)?> GetByAiAsync(int discountCodeAi, CancellationToken cancellationToken = default)

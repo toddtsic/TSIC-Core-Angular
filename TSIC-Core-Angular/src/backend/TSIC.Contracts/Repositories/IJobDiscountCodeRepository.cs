@@ -11,7 +11,7 @@ public interface IJobDiscountCodeRepository
     /// <summary>
     /// Get an active, non-expired discount code for a job
     /// </summary>
-    Task<(bool? BAsPercent, decimal? CodeAmount)?> GetActiveCodeAsync(
+    Task<(int Ai, bool? BAsPercent, decimal? CodeAmount)?> GetActiveCodeAsync(
         Guid jobId,
         string codeNameLower,
         DateTime currentTime,

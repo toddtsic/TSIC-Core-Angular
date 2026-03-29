@@ -35,7 +35,10 @@ public class TeamRegistrationController : ControllerBase
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ITeamRepository _teamRepository;
     private readonly IRegistrationRepository _registrationRepository;
+    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
+
+    private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
     public TeamRegistrationController(
         ITeamRegistrationService teamRegistrationService,
@@ -44,6 +47,7 @@ public class TeamRegistrationController : ControllerBase
         IJobDiscountCodeRepository discountCodeRepo,
         ITeamRepository teamRepository,
         IRegistrationRepository registrationRepository,
+        IRegistrationAccountingRepository accountingRepo,
         IRegistrationFeeAdjustmentService feeAdjustment)
     {
         _teamRegistrationService = teamRegistrationService;
@@ -52,6 +56,7 @@ public class TeamRegistrationController : ControllerBase
         _discountCodeRepo = discountCodeRepo;
         _teamRepository = teamRepository;
         _registrationRepository = registrationRepository;
+        _accountingRepo = accountingRepo;
         _feeAdjustment = feeAdjustment;
     }
 
@@ -575,7 +580,7 @@ public class TeamRegistrationController : ControllerBase
             });
         }
 
-        var (bAsPercent, codeAmount) = discountCodeRecord.Value;
+        var (discountCodeAi, bAsPercent, codeAmount) = discountCodeRecord.Value;
         var amount = codeAmount ?? 0m;
         if (amount <= 0m)
         {
@@ -590,7 +595,26 @@ public class TeamRegistrationController : ControllerBase
             });
         }
 
-        var response = await ProcessTeamDiscountsAsync(request.TeamIds, bAsPercent ?? false, amount, 0, jobId.Value, userId);
+        // Check club rep one-DC-per-registrant rule: resolve club rep from first team
+        var firstTeam = await _teamRepository.GetTeamFromTeamId(request.TeamIds.First());
+        if (firstTeam?.ClubrepRegistrationid != null)
+        {
+            var clubRep = await _registrationRepository.GetByIdAsync(firstTeam.ClubrepRegistrationid.Value);
+            if (clubRep?.DiscountCodeId != null)
+            {
+                return Ok(new ApplyTeamDiscountResponseDto
+                {
+                    Success = false,
+                    Message = "A discount code has already been used for this club rep. Only one discount code is allowed per registrant.",
+                    TotalTeamsProcessed = 0,
+                    SuccessCount = 0,
+                    FailureCount = 0,
+                    Results = new List<TeamDiscountResult>()
+                });
+            }
+        }
+
+        var response = await ProcessTeamDiscountsAsync(request.TeamIds, bAsPercent ?? false, amount, discountCodeAi, jobId.Value, userId);
 
         _logger.LogInformation("ApplyTeamDiscount completed: success={Success} processed={Processed} succeeded={Succeeded} failed={Failed}",
             response.Success, response.TotalTeamsProcessed, response.SuccessCount, response.FailureCount);
@@ -633,6 +657,19 @@ public class TeamRegistrationController : ControllerBase
             if (clubRepRegistrationId.HasValue)
             {
                 await _registrationRepository.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId.Value, userId);
+
+                // Set club rep DiscountCodeId to enforce one-DC-per-registrant rule
+                if (discountCodeId > 0 && results.Any(r => r.Success))
+                {
+                    var clubRep = await _registrationRepository.GetByIdAsync(clubRepRegistrationId.Value);
+                    if (clubRep != null)
+                    {
+                        clubRep.DiscountCodeId = discountCodeId;
+                        clubRep.Modified = DateTime.UtcNow;
+                        clubRep.LebUserId = userId;
+                        await _registrationRepository.SaveChangesAsync();
+                    }
+                }
             }
 
             scope.Complete();
@@ -708,6 +745,28 @@ public class TeamRegistrationController : ControllerBase
         team.RecalcTotals();
         team.Modified = DateTime.UtcNow;
         team.LebUserId = userId;
+
+        // 100% DC: create correction accounting record so team isn't invisible in ledger
+        if ((team.OwedTotal ?? 0m) <= 0m)
+        {
+            var detail = bAsPercent ? $"{amount:0}%" : $"${amount:0.00}";
+            _accountingRepo.Add(new Domain.Entities.RegistrationAccounting
+            {
+                RegistrationId = team.ClubrepRegistrationid,
+                TeamId = team.TeamId,
+                PaymentMethodId = CorrectionMethodId,
+                DiscountCodeAi = discountCodeId,
+                Dueamt = discountAmount,
+                Payamt = discountAmount,
+                Comment = $"DC: 100% discount ({detail})",
+                Active = true,
+                Createdate = DateTime.UtcNow,
+                Modified = DateTime.UtcNow,
+                LebUserId = userId
+            });
+            team.PaidTotal = (team.PaidTotal ?? 0m) + discountAmount;
+            team.RecalcTotals();
+        }
 
         return new TeamDiscountResult
         {
