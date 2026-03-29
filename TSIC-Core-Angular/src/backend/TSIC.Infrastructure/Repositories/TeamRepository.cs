@@ -1008,7 +1008,10 @@ public class TeamRepository : ITeamRepository
             .Include(t => t.Job)
             .Where(t => t.JobId == jobId
                 && t.ClubrepRegistrationid == clubRepRegistrationId
-                && t.Active == true)
+                && t.Active == true
+                && t.Agegroup != null
+                && !t.Agegroup.AgegroupName.Contains("WAITLIST")
+                && !t.Agegroup.AgegroupName.Contains("DROPPED"))
             .OrderByDescending(t => t.OwedTotal)
             .ToListAsync(ct);
     }
@@ -1017,8 +1020,11 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.Teams
             .AsNoTracking()
-            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
+            .Where(t => t.JobId == jobId
+                && t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Active == true)
             .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
+            .Where(x => !x.ag.AgegroupName.Contains("WAITLIST") && !x.ag.AgegroupName.Contains("DROPPED"))
             .OrderBy(x => x.ag.AgegroupName)
             .ThenBy(x => x.t.TeamName)
             .Select(x => new ClubTeamSummaryDto

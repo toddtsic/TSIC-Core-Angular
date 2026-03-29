@@ -715,9 +715,14 @@ public class RegistrationRepository : IRegistrationRepository
         string userId,
         CancellationToken cancellationToken = default)
     {
-        // Aggregate all active team financials using SQL SUM with COALESCE
+        // Aggregate active team financials, excluding WAITLIST/DROPPED agegroups
         var totals = await _context.Teams
-            .Where(t => t.ClubrepRegistrationid == clubRepRegistrationId && t.Active == true)
+            .Include(t => t.Agegroup)
+            .Where(t => t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Active == true
+                && t.Agegroup != null
+                && !t.Agegroup.AgegroupName.Contains("WAITLIST")
+                && !t.Agegroup.AgegroupName.Contains("DROPPED"))
             .GroupBy(t => 1) // Dummy groupby to enable aggregate
             .Select(g => new
             {
