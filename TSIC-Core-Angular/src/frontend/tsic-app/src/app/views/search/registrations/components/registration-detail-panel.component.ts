@@ -7,6 +7,7 @@ import { RegistrationSearchService } from '../services/registration-search.servi
 import { ToastService } from '@shared-ui/toast.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -70,7 +71,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -109,6 +110,7 @@ export class RegistrationDetailPanelComponent {
 
   // Role detection
   isPlayerRole = signal<boolean>(false);
+  isClubRep = computed(() => this.detail()?.isClubRep === true);
 
   // Editable profile fields (excludes team selection, reorders for lacrosse)
   editableProfileFields = computed(() => {

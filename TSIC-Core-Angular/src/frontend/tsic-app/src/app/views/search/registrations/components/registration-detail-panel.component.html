@@ -351,15 +351,22 @@
       <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
-          <app-accounting-ledger
-            [records]="reg.accountingRecords ?? []"
-            [feeTotal]="reg.feeTotal ?? 0"
-            [paidTotal]="reg.paidTotal ?? 0"
-            [owedTotal]="reg.owedTotal ?? 0"
-            (refundRequested)="onRefundClick($event)"
-            (ccChargeSubmitted)="onCcCharge($event)"
-            (checkSubmitted)="onCheckSubmitted($event)">
-          </app-accounting-ledger>
+          @if (isClubRep()) {
+            <app-club-rep-payment
+              [clubRepRegistrationId]="reg.registrationId"
+              (paymentComplete)="saved.emit()">
+            </app-club-rep-payment>
+          } @else {
+            <app-accounting-ledger
+              [records]="reg.accountingRecords"
+              [feeTotal]="reg.feeTotal"
+              [paidTotal]="reg.paidTotal"
+              [owedTotal]="reg.owedTotal"
+              (refundRequested)="onRefundClick($event)"
+              (ccChargeSubmitted)="onCcCharge($event)"
+              (checkSubmitted)="onCheckSubmitted($event)">
+            </app-accounting-ledger>
+          }
 
           <!-- ── ARB Subscription Card ── -->
           @if (reg.hasSubscription) {

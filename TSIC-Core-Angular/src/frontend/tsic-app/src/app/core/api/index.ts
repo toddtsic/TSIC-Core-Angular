@@ -124,6 +124,7 @@ export type { CloneSummary } from './models/CloneSummary';
 export type { CloneTeamRequest } from './models/CloneTeamRequest';
 export type { ClubOperationResultDto } from './models/ClubOperationResultDto';
 export type { ClubRegistrationDto } from './models/ClubRegistrationDto';
+export type { ClubRepAccountingDto } from './models/ClubRepAccountingDto';
 export type { ClubRepClubDto } from './models/ClubRepClubDto';
 export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationRequest';
 export type { ClubRepRegistrationResponse } from './models/ClubRepRegistrationResponse';

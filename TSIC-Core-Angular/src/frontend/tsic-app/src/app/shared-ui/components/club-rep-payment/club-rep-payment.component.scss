@@ -1,0 +1,110 @@
+:host {
+  display: block;
+}
+
+// ═══════════════════════════════════════════
+// SCOPE SELECTOR (team vs club view)
+// ═══════════════════════════════════════════
+
+.scope-selector {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+}
+
+.scope-btn {
+  flex: 1;
+  padding: var(--space-3);
+  border: 2px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bs-tertiary-bg);
+  }
+
+  &.active {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary);
+    color: var(--bs-white);
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+.scope-btn-club {
+  &.active {
+    border-color: var(--bs-warning);
+    background: var(--bs-warning);
+    color: var(--neutral-900);
+  }
+}
+
+// ═══════════════════════════════════════════
+// CLUB SUMMARY
+// ═══════════════════════════════════════════
+
+.club-summary-card {
+  background: var(--bs-card-bg);
+  border: 2px solid var(--bs-warning);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.section-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-3);
+  color: var(--bs-body-color);
+}
+
+.summary-table {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  border-collapse: collapse;
+
+  th {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-muted);
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--bs-border-color);
+    text-transform: uppercase;
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.05em;
+  }
+
+  td {
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    color: var(--bs-body-color);
+  }
+
+  tfoot td {
+    border-top: 2px solid var(--bs-border-color);
+    font-weight: var(--font-weight-bold);
+  }
+}
+
+// ═══════════════════════════════════════════
+// SHARED UTILITIES
+// ═══════════════════════════════════════════
+
+.owed-positive {
+  color: var(--bs-danger) !important;
+  font-weight: var(--font-weight-semibold);
+}
+
+.owed-zero {
+  color: var(--bs-success) !important;
+  font-weight: var(--font-weight-semibold);
+}

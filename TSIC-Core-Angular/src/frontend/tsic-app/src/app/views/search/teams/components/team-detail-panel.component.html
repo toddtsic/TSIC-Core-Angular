@@ -215,84 +215,20 @@
       <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
-
-          <!-- Scope Selector -->
-          @if (clubTeamCount > 1) {
-            <div class="scope-selector">
-              <button type="button" class="scope-btn" [class.active]="scope() === 'team'" (click)="setScope('team')">
-                This Team: {{ team.teamName }}
-              </button>
-              <button type="button" class="scope-btn scope-btn-club" [class.active]="scope() === 'club'" (click)="setScope('club')">
-                All Club Teams: {{ team.clubName }} ({{ clubTeamCount }} teams, {{ clubOwedTotal | currency }} owed)
-              </button>
-            </div>
+          @if (team.clubRepRegistrationId) {
+            <app-club-rep-payment
+              [clubRepRegistrationId]="team.clubRepRegistrationId"
+              [teamId]="team.teamId"
+              (paymentComplete)="changed.emit()">
+            </app-club-rep-payment>
+          } @else {
+            <div class="text-muted text-center py-3">No club rep assigned to this team.</div>
           }
-
-          <!-- Club Team Summary (shown when scope = club) -->
-          @if (scope() === 'club' && team.clubTeamSummaries.length) {
-            <div class="club-summary-card">
-              <h5 class="section-title">Club Teams Breakdown</h5>
-              <table class="summary-table">
-                <thead>
-                  <tr>
-                    <th>Team</th>
-                    <th class="text-end">Fee</th>
-                    <th class="text-end">Paid</th>
-                    <th class="text-end">Owed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (ct of team.clubTeamSummaries; track ct.teamId) {
-                    <tr>
-                      <td>{{ ct.teamName }}</td>
-                      <td class="text-end">{{ ct.feeTotal | currency }}</td>
-                      <td class="text-end">{{ ct.paidTotal | currency }}</td>
-                      <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
-                        {{ ct.owedTotal | currency }}
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td><strong>Total</strong></td>
-                    <td class="text-end"><strong>{{ clubFeeTotal | currency }}</strong></td>
-                    <td class="text-end"><strong>{{ clubPaidTotal | currency }}</strong></td>
-                    <td class="text-end"><strong>{{ clubOwedTotal | currency }}</strong></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          }
-
-          <!-- Payment Ledger (shared component) -->
-          <app-accounting-ledger
-            [records]="team.accountingRecords"
-            [feeTotal]="scope() === 'team' ? teamFeeTotal : clubFeeTotal"
-            [paidTotal]="scope() === 'team' ? teamPaidTotal : clubPaidTotal"
-            [owedTotal]="scope() === 'team' ? teamOwedTotal : clubOwedTotal"
-            [clubBreakdown]="scope() === 'club' ? team.clubTeamSummaries : undefined"
-            (refundRequested)="onRefundRequested($event)"
-            (ccChargeSubmitted)="onCcCharge($event)"
-            (checkSubmitted)="onCheckSubmitted($event)">
-          </app-accounting-ledger>
         </div>
       }
     </div>
   }
 </div>
-
-<!-- Refund Confirm Dialog -->
-@if (showRefundConfirm()) {
-  <confirm-dialog
-    title="Confirm Refund"
-    [message]="'Refund $' + (refundTarget()?.paidAmount?.toFixed(2) ?? '0.00') + ' from transaction ' + (refundTarget()?.adnTransactionId ?? '') + '?'"
-    confirmLabel="Refund"
-    confirmVariant="danger"
-    (confirmed)="onRefundConfirmed()"
-    (cancelled)="onRefundCancelled()">
-  </confirm-dialog>
-}
 
 <!-- Move Team Confirm Dialog -->
 @if (showMoveTeamConfirm()) {

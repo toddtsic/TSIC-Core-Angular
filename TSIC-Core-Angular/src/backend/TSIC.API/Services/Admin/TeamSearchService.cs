@@ -133,6 +133,27 @@ public sealed class TeamSearchService : ITeamSearchService
         };
     }
 
+    public async Task<ClubRepAccountingDto?> GetClubRepAccountingAsync(
+        Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(clubRepRegistrationId, ct);
+        if (reg == null || reg.JobId != jobId) return null;
+
+        var teams = await _teamRepo.GetClubTeamSummariesAsync(jobId, clubRepRegistrationId, ct);
+        var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
+
+        return new ClubRepAccountingDto
+        {
+            ClubRepRegistrationId = clubRepRegistrationId,
+            ClubName = reg.ClubName ?? "",
+            FeeTotal = reg.FeeTotal,
+            PaidTotal = reg.PaidTotal,
+            OwedTotal = reg.OwedTotal,
+            Teams = teams,
+            AccountingRecords = accountingRecords
+        };
+    }
+
     /// <summary>
     /// Extract LOP options from Jobs.JsonOptions → List_Lops.
     /// </summary>

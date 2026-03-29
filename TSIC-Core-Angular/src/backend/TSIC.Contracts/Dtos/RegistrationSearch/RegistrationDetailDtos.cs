@@ -68,6 +68,9 @@ public record RegistrationDetailDto
 
     // Accounting records
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
+
+    // Club rep detection (true when this registration has teams assigned to it)
+    public bool IsClubRep { get; init; }
 }
 
 /// <summary>

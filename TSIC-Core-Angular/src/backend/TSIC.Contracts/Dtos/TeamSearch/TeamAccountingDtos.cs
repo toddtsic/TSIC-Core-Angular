@@ -157,3 +157,17 @@ public record ClubOperationResultDto
     public required string Message { get; init; }
     public bool SourceDeactivated { get; init; }
 }
+
+/// <summary>
+/// Club rep accounting view — all data needed by the shared club-rep-payment component.
+/// </summary>
+public record ClubRepAccountingDto
+{
+    public required Guid ClubRepRegistrationId { get; init; }
+    public required string ClubName { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal PaidTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+    public required List<ClubTeamSummaryDto> Teams { get; init; }
+    public required List<AccountingRecordDto> AccountingRecords { get; init; }
+}

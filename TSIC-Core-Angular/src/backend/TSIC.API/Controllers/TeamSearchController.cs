@@ -96,6 +96,20 @@ public class TeamSearchController : ControllerBase
         return Ok(detail);
     }
 
+    [HttpGet("club-rep/{clubRepRegId:guid}/accounting")]
+    public async Task<ActionResult<ClubRepAccountingDto>> GetClubRepAccounting(Guid clubRepRegId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var result = await _teamSearchService.GetClubRepAccountingAsync(clubRepRegId, jobId.Value, ct);
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
+    }
+
     [HttpPut("{teamId:guid}")]
     public async Task<ActionResult> EditTeam(
         Guid teamId, [FromBody] EditTeamRequest request, CancellationToken ct)

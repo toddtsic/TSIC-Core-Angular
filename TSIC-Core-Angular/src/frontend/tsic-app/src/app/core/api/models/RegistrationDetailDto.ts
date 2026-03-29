@@ -36,5 +36,6 @@ export type RegistrationDetailDto = {
     modifiedDate?: string | null;
     hasSubscription?: boolean;
     accountingRecords: Array<AccountingRecordDto>;
+    isClubRep?: boolean;
 };
 

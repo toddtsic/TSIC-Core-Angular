@@ -21,7 +21,8 @@ import type {
 	ClubRegistrationDto,
 	ChangeClubRequest,
 	TransferAllTeamsRequest,
-	ClubOperationResultDto
+	ClubOperationResultDto,
+	ClubRepAccountingDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -51,7 +52,8 @@ export type {
 	ClubRegistrationDto,
 	ChangeClubRequest,
 	TransferAllTeamsRequest,
-	ClubOperationResultDto
+	ClubOperationResultDto,
+	ClubRepAccountingDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -125,5 +127,11 @@ export class TeamSearchService {
 
 	transferAllTeams(request: TransferAllTeamsRequest): Observable<ClubOperationResultDto> {
 		return this.http.post<ClubOperationResultDto>(`${this.apiUrl}/transfer-all-teams`, request);
+	}
+
+	// ── Club Rep Accounting (shared component) ──
+
+	getClubRepAccounting(clubRepRegId: string): Observable<ClubRepAccountingDto> {
+		return this.http.get<ClubRepAccountingDto>(`${this.apiUrl}/club-rep/${clubRepRegId}/accounting`);
 	}
 }

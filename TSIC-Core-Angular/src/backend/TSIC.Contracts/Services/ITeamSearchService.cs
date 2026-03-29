@@ -21,6 +21,12 @@ public interface ITeamSearchService
     // ── Team detail ──
 
     Task<TeamSearchDetailDto?> GetTeamDetailAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get club rep accounting view — aggregated totals, team breakdown, all accounting records.
+    /// Used by the shared club-rep-payment component from both search/registrations and search/teams.
+    /// </summary>
+    Task<ClubRepAccountingDto?> GetClubRepAccountingAsync(Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
     Task EditTeamAsync(Guid teamId, Guid jobId, string userId, EditTeamRequest request, CancellationToken ct = default);
 
     // ── Individual transaction operations ──

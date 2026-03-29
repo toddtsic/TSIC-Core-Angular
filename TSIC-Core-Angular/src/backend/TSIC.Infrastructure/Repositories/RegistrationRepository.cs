@@ -1607,6 +1607,10 @@ public class RegistrationRepository : IRegistrationRepository
             })
             .ToList();
 
+        // Detect club rep: any active team references this registration as its club rep
+        var isClubRep = await _context.Teams
+            .AnyAsync(t => t.ClubrepRegistrationid == reg.RegistrationId && t.Active == true, ct);
+
         return new RegistrationDetailDto
         {
             RegistrationId = reg.RegistrationId,
@@ -1664,7 +1668,8 @@ public class RegistrationRepository : IRegistrationRepository
             HasSubscription = !string.IsNullOrWhiteSpace(reg.AdnSubscriptionId),
             RegistrationDate = reg.RegistrationTs,
             ModifiedDate = reg.Modified,
-            AccountingRecords = accountingRecords
+            AccountingRecords = accountingRecords,
+            IsClubRep = isClubRep
         };
     }
 
