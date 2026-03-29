@@ -350,19 +350,10 @@
             } @else {
               <div class="text-muted mt-2">No records yet.</div>
             }
-          </div>
 
-          <!-- Action Buttons -->
-          <div class="action-buttons justify-content-center">
-            <button type="button" class="btn btn-sm btn-primary" (click)="openCcCharge()">
-              <i class="bi bi-credit-card me-1"></i>Charge CC
-            </button>
-            <button type="button" class="btn btn-sm btn-success" (click)="openCheckPayment()">
-              <i class="bi bi-cash me-1"></i>Enter Check
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-warning" (click)="openCorrection()">
-              <i class="bi bi-pencil-square me-1"></i>Enter Correction
-            </button>
+            <div class="form-actions justify-content-center">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPaymentModal()">+ Add Accounting Record</button>
+            </div>
           </div>
         </div>
       }
@@ -370,28 +361,14 @@
   }
 </div>
 
-<!-- CC Charge Modal -->
-@if (showCcChargeModal()) {
-  <app-cc-charge-modal
-    [teamDetail]="detail()"
-    [scope]="scope()"
-    [isOpen]="showCcChargeModal()"
-    (closed)="showCcChargeModal.set(false)"
-    (charged)="onCcChargeComplete()"
-  ></app-cc-charge-modal>
-}
-
-<!-- Check/Correction Payment Modal -->
-@if (showCheckModal()) {
-  <app-check-payment-modal
-    [teamDetail]="detail()"
-    [scope]="scope()"
-    [paymentType]="checkModalType()"
-    [isOpen]="showCheckModal()"
-    (closed)="showCheckModal.set(false)"
-    (completed)="onCheckPaymentComplete()"
-  ></app-check-payment-modal>
-}
+<!-- Unified Payment Modal -->
+<app-add-team-payment-modal
+  [detail]="detail()"
+  [scope]="scope()"
+  [isOpen]="showPaymentModal()"
+  (closed)="showPaymentModal.set(false)"
+  (paymentRecorded)="onPaymentRecorded()"
+></app-add-team-payment-modal>
 
 <!-- Refund Confirm Dialog -->
 @if (showRefundConfirm()) {

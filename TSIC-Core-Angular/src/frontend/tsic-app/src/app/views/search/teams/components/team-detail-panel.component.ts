@@ -4,8 +4,7 @@ import { FormsModule } from '@angular/forms';
 import type { TeamSearchDetailDto, AccountingRecordDto, ClubTeamSummaryDto, EditTeamRequest, CreditCardInfo, ClubRegistrationDto, EditAccountingRecordRequest } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { CcChargeModalComponent } from './cc-charge-modal.component';
-import { CheckPaymentModalComponent } from './check-payment-modal.component';
+import { AddTeamPaymentModalComponent } from './add-team-payment-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 type TabType = 'info' | 'accounting';
@@ -22,7 +21,7 @@ function formatPhone(value: string | null | undefined): string | null {
 @Component({
 	selector: 'app-team-detail-panel',
 	standalone: true,
-	imports: [CommonModule, FormsModule, CcChargeModalComponent, CheckPaymentModalComponent, ConfirmDialogComponent],
+	imports: [CommonModule, FormsModule, AddTeamPaymentModalComponent, ConfirmDialogComponent],
 	templateUrl: './team-detail-panel.component.html',
 	styleUrl: './team-detail-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -47,10 +46,8 @@ export class TeamDetailPanelComponent {
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
 
-	// Modals
-	showCcChargeModal = signal(false);
-	showCheckModal = signal(false);
-	checkModalType = signal<'Check' | 'Correction'>('Check');
+	// Payment modal
+	showPaymentModal = signal(false);
 
 	// Active toggle (header)
 	isTogglingActive = signal(false);
@@ -233,20 +230,15 @@ export class TeamDetailPanelComponent {
 		return method.includes('check') || method.includes('correction') || method.includes('cash');
 	}
 
-	// ── Modals ──
+	// ── Payment Modal ──
 
-	openCcCharge(): void {
-		this.showCcChargeModal.set(true);
+	openPaymentModal(): void {
+		this.showPaymentModal.set(true);
 	}
 
-	openCheckPayment(): void {
-		this.checkModalType.set('Check');
-		this.showCheckModal.set(true);
-	}
-
-	openCorrection(): void {
-		this.checkModalType.set('Correction');
-		this.showCheckModal.set(true);
+	onPaymentRecorded(): void {
+		this.showPaymentModal.set(false);
+		this.changed.emit();
 	}
 
 	onRefundRequested(record: AccountingRecordDto): void {
@@ -286,15 +278,6 @@ export class TeamDetailPanelComponent {
 		this.refundTarget.set(null);
 	}
 
-	onCcChargeComplete(): void {
-		this.showCcChargeModal.set(false);
-		this.changed.emit();
-	}
-
-	onCheckPaymentComplete(): void {
-		this.showCheckModal.set(false);
-		this.changed.emit();
-	}
 
 	// ── Club Rep Operations ──
 
