@@ -77,6 +77,16 @@ export class AccountingLedgerComponent {
 		this.popoverAId.set(null);
 	}
 
+	/** Resolve team name from clubBreakdown by record's teamId. */
+	teamNameFor(record: AccountingRecordDto): string | null {
+		if (!record.teamId) return null;
+		const teams = this.clubBreakdown();
+		if (!teams) return null;
+		const team = teams.find(t => t.teamId === record.teamId);
+		if (!team) return null;
+		return team.agegroupName ? `${team.agegroupName} · ${team.teamName}` : team.teamName;
+	}
+
 	/** True if this record has any detail worth showing in the popover. */
 	hasDetails(record: AccountingRecordDto): boolean {
 		return !!(record.adnTransactionId || record.adnInvoiceNo || record.checkNo

@@ -24,13 +24,7 @@
   <!-- Club Team Summary -->
   @if (scope() === 'club') {
     <div class="club-summary-card">
-      <div class="summary-header">
-        <h5 class="section-title">Club Teams Breakdown</h5>
-        <label class="active-filter">
-          <input type="checkbox" [checked]="showActiveOnly()" (change)="showActiveOnly.set(!showActiveOnly())">
-          Active
-        </label>
-      </div>
+      <h5 class="section-title">Club Teams Breakdown</h5>
       <table class="summary-table summary-table-compact">
         <thead>
           <tr>
@@ -42,8 +36,8 @@
           </tr>
         </thead>
         <tbody>
-          @for (ct of teams(); track ct.teamId) {
-            <tr [class.inactive-row]="!ct.active">
+          @for (ct of scheduledTeams(); track ct.teamId) {
+            <tr>
               <td>{{ ct.agegroupName }}</td>
               <td>{{ ct.teamName }}</td>
               <td class="text-end">{{ ct.feeTotal | currency }}</td>
@@ -52,15 +46,27 @@
                 {{ ct.owedTotal | currency }}
               </td>
             </tr>
-          } @empty {
-            <tr>
-              <td colspan="5" class="text-center text-muted">No {{ showActiveOnly() ? 'inactive' : '' }} teams to display</td>
+          }
+          @if (otherTeams().length) {
+            <tr class="group-separator">
+              <td colspan="5" class="text-muted"><em>Waitlisted / Dropped / Inactive</em></td>
             </tr>
+            @for (ct of otherTeams(); track ct.teamId) {
+              <tr class="inactive-row">
+                <td>{{ ct.agegroupName }}</td>
+                <td>{{ ct.teamName }}</td>
+                <td class="text-end">{{ ct.feeTotal | currency }}</td>
+                <td class="text-end">{{ ct.paidTotal | currency }}</td>
+                <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
+                  {{ ct.owedTotal | currency }}
+                </td>
+              </tr>
+            }
           }
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="2"><strong>Total ({{ teams().length }} teams)</strong></td>
+            <td colspan="2"><strong>Total ({{ allTeams().length }} teams)</strong></td>
             <td class="text-end"><strong>{{ clubFeeTotal() | currency }}</strong></td>
             <td class="text-end"><strong>{{ clubPaidTotal() | currency }}</strong></td>
             <td class="text-end"><strong>{{ clubOwedTotal() | currency }}</strong></td>

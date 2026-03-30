@@ -39,7 +39,7 @@
       </thead>
       <tbody>
         @for (record of records(); track record.aId) {
-            <tr>
+            <tr class="txn-row">
               <td>
                 <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
                 @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
@@ -48,17 +48,13 @@
               <td class="text-end amount paid-amount">{{ record.paidAmount | currency }}</td>
               <td class="actions">
                 @if (hasDetails(record)) {
-                  <span class="popover-anchor">
-                    <button type="button" class="icon-btn text-muted" title="Details" (click)="togglePopover(record); $event.stopPropagation()">
+                  <span class="popover-anchor popover-hover">
+                    <button type="button" class="icon-btn text-muted" title="Details">
                       <i class="bi bi-info-circle"></i>
                     </button>
-                    @if (popoverAId() === record.aId) {
-                      <div class="txn-popover" (click)="$event.stopPropagation()">
+                      <div class="txn-popover">
                         <div class="txn-popover-header">
-                          <span class="txn-popover-title">Transaction Details</span>
-                          <button type="button" class="icon-btn" (click)="closePopover()" aria-label="Close">
-                            <i class="bi bi-x"></i>
-                          </button>
+                          <span class="txn-popover-title">Transaction Details@if (teamNameFor(record); as tn) { · {{ tn }}}</span>
                         </div>
                         <div class="txn-popover-body">
                           <!-- CC-specific fields -->
@@ -104,7 +100,6 @@
                           }
                         </div>
                       </div>
-                    }
                   </span>
                 }
                 @if (record.canRefund) {

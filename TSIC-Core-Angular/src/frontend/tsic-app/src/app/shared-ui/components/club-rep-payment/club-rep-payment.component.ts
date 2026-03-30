@@ -41,28 +41,24 @@ export class ClubRepPaymentComponent {
   showRefundConfirm = signal(false);
   refundTarget = signal<AccountingRecordDto | null>(null);
 
-  // Active filter toggle
-  showActiveOnly = signal(true);
-
-  // Computed summaries
+  // Computed summaries — all teams, split into scheduled vs other
   allTeams = computed(() => this.data()?.teams ?? []);
-  teams = computed(() => {
-    const all = this.allTeams();
-    if (!this.showActiveOnly()) return all;
-    return all.filter(t => t.active
-      && !t.agegroupName.toUpperCase().startsWith('WAITLIST')
-      && !t.agegroupName.toUpperCase().startsWith('DROPPED'));
-  });
-  clubTeamCount = computed(() => this.teams().length);
+  scheduledTeams = computed(() => this.allTeams().filter(t => t.active
+    && !t.agegroupName.toUpperCase().startsWith('WAITLIST')
+    && !t.agegroupName.toUpperCase().startsWith('DROPPED')));
+  otherTeams = computed(() => this.allTeams().filter(t => !t.active
+    || t.agegroupName.toUpperCase().startsWith('WAITLIST')
+    || t.agegroupName.toUpperCase().startsWith('DROPPED')));
+  clubTeamCount = computed(() => this.allTeams().length);
 
-  clubFeeTotal = computed(() => this.teams().reduce((s, t) => s + t.feeTotal, 0));
-  clubPaidTotal = computed(() => this.teams().reduce((s, t) => s + t.paidTotal, 0));
-  clubOwedTotal = computed(() => this.teams().reduce((s, t) => s + t.owedTotal, 0));
+  clubFeeTotal = computed(() => this.allTeams().reduce((s, t) => s + t.feeTotal, 0));
+  clubPaidTotal = computed(() => this.allTeams().reduce((s, t) => s + t.paidTotal, 0));
+  clubOwedTotal = computed(() => this.allTeams().reduce((s, t) => s + t.owedTotal, 0));
 
   selectedTeam = computed(() => {
     const tid = this.teamId();
     if (!tid) return null;
-    return this.teams().find(t => t.teamId === tid) ?? null;
+    return this.allTeams().find(t => t.teamId === tid) ?? null;
   });
 
   teamFeeTotal = computed(() => this.selectedTeam()?.feeTotal ?? 0);
@@ -74,7 +70,7 @@ export class ClubRepPaymentComponent {
   owedTotal = computed(() => this.scope() === 'team' ? this.teamOwedTotal() : this.clubOwedTotal());
 
   clubBreakdown = computed<ClubTeamSummaryDto[] | undefined>(() =>
-    this.scope() === 'club' ? this.teams() : undefined
+    this.scope() === 'club' ? this.allTeams() : undefined
   );
 
   allAccountingRecords = computed(() => this.data()?.accountingRecords ?? []);
