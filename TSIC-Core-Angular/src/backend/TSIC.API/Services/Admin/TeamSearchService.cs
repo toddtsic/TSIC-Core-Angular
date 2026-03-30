@@ -539,7 +539,6 @@ public sealed class TeamSearchService : ITeamSearchService
             // Get job processing fee config
             var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
             var bAddProcessingFees = feeSettings?.BAddProcessingFees ?? false;
-            var bFullPayRequired = feeSettings?.BTeamsFullPaymentRequired ?? false;
             var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
 
             // Get teams — single or all club teams
@@ -554,38 +553,19 @@ public sealed class TeamSearchService : ITeamSearchService
             {
                 if (remainingBalance <= 0) break;
 
-                // Legacy algorithm: calculate team's check amount based on deposit/full-payment rules
-                // (lines 1440-1454 in legacy IPaymentService)
-                var rosterFee = team.Agegroup?.RosterFee ?? 0;
-                var teamFee = team.Agegroup?.TeamFee ?? 0;
+                // Step 1: Tentative allocation based on current OwedTotal
+                var teamOwed = Math.Max(0m, team.OwedTotal ?? 0m);
+                var tentativeAmount = Math.Min(teamOwed, remainingBalance);
+                if (tentativeAmount <= 0) continue;
 
-                decimal calculatedTeamCheckAmount;
-                if ((team.PaidTotal ?? 0) >= rosterFee + teamFee)
-                {
-                    calculatedTeamCheckAmount = 0; // Fully paid
-                }
-                else if ((team.PaidTotal ?? 0) >= rosterFee)
-                {
-                    calculatedTeamCheckAmount = bFullPayRequired ? teamFee : 0;
-                }
-                else
-                {
-                    calculatedTeamCheckAmount = bFullPayRequired ? teamFee + rosterFee : rosterFee;
-                }
-
-                // Cap at payment amount and remaining balance
-                if (calculatedTeamCheckAmount > request.Amount) calculatedTeamCheckAmount = request.Amount;
-                if (calculatedTeamCheckAmount > remainingBalance) calculatedTeamCheckAmount = remainingBalance;
-                if (calculatedTeamCheckAmount <= 0) continue;
-
-                // Processing fee reduction: allocationAmount × processingRate
+                // Step 2: Processing fee reduction based on tentative allocation
                 // Check/correction payments don't use CC, so reduce the CC surcharge
                 // proportionally to the amount paid. Never remove fees from prior CC payments.
                 decimal processingFeeReduction = 0;
                 if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
                     processingFeeReduction = decimal.Round(
-                        processingRate * calculatedTeamCheckAmount,
+                        processingRate * tentativeAmount,
                         2, MidpointRounding.AwayFromZero);
 
                     // Cap at current processing fee — can't reduce below zero
@@ -603,6 +583,10 @@ public sealed class TeamSearchService : ITeamSearchService
 
                     await _accountingRepo.SaveChangesAsync(ct);
                 }
+
+                // Step 3: Final allocation — recalculate after fee reduction changed OwedTotal
+                var calculatedTeamCheckAmount = Math.Min(
+                    Math.Max(0m, team.OwedTotal ?? 0m), tentativeAmount);
 
                 remainingBalance -= calculatedTeamCheckAmount;
 

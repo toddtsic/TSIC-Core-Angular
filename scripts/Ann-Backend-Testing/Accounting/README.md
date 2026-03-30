@@ -77,18 +77,19 @@ These test what happens when a director records a payment in **search/teams** ag
 These test what happens when a director records a **club-level** check in **search/teams** (club scope). A single check is distributed across multiple teams.
 
 **Distribution rules:**
-- Teams sorted by balance owed (highest first)
-- Each team receives an allocation based on deposit/full-pay rules
-- Processing fees reduced proportionally: `allocationAmount × processingRate` (never wipe the full fee — prior CC deposits keep their surcharge)
+- Teams sorted by OwedTotal (highest first) — OwedTotal is the single source of truth
+- Each team's allocation = min(OwedTotal, remaining check balance)
+- Processing fee reduced first: `allocationAmount × processingRate`, capped at team's FeeProcessing
+- Final allocation recalculated after fee reduction (never overpays the reduced balance)
 - Check balance carries to next team until exhausted
 - Dropped/waitlisted teams are excluded
 
 | Test | What It Checks |
 |------|---------------|
 | **$1500 across 3 teams ($500 each)** | 3 separate Check records created (one per team, $500 each). All teams fully paid. Same check number on all records. |
-| **$900 partial across 3 teams** | Distributed highest-balance-first. Top 2 teams get funded. Third team gets $0 (check exhausted). Only funded teams get records. |
-| **$1000 across 2 teams with processing fees** | Each team's $17.50 processing fee fully removed ($35 total). Each allocation reports the fee reduction amount. Both teams end at $0. |
-| **$1300 partial with processing fees** | 3 teams with different balances. First two get $500 each (full roster fee), third gets $300 (remaining). Fee reduction is proportional: third team loses $10.50 ($300 × 3.5%), NOT the full $14.00. Club rep totals reflect all reductions. |
+| **$900 partial across 3 teams** | Distributed highest-OwedTotal-first. Top 2 teams get funded. Third team gets $0 (check exhausted). Only funded teams get records. |
+| **$1000 across 2 teams with processing fees** | Fee reduction happens first ($17.50 per team removed), then $500 allocated per team against the reduced $500 owed. Both teams end at $0. |
+| **$1300 partial with processing fees** | 3 teams with different OwedTotals. Fee reduction first, then allocation on reduced balance. Third team gets $200 (remaining), fee reduced by $7.00 ($200 × 3.5%), NOT the full $14.00. Club rep totals reflect all reductions. |
 | **Dropped team excluded** | Club has 2 active + 1 dropped team. Only the 2 active teams receive payment. Dropped team gets nothing. |
 
 ---

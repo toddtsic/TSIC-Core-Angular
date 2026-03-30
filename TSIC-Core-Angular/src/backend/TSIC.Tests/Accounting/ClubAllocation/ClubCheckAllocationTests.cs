@@ -207,11 +207,10 @@ public class ClubCheckAllocationTests
     /// <summary>
     /// SCENARIO: Club has 2 teams, each owing $517.50 ($500 base + $17.50 processing).
     ///           Director records a $1000 check.
-    ///           Job has bTeamsFullPaymentRequired=true, bAddProcessingFees=true.
-    /// EXPECTED: Each team's $17.50 processing fee is fully removed (Branch A).
-    ///           Each team receives $500 check allocation.
-    ///           Each team ends at $0 owed.
-    ///           Total fee reduction reported: $35.00.
+    /// EXPECTED: Fee reduction happens first (check = non-CC), then allocation based on
+    ///           the reduced OwedTotal. Each team's processing fee is reduced by
+    ///           $517.50 × 3.5% = $18.11, capped at $17.50. After reduction each team
+    ///           owes $500. The $1000 check covers both teams exactly.
     /// </summary>
     [Fact(DisplayName = "Club Check: $1000 across 2 teams removes $35 total processing fees")]
     public async Task ClubCheck_WithProcessingFees_RemovesFeePerTeam()
@@ -242,11 +241,12 @@ public class ClubCheckAllocationTests
         result.Success.Should().BeTrue();
         result.PerTeamAllocations.Should().HaveCount(2);
 
-        // ── Verify per-team fee reductions ──
+        // ── Each team: fee reduced first, then $500 allocated ──
         var alloc1 = result.PerTeamAllocations!.First(a => a.TeamName == "Team Alpha");
-        alloc1.AllocatedAmount.Should().Be(500m);
+        alloc1.AllocatedAmount.Should().Be(500m,
+            "after fee reduction, team owes $500 — allocation = reduced OwedTotal");
         alloc1.ProcessingFeeReduction.Should().Be(17.50m,
-            "full processing fee removed for check (full-pay-required mode)");
+            "$517.50 × 3.5% = $18.11, capped at $17.50");
         alloc1.NewOwedTotal.Should().Be(0m);
 
         var alloc2 = result.PerTeamAllocations!.First(a => a.TeamName == "Team Bravo");
@@ -323,18 +323,17 @@ public class ClubCheckAllocationTests
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// SCENARIO: Club has 3 teams with different balances and processing fees.
-    ///           Team Alpha: $600 base + $21.00 processing = $621.00 (highest)
-    ///           Team Bravo: $500 base + $17.50 processing = $517.50
-    ///           Team Charlie: $400 base + $14.00 processing = $414.00 (lowest)
+    /// SCENARIO: Club has 3 teams with different OwedTotals (the single source of truth).
+    ///           Team Alpha: owes $621.00 ($600 base + $21.00 processing) — highest
+    ///           Team Bravo: owes $517.50 ($500 base + $17.50 processing)
+    ///           Team Charlie: owes $414.00 ($400 base + $14.00 processing) — lowest
     ///           Director records a $1300 check (not enough for all 3).
-    ///           bTeamsFullPaymentRequired=true, rosterFee=$500.
-    /// EXPECTED: Sorted by owed DESC:
-    ///           Team Alpha ($621): allocation=$500 (rosterFee cap), feeReduction=$500×3.5%=$17.50
-    ///           Team Bravo ($517.50): allocation=$500, feeReduction=$500×3.5%=$17.50
-    ///           Team Charlie ($414): allocation=$300 (remaining), feeReduction=$300×3.5%=$10.50
-    ///           Key: Team Charlie does NOT get its entire $14.00 processing fee wiped —
-    ///           only $10.50 because only $300 was paid by check.
+    /// EXPECTED: Fee reduction first, then allocation on reduced OwedTotal:
+    ///           Team Alpha: feeReduction=$621×3.5%=$21.74→capped $21. OwedTotal→$600. Allocation=$600.
+    ///           Team Bravo: feeReduction=$517.50×3.5%=$18.11→capped $17.50. OwedTotal→$500. Allocation=$500.
+    ///           Team Charlie: tentative=min($414,$200)=$200. feeReduction=$200×3.5%=$7. OwedTotal→$407. Allocation=$200.
+    ///           Key: fee reduction happens BEFORE final allocation. Allocation never exceeds
+    ///           the reduced OwedTotal. Fee reduction is always proportional.
     /// </summary>
     [Fact(DisplayName = "Club Check: $1300 partial with processing fees → proportional reduction per team")]
     public async Task ClubCheck_PartialWithProcessingFees_ProportionalReduction()
@@ -368,43 +367,49 @@ public class ClubCheckAllocationTests
         result.PerTeamAllocations.Should().HaveCount(3,
             "all 3 teams receive some allocation");
 
-        // ── Team Alpha (highest owed): $500 allocation, proportional fee reduction ──
+        // ── Team Alpha (highest owed $621): fee reduced first, then allocated ──
         var alloc1 = result.PerTeamAllocations!.First(a => a.TeamName == "Team Alpha");
-        alloc1.AllocatedAmount.Should().Be(500m);
-        alloc1.ProcessingFeeReduction.Should().Be(17.50m,
-            "$500 × 3.5% = $17.50");
+        // Fee: $621 × 3.5% = $21.74, capped at $21.00. OwedTotal drops to $600.
+        alloc1.ProcessingFeeReduction.Should().Be(21.00m);
+        alloc1.AllocatedAmount.Should().Be(600m,
+            "after fee reduction, team owes $600");
 
         var updatedT1 = await ctx.Teams.FindAsync(t1.TeamId);
-        updatedT1!.FeeProcessing.Should().Be(3.50m,
-            "original $21.00 − $17.50 reduction = $3.50 remaining");
-        updatedT1.PaidTotal.Should().Be(500m);
+        updatedT1!.FeeProcessing.Should().Be(0m);
+        updatedT1.PaidTotal.Should().Be(600m);
+        updatedT1.OwedTotal.Should().Be(0m);
 
-        // ── Team Bravo: $500 allocation, proportional fee reduction ──
+        // ── Team Bravo ($517.50 owed): fee reduced first, then allocated ──
         var alloc2 = result.PerTeamAllocations!.First(a => a.TeamName == "Team Bravo");
-        alloc2.AllocatedAmount.Should().Be(500m);
-        alloc2.ProcessingFeeReduction.Should().Be(17.50m,
-            "$500 × 3.5% = $17.50");
+        // Fee: $517.50 × 3.5% = $18.11, capped at $17.50. OwedTotal drops to $500.
+        alloc2.ProcessingFeeReduction.Should().Be(17.50m);
+        alloc2.AllocatedAmount.Should().Be(500m,
+            "after fee reduction, team owes $500");
 
         var updatedT2 = await ctx.Teams.FindAsync(t2.TeamId);
-        updatedT2!.FeeProcessing.Should().Be(0m,
-            "original $17.50 − $17.50 = $0");
+        updatedT2!.FeeProcessing.Should().Be(0m);
         updatedT2.PaidTotal.Should().Be(500m);
         updatedT2.OwedTotal.Should().Be(0m);
 
-        // ── Team Charlie (lowest owed): $300 remaining, PROPORTIONAL fee reduction ──
+        // ── Team Charlie ($414 owed): remaining=$1300-$600-$500=$200 ──
         var alloc3 = result.PerTeamAllocations!.First(a => a.TeamName == "Team Charlie");
-        alloc3.AllocatedAmount.Should().Be(300m);
-        alloc3.ProcessingFeeReduction.Should().Be(10.50m,
-            "$300 × 3.5% = $10.50 — NOT the full $14.00, only proportional to check amount");
+        // Tentative=$200. Fee: $200 × 3.5% = $7.00. OwedTotal drops to $407.
+        // Final allocation = min($407, $200) = $200.
+        alloc3.ProcessingFeeReduction.Should().Be(7.00m,
+            "$200 × 3.5% = $7.00 — proportional to tentative allocation");
+        alloc3.AllocatedAmount.Should().Be(200m,
+            "remaining check balance, capped at reduced OwedTotal");
 
         var updatedT3 = await ctx.Teams.FindAsync(t3.TeamId);
-        updatedT3!.FeeProcessing.Should().Be(3.50m,
-            "original $14.00 − $10.50 reduction = $3.50 remaining");
-        updatedT3.PaidTotal.Should().Be(300m);
+        updatedT3!.FeeProcessing.Should().Be(7.00m,
+            "original $14.00 − $7.00 = $7.00 remaining");
+        updatedT3.PaidTotal.Should().Be(200m);
+        updatedT3.OwedTotal.Should().Be(207.00m,
+            "$400 base + $7.00 processing − $200 paid = $207.00");
 
-        // ── Club rep totals should reflect all reductions ──
+        // ── Club rep totals ──
         var updatedClubRep = await ctx.Registrations.FindAsync(clubRepId);
         updatedClubRep!.FeeProcessing.Should().Be(7.00m,
-            "total reduction: $17.50 + $17.50 + $10.50 = $45.50; original $52.50 − $45.50 = $7.00");
+            "total reduction: $21.00 + $17.50 + $7.00 = $45.50; original $52.50 − $45.50 = $7.00");
     }
 }
