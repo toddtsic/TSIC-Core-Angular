@@ -9,6 +9,7 @@ export type ClubTeamSummaryDto = {
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
+    feeProcessing: number;
     active: boolean;
 };
 

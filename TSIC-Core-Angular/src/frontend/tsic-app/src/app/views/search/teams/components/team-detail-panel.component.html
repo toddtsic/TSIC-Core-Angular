@@ -149,7 +149,7 @@
               <div class="d-flex flex-column gap-3">
                 <!-- Move This Team -->
                 <div>
-                  <button type="button" class="btn btn-sm btn-info"
+                  <button type="button" class="btn btn-sm btn-info w-100"
                     (click)="openChangeClub()" [disabled]="isMoving() || isTransferring()">
                     <i class="bi bi-arrow-left-right me-1"></i>Move This Team To a Different Club
                   </button>
@@ -182,7 +182,7 @@
 
                 <!-- Move All Teams From This Club -->
                 <div>
-                  <button type="button" class="btn btn-sm btn-warning"
+                  <button type="button" class="btn btn-sm btn-warning w-100"
                     (click)="openTransferAll()" [disabled]="isMoving() || isTransferring()">
                     <i class="bi bi-people me-1"></i>Move All Teams From This Club to a Different Club
                   </button>

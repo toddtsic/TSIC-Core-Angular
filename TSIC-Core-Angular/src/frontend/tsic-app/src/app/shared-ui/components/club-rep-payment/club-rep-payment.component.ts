@@ -51,9 +51,9 @@ export class ClubRepPaymentComponent {
     || t.agegroupName.toUpperCase().startsWith('DROPPED')));
   clubTeamCount = computed(() => this.allTeams().length);
 
-  clubFeeTotal = computed(() => this.allTeams().reduce((s, t) => s + t.feeTotal, 0));
-  clubPaidTotal = computed(() => this.allTeams().reduce((s, t) => s + t.paidTotal, 0));
-  clubOwedTotal = computed(() => this.allTeams().reduce((s, t) => s + t.owedTotal, 0));
+  clubFeeTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.feeTotal, 0));
+  clubPaidTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.paidTotal, 0));
+  clubOwedTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.owedTotal, 0));
 
   selectedTeam = computed(() => {
     const tid = this.teamId();

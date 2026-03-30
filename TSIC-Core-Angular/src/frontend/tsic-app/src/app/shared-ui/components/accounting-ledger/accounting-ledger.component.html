@@ -259,7 +259,10 @@
               </div>
               @if (paymentType() !== 'correction') {
                 <div class="owed-badge" [class.text-danger]="owedTotal() > 0" [class.text-success]="owedTotal() <= 0">
-                  Balance Due: <strong>{{ owedTotal() | currency }}</strong>
+                  Balance Due: <strong>{{ paymentType() === 'cc' ? (owedTotal() | currency) : (checkBalanceDue() | currency) }}</strong>
+                  @if (paymentType() !== 'cc' && totalFeeReduction() > 0) {
+                    <div class="fee-note text-success"><small>{{ totalFeeReduction() | currency }} processing fees removed</small></div>
+                  }
                 </div>
               } @else {
                 <small class="form-text text-muted">(+) payment &nbsp; (&ndash;) refund</small>
@@ -278,15 +281,31 @@
         @if (paymentType() !== 'cc' && clubBreakdown()?.length && amount() > 0) {
           <div class="club-breakdown">
             <h6 class="breakdown-title">Allocation Preview</h6>
-            <p class="breakdown-note">Payment will be distributed starting with highest balance:</p>
-            @for (ct of clubBreakdown()!; track ct.teamId) {
-              @if (ct.owedTotal > 0) {
-                <div class="breakdown-row">
-                  <span>{{ ct.teamName }}</span>
-                  <span class="breakdown-amount">owes {{ ct.owedTotal | currency }}</span>
-                </div>
-              }
-            }
+            <p class="breakdown-note">Distributed starting with highest balance:</p>
+            <table class="allocation-table">
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th class="text-end">Owed</th>
+                  @if (totalFeeReduction() > 0) { <th class="text-end">Fee Adj</th> }
+                  <th class="text-end">Check Owed</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (ct of clubBreakdown()!; track ct.teamId) {
+                  @if (ct.owedTotal > 0) {
+                    <tr>
+                      <td>{{ ct.teamName }}</td>
+                      <td class="text-end">{{ ct.owedTotal | currency }}</td>
+                      @if (totalFeeReduction() > 0) {
+                        <td class="text-end text-success">@if (ct.feeProcessing > 0) { -{{ ct.feeProcessing | currency }} }</td>
+                      }
+                      <td class="text-end fw-semibold">{{ ct.owedTotal - ct.feeProcessing | currency }}</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
           </div>
         }
 

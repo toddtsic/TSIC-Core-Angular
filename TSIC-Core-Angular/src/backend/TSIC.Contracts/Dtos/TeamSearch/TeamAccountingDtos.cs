@@ -58,6 +58,7 @@ public record ClubTeamSummaryDto
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
+    public required decimal FeeProcessing { get; init; }
     public required bool Active { get; init; }
 }
 

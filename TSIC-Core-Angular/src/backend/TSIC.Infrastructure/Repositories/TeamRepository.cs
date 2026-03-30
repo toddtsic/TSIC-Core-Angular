@@ -1034,6 +1034,7 @@ public class TeamRepository : ITeamRepository
                 FeeTotal = x.t.FeeTotal ?? 0,
                 PaidTotal = x.t.PaidTotal ?? 0,
                 OwedTotal = x.t.OwedTotal ?? 0,
+                FeeProcessing = x.t.FeeProcessing ?? 0,
                 Active = x.t.Active ?? false
             })
             .ToListAsync(ct);

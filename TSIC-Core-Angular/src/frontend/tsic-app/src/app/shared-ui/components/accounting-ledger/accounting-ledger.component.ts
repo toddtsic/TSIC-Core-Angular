@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, computed, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { AccountingRecordDto, CreditCardInfo, ClubTeamSummaryDto } from '@core/api';
@@ -112,9 +112,27 @@ export class AccountingLedgerComponent {
 
 	// ── Payment modal ──
 
+	/** Club balance due for check/correction: owed minus processing fees */
+	checkBalanceDue = computed(() => {
+		const breakdown = this.clubBreakdown();
+		if (!breakdown?.length) return this.owedTotal();
+		return breakdown
+			.filter(t => t.owedTotal > 0)
+			.reduce((sum, t) => sum + (t.owedTotal - t.feeProcessing), 0);
+	});
+
+	/** Total processing fee reduction when paying by check */
+	totalFeeReduction = computed(() => {
+		const breakdown = this.clubBreakdown();
+		if (!breakdown?.length) return 0;
+		return breakdown
+			.filter(t => t.owedTotal > 0)
+			.reduce((sum, t) => sum + t.feeProcessing, 0);
+	});
+
 	openPaymentModal(): void {
 		this.paymentType.set('check');
-		this.amount.set(this.owedTotal());
+		this.amount.set(this.checkBalanceDue());
 		this.comment.set('');
 		this.checkNo.set('');
 		this.showCcConfirm.set(false);
@@ -141,6 +159,8 @@ export class AccountingLedgerComponent {
 
 	selectPaymentType(type: PaymentType): void {
 		this.paymentType.set(type);
+		// CC charges full owed; check/correction uses adjusted balance (minus processing fees)
+		this.amount.set(type === 'cc' ? this.owedTotal() : this.checkBalanceDue());
 	}
 
 	submitPayment(): void {
