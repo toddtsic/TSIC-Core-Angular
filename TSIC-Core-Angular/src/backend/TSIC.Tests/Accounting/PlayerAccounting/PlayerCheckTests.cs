@@ -14,24 +14,25 @@ using TSIC.Tests.Helpers;
 namespace TSIC.Tests.Accounting.PlayerAccounting;
 
 /// <summary>
-/// Tests for recording check and correction payments against a single player registration.
+/// PLAYER CHECK &amp; CORRECTION TESTS
 ///
-/// These test RegistrationSearchService.RecordCheckOrCorrectionAsync which:
-/// 1. Creates a RegistrationAccounting record
-/// 2. Updates reg.PaidTotal
-/// 3. Reduces processing fees proportionally (non-CC payments)
-/// 4. Recalculates reg.FeeTotal and reg.OwedTotal
+/// These tests validate what happens when a director records a check payment
+/// or a manual correction against a single player registration (search/registrations).
 ///
-/// Naming: {Method}_{Scenario}_{Expected}
+/// Key accounting principle tested:
+///   When paying by check (not credit card), the CC processing fee is removed
+///   proportionally — because the player isn't using a credit card, they shouldn't
+///   pay the CC surcharge.
+///
+/// Formula: fee reduction = check amount × processing rate (e.g., 3.5%)
 /// </summary>
 public class PlayerCheckTests
 {
     private const string UserId = "test-admin";
 
     /// <summary>
-    /// Build a RegistrationSearchService wired to a real InMemory DB.
-    /// Real repos for data access, mocked external services (ADN, email, etc).
-    /// Returns the job ID so tests can pass it to service methods.
+    /// Builds the service with a real in-memory database.
+    /// External services (Authorize.Net, email) are mocked since we're not testing those.
     /// </summary>
     private static async Task<(RegistrationSearchService svc, AccountingDataBuilder builder,
         TSIC.Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId)>
@@ -40,7 +41,6 @@ public class PlayerCheckTests
         var ctx = DbContextFactory.Create();
         var builder = new AccountingDataBuilder(ctx);
 
-        // Seed job first so repos can find it
         var job = builder.AddJob(
             processingFeePercent: processingFeePercent,
             bAddProcessingFees: bAddProcessingFees);
@@ -49,7 +49,6 @@ public class PlayerCheckTests
         var registrationRepo = new RegistrationRepository(ctx);
         var accountingRepo = new RegistrationAccountingRepository(ctx);
 
-        // Mock external services
         var jobRepo = new Mock<IJobRepository>();
         var adnApi = new Mock<IAdnApiService>();
         var textSub = new Mock<ITextSubstitutionService>();
@@ -57,7 +56,6 @@ public class PlayerCheckTests
         var deviceRepo = new Mock<IDeviceRepository>();
         var logger = new Mock<ILogger<RegistrationSearchService>>();
 
-        // Fee resolution
         var feeService = new Mock<IFeeResolutionService>();
         feeService.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(processingFeePercent / 100m);
@@ -80,12 +78,18 @@ public class PlayerCheckTests
         return (svc, builder, ctx, job.JobId);
     }
 
-    // ─── Test 1: Basic check payment ──────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    //  CHECK PAYMENTS
+    // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task RecordCheck_BasicPayment_UpdatesPaidAndOwed()
+    /// <summary>
+    /// SCENARIO: Player owes $100 (no processing fees). Director records a $100 check.
+    /// EXPECTED: Player is fully paid. Balance = $0.
+    /// </summary>
+    [Fact(DisplayName = "Check: $100 payment against $100 owed → balance $0")]
+    public async Task Check_FullPayment_NoProcessingFees_BalanceZero()
     {
-        // Arrange — player owes $100, no processing fees
+        // Arrange — player owes $100, job does NOT charge processing fees
         var (svc, b, ctx, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
@@ -102,23 +106,26 @@ public class PlayerCheckTests
 
         // Assert
         result.Success.Should().BeTrue();
-
         var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
-        updated!.PaidTotal.Should().Be(100m);
-        updated.OwedTotal.Should().Be(0m);
+        updated!.PaidTotal.Should().Be(100m, "the full $100 check was applied");
+        updated.OwedTotal.Should().Be(0m, "player is fully paid");
     }
 
-    // ─── Test 2: Check with processing fee reduction ──────────────────
-
-    [Fact]
-    public async Task RecordCheck_WithProcessingFees_ReducesFeeProportionally()
+    /// <summary>
+    /// SCENARIO: Player owes $103.50 ($100 base + $3.50 CC processing fee at 3.5%).
+    ///           Director records a $100 check.
+    /// EXPECTED: The $3.50 processing fee is removed (check doesn't incur CC fees).
+    ///           New total = $100. Paid = $100. Balance = $0.
+    /// </summary>
+    [Fact(DisplayName = "Check: $100 payment removes $3.50 processing fee → balance $0")]
+    public async Task Check_FullBasePayment_RemovesProcessingFee_BalanceZero()
     {
-        // Arrange — player owes $103.50 ($100 base + $3.50 processing at 3.5%)
+        // Arrange — player owes $103.50 ($100 base + $3.50 processing)
         var (svc, b, ctx, jobId) = await CreateServiceAsync(processingFeePercent: 3.5m, bAddProcessingFees: true);
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        // Act — record a check for $100 (the base amount)
+        // Act — check for $100 (the base fee, not the inflated $103.50)
         var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
             new RegistrationCheckOrCorrectionRequest
             {
@@ -129,31 +136,32 @@ public class PlayerCheckTests
 
         // Assert
         result.Success.Should().BeTrue();
-
         var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
-        updated!.PaidTotal.Should().Be(100m);
 
-        // Processing fee reduced by 100 × 0.035 = $3.50
-        updated.FeeProcessing.Should().Be(0m, "full processing fee removed when check covers base");
-
-        // FeeTotal recalculated: 100 + 0 - 0 = 100
-        updated.FeeTotal.Should().Be(100m);
-
-        // OwedTotal: 100 - 100 = 0
-        updated.OwedTotal.Should().Be(0m);
+        updated!.FeeProcessing.Should().Be(0m,
+            "processing fee removed: $100 × 3.5% = $3.50 reduction, was $3.50 → now $0");
+        updated.FeeTotal.Should().Be(100m,
+            "fee total recalculated: $100 base + $0 processing = $100");
+        updated.PaidTotal.Should().Be(100m);
+        updated.OwedTotal.Should().Be(0m, "player fully paid after fee adjustment");
     }
 
-    // ─── Test 3: Partial check payment ────────────────────────────────
-
-    [Fact]
-    public async Task RecordCheck_PartialPayment_ReducesFeePartially()
+    /// <summary>
+    /// SCENARIO: Player owes $103.50 ($100 base + $3.50 processing).
+    ///           Director records a $50 partial check.
+    /// EXPECTED: Processing fee partially reduced by $50 × 3.5% = $1.75.
+    ///           Remaining processing fee = $1.75.
+    ///           New total = $101.75. Paid = $50. Balance = $51.75.
+    /// </summary>
+    [Fact(DisplayName = "Check: $50 partial payment reduces processing fee by $1.75 → balance $51.75")]
+    public async Task Check_PartialPayment_ReducesProcessingFeeProportionally()
     {
-        // Arrange — player owes $103.50 ($100 base + $3.50 processing)
+        // Arrange
         var (svc, b, ctx, jobId) = await CreateServiceAsync(processingFeePercent: 3.5m, bAddProcessingFees: true);
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 3.50m);
         await b.SaveAsync();
 
-        // Act — pay $50 by check (partial)
+        // Act — $50 partial check
         var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
             new RegistrationCheckOrCorrectionRequest
             {
@@ -164,31 +172,35 @@ public class PlayerCheckTests
 
         // Assert
         result.Success.Should().BeTrue();
-
         var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
-        updated!.PaidTotal.Should().Be(50m);
 
-        // Processing fee reduced by 50 × 0.035 = $1.75
-        updated.FeeProcessing.Should().Be(1.75m);
-
-        // FeeTotal: 100 + 1.75 - 0 = 101.75
-        updated.FeeTotal.Should().Be(101.75m);
-
-        // OwedTotal: 101.75 - 50 = 51.75
-        updated.OwedTotal.Should().Be(51.75m);
+        updated!.FeeProcessing.Should().Be(1.75m,
+            "processing fee reduced by $50 × 3.5% = $1.75; was $3.50 → now $1.75");
+        updated.FeeTotal.Should().Be(101.75m,
+            "fee total: $100 base + $1.75 processing = $101.75");
+        updated.PaidTotal.Should().Be(50m);
+        updated.OwedTotal.Should().Be(51.75m,
+            "balance: $101.75 total − $50 paid = $51.75");
     }
 
-    // ─── Test 4: Correction (positive) ────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    //  CORRECTIONS
+    // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task RecordCorrection_PositiveAmount_UpdatesPaidTotal()
+    /// <summary>
+    /// SCENARIO: Player owes $100. Director records a +$50 correction (scholarship).
+    /// EXPECTED: Paid = $50. Balance = $50. (Corrections also reduce processing fees
+    ///           but this job has none configured.)
+    /// </summary>
+    [Fact(DisplayName = "Correction: +$50 scholarship against $100 owed → balance $50")]
+    public async Task Correction_PositiveAmount_ReducesBalance()
     {
-        // Arrange — player owes $100, no processing fees
+        // Arrange — no processing fees
         var (svc, b, ctx, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
         var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
         await b.SaveAsync();
 
-        // Act — correction of +$50
+        // Act
         var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
             new RegistrationCheckOrCorrectionRequest
             {
@@ -200,16 +212,21 @@ public class PlayerCheckTests
 
         // Assert
         result.Success.Should().BeTrue();
-
         var updated = await ctx.Registrations.FindAsync(reg.RegistrationId);
         updated!.PaidTotal.Should().Be(50m);
-        updated.OwedTotal.Should().Be(50m);
+        updated.OwedTotal.Should().Be(50m, "balance reduced by correction amount");
     }
 
-    // ─── Test 5: Zero check rejected ──────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    //  VALIDATION — Bad inputs should be rejected
+    // ═══════════════════════════════════════════════════════════════════
 
-    [Fact]
-    public async Task RecordCheck_ZeroAmount_ReturnsError()
+    /// <summary>
+    /// SCENARIO: Director tries to record a $0 check.
+    /// EXPECTED: Rejected — checks must be greater than $0.
+    /// </summary>
+    [Fact(DisplayName = "Validation: $0 check is rejected")]
+    public async Task Check_ZeroAmount_Rejected()
     {
         var (svc, b, _, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
         var reg = b.AddPlayerRegistration(jobId);
@@ -223,14 +240,16 @@ public class PlayerCheckTests
                 PaymentType = "Check"
             });
 
-        result.Success.Should().BeFalse();
+        result.Success.Should().BeFalse("a $0 check should be rejected");
         result.Error.Should().Contain("$0.00");
     }
 
-    // ─── Test 6: Zero correction rejected ─────────────────────────────
-
-    [Fact]
-    public async Task RecordCorrection_ZeroAmount_ReturnsError()
+    /// <summary>
+    /// SCENARIO: Director tries to record a $0 correction.
+    /// EXPECTED: Rejected — corrections cannot be $0.
+    /// </summary>
+    [Fact(DisplayName = "Validation: $0 correction is rejected")]
+    public async Task Correction_ZeroAmount_Rejected()
     {
         var (svc, b, _, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
         var reg = b.AddPlayerRegistration(jobId);
@@ -244,7 +263,7 @@ public class PlayerCheckTests
                 PaymentType = "Correction"
             });
 
-        result.Success.Should().BeFalse();
+        result.Success.Should().BeFalse("a $0 correction should be rejected");
         result.Error.Should().Contain("$0.00");
     }
 }
