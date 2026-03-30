@@ -539,7 +539,6 @@ public sealed class TeamSearchService : ITeamSearchService
             // Get job processing fee config
             var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
             var bAddProcessingFees = feeSettings?.BAddProcessingFees ?? false;
-            var bApplyToDeposit = feeSettings?.BApplyProcessingFeesToTeamDeposit ?? false;
             var bFullPayRequired = feeSettings?.BTeamsFullPaymentRequired ?? false;
             var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
 
@@ -579,32 +578,20 @@ public sealed class TeamSearchService : ITeamSearchService
                 if (calculatedTeamCheckAmount > remainingBalance) calculatedTeamCheckAmount = remainingBalance;
                 if (calculatedTeamCheckAmount <= 0) continue;
 
-                // Processing fee reduction (lines 1472-1514 in legacy)
+                // Processing fee reduction: allocationAmount × processingRate
+                // Check/correction payments don't use CC, so reduce the CC surcharge
+                // proportionally to the amount paid. Never remove fees from prior CC payments.
                 decimal processingFeeReduction = 0;
-                if (bAddProcessingFees && (team.OwedTotal ?? 0) > calculatedTeamCheckAmount)
+                if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
-                    if (!bApplyToDeposit)
-                    {
-                        if (bFullPayRequired)
-                        {
-                            // No processing fees on check payment at all
-                            processingFeeReduction = (decimal)(team.FeeProcessing ?? 0);
-                        }
-                        else
-                        {
-                            processingFeeReduction = decimal.Round(
-                                processingRate * (calculatedTeamCheckAmount - rosterFee),
-                                2, MidpointRounding.AwayFromZero);
-                        }
-                    }
-                    else
-                    {
-                        processingFeeReduction = decimal.Round(
-                            processingRate * calculatedTeamCheckAmount,
-                            2, MidpointRounding.AwayFromZero);
-                    }
+                    processingFeeReduction = decimal.Round(
+                        processingRate * calculatedTeamCheckAmount,
+                        2, MidpointRounding.AwayFromZero);
 
-                    if (processingFeeReduction > 0 && (team.OwedTotal ?? 0) > 0 && (team.FeeProcessing ?? 0) >= processingFeeReduction)
+                    // Cap at current processing fee — can't reduce below zero
+                    processingFeeReduction = Math.Min(processingFeeReduction, (decimal)(team.FeeProcessing ?? 0));
+
+                    if (processingFeeReduction > 0)
                     {
                         team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
                         team.RecalcTotals();
@@ -612,10 +599,6 @@ public sealed class TeamSearchService : ITeamSearchService
                         clubRep.FeeProcessing -= processingFeeReduction;
                         clubRep.OwedTotal -= processingFeeReduction;
                         clubRep.FeeTotal -= processingFeeReduction;
-                    }
-                    else
-                    {
-                        processingFeeReduction = 0;
                     }
 
                     await _accountingRepo.SaveChangesAsync(ct);
