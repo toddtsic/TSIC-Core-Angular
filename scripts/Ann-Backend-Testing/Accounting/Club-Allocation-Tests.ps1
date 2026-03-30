@@ -21,7 +21,7 @@ Write-Host "    (search/teams, club scope)" -ForegroundColor Gray
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$output = dotnet test $testProject --filter "FullyQualifiedName~ClubAllocation" --no-restore --verbosity normal 2>&1
+$output = dotnet test $testProject --filter "FullyQualifiedName~ClubAllocation" --no-build --no-restore --verbosity normal 2>&1
 $passed = @(); $failed = @()
 
 foreach ($line in $output) {

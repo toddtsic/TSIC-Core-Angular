@@ -20,7 +20,7 @@ Write-Host "    (search/registrations)" -ForegroundColor Gray
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$output = dotnet test $testProject --filter "FullyQualifiedName~PlayerAccounting" --no-restore --verbosity normal 2>&1
+$output = dotnet test $testProject --filter "FullyQualifiedName~PlayerAccounting" --no-build --no-restore --verbosity normal 2>&1
 $passed = @(); $failed = @()
 
 foreach ($line in $output) {
