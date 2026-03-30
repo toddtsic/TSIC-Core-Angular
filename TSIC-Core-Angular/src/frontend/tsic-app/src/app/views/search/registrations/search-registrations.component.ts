@@ -667,6 +667,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       agegroupIds,
       divisionIds
     }));
+    this.executeSearch();
   }
 
   // ── CADT tree selection handler ──
@@ -686,6 +687,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       ...req,
       cadtTeamIds: cadtTeamIds
     }));
+    this.executeSearch();
   }
 
   /** Remove a CADT node + its descendants + uncheck ancestors */
