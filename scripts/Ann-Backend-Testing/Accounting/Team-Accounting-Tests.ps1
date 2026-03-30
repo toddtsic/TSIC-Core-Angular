@@ -20,22 +20,8 @@ Write-Host "    (search/teams, single team)" -ForegroundColor Gray
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host ""
 
-$job = Start-Job -ScriptBlock {
-    param($proj)
-    dotnet test $proj --filter "FullyQualifiedName~TeamAccounting" --no-restore --verbosity normal 2>&1
-} -ArgumentList $testProject
-
-$frames = @('|','/','-','\')
-$i = 0
-Write-Host -NoNewline "  Running tests  "
-while ($job.State -eq 'Running') {
-    Write-Host -NoNewline "`b$($frames[$i % 4])"
-    $i++
-    Start-Sleep -Milliseconds 150
-}
-Write-Host "`b "
-$output = Receive-Job $job
-Remove-Job $job
+Write-Host "  Running tests..." -ForegroundColor Gray
+$output = dotnet test $testProject --filter "FullyQualifiedName~TeamAccounting" --no-restore --verbosity normal 2>&1
 
 $passed = @(); $failed = @()
 
