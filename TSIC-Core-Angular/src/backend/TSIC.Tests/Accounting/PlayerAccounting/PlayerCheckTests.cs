@@ -110,7 +110,9 @@ public class PlayerCheckTests
         var record = await ctx.RegistrationAccounting
             .FirstOrDefaultAsync(r => r.RegistrationId == reg.RegistrationId);
         record.Should().NotBeNull("a Check accounting record should be created");
-        record!.PaymentMethodId.Should().Be(AccountingDataBuilder.CheckMethodId,
+        record!.RegistrationId.Should().Be(reg.RegistrationId,
+            "accounting record should be linked to the player's registration");
+        record.PaymentMethodId.Should().Be(AccountingDataBuilder.CheckMethodId,
             "payment method should be 'Check Payment By Client'");
         record.Payamt.Should().Be(100m, "paid amount = $100");
         record.CheckNo.Should().Be("1234", "check number should be stored");
@@ -240,7 +242,9 @@ public class PlayerCheckTests
         var record = await ctx.RegistrationAccounting
             .FirstOrDefaultAsync(r => r.RegistrationId == reg.RegistrationId);
         record.Should().NotBeNull();
-        record!.PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId,
+        record!.RegistrationId.Should().Be(reg.RegistrationId,
+            "accounting record should be linked to the player's registration");
+        record.PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId,
             "payment method should be 'Correction'");
         record.Payamt.Should().Be(50m);
         record.Comment.Should().Be("Scholarship");

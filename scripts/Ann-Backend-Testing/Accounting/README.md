@@ -24,11 +24,11 @@ In VS Code, navigate to `scripts/Ann-Backend-Testing/Accounting/` in the file ex
 Every test checks **two things**:
 
 1. **The accounting record created** — Was the right type of record made?
+   - RegistrationId (record linked to the correct player or club rep registration)
    - Payment method (Check, Correction, Credit Card)
    - Amount recorded (Payamt, Dueamt)
    - Check number (if applicable)
    - TeamId (which team the record belongs to — team tests only)
-   - RegistrationId (which club rep the record belongs to — team tests only)
    - Discount code link (DiscountCodeAi — null for manual corrections, set for discount codes)
 
 2. **The financial state after** — Did the math come out right?
