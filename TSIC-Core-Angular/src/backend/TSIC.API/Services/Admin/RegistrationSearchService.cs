@@ -319,6 +319,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (isCorrection && request.Amount == 0)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
 
+        // Overpayment guard — check/correction cannot exceed what is owed
+        var regForValidation = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
+        if (regForValidation != null && request.Amount > regForValidation.OwedTotal)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Amount ${request.Amount:F2} exceeds the balance owed of ${regForValidation.OwedTotal:F2}." };
+
         var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
 
         var entity = new RegistrationAccounting

@@ -39,7 +39,7 @@ Every test checks **two things**:
 
 ---
 
-## Player Accounting Tests (7 tests)
+## Player Accounting Tests (9 tests)
 
 These test what happens when a director records a payment in **search/registrations** against a single player.
 
@@ -50,6 +50,8 @@ These test what happens when a director records a payment in **search/registrati
 | **Check: $50 partial** | Check | Partial check only removes proportional processing fee ($50 x 3.5% = $1.75 removed). Balance = $51.75. |
 | **Correction: +$50 manual adjustment** | Correction | Creates a Correction record (NOT a discount code — DiscountCodeAi is null). Balance reduced by $50. |
 | **Correction: +$50 with processing fees** | Correction | Corrections reduce processing fees the same way checks do — "non-CC payments don't incur CC fees." FeeProcessing reduced by $1.75. |
+| **Validation: check exceeding balance rejected** | *(none)* | Player owes $100, director enters $150 check. Rejected with error showing the actual balance owed. No record created. |
+| **Validation: correction exceeding balance rejected** | *(none)* | Player owes $100, director enters +$150 correction. Rejected with error showing the actual balance owed. No record created. |
 | **Validation: $0 check rejected** | *(none)* | System rejects $0 checks. No accounting record created. |
 | **Validation: $0 correction rejected** | *(none)* | System rejects $0 corrections. No accounting record created. |
 
@@ -127,10 +129,12 @@ PASSED:
   [PASS] Check: $50 partial reduces FeeProcessing by $1.75 → balance $51.75
   [PASS] Correction: +$50 manual adjustment → Correction record (no DC), balance $50
   [PASS] Correction: +$50 with processing fees → FeeProcessing reduced by $1.75
+  [PASS] Validation: check exceeding balance rejected — no record created
+  [PASS] Validation: correction exceeding balance rejected — no record created
   [PASS] Validation: $0 check rejected — no record created
   [PASS] Validation: $0 correction rejected — no record created
 
-ALL 7 TESTS PASSED
+ALL 9 TESTS PASSED
 ```
 
 If a test **fails**, it means the system calculated something incorrectly. The error will explain what was **expected** vs. what **actually happened**.

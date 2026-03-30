@@ -325,6 +325,64 @@ public class PlayerCheckTests
     }
 
     /// <summary>
+    /// SCENARIO: Player owes $100. Director tries to record a $150 check.
+    /// EXPECTED: Rejected with clear error. No accounting record created.
+    /// </summary>
+    [Fact(DisplayName = "Validation: check exceeding balance rejected — no record created")]
+    public async Task Check_ExceedsBalance_Rejected_NoRecord()
+    {
+        var (svc, b, ctx, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
+        var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
+        await b.SaveAsync();
+
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+            new RegistrationCheckOrCorrectionRequest
+            {
+                RegistrationId = reg.RegistrationId,
+                Amount = 150m,
+                PaymentType = "Check",
+                CheckNo = "9999"
+            });
+
+        result.Success.Should().BeFalse("check exceeding balance should be rejected");
+        result.Error.Should().Contain("exceeds");
+        result.Error.Should().Contain("$100.00");
+
+        var recordCount = await ctx.RegistrationAccounting
+            .CountAsync(r => r.RegistrationId == reg.RegistrationId);
+        recordCount.Should().Be(0, "no accounting record should be created for overpayment");
+    }
+
+    /// <summary>
+    /// SCENARIO: Player owes $100. Director tries to record a +$150 correction.
+    /// EXPECTED: Rejected with clear error. No accounting record created.
+    /// </summary>
+    [Fact(DisplayName = "Validation: correction exceeding balance rejected — no record created")]
+    public async Task Correction_ExceedsBalance_Rejected_NoRecord()
+    {
+        var (svc, b, ctx, jobId) = await CreateServiceAsync(bAddProcessingFees: false);
+        var reg = b.AddPlayerRegistration(jobId, feeBase: 100m, feeProcessing: 0m);
+        await b.SaveAsync();
+
+        var result = await svc.RecordCheckOrCorrectionAsync(jobId, UserId,
+            new RegistrationCheckOrCorrectionRequest
+            {
+                RegistrationId = reg.RegistrationId,
+                Amount = 150m,
+                PaymentType = "Correction",
+                Comment = "Too generous"
+            });
+
+        result.Success.Should().BeFalse("correction exceeding balance should be rejected");
+        result.Error.Should().Contain("exceeds");
+        result.Error.Should().Contain("$100.00");
+
+        var recordCount = await ctx.RegistrationAccounting
+            .CountAsync(r => r.RegistrationId == reg.RegistrationId);
+        recordCount.Should().Be(0, "no accounting record should be created for overpayment");
+    }
+
+    /// <summary>
     /// SCENARIO: Director tries to record a $0 correction.
     /// EXPECTED: Rejected. No accounting record created.
     /// </summary>
