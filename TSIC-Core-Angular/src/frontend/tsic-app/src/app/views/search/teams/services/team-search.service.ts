@@ -22,7 +22,8 @@ import type {
 	ChangeClubRequest,
 	TransferAllTeamsRequest,
 	ClubOperationResultDto,
-	ClubRepAccountingDto
+	ClubRepAccountingDto,
+	DropTeamResultDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -53,7 +54,8 @@ export type {
 	ChangeClubRequest,
 	TransferAllTeamsRequest,
 	ClubOperationResultDto,
-	ClubRepAccountingDto
+	ClubRepAccountingDto,
+	DropTeamResultDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -133,5 +135,11 @@ export class TeamSearchService {
 
 	getClubRepAccounting(clubRepRegId: string): Observable<ClubRepAccountingDto> {
 		return this.http.get<ClubRepAccountingDto>(`${this.apiUrl}/club-rep/${clubRepRegId}/accounting`);
+	}
+
+	// ── Drop Team (reuses LADT endpoint) ──
+
+	dropTeam(teamId: string): Observable<DropTeamResultDto> {
+		return this.http.post<DropTeamResultDto>(`${environment.apiUrl}/ladt/teams/${teamId}/drop`, null);
 	}
 }

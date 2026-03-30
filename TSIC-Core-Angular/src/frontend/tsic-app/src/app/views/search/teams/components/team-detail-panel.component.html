@@ -259,3 +259,20 @@
     (cancelled)="showTransferConfirm.set(false)">
   </confirm-dialog>
 }
+
+<!-- Drop Team Confirm Dialog -->
+@if (showDropTeamConfirm()) {
+  <confirm-dialog
+    title="Drop Team"
+    [message]="'<p>This will <strong>drop</strong> the team <strong>' + (detail()?.teamName ?? '') + '</strong>.</p>'
+      + '<ul class=\'mb-2\'>'
+      + '<li>Team moved to <strong>Dropped Teams</strong> agegroup</li>'
+      + '<li>Club rep financials <strong>recalculated</strong> (this team\'s fees excluded)</li>'
+      + '</ul>'
+      + '<p class=\'text-muted small mb-0\'>To refund the team\'s deposit, use the refund icon on CC transactions in the Accounting tab.</p>'"
+    confirmLabel="Drop Team"
+    confirmVariant="danger"
+    (confirmed)="doDropTeam()"
+    (cancelled)="showDropTeamConfirm.set(false)">
+  </confirm-dialog>
+}

@@ -46,6 +46,7 @@ export class TeamDetailPanelComponent {
 
 	// Active toggle (header)
 	isTogglingActive = signal(false);
+	showDropTeamConfirm = signal(false);
 
 	// Move team confirm
 	showMoveTeamConfirm = signal(false);
@@ -112,25 +113,39 @@ export class TeamDetailPanelComponent {
 		const d = this.detail();
 		if (!d) return;
 
-		this.isTogglingActive.set(true);
-		const req: EditTeamRequest = {
-			teamName: d.teamName,
-			active: !d.active,
-			levelOfPlay: d.levelOfPlay || undefined,
-			teamComments: d.teamComments || undefined
-		};
+		if (d.active) {
+			// Deactivating → show drop confirmation
+			this.showDropTeamConfirm.set(true);
+			return;
+		}
 
-		this.searchService.editTeam(d.teamId, req).subscribe({
-			next: () => {
-				(d as Record<string, unknown>)['active'] = !d.active;
+		// Reactivating a dropped team — must go through pool assignment
+		this.toast.show(
+			'To reactivate this team, move it to an agegroup via Pool Assignment (LADT). This ensures fees are calculated and club rep financials updated.',
+			'info', 6000
+		);
+	}
+
+	doDropTeam(): void {
+		const d = this.detail();
+		if (!d) return;
+
+		this.showDropTeamConfirm.set(false);
+		this.isTogglingActive.set(true);
+
+		this.searchService.dropTeam(d.teamId).subscribe({
+			next: (result) => {
 				this.isTogglingActive.set(false);
-				this.editActive.set(d.active);
-				this.toast.show(d.active ? 'Team activated' : 'Team deactivated', 'success', 3000);
+				const msg = result.playersAffected > 0
+					? `${result.message} (${result.playersAffected} player fee${result.playersAffected === 1 ? '' : 's'} zeroed)`
+					: result.message;
+				this.toast.show(msg, 'success', 5000);
 				this.changed.emit();
+				this.closed.emit();
 			},
 			error: (err) => {
 				this.isTogglingActive.set(false);
-				this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+				this.toast.show('Cannot drop team: ' + (err?.error?.message || 'Unknown error'), 'danger', 5000);
 			}
 		});
 	}
