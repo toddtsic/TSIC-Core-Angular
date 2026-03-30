@@ -48,7 +48,7 @@ if ($failed.Count -gt 0) {
 $total = $passed.Count + $failed.Count
 Write-Host ""
 if ($total -eq 0) {
-    Write-Host "  No club allocation tests found yet — coming soon!" -ForegroundColor Yellow
+    Write-Host "  No club allocation tests found yet - coming soon!" -ForegroundColor Yellow
 } elseif ($failed.Count -eq 0) {
     Write-Host "  ALL $total TESTS PASSED" -ForegroundColor Green
 } else {
