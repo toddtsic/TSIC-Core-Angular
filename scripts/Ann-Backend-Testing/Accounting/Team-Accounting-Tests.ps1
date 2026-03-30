@@ -20,9 +20,7 @@ Write-Host "    (search/teams, single team)" -ForegroundColor Gray
 Write-Host "  ========================================" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "  Running tests..." -ForegroundColor Gray
 $output = dotnet test $testProject --filter "FullyQualifiedName~TeamAccounting" --no-restore --verbosity normal 2>&1
-
 $passed = @(); $failed = @()
 
 foreach ($line in $output) {
