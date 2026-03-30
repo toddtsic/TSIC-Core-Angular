@@ -118,14 +118,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   searchResults = signal<RegistrationSearchResponse | null>(null);
   isSearching = signal(false);
 
-  // Dirty-state tracking: detect when filters changed since last search
-  private lastSearchedRequest = signal<string | null>(null);
-  filtersAreDirty = computed(() => {
-    const last = this.lastSearchedRequest();
-    if (last === null) return false; // No search yet — not "dirty"
-    return JSON.stringify(this.sanitizeRequest(this.searchRequest())) !== last;
-  });
-
   // Expandable "More Filters" state
   moreFiltersExpanded = signal(false);
 
@@ -325,7 +317,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.moreFiltersExpanded.set(false);
     this.isSearching.set(true);
     const req = this.sanitizeRequest(this.searchRequest());
-    this.lastSearchedRequest.set(JSON.stringify(req));
     this.searchService.search(req).subscribe({
       next: (results) => {
         this.searchResults.set(results);
@@ -399,13 +390,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   /** Close every multiselect popup */
   closeAllMultiSelects(): void {
     this.multiSelects?.forEach(ms => ms.hidePopup());
-  }
-
-  /** FAB click: close all dropdowns, collapse trees, fire search */
-  onFabSearch(): void {
-    this.closeAllMultiSelects();
-    this.treesCollapsed.set(true);
-    this.executeSearch();
   }
 
   removeFilterChip(chip: FilterChip): void {
@@ -762,6 +746,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   updateRosterThreshold(value: string): void {
     const num = value === '' || value == null ? undefined : Number(value);
     this.searchRequest.update(req => ({ ...req, rosterThreshold: num }));
+    this.executeSearch();
   }
 
   // ── Multi-select update helpers ──
@@ -775,6 +760,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       }
       return updated;
     });
+    this.executeSearch();
   }
 
   updateName(value: string): void {
@@ -799,10 +785,12 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   updateRegDateFrom(value: string): void {
     this.searchRequest.update(req => ({ ...req, regDateFrom: value || undefined }));
+    this.executeSearch();
   }
 
   updateRegDateTo(value: string): void {
     this.searchRequest.update(req => ({ ...req, regDateTo: value || undefined }));
+    this.executeSearch();
   }
 
   /** Convert empty arrays to undefined so backend ignores them */

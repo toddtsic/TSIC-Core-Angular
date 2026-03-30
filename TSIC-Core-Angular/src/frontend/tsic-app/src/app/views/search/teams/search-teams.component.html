@@ -223,7 +223,6 @@
       <span class="chip-strip-spacer"></span>
       <button type="button"
         class="btn btn-chip-search"
-        [class.btn-chip-search--dirty]="filtersAreDirty()"
         (click)="executeSearch()"
         [disabled]="isSearching()">
         @if (isSearching()) {
@@ -231,7 +230,7 @@
         } @else {
           <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         }
-        @if (filtersAreDirty() && searchResults()) { Update } @else { Search }
+        Search
       </button>
       <button type="button" class="btn btn-reset" (click)="clearFilters()">
         <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -366,23 +365,7 @@
     }
   </div>
 
-  <!-- Search FAB -->
-  <button type="button"
-    class="search-fab"
-    [class.search-fab--dirty]="filtersAreDirty()"
-    [class.search-fab--searching]="isSearching()"
-    (click)="executeSearch()"
-    [disabled]="isSearching()"
-    aria-label="Search teams">
-    @if (isSearching()) {
-      <span class="spinner-border spinner-border-sm"></span>
-    } @else {
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-    }
-  </button>
+
 </div>
 
 <!-- Detail Panel -->

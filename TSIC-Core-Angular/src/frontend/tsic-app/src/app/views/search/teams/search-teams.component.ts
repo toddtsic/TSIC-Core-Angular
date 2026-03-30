@@ -84,14 +84,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	searchResults = signal<TeamSearchResponse | null>(null);
 	isSearching = signal(false);
 
-	// Dirty-state tracking
-	private lastSearchedRequest = signal<string | null>(null);
-	filtersAreDirty = computed(() => {
-		const last = this.lastSearchedRequest();
-		if (last === null) return false;
-		return JSON.stringify(this.sanitizeRequest(this.searchRequest())) !== last;
-	});
-
 	// Detail panel state
 	selectedDetail = signal<TeamSearchDetailDto | null>(null);
 	isPanelOpen = signal(false);
@@ -205,7 +197,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		this.searchService.getFilterOptions().subscribe({
 			next: (options) => {
 				this.filterOptions.set(options);
-				this.lastSearchedRequest.set(JSON.stringify(this.sanitizeRequest(this.searchRequest())));
 				// Auto-search on load with default filters
 				this.executeSearch();
 			},
@@ -247,7 +238,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	executeSearch(): void {
 		this.isSearching.set(true);
 		const req = this.sanitizeRequest(this.searchRequest());
-		this.lastSearchedRequest.set(JSON.stringify(req));
 		this.searchService.search(req).subscribe({
 			next: (results) => {
 				this.searchResults.set(results);
@@ -275,7 +265,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		this.ladtCheckedIds.set(new Set());
 		this.cadtCheckedIds.set(new Set());
 		this.searchResults.set(null);
-		this.lastSearchedRequest.set(null);
 	}
 
 	removeFilterChip(chip: FilterChip): void {
@@ -526,6 +515,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	updateWaitlistScheduledStatus(value: string): void {
 		this.searchRequest.update(req => ({ ...req, waitlistScheduledStatus: value || null }));
+		this.executeSearch();
 	}
 
 	private sanitizeRequest(req: TeamSearchRequest): TeamSearchRequest {

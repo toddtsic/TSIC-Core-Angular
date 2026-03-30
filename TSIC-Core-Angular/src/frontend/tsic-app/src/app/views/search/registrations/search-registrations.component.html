@@ -57,7 +57,8 @@
             <input type="text" id="filterName" class="form-control"
               placeholder="First or Last"
               [ngModel]="searchRequest().name"
-              (ngModelChange)="updateName($event)" />
+              (ngModelChange)="updateName($event)"
+              (keydown.enter)="executeSearch()" />
           </div>
 
           <div class="form-group">
@@ -303,21 +304,24 @@
                 <input type="text" id="filterEmail" class="form-control"
                   placeholder="Email address"
                   [ngModel]="searchRequest().email"
-                  (ngModelChange)="updateEmail($event)" />
+                  (ngModelChange)="updateEmail($event)"
+                  (keydown.enter)="executeSearch()" />
               </div>
               <div class="form-group">
                 <label for="filterPhone">Phone</label>
                 <input type="text" id="filterPhone" class="form-control"
                   placeholder="Cell phone"
                   [ngModel]="searchRequest().phone"
-                  (ngModelChange)="updatePhone($event)" />
+                  (ngModelChange)="updatePhone($event)"
+                  (keydown.enter)="executeSearch()" />
               </div>
               <div class="form-group">
                 <label for="filterInvoice">Invoice #</label>
                 <input type="text" id="filterInvoice" class="form-control"
                   placeholder="Invoice number"
                   [ngModel]="searchRequest().invoiceNumber"
-                  (ngModelChange)="updateInvoiceNumber($event)" />
+                  (ngModelChange)="updateInvoiceNumber($event)"
+                  (keydown.enter)="executeSearch()" />
               </div>
               <div class="form-group">
                 <label for="filterDateFrom">Reg Date From</label>
@@ -397,7 +401,8 @@
                 <input type="text" id="filterSchool" class="form-control"
                   placeholder="School name"
                   [ngModel]="searchRequest().schoolName"
-                  (ngModelChange)="updateSchoolName($event)" />
+                  (ngModelChange)="updateSchoolName($event)"
+                  (keydown.enter)="executeSearch()" />
               </div>
               @if (!isTournament()) {
                 <div class="form-group">
@@ -532,15 +537,14 @@
         <span class="chip-strip-spacer"></span>
         <button type="button"
           class="btn btn-chip-search"
-          [class.btn-chip-search--dirty]="filtersAreDirty()"
-          (click)="onFabSearch()"
+          (click)="executeSearch()"
           [disabled]="isSearching()">
           @if (isSearching()) {
             <span class="spinner-border spinner-border-sm"></span>
           } @else {
             <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           }
-          @if (filtersAreDirty() && searchResults()) { Update } @else { Search }
+          Search
         </button>
         <button type="button" class="btn btn-reset" (click)="clearFilters()">
           <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -707,23 +711,6 @@
       }
     </div>
 
-    <!-- Search FAB -->
-    <button type="button"
-      class="search-fab"
-      [class.search-fab--dirty]="filtersAreDirty()"
-      [class.search-fab--searching]="isSearching()"
-      (click)="onFabSearch()"
-      [disabled]="isSearching()"
-      aria-label="Search registrations">
-      @if (isSearching()) {
-        <span class="spinner-border spinner-border-sm"></span>
-      } @else {
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-      }
-    </button>
   </div>
 }
 
