@@ -118,7 +118,7 @@ export class AccountingLedgerComponent {
 		if (!breakdown?.length) return this.owedTotal();
 		return breakdown
 			.filter(t => t.owedTotal > 0)
-			.reduce((sum, t) => sum + (t.owedTotal - t.checkFeeReduction), 0);
+			.reduce((sum, t) => sum + (t.owedTotal - (t.checkFeeReduction ?? 0)), 0);
 	});
 
 	/** Total proportional processing fee reduction when paying by check */
@@ -127,7 +127,7 @@ export class AccountingLedgerComponent {
 		if (!breakdown?.length) return 0;
 		return breakdown
 			.filter(t => t.owedTotal > 0)
-			.reduce((sum, t) => sum + t.checkFeeReduction, 0);
+			.reduce((sum, t) => sum + (t.checkFeeReduction ?? 0), 0);
 	});
 
 	openPaymentModal(): void {
