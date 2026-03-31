@@ -77,7 +77,8 @@ public sealed class ViewScheduleService : IViewScheduleService
                 T1Record = t1Type == "T" && g.T1Id.HasValue
                     ? recordLookup.GetValueOrDefault(g.T1Id.Value) : null,
                 T2Record = t2Type == "T" && g.T2Id.HasValue
-                    ? recordLookup.GetValueOrDefault(g.T2Id.Value) : null
+                    ? recordLookup.GetValueOrDefault(g.T2Id.Value) : null,
+                DivName = g.DivName
             };
         }).ToList();
     }
@@ -100,6 +101,12 @@ public sealed class ViewScheduleService : IViewScheduleService
         var detail = await _teamRepo.GetTeamDetailAsync(teamId, ct);
 
         var games = await _scheduleRepo.GetTeamGamesAsync(teamId, ct);
+
+        // Build opponent record lookup
+        var jobId = detail?.JobId ?? Guid.Empty;
+        var recordLookup = jobId != Guid.Empty
+            ? await BuildTeamRecordLookupAsync(jobId, ct)
+            : new Dictionary<Guid, string>();
 
         var gameResults = games.Select(g =>
         {
@@ -131,7 +138,11 @@ public sealed class ViewScheduleService : IViewScheduleService
                 TeamScore = teamScore,
                 OpponentScore = oppScore,
                 Outcome = outcome,
-                GameType = gameType
+                GameType = gameType,
+                OpponentRecord = oppId.HasValue ? recordLookup.GetValueOrDefault(oppId.Value) : null,
+                Latitude = g.Field?.Latitude,
+                Longitude = g.Field?.Longitude,
+                GStatusCode = g.GStatusCode
             };
         }).ToList();
 
@@ -420,7 +431,8 @@ public sealed class ViewScheduleService : IViewScheduleService
                         GoalsAgainst = t.GoalsAgainst,
                         GoalDiffMax9 = goalDiffMax9,
                         Points = points,
-                        PointsPerGame = ppg
+                        PointsPerGame = ppg,
+                        TiePoints = t.Ties
                     };
                 }).ToList();
 

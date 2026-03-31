@@ -341,6 +341,11 @@ public interface ITeamRepository
     Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// Get full mobile roster for a team (staff + players with parent contacts and attendance counts).
+    /// </summary>
+    Task<Dtos.TeamRosterDetailDto> GetTeamRosterMobileAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
     /// Count distinct club rep registrations for a job (for hiding club ops when only 1 club).
     /// </summary>
     Task<int> GetDistinctClubCountAsync(Guid jobId, CancellationToken ct = default);

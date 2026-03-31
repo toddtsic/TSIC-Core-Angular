@@ -218,6 +218,11 @@ public interface IJobRepository
     /// </summary>
     Task<bool> IsStoreWalkupAllowedAsync(Guid jobId, CancellationToken cancellationToken = default);
 
+    // ── Event Browse (public-facing mobile endpoints) ──
+
+    Task<List<Dtos.EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default);
+    Task<Dtos.GameClockConfigDto?> GetGameClockConfigAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<Dtos.EventDocDto>> GetJobDocsAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public record JobAuthInfo

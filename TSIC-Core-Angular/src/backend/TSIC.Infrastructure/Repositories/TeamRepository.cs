@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
@@ -1162,6 +1163,93 @@ public class TeamRepository : ITeamRepository
             await _context.SaveChangesAsync(ct);
 
         return teams.Count;
+    }
+
+    public async Task<TeamRosterDetailDto> GetTeamRosterMobileAsync(Guid teamId, CancellationToken ct = default)
+    {
+        var registrations = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.AssignedTeamId == teamId && r.BActive == true)
+            .Include(r => r.User)
+            .Include(r => r.FamilyUser)
+            .Include(r => r.Role)
+            .ToListAsync(ct);
+
+        // Attendance counts per player
+        var playerUserIds = registrations
+            .Where(r => r.RoleId == RoleConstants.Player)
+            .Select(r => r.UserId)
+            .Where(id => id != null)
+            .ToHashSet();
+
+        var attendanceCounts = await _context.TeamAttendanceRecords
+            .AsNoTracking()
+            .Where(a => a.Event.TeamId == teamId && playerUserIds.Contains(a.PlayerId))
+            .GroupBy(a => a.PlayerId)
+            .Select(g => new
+            {
+                PlayerId = g.Key,
+                Present = g.Count(a => a.Present),
+                NotPresent = g.Count(a => !a.Present)
+            })
+            .ToListAsync(ct);
+
+        var attendanceLookup = attendanceCounts.ToDictionary(a => a.PlayerId, a => (a.Present, a.NotPresent));
+
+        var staffRoleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            RoleConstants.Staff, RoleConstants.Director, RoleConstants.SuperDirector,
+            RoleConstants.ClubRep, RoleConstants.Scorer
+        };
+
+        var staff = registrations
+            .Where(r => r.RoleId != null && staffRoleIds.Contains(r.RoleId))
+            .Select(r => new TeamRosterStaffDto
+            {
+                FirstName = r.User?.FirstName ?? "",
+                LastName = r.User?.LastName ?? "",
+                Cellphone = r.User?.Cellphone,
+                Email = r.User?.Email,
+                HeadshotUrl = null, // headshot URL resolution deferred
+                UserName = r.User?.UserName,
+                UserId = r.UserId
+            })
+            .ToList();
+
+        var players = registrations
+            .Where(r => r.RoleId == RoleConstants.Player)
+            .Select(r =>
+            {
+                var att = r.UserId != null && attendanceLookup.TryGetValue(r.UserId, out var counts)
+                    ? counts : (Present: 0, NotPresent: 0);
+                var family = r.FamilyUser;
+
+                return new TeamRosterPlayerDto
+                {
+                    FirstName = r.User?.FirstName ?? "",
+                    LastName = r.User?.LastName ?? "",
+                    RoleName = r.Role?.Name,
+                    Cellphone = r.User?.Cellphone,
+                    Email = r.User?.Email,
+                    HeadshotUrl = null, // headshot URL resolution deferred
+                    Mom = family != null ? $"{family.MomFirstName} {family.MomLastName}".Trim() : null,
+                    MomEmail = family?.MomEmail,
+                    MomCellphone = family?.MomCellphone,
+                    Dad = family != null ? $"{family.DadFirstName} {family.DadLastName}".Trim() : null,
+                    DadEmail = family?.DadEmail,
+                    DadCellphone = family?.DadCellphone,
+                    UniformNumber = r.UniformNo,
+                    City = r.User?.City,
+                    School = r.SchoolName,
+                    UserName = r.User?.UserName,
+                    UserId = r.UserId,
+                    CountPresent = att.Present,
+                    CountNotPresent = att.NotPresent
+                };
+            })
+            .ToList();
+
+        return new TeamRosterDetailDto { Staff = staff, Players = players };
     }
 }
 

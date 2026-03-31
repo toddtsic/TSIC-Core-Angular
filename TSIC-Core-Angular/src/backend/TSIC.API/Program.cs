@@ -40,6 +40,7 @@ using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.Accounting;
 using TSIC.API.Services.Shared.AiCompose;
 using TSIC.API.Services.Shared.Bulletins;
+using TSIC.API.Services.Shared.Devices;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
@@ -249,6 +250,13 @@ builder.Services.AddScoped<IChangePasswordService, ChangePasswordService>();
 // Push Notifications (Admin — Firebase Cloud Messaging)
 builder.Services.AddSingleton<IFirebasePushService, FirebasePushService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+// Mobile API — Device Management, Event Browse, Team Management
+builder.Services.AddScoped<IDeviceManagementService, DeviceManagementService>();
+builder.Services.AddScoped<IEventBrowseService, EventBrowseService>();
+builder.Services.AddScoped<ITeamDocsRepository, TeamDocsRepository>();
+builder.Services.AddScoped<ITeamManagementService, TeamManagementService>();
+builder.Services.AddScoped<ITeamAttendanceRepository, TeamAttendanceRepository>();
+builder.Services.AddScoped<ITeamAttendanceService, TeamAttendanceService>();
 // Uniform Number Upload (admin bulk update)
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
 // Customer Job Revenue (SuperUser financial dashboard)

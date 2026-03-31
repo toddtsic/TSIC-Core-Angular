@@ -135,6 +135,87 @@ namespace TSIC.API.Controllers
         }
 
         /// <summary>
+        /// Single-call login convenience endpoint.
+        /// </summary>
+        [HttpPost("quick-login")]
+        [ProducesResponseType(typeof(QuickLoginResponse), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(400)]
+        public async Task<IActionResult> QuickLogin([FromBody] QuickLoginRequest request)
+        {
+            var user = await _userManager.FindByNameAsync(request.Username);
+            if (user == null)
+                return Unauthorized(new { Error = "Invalid username or password" });
+
+            bool passwordValid;
+            if (_env.IsDevelopment())
+            {
+                var allowBypass = _configuration.GetValue<bool>("DevMode:AllowPasswordBypass");
+                var bypassPassword = _configuration["DevMode:BypassPassword"];
+                passwordValid = (allowBypass && !string.IsNullOrEmpty(bypassPassword) && request.Password == bypassPassword)
+                    || await _userManager.CheckPasswordAsync(user, request.Password);
+            }
+            else
+            {
+                passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+            }
+
+            if (!passwordValid)
+                return Unauthorized(new { Error = "Invalid username or password" });
+
+            var requiresTos = await _userRepository.RequiresTosSignatureAsync(request.Username);
+            var expirationMinutes = int.Parse(_configuration["JwtSettings:ExpirationMinutes"] ?? "60");
+            var expiresInSeconds = expirationMinutes * 60;
+
+            var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
+            var allRegs = registrations.SelectMany(r => r.RoleRegistrations).ToList();
+
+            RegistrationDto? targetReg = null;
+            if (!string.IsNullOrEmpty(request.RegId))
+            {
+                targetReg = allRegs.Find(r => r.RegId == request.RegId);
+                if (targetReg == null)
+                    return BadRequest(new { Error = "Selected registration is not available for this user" });
+            }
+            else if (allRegs.Count == 1)
+            {
+                targetReg = allRegs[0];
+            }
+
+            if (targetReg != null)
+            {
+                var registrationRole = registrations
+                    .ToList()
+                    .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == targetReg.RegId));
+                var roleName = registrationRole?.RoleName ?? "User";
+                var jobPath = targetReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
+
+                var enrichedToken = _tokenService.GenerateEnrichedJwtToken(user, targetReg.RegId, jobPath, targetReg.JobLogo, roleName);
+                var refreshToken = _refreshTokenService.GenerateRefreshToken(user.Id);
+
+                return Ok(new QuickLoginResponse
+                {
+                    AccessToken = enrichedToken,
+                    RefreshToken = refreshToken,
+                    ExpiresIn = expiresInSeconds,
+                    RequiresTosSignature = requiresTos
+                });
+            }
+
+            var minimalToken = _tokenService.GenerateMinimalJwtToken(user);
+            var minimalRefresh = _refreshTokenService.GenerateRefreshToken(user.Id);
+
+            return Ok(new QuickLoginResponse
+            {
+                AccessToken = minimalToken,
+                RefreshToken = minimalRefresh,
+                ExpiresIn = expiresInSeconds,
+                RequiresTosSignature = requiresTos,
+                Registrations = registrations
+            });
+        }
+
+        /// <summary>
         /// Phase 2 - Step 1: Get available registrations for authenticated user
         /// </summary>
         [Authorize]

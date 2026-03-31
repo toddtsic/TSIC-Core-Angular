@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -459,4 +460,42 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<List<EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _context.Jobs.AsNoTracking()
+            .Where(j => j.ExpiryUsers >= now && !j.BSuspendPublic && j.BScheduleAllowPublicAccess == true)
+            .Select(j => new EventListingDto
+            {
+                JobId = j.JobId, JobName = j.MobileJobName ?? j.JobName ?? "",
+                JobLogoUrl = j.JobDisplayOptions.LogoHeader,
+                City = j.Schedule.Where(s => s.Field != null && s.Field.City != null).Select(s => s.Field!.City).FirstOrDefault(),
+                State = j.Schedule.Where(s => s.Field != null && s.Field.State != null).Select(s => s.Field!.State).FirstOrDefault(),
+                SportName = j.Sport != null ? j.Sport.SportName : null,
+                FirstGameDay = j.Schedule.Where(s => s.GDate != null).Min(s => (DateTime?)s.GDate),
+                LastGameDay = j.Schedule.Where(s => s.GDate != null).Max(s => (DateTime?)s.GDate)
+            }).OrderBy(e => e.JobName).ToListAsync(ct);
+    }
+
+    public async Task<GameClockConfigDto?> GetGameClockConfigAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.GameClockParams.AsNoTracking().Where(gc => gc.JobId == jobId)
+            .Select(gc => new GameClockConfigDto
+            {
+                UtcoffsetHours = gc.UtcoffsetHours, HalfMinutes = gc.HalfMinutes, HalfTimeMinutes = gc.HalfTimeMinutes,
+                QuarterMinutes = gc.QuarterMinutes, QuarterTimeMinutes = gc.QuarterTimeMinutes,
+                TransitionMinutes = gc.TransitionMinutes, PlayoffMinutes = gc.PlayoffMinutes,
+                PlayoffHalfMinutes = gc.PlayoffHalfMinutes, PlayoffHalfTimeMinutes = gc.PlayoffHalfTimeMinutes
+            }).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<EventDocDto>> GetJobDocsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.TeamDocs.AsNoTracking().Where(td => td.JobId == jobId).OrderBy(td => td.Label)
+            .Select(td => new EventDocDto
+            {
+                DocId = td.DocId, JobId = td.JobId, Label = td.Label ?? "", DocUrl = td.DocUrl ?? "",
+                User = td.User.FirstName + " " + td.User.LastName, CreateDate = td.CreateDate
+            }).ToListAsync(ct);
+    }
 }

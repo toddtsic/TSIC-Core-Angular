@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.PushNotification;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -79,5 +80,13 @@ public class PushNotificationRepository : IPushNotificationRepository
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
         await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<TSIC.Contracts.Dtos.EventAlertDto>> GetAlertsByJobIdAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.JobPushNotificationsToAll.AsNoTracking()
+            .Where(p => p.JobId == jobId).OrderByDescending(p => p.Modified)
+            .Select(p => new TSIC.Contracts.Dtos.EventAlertDto { SentWhen = p.Modified, PushText = p.PushText })
+            .ToListAsync(ct);
     }
 }

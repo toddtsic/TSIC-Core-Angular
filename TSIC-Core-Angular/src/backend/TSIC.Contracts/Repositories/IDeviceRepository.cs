@@ -30,4 +30,13 @@ public interface IDeviceRepository
     void RemoveDeviceRegistrationIds(IEnumerable<DeviceRegistrationIds> entities);
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
+
+    // ── Device Management (mobile app registration) ──
+
+    Task<Devices> GetOrCreateDeviceByTokenAsync(string deviceToken, string deviceType, CancellationToken ct = default);
+    Task AddDeviceJobIfNotExistsAsync(string deviceId, Guid jobId, CancellationToken ct = default);
+    Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, CancellationToken ct = default);
+    Task<List<Guid>> GetSubscribedTeamIdsAsync(string deviceToken, Guid jobId, CancellationToken ct = default);
+    Task SwapDeviceTokensAsync(string oldToken, string newToken, CancellationToken ct = default);
+    Task<Devices?> GetDeviceByTokenAsync(string deviceToken, CancellationToken ct = default);
 }

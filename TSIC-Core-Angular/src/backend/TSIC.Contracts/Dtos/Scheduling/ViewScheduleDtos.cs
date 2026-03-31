@@ -68,6 +68,8 @@ public record ScheduleFilterOptionsDto
     /// <summary>Distinct game times as "HH:mm" strings, sorted ascending.</summary>
     public required List<string> Times { get; init; }
     public required List<FieldSummaryDto> Fields { get; init; }
+    public bool JobHasBrackets { get; init; }
+    public bool JobHasLinks { get; init; }
 }
 
 /// <summary>Top-level club node in the CADT filter tree.</summary>
@@ -106,6 +108,7 @@ public record CadtTeamNode
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public int PlayerCount { get; init; }
+    public bool? IsFavorited { get; init; }
 }
 
 // ── LADT tree nodes (Agegroup → Division → Team — no club level) ────
@@ -177,6 +180,12 @@ public record ViewGameDto
     public string? T1Record { get; init; }
     /// <summary>Team 2 overall record "W-L-T" (pool-play teams only).</summary>
     public string? T2Record { get; init; }
+    public string? DivName { get; init; }
+    public bool T1IsSubscribed { get; init; }
+    public bool T2IsSubscribed { get; init; }
+    public bool GameAgegroupHasBrackets { get; init; }
+    public bool MobileScorerCanEdit { get; init; }
+    public bool BHideScores { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -204,6 +213,8 @@ public record StandingsDto
     public required int Points { get; init; }
     public required decimal PointsPerGame { get; init; }
     public int? RankOrder { get; init; }
+    public int TiePoints { get; init; }
+    public bool? IsFavorited { get; init; }
 }
 
 /// <summary>
@@ -215,6 +226,7 @@ public record DivisionStandingsDto
     public required string AgegroupName { get; init; }
     public required string DivName { get; init; }
     public required List<StandingsDto> Teams { get; init; }
+    public bool AgegroupHasBrackets { get; init; }
 }
 
 /// <summary>
@@ -258,6 +270,10 @@ public record TeamResultDto
     public string? Outcome { get; init; }
     /// <summary>"Pool Play" or bracket round type (QF, SF, F, etc.).</summary>
     public required string GameType { get; init; }
+    public string? OpponentRecord { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
+    public int? GStatusCode { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════════════════

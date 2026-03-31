@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.PushNotification;
 using TSIC.Domain.Entities;
 
@@ -32,4 +33,6 @@ public interface IPushNotificationRepository
     void AddNotificationRecord(JobPushNotificationsToAll record);
 
     Task SaveChangesAsync(CancellationToken ct = default);
+
+    Task<List<EventAlertDto>> GetAlertsByJobIdAsync(Guid jobId, CancellationToken ct = default);
 }
