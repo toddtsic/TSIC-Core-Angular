@@ -50,6 +50,8 @@ export class WizardShellComponent {
     readonly continueLabel = input('Continue');
     /** Whether to show the Continue button at all. */
     readonly showContinue = input(true);
+    /** Whether to show the Back button at all. */
+    readonly showBack = input(true);
     /** Optional badge text on the action bar (e.g. "$120.00 due"). */
     readonly detailsBadgeLabel = input<string | null>(null);
     /** CSS class for the action bar badge. */

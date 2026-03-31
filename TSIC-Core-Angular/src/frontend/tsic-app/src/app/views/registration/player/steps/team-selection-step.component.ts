@@ -75,27 +75,25 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
                       </div>
                     }
 
+                    @if (isSelectedTeamWaitlisted(pid)) {
+                      <div class="waitlist-alert">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <div>
+                          <strong>Waitlist Only</strong> —
+                          This team is currently full. You will be placed on the waitlist
+                          and notified if a spot becomes available.
+                        </div>
+                      </div>
+                    }
+
                     <ejs-dropdownlist
                       [dataSource]="getTeamDropdownItems(pid)"
                       [fields]="teamDdlFields"
                       [value]="isMultiTeamMode() ? null : (getSelectedTeamId(pid) || null)"
                       (change)="onTeamDdlChange(pid, $event)"
                       [placeholder]="'— Select Team —'"
-                      [itemTemplate]="teamItemTpl"
                       [allowFiltering]="false"
                       cssClass="team-ddl">
-                      <ng-template #teamItemTpl let-data="">
-                        <div class="team-item">
-                          <span class="team-item-name">{{ data.text }}</span>
-                          @if (data.status === 'almost-full') {
-                            <span class="team-item-badge badge-warning">Almost full</span>
-                          } @else if (data.status === 'waitlist') {
-                            <span class="team-item-badge badge-info">Waitlist</span>
-                          } @else if (data.status === 'full') {
-                            <span class="team-item-badge badge-danger">Full</span>
-                          }
-                        </div>
-                      </ng-template>
                     </ejs-dropdownlist>
                   }
                 </div>
@@ -249,47 +247,24 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
       }
 
       /* Syncfusion dropdown item template */
-      .team-item {
+
+      .waitlist-alert {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        align-items: flex-start;
         gap: var(--space-2);
-        padding: var(--space-1) 0;
-      }
-
-      .team-item-name {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .team-item-badge {
-        flex-shrink: 0;
-        font-size: 10px;
-        font-weight: var(--font-weight-semibold);
-        padding: 1px var(--space-2);
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-      }
-
-      .badge-warning {
-        background: rgba(var(--bs-warning-rgb), 0.15);
+        padding: var(--space-3);
+        border-radius: var(--radius-sm);
+        background: rgba(var(--bs-warning-rgb), 0.12);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.4);
         color: var(--bs-warning-emphasis);
-        border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
-      }
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
 
-      .badge-danger {
-        background: rgba(var(--bs-danger-rgb), 0.12);
-        color: var(--bs-danger-emphasis);
-        border: 1px solid rgba(var(--bs-danger-rgb), 0.25);
-      }
-
-      .badge-info {
-        background: rgba(var(--bs-info-rgb), 0.12);
-        color: var(--bs-info-emphasis);
-        border: 1px solid rgba(var(--bs-info-rgb), 0.25);
+        i {
+          font-size: var(--font-size-lg);
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -307,9 +282,12 @@ export class TeamSelectionStepComponent {
             if (team.divisionName) label += ` · ${team.divisionName}`;
 
             let status = '';
-            if (team.rosterIsFull && team.jobUsesWaitlists) status = 'waitlist';
-            else if (team.rosterIsFull) status = 'full';
-            else {
+            if (team.rosterIsFull && team.jobUsesWaitlists) {
+                status = 'waitlist';
+                label = '⚠ WAITLIST · ' + label;
+            } else if (team.rosterIsFull) {
+                status = 'full';
+            } else {
                 const remaining = team.maxRosterSize - team.currentRosterSize;
                 if (remaining <= 5 && team.maxRosterSize > 0) status = 'almost-full';
             }
@@ -392,6 +370,15 @@ export class TeamSelectionStepComponent {
     getTeamName(teamId: string): string {
         const team = this.teamService.getTeamById(teamId);
         return team?.teamName || teamId;
+    }
+
+    isSelectedTeamWaitlisted(playerId: string): boolean {
+        const tids = this.getSelectedTeamIds(playerId);
+        if (!tids.length) return false;
+        return tids.some(tid => {
+            const team = this.teamService.getTeamById(tid);
+            return team?.rosterIsFull && team?.jobUsesWaitlists;
+        });
     }
 
     isTeamFull(team: AvailableTeam): boolean {

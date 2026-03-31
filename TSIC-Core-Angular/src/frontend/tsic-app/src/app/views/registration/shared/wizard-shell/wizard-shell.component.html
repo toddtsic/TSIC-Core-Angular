@@ -5,7 +5,7 @@
 
     <!-- Title row: Back | Title | Continue -->
     <div class="wizard-title-row">
-      @if (showActionBar() && currentIndex() > 0) {
+      @if (showActionBar() && showBack() && currentIndex() > 0) {
       <button type="button" class="wz-nav-btn wz-back" (click)="back.emit()"
         aria-label="Go back to previous step">
         <i class="bi bi-chevron-left"></i> Back

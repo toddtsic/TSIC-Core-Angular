@@ -53,6 +53,11 @@ export class FormSchemaService {
                 if (l.includes('grad') && l.includes('year')) return 'List_GradYears';
                 return null;
             };
+            // DB columns known to be numeric on the Registrations entity
+            const numericColumns = new Set([
+                'weightlbs', 'gpa', 'sat', 'satmath', 'satverbal',
+                'classrank', 'sportyearsexp',
+            ]);
             const aliasMapLocal: Record<string, string> = {};
             const mapFieldType = (raw: string | null | undefined): PlayerProfileFieldSchema['type'] => {
                 const r = String(raw || '').toLowerCase();
@@ -75,7 +80,15 @@ export class FormSchemaService {
                 const dbCol = typeof f.dbColumn === 'string' ? f.dbColumn : null;
                 if (dbCol && dbCol !== name) aliasMapLocal[dbCol] = name;
                 let type = mapFieldType(f.type || f.inputType);
-                if (name.toLowerCase() === 'sportassnid' || name.toLowerCase() === 'uslax' || label.toLowerCase().includes('lacrosse')) type = 'text';
+                if (name.toLowerCase() === 'sportassnid' || name.toLowerCase() === 'uslax' || label.toLowerCase().includes('lacrosse')) {
+                    type = 'text';
+                    label = 'USA Lacrosse Number';
+                }
+                // Infer numeric type from known DB column names when metadata says 'text'
+                if (type === 'text' && dbCol) {
+                    const col = dbCol.toLowerCase();
+                    if (numericColumns.has(col)) type = 'number';
+                }
                 const required = !!(f.required || f?.validation?.required || f?.validation?.requiredTrue);
                 const dsKey = String(f.dataSource || f.optionsSource || f.optionSet || '').trim();
                 const options = (() => {

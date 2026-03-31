@@ -289,6 +289,7 @@ export class FamilyPlayersService {
                 registered: !!getPropertyCI<boolean>(p, 'registered'),
                 selected: !!getPropertyCI<boolean>(p, 'selected') || !!getPropertyCI<boolean>(p, 'registered'),
                 priorRegistrations: priorRegs,
+                defaultFieldValues: getPropertyCI<Record<string, unknown>>(p, 'defaultFieldValues') ?? undefined,
             } as FamilyPlayerDto;
         });
     }

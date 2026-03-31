@@ -100,7 +100,9 @@
     box-shadow: var(--shadow-focus);
   }
 
-  i { font-size: 0.7em; }
+  i {
+    font-size: 1em;
+  }
 
   @media (max-width: 575.98px) {
     font-size: 10px;
@@ -109,19 +111,20 @@
 }
 
 .wz-back {
-  color: var(--brand-text-muted);
-  border: 1px solid var(--border-color);
+  color: var(--bs-primary);
+  background: transparent;
+  border: 1px solid var(--bs-primary);
 
   &:hover {
-    color: var(--brand-text);
-    background: rgba(var(--bs-body-color-rgb), 0.06);
-    border-color: var(--neutral-400);
+    color: var(--neutral-0);
+    background: var(--bs-primary);
   }
 }
 
 .wz-continue {
   color: var(--neutral-0);
   background: var(--bs-primary);
+  border: 1px solid var(--bs-primary);
   box-shadow: var(--shadow-xs);
   margin-left: auto;
 

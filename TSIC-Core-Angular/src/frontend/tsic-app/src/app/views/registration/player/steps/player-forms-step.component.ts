@@ -15,13 +15,14 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
     imports: [FormsModule],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-2">
+      <div class="card-header card-header-subtle border-0 py-2 d-flex align-items-center">
         <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Player Information</h5>
+        <span class="wizard-tip-inline">Complete the required fields for each player.</span>
       </div>
-      <div class="card-body pt-3">
+      <div class="card-body pt-2">
         <!-- Server validation errors -->
         @if (state.jobCtx.hasServerValidationErrors()) {
-          <div class="alert alert-danger mb-3">
+          <div class="alert alert-danger mb-2">
             <div class="fw-semibold mb-1">Server Validation Errors</div>
             <ul class="mb-0">
               @for (err of state.jobCtx.getServerValidationErrors(); track err.field) {
@@ -30,8 +31,6 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
             </ul>
           </div>
         }
-
-        <p class="wizard-tip">Complete the required fields for each player.</p>
 
         <div class="player-list">
           @for (pid of selectedPlayerIds(); track pid; let i = $index) {
@@ -69,7 +68,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                 (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                 [disabled]="isPlayerLocked(pid)"
                                 [class.is-empty]="!hasValue(pid, field.name)"
-                                [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+                                [class.is-required]="field.required && !isPlayerLocked(pid)">
                           <option value="">— Select —</option>
                           @for (opt of field.options; track opt) {
                             <option [value]="opt">{{ opt }}</option>
@@ -110,7 +109,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid)">
                       }
                       @case ('number') {
                         <input type="number" class="field-input"
@@ -118,7 +117,15 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid)">
+                      }
+                      @case ('email') {
+                        <input type="email" class="field-input"
+                               [id]="'field-' + pid + '-' + field.name"
+                               [ngModel]="getFieldValue(pid, field.name)"
+                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                               [disabled]="isPlayerLocked(pid)"
+                               [class.is-required]="field.required && !isPlayerLocked(pid)">
                       }
                       @default {
                         <input type="text" class="field-input"
@@ -126,10 +133,13 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid)">
                       }
                     }
 
+                    @if (getFieldError(pid, field); as error) {
+                      <div class="field-error">{{ error }}</div>
+                    }
                     @if (field.helpText) {
                       <div class="field-help">{{ field.helpText }}</div>
                     }
@@ -143,10 +153,17 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
     </div>
   `,
     styles: [`
+      .wizard-tip-inline {
+        margin-left: auto;
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        color: var(--brand-text-muted);
+      }
+
       .player-list {
         display: flex;
         flex-direction: column;
-        gap: var(--space-3);
+        gap: var(--space-2);
       }
 
       .player-section {
@@ -166,16 +183,15 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
         display: flex;
         align-items: center;
         gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-1) var(--space-3);
         background: rgba(var(--bs-body-color-rgb), 0.025);
         border-bottom: 1px solid var(--border-color);
         flex-wrap: wrap;
       }
 
       .player-icon {
-        font-size: var(--font-size-lg);
+        font-size: var(--font-size-base);
         color: var(--neutral-400);
-
         .is-locked & { color: var(--bs-success); }
       }
 
@@ -202,88 +218,35 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
         margin-left: auto;
       }
 
-      /* Field grid — compact label + input rows */
+      /* Field grid — 2-column on desktop, 1-column on mobile */
       .field-grid {
         padding: var(--space-2) var(--space-3);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-1) var(--space-4);
       }
 
       .field-row {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 1px;
       }
 
-      .field-label {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
+      /* field-label, req-star, field-input, field-select,
+         field-error, field-help — defined globally in _forms.scss */
 
-      .req-star {
-        color: var(--bs-danger);
-        font-weight: var(--font-weight-bold);
-      }
-
-      .field-input {
-        width: 100%;
-        padding: var(--space-1) var(--space-2);
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-        background-color: var(--neutral-50);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-sm);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-
-        &:hover:not(:focus):not(:disabled) {
-          border-color: var(--neutral-400);
-        }
-
-        &:focus {
-          outline: none;
-          border-color: var(--bs-primary);
-          background-color: var(--brand-surface);
-          box-shadow: var(--shadow-focus);
-        }
-
-        &:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        /* Subtle left-border accent on unfilled required fields */
-        &.is-required {
-          border-left: 3px solid rgba(var(--bs-danger-rgb), 0.4);
-        }
-      }
-
-      .field-select {
-        appearance: none;
-        padding-right: var(--space-6);
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2378716c' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right var(--space-2) center;
-        background-size: 12px 8px;
-      }
-
-      .field-help {
-        font-size: var(--font-size-xs);
-        color: var(--neutral-400);
-        font-style: italic;
-      }
-
-      /* Mobile: even tighter */
       @media (max-width: 575.98px) {
         .field-grid {
+          grid-template-columns: 1fr;
           padding: var(--space-1) var(--space-2);
         }
 
         .player-header {
           padding: var(--space-1) var(--space-2);
+        }
+
+        .wizard-tip-inline {
+          display: none;
         }
       }
     `],
@@ -340,6 +303,11 @@ export class PlayerFormsStepComponent {
         if (t === 'multiselect' || t === 'multi-select') return 'multiselect';
         if (t === 'date') return 'date';
         if (t === 'number' || t === 'numeric') return 'number';
+        if (t === 'text') {
+            const n = field.name.toLowerCase();
+            const l = field.label.toLowerCase();
+            if (n.includes('email') || l.includes('email')) return 'email';
+        }
         return 'text';
     }
 
@@ -363,6 +331,20 @@ export class PlayerFormsStepComponent {
         if (typeof v === 'boolean') return v;
         if (Array.isArray(v)) return v.length > 0;
         return true;
+    }
+
+    getFieldError(playerId: string, field: PlayerProfileFieldSchema): string | null {
+        if (this.isPlayerLocked(playerId)) return null;
+        // Only show errors once the field has been touched
+        const raw = this.state.playerForms.getPlayerFieldValue(playerId, field.name);
+        if (raw === null || raw === undefined) return null;
+        const wfn = this.state.jobCtx.waiverFieldNames();
+        const tct = this.state.eligibility.teamConstraintType();
+        return this.state.playerForms.getFieldError(
+            playerId, field,
+            pid => this.state.familyPlayers.isPlayerLocked(pid),
+            (pid, f) => this.state.playerForms.isFieldVisibleForPlayer(pid, f, wfn, tct),
+        );
     }
 
     isMultiOptionSelected(playerId: string, fieldName: string, option: string): boolean {

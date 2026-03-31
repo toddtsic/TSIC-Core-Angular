@@ -116,6 +116,8 @@ export class PlayerFormsService {
                 if (player.registered || !player.selected) continue;
                 this.applyDefaultsToPlayer(player, current, schemaNameByLower);
             }
+            // Clear select/multiselect values that don't match this job's options
+            this.clearInvalidSelectValues(schemas, current);
             this._playerFormValues.set(current);
         } catch (e: unknown) {
             console.debug('[PlayerForms] Default values seed failed', e);
@@ -211,6 +213,16 @@ export class PlayerFormsService {
         return true;
     }
 
+    /** Returns error message for a single field, or null if valid. */
+    getFieldError(
+        playerId: string,
+        field: PlayerProfileFieldSchema,
+        isLocked: (pid: string) => boolean,
+        isVisible: (pid: string, f: PlayerProfileFieldSchema) => boolean,
+    ): string | null {
+        return this.validateFieldForPlayer(playerId, field, isLocked, isVisible);
+    }
+
     private validateFieldForPlayer(
         playerId: string,
         field: PlayerProfileFieldSchema,
@@ -223,6 +235,10 @@ export class PlayerFormsService {
         if (this.isRequiredInvalid(field, raw, str)) return 'Required';
         const typeError = this.validateBasicType(field, raw, str);
         if (typeError) return typeError;
+        if (this.isEmailField(field)) {
+            const emailError = this.validateEmail(str);
+            if (emailError) return emailError;
+        }
         if (this.isUsLaxSchemaField(field)) return this.validateUsLaxField(playerId, field, str);
         return null;
     }
@@ -257,6 +273,18 @@ export class PlayerFormsService {
             default:
                 return null;
         }
+    }
+
+    private isEmailField(field: PlayerProfileFieldSchema): boolean {
+        const n = field.name.toLowerCase();
+        const l = field.label.toLowerCase();
+        return n.includes('email') || l.includes('email');
+    }
+
+    private validateEmail(str: string): string | null {
+        if (!str) return null;
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(str) ? null : 'Invalid email address';
     }
 
     private isUsLaxSchemaField(field: PlayerProfileFieldSchema): boolean {
@@ -452,6 +480,28 @@ export class PlayerFormsService {
             if (foundAlias) targetName = aliasMap[foundAlias];
         }
         return targetName || null;
+    }
+
+    private clearInvalidSelectValues(
+        schemas: PlayerProfileFieldSchema[],
+        allValues: Record<string, Record<string, PlayerFormFieldValue>>,
+    ): void {
+        const selectFields = schemas.filter(s =>
+            (s.type === 'select' || s.type === 'multiselect') && s.options?.length > 0,
+        );
+        if (!selectFields.length) return;
+        for (const vals of Object.values(allValues)) {
+            for (const field of selectFields) {
+                const v = vals[field.name];
+                if (v == null || v === '') continue;
+                if (field.type === 'select') {
+                    if (!field.options.includes(String(v))) vals[field.name] = null;
+                } else if (field.type === 'multiselect' && Array.isArray(v)) {
+                    const filtered = v.filter(item => field.options.includes(String(item)));
+                    vals[field.name] = filtered.length ? filtered : null;
+                }
+            }
+        }
     }
 
     private isFieldValueBlank(value: unknown): boolean {

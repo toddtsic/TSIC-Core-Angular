@@ -37,6 +37,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [currentIndex]="currentIndex()"
       [config]="shellConfig()"
       [canContinue]="canContinue()"
+      [showBack]="showBack()"
       [showContinue]="showContinue()"
       [continueLabel]="continueLabel()"
       (back)="back()"
@@ -144,9 +145,17 @@ export class PlayerWizardV2Component implements OnInit {
         }
     });
 
+    readonly showBack = computed(() => {
+        const id = this.currentStepId();
+        if (id === 'family-check' || id === 'players') return false;
+        return true;
+    });
+
     readonly showContinue = computed(() => {
         const id = this.currentStepId();
-        return id !== 'family-check' && id !== 'payment' && id !== 'confirmation';
+        if (id === 'family-check' || id === 'payment' || id === 'confirmation') return false;
+        if (id === 'players') return this.state.familyPlayers.selectedPlayerIds().length > 0;
+        return true;
     });
 
     readonly continueLabel = computed(() => {

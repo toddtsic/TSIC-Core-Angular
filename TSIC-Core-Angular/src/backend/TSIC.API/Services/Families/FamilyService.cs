@@ -109,10 +109,21 @@ public sealed class FamilyService : IFamilyService
         // Extract RegSaver details
         var regSaver = await ExtractRegSaverDetailsAsync(jobId, familyUserId);
 
+        // Determine fields that must NOT be prefilled from historic defaults:
+        // constraint/eligibility fields (grad year, age group, etc.) and team fields
+        // are job-specific and must only come from current-job registrations.
+        string? constraintType = null;
+        if (jobId != null)
+        {
+            var meta = await _jobRepo.GetJobMetadataAsync(jobId.Value);
+            constraintType = ExtractConstraintType(meta?.CoreRegformPlayer);
+        }
+        var defaultExcludeNames = BuildDefaultExcludeNames(constraintType, mappedFields);
+
         // Build player DTOs
         var children = await _userRepo.GetUsersForFamilyAsync(linkedChildIds);
 
-        var players = BuildPlayerDtos(children, regsByUser, regSet, allRegsByUser, jobId, mappedFields, visibleFieldNames);
+        var players = BuildPlayerDtos(children, regsByUser, regSet, allRegsByUser, jobId, mappedFields, visibleFieldNames, defaultExcludeNames);
 
         if (jobId != null && typedFields.Count == 0)
         {
@@ -133,7 +144,8 @@ public sealed class FamilyService : IFamilyService
     private static IReadOnlyDictionary<string, JsonElement> BuildLatestVisibleFieldValues(
         List<TSIC.Domain.Entities.Registrations> history,
         List<(string Name, string DbColumn)> mapped,
-        IEnumerable<string> visibleFieldNames)
+        IEnumerable<string> visibleFieldNames,
+        HashSet<string> excludeNames)
     {
         var result = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         if (history.Count == 0 || mapped.Count == 0 || !visibleFieldNames.Any()) return result;
@@ -146,6 +158,7 @@ public sealed class FamilyService : IFamilyService
         {
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(dbCol)) continue;
             if (!visible.Contains(name)) continue;
+            if (excludeNames.Contains(name)) continue;
             var pi = regType.GetProperty(dbCol, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
             if (pi != null) props.Add((name, pi));
         }
@@ -649,7 +662,8 @@ public sealed class FamilyService : IFamilyService
         Dictionary<string, List<TSIC.Domain.Entities.Registrations>> allRegsByUser,
         Guid? jobId,
         List<(string Name, string DbColumn)> mappedFields,
-        HashSet<string> visibleFieldNames)
+        HashSet<string> visibleFieldNames,
+        HashSet<string> defaultExcludeNames)
     {
         return children.Select(c =>
         {
@@ -660,7 +674,7 @@ public sealed class FamilyService : IFamilyService
             {
                 if (allRegsByUser.TryGetValue(c.Id, out var history) && history.Count > 0)
                 {
-                    defaults = BuildLatestVisibleFieldValues(history, mappedFields, visibleFieldNames);
+                    defaults = BuildLatestVisibleFieldValues(history, mappedFields, visibleFieldNames, defaultExcludeNames);
                 }
                 else
                 {
@@ -727,6 +741,64 @@ public sealed class FamilyService : IFamilyService
             };
         }
         return null;
+    }
+
+    /// <summary>
+    /// Build the set of field names that must NOT be prefilled from historic defaults.
+    /// Constraint/eligibility fields and team fields are job-specific.
+    /// </summary>
+    /// <summary>
+    /// Fields that must never be prefilled from historic (cross-job) defaults.
+    /// Team assignment and the constraint/eligibility field are job-specific.
+    /// Matches by DbColumn for reliability.
+    /// </summary>
+    private static HashSet<string> BuildDefaultExcludeNames(
+        string? constraintType,
+        List<(string Name, string DbColumn)> mappedFields)
+    {
+        var exclude = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // DB columns that are always job-specific
+        var excludedColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "AssignedTeamId"
+        };
+
+        // Add the constraint-type column
+        if (!string.IsNullOrEmpty(constraintType))
+        {
+            var col = constraintType switch
+            {
+                "BYGRADYEAR" => "GradYear",
+                "BYAGEGROUP" => "AssignedAgegroupId",
+                "BYAGERANGE" => "AssignedAgegroupId",
+                _ => null
+            };
+            if (col != null) excludedColumns.Add(col);
+        }
+
+        foreach (var (name, dbCol) in mappedFields)
+        {
+            if (string.IsNullOrWhiteSpace(dbCol)) continue;
+            if (excludedColumns.Contains(dbCol)) exclude.Add(name);
+
+            // Also exclude by field name pattern for team fields
+            // (some jobs map team fields with non-standard dbColumn names)
+            var lower = name.ToLowerInvariant();
+            if (lower is "team" or "teamid" or "teams") exclude.Add(name);
+        }
+
+        // For BYCLUBNAME, match by field name since there's no dedicated DB column
+        if (constraintType == "BYCLUBNAME")
+        {
+            foreach (var (name, _) in mappedFields)
+            {
+                var lower = name.ToLowerInvariant();
+                if (lower is "clubname" or "club") exclude.Add(name);
+            }
+        }
+
+        return exclude;
     }
 
     private static string? ExtractConstraintType(string? coreProfile)
