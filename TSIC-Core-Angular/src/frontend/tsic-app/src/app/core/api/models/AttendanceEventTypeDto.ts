@@ -2,10 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type CadtTeamNode = {
-    teamId: string;
-    teamName: string;
-    playerCount?: number;
-    isFavorited?: boolean | null;
+export type AttendanceEventTypeDto = {
+    id: number;
+    attendanceType: string;
 };
 

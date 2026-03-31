@@ -8,5 +8,6 @@ export type DivisionStandingsDto = {
     agegroupName: string;
     divName: string;
     teams: Array<StandingsDto>;
+    agegroupHasBrackets?: boolean;
 };
 

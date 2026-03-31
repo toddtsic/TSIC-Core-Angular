@@ -14,7 +14,6 @@ export type JobRegFieldDto = {
     validation?: (null | FieldValidation);
     order: number;
     visibility: string;
-    computed: boolean;
     conditionalOn?: (null | FieldCondition);
 };
 

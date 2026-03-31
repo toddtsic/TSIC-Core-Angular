@@ -2,10 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type CadtTeamNode = {
+export type GetChatMessagesRequest = {
     teamId: string;
-    teamName: string;
-    playerCount?: number;
-    isFavorited?: boolean | null;
+    pageNumber?: number;
+    rowsPerPage?: number;
 };
 

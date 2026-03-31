@@ -18,5 +18,7 @@ export type StandingsDto = {
     points: number;
     pointsPerGame: number;
     rankOrder?: number | null;
+    tiePoints?: number;
+    isFavorited?: boolean | null;
 };
 

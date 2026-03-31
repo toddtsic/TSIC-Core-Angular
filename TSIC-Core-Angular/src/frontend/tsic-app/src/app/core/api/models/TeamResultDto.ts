@@ -12,5 +12,9 @@ export type TeamResultDto = {
     opponentScore?: number | null;
     outcome?: string | null;
     gameType: string;
+    opponentRecord?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    gStatusCode?: number | null;
 };
 

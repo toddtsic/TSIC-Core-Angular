@@ -2,10 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type CadtTeamNode = {
+export type ToggleTeamSubscriptionRequest = {
+    deviceToken: string;
     teamId: string;
-    teamName: string;
-    playerCount?: number;
-    isFavorited?: boolean | null;
+    deviceType: string;
 };
 

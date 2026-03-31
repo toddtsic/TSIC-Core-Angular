@@ -2,10 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type CadtTeamNode = {
-    teamId: string;
-    teamName: string;
-    playerCount?: number;
-    isFavorited?: boolean | null;
+export type RegisterDeviceRequest = {
+    deviceToken: string;
+    jobId: string;
+    deviceType: string;
 };
 

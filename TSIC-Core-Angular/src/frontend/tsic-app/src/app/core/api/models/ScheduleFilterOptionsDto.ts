@@ -11,5 +11,7 @@ export type ScheduleFilterOptionsDto = {
     gameDays: Array<string>;
     times: Array<string>;
     fields: Array<FieldSummaryDto>;
+    jobHasBrackets?: boolean;
+    jobHasLinks?: boolean;
 };
 

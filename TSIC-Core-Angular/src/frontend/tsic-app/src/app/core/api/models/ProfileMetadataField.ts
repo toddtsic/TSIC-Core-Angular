@@ -14,7 +14,6 @@ export type ProfileMetadataField = {
     validation?: (null | FieldValidation);
     order: number;
     visibility?: string;
-    computed: boolean;
     conditionalOn?: (null | FieldCondition);
 };
 

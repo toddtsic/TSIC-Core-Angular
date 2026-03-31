@@ -26,5 +26,11 @@ export type ViewGameDto = {
     color?: string | null;
     t1Record?: string | null;
     t2Record?: string | null;
+    divName?: string | null;
+    t1IsSubscribed?: boolean;
+    t2IsSubscribed?: boolean;
+    gameAgegroupHasBrackets?: boolean;
+    mobileScorerCanEdit?: boolean;
+    bHideScores?: boolean;
 };
 
