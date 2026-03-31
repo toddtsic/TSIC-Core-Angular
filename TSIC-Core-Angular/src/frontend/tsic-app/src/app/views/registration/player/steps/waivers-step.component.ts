@@ -43,12 +43,12 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
                           (click)="toggleAccordion(i)"
                           [attr.aria-expanded]="openIndex() === i"
                           [attr.aria-controls]="'waiver-' + i">
-                    <span class="me-auto">{{ w.title }}</span>
                     @if (isAccepted(w.id)) {
-                      <span class="badge bg-success ms-2">Accepted</span>
+                      <span class="badge bg-success me-2">Accepted</span>
                     } @else {
-                      <span class="badge bg-warning text-dark ms-2">Not Accepted</span>
+                      <span class="badge bg-warning text-dark me-2">Not Accepted</span>
                     }
+                    <span class="me-auto">{{ w.title }}</span>
                   </button>
                 </h2>
                 @if (openIndex() === i) {
@@ -80,31 +80,6 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
             }
           </div>
 
-          <!-- Signature field -->
-          @if (state.jobCtx.requireSignature()) {
-            <div class="mt-4 p-3 rounded-3 border">
-              <h6 class="fw-semibold mb-2">Signature</h6>
-              <div class="row g-3">
-                <div class="col-12 col-md-6">
-                  <label for="sigName" class="form-label">Full Name <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" id="sigName"
-                         [ngModel]="state.jobCtx.signatureName()"
-                         (ngModelChange)="state.jobCtx.setSignatureName($event)"
-                         placeholder="Your full name">
-                </div>
-                <div class="col-12 col-md-6">
-                  <label for="sigRole" class="form-label">Role</label>
-                  <select class="form-select" id="sigRole"
-                          [ngModel]="state.jobCtx.signatureRole()"
-                          (ngModelChange)="state.jobCtx.setSignatureRole($event)">
-                    <option value="">— Select —</option>
-                    <option value="Parent/Guardian">Parent/Guardian</option>
-                    <option value="Adult Player">Adult Player</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          }
         }
       </div>
     </div>
