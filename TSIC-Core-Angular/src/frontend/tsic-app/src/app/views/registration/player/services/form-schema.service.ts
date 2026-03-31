@@ -25,6 +25,19 @@ export class FormSchemaService {
             return;
         }
         try {
+            // Case-insensitive property picker for raw JSON fields
+            const pickCI = (obj: Record<string, unknown>, ...keys: string[]): unknown => {
+                for (const key of keys) {
+                    if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') return obj[key];
+                }
+                const lowerMap = new Map(Object.keys(obj).map(k => [k.toLowerCase(), k]));
+                for (const key of keys) {
+                    const actual = lowerMap.get(key.toLowerCase());
+                    if (actual && obj[actual] !== undefined && obj[actual] !== null && obj[actual] !== '') return obj[actual];
+                }
+                return undefined;
+            };
+
             const json = JSON.parse(rawProfileMetadataJson);
             let fields: RawProfileField[] = [];
             if (Array.isArray(json)) fields = json; else if (json && Array.isArray(json.fields)) fields = json.fields; else fields = [];
@@ -40,18 +53,6 @@ export class FormSchemaService {
                 if (!optionSets || !key) return null;
                 const found = Object.keys(optionSets).find(k => k.toLowerCase() === key.toLowerCase());
                 return found ? optionSets[found] as RawOptionItem[] : null;
-            };
-            const getMappedOptionSetKey = (name: string, label: string): string | null => {
-                const l = (label || name || '').toLowerCase();
-                if (!l) return null;
-                if (l.includes('kilt')) return 'ListSizes_Kilt';
-                if (l.includes('jersey')) return 'ListSizes_Jersey';
-                if (l.includes('short')) return 'ListSizes_Shorts';
-                if (l.includes('t-shirt') || l.includes('tshirt') || l.includes('long sleeve')) return 'ListSizes_Tshirt';
-                if (l.includes('reversible')) return 'ListSizes_Reversible';
-                if (l.includes('position')) return 'List_Positions';
-                if (l.includes('grad') && l.includes('year')) return 'List_GradYears';
-                return null;
             };
             // DB columns known to be numeric on the Registrations entity
             const numericColumns = new Set([
@@ -90,7 +91,7 @@ export class FormSchemaService {
                     if (numericColumns.has(col)) type = 'number';
                 }
                 const required = !!(f.required || f?.validation?.required || f?.validation?.requiredTrue);
-                const dsKey = String(f.dataSource || f.optionsSource || f.optionSet || '').trim();
+                const dsKey = String(pickCI(f, 'dataSource', 'optionsSource', 'optionSet') || '').trim();
                 const options = (() => {
                     let mapped: string[] = [];
                     const direct = Array.isArray(f.options) ? f.options : [];
@@ -99,23 +100,10 @@ export class FormSchemaService {
                         const setVal = optionSets[dsKey] ?? getOptionSetInsensitive(dsKey) ?? null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v?.id ?? v?.Id ?? v?.code ?? v?.Code ?? v?.year ?? v?.Year ?? v));
                     }
-                    if ((!mapped || mapped.length === 0) && optionSets) {
-                        const key = getMappedOptionSetKey(name, label);
-                        const setVal = key ? getOptionSetInsensitive(key) : null;
-                        if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));
-                    }
                     if ((!mapped || mapped.length === 0) && optionSets && name) {
                         const key = Object.keys(optionSets).find(k => k.toLowerCase() === name.toLowerCase());
                         const setVal = key ? optionSets[key] : null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));
-                    }
-                    if ((!mapped || mapped.length === 0) && optionSets && (type === 'select' || type === 'multiselect')) {
-                        const lname = (label || name).toLowerCase();
-                        if (lname.includes('kilt')) {
-                            const k = Object.keys(optionSets).find(x => x.toLowerCase().includes('kilt'));
-                            const setVal = k ? optionSets[k] : null;
-                            if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));
-                        }
                     }
                     return mapped;
                 })();
