@@ -134,8 +134,9 @@
   }
 
   &:disabled {
-    background: rgba(var(--bs-primary-rgb), 0.35);
-    color: rgba(255, 255, 255, 0.7);
+    background: var(--neutral-300);
+    color: var(--neutral-500);
+    border-color: var(--neutral-300);
     box-shadow: none;
     cursor: not-allowed;
   }
