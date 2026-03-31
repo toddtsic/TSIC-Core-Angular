@@ -484,26 +484,11 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             hasValidation = true;
         }
 
-        // [Remote(action: "IsUSLaxNumberValid", ...)] — multiline attribute
+        // [Remote] attribute = US Lacrosse API validation. Always the same endpoint.
         if (attributesText.Contains("[Remote"))
         {
-            var actionMatch = Regex.Match(attributesText,
-                @"action\s*:\s*""([^""]+)""", RegexOptions.Singleline);
-            if (actionMatch.Success)
-            {
-                // Map legacy MVC remote validation to new API endpoint
-                validation.Remote = "/api/validation/uslax";
-                hasValidation = true;
-            }
-
-            // Extract ErrorMessage (may contain escaped quotes and HTML)
-            var errorMsgMatch = Regex.Match(attributesText,
-                @"ErrorMessage\s*=\s*""((?:[^""\\]|\\.)*?)""(?:\s*[,\)])",
-                RegexOptions.Singleline);
-            if (errorMsgMatch.Success)
-            {
-                validation.Message = errorMsgMatch.Groups[1].Value;
-            }
+            validation.Remote = "/api/validation/uslax";
+            hasValidation = true;
         }
 
         return hasValidation ? validation : null;

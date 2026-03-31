@@ -81,7 +81,8 @@ export class FormSchemaService {
                 const dbCol = typeof f.dbColumn === 'string' ? f.dbColumn : null;
                 if (dbCol && dbCol !== name) aliasMapLocal[dbCol] = name;
                 let type = mapFieldType(f.type || f.inputType);
-                if (name.toLowerCase() === 'sportassnid' || name.toLowerCase() === 'uslax' || label.toLowerCase().includes('lacrosse')) {
+                const isUsLaxField = name.toLowerCase() === 'sportassnid' || name.toLowerCase() === 'uslax' || label.toLowerCase().includes('lacrosse');
+                if (isUsLaxField) {
                     type = 'text';
                     label = 'USA Lacrosse Number';
                 }
@@ -140,7 +141,23 @@ export class FormSchemaService {
                     if (c && typeof c === 'object' && c.field) return { field: String(c.field), value: c.value, operator: c.operator ? String(c.operator) : undefined };
                     return null;
                 })();
-                return { name, label, type, required, options, placeholder, helpText, remoteUrl, errorMessage, visibility, condition } as PlayerProfileFieldSchema;
+                // US Lax fields always use the same API validation endpoint and error message
+                const finalRemoteUrl = isUsLaxField ? '/api/validation/uslax' : remoteUrl;
+                const finalErrorMessage = isUsLaxField
+                    ? '<strong>We encountered an issue validating the USA Lacrosse Number you entered. To successfully pass validation, please confirm the following:</strong>'
+                      + '<ol><li>The USA Lacrosse Number is entered correctly</li>'
+                      + '<li>The membership is Valid and Active</li>'
+                      + '<li>The membership <strong>does not expire before the date required</strong> by the event or club director</li>'
+                      + '<li>The <strong>Date of Birth and Last Name</strong> of the player entered above exactly match what USA Lacrosse has on file</li>'
+                      + '<li>The member has completed the USA Lacrosse <strong>age verification process</strong>*</li></ol>'
+                      + '*Beginning July 1, 2025, all USA Lacrosse player members are required to complete a one-time age verification process '
+                      + 'to maintain an active membership. (<a href="https://www.usalacrosse.com/age-verification" target="_blank">Learn more</a>)'
+                      + '<br><br><strong>Helpful Links:</strong><ul>'
+                      + '<li>Look up your USA Lacrosse Number — <a href="https://account.usalacrosse.com/login/lookup" target="_blank">CLICK HERE</a></li>'
+                      + '<li>Register for a USA Lacrosse Number — <a href="https://www.usalacrosse.com/membership" target="_blank">CLICK HERE</a></li></ul>'
+                      + 'For assistance please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882'
+                    : errorMessage;
+                return { name, label, type, required, options, placeholder, helpText, remoteUrl: finalRemoteUrl, errorMessage: finalErrorMessage, visibility, condition } as PlayerProfileFieldSchema;
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
             this._profileFieldSchemas.set(schemas);
             this._aliasFieldMap.set(aliasMapLocal);

@@ -144,7 +144,11 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                     }
 
                     @if (getFieldError(pid, field); as error) {
-                      <div class="field-error">{{ error }}</div>
+                      @if (isHtmlError(error)) {
+                        <div class="field-error field-error-html" [innerHTML]="error"></div>
+                      } @else {
+                        <div class="field-error">{{ error }}</div>
+                      }
                     }
                     @if (field.helpText) {
                       <div class="field-help">{{ field.helpText }}</div>
@@ -447,6 +451,10 @@ export class PlayerFormsStepComponent implements OnDestroy {
         else if (!checked) arr = arr.filter(v => v !== option);
 
         this.state.playerForms.setPlayerFieldValue(playerId, fieldName, arr);
+    }
+
+    isHtmlError(error: string): boolean {
+        return error.includes('<') && error.includes('>');
     }
 
     private readonly teamService = inject(TeamService);

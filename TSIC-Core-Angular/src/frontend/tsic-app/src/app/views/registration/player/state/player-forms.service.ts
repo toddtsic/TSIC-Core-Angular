@@ -508,7 +508,7 @@ export class PlayerFormsService {
                     if (match) {
                         if (match !== str) { vals[field.name] = match; changed = true; }
                     } else {
-                        console.warn(`[clearInvalid] Clearing "${field.name}" value="${str}" — not in options`);
+                        // console.warn(`[clearInvalid] Clearing "${field.name}" value="${str}" — not in options`);
                         vals[field.name] = ''; changed = true;
                     }
                 } else if (field.type === 'multiselect' && Array.isArray(v)) {

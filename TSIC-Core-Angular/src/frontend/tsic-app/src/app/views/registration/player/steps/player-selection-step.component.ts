@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 

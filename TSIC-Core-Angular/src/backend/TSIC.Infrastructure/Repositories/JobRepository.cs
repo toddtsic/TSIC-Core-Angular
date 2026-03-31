@@ -468,7 +468,7 @@ public class JobRepository : IJobRepository
             .Select(j => new EventListingDto
             {
                 JobId = j.JobId, JobName = j.MobileJobName ?? j.JobName ?? "",
-                JobLogoUrl = j.JobDisplayOptions.LogoHeader,
+                JobLogoUrl = j.JobDisplayOptions != null ? j.JobDisplayOptions.LogoHeader : null,
                 City = j.Schedule.Where(s => s.Field != null && s.Field.City != null).Select(s => s.Field!.City).FirstOrDefault(),
                 State = j.Schedule.Where(s => s.Field != null && s.Field.State != null).Select(s => s.Field!.State).FirstOrDefault(),
                 SportName = j.Sport != null ? j.Sport.SportName : null,

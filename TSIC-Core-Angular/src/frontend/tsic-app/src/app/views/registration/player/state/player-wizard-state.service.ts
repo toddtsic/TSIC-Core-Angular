@@ -110,8 +110,8 @@ export class PlayerWizardStateService {
         selectedIds: string[],
         players: FamilyPlayerDto[],
     ): void {
-        console.warn(`[initForms] selectedIds=${selectedIds.length} players=${players.length} schemas=${schemas.length}`,
-            players.map(p => ({ id: p.playerId.slice(0,8), reg: p.registered, sel: p.selected })));
+        // console.warn(`[initForms] selectedIds=${selectedIds.length} players=${players.length} schemas=${schemas.length}`,
+        //     players.map(p => ({ id: p.playerId.slice(0,8), reg: p.registered, sel: p.selected })));
         this.playerForms.initializeFormValuesForSelectedPlayers(schemas, selectedIds);
         this.playerForms.seedFromPriorRegistrations(schemas, players);
         this.playerForms.seedFromDefaults(schemas, players);
