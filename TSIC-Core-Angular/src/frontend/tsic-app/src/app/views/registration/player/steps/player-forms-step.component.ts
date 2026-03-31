@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { debounceTime, switchMap, takeUntil, filter } from 'rxjs/operators';
+import { debounceTime, mergeMap, switchMap, takeUntil, filter } from 'rxjs/operators';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
@@ -58,7 +58,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                   <div class="field-row">
                     <label class="field-label" [for]="'field-' + pid + '-' + field.name">
                       {{ field.label }}
-                      @if (field.required && !isPlayerLocked(pid)) {
+                      @if (field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)) {
                         <span class="req-star">*</span>
                       }
                     </label>
@@ -71,7 +71,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                 (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                 [disabled]="isPlayerLocked(pid)"
                                 [class.is-empty]="!hasValue(pid, field.name)"
-                                [class.is-required]="field.required && !isPlayerLocked(pid)">
+                                [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
                           <option value="">— Select —</option>
                           @for (opt of field.options; track opt) {
                             <option [value]="opt">{{ opt }}</option>
@@ -112,7 +112,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
-                               [class.is-required]="field.required && !isPlayerLocked(pid)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
                       }
                       @case ('number') {
                         <input type="number" class="field-input"
@@ -121,7 +121,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
                                [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
                       }
                       @case ('email') {
                         <input type="email" class="field-input"
@@ -130,7 +130,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
                                [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
                       }
                       @default {
                         <input type="text" class="field-input"
@@ -139,11 +139,16 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
                                [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid)">
+                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
                       }
                     }
 
-                    @if (getFieldError(pid, field); as error) {
+                    @if (isValidating(pid, field)) {
+                      <div class="field-validating">
+                        <span class="spinner-border spinner-border-sm"></span>
+                        Validating membership…
+                      </div>
+                    } @else if (getFieldError(pid, field); as error) {
                       @if (isHtmlError(error)) {
                         <div class="field-error field-error-link">
                           <i class="bi bi-exclamation-triangle-fill"></i>
@@ -261,6 +266,16 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
       /* field-label, req-star, field-input, field-select,
          field-error, field-help — defined globally in _forms.scss */
 
+      .field-validating {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--font-size-xs);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-medium);
+        padding-top: 2px;
+      }
+
       .field-error-link {
         display: flex;
         align-items: center;
@@ -361,7 +376,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
         this.usLaxTrigger$.pipe(
             debounceTime(800),
             filter(({ value }) => value.length >= 6),
-            switchMap(({ playerId, value, field }) => {
+            mergeMap(({ playerId, value, field }) => {
                 this.state.playerForms.setUsLaxValidating(playerId);
                 return this.usLaxService.verify(value).pipe(
                     takeUntil(this.destroy$),
@@ -397,17 +412,20 @@ export class PlayerFormsStepComponent implements OnDestroy {
             error: (err) => console.warn('[USLax] Validation stream error', err),
         });
 
-        // Auto-validate prefilled US Lax numbers (from prior registrations)
+        // Auto-validate prefilled US Lax numbers — retry briefly if schemas not ready yet
         this.validatePrefilled();
+        setTimeout(() => this.validatePrefilled(), 2000);
     }
 
-    /** Kick off API validation for any prefilled SportAssnId values. */
+    /** Kick off API validation for any prefilled SportAssnId values that haven't been validated yet. */
     private validatePrefilled(): void {
         const schemas = this.state.jobCtx.profileFieldSchemas();
         const usLaxField = schemas.find(f => this.state.playerForms.isUsLaxSchemaField(f) && f.remoteUrl);
         if (!usLaxField) return;
         for (const pid of this.state.familyPlayers.selectedPlayerIds()) {
             if (this.state.familyPlayers.isPlayerLocked(pid)) continue;
+            const status = this.state.playerForms.usLaxStatus()[pid]?.status;
+            if (status === 'valid' || status === 'validating') continue;
             const val = String(this.state.playerForms.getPlayerFieldValue(pid, usLaxField.name) ?? '').trim();
             if (val.length >= 6 && val !== '424242424242') {
                 this.usLaxTrigger$.next({ playerId: pid, value: val, field: usLaxField });
@@ -474,6 +492,11 @@ export class PlayerFormsStepComponent implements OnDestroy {
             if (n.includes('email') || l.includes('email')) return 'email';
         }
         return 'text';
+    }
+
+    isValidating(playerId: string, field: PlayerProfileFieldSchema): boolean {
+        if (!this.state.playerForms.isUsLaxSchemaField(field) || !field.remoteUrl) return false;
+        return this.state.playerForms.usLaxStatus()[playerId]?.status === 'validating';
     }
 
     getFieldValue(playerId: string, fieldName: string): unknown {

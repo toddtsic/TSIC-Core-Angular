@@ -41,7 +41,8 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [showContinue]="showContinue()"
       [continueLabel]="continueLabel()"
       (back)="back()"
-      (continue)="next()">
+      (continue)="next()"
+      (goToStep)="goToStep($event)">
       @switch (currentStepId()) {
         @case ('family-check') { <app-prw-family-check-step (advance)="next()" /> }
         @case ('players') { <app-prw-player-selection-step (advance)="next()" /> }
@@ -201,6 +202,12 @@ export class PlayerWizardV2Component implements OnInit {
     back(): void {
         if (this._currentIndex() > 0) {
             this._currentIndex.set(this._currentIndex() - 1);
+        }
+    }
+
+    goToStep(stepIndex: number): void {
+        if (stepIndex < this._currentIndex()) {
+            this._currentIndex.set(stepIndex);
         }
     }
 

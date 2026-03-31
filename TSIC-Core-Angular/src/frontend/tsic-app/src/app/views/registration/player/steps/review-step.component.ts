@@ -14,113 +14,301 @@ import { JobService } from '@infrastructure/services/job.service';
     standalone: true,
     imports: [CurrencyPipe, DatePipe],
     template: `
-    <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Review &amp; Submit</h5>
-      </div>
-      <div class="card-body">
-        <div class="mb-4">
-          <p class="lead mb-1 fw-semibold">You're almost done!</p>
-          <p class="text-muted mb-0">Please review the details below before proceeding to payment.</p>
+    <div class="review-shell">
+      <!-- Hero banner -->
+      <div class="review-hero">
+        <i class="bi bi-clipboard-check review-hero-icon"></i>
+        <div>
+          <h5 class="review-hero-title">Almost there!</h5>
+          <p class="review-hero-sub">Review the details below, then hit Submit to proceed to payment.</p>
         </div>
+      </div>
 
-        <!-- Server validation errors -->
-        @if (state.jobCtx.hasServerValidationErrors()) {
-          <div class="alert alert-danger mb-3">
+      <!-- Server validation errors -->
+      @if (state.jobCtx.hasServerValidationErrors()) {
+        <div class="review-alert">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <div>
             <div class="fw-semibold mb-1">Validation Errors</div>
-            <ul class="mb-0">
+            <ul class="mb-0 ps-3">
               @for (err of state.jobCtx.getServerValidationErrors(); track err.field) {
                 <li>{{ err.message || err.field }}</li>
               }
             </ul>
           </div>
-        }
+        </div>
+      }
 
-        <!-- Players & Teams table -->
-        <section class="mb-4">
-          <h6 class="fw-semibold mb-2">Players &amp; Teams</h6>
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col">Player</th>
-                  <th scope="col">Team{{ isMultiTeamMode() ? 's' : '' }}</th>
-                  <th scope="col" class="text-end">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (player of selectedPlayers(); track player.userId) {
-                  <tr>
-                    <td>
-                      <div class="fw-semibold">{{ player.name }}</div>
-                      @if (player.dob || player.gender) {
-                        <div class="small text-muted">
-                          @if (player.gender) { <span>{{ player.gender }}</span> }
-                          @if (player.gender && player.dob) { <span> &middot; </span> }
-                          @if (player.dob) { <span>DOB: {{ player.dob | date:'mediumDate' }}</span> }
-                        </div>
-                      }
-                    </td>
-                    <td>
-                      @if (getTeamsForPlayer(player.userId).length === 0) {
-                        <span class="text-muted">No team selected</span>
-                      } @else {
-                        <span class="d-inline-flex flex-wrap gap-1">
-                          @for (t of getTeamsForPlayer(player.userId); track t) {
-                            <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ t }}</span>
-                          }
-                        </span>
-                      }
-                    </td>
-                    <td class="text-end">
-                      @if (getAmountForPlayer(player.userId) !== null) {
-                        {{ getAmountForPlayer(player.userId) | currency }}
-                      } @else {
-                        <span class="text-muted">&ndash;</span>
-                      }
-                    </td>
-                  </tr>
+      <!-- Players & Teams -->
+      <div class="review-section">
+        <div class="review-section-header">
+          <i class="bi bi-people-fill"></i>
+          <span>Players &amp; Teams</span>
+        </div>
+        <div class="review-section-body">
+          @for (player of selectedPlayers(); track player.userId; let last = $last) {
+            <div class="review-player-row" [class.border-bottom]="!last">
+              <div class="review-player-info">
+                <span class="review-player-name">{{ player.name }}</span>
+                @if (player.dob || player.gender) {
+                  <span class="review-player-meta">
+                    @if (player.gender) { {{ player.gender }} }
+                    @if (player.gender && player.dob) { &middot; }
+                    @if (player.dob) { DOB: {{ player.dob | date:'mediumDate' }} }
+                  </span>
                 }
-              </tbody>
-              @if (paySvc.totalAmount() > 0) {
-                <tfoot>
-                  <tr>
-                    <th colspan="2" class="text-end">Total</th>
-                    <th class="text-end">{{ paySvc.totalAmount() | currency }}</th>
-                  </tr>
-                </tfoot>
-              }
-            </table>
-          </div>
-        </section>
-
-        <!-- Waivers summary -->
-        @if (hasWaivers()) {
-          <section class="mb-4">
-            <h6 class="fw-semibold mb-2">Waivers</h6>
-            <ul class="list-unstyled mb-0">
-              @for (w of waiverSummary(); track w.title) {
-                <li class="d-flex align-items-center gap-2 mb-1">
-                  @if (w.accepted) {
-                    <span class="text-success" aria-label="Accepted">&#10003;</span>
-                  } @else {
-                    <span class="text-danger" aria-label="Not accepted">&#10007;</span>
-                  }
-                  <span>{{ w.title }}</span>
-                </li>
-              }
-            </ul>
-            @if (state.jobCtx.signatureName()) {
-              <div class="small text-muted mt-2">
-                Signed by: <strong>{{ state.jobCtx.signatureName() }}</strong>
-                @if (state.jobCtx.signatureRole()) { ({{ state.jobCtx.signatureRole() }}) }
               </div>
-            }
-          </section>
-        }
+              <div class="review-player-teams">
+                @for (t of getTeamsForPlayer(player.userId); track t) {
+                  <span class="review-team-pill">{{ t }}</span>
+                }
+              </div>
+              <div class="review-player-amount">
+                @if (getAmountForPlayer(player.userId) !== null) {
+                  {{ getAmountForPlayer(player.userId) | currency }}
+                } @else {
+                  <span class="text-muted">&ndash;</span>
+                }
+              </div>
+            </div>
+          }
+          @if (paySvc.totalAmount() > 0) {
+            <div class="review-total-row">
+              <span>Total</span>
+              <span class="review-total-amount">{{ paySvc.totalAmount() | currency }}</span>
+            </div>
+          }
+        </div>
       </div>
+
+      <!-- Form details per player -->
+      @for (player of selectedPlayers(); track player.userId) {
+        @if (getFormFields(player.userId).length > 0) {
+          <div class="review-section">
+            <div class="review-section-header">
+              <i class="bi bi-person-lines-fill"></i>
+              <span>{{ player.name }}</span>
+            </div>
+            <div class="review-section-body">
+              <div class="review-fields-grid">
+                @for (f of getFormFields(player.userId); track f.name) {
+                  <div class="review-field">
+                    <span class="review-field-label">{{ f.label }}</span>
+                    <span class="review-field-value" [class.text-muted]="!f.value">{{ f.value || '—' }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      }
     </div>
   `,
+    styles: [`
+      .review-shell {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      /* ── Hero banner ──────────────────────────────────── */
+      .review-hero {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-4);
+        border-radius: var(--radius-lg);
+        background: linear-gradient(135deg,
+          rgba(var(--bs-success-rgb), 0.08) 0%,
+          rgba(var(--bs-primary-rgb), 0.06) 100%);
+        border: 1px solid rgba(var(--bs-success-rgb), 0.2);
+      }
+
+      .review-hero-icon {
+        font-size: 2rem;
+        color: var(--bs-success);
+        flex-shrink: 0;
+      }
+
+      .review-hero-title {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+        margin: 0;
+      }
+
+      .review-hero-sub {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+        margin: var(--space-1) 0 0;
+      }
+
+      /* ── Alert ────────────────────────────────────────── */
+      .review-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        background: rgba(var(--bs-danger-rgb), 0.08);
+        border: 1px solid rgba(var(--bs-danger-rgb), 0.25);
+        color: var(--bs-danger);
+        font-size: var(--font-size-sm);
+
+        i { font-size: var(--font-size-lg); flex-shrink: 0; margin-top: 2px; }
+      }
+
+      /* ── Section card ─────────────────────────────────── */
+      .review-section {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .review-section-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        background: rgba(var(--bs-body-color-rgb), 0.03);
+        border-bottom: 1px solid var(--border-color);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+
+        i { color: var(--bs-primary); font-size: var(--font-size-base); }
+      }
+
+      .review-section-body {
+        padding: 0;
+      }
+
+      /* ── Player rows ──────────────────────────────────── */
+      .review-player-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3);
+
+        &.border-bottom { border-bottom: 1px solid var(--border-color); }
+      }
+
+      .review-player-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+
+      .review-player-name {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+      }
+
+      .review-player-meta {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
+
+      .review-player-teams {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+      }
+
+      .review-team-pill {
+        font-size: 11px;
+        font-weight: var(--font-weight-medium);
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-full);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+        white-space: nowrap;
+      }
+
+      .review-player-amount {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        white-space: nowrap;
+      }
+
+      /* ── Total row ────────────────────────────────────── */
+      .review-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-2) var(--space-3);
+        background: rgba(var(--bs-body-color-rgb), 0.03);
+        border-top: 2px solid var(--border-color);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+      }
+
+      .review-total-amount {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-success);
+      }
+
+      /* ── Form fields grid ────────────────────────────── */
+      .review-fields-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+      }
+
+      .review-field {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+
+        &:nth-child(odd) { border-right: 1px solid var(--border-color); }
+        &:nth-last-child(-n+2) { border-bottom: none; }
+      }
+
+      .review-field-label {
+        font-size: 10px;
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--brand-text-muted);
+      }
+
+      .review-field-value {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+      }
+
+      /* ── Mobile ───────────────────────────────────────── */
+      @media (max-width: 575.98px) {
+        .review-hero { padding: var(--space-3); gap: var(--space-2); }
+        .review-hero-icon { font-size: 1.5rem; }
+        .review-hero-title { font-size: var(--font-size-base); }
+
+        .review-player-row {
+          grid-template-columns: 1fr;
+          gap: var(--space-1);
+          padding: var(--space-2) var(--space-3);
+        }
+
+        .review-player-amount { text-align: right; }
+
+        .review-fields-grid { grid-template-columns: 1fr; }
+        .review-field { border-right: none !important; }
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReviewStepComponent {
@@ -165,14 +353,21 @@ export class ReviewStepComponent {
         return !t || t === 'BYCLUBNAME';
     }
 
-    hasWaivers(): boolean {
-        return this.state.jobCtx.waiverDefinitions().length > 0;
-    }
-
-    waiverSummary(): { title: string; accepted: boolean }[] {
-        return this.state.jobCtx.waiverDefinitions().map(d => ({
-            title: d.title,
-            accepted: this.state.jobCtx.isWaiverAccepted(d.id),
-        }));
+    getFormFields(playerId: string): { name: string; label: string; value: string }[] {
+        const schemas = this.state.jobCtx.profileFieldSchemas();
+        const wfn = this.state.jobCtx.waiverFieldNames();
+        const tct = this.state.eligibility.teamConstraintType();
+        return schemas
+            .filter(f => this.state.playerForms.isFieldVisibleForPlayer(playerId, f, wfn, tct))
+            .map(f => {
+                const raw = this.state.playerForms.getPlayerFieldValue(playerId, f.name);
+                let value = '';
+                if (raw == null) value = '';
+                else if (Array.isArray(raw)) value = raw.join(', ');
+                else if (typeof raw === 'boolean') value = raw ? 'Yes' : 'No';
+                else value = String(raw).trim();
+                return { name: f.name, label: f.label, value };
+            })
+            .filter(f => f.value.length > 0);
     }
 }

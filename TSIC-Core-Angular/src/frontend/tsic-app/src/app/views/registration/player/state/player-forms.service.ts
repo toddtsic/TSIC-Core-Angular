@@ -305,6 +305,7 @@ export class PlayerFormsService {
         if (!strVal.length) return null;
         // remoteUrl on the field is the flag — no remoteUrl means no API verification
         if (!field.remoteUrl) return null;
+        if (status === 'idle') return null; // validation not yet attempted — no error until it runs
         if (status === 'validating') return 'Validating…';
         if (status === 'invalid') return statusEntry?.message || field.errorMessage || 'Invalid membership';
         if (status !== 'valid') return 'Membership not validated';

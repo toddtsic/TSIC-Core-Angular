@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 /**
  * Shared step indicator component for multi-step wizards.
@@ -38,6 +38,9 @@ export class StepIndicatorComponent {
      * Example: 0 = first step, 1 = second step, etc.
      */
     readonly currentIndex = input.required<number>();
+
+    /** Emits the step index when a completed step is clicked. */
+    readonly stepClick = output<number>();
 
     /** Progress percentage (0–100) for the mobile progress bar. */
     readonly progressPercent = computed(() => {

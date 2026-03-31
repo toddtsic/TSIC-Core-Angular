@@ -20,7 +20,11 @@
     <div class="step-container d-none d-md-flex">
         @for (step of steps(); track step.id; let isLast = $last; let stepIndex = $index) {
         <div class="step-item" [class.completed]="isCompleted(stepIndex)" [class.active]="isActive(stepIndex)"
-            [class.future]="isFuture(stepIndex)">
+            [class.future]="isFuture(stepIndex)" [class.clickable]="isCompleted(stepIndex)"
+            (click)="isCompleted(stepIndex) && stepClick.emit(stepIndex)"
+            [attr.role]="isCompleted(stepIndex) ? 'button' : undefined"
+            [attr.tabindex]="isCompleted(stepIndex) ? 0 : undefined"
+            (keydown.enter)="isCompleted(stepIndex) && stepClick.emit(stepIndex)">
             <div class="step-badge" [attr.aria-current]="isActive(stepIndex) ? 'step' : undefined">
                 @if (isCompleted(stepIndex)) {
                 <i class="bi bi-check-circle-fill"></i>

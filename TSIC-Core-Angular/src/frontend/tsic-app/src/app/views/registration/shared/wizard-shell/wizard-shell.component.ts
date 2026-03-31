@@ -60,6 +60,7 @@ export class WizardShellComponent {
     // ── Outputs ─────────────────────────────────────────────────────────
     readonly back = output<void>();
     readonly continue = output<void>();
+    readonly goToStep = output<number>();
 
     // ── Computed ─────────────────────────────────────────────────────────
     /** Only enabled steps — the shell hides disabled ones entirely. */
