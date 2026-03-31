@@ -360,6 +360,57 @@ ORDER BY
     THEN 0 ELSE 1 END,
     j.JobPath, ag.AgegroupName, t.TeamName;
 
+PRINT '';
+PRINT '============================================================';
+PRINT 'TEST 7: ClubRep structural concordance (types 2, 3)';
+PRINT '  Legacy: RosterFee=Deposit, TeamFee=BalanceDue (agegroup level)';
+PRINT '  Compares source agegroup columns against fees.JobFees ClubRep rows';
+PRINT '============================================================';
+
+SELECT
+    j.JobPath,
+    jt.JobTypeName,
+    ag.AgegroupName,
+
+    -- Legacy
+    ISNULL(ag.RosterFee, 0)     AS [Legacy_Deposit],
+    ISNULL(ag.TeamFee, 0)       AS [Legacy_BalanceDue],
+
+    -- New
+    ISNULL(jf.Deposit, 0)       AS [New_Deposit],
+    ISNULL(jf.BalanceDue, 0)    AS [New_BalanceDue],
+
+    CASE
+        WHEN ISNULL(ag.RosterFee, 0) = ISNULL(jf.Deposit, 0)
+         AND ISNULL(ag.TeamFee, 0) = ISNULL(jf.BalanceDue, 0)
+        THEN 'MATCH'
+        WHEN jf.JobFeeId IS NULL
+         AND ISNULL(ag.RosterFee, 0) = 0
+         AND ISNULL(ag.TeamFee, 0) = 0
+        THEN 'MATCH (no fee)'
+        ELSE '*** MISMATCH ***'
+    END AS [Status]
+
+FROM Leagues.agegroups ag
+JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
+JOIN Jobs.Jobs j ON jl.JobId = j.JobId
+JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
+LEFT JOIN fees.JobFees jf
+    ON jf.JobId = j.JobId
+    AND jf.AgegroupId = ag.AgegroupId
+    AND jf.TeamId IS NULL
+    AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'  -- ClubRep
+
+WHERE j.JobTypeId IN (2, 3)
+  AND j.Year IN ('2025', '2026')
+  AND (ag.RosterFee > 0 OR ag.TeamFee > 0 OR jf.JobFeeId IS NOT NULL)
+ORDER BY
+    CASE WHEN ISNULL(ag.RosterFee, 0) != ISNULL(jf.Deposit, 0)
+           OR ISNULL(ag.TeamFee, 0) != ISNULL(jf.BalanceDue, 0)
+    THEN 0 ELSE 1 END,
+    j.JobPath, ag.AgegroupName;
+
+
 -- Final summary
 PRINT '';
 PRINT '============================================================';
@@ -402,5 +453,23 @@ LEFT JOIN fees.JobFees jf_ag
 LEFT JOIN fees.JobFees jf_job
     ON jf_job.JobId = j.JobId AND jf_job.AgegroupId IS NULL
     AND jf_job.TeamId IS NULL AND jf_job.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
-WHERE j.JobTypeId IN (1, 2, 3, 4, 6) AND j.Year IN ('2025', '2026') AND t.Active = 1;
+WHERE j.JobTypeId IN (1, 2, 3, 4, 6) AND j.Year IN ('2025', '2026') AND t.Active = 1
+
+UNION ALL
+
+SELECT 'Test 7 - ClubRep Fee by Agegroup' AS [Test],
+    SUM(CASE
+        WHEN ISNULL(ag.RosterFee, 0) != ISNULL(jf.Deposit, 0)
+          OR ISNULL(ag.TeamFee, 0) != ISNULL(jf.BalanceDue, 0)
+        THEN 1 ELSE 0
+    END) AS [Mismatches],
+    COUNT(*) AS [Total]
+FROM Leagues.agegroups ag
+JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
+JOIN Jobs.Jobs j ON jl.JobId = j.JobId
+LEFT JOIN fees.JobFees jf
+    ON jf.JobId = j.JobId AND jf.AgegroupId = ag.AgegroupId
+    AND jf.TeamId IS NULL AND jf.RoleId = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+WHERE j.JobTypeId IN (2, 3) AND j.Year IN ('2025', '2026')
+  AND (ag.RosterFee > 0 OR ag.TeamFee > 0 OR jf.JobFeeId IS NOT NULL);
 GO
