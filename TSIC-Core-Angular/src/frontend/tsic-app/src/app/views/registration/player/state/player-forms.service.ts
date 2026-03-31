@@ -143,7 +143,10 @@ export class PlayerFormsService {
     initializePlayerFormDefaults(playerId: string, schemas: PlayerProfileFieldSchema[], players: FamilyPlayerDto[]): void {
         try {
             this.initializeFormFieldsForPlayer(playerId, schemas);
+            this.seedFromPriorRegistrations(schemas, players);
             this.applyDefaultValuesForPlayer(playerId, schemas, players);
+            this.applyAliasBackfill();
+            this.clearInvalidSelectValues(schemas);
         } catch { /* ignore */ }
     }
 
@@ -261,7 +264,10 @@ export class PlayerFormsService {
                 }
                 return null;
             case 'select':
-                if (field.options?.length && str.length && !field.options.some(o => o.toLowerCase() === str.toLowerCase())) return 'Invalid option';
+                if (field.options?.length && str.length && !field.options.some(o => o.toLowerCase() === str.toLowerCase())) {
+                    console.warn(`[Validation] Invalid option: field="${field.name}" value="${str}" options=`, field.options);
+                    return field.required ? 'Required' : null;
+                }
                 return null;
             case 'multiselect':
                 if (!Array.isArray(raw)) return field.required ? 'Required' : null;
@@ -485,6 +491,7 @@ export class PlayerFormsService {
         const selectFields = schemas.filter(s =>
             (s.type === 'select' || s.type === 'multiselect') && s.options?.length > 0,
         );
+        console.warn(`[clearInvalid] entry: ${schemas.length} schemas, ${selectFields.length} select fields with options, playerCount=${Object.keys(this._playerFormValues()).length}`);
         if (!selectFields.length) return;
         const current = { ...this._playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
         let changed = false;
@@ -499,12 +506,13 @@ export class PlayerFormsService {
                     if (match) {
                         if (match !== str) { vals[field.name] = match; changed = true; }
                     } else {
-                        vals[field.name] = null; changed = true;
+                        console.warn(`[clearInvalid] Clearing "${field.name}" value="${str}" — not in options`);
+                        vals[field.name] = ''; changed = true;
                     }
                 } else if (field.type === 'multiselect' && Array.isArray(v)) {
                     const filtered = v.filter(item => field.options.some(o => o.toLowerCase() === String(item).toLowerCase()));
                     if (filtered.length !== v.length) {
-                        vals[field.name] = filtered.length ? filtered : null; changed = true;
+                        vals[field.name] = filtered.length ? filtered : ''; changed = true;
                     }
                 }
             }
