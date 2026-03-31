@@ -40,7 +40,7 @@
     <!-- Step indicator (hidden on first step — constraint type not yet known) -->
     @if (showActionBar()) {
     <div class="wizard-steps">
-      <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="currentIndex()" (stepClick)="goToStep.emit($event)" />
+      <app-step-indicator [steps]="stepDefinitions()" [currentIndex]="indicatorIndex()" (stepClick)="onIndicatorStepClick($event)" />
     </div>
     }
   </div>

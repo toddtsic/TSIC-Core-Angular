@@ -71,7 +71,7 @@ export class PlayerWizardV2Component implements OnInit {
 
     // ── Step definitions ──────────────────────────────────────────────
     readonly steps = computed<WizardStepDef[]>(() => [
-        { id: 'family-check', label: 'Account', enabled: true },
+        { id: 'family-check', label: 'Account', enabled: true, showInIndicator: false },
         { id: 'players', label: 'Players', enabled: true },
         {
             id: 'eligibility', label: this.eligibilityStepLabel(),

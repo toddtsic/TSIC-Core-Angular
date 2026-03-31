@@ -62,18 +62,41 @@ export class WizardShellComponent {
     readonly continue = output<void>();
     readonly goToStep = output<number>();
 
+    /** Map indicator index back to activeSteps index, then emit. */
+    onIndicatorStepClick(indicatorIndex: number): void {
+        const visibleStep = this.indicatorSteps()[indicatorIndex];
+        if (!visibleStep) return;
+        const activeIdx = this.activeSteps().findIndex(s => s.id === visibleStep.id);
+        if (activeIdx >= 0) this.goToStep.emit(activeIdx);
+    }
+
     // ── Computed ─────────────────────────────────────────────────────────
     /** Only enabled steps — the shell hides disabled ones entirely. */
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
 
+    /** Steps visible in the indicator (excludes showInIndicator === false). */
+    private readonly indicatorSteps = computed(() =>
+        this.activeSteps().filter(s => s.showInIndicator !== false),
+    );
+
     /** Mapped to StepDefinition[] for the StepIndicatorComponent. */
     readonly stepDefinitions = computed<StepDefinition[]>(() =>
-        this.activeSteps().map((s, i) => ({
+        this.indicatorSteps().map((s, i) => ({
             id: s.id,
             label: s.label,
             stepNumber: i + 1,
         })),
     );
+
+    /** Adjusted currentIndex for the indicator (accounts for hidden steps). */
+    readonly indicatorIndex = computed(() => {
+        const active = this.activeSteps();
+        const currentStep = active[this.currentIndex()];
+        if (!currentStep) return 0;
+        const visible = this.indicatorSteps();
+        const idx = visible.findIndex(s => s.id === currentStep.id);
+        return idx >= 0 ? idx : 0;
+    });
 
     /** Show the action bar when we're past the first step (first step typically has its own CTAs). */
     readonly showActionBar = computed(() => this.currentIndex() > 0);

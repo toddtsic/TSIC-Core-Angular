@@ -13,6 +13,8 @@ export interface WizardStepDef {
     label: string;
     /** When false the step is skipped (conditional steps like eligibility/waivers). */
     enabled: boolean;
+    /** When false the step is hidden from the step indicator but still participates in navigation. Defaults to true. */
+    showInIndicator?: boolean;
 }
 
 /** Top-level identity for the wizard shell header. */
