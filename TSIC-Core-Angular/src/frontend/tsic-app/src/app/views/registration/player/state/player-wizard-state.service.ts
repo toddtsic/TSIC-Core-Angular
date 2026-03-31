@@ -83,11 +83,21 @@ export class PlayerWizardStateService {
 
         // Load job metadata (triggers form schema parsing)
         const selectedIds = this.familyPlayers.selectedPlayerIds();
+
+        // Register callback so form init runs when schemas arrive (async metadata fetch).
+        // Read selectedIds and players fresh from signals — the values captured at
+        // ensureJobMetadata call time may be stale (players not yet selected).
+        this.jobCtx.setSchemasReadyCallback((schemas) => {
+            const freshIds = this.familyPlayers.selectedPlayerIds();
+            const freshPlayers = this.familyPlayers.familyPlayers();
+            this.initializeFormsFromSchemas(schemas, freshIds, freshPlayers);
+        });
+
         this.jobCtx.ensureJobMetadata(jobPath, selectedIds, players);
 
-        // After metadata loads, initialize form values
-        // (ensureJobMetadata is async — form init happens in its subscribe callback via parseProfileMetadata)
-        // We also need to trigger form init from here for when metadata is already cached
+        // If schemas are already cached (metadata was loaded in a prior call),
+        // initialize immediately — the callback won't fire since ensureJobMetadata
+        // short-circuits when metadata is already present.
         const schemas = this.jobCtx.profileFieldSchemas();
         if (schemas.length > 0) {
             this.initializeFormsFromSchemas(schemas, selectedIds, players);
@@ -100,6 +110,8 @@ export class PlayerWizardStateService {
         selectedIds: string[],
         players: FamilyPlayerDto[],
     ): void {
+        console.warn(`[initForms] selectedIds=${selectedIds.length} players=${players.length} schemas=${schemas.length}`,
+            players.map(p => ({ id: p.playerId.slice(0,8), reg: p.registered, sel: p.selected })));
         this.playerForms.initializeFormValuesForSelectedPlayers(schemas, selectedIds);
         this.playerForms.seedFromPriorRegistrations(schemas, players);
         this.playerForms.seedFromDefaults(schemas, players);

@@ -1,7 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { debounceTime, switchMap, takeUntil, filter } from 'rxjs/operators';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService } from '@views/registration/player/services/team.service';
+import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
 import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/player-wizard.types';
 
@@ -117,6 +120,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
+                               [attr.placeholder]="field.placeholder"
                                [class.is-required]="field.required && !isPlayerLocked(pid)">
                       }
                       @case ('email') {
@@ -125,6 +129,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
+                               [attr.placeholder]="field.placeholder"
                                [class.is-required]="field.required && !isPlayerLocked(pid)">
                       }
                       @default {
@@ -133,6 +138,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [ngModel]="getFieldValue(pid, field.name)"
                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
                                [disabled]="isPlayerLocked(pid)"
+                               [attr.placeholder]="field.placeholder"
                                [class.is-required]="field.required && !isPlayerLocked(pid)">
                       }
                     }
@@ -252,8 +258,75 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PlayerFormsStepComponent {
+export class PlayerFormsStepComponent implements OnDestroy {
     readonly state = inject(PlayerWizardStateService);
+    private readonly usLaxService = inject(UsLaxValidationService);
+    private readonly usLaxTrigger$ = new Subject<{ playerId: string; value: string; field: PlayerProfileFieldSchema }>();
+    private readonly destroy$ = new Subject<void>();
+
+    constructor() {
+        // Debounced US Lax API validation stream
+        this.usLaxTrigger$.pipe(
+            debounceTime(800),
+            filter(({ value }) => value.length >= 6),
+            switchMap(({ playerId, value, field }) => {
+                this.state.playerForms.setUsLaxValidating(playerId);
+                return this.usLaxService.verify(value).pipe(
+                    takeUntil(this.destroy$),
+                    switchMap(member => {
+                        if (!member) {
+                            this.state.playerForms.setUsLaxResult(playerId, false, field.errorMessage || 'Member not found');
+                            return [];
+                        }
+                        // Check expiration against job's validThroughDate
+                        const validThrough = this.state.jobCtx.getUsLaxValidThroughDate();
+                        if (validThrough && member.exp_date) {
+                            const expDate = new Date(member.exp_date);
+                            if (expDate < validThrough) {
+                                this.state.playerForms.setUsLaxResult(playerId, false,
+                                    `Membership expires ${expDate.toLocaleDateString()} — must be valid through ${validThrough.toLocaleDateString()}`);
+                                return [];
+                            }
+                        }
+                        // Check membership status
+                        const status = (member.mem_status || '').toLowerCase();
+                        if (status !== 'active' && status !== 'valid') {
+                            this.state.playerForms.setUsLaxResult(playerId, false,
+                                field.errorMessage || `Membership status: ${member.mem_status}`);
+                            return [];
+                        }
+                        this.state.playerForms.setUsLaxResult(playerId, true, undefined, member as unknown as Record<string, unknown>);
+                        return [];
+                    }),
+                );
+            }),
+            takeUntil(this.destroy$),
+        ).subscribe({
+            error: (err) => console.warn('[USLax] Validation stream error', err),
+        });
+
+        // Auto-validate prefilled US Lax numbers (from prior registrations)
+        this.validatePrefilled();
+    }
+
+    /** Kick off API validation for any prefilled SportAssnId values. */
+    private validatePrefilled(): void {
+        const schemas = this.state.jobCtx.profileFieldSchemas();
+        const usLaxField = schemas.find(f => this.state.playerForms.isUsLaxSchemaField(f) && f.remoteUrl);
+        if (!usLaxField) return;
+        for (const pid of this.state.familyPlayers.selectedPlayerIds()) {
+            if (this.state.familyPlayers.isPlayerLocked(pid)) continue;
+            const val = String(this.state.playerForms.getPlayerFieldValue(pid, usLaxField.name) ?? '').trim();
+            if (val.length >= 6 && val !== '424242424242') {
+                this.usLaxTrigger$.next({ playerId: pid, value: val, field: usLaxField });
+            }
+        }
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
 
     selectedPlayerIds(): string[] {
         return this.state.familyPlayers.selectedPlayerIds();
@@ -317,6 +390,14 @@ export class PlayerFormsStepComponent {
 
     setFieldValue(playerId: string, fieldName: string, value: unknown): void {
         this.state.playerForms.setPlayerFieldValue(playerId, fieldName, value as PlayerFormFieldValue);
+        // Trigger debounced US Lax API validation if this field has a remoteUrl
+        const field = this.state.jobCtx.profileFieldSchemas().find(f => f.name === fieldName);
+        if (field?.remoteUrl && this.state.playerForms.isUsLaxSchemaField(field)) {
+            const str = String(value ?? '').trim();
+            if (str.length >= 6) {
+                this.usLaxTrigger$.next({ playerId, value: str, field });
+            }
+        }
     }
 
     onCheckboxChange(playerId: string, fieldName: string, event: Event): void {

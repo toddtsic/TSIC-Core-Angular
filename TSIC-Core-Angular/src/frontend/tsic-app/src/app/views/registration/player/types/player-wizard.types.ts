@@ -40,7 +40,10 @@ export interface PlayerProfileFieldSchema {
     type: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'checkbox';
     required: boolean;
     options: string[];
+    placeholder: string | null;
     helpText: string | null;
+    remoteUrl: string | null;
+    errorMessage: string | null;
     visibility?: 'public' | 'adminOnly' | 'hidden';
     condition?: { field: string; value: unknown; operator?: string } | null;
 }

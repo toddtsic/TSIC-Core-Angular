@@ -107,7 +107,23 @@ export class FormSchemaService {
                     }
                     return mapped;
                 })();
-                const helpText = f.helpText || f.help || f.placeholder || null;
+                const placeholder = typeof f.placeholder === 'string' && f.placeholder.trim() ? f.placeholder.trim() : null;
+                const helpText = f.helpText || f.help || null;
+                const val = f.validation as Record<string, unknown> | undefined;
+                const remoteUrl = (() => {
+                    const v = pickCI(f, 'remoteUrl', 'remoteurl', 'remote') as string | undefined;
+                    if (typeof v === 'string' && v.trim()) return v.trim();
+                    // Fallback: validation.remote (migration model format)
+                    const vr = val?.['remote'];
+                    return typeof vr === 'string' && vr.trim() ? vr.trim() : null;
+                })();
+                const errorMessage = (() => {
+                    const v = pickCI(f, 'errorMessage', 'errormessage') as string | undefined;
+                    if (typeof v === 'string' && v.trim()) return v.trim();
+                    // Fallback: validation.message (migration model format)
+                    const vm = val?.['message'];
+                    return typeof vm === 'string' && vm.trim() ? vm.trim() : null;
+                })();
                 const visibility = (() => {
                     const vis = f.visibility || f.adminOnly;
                     if (typeof vis === 'string') {
@@ -124,7 +140,7 @@ export class FormSchemaService {
                     if (c && typeof c === 'object' && c.field) return { field: String(c.field), value: c.value, operator: c.operator ? String(c.operator) : undefined };
                     return null;
                 })();
-                return { name, label, type, required, options, helpText, visibility, condition } as PlayerProfileFieldSchema;
+                return { name, label, type, required, options, placeholder, helpText, remoteUrl, errorMessage, visibility, condition } as PlayerProfileFieldSchema;
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
             this._profileFieldSchemas.set(schemas);
             this._aliasFieldMap.set(aliasMapLocal);

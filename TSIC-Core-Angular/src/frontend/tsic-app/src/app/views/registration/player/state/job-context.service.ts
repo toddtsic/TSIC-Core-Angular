@@ -176,6 +176,15 @@ export class JobContextService {
         this._profileFieldSchemas.set(schemas);
         this._aliasFieldMap.set(this.formSchema.aliasFieldMap());
         this.bindWaiversToSchemas(schemas, selectedPlayerIds, familyPlayers);
+
+        // Notify orchestrator that schemas are ready so form values can be initialized.
+        this._onSchemasReady?.(schemas);
+    }
+
+    /** Callback set by the orchestrator to initialize forms when schemas arrive async. */
+    private _onSchemasReady?: (schemas: PlayerProfileFieldSchema[]) => void;
+    setSchemasReadyCallback(cb: (schemas: PlayerProfileFieldSchema[]) => void): void {
+        this._onSchemasReady = cb;
     }
 
     private bindWaiversToSchemas(

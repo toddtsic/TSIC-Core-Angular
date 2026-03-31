@@ -291,7 +291,7 @@ export class PlayerFormsService {
         return re.test(str) ? null : 'Invalid email address';
     }
 
-    private isUsLaxSchemaField(field: PlayerProfileFieldSchema): boolean {
+    isUsLaxSchemaField(field: PlayerProfileFieldSchema): boolean {
         const lname = field.name.toLowerCase();
         const llabel = field.label.toLowerCase();
         return lname === 'sportassnid' || llabel.includes('lacrosse');
@@ -302,9 +302,11 @@ export class PlayerFormsService {
         const status = statusEntry?.status || 'idle';
         if (strVal === '424242424242') return null;
         if (field.required && strVal.length === 0) return 'Required';
-        if (!field.required && strVal.length === 0) return null;
+        if (!strVal.length) return null;
+        // remoteUrl on the field is the flag — no remoteUrl means no API verification
+        if (!field.remoteUrl) return null;
         if (status === 'validating') return 'Validating…';
-        if (status === 'invalid') return statusEntry?.message || 'Invalid membership';
+        if (status === 'invalid') return statusEntry?.message || field.errorMessage || 'Invalid membership';
         if (status !== 'valid') return 'Membership not validated';
         return null;
     }
