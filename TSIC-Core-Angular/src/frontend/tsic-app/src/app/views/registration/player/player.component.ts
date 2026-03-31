@@ -175,6 +175,7 @@ export class PlayerWizardV2Component implements OnInit {
         const sameJob = user?.jobPath?.toLowerCase() === jobPath.toLowerCase();
         if (!validRole || !sameJob) {
             this.authService.logoutLocal();
+            // Don't navigate away — wizard starts at family-check (login) step
         }
 
         // Always reset wizard state (clears stale errors from prior sessions)

@@ -212,16 +212,11 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.router.navigate(['/tsic/login'], { queryParams: { force: 1 } });
   }
 
-  switchRole() {
-    this.router.navigate(['/tsic/role-selection']);
-  }
-
-  onSwitchRole(event: Event) {
-    // Prevent any default anchor behavior and force SPA navigation
+  onSwitchRole(event?: Event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
-    // Optional polish: clear current job header to avoid spinner flash
     try { this.jobService.currentJob.set(null); } catch { /* ignore */ }
-    this.router.navigate(['/tsic/role-selection']);
+    const jobPath = this.getActiveJobPath() || 'tsic';
+    this.router.navigate([`/${jobPath}/role-selection`]);
   }
 
   selectRole(role: string) {

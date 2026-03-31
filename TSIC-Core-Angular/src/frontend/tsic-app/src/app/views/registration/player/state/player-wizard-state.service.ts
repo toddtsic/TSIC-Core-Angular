@@ -104,6 +104,7 @@ export class PlayerWizardStateService {
         this.playerForms.seedFromPriorRegistrations(schemas, players);
         this.playerForms.seedFromDefaults(schemas, players);
         this.playerForms.applyAliasBackfill();
+        this.playerForms.clearInvalidSelectValues(schemas);
         this.eligibility.seedEligibilityFromSchemas(
             schemas, players, selectedIds,
             (pid, field) => this.playerForms.getPlayerFieldValue(pid, field),

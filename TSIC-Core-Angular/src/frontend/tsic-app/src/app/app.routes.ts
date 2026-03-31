@@ -2,8 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './infrastructure/guards/auth.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
-import { playerInviteGuard } from './infrastructure/guards/player-invite.guard';
-import { teamInviteGuard } from './infrastructure/guards/team-invite.guard';
+import { playerInviteGuard, teamInviteGuard } from './infrastructure/guards/registration-invite.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 
 export const routes: Routes = [

@@ -116,8 +116,6 @@ export class PlayerFormsService {
                 if (player.registered || !player.selected) continue;
                 this.applyDefaultsToPlayer(player, current, schemaNameByLower);
             }
-            // Clear select/multiselect values that don't match this job's options
-            this.clearInvalidSelectValues(schemas, current);
             this._playerFormValues.set(current);
         } catch (e: unknown) {
             console.debug('[PlayerForms] Default values seed failed', e);
@@ -263,7 +261,7 @@ export class PlayerFormsService {
                 }
                 return null;
             case 'select':
-                if (field.options?.length && str.length && !field.options.includes(str)) return 'Invalid option';
+                if (field.options?.length && str.length && !field.options.some(o => o.toLowerCase() === str.toLowerCase())) return 'Invalid option';
                 return null;
             case 'multiselect':
                 if (!Array.isArray(raw)) return field.required ? 'Required' : null;
@@ -482,26 +480,36 @@ export class PlayerFormsService {
         return targetName || null;
     }
 
-    private clearInvalidSelectValues(
-        schemas: PlayerProfileFieldSchema[],
-        allValues: Record<string, Record<string, PlayerFormFieldValue>>,
-    ): void {
+    /** Clear select/multiselect values that don't match this job's available options. */
+    clearInvalidSelectValues(schemas: PlayerProfileFieldSchema[]): void {
         const selectFields = schemas.filter(s =>
             (s.type === 'select' || s.type === 'multiselect') && s.options?.length > 0,
         );
         if (!selectFields.length) return;
-        for (const vals of Object.values(allValues)) {
+        const current = { ...this._playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
+        let changed = false;
+        for (const vals of Object.values(current)) {
             for (const field of selectFields) {
                 const v = vals[field.name];
                 if (v == null || v === '') continue;
                 if (field.type === 'select') {
-                    if (!field.options.includes(String(v))) vals[field.name] = null;
+                    const str = String(v);
+                    // Case-insensitive match
+                    const match = field.options.find(o => o.toLowerCase() === str.toLowerCase());
+                    if (match) {
+                        if (match !== str) { vals[field.name] = match; changed = true; }
+                    } else {
+                        vals[field.name] = null; changed = true;
+                    }
                 } else if (field.type === 'multiselect' && Array.isArray(v)) {
-                    const filtered = v.filter(item => field.options.includes(String(item)));
-                    vals[field.name] = filtered.length ? filtered : null;
+                    const filtered = v.filter(item => field.options.some(o => o.toLowerCase() === String(item).toLowerCase()));
+                    if (filtered.length !== v.length) {
+                        vals[field.name] = filtered.length ? filtered : null; changed = true;
+                    }
                 }
             }
         }
+        if (changed) this._playerFormValues.set(current);
     }
 
     private isFieldValueBlank(value: unknown): boolean {

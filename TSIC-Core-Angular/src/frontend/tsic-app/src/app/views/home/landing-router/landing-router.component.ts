@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -28,7 +28,7 @@ import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.c
     imports: [WidgetDashboardComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LandingRouterComponent {
+export class LandingRouterComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly auth = inject(AuthService);
@@ -50,17 +50,17 @@ export class LandingRouterComponent {
         return !!path && path !== 'tsic' && this.auth.hasSelectedRole();
     });
 
-    // Phase 1 (logged in, no role) → redirect to role selection
-    private readonly roleSelectionRedirect = effect(() => {
+    ngOnInit(): void {
         const path = this.jobPath();
         if (!path || path === 'tsic') return;
 
         const user = this.auth.currentUser();
         if (!user) return;
 
-        // Phase 1: logged in but no role yet → force role selection
+        // Phase 1 (logged in, no role) → redirect to role-selection
+        // This only fires on the job landing page, not on sub-routes.
         if (!this.auth.hasSelectedRole()) {
             this.router.navigate(['/', path, 'role-selection'], { replaceUrl: true });
         }
-    });
+    }
 }
