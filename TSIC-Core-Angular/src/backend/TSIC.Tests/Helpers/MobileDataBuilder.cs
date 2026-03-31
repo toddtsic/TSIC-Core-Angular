@@ -156,13 +156,14 @@ public class MobileDataBuilder
         return div;
     }
 
-    public Teams AddTeam(Guid divId, string name = "Test Team", Guid? agegroupId = null)
+    public Teams AddTeam(Guid divId, string name = "Test Team", Guid? agegroupId = null, Guid? jobId = null)
     {
         var team = new Teams
         {
             TeamId = Guid.NewGuid(),
             DivId = divId,
             AgegroupId = agegroupId ?? Guid.Empty,
+            JobId = jobId ?? Guid.Empty,
             TeamName = name,
             Active = true,
             Modified = DateTime.UtcNow
