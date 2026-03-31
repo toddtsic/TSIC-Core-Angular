@@ -257,6 +257,9 @@ builder.Services.AddScoped<ITeamDocsRepository, TeamDocsRepository>();
 builder.Services.AddScoped<ITeamManagementService, TeamManagementService>();
 builder.Services.AddScoped<ITeamAttendanceRepository, TeamAttendanceRepository>();
 builder.Services.AddScoped<ITeamAttendanceService, TeamAttendanceService>();
+builder.Services.AddScoped<IChatRepository, ChatRepository>();
+builder.Services.AddScoped<IFileUploadService, TSIC.API.Services.Shared.Files.FileUploadService>();
+builder.Services.AddSignalR();
 // Uniform Number Upload (admin bulk update)
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
 // Customer Job Revenue (SuperUser financial dashboard)
@@ -630,6 +633,7 @@ app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.Ok())
     .RequireCors("AllowAngularApp");
 
 app.MapControllers();
+app.MapHub<TSIC.API.Hubs.ChatHub>("/hubs/chat");
 
 await app.RunAsync();
 
