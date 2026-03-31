@@ -298,9 +298,9 @@
                       <td>{{ ct.teamName }}</td>
                       <td class="text-end">{{ ct.owedTotal | currency }}</td>
                       @if (totalFeeReduction() > 0) {
-                        <td class="text-end text-success">@if (ct.feeProcessing > 0) { -{{ ct.feeProcessing | currency }} }</td>
+                        <td class="text-end text-success">@if (ct.checkFeeReduction > 0) { -{{ ct.checkFeeReduction | currency }} }</td>
                       }
-                      <td class="text-end fw-semibold">{{ ct.owedTotal - ct.feeProcessing | currency }}</td>
+                      <td class="text-end fw-semibold">{{ ct.owedTotal - ct.checkFeeReduction | currency }}</td>
                     </tr>
                   }
                 }

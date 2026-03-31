@@ -100,6 +100,17 @@ public sealed class TeamSearchService : ITeamSearchService
             ? await _teamRepo.GetClubTeamSummariesAsync(jobId, detail.ClubRepRegistrationId.Value, ct)
             : new List<ClubTeamSummaryDto>();
 
+        // CheckFeeReduction = baseOwed × rate, where baseOwed = OwedTotal / (1 + rate).
+        // Equivalent to OwedTotal × rate / (1 + rate) — extracts the processing fee
+        // embedded in OwedTotal without "taxing the tax".
+        var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
+        clubTeamSummaries = clubTeamSummaries.Select(t => t with
+        {
+            CheckFeeReduction = Math.Round(
+                Math.Max(0m, t.OwedTotal) * processingRate / (1m + processingRate),
+                2, MidpointRounding.AwayFromZero)
+        }).ToList();
+
         var lopOptions = await GetLopOptionsAsync(jobId, ct);
         var distinctClubCount = await _teamRepo.GetDistinctClubCountAsync(jobId, ct);
 
@@ -141,6 +152,15 @@ public sealed class TeamSearchService : ITeamSearchService
 
         var teams = await _teamRepo.GetClubTeamSummariesAsync(jobId, clubRepRegistrationId, ct);
         var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
+
+        // CheckFeeReduction = baseOwed × rate = OwedTotal × rate / (1 + rate)
+        var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
+        teams = teams.Select(t => t with
+        {
+            CheckFeeReduction = Math.Round(
+                Math.Max(0m, t.OwedTotal) * rate / (1m + rate),
+                2, MidpointRounding.AwayFromZero)
+        }).ToList();
 
         return new ClubRepAccountingDto
         {
@@ -553,40 +573,33 @@ public sealed class TeamSearchService : ITeamSearchService
             {
                 if (remainingBalance <= 0) break;
 
-                // Step 1: Tentative allocation based on current OwedTotal
+                // Step 1: Compute base owed (OwedTotal without processing fees)
                 var teamOwed = Math.Max(0m, team.OwedTotal ?? 0m);
-                var tentativeAmount = Math.Min(teamOwed, remainingBalance);
-                if (tentativeAmount <= 0) continue;
+                var baseOwed = (processingRate > 0 && bAddProcessingFees)
+                    ? decimal.Round(teamOwed / (1m + processingRate), 2, MidpointRounding.AwayFromZero)
+                    : teamOwed;
 
-                // Step 2: Processing fee reduction based on tentative allocation
-                // Check/correction payments don't use CC, so reduce the CC surcharge
-                // proportionally to the amount paid. Never remove fees from prior CC payments.
+                // Step 2: Allocate base amount from remaining check balance
+                var calculatedTeamCheckAmount = Math.Min(baseOwed, remainingBalance);
+                if (calculatedTeamCheckAmount <= 0) continue;
+
+                // Step 3: Fee reduction = allocation × rate (same as player path)
                 decimal processingFeeReduction = 0;
                 if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
                     processingFeeReduction = decimal.Round(
-                        processingRate * tentativeAmount,
+                        calculatedTeamCheckAmount * processingRate,
                         2, MidpointRounding.AwayFromZero);
 
-                    // Cap at current processing fee — can't reduce below zero
-                    processingFeeReduction = Math.Min(processingFeeReduction, (decimal)(team.FeeProcessing ?? 0));
+                    team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
+                    team.RecalcTotals();
 
-                    if (processingFeeReduction > 0)
-                    {
-                        team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
-                        team.RecalcTotals();
-
-                        clubRep.FeeProcessing -= processingFeeReduction;
-                        clubRep.OwedTotal -= processingFeeReduction;
-                        clubRep.FeeTotal -= processingFeeReduction;
-                    }
+                    clubRep.FeeProcessing -= processingFeeReduction;
+                    clubRep.OwedTotal -= processingFeeReduction;
+                    clubRep.FeeTotal -= processingFeeReduction;
 
                     await _accountingRepo.SaveChangesAsync(ct);
                 }
-
-                // Step 3: Final allocation — recalculate after fee reduction changed OwedTotal
-                var calculatedTeamCheckAmount = Math.Min(
-                    Math.Max(0m, team.OwedTotal ?? 0m), tentativeAmount);
 
                 remainingBalance -= calculatedTeamCheckAmount;
 

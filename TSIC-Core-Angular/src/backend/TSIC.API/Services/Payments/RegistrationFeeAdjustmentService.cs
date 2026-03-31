@@ -79,7 +79,9 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         // Get effective CC rate (ready-to-multiply decimal, e.g. 0.035 for 3.5%)
         var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
-        // Calculate proportional reduction: adjustmentAmount × CC rate
+        // Proportional reduction: adjustmentAmount × rate
+        // The adjustment amount is the raw check/correction amount entered by the director
+        // (base payment, not including processing fees), so straight multiplication is correct.
         var reduction = adjustmentAmount * rate;
         reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
 
@@ -130,7 +132,9 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         // Get effective CC rate (ready-to-multiply decimal, e.g. 0.035 for 3.5%)
         var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
 
-        // Calculate proportional reduction: adjustmentAmount × CC rate
+        // Proportional reduction: adjustmentAmount × rate
+        // The adjustment amount is the raw check/correction amount entered by the director
+        // (base payment, not including processing fees), so straight multiplication is correct.
         var reduction = adjustmentAmount * rate;
         reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
 

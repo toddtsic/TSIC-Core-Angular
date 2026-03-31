@@ -112,22 +112,22 @@ export class AccountingLedgerComponent {
 
 	// ── Payment modal ──
 
-	/** Club balance due for check/correction: owed minus processing fees */
+	/** Club balance due for check/correction: owed minus proportional fee reduction */
 	checkBalanceDue = computed(() => {
 		const breakdown = this.clubBreakdown();
 		if (!breakdown?.length) return this.owedTotal();
 		return breakdown
 			.filter(t => t.owedTotal > 0)
-			.reduce((sum, t) => sum + (t.owedTotal - t.feeProcessing), 0);
+			.reduce((sum, t) => sum + (t.owedTotal - t.checkFeeReduction), 0);
 	});
 
-	/** Total processing fee reduction when paying by check */
+	/** Total proportional processing fee reduction when paying by check */
 	totalFeeReduction = computed(() => {
 		const breakdown = this.clubBreakdown();
 		if (!breakdown?.length) return 0;
 		return breakdown
 			.filter(t => t.owedTotal > 0)
-			.reduce((sum, t) => sum + t.feeProcessing, 0);
+			.reduce((sum, t) => sum + t.checkFeeReduction, 0);
 	});
 
 	openPaymentModal(): void {

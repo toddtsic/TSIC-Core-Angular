@@ -78,9 +78,9 @@ These test what happens when a director records a **club-level** check in **sear
 
 **Distribution rules:**
 - Teams sorted by OwedTotal (highest first) — OwedTotal is the single source of truth
-- Each team's allocation = min(OwedTotal, remaining check balance)
-- Processing fee reduced first: `allocationAmount × processingRate`, capped at team's FeeProcessing
-- Final allocation recalculated after fee reduction (never overpays the reduced balance)
+- Compute base owed per team: `baseOwed = OwedTotal / (1 + processingRate)` — strips the processing fee from the total
+- Each team's allocation = `min(baseOwed, remaining check balance)`
+- Fee reduction = `allocation × processingRate` — same formula as player path, no special cases
 - Check balance carries to next team until exhausted
 - Dropped/waitlisted teams are excluded
 
@@ -88,8 +88,8 @@ These test what happens when a director records a **club-level** check in **sear
 |------|---------------|
 | **$1500 across 3 teams ($500 each)** | 3 separate Check records created (one per team, $500 each). All teams fully paid. Same check number on all records. |
 | **$900 partial across 3 teams** | Distributed highest-OwedTotal-first. Top 2 teams get funded. Third team gets $0 (check exhausted). Only funded teams get records. |
-| **$1000 across 2 teams with processing fees** | Fee reduction happens first ($17.50 per team removed), then $500 allocated per team against the reduced $500 owed. Both teams end at $0. |
-| **$1300 partial with processing fees** | 3 teams with different OwedTotals. Fee reduction first, then allocation on reduced balance. Third team gets $200 (remaining), fee reduced by $7.00 ($200 × 3.5%), NOT the full $14.00. Club rep totals reflect all reductions. |
+| **$1000 across 2 teams with processing fees** | Each team: baseOwed=$517.50/1.035=$500, allocation=$500, feeReduction=$500×3.5%=$17.50. Both teams end at $0. |
+| **$1300 partial with processing fees** | 3 teams with different OwedTotals. Alpha gets $600 (base), Bravo gets $500, Charlie gets $200 (remaining). Fee reduction = allocation × 3.5% for each. Charlie: $200×3.5%=$7.00, NOT $14.00. |
 | **Dropped team excluded** | Club has 2 active + 1 dropped team. Only the 2 active teams receive payment. Dropped team gets nothing. |
 
 ---
@@ -97,17 +97,25 @@ These test what happens when a director records a **club-level** check in **sear
 ## Key Accounting Principles
 
 ### Processing Fee Reduction (Check & Correction)
-When a job has CC processing fees enabled (e.g., 3.5%), those fees are added to every registration/team total. But if payment is by **check** or **correction**, the CC surcharge is removed because no credit card was used.
+When a job has CC processing fees enabled (e.g., 3.5%), those fees are added to every registration/team total. But if payment is by **check** or **correction**, the CC surcharge is removed proportionally because no credit card was used.
 
+**The formula is the same for players and teams:**
 ```
-Fee reduction = payment amount x processing rate
+Fee reduction = check amount × processing rate
 
-Example:
-  Team owes $517.50 ($500 base + $17.50 processing at 3.5%)
-  Director records a $500 check
-  Fee reduction: entire $17.50 processing fee removed (full-pay mode)
+Example (player/single team):
+  Director enters a $500 check
+  Fee reduction: $500 × 3.5% = $17.50
+
+Example (club allocation):
+  Team owes $517.50 ($500 base + $17.50 processing)
+  Base owed = $517.50 / 1.035 = $500  ← strip the processing from OwedTotal
+  Allocation = $500 (the base amount)
+  Fee reduction = $500 × 3.5% = $17.50
   New total: $500. Paid: $500. Balance: $0.
 ```
+
+**Why `OwedTotal / (1 + rate)`?** OwedTotal already includes processing fees. Applying the rate directly to OwedTotal would "tax the tax." Dividing by `(1 + rate)` extracts the base amount, then `base × rate` gives the exact processing fee embedded in that total.
 
 ### Club Payment Distribution
 When paying for the whole club by check, the system distributes the payment across teams starting with the **highest balance first**. Each team gets its own accounting record with the allocated amount. This means the ledger shows exactly how much of the check went to each team.

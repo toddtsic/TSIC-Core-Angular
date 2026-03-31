@@ -192,10 +192,9 @@ public class TeamCheckTests
         // ── Verify team fee reduction ──
         var updatedTeam = await ctx.Teams.FindAsync(team.TeamId);
 
-        // With bTeamsFullPaymentRequired=true and !bApplyToDeposit,
-        // the FULL processing fee is removed (Branch A of the algorithm)
+        // baseOwed = $517.50 / 1.035 = $500. allocation = $500. feeReduction = $500 × 3.5% = $17.50.
         updatedTeam!.FeeProcessing.Should().Be(0m,
-            "full processing fee removed for check payment (full-pay-required mode)");
+            "processing fee fully removed: $500 × 3.5% = $17.50");
         updatedTeam.PaidTotal.Should().Be(500m);
         updatedTeam.OwedTotal.Should().Be(0m, "team fully paid after fee removal");
 

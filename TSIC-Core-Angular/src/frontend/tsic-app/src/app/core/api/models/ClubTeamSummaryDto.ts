@@ -11,5 +11,6 @@ export type ClubTeamSummaryDto = {
     owedTotal: number;
     feeProcessing: number;
     active: boolean;
+    checkFeeReduction?: number;
 };
 

@@ -60,6 +60,14 @@ public record ClubTeamSummaryDto
     public required decimal OwedTotal { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required bool Active { get; init; }
+
+    /// <summary>
+    /// Proportional CC fee reduction if paying full OwedTotal by check:
+    /// OwedTotal × processingRate, capped at FeeProcessing.
+    /// Calculated by the service using IFeeResolutionService (single source of truth).
+    /// Frontend uses this for the allocation preview — NOT the raw FeeProcessing.
+    /// </summary>
+    public decimal CheckFeeReduction { get; init; }
 }
 
 /// <summary>
