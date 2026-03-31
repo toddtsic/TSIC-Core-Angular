@@ -265,7 +265,7 @@ export class PlayerFormsService {
                 return null;
             case 'select':
                 if (field.options?.length && str.length && !field.options.some(o => o.toLowerCase() === str.toLowerCase())) {
-                    console.warn(`[Validation] Invalid option: field="${field.name}" value="${str}" options=`, field.options);
+                    // console.warn(`[Validation] Invalid option: field="${field.name}" value="${str}" options=`, field.options);
                     return field.required ? 'Required' : null;
                 }
                 return null;
@@ -493,7 +493,7 @@ export class PlayerFormsService {
         const selectFields = schemas.filter(s =>
             (s.type === 'select' || s.type === 'multiselect') && s.options?.length > 0,
         );
-        console.warn(`[clearInvalid] entry: ${schemas.length} schemas, ${selectFields.length} select fields with options, playerCount=${Object.keys(this._playerFormValues()).length}`);
+        // console.warn(`[clearInvalid] entry: ${schemas.length} schemas, ${selectFields.length} select fields with options, playerCount=${Object.keys(this._playerFormValues()).length}`);
         if (!selectFields.length) return;
         const current = { ...this._playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
         let changed = false;
