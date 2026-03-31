@@ -360,16 +360,29 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             var beforeProperty = sourceCode.Substring(0, match.Index);
             var lines = beforeProperty.Split('\n');
 
-            // Look backwards for attributes (they appear right before the property)
+            // Look backwards for attributes (they appear right before the property).
+            // Multi-line attributes (e.g., [Remote(...)]) span several lines where
+            // only the first starts with '['. We scan backwards, so we hit the closing
+            // ']' first — track bracket depth in reverse to collect the full attribute.
             var attributeLines = new List<string>();
+            var bracketDepth = 0;
             for (int i = lines.Length - 1; i >= 0; i--)
             {
                 var line = lines[i].Trim();
-                if (line.StartsWith('['))
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
+                {
+                    if (bracketDepth > 0) { attributeLines.Insert(0, line); continue; }
+                    continue;
+                }
+                var hasOpen = line.Contains('[');
+                var hasClose = line.Contains(']');
+                if (hasOpen || hasClose || bracketDepth > 0)
                 {
                     attributeLines.Insert(0, line);
+                    // Reversed bracket tracking: ] increases depth, [ decreases
+                    foreach (var ch in line) { if (ch == ']') bracketDepth++; else if (ch == '[') bracketDepth--; }
                 }
-                else if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("//"))
+                else
                 {
                     // Stop when we hit non-attribute, non-comment line
                     break;
@@ -469,6 +482,28 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         {
             validation.RequiredTrue = true;
             hasValidation = true;
+        }
+
+        // [Remote(action: "IsUSLaxNumberValid", ...)] — multiline attribute
+        if (attributesText.Contains("[Remote"))
+        {
+            var actionMatch = Regex.Match(attributesText,
+                @"action\s*:\s*""([^""]+)""", RegexOptions.Singleline);
+            if (actionMatch.Success)
+            {
+                // Map legacy MVC remote validation to new API endpoint
+                validation.Remote = "/api/validation/uslax";
+                hasValidation = true;
+            }
+
+            // Extract ErrorMessage (may contain escaped quotes and HTML)
+            var errorMsgMatch = Regex.Match(attributesText,
+                @"ErrorMessage\s*=\s*""((?:[^""\\]|\\.)*?)""(?:\s*[,\)])",
+                RegexOptions.Singleline);
+            if (errorMsgMatch.Success)
+            {
+                validation.Message = errorMsgMatch.Groups[1].Value;
+            }
         }
 
         return hasValidation ? validation : null;
