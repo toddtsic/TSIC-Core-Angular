@@ -94,6 +94,47 @@ These test what happens when a director records a **club-level** check in **sear
 
 ---
 
+## Allocation Matrix Tests (18 tests)
+
+Systematic coverage of all fee configuration × timeframe × payment type combinations. Each test uses 3 teams with Deposit=$500, BalanceDue=$1,500, processing rate=3.5%.
+
+**Three fee configurations:**
+- **A: No fees** — processing fees disabled. CC and check behave identically (baseline).
+- **B: Fees on balance due only** — processing fees apply at balance due phase, not on deposits.
+- **C: Fees on both deposit and balance due** — processing fees on the full amount.
+
+**Two timeframes:**
+- **Deposit phase** — nothing paid yet.
+- **Balance due phase** — deposit already paid by CC.
+
+**Three payment types:**
+- **CC** — verifies OwedTotal with no fee reduction.
+- **Check full** — verifies all teams fully paid with proportional fee reduction.
+- **Check partial** — verifies highest-balance-first allocation with proportional fee reduction per team.
+
+| Test | Config | Phase | Payment | Key Assertion |
+|------|--------|-------|---------|---------------|
+| A1 | No fees | Deposit | CC | $2,000/team, no processing |
+| A2 | No fees | Deposit | Check full | $2,000/team, no reduction |
+| A3 | No fees | Deposit | Check partial | $2,000 + $1,000, no reduction |
+| A4 | No fees | Balance due | CC | $1,500/team |
+| A5 | No fees | Balance due | Check full | $1,500/team, all paid |
+| A6 | No fees | Balance due | Check partial | $1,500 + $500 |
+| B1 | Balance only | Deposit | CC | No fees yet at deposit |
+| B2 | Balance only | Deposit | Check full | No fees to reduce |
+| B3 | Balance only | Deposit | Check partial | No fees to reduce |
+| B4 | Balance only | Balance due | CC | $1,552.50/team |
+| B5 | Balance only | Balance due | Check full | $1,500/team, $52.50 reduction each |
+| B6 | Balance only | Balance due | Check partial | $1,500 + $500, reductions $52.50 + $17.50 |
+| C1 | Both | Deposit | CC | $2,070/team |
+| C2 | Both | Deposit | Check full | $2,000/team, $70 reduction each |
+| C3 | Both | Deposit | Check partial | $2,000 + $1,000, reductions $70 + $35 |
+| C4 | Both | Balance due | CC | $1,552.50/team |
+| C5 | Both | Balance due | Check full | $1,500/team, $52.50 reduction (Ann's scenario) |
+| C6 | Both | Balance due | Check partial | $1,500 + $500, reductions $52.50 + $17.50 |
+
+---
+
 ## Key Accounting Principles
 
 ### Processing Fee Reduction (Check & Correction)

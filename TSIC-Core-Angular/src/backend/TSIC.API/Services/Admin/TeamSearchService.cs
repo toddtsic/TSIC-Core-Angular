@@ -575,7 +575,8 @@ public sealed class TeamSearchService : ITeamSearchService
 
                 // Step 1: Compute base owed (OwedTotal without processing fees)
                 var teamOwed = Math.Max(0m, team.OwedTotal ?? 0m);
-                var baseOwed = (processingRate > 0 && bAddProcessingFees)
+                var hasProcessingFees = bAddProcessingFees && (team.FeeProcessing ?? 0) > 0;
+                var baseOwed = hasProcessingFees
                     ? decimal.Round(teamOwed / (1m + processingRate), 2, MidpointRounding.AwayFromZero)
                     : teamOwed;
 
