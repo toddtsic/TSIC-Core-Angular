@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 
@@ -39,7 +39,8 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
             @for (player of state.familyPlayers.familyPlayers(); track player.playerId) {
               <label class="player-row"
                 [class.is-selected]="player.selected && !player.registered"
-                [class.is-registered]="player.registered">
+                [class.is-registered]="player.registered"
+                (dblclick)="selectAndContinue(player.playerId, player.registered)">
                 <input
                   type="checkbox"
                   class="player-check"
@@ -188,10 +189,19 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 })
 export class PlayerSelectionStepComponent {
     readonly state = inject(PlayerWizardStateService);
+    readonly advance = output<void>();
     readonly hasRegistered = computed(() =>
         this.state.familyPlayers.familyPlayers().some(p => p.registered));
 
     toggle(playerId: string): void {
         this.state.togglePlayerSelection(playerId);
+    }
+
+    selectAndContinue(playerId: string, registered: boolean): void {
+        if (registered) return;
+        if (!this.state.familyPlayers.familyPlayers().find(p => p.playerId === playerId)?.selected) {
+            this.state.togglePlayerSelection(playerId);
+        }
+        this.advance.emit();
     }
 }

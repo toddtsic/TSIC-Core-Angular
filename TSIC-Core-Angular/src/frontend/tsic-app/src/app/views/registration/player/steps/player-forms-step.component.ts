@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, switchMap, takeUntil, filter } from 'rxjs/operators';
@@ -145,10 +145,26 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 
                     @if (getFieldError(pid, field); as error) {
                       @if (isHtmlError(error)) {
-                        <div class="field-error field-error-html" [innerHTML]="error"></div>
+                        <div class="field-error field-error-link">
+                          <i class="bi bi-exclamation-triangle-fill"></i>
+                          Validation failed —
+                          <a href="javascript:void(0)" (click)="openErrorPopup(pid, field.name, error)">see details</a>
+                        </div>
                       } @else {
                         <div class="field-error">{{ error }}</div>
                       }
+                    }
+
+                    @if (errorPopupKey() === pid + ':' + field.name) {
+                      <div class="error-popup-overlay" (click)="closeErrorPopup()"></div>
+                      <div class="error-popup">
+                        <div class="error-popup-header">
+                          <span class="fw-semibold">{{ field.label }}</span>
+                          <button type="button" class="error-popup-close" (click)="closeErrorPopup()"
+                                  aria-label="Close">&times;</button>
+                        </div>
+                        <div class="error-popup-body" [innerHTML]="errorPopupContent()"></div>
+                      </div>
                     }
                     @if (field.helpText) {
                       <div class="field-help">{{ field.helpText }}</div>
@@ -244,6 +260,78 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 
       /* field-label, req-star, field-input, field-select,
          field-error, field-help — defined globally in _forms.scss */
+
+      .field-error-link {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+
+        a {
+          color: var(--bs-primary);
+          text-decoration: underline;
+          cursor: pointer;
+          font-weight: var(--font-weight-medium);
+        }
+      }
+
+      .error-popup-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 1050;
+      }
+
+      .error-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1051;
+        background: var(--brand-surface);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xl);
+        max-width: 520px;
+        width: 90vw;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .error-popup-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border-color);
+        color: var(--bs-danger);
+        font-size: var(--font-size-sm);
+      }
+
+      .error-popup-close {
+        background: none;
+        border: none;
+        font-size: var(--font-size-xl);
+        color: var(--brand-text-muted);
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+
+        &:hover { color: var(--brand-text); }
+      }
+
+      .error-popup-body {
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        line-height: var(--line-height-normal);
+
+        :host ::ng-deep {
+          strong { color: var(--bs-danger); }
+          ol, ul { padding-left: var(--space-4); margin: var(--space-2) 0; }
+          li { margin-bottom: var(--space-1); }
+          a { color: var(--bs-primary); text-decoration: underline; }
+        }
+      }
 
       @media (max-width: 575.98px) {
         .field-grid {
@@ -455,6 +543,20 @@ export class PlayerFormsStepComponent implements OnDestroy {
 
     isHtmlError(error: string): boolean {
         return error.includes('<') && error.includes('>');
+    }
+
+    // ── Error popup ──────────────────────────────────────────────────
+    readonly errorPopupKey = signal('');
+    readonly errorPopupContent = signal('');
+
+    openErrorPopup(playerId: string, fieldName: string, html: string): void {
+        this.errorPopupKey.set(`${playerId}:${fieldName}`);
+        this.errorPopupContent.set(html);
+    }
+
+    closeErrorPopup(): void {
+        this.errorPopupKey.set('');
+        this.errorPopupContent.set('');
     }
 
     private readonly teamService = inject(TeamService);

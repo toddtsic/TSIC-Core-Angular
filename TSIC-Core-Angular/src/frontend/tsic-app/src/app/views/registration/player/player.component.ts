@@ -44,7 +44,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       (continue)="next()">
       @switch (currentStepId()) {
         @case ('family-check') { <app-prw-family-check-step (advance)="next()" /> }
-        @case ('players') { <app-prw-player-selection-step /> }
+        @case ('players') { <app-prw-player-selection-step (advance)="next()" /> }
         @case ('eligibility') { <app-prw-eligibility-step (advance)="next()" /> }
         @case ('teams') { <app-prw-team-selection-step (advance)="next()" /> }
         @case ('forms') { <app-prw-player-forms-step /> }
