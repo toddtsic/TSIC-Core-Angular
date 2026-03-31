@@ -523,7 +523,6 @@ export class ProfileEditorComponent implements OnInit {
             order: nextOrder,
             visibility: visibility,
             adminOnly: visibility === 'adminOnly',
-            computed: allowed.computed ?? false,
             dataSource: allowed.dataSource
         } as ProfileMetadataField;
 

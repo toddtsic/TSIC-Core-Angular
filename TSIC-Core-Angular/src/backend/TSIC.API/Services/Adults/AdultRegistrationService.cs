@@ -84,7 +84,6 @@ public class AdultRegistrationService : IAdultRegistrationService
             Validation = tf.Validation,
             Order = tf.Order,
             Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-            Computed = tf.Computed,
             ConditionalOn = tf.ConditionalOn
         }).ToList();
 

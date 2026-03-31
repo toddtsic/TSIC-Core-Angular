@@ -70,12 +70,6 @@ public class ProfileMetadataField
     // Removed deprecated AdminOnly property; use Visibility instead.
 
     /// <summary>
-    /// If true, field is computed and not editable
-    /// </summary>
-    [Required, JsonRequired]
-    public bool Computed { get; set; }
-
-    /// <summary>
     /// Conditional display rules
     /// </summary>
     public FieldCondition? ConditionalOn { get; set; }

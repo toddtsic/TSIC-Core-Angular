@@ -91,7 +91,6 @@ public record RegistrationFormFieldDto
     public FieldValidation? Validation { get; init; }
     public required int Order { get; init; }
     public required string Visibility { get; init; }
-    public required bool Computed { get; init; }
     public FieldCondition? ConditionalOn { get; init; }
     public JsonElement? Value { get; init; }
 }
@@ -124,6 +123,5 @@ public record JobRegFieldDto
     public FieldValidation? Validation { get; init; }
     public required int Order { get; init; }
     public required string Visibility { get; init; }
-    public required bool Computed { get; init; }
     public FieldCondition? ConditionalOn { get; init; }
 }

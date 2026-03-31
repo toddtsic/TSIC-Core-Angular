@@ -96,7 +96,6 @@ public sealed class ProfileMetadataService : IProfileMetadataService
             Validation = tf.Validation,
             Order = tf.Order,
             Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-            Computed = tf.Computed,
             ConditionalOn = tf.ConditionalOn
         }).ToList();
 
@@ -139,7 +138,6 @@ public sealed class ProfileMetadataService : IProfileMetadataService
             DataSource = f.TryGetProperty("dataSource", out var dsEl) ? dsEl.GetString() : null,
             Order = f.TryGetProperty("order", out var ordEl) && ordEl.ValueKind == JsonValueKind.Number ? ordEl.GetInt32() : 0,
             Visibility = f.TryGetProperty("visibility", out var visEl) ? (visEl.GetString() ?? "public") : "public",
-            Computed = f.TryGetProperty("computed", out var compEl) && compEl.ValueKind == JsonValueKind.True,
         };
 
         ApplyAdminOnlyFlag(f, field);

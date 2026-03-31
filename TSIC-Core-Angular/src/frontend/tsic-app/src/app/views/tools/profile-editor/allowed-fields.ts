@@ -7,7 +7,6 @@ export interface AllowedField {
     visibility?: AllowedVisibility; // default 'public'
     dbColumn?: string; // default = name
     dataSource?: string; // optional for SELECT fields
-    computed?: boolean;
 }
 
 // Static list of commonly used profile fields across TSIC Unify profiles.

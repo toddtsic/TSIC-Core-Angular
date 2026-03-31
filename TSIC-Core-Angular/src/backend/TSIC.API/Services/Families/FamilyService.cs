@@ -733,7 +733,6 @@ public sealed class FamilyService : IFamilyService
                     Validation = tf.Validation,
                     Order = tf.Order,
                     Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-                    Computed = tf.Computed,
                     ConditionalOn = tf.ConditionalOn
                 }).ToList(),
                 WaiverFieldNames = waiverFieldNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),

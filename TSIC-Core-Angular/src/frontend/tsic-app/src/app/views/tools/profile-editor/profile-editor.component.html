@@ -418,159 +418,180 @@
 <!-- Edit Field Dialog -->
 @if (isEditModalOpen()) {
 <tsic-dialog [open]="true" size="lg" [closeOnBackdrop]="true" (requestClose)="closeEditModal()">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h5 class="modal-title">Edit Field: {{ editingField()?.name }}</h5>
-            <button type="button" class="btn-close" (click)="closeEditModal()" aria-label="Close"></button>
+    <div class="modal-content edit-field-modal">
+        <div class="modal-header py-2">
+            <h6 class="modal-title mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-pencil-square text-primary"></i>
+                <span>Edit Field</span>
+                <code class="field-name-badge">{{ editingField()?.name }}</code>
+            </h6>
+            <button type="button" class="btn-close btn-close-sm" (click)="closeEditModal()" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body py-2 px-3">
             @if (editingField(); as field) {
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="edit-field-name">Field Name</label>
-                    <input id="edit-field-name" type="text" class="form-control" [(ngModel)]="field.name" disabled>
+            <!-- Identity Row -->
+            <div class="field-section">
+                <div class="row g-2">
+                    <div class="col-sm-4">
+                        <label class="field-label" for="edit-display-name">Display Name</label>
+                        <input id="edit-display-name" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.displayName">
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="field-label" for="edit-db-column">DB Column</label>
+                        <input id="edit-db-column" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.dbColumn">
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="field-label" for="edit-input-type">Input Type</label>
+                        <select id="edit-input-type" class="form-select form-select-sm" [(ngModel)]="field.inputType"
+                            [disabled]="field.visibility === 'hidden'">
+                            @if (field.visibility === 'hidden') {
+                            <option value="HIDDEN">HIDDEN</option>
+                            } @else {
+                            @for (type of fieldTypeOptions; track type) {
+                            <option [value]="type">{{ type }}</option>
+                            }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-2">
+                        <label class="field-label" for="edit-data-source">Data Source</label>
+                        <input id="edit-data-source" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.dataSource" placeholder="states...">
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="edit-db-column">DB Column</label>
-                    <input id="edit-db-column" type="text" class="form-control" [(ngModel)]="field.dbColumn">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="edit-display-name">Display Name</label>
-                    <input id="edit-display-name" type="text" class="form-control" [(ngModel)]="field.displayName">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="edit-input-type">Input Type</label>
-                    <select id="edit-input-type" class="form-select" [(ngModel)]="field.inputType"
-                        [disabled]="field.visibility === 'hidden'">
-                        @if (field.visibility === 'hidden') {
-                        <option value="HIDDEN">HIDDEN</option>
-                        } @else {
-                        @for (type of fieldTypeOptions; track type) {
-                        <option [value]="type">{{ type }}</option>
-                        }
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="edit-order">Order</label>
-                    <select id="edit-order" class="form-select" [(ngModel)]="selectedOrderIndex"
-                        [disabled]="field.visibility !== 'public'">
-                        @for (idx of orderOptions(); track idx) {
-                        <option [ngValue]="idx">{{ idx + 1 }}</option>
-                        }
-                    </select>
+            </div>
+
+            <!-- Placement Row -->
+            <div class="field-section">
+                <div class="row g-2 align-items-end">
+                    <div class="col-sm-3">
+                        <label class="field-label" for="edit-order">Order</label>
+                        <select id="edit-order" class="form-select form-select-sm" [(ngModel)]="selectedOrderIndex"
+                            [disabled]="field.visibility !== 'public'">
+                            @for (idx of orderOptions(); track idx) {
+                            <option [ngValue]="idx">{{ idx + 1 }}</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="field-label" for="edit-visibility">Visibility</label>
+                        <select id="edit-visibility" class="form-select form-select-sm" [(ngModel)]="field.visibility"
+                            (ngModelChange)="onVisibilityChange(field)">
+                            <option value="public">Public</option>
+                            <option value="adminOnly">Admin Only</option>
+                            <option value="hidden">Hidden</option>
+                        </select>
+                    </div>
                     @if (field.visibility !== 'public') {
-                    <small class="text-muted">Reordering is available for registrant-visible fields only.</small>
+                    <div class="col-sm-3">
+                        <small class="text-muted fst-italic">Order: public only</small>
+                    </div>
                     }
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="edit-visibility">Visibility</label>
-                    <select id="edit-visibility" class="form-select" [(ngModel)]="field.visibility"
-                        (ngModelChange)="onVisibilityChange(field)">
-                        <option value="public">Public</option>
-                        <option value="adminOnly">Admin Only</option>
-                        <option value="hidden">Hidden</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.computed" id="computed">
-                        <label class="form-check-label" for="computed">Computed</label>
+            </div>
+
+            <!-- Placeholder + Help -->
+            <div class="field-section">
+                <div class="row g-2">
+                    <div class="col-sm-5">
+                        <label class="field-label" for="edit-placeholder">Placeholder</label>
+                        <input id="edit-placeholder" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.placeholder">
+                    </div>
+                    <div class="col-sm-7">
+                        <label class="field-label" for="edit-help-text">Help Text</label>
+                        <input id="edit-help-text" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.helpText">
                     </div>
                 </div>
-                <div class="col-12">
-                    <label class="form-label" for="edit-data-source">Data Source</label>
-                    <input id="edit-data-source" type="text" class="form-control" [(ngModel)]="field.dataSource"
-                        placeholder="e.g., states, countries">
-                </div>
-                <div class="col-12">
-                    <label class="form-label" for="edit-placeholder">Placeholder</label>
-                    <input id="edit-placeholder" type="text" class="form-control" [(ngModel)]="field.placeholder">
-                </div>
-                <div class="col-12">
-                    <label class="form-label" for="edit-help-text">Help Text</label>
-                    <textarea id="edit-help-text" class="form-control" [(ngModel)]="field.helpText" rows="2"></textarea>
-                </div>
+            </div>
 
-                <div class="col-12">
-                    <hr>
-                    <h6>Validation Rules</h6>
-                </div>
-
-                @if (!field.validation) {
-                <div class="col-12">
-                    <button class="btn btn-sm btn-outline-secondary" (click)="field.validation = {}">
-                        <i class="bi bi-plus-circle me-1"></i> Add Validation
+            <!-- Validation Rules -->
+            <div class="field-section validation-section">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="section-label">Validation</span>
+                    @if (!field.validation) {
+                    <button class="btn btn-sm btn-link text-primary p-0" (click)="field.validation = {}">
+                        <i class="bi bi-plus-circle me-1"></i>Add rules
                     </button>
+                    }
                 </div>
-                }
 
                 @if (field.validation) {
-                <div class="col-md-6">
-                    <div class="form-check">
+                <!-- Checkboxes inline -->
+                <div class="d-flex flex-wrap gap-3 mb-2">
+                    <div class="form-check form-check-inline mb-0">
                         <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.required"
                             id="required">
-                        <label class="form-check-label" for="required">Required</label>
+                        <label class="form-check-label small" for="required">Required</label>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.email" id="email">
-                        <label class="form-check-label" for="email">Email Format</label>
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.email"
+                            id="email">
+                        <label class="form-check-label small" for="email">Email</label>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="form-check">
+                    <div class="form-check form-check-inline mb-0">
                         <input class="form-check-input" type="checkbox" [(ngModel)]="field.validation.requiredTrue"
                             id="requiredTrue">
-                        <label class="form-check-label" for="requiredTrue">
-                            Required True (Checkbox Must Be Checked)
-                        </label>
+                        <label class="form-check-label small" for="requiredTrue">Must Be Checked</label>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="val-min-length">Min Length</label>
-                    <input id="val-min-length" type="number" class="form-control"
-                        [(ngModel)]="field.validation.minLength">
+
+                <!-- Numeric constraints: compact 4-col grid -->
+                <div class="row g-2 mb-2">
+                    <div class="col-3">
+                        <label class="field-label" for="val-min-length">Min Len</label>
+                        <input id="val-min-length" type="number" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.minLength">
+                    </div>
+                    <div class="col-3">
+                        <label class="field-label" for="val-max-length">Max Len</label>
+                        <input id="val-max-length" type="number" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.maxLength">
+                    </div>
+                    <div class="col-3">
+                        <label class="field-label" for="val-min">Min Val</label>
+                        <input id="val-min" type="number" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.min">
+                    </div>
+                    <div class="col-3">
+                        <label class="field-label" for="val-max">Max Val</label>
+                        <input id="val-max" type="number" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.max">
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="val-max-length">Max Length</label>
-                    <input id="val-max-length" type="number" class="form-control"
-                        [(ngModel)]="field.validation.maxLength">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="val-min">Min Value</label>
-                    <input id="val-min" type="number" class="form-control" [(ngModel)]="field.validation.min">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="val-max">Max Value</label>
-                    <input id="val-max" type="number" class="form-control" [(ngModel)]="field.validation.max">
-                </div>
-                <div class="col-12">
-                    <label class="form-label" for="val-pattern">Pattern (Regex)</label>
-                    <input id="val-pattern" type="text" class="form-control" [(ngModel)]="field.validation.pattern"
-                        placeholder="^\d{10}$">
-                </div>
-                <div class="col-12">
-                    <label class="form-label" for="val-remote">Remote Validation URL</label>
-                    <input id="val-remote" type="text" class="form-control" [(ngModel)]="field.validation.remote"
-                        placeholder="/api/Validation/ValidateUSALacrosseID">
-                </div>
-                <div class="col-12">
-                    <label class="form-label" for="val-message">Custom Error Message</label>
-                    <input id="val-message" type="text" class="form-control" [(ngModel)]="field.validation.message">
+
+                <!-- Pattern + Remote + Message: compact -->
+                <div class="row g-2">
+                    <div class="col-sm-4">
+                        <label class="field-label" for="val-pattern">Pattern</label>
+                        <input id="val-pattern" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.pattern" placeholder="^\d{10}$">
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="field-label" for="val-remote">Remote URL</label>
+                        <input id="val-remote" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.remote" placeholder="/api/Validation/...">
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="field-label" for="val-message">Error Message</label>
+                        <input id="val-message" type="text" class="form-control form-control-sm"
+                            [(ngModel)]="field.validation.message">
+                    </div>
                 </div>
                 }
             </div>
             }
         </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
-            <button type="button" class="btn btn-primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
+        <div class="modal-footer py-2">
+            <button type="button" class="btn btn-sm btn-secondary" (click)="closeEditModal()">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" (click)="saveFieldEdit()" [disabled]="isSaving()">
                 @if (isSaving()) {
                 <span class="spinner-border spinner-border-sm me-1"></span>
                 }
-                Save Changes
+                Save
             </button>
         </div>
     </div>

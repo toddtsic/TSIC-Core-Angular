@@ -48,7 +48,7 @@ export interface ProfileMetadataField {
     order: number;
     visibility: 'public' | 'adminOnly' | 'hidden';
     adminOnly: boolean; // Deprecated: use visibility instead
-    computed: boolean;
+    computed?: boolean;
     helpText?: string;
     placeholder?: string;
     condition?: FieldCondition;

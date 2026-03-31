@@ -68,7 +68,6 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
                 Order = order++,
                 Visibility = fieldInfo.Visibility,
                 InputType = string.IsNullOrEmpty(propMeta.InputType) ? fieldInfo.InputType : propMeta.InputType,
-                Computed = false,
                 DataSource = propMeta.DataSource,
                 Validation = propMeta.Validation
             };
@@ -101,8 +100,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
                 Visibility = "adminOnly",
                 InputType = string.IsNullOrEmpty(prop.Meta.InputType) ? "TEXT" : prop.Meta.InputType,
                 DataSource = prop.Meta.DataSource,
-                Validation = prop.Meta.Validation,
-                Computed = false
+                Validation = prop.Meta.Validation
             };
 
             metadata.Fields.Add(field);

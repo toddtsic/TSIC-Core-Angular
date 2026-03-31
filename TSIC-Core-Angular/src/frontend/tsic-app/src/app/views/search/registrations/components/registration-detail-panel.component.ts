@@ -352,7 +352,7 @@ export class RegistrationDetailPanelComponent {
 
       if (items) {
         for (const f of items) {
-          if (f.visibility === 'hidden' || f.computed) continue;
+          if (f.visibility === 'hidden') continue;
 
           const key = f.dbColumn || f.key || f.name || '';
           const label = f.displayName || f.label || f.key || key;
