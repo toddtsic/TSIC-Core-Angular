@@ -190,4 +190,40 @@ ALL 9 TESTS PASSED
 
 If a test **fails**, it means the system calculated something incorrectly. The error will explain what was **expected** vs. what **actually happened**.
 
+### Club Allocation + Matrix Test Results (23 tests)
+
+```
+  ========================================
+    Club Payment Allocation Tests
+    (search/teams, club scope)
+  ========================================
+
+  PASSED:
+    [PASS] A1: No fees, deposit, CC → $500/team, no fee adjustment
+    [PASS] A3: No fees, deposit, check partial → highest balance first
+    [PASS] Club Check: $1000 across 2 teams removes $35 total processing fees
+    [PASS] B6: Fees on balance only, balance due, check partial → proportional reduction
+    [PASS] C5: Fees on both, balance due, check full → $1,500/team (Ann's scenario)
+    [PASS] B4: Fees on balance only, balance due, CC → $1,552.50/team
+    [PASS] A6: No fees, balance due, check partial → highest balance first
+    [PASS] A4: No fees, balance due, CC → $1,500/team owed
+    [PASS] Club Check: $900 partial across 3 teams → highest balance first
+    [PASS] B3: Fees on balance only, deposit, check partial → no fees to reduce
+    [PASS] C6: Fees on both, balance due, check partial → proportional reduction
+    [PASS] B1: Fees on balance only, deposit, CC → no fees yet, $2,000/team
+    [PASS] A2: No fees, deposit, check full → $500/team, no fee adjustment
+    [PASS] C3: Fees on both, deposit, check partial → proportional reduction
+    [PASS] Club Check: $1300 partial with processing fees → proportional reduction per team
+    [PASS] B5: Fees on balance only, balance due, check full → $1,500/team
+    [PASS] A5: No fees, balance due, check full → $1,500/team, all paid
+    [PASS] C4: Fees on both, balance due, CC → $1,552.50/team
+    [PASS] C1: Fees on both, deposit, CC → $2,070/team owed
+    [PASS] B2: Fees on balance only, deposit, check full → no fees to reduce
+    [PASS] Club Check: dropped team excluded from allocation
+    [PASS] C2: Fees on both, deposit, check full → $2,000/team, $70 reduction each
+    [PASS] Club Check: $1500 across 3 teams ($500 each) → 3 records, all paid
+
+ALL 23 TESTS PASSED
+```
+
 **Need help?** Ask Claude Code: *"explain the accounting test results"* or *"why did this test fail?"*
