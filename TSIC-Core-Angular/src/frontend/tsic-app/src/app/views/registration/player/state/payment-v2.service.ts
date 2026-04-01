@@ -213,6 +213,6 @@ export class PaymentV2Service {
     }
 
     submitPayment(request: PaymentRequestDto): Observable<PaymentResponseDto> {
-        return this.http.post<PaymentResponseDto>(`${environment.apiUrl}/registration/submit-payment`, request);
+        return this.http.post<PaymentResponseDto>(`${environment.apiUrl}/player-registration/submit-payment`, request);
     }
 }

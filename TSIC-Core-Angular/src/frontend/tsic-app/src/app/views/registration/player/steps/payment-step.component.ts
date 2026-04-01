@@ -77,7 +77,7 @@ import type { LineItem } from '../state/payment-v2.service';
                       <td class="text-end text-success">-{{ paySvc.appliedDiscount() | currency }}</td>
                     </tr>
                   }
-                  <tr class="table-primary due-now-row">
+                  <tr class="due-now-row">
                     <th colspan="2" class="text-end">Due Now</th>
                     <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                   </tr>
