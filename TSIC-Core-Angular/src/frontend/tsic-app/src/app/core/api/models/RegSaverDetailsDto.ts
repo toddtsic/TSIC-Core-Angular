@@ -5,5 +5,7 @@
 export type RegSaverDetailsDto = {
     policyNumber: string;
     policyCreateDate: string;
+    playerName?: string | null;
+    teamName?: string | null;
 };
 

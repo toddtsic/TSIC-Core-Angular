@@ -260,7 +260,7 @@ public interface IRegistrationRepository
     /// <summary>
     /// Get latest RegSaver policy for a family within a job.
     /// </summary>
-    Task<RegSaverPolicyInfo?> GetLatestRegSaverPolicyAsync(
+    Task<List<RegSaverPolicyInfo>> GetRegSaverPoliciesAsync(
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default);
@@ -446,6 +446,8 @@ public record RegSaverPolicyInfo
 {
     public required string PolicyId { get; init; }
     public DateTime? PolicyCreateDate { get; init; }
+    public string? PlayerName { get; init; }
+    public string? TeamName { get; init; }
 }
 
 public record DirectorContactInfo

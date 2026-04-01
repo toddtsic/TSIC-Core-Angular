@@ -620,29 +620,24 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<RegSaverPolicyInfo?> GetLatestRegSaverPolicyAsync(
+    public async Task<List<RegSaverPolicyInfo>> GetRegSaverPoliciesAsync(
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default)
     {
-        var data = await _context.Registrations
+        return await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.RegsaverPolicyId != null)
             .OrderByDescending(r => r.BActive == true)
             .ThenByDescending(r => r.RegsaverPolicyIdCreateDate)
-            .Select(r => new { r.RegsaverPolicyId, r.RegsaverPolicyIdCreateDate })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (data?.RegsaverPolicyId == null)
-        {
-            return null;
-        }
-
-        return new RegSaverPolicyInfo
-        {
-            PolicyId = data.RegsaverPolicyId,
-            PolicyCreateDate = data.RegsaverPolicyIdCreateDate
-        };
+            .Select(r => new RegSaverPolicyInfo
+            {
+                PolicyId = r.RegsaverPolicyId!,
+                PolicyCreateDate = r.RegsaverPolicyIdCreateDate,
+                PlayerName = r.User != null ? (r.User.FirstName + " " + r.User.LastName).Trim() : null,
+                TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<Registrations?> GetClubRepRegistrationAsync(string userId, Guid jobId, CancellationToken cancellationToken = default)

@@ -56,13 +56,15 @@ public record RegSaverDetailsDto
 {
     public required string PolicyNumber { get; init; }
     public required DateTime PolicyCreateDate { get; init; }
+    public string? PlayerName { get; init; }
+    public string? TeamName { get; init; }
 }
 
 public record FamilyPlayersResponseDto
 {
     public required FamilyUserSummaryDto FamilyUser { get; init; }
     public required IEnumerable<FamilyPlayerDto> FamilyPlayers { get; init; }
-    public RegSaverDetailsDto? RegSaverDetails { get; init; }
+    public IReadOnlyList<RegSaverDetailsDto>? RegSaverDetails { get; init; }
     public JobRegFormDto? JobRegForm { get; init; }
     public CcInfoDto? CcInfo { get; init; }
     public required bool JobHasActiveDiscountCodes { get; init; }

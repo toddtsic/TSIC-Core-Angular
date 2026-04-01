@@ -41,7 +41,7 @@ export class FamilyPlayersService {
     readonly familyUser = this._familyUser.asReadonly();
 
     // ── RegSaver details ──────────────────────────────────────────────
-    private readonly _regSaverDetails = signal<RegSaverDetailsDto | null>(null);
+    private readonly _regSaverDetails = signal<RegSaverDetailsDto[] | null>(null);
     readonly regSaverDetails = this._regSaverDetails.asReadonly();
 
     // ── Debug snapshot ────────────────────────────────────────────────
@@ -238,12 +238,14 @@ export class FamilyPlayersService {
     }
 
     private applyRegSaverDetails(resp: FamilyPlayersResponseDto): void {
-        const rs = resp.regSaverDetails || getPropertyCI<RegSaverDetailsDto>(resp as Record<string, unknown>, 'regSaverDetails');
-        if (!rs) { this._regSaverDetails.set(null); return; }
-        this._regSaverDetails.set({
-            policyNumber: rs.policyNumber,
-            policyCreateDate: rs.policyCreateDate,
-        });
+        const rs = resp.regSaverDetails || getPropertyCI<RegSaverDetailsDto[]>(resp as Record<string, unknown>, 'regSaverDetails');
+        if (!rs || !Array.isArray(rs) || rs.length === 0) { this._regSaverDetails.set(null); return; }
+        this._regSaverDetails.set(rs.map(p => ({
+            policyNumber: p.policyNumber,
+            policyCreateDate: p.policyCreateDate,
+            playerName: p.playerName,
+            teamName: p.teamName,
+        })));
     }
 
     private buildFamilyPlayersList(resp: FamilyPlayersResponseDto): FamilyPlayerDto[] {

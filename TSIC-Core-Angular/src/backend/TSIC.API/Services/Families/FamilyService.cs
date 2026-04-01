@@ -692,19 +692,25 @@ public sealed class FamilyService : IFamilyService
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.Ordinal);
     }
 
-    private async Task<RegSaverDetailsDto?> ExtractRegSaverDetailsAsync(Guid? jobId, string familyUserId)
+    private async Task<IReadOnlyList<RegSaverDetailsDto>?> ExtractRegSaverDetailsAsync(Guid? jobId, string familyUserId)
     {
         if (jobId == null)
             return null;
 
-        var regSaver = await _registrationRepo.GetLatestRegSaverPolicyAsync(jobId.Value, familyUserId);
+        var policies = await _registrationRepo.GetRegSaverPoliciesAsync(jobId.Value, familyUserId);
+        if (policies.Count == 0)
+            return null;
 
-        if (regSaver != null && regSaver.PolicyCreateDate.HasValue)
-        {
-            return new RegSaverDetailsDto { PolicyNumber = regSaver.PolicyId, PolicyCreateDate = regSaver.PolicyCreateDate.Value };
-        }
-
-        return null;
+        return policies
+            .Where(p => p.PolicyCreateDate.HasValue)
+            .Select(p => new RegSaverDetailsDto
+            {
+                PolicyNumber = p.PolicyId,
+                PolicyCreateDate = p.PolicyCreateDate!.Value,
+                PlayerName = p.PlayerName,
+                TeamName = p.TeamName,
+            })
+            .ToList();
     }
 
     private static List<FamilyPlayerDto> BuildPlayerDtos(
