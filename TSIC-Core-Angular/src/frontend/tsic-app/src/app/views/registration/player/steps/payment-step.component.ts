@@ -30,8 +30,8 @@ import type { LineItem } from '../state/payment-v2.service';
     imports: [NgClass, CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, ViChargeConfirmModalComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">
+      <div class="card-header card-header-subtle border-0 py-2">
+        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">
           {{ insuranceState.offerPlayerRegSaver() ? 'Payment / Insurance' : 'Payment' }}
         </h5>
       </div>
@@ -49,50 +49,43 @@ import type { LineItem } from '../state/payment-v2.service';
           </div>
         }
 
-        <!-- Balance due banner -->
+        <!-- Balance due + summary -->
         @if (currentTotal() > 0) {
-          <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3 bg-primary text-white">
-            <span class="fw-semibold">Balance Due</span>
-            <span class="fs-4 fw-bold">{{ currentTotal() | currency }}</span>
-          </div>
+          <section class="payment-summary mb-4">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (li of paySvc.lineItems(); track li.playerId) {
+                    <tr>
+                      <td>{{ li.playerName }}</td>
+                      <td>{{ li.teamName }}</td>
+                      <td class="text-end">{{ li.amount | currency }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  @if (paySvc.appliedDiscount() > 0) {
+                    <tr>
+                      <td colspan="2" class="text-end text-success">Discount</td>
+                      <td class="text-end text-success">-{{ paySvc.appliedDiscount() | currency }}</td>
+                    </tr>
+                  }
+                  <tr class="table-primary due-now-row">
+                    <th colspan="2" class="text-end">Due Now</th>
+                    <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
         }
-
-        <!-- Inline payment summary table -->
-        <section class="mb-3">
-          <h6 class="fw-semibold mb-2">Summary</h6>
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Player</th>
-                  <th>Team</th>
-                  <th class="text-end">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (li of paySvc.lineItems(); track li.playerId) {
-                  <tr>
-                    <td>{{ li.playerName }}</td>
-                    <td>{{ li.teamName }}</td>
-                    <td class="text-end">{{ li.amount | currency }}</td>
-                  </tr>
-                }
-              </tbody>
-              <tfoot>
-                @if (paySvc.appliedDiscount() > 0) {
-                  <tr>
-                    <td colspan="2" class="text-end text-success">Discount</td>
-                    <td class="text-end text-success">-{{ paySvc.appliedDiscount() | currency }}</td>
-                  </tr>
-                }
-                <tr>
-                  <th colspan="2" class="text-end">Due Now</th>
-                  <th class="text-end">{{ currentTotal() | currency }}</th>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </section>
 
         <!-- Payment option selector -->
         @if (currentTotal() > 0) {
@@ -134,10 +127,8 @@ import type { LineItem } from '../state/payment-v2.service';
                   <label class="form-check-label" for="optPif2">Pay In Full ({{ paySvc.totalAmount() | currency }})</label>
                 </div>
               } @else {
-                <div class="form-check mb-2">
-                  <input class="form-check-input" type="radio" name="payOpt" id="optPifOnly" value="PIF"
-                         checked disabled>
-                  <label class="form-check-label" for="optPifOnly">Pay In Full</label>
+                <div class="mb-2">
+                  <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">Pay In Full</span>
                 </div>
               }
 
@@ -240,53 +231,50 @@ import type { LineItem } from '../state/payment-v2.service';
 
         <!-- Credit card form -->
         @if (showCcSection()) {
-          <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
-                   style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-            <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
-            @if (isViCcOnlyFlow()) {
-              <div class="alert alert-warning border-0" role="status">
-                <span class="badge bg-warning-subtle text-warning-emphasis border me-1">Insurance Premium</span>
-                A registration balance is not due, but an insurance premium is. Enter card details and click
-                <strong>Proceed with Insurance Processing</strong>.
-              </div>
-            }
-            <app-credit-card-form
-              (validChange)="onCcValidChange($event)"
-              (valueChange)="onCcValueChange($event)"
-              [viOnly]="isViCcOnlyFlow()"
-              [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
-              [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
-              [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"
-              [defaultZip]="familyUser()?.zipCode ?? familyUser()?.zip ?? familyUser()?.ccInfo?.zip ?? null"
-              [defaultEmail]="familyUser()?.ccInfo?.email ?? familyUser()?.email ?? (familyUser()?.userName?.includes('@') ? familyUser()!.userName : null)"
-              [defaultPhone]="familyUser()?.ccInfo?.phone ?? familyUser()?.phone ?? null" />
-          </section>
+          @if (isViCcOnlyFlow()) {
+            <div class="alert alert-warning border-0 mb-3" role="status">
+              <span class="badge bg-warning-subtle text-warning-emphasis border me-1">Insurance Premium</span>
+              A registration balance is not due, but an insurance premium is. Enter card details and click
+              <strong>Proceed with Insurance Processing</strong>.
+            </div>
+          }
+          <app-credit-card-form
+            (validChange)="onCcValidChange($event)"
+            (valueChange)="onCcValueChange($event)"
+            [viOnly]="isViCcOnlyFlow()"
+            [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
+            [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
+            [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"
+            [defaultZip]="familyUser()?.zipCode ?? familyUser()?.zip ?? familyUser()?.ccInfo?.zip ?? null"
+            [defaultEmail]="familyUser()?.ccInfo?.email ?? familyUser()?.email ?? (familyUser()?.userName?.includes('@') ? familyUser()!.userName : null)"
+            [defaultPhone]="familyUser()?.ccInfo?.phone ?? familyUser()?.phone ?? null" />
         }
 
         <!-- Submit buttons -->
-        @if (isViCcOnlyFlow()) {
-          <button type="button" class="btn btn-primary me-2"
-                  (click)="submitInsuranceOnly()"
-                  [disabled]="!canInsuranceOnlySubmit()">
-            Proceed with Insurance Processing
-          </button>
-        }
-        @if (showPayNowButton()) {
-          <button type="button" class="btn btn-primary"
-                  (click)="submit()"
-                  [disabled]="!canSubmit()">
-            Pay {{ currentTotal() | currency }} Now
-          </button>
-        }
-        <!-- Zero-balance continue: handled by shell action bar via arbHideAllOptions path -->
-        @if (arbHideAllOptions() && !isViCcOnlyFlow()) {
-          <button type="button" class="btn btn-primary" (click)="continueArbOrZero()">
-            Continue
-          </button>
-        }
+        <div class="payment-actions">
+          @if (isViCcOnlyFlow()) {
+            <button type="button" class="btn btn-primary"
+                    (click)="submitInsuranceOnly()"
+                    [disabled]="!canInsuranceOnlySubmit()">
+              <i class="bi bi-shield-lock me-2"></i>Proceed with Insurance Processing
+            </button>
+          }
+          @if (showPayNowButton() && canSubmit()) {
+            <button type="button" class="btn btn-primary"
+                    (click)="submit()">
+              <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
+            </button>
+          }
+          @if (arbHideAllOptions() && !isViCcOnlyFlow()) {
+            <button type="button" class="btn btn-primary" (click)="continueArbOrZero()">
+              Continue
+            </button>
+          }
+        </div>
       </div>
     </div>
   `,
+    styles: [`:host { display: block; }`],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PaymentStepComponent implements AfterViewInit, OnDestroy {

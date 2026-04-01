@@ -564,6 +564,96 @@ mark {
     }
 }
 
+/* Credit Card Form */
+.cc-form-section {
+    padding: var(--space-4) var(--space-4) var(--space-5);
+    margin-bottom: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 2px solid rgba(var(--bs-primary-rgb), 0.25);
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-md);
+
+    @media (max-width: 575.98px) {
+        padding: var(--space-3);
+    }
+}
+
+.cc-form-heading {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--bs-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-2);
+    border-bottom: 2px solid rgba(var(--bs-primary-rgb), 0.2);
+
+    i {
+        font-size: var(--font-size-base);
+    }
+}
+
+.cc-form-section .form-control:focus,
+.cc-form-section .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: var(--shadow-focus);
+}
+
+/* Payment Actions */
+.payment-actions {
+    display: flex;
+    gap: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--space-4);
+
+    .btn {
+        padding: var(--space-2) var(--space-6);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+    }
+}
+
+/* Payment Summary Table */
+.payment-summary {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+
+    .table {
+        margin: 0;
+    }
+
+    .table th,
+    .table td {
+        padding: var(--space-2) var(--space-3);
+    }
+
+    thead th {
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--brand-text-muted);
+        font-weight: var(--font-weight-semibold);
+        background: rgba(var(--bs-body-color-rgb), 0.05);
+    }
+
+    tbody td {
+        font-size: var(--font-size-sm);
+    }
+
+    .due-now-row th {
+        font-size: var(--font-size-sm);
+        padding-top: var(--space-3);
+        padding-bottom: var(--space-3);
+    }
+
+    .due-now-amount {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
+    }
+}
+
 /* Badge Utilities */
 .badge-inverted {
     background-color: var(--neutral-600) !important;

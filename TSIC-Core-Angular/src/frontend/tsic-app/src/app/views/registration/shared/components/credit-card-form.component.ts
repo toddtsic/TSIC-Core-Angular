@@ -7,9 +7,10 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
   standalone: true,
   imports: [ReactiveFormsModule],
   template: `
-    <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
-      style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-      <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
+    <section class="cc-form-section" aria-labelledby="cc-title">
+      <h6 id="cc-title" class="cc-form-heading">
+        <i class="bi bi-credit-card me-2"></i>Credit Card Information
+      </h6>
       @if (viOnly) {
         <div class="alert alert-secondary border-0" role="status">
           Your TSIC registration balance is $0. The card details below are for Vertical Insure only.
@@ -72,8 +73,9 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
           </div>
         </div>
 
-        <!-- Credit Card Information Second -->
-        <div class="row g-2 mt-3">
+        <!-- Card Details -->
+        <hr class="my-3" style="border-color: var(--border-color); opacity: 0.5;">
+        <div class="row g-2">
           <div class="col-md-3">
             <label for="cc-type" class="form-label small mb-1">CC Type</label>
             <select id="cc-type" class="form-select form-select-sm" formControlName="type" required aria-required="true"
