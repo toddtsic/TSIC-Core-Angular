@@ -301,6 +301,29 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Create a new ClubTeam in the caller's club library.
+    /// </summary>
+    [HttpPost("create-club-team")]
+    [ProducesResponseType(typeof(ClubTeamDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> CreateClubTeam([FromBody] CreateClubTeamRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            var result = await _teamRegistrationService.CreateClubTeamAsync(userId, request);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Add a club to the current user's rep account.
     /// </summary>
     [HttpPost("add-club")]

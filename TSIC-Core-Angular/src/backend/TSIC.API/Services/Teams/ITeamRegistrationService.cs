@@ -68,6 +68,11 @@ public interface ITeamRegistrationService
     Task<bool> UpdateClubNameAsync(string userId, string oldClubName, string newClubName);
 
     /// <summary>
+    /// Create a new ClubTeam in the caller's club library.
+    /// </summary>
+    Task<ClubTeamDto> CreateClubTeamAsync(string userId, CreateClubTeamRequest request);
+
+    /// <summary>
     /// Recalculate team fees for all teams in a job or a specific team.
     /// Triggered by director flag changes or after moving a team to a different age group.
     /// Filters out teams in WAITLIST/DROPPED age groups.

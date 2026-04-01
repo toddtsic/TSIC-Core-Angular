@@ -11,6 +11,7 @@ import {
     InitializeRegistrationRequest,
     AuthTokenResponse,
     ClubRepClubDto,
+    ClubTeamDto,
     CheckExistingRegistrationsResponse,
 } from '@core/api';
 /** Stub type — backend endpoint not yet implemented. */
@@ -226,6 +227,13 @@ export class TeamRegistrationService {
             `${this.apiUrl}/send-confirmation-email`,
             request,
         );
+    }
+
+    /**
+     * Create a new ClubTeam in the caller's club library.
+     */
+    createClubTeam(request: { clubTeamName: string; clubTeamGradYear: string; levelOfPlay?: string }): Observable<ClubTeamDto> {
+        return this.http.post<ClubTeamDto>(`${this.apiUrl}/create-club-team`, request);
     }
 
     // --- Club Team Management stubs ---

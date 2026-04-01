@@ -685,6 +685,36 @@ public class TeamRegistrationService : ITeamRegistrationService
         return true;
     }
 
+    public async Task<ClubTeamDto> CreateClubTeamAsync(string userId, CreateClubTeamRequest request)
+    {
+        // Resolve club from user's rep assignments
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        var club = myClubs.FirstOrDefault();
+        if (club == null)
+            throw new InvalidOperationException("No club found for this user.");
+
+        var entity = new Domain.Entities.ClubTeams
+        {
+            ClubId = club.ClubId,
+            ClubTeamName = request.ClubTeamName.Trim(),
+            ClubTeamGradYear = request.ClubTeamGradYear.Trim(),
+            ClubTeamLevelOfPlay = request.LevelOfPlay?.Trim(),
+            Active = true,
+            Modified = DateTime.UtcNow,
+            LebUserId = userId,
+        };
+        _clubTeams.Add(entity);
+        await _clubTeams.SaveChangesAsync();
+
+        return new ClubTeamDto
+        {
+            ClubTeamId = entity.ClubTeamId,
+            ClubTeamName = entity.ClubTeamName,
+            ClubTeamGradYear = entity.ClubTeamGradYear,
+            ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
+        };
+    }
+
     public async Task<AddClubToRepResponse> AddClubToRepAsync(string userId, string clubName)
     {
         _logger.LogInformation("Adding club {ClubName} to rep account for user {UserId}", clubName, userId);

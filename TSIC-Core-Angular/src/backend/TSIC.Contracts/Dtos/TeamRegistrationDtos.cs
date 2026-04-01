@@ -101,6 +101,13 @@ public sealed record ClubTeamDto
     public required string ClubTeamLevelOfPlay { get; init; }
 }
 
+public sealed record CreateClubTeamRequest
+{
+    public required string ClubTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public string? LevelOfPlay { get; init; }
+}
+
 public sealed record SuggestedTeamNameDto
 {
     public required string TeamName { get; init; }
