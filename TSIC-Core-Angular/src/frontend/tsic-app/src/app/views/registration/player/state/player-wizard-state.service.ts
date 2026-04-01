@@ -7,6 +7,8 @@ import { JobContextService } from './job-context.service';
 import { FamilyPlayersService } from './family-players.service';
 import { EligibilityService } from './eligibility.service';
 import { PlayerFormsService } from './player-forms.service';
+import { InsuranceStateV2Service } from './insurance-state-v2.service';
+import { InsuranceV2Service } from './insurance-v2.service';
 import type {
     FamilyPlayersResponseDto,
     FamilyPlayerDto,
@@ -37,6 +39,8 @@ export class PlayerWizardStateService {
     readonly familyPlayers = inject(FamilyPlayersService);
     readonly eligibility = inject(EligibilityService);
     readonly playerForms = inject(PlayerFormsService);
+    private readonly insuranceState = inject(InsuranceStateV2Service);
+    private readonly insuranceSvc = inject(InsuranceV2Service);
 
     // ── Orchestrator-owned signals ────────────────────────────────────
     private readonly _lastPayment = signal<PaymentSummary | null>(null);
@@ -276,6 +280,8 @@ export class PlayerWizardStateService {
         this.familyPlayers.reset();
         this.eligibility.reset();
         this.playerForms.reset();
+        this.insuranceState.reset();
+        this.insuranceSvc.reset();
         this._lastPayment.set(null);
         this._confirmation.set(null);
     }

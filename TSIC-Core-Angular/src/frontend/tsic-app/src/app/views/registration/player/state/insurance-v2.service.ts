@@ -175,6 +175,14 @@ export class InsuranceV2Service {
             });
     }
 
+    reset(): void {
+        this._quotes.set([]);
+        this._hasUserResponse.set(false);
+        this._error.set(null);
+        this._widgetInitialized.set(false);
+        this.purchasing.set(false);
+    }
+
     private extractRegistrationId(q: VerticalInsureQuote): string {
         const idFromMeta = this.extractRegistrationIdFromMeta(q?.metadata);
         if (idFromMeta) return idFromMeta;

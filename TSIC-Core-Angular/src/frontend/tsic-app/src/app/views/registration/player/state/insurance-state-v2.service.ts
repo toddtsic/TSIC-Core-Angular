@@ -61,4 +61,10 @@ export class InsuranceStateV2Service {
         this._showVerticalInsureModal.set(false);
     }
     closeVerticalInsureModal(): void { this._showVerticalInsureModal.set(false); }
+
+    reset(): void {
+        this._verticalInsureOffer.set({ loading: false, data: null, error: null });
+        this._showVerticalInsureModal.set(false);
+        this._viConsent.set(null);
+    }
 }
