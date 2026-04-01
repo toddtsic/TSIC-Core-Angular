@@ -166,4 +166,16 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             })
             .ToListAsync(ct);
     }
+
+    public async Task DeleteByRegistrationIdAsync(Guid registrationId, CancellationToken ct = default)
+    {
+        var rows = await _context.RegistrationAccounting
+            .Where(a => a.RegistrationId == registrationId)
+            .ToListAsync(ct);
+        if (rows.Count > 0)
+        {
+            _context.RegistrationAccounting.RemoveRange(rows);
+            await _context.SaveChangesAsync(ct);
+        }
+    }
 }

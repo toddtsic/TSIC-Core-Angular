@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { PlayerFormModalComponent } from './player-form-modal.component';
 import { FamilyEditModalComponent } from './family-edit-modal.component';
+import { ToastService } from '@shared-ui/toast.service';
+import { environment } from '@environments/environment';
 
 /**
  * Player Selection step — shows family players as checkboxes.
@@ -66,16 +69,26 @@ import { FamilyEditModalComponent } from './family-edit-modal.component';
                     <span class="player-dob">{{ player.dob | date:'MM/dd/yyyy' }}</span>
                   }
                 </div>
-                <button type="button" class="btn-edit"
-                        (click)="openEditPlayer(player); $event.preventDefault(); $event.stopPropagation()"
-                        [attr.aria-label]="'Edit ' + player.firstName">
-                  <i class="bi bi-pencil"></i>
-                </button>
                 @if (player.registered) {
                   <span class="reg-badge">
                     <i class="bi bi-check-circle-fill me-1"></i>Registered
                   </span>
                 }
+                <span class="action-group">
+                  <button type="button" class="btn-action"
+                          (click)="openEditPlayer(player); $event.preventDefault(); $event.stopPropagation()"
+                          [attr.aria-label]="'Edit ' + player.firstName">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  @if (!isProd && player.registered) {
+                    <button type="button" class="btn-action btn-action-danger"
+                            (click)="deleteRegistration(player); $event.preventDefault(); $event.stopPropagation()"
+                            [disabled]="deleting()"
+                            [attr.aria-label]="'Delete registration for ' + player.firstName">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  }
+                </span>
               </label>
             }
           </div>
@@ -220,7 +233,13 @@ import { FamilyEditModalComponent } from './family-edit-modal.component';
         white-space: nowrap;
       }
 
-      .btn-edit {
+      .action-group {
+        display: flex;
+        gap: var(--space-1);
+        flex-shrink: 0;
+      }
+
+      .btn-action {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -233,7 +252,6 @@ import { FamilyEditModalComponent } from './family-edit-modal.component';
         font-size: var(--font-size-xs);
         cursor: pointer;
         transition: color 0.15s, border-color 0.15s, background 0.15s;
-        flex-shrink: 0;
 
         &:hover {
           color: var(--bs-primary);
@@ -245,15 +263,31 @@ import { FamilyEditModalComponent } from './family-edit-modal.component';
           outline: none;
           box-shadow: var(--shadow-focus);
         }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+      }
+
+      .btn-action-danger:hover {
+        color: var(--bs-danger);
+        border-color: var(--bs-danger);
+        background: rgba(var(--bs-danger-rgb), 0.06);
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlayerSelectionStepComponent {
     readonly state = inject(PlayerWizardStateService);
+    private readonly http = inject(HttpClient);
+    private readonly toast = inject(ToastService);
     readonly advance = output<void>();
     readonly hasRegistered = computed(() =>
         this.state.familyPlayers.familyPlayers().some(p => p.registered));
+
+    readonly isProd = environment.production;
+    readonly deleting = signal(false);
 
     // ── Player modal ────────────────────────────────────────────────
     readonly showPlayerModal = signal(false);
@@ -307,6 +341,31 @@ export class PlayerSelectionStepComponent {
     onFamilySaved(): void {
         this.showFamilyModal.set(false);
         this.refreshPlayers();
+    }
+
+    deleteRegistration(player: { playerId: string; firstName: string; lastName: string; priorRegistrations?: { registrationId: string; active: boolean }[] }): void {
+        if (this.isProd || this.deleting()) return;
+        const reg = player.priorRegistrations?.find(r => r.active) ?? player.priorRegistrations?.[0];
+        if (!reg) {
+            this.toast.show('No registration found to delete', 'warning', 3000);
+            return;
+        }
+        const confirmed = confirm(`DEV ONLY: Delete registration for ${player.firstName} ${player.lastName}?\n\nThis will permanently remove the registration and all payment records. This cannot be undone.`);
+        if (!confirmed) return;
+
+        this.deleting.set(true);
+        this.http.delete(`${environment.apiUrl}/dev/registration/${reg.registrationId}`).subscribe({
+            next: () => {
+                this.deleting.set(false);
+                this.toast.show(`Registration deleted for ${player.firstName} ${player.lastName}`, 'success', 3000);
+                this.refreshPlayers();
+            },
+            error: (err) => {
+                this.deleting.set(false);
+                const msg = err?.error?.message || err?.message || 'Delete failed';
+                this.toast.show(msg, 'danger', 5000);
+            },
+        });
     }
 
     private refreshPlayers(): void {

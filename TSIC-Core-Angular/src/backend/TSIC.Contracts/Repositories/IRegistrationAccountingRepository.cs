@@ -65,6 +65,11 @@ public interface IRegistrationAccountingRepository
     /// Ordered by Createdate desc. AsNoTracking.
     /// </summary>
     Task<List<AccountingRecordDto>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete all accounting records for a registration. Dev/test only.
+    /// </summary>
+    Task DeleteByRegistrationIdAsync(Guid registrationId, CancellationToken ct = default);
 }
 
 public record PaymentSummary
