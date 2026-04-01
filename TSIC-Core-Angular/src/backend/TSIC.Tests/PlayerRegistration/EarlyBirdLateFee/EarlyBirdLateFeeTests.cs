@@ -50,7 +50,7 @@ public class EarlyBirdLateFeeTests
     /// Returns everything needed to arrange and assert.
     /// </summary>
     private static async Task<(FeeResolutionService svc, FeeDataBuilder builder,
-        Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId, Guid agegroupId, Guid teamId)>
+        Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId, Guid agegroupId, Guid teamId, Guid jobFeeId)>
         CreateServiceAsync(
             decimal baseFee = 200m,
             decimal processingFeePercent = 3.5m,
@@ -78,7 +78,7 @@ public class EarlyBirdLateFeeTests
 
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
 
-        return (svc, builder, ctx, job.JobId, ag.AgegroupId, team.TeamId);
+        return (svc, builder, ctx, job.JobId, ag.AgegroupId, team.TeamId, jobFee.JobFeeId);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -88,11 +88,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Early bird: registration during window gets discount")]
     public async Task EarlyBird_DuringWindow_DiscountApplied()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        // Add early bird: $25 off during Jan 1 – Feb 15
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -105,10 +103,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Early bird: registration after window gets no discount")]
     public async Task EarlyBird_AfterWindow_NoDiscount()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -121,10 +118,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Early bird: registration on exact start date gets discount")]
     public async Task EarlyBird_OnStartDate_DiscountApplied()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -136,10 +132,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Early bird: registration on exact end date gets discount")]
     public async Task EarlyBird_OnEndDate_DiscountApplied()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -151,10 +146,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Early bird: day after end date gets no discount")]
     public async Task EarlyBird_DayAfterEnd_NoDiscount()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -170,10 +164,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Late fee: registration during window incurs fee")]
     public async Task LateFee_DuringWindow_FeeApplied()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -186,10 +179,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Late fee: registration before window incurs no fee")]
     public async Task LateFee_BeforeWindow_NoFee()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -201,10 +193,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Late fee: registration on exact start date incurs fee")]
     public async Task LateFee_OnStartDate_FeeApplied()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -220,11 +211,10 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Normal window: neither early bird nor late fee applies")]
     public async Task NormalWindow_NoModifiers()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -237,11 +227,10 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Early bird window: discount yes, late fee no")]
     public async Task EarlyBirdWindow_DiscountOnly()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -254,11 +243,10 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Late fee window: late fee yes, discount no")]
     public async Task LateFeeWindow_LateFeeOnly()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -275,15 +263,14 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Cascade stacking: job + agegroup early bird discounts sum")]
     public async Task Cascade_JobPlusAgegroup_EarlyBirdStack()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Job-level: $10 early bird
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 10m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
 
         // Agegroup-level fee + $15 early bird
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
-        builder.AddModifier(agFee.JobFeeId, "EarlyBird", 15m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(agFee.JobFeeId, FeeConstants.ModifierEarlyBird, 15m, EarlyBirdStart, EarlyBirdEnd);
 
         await builder.SaveAsync();
 
@@ -296,19 +283,18 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Cascade stacking: job + agegroup + team modifiers all stack")]
     public async Task Cascade_AllThreeLevels_Stack()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Job-level: $10 early bird
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 10m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
 
         // Agegroup-level: $5 early bird
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
-        builder.AddModifier(agFee.JobFeeId, "EarlyBird", 5m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(agFee.JobFeeId, FeeConstants.ModifierEarlyBird, 5m, EarlyBirdStart, EarlyBirdEnd);
 
         // Team-level: $3 early bird
         var teamFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, teamId: teamId, balanceDue: 200m);
-        builder.AddModifier(teamFee.JobFeeId, "EarlyBird", 3m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(teamFee.JobFeeId, FeeConstants.ModifierEarlyBird, 3m, EarlyBirdStart, EarlyBirdEnd);
 
         await builder.SaveAsync();
 
@@ -321,15 +307,14 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Cascade stacking: late fees from different levels sum")]
     public async Task Cascade_LateFees_Stack()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Job-level: $20 late fee
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 20m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 20m, LateFeeStart, LateFeeEnd);
 
         // Agegroup-level: $10 late fee
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
-        builder.AddModifier(agFee.JobFeeId, "LateFee", 10m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(agFee.JobFeeId, FeeConstants.ModifierLateFee, 10m, LateFeeStart, LateFeeEnd);
 
         await builder.SaveAsync();
 
@@ -342,16 +327,15 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Cascade: mixed early bird + late fee at different levels")]
     public async Task Cascade_MixedModifierTypes()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Job-level: $10 early bird AND $20 late fee (different windows)
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 10m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 20m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 20m, LateFeeStart, LateFeeEnd);
 
         // Agegroup-level: $5 early bird
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
-        builder.AddModifier(agFee.JobFeeId, "EarlyBird", 5m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(agFee.JobFeeId, FeeConstants.ModifierEarlyBird, 5m, EarlyBirdStart, EarlyBirdEnd);
 
         await builder.SaveAsync();
 
@@ -375,15 +359,13 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "EarlyBird + Discount both reduce FeeDiscount (they stack)")]
     public async Task EarlyBirdPlusDiscount_BothStack()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Always-active Discount (null dates)
-        builder.AddModifier(jobFee.JobFeeId, "Discount", 10m, null, null);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 10m, null, null);
 
         // Time-windowed EarlyBird
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
 
         await builder.SaveAsync();
 
@@ -405,11 +387,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Modifier with null StartDate is active from the beginning of time")]
     public async Task NullStartDate_AlwaysActiveFromStart()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
         // No start date, ends Feb 15
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, null, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, null, EarlyBirdEnd);
         await builder.SaveAsync();
 
         // Any date before end should work
@@ -426,11 +406,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Modifier with null EndDate is active until end of time")]
     public async Task NullEndDate_AlwaysActiveAfterStart()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
         // Starts Apr 1, no end date
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, null);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, null);
         await builder.SaveAsync();
 
         // Before start: no fee
@@ -447,10 +425,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Modifier with null StartDate AND EndDate is always active")]
     public async Task NullBothDates_AlwaysActive()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "Discount", 15m, null, null);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 15m, null, null);
         await builder.SaveAsync();
 
         var mods = await svc.EvaluateModifiersAsync(
@@ -465,15 +442,13 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Overlapping early bird windows stack during overlap period")]
     public async Task OverlappingEarlyBirds_StackDuringOverlap()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Early bird A: Jan 1 – Feb 15 ($20)
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 20m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 20m, EarlyBirdStart, EarlyBirdEnd);
 
         // Early bird B: Jan 15 – Feb 28 ($10)  — overlaps A during Jan 15 – Feb 15
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 10m,
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m,
             new DateTime(2026, 1, 15), new DateTime(2026, 2, 28));
 
         await builder.SaveAsync();
@@ -505,11 +480,9 @@ public class EarlyBirdLateFeeTests
         // Note: ApplyNewRegistrationFeesAsync uses DateTime.UtcNow internally,
         // so we test EvaluateModifiersAsync directly with controlled dates, then verify
         // the math via ApplyProcessingAndTotals indirectly.
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(
             baseFee: 200m, processingFeePercent: 3.5m, addProcessingFees: true);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
         // Simulate what ApplyNewRegistrationFeesAsync does, but with controlled date
@@ -551,11 +524,9 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "New registration during late fee: FeeTotal reflects surcharge")]
     public async Task ApplyNewFees_LateFee_CorrectTotals()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(
             baseFee: 200m, processingFeePercent: 3.5m, addProcessingFees: true);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var resolved = await svc.ResolveFeeAsync(jobId, RoleConstants.Player, agId, teamId);
@@ -592,12 +563,10 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "New registration normal window: no modifiers, base fee only")]
     public async Task ApplyNewFees_NormalWindow_NoModifiers()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(
             baseFee: 200m, processingFeePercent: 3.5m, addProcessingFees: true);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
         var modifiers = await svc.EvaluateModifiersAsync(
@@ -631,8 +600,8 @@ public class EarlyBirdLateFeeTests
 
         // Job-level fee $200 + early bird $25 + late fee $30
         var jobFee = builder.AddJobFee(job.JobId, RoleConstants.Player, balanceDue: 200m);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 30m, LateFeeStart, LateFeeEnd);
+        builder.AddModifier(jobFee.JobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFee.JobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
 
         await builder.SaveAsync();
 
@@ -693,10 +662,10 @@ public class EarlyBirdLateFeeTests
 
         // Job-level fee $200
         var jobFee = builder.AddJobFee(job.JobId, RoleConstants.Player, balanceDue: 200m);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(jobFee.JobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
 
         // Team B has a team-level override: $300
-        var teamBFee = builder.AddJobFee(job.JobId, RoleConstants.Player,
+        builder.AddJobFee(job.JobId, RoleConstants.Player,
             agegroupId: ag.AgegroupId, teamId: teamB.TeamId, balanceDue: 300m);
 
         await builder.SaveAsync();
@@ -744,7 +713,7 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "No modifiers configured: EvaluateModifiers returns zeros")]
     public async Task NoModifiers_ReturnsZeros()
     {
-        var (svc, _, _, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, _, _, jobId, agId, teamId, _) = await CreateServiceAsync(baseFee: 200m);
 
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
@@ -779,17 +748,15 @@ public class EarlyBirdLateFeeTests
     [Fact(DisplayName = "Multiple modifier types on same JobFee: each counted separately")]
     public async Task MultipleModifierTypes_CountedSeparately()
     {
-        var (svc, builder, ctx, jobId, agId, teamId) = await CreateServiceAsync(baseFee: 200m);
-
-        var jobFee = ctx.JobFees.First(jf => jf.JobId == jobId);
+        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
         // Same window for both (hypothetical scenario)
         var start = new DateTime(2026, 3, 1);
         var end = new DateTime(2026, 3, 31);
 
-        builder.AddModifier(jobFee.JobFeeId, "Discount", 10m, start, end);
-        builder.AddModifier(jobFee.JobFeeId, "EarlyBird", 15m, start, end);
-        builder.AddModifier(jobFee.JobFeeId, "LateFee", 20m, start, end);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 10m, start, end);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 15m, start, end);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 20m, start, end);
 
         await builder.SaveAsync();
 
@@ -817,7 +784,7 @@ public class EarlyBirdLateFeeTests
         // Agegroup-level fee WITH early bird
         var agFee = builder.AddJobFee(job.JobId, RoleConstants.Player,
             agegroupId: ag.AgegroupId, balanceDue: 200m);
-        builder.AddModifier(agFee.JobFeeId, "EarlyBird", 15m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(agFee.JobFeeId, FeeConstants.ModifierEarlyBird, 15m, EarlyBirdStart, EarlyBirdEnd);
 
         await builder.SaveAsync();
 

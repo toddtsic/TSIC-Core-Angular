@@ -70,10 +70,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         return new ResolvedModifiers
         {
             TotalDiscount = modifiers
-                .Where(m => m.ModifierType == "Discount" || m.ModifierType == "EarlyBird")
+                .Where(m => m.ModifierType == FeeConstants.ModifierDiscount || m.ModifierType == FeeConstants.ModifierEarlyBird)
                 .Sum(m => m.Amount),
             TotalLateFee = modifiers
-                .Where(m => m.ModifierType == "LateFee")
+                .Where(m => m.ModifierType == FeeConstants.ModifierLateFee)
                 .Sum(m => m.Amount)
         };
     }

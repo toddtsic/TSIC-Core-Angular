@@ -7,4 +7,9 @@ public static class FeeConstants
     /// Jobs can only override upward. NULL column = grandfathered at this rate.
     /// </summary>
     public const decimal MinProcessingFeePercent = 3.5m;
+
+    // Modifier types stored in fees.FeeModifiers.ModifierType
+    public const string ModifierEarlyBird = "EarlyBird";
+    public const string ModifierLateFee = "LateFee";
+    public const string ModifierDiscount = "Discount";
 }
