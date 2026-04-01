@@ -59,8 +59,12 @@ public class JobPathMatchHandler : AuthorizationHandler<JobPathMatchRequirement>
         // Get jobPath from route (e.g., /api/jobs/{jobPath}/...)
         var routeJobPath = httpContext.GetRouteValue("jobPath")?.ToString();
 
-        // Simple rule: If there is a jobPath token, it must match the route jobPath
-        if (string.IsNullOrEmpty(tokenJobPath) || tokenJobPath.Equals(routeJobPath, StringComparison.OrdinalIgnoreCase))
+        // Rules:
+        // - No jobPath in token (Phase 1): allow
+        // - No jobPath in route (endpoint doesn't use :jobPath): allow — context comes from token claims
+        // - Both present and match: allow
+        // - Both present and mismatch: deny
+        if (string.IsNullOrEmpty(tokenJobPath) || string.IsNullOrEmpty(routeJobPath) || tokenJobPath.Equals(routeJobPath, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogDebug(
                 "JobPathMatchHandler: User {Username} authorized for {Path}",
