@@ -631,6 +631,14 @@ mark {
     background-color: var(--brand-surface);
 }
 
+/* Required field accent — red left border, disappears when valued */
+.form-control.is-required,
+.form-select.is-required,
+.field-input.is-required,
+.field-select.is-required {
+    border-left: 3px solid var(--bs-danger);
+}
+
 /* Modal Form Utilities */
 .form-divider {
     border-color: var(--border-color);

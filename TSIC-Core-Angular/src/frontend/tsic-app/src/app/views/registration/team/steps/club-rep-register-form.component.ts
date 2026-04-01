@@ -34,43 +34,57 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
               <div class="row g-1 mb-1">
                 <div class="col-12">
                   <input class="form-control form-control-sm" formControlName="clubName"
-                         placeholder="Club Name" [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
+                         placeholder="Club Name"
+                         [class.is-required]="!form.controls.clubName.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
                 </div>
               </div>
               <div class="row g-1 mb-1">
                 <div class="col-6">
                   <input class="form-control form-control-sm" formControlName="firstName"
-                         placeholder="First Name" [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
+                         placeholder="First Name"
+                         [class.is-required]="!form.controls.firstName.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
                 </div>
                 <div class="col-6">
                   <input class="form-control form-control-sm" formControlName="lastName"
-                         placeholder="Last Name" [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
+                         placeholder="Last Name"
+                         [class.is-required]="!form.controls.lastName.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
                 </div>
               </div>
               <div class="row g-1 mb-1">
                 <div class="col-7">
                   <input type="email" class="form-control form-control-sm" formControlName="email"
-                         placeholder="Email" [class.is-invalid]="submitted() && form.controls.email.invalid" />
+                         placeholder="Email"
+                         [class.is-required]="!form.controls.email.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.email.invalid" />
                 </div>
                 <div class="col-5">
                   <input type="tel" inputmode="numeric" class="form-control form-control-sm"
                          formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
-                         placeholder="Phone" />
+                         placeholder="Phone"
+                         [class.is-required]="!form.controls.cellphone.value?.trim()" />
                 </div>
               </div>
               <div class="row g-1 mb-1">
                 <div class="col-12">
                   <input class="form-control form-control-sm" formControlName="streetAddress"
-                         placeholder="Street Address" [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
+                         placeholder="Street Address"
+                         [class.is-required]="!form.controls.streetAddress.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
                 </div>
               </div>
               <div class="row g-1 mb-1">
                 <div class="col-5">
                   <input class="form-control form-control-sm" formControlName="city"
-                         placeholder="City" [class.is-invalid]="submitted() && form.controls.city.invalid" />
+                         placeholder="City"
+                         [class.is-required]="!form.controls.city.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.city.invalid" />
                 </div>
                 <div class="col-4">
                   <select class="form-select form-select-sm" formControlName="state"
+                          [class.is-required]="!form.controls.state.value"
                           [class.is-invalid]="submitted() && form.controls.state.invalid">
                     <option value="">State</option>
                     @for (s of stateOptions; track s.value) {
@@ -80,7 +94,9 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                 </div>
                 <div class="col-3">
                   <input class="form-control form-control-sm" formControlName="postalCode"
-                         placeholder="Zip" [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
+                         placeholder="Zip"
+                         [class.is-required]="!form.controls.postalCode.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
                 </div>
               </div>
               <hr class="form-divider my-1">
@@ -88,11 +104,13 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                 <div class="col-6">
                   <input class="form-control form-control-sm" formControlName="username"
                          placeholder="Username" autocomplete="username"
+                         [class.is-required]="!form.controls.username.value?.trim()"
                          [class.is-invalid]="submitted() && form.controls.username.invalid" />
                 </div>
                 <div class="col-6">
                   <input type="password" class="form-control form-control-sm" formControlName="password"
                          placeholder="Password" autocomplete="new-password"
+                         [class.is-required]="!form.controls.password.value"
                          [class.is-invalid]="submitted() && form.controls.password.invalid" />
                 </div>
               </div>

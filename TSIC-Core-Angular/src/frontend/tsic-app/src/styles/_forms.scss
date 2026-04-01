@@ -71,9 +71,6 @@ select::placeholder,
         cursor: not-allowed;
     }
 
-    &.is-required {
-        border-left: 3px solid var(--bs-danger);
-    }
 }
 
 .field-select {
