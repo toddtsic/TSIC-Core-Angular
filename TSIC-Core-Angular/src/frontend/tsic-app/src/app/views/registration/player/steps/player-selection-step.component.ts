@@ -384,12 +384,11 @@ export class PlayerSelectionStepComponent {
             next: () => {
                 this.deleting.set(false);
                 this.toast.show(`Registration deleted for ${name}`, 'success', 3000);
-                // Reset wizard state and reload — clears stale teams, forms, eligibility
+                // Full reset + re-initialize so constraint type, metadata, etc. reload
                 const jobPath = this.state.jobCtx.jobPath();
                 this.state.reset();
                 if (jobPath) {
-                    this.state.jobCtx.setJobPath(jobPath);
-                    this.refreshPlayers();
+                    this.state.initialize(jobPath);
                 }
             },
             error: (err) => {
