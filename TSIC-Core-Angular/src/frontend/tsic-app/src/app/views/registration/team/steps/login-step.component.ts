@@ -149,7 +149,7 @@ export class TeamLoginStepComponent implements OnInit {
     continueWithLogin(): void {
         this.error.set(null);
 
-        // Guard: reject non-ClubRep logins
+        // Guard: reject non-ClubRep logins (check role if present in token)
         const user = this.auth.currentUser();
         if (user?.role && !TeamLoginStepComponent.ALLOWED_ROLES.has(user.role)) {
             this.auth.logoutLocal();
@@ -165,8 +165,14 @@ export class TeamLoginStepComponent implements OnInit {
                     this.loginSuccess.emit({ availableClubs: clubs, clubName });
                 },
                 error: (err: unknown) => {
+                    const httpErr = err as { status?: number };
                     console.error('[TeamLogin] Failed to load clubs', err);
-                    this.error.set('Failed to load your clubs. Please try again.');
+                    if (httpErr?.status === 403) {
+                        this.auth.logoutLocal();
+                        this.error.set('This is not a club rep account. Please sign in with a club rep account or create one below.');
+                    } else {
+                        this.error.set('Failed to load your clubs. Please try again.');
+                    }
                 },
             });
     }

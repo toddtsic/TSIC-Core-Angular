@@ -79,9 +79,7 @@ public class TeamRegistrationController : ControllerBase
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
-        {
             return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-        }
 
         try
         {
@@ -108,8 +106,6 @@ public class TeamRegistrationController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-        if (!IsClubRepRole())
-            return StatusCode(403, new { Message = NotClubRepMessage });
 
         try
         {
