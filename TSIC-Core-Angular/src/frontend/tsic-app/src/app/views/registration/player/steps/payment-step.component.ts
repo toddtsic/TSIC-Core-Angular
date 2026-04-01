@@ -132,30 +132,6 @@ import type { LineItem } from '../state/payment-v2.service';
                 </div>
               }
 
-              <!-- Discount code input -->
-              @if (state.jobCtx.jobHasActiveDiscountCodes()) {
-                <div class="d-flex gap-2 mt-3 align-items-end">
-                  <div class="flex-grow-1">
-                    <label for="discountCode" class="form-label small mb-1">Discount Code</label>
-                    <input type="text" class="form-control form-control-sm" id="discountCode"
-                           [ngModel]="discountCode()"
-                           (ngModelChange)="discountCode.set($event)"
-                           placeholder="Enter code">
-                  </div>
-                  <button type="button" class="btn btn-sm btn-outline-primary"
-                          [disabled]="paySvc.discountApplying()"
-                          (click)="applyDiscount()">
-                    {{ paySvc.discountApplying() ? 'Applying...' : 'Apply' }}
-                  </button>
-                </div>
-                @if (paySvc.discountMessage()) {
-                  <div class="small mt-1"
-                       [class.text-success]="paySvc.appliedDiscount() > 0"
-                       [class.text-danger]="paySvc.appliedDiscount() === 0">
-                    {{ paySvc.discountMessage() }}
-                  </div>
-                }
-              }
             </section>
           }
         }
@@ -229,6 +205,31 @@ import type { LineItem } from '../state/payment-v2.service';
           </div>
         }
 
+        <!-- Discount code -->
+        @if (state.jobCtx.jobHasActiveDiscountCodes() && currentTotal() > 0) {
+          <div class="d-flex gap-2 mb-3 align-items-end">
+            <div class="flex-grow-1">
+              <label for="discountCode" class="form-label small mb-1 fw-medium">Discount Code</label>
+              <input type="text" class="form-control form-control-sm" id="discountCode"
+                     [ngModel]="discountCode()"
+                     (ngModelChange)="discountCode.set($event)"
+                     placeholder="Enter code">
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    [disabled]="paySvc.discountApplying()"
+                    (click)="applyDiscount()">
+              {{ paySvc.discountApplying() ? 'Applying...' : 'Apply' }}
+            </button>
+          </div>
+          @if (paySvc.discountMessage()) {
+            <div class="small mb-3"
+                 [class.text-success]="paySvc.appliedDiscount() > 0"
+                 [class.text-danger]="paySvc.appliedDiscount() === 0">
+              {{ paySvc.discountMessage() }}
+            </div>
+          }
+        }
+
         <!-- Credit card form -->
         @if (showCcSection()) {
           @if (isViCcOnlyFlow()) {
@@ -255,14 +256,23 @@ import type { LineItem } from '../state/payment-v2.service';
           @if (isViCcOnlyFlow()) {
             <button type="button" class="btn btn-primary"
                     (click)="submitInsuranceOnly()"
-                    [disabled]="!canInsuranceOnlySubmit()">
-              <i class="bi bi-shield-lock me-2"></i>Proceed with Insurance Processing
+                    [disabled]="!canInsuranceOnlySubmit() || submitting()">
+              @if (submitting()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+              } @else {
+                <i class="bi bi-shield-lock me-2"></i>Proceed with Insurance Processing
+              }
             </button>
           }
-          @if (showPayNowButton() && canSubmit()) {
+          @if (showPayNowButton()) {
             <button type="button" class="btn btn-primary"
-                    (click)="submit()">
-              <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
+                    (click)="submit()"
+                    [disabled]="!canSubmit() || submitting()">
+              @if (submitting()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+              } @else {
+                <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
+              }
             </button>
           }
           @if (arbHideAllOptions() && !isViCcOnlyFlow()) {

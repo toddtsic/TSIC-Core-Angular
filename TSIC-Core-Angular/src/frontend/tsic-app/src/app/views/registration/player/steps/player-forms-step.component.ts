@@ -470,8 +470,10 @@ export class PlayerFormsStepComponent implements OnDestroy {
         return !!p?.registered;
     }
 
-    isPlayerLocked(playerId: string): boolean {
-        return this.state.familyPlayers.isPlayerLocked(playerId);
+    isPlayerLocked(_playerId: string): boolean {
+        // Forms are always editable — families can update profile fields
+        // (jersey size, school, uniform#, etc.) even for registered players.
+        return false;
     }
 
     getTeamIds(playerId: string): string[] {
