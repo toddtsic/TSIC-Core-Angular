@@ -4,6 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { PlayerFormModalComponent } from './player-form-modal.component';
 import { FamilyEditModalComponent } from './family-edit-modal.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { environment } from '@environments/environment';
 
@@ -15,7 +16,7 @@ import { environment } from '@environments/environment';
 @Component({
     selector: 'app-prw-player-selection-step',
     standalone: true,
-    imports: [DatePipe, PlayerFormModalComponent, FamilyEditModalComponent],
+    imports: [DatePipe, PlayerFormModalComponent, FamilyEditModalComponent, ConfirmDialogComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-2 d-flex align-items-center">
@@ -115,6 +116,17 @@ import { environment } from '@environments/environment';
       <app-family-edit-modal
         (saved)="onFamilySaved()"
         (closed)="showFamilyModal.set(false)" />
+    }
+
+    <!-- Dev-only delete confirmation -->
+    @if (showDeleteConfirm()) {
+      <confirm-dialog
+        [title]="'DEV ONLY: Delete Registration'"
+        [message]="'Delete registration for ' + deletingPlayerName() + '? This will permanently remove the registration and all payment records.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="confirmDelete()"
+        (cancelled)="showDeleteConfirm.set(false)" />
     }
   `,
     styles: [`
@@ -343,6 +355,11 @@ export class PlayerSelectionStepComponent {
         this.refreshPlayers();
     }
 
+    // ── Dev delete confirmation ────────────────────────────────────
+    readonly showDeleteConfirm = signal(false);
+    readonly deletingPlayerName = signal('');
+    private _pendingDeleteRegId: string | null = null;
+
     deleteRegistration(player: { playerId: string; firstName: string; lastName: string; priorRegistrations?: { registrationId: string; active: boolean }[] }): void {
         if (this.isProd || this.deleting()) return;
         const reg = player.priorRegistrations?.find(r => r.active) ?? player.priorRegistrations?.[0];
@@ -350,14 +367,23 @@ export class PlayerSelectionStepComponent {
             this.toast.show('No registration found to delete', 'warning', 3000);
             return;
         }
-        const confirmed = confirm(`DEV ONLY: Delete registration for ${player.firstName} ${player.lastName}?\n\nThis will permanently remove the registration and all payment records. This cannot be undone.`);
-        if (!confirmed) return;
+        this._pendingDeleteRegId = reg.registrationId;
+        this.deletingPlayerName.set(`${player.firstName} ${player.lastName}`);
+        this.showDeleteConfirm.set(true);
+    }
+
+    confirmDelete(): void {
+        this.showDeleteConfirm.set(false);
+        if (!this._pendingDeleteRegId) return;
+        const regId = this._pendingDeleteRegId;
+        const name = this.deletingPlayerName();
+        this._pendingDeleteRegId = null;
 
         this.deleting.set(true);
-        this.http.delete(`${environment.apiUrl}/dev/registration/${reg.registrationId}`).subscribe({
+        this.http.delete(`${environment.apiUrl}/dev/registration/${regId}`).subscribe({
             next: () => {
                 this.deleting.set(false);
-                this.toast.show(`Registration deleted for ${player.firstName} ${player.lastName}`, 'success', 3000);
+                this.toast.show(`Registration deleted for ${name}`, 'success', 3000);
                 this.refreshPlayers();
             },
             error: (err) => {

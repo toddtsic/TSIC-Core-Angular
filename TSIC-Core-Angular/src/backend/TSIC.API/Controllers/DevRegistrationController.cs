@@ -11,7 +11,7 @@ namespace TSIC.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/dev/registration")]
-[Authorize(Policy = "SuperUserOnly")]
+[Authorize]
 public class DevRegistrationController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
