@@ -6,6 +6,7 @@ import { Roles } from '@infrastructure/constants/roles.constants';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { LoginComponent } from '@views/auth/login/login.component';
+import { ClubRepRegisterFormComponent } from './club-rep-register-form.component';
 import type { ClubRepClubDto } from '@core/api';
 
 export interface LoginStepResult {
@@ -20,7 +21,7 @@ export interface LoginStepResult {
 @Component({
     selector: 'app-trw-login-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent],
+    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -38,7 +39,7 @@ export interface LoginStepResult {
             </div>
           </div>
         } @else {
-          <p class="text-muted mb-3">
+          <p class="wizard-tip">
             Sign in with your Club Rep credentials to register teams for this event.
           </p>
           @if (error()) {
@@ -55,20 +56,8 @@ export interface LoginStepResult {
                 (loginSuccess)="continueWithLogin()" />
             </div>
             <div class="col-12 col-md-6 d-flex">
-              <div class="card border rounded flex-fill" style="border-color: var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); background: var(--brand-surface);">
-                <div class="card-body d-flex flex-column justify-content-center align-items-center text-center"
-                     style="padding: var(--space-6);">
-                  <i class="bi bi-shield-fill-plus" style="font-size: 2.5rem; color: var(--bs-primary); margin-bottom: var(--space-4);"></i>
-                  <h5 class="fw-bold mb-2" style="color: var(--brand-text);">New Club Rep?</h5>
-                  <p class="mb-4" style="color: var(--brand-text-muted); font-size: var(--font-size-sm);">
-                    Club rep accounts are created by your league administrator. Contact them to get your credentials.
-                  </p>
-                  <div class="d-flex align-items-center gap-2" style="color: var(--brand-text-muted); font-size: var(--font-size-sm);">
-                    <i class="bi bi-envelope-fill" style="color: var(--bs-primary);"></i>
-                    <span>Reach out to your league admin</span>
-                  </div>
-                </div>
-              </div>
+              <app-club-rep-register-form class="flex-fill"
+                (registered)="onRegistered($event)" />
             </div>
           </div>
         }
@@ -102,6 +91,12 @@ export class TeamLoginStepComponent implements OnInit {
     returnUrl(): string {
         const jobPath = this.state.jobPath();
         return jobPath ? `/${jobPath}/registration/team` : '/tsic/role-selection';
+    }
+
+    onRegistered(_credentials: { username: string; password: string }): void {
+        // Registration complete — user sees success state on the form
+        // and can now sign in with the login form on the left.
+        // No auto-login needed; the login component is right there.
     }
 
     continueWithLogin(): void {
