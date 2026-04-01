@@ -20,102 +20,103 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
     <div class="register-card">
       @if (registrationComplete()) {
         <!-- Success state -->
-        <div class="text-center">
+        <div class="text-center py-4">
           <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
           <h6 class="fw-bold mt-3 mb-2">Account Created!</h6>
           <p class="small text-muted mb-3">Sign in with your new credentials to continue.</p>
         </div>
+      } @else if (!expanded()) {
+        <!-- Collapsed CTA -->
+        <div class="cta-collapsed">
+          <i class="bi bi-shield-plus cta-icon"></i>
+          <h5 class="fw-bold mb-2">New Club Rep?</h5>
+          <p class="small text-muted mb-3">
+            Register your club to start adding teams to this event.
+          </p>
+          <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" (click)="expanded.set(true)">
+            <i class="bi bi-person-plus-fill me-1"></i>Create Account
+          </button>
+        </div>
       } @else {
-        <!-- Registration form -->
-        <h6 class="section-heading"><i class="bi bi-shield-plus me-1"></i>New Club Rep</h6>
+        <!-- Expanded registration form -->
+        <div class="d-flex align-items-center mb-2">
+          <h6 class="section-heading mb-0"><i class="bi bi-shield-plus me-1"></i>New Club Rep</h6>
+          <button type="button" class="btn btn-link btn-sm ms-auto p-0 text-muted" (click)="expanded.set(false)">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <!-- Club name -->
-          <div class="mb-2">
-            <label class="form-label small fw-medium mb-1" for="cr-club">Club Name</label>
-            <input id="cr-club" class="form-control form-control-sm" formControlName="clubName"
-                   placeholder="e.g. Thunder Lacrosse"
-                   [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
+          <div class="row g-1 mb-1">
+            <div class="col-12">
+              <input id="cr-club" class="form-control form-control-sm" formControlName="clubName"
+                     placeholder="Club Name" [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
+            </div>
           </div>
-
-          <!-- Name row -->
-          <div class="row g-2 mb-2">
+          <div class="row g-1 mb-1">
             <div class="col-6">
-              <label class="form-label small fw-medium mb-1" for="cr-first">First Name</label>
               <input id="cr-first" class="form-control form-control-sm" formControlName="firstName"
-                     [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
+                     placeholder="First Name" [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
             </div>
             <div class="col-6">
-              <label class="form-label small fw-medium mb-1" for="cr-last">Last Name</label>
               <input id="cr-last" class="form-control form-control-sm" formControlName="lastName"
-                     [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
+                     placeholder="Last Name" [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
             </div>
           </div>
-
-          <!-- Contact row -->
-          <div class="row g-2 mb-2">
+          <div class="row g-1 mb-1">
             <div class="col-7">
-              <label class="form-label small fw-medium mb-1" for="cr-email">Email</label>
               <input id="cr-email" type="email" class="form-control form-control-sm" formControlName="email"
-                     [class.is-invalid]="submitted() && form.controls.email.invalid" />
+                     placeholder="Email" [class.is-invalid]="submitted() && form.controls.email.invalid" />
             </div>
             <div class="col-5">
-              <label class="form-label small fw-medium mb-1" for="cr-phone">Cellphone</label>
               <input id="cr-phone" type="tel" inputmode="numeric" class="form-control form-control-sm"
-                     formControlName="cellphone" (input)="digitsOnly('cellphone', $event)" />
+                     formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
+                     placeholder="Phone (digits)" />
             </div>
           </div>
-
-          <!-- Address -->
-          <div class="mb-2">
-            <label class="form-label small fw-medium mb-1" for="cr-addr">Street Address</label>
-            <input id="cr-addr" class="form-control form-control-sm" formControlName="streetAddress"
-                   [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
+          <div class="row g-1 mb-1">
+            <div class="col-12">
+              <input id="cr-addr" class="form-control form-control-sm" formControlName="streetAddress"
+                     placeholder="Street Address" [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
+            </div>
           </div>
-          <div class="row g-2 mb-2">
+          <div class="row g-1 mb-1">
             <div class="col-5">
-              <label class="form-label small fw-medium mb-1" for="cr-city">City</label>
               <input id="cr-city" class="form-control form-control-sm" formControlName="city"
-                     [class.is-invalid]="submitted() && form.controls.city.invalid" />
+                     placeholder="City" [class.is-invalid]="submitted() && form.controls.city.invalid" />
             </div>
             <div class="col-4">
-              <label class="form-label small fw-medium mb-1" for="cr-state">State</label>
               <select id="cr-state" class="form-select form-select-sm" formControlName="state"
                       [class.is-invalid]="submitted() && form.controls.state.invalid">
-                <option value="">Select</option>
+                <option value="">State</option>
                 @for (s of stateOptions; track s.value) {
                   <option [value]="s.value">{{ s.label }}</option>
                 }
               </select>
             </div>
             <div class="col-3">
-              <label class="form-label small fw-medium mb-1" for="cr-zip">Zip</label>
               <input id="cr-zip" class="form-control form-control-sm" formControlName="postalCode"
-                     [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
+                     placeholder="Zip" [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
             </div>
           </div>
-
-          <hr class="form-divider my-2">
-
-          <!-- Credentials -->
-          <div class="row g-2 mb-2">
+          <hr class="form-divider my-1">
+          <div class="row g-1 mb-1">
             <div class="col-6">
-              <label class="form-label small fw-medium mb-1" for="cr-user">Username</label>
-              <input id="cr-user" class="form-control form-control-sm" formControlName="username" autocomplete="username"
+              <input id="cr-user" class="form-control form-control-sm" formControlName="username"
+                     placeholder="Username" autocomplete="username"
                      [class.is-invalid]="submitted() && form.controls.username.invalid" />
             </div>
             <div class="col-6">
-              <label class="form-label small fw-medium mb-1" for="cr-pass">Password</label>
               <input id="cr-pass" type="password" class="form-control form-control-sm" formControlName="password"
-                     autocomplete="new-password"
+                     placeholder="Password" autocomplete="new-password"
                      [class.is-invalid]="submitted() && form.controls.password.invalid" />
             </div>
           </div>
 
           @if (errorMsg()) {
-            <div class="alert alert-danger py-2 small mb-2">{{ errorMsg() }}</div>
+            <div class="alert alert-danger py-1 small mb-1">{{ errorMsg() }}</div>
           }
 
-          <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold" [disabled]="saving()">
+          <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold mt-1" [disabled]="saving()">
             @if (saving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>Creating...
             } @else {
@@ -169,6 +170,22 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
         background: var(--brand-surface);
         box-shadow: var(--shadow-sm);
       }
+
+      .cta-collapsed {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        height: 100%;
+        padding: var(--space-6) var(--space-4);
+      }
+
+      .cta-icon {
+        font-size: 2.5rem;
+        color: var(--bs-primary);
+        margin-bottom: var(--space-3);
+      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -183,6 +200,7 @@ export class ClubRepRegisterFormComponent {
 
     readonly stateOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
+    readonly expanded = signal(false);
     readonly submitted = signal(false);
     readonly saving = signal(false);
     readonly errorMsg = signal<string | null>(null);
