@@ -1788,10 +1788,9 @@ public partial class SqlDbContext : DbContext
 
             entity.ToTable("ClubTeams", "Clubs");
 
+            entity.Property(e => e.Active).HasDefaultValue(true);
             entity.Property(e => e.ClubTeamGradYear).IsUnicode(false);
-            entity.Property(e => e.ClubTeamLevelOfPlay)
-                .HasMaxLength(10)
-                .IsUnicode(false);
+            entity.Property(e => e.ClubTeamLevelOfPlay).HasMaxLength(50);
             entity.Property(e => e.ClubTeamName).HasMaxLength(80);
             entity.Property(e => e.LebUserId).HasMaxLength(450);
             entity.Property(e => e.Modified)
