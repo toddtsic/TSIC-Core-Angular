@@ -141,7 +141,7 @@ import type { LineItem } from '../state/payment-v2.service';
         }
 
         <!-- VerticalInsure / RegSaver region -->
-        @if (insuranceState.offerPlayerRegSaver() && !state.familyPlayers.regSaverDetails()) {
+        @if (insuranceState.offerPlayerRegSaver() && insuranceState.verticalInsureOffer().data) {
           <div class="mb-3">
             <div #viOffer id="dVIOffer" class="text-center"></div>
             @if (!insuranceState.hasVerticalInsureDecision()) {
