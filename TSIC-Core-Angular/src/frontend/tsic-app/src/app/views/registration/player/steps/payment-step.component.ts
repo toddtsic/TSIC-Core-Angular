@@ -50,7 +50,7 @@ import type { LineItem } from '../state/payment-v2.service';
         }
 
         <!-- Balance due + summary -->
-        @if (currentTotal() > 0) {
+        @if (paySvc.lineItems().length > 0) {
           <section class="payment-summary mb-4">
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
@@ -279,11 +279,7 @@ import type { LineItem } from '../state/payment-v2.service';
               }
             </button>
           }
-          @if (arbHideAllOptions() && !isViCcOnlyFlow()) {
-            <button type="button" class="btn btn-primary" (click)="continueArbOrZero()">
-              Continue
-            </button>
-          }
+          <!-- Zero-balance / ARB Continue handled by shell top-right button -->
         </div>
       </div>
     </div>

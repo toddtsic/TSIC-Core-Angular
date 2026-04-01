@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from './state/player-wizard-state.service';
+import { PaymentV2Service } from './state/payment-v2.service';
 import { TeamService } from './services/team.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { FamilyCheckStepComponent } from './steps/family-check-step.component';
@@ -64,6 +65,7 @@ export class PlayerWizardV2Component implements OnInit {
     private readonly router = inject(Router);
     private readonly toast = inject(ToastService);
     private readonly teamService = inject(TeamService);
+    private readonly paySvc = inject(PaymentV2Service);
     readonly state = inject(PlayerWizardStateService);
 
     private readonly _currentIndex = signal(0);
@@ -140,7 +142,7 @@ export class PlayerWizardV2Component implements OnInit {
             }
             case 'waivers': return this.state.jobCtx.allRequiredWaiversAccepted();
             case 'review': return true;
-            case 'payment': return false; // payment step handles its own flow
+            case 'payment': return this.paySvc.currentTotal() <= 0;
             case 'confirmation': return false; // end
             default: return false;
         }
@@ -154,15 +156,14 @@ export class PlayerWizardV2Component implements OnInit {
 
     readonly showContinue = computed(() => {
         const id = this.currentStepId();
-        if (id === 'family-check' || id === 'payment' || id === 'confirmation') return false;
+        if (id === 'family-check' || id === 'confirmation') return false;
         if (id === 'players') return this.state.familyPlayers.selectedPlayerIds().length > 0;
+        // Payment: shell Continue only for zero-balance (Pay button stays in card body)
+        if (id === 'payment') return this.paySvc.currentTotal() <= 0;
         return true;
     });
 
-    readonly continueLabel = computed(() => {
-        if (this.currentStepId() === 'review') return 'Submit';
-        return 'Continue';
-    });
+    readonly continueLabel = computed(() => 'Continue');
 
     private readonly authService = inject(AuthService);
 
