@@ -55,7 +55,7 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                 <div class="col-5">
                   <input type="tel" inputmode="numeric" class="form-control form-control-sm"
                          formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
-                         placeholder="Phone (digits)" />
+                         placeholder="Phone" />
                 </div>
               </div>
               <div class="row g-1 mb-1">
