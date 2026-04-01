@@ -143,27 +143,30 @@ export class PlayerWizardV2Component implements OnInit {
             case 'waivers': return this.state.jobCtx.allRequiredWaiversAccepted();
             case 'review': return true;
             case 'payment': return this.paySvc.currentTotal() <= 0;
-            case 'confirmation': return false; // end
+            case 'confirmation': return !!this.state.confirmation();
             default: return false;
         }
     });
 
     readonly showBack = computed(() => {
         const id = this.currentStepId();
-        if (id === 'family-check' || id === 'players') return false;
+        if (id === 'family-check' || id === 'players' || id === 'confirmation') return false;
         return true;
     });
 
     readonly showContinue = computed(() => {
         const id = this.currentStepId();
-        if (id === 'family-check' || id === 'confirmation') return false;
+        if (id === 'family-check') return false;
         if (id === 'players') return this.state.familyPlayers.selectedPlayerIds().length > 0;
-        // Payment: shell Continue only for zero-balance (Pay button stays in card body)
         if (id === 'payment') return this.paySvc.currentTotal() <= 0;
+        if (id === 'confirmation') return !!this.state.confirmation();
         return true;
     });
 
-    readonly continueLabel = computed(() => 'Continue');
+    readonly continueLabel = computed(() => {
+        if (this.currentStepId() === 'confirmation') return 'Finish';
+        return 'Continue';
+    });
 
     private readonly authService = inject(AuthService);
 
@@ -213,6 +216,12 @@ export class PlayerWizardV2Component implements OnInit {
     }
 
     async next(): Promise<void> {
+        // Confirmation step: Finish navigates to job home
+        if (this.currentStepId() === 'confirmation') {
+            this.finish();
+            return;
+        }
+
         const active = this.activeSteps();
         const idx = this._currentIndex();
         if (idx >= active.length - 1) return;

@@ -64,8 +64,6 @@ import type { JobPulseDto } from '@core/api';
 
           <div class="confirmation-content mt-3" [innerHTML]="conf()!.confirmationHtml"></div>
 
-          <button type="button" class="btn btn-primary mt-3" (click)="finished.emit()">Finish</button>
-
           @if (showStoreCta()) {
             <a [routerLink]="'../../store'" [relativeTo]="route" class="store-cta btn btn-outline-primary">
               <i class="bi bi-bag-fill me-1"></i>Browse the Store
