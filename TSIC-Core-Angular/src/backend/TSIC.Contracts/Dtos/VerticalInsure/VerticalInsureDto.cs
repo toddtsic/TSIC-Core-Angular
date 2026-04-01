@@ -269,78 +269,78 @@ public record VIMakePaymentDto
 
 public record VIMakePaymentPolicyHolderDto
 {
-    public required string id { get; init; } = string.Empty;
-    public required string first_name { get; init; } = string.Empty;
-    public required string last_name { get; init; } = string.Empty;
-    public required string email_address { get; init; } = string.Empty;
-    public required string street { get; init; } = string.Empty;
-    public required string city { get; init; } = string.Empty;
-    public required string postal_code { get; init; } = string.Empty;
-    public required string country { get; init; } = string.Empty;
-    public required string state { get; init; } = string.Empty;
+    public string id { get; init; } = string.Empty;
+    public string first_name { get; init; } = string.Empty;
+    public string last_name { get; init; } = string.Empty;
+    public string email_address { get; init; } = string.Empty;
+    public string street { get; init; } = string.Empty;
+    public string city { get; init; } = string.Empty;
+    public string postal_code { get; init; } = string.Empty;
+    public string country { get; init; } = string.Empty;
+    public string state { get; init; } = string.Empty;
 }
 
 public record VIMakePaymentPartnerDto
 {
-    public required string id { get; init; } = string.Empty;
-    public required string legal_business_name { get; init; } = string.Empty;
+    public string id { get; init; } = string.Empty;
+    public string legal_business_name { get; init; } = string.Empty;
 }
 
 public record VIMakePaymentResponseDto
 {
-    public required string id { get; init; } = string.Empty;
-    public required string master_policy_id { get; init; } = string.Empty;
-    public required string policy_number { get; init; } = string.Empty;
-    public required VIMakePaymentPolicyHolderDto policy_holder { get; init; }
-    public required VIMakePaymentPartnerDto partner { get; init; }
-    public required string policy_status { get; init; } = string.Empty;
-    public required string issued_date { get; init; } = string.Empty;
-    public required string expiration_date { get; init; } = string.Empty;
-    public required string effective_date { get; init; } = string.Empty;
-    public required string quote_date { get; init; } = string.Empty;
-    public required VITeamProduct product { get; init; } = new();
-    public required VITeamPolicyAttributes policy_attributes { get; init; } = new();
-    public required decimal premium_amount { get; init; }
-    public required string quote_id { get; init; } = string.Empty;
-    public required bool is_test { get; init; }
+    public string id { get; init; } = string.Empty;
+    public string master_policy_id { get; init; } = string.Empty;
+    public string policy_number { get; init; } = string.Empty;
+    public VIMakePaymentPolicyHolderDto? policy_holder { get; init; }
+    public VIMakePaymentPartnerDto? partner { get; init; }
+    public string policy_status { get; init; } = string.Empty;
+    public string issued_date { get; init; } = string.Empty;
+    public string expiration_date { get; init; } = string.Empty;
+    public string effective_date { get; init; } = string.Empty;
+    public string quote_date { get; init; } = string.Empty;
+    public VITeamProduct? product { get; init; }
+    public VITeamPolicyAttributes? policy_attributes { get; init; }
+    public decimal premium_amount { get; init; }
+    public string quote_id { get; init; } = string.Empty;
+    public bool is_test { get; init; }
 }
 
 public record VIMakePlayerPaymentResponseDto
 {
-    public required string id { get; init; } = string.Empty;
-    public required string policy_number { get; init; } = string.Empty;
-    public required VIMakePaymentPartnerDto partner { get; init; }
-    public required string policy_status { get; init; } = string.Empty;
-    public required string issued_date { get; init; } = string.Empty;
-    public required string expiration_date { get; init; } = string.Empty;
-    public required string effective_date { get; init; } = string.Empty;
-    public required string quote_date { get; init; } = string.Empty;
-    public required VIPlayerProductDto product { get; init; } = new();
-    public required VIPlayerPolicyAttributes policy_attributes { get; init; } = new();
-    public required decimal premium_amount { get; init; }
-    public required string quote_id { get; init; } = string.Empty;
-    public required bool is_test { get; init; }
-    public required VIPlayerMetadataDto metadata { get; init; } = new();
-    public required VIMakePaymentPolicyHolderDto policy_holder { get; init; }
+    public string id { get; init; } = string.Empty;
+    public string policy_number { get; init; } = string.Empty;
+    public VIMakePaymentPartnerDto? partner { get; init; }
+    public string policy_status { get; init; } = string.Empty;
+    public string issued_date { get; init; } = string.Empty;
+    public string expiration_date { get; init; } = string.Empty;
+    public string effective_date { get; init; } = string.Empty;
+    public string quote_date { get; init; } = string.Empty;
+    public VIPlayerProductDto? product { get; init; }
+    public VIPlayerPolicyAttributes? policy_attributes { get; init; }
+    public decimal premium_amount { get; init; }
+    public string quote_id { get; init; } = string.Empty;
+    public bool is_test { get; init; }
+    public VIPlayerMetadataDto? metadata { get; init; }
+    public VIMakePaymentPolicyHolderDto? policy_holder { get; init; }
 }
 
 public record VIMakeTeamPaymentResponseDto
 {
-    public required string id { get; init; } = string.Empty;
-    public required string policy_number { get; init; } = string.Empty;
-    public required VIMakePaymentPartnerDto partner { get; init; }
-    public required string policy_status { get; init; } = string.Empty;
-    public required string issued_date { get; init; } = string.Empty;
-    public required string expiration_date { get; init; } = string.Empty;
-    public required string effective_date { get; init; } = string.Empty;
-    public required string quote_date { get; init; } = string.Empty;
-    public required VIPlayerProductDto product { get; init; } = new();
-    public required VIPlayerPolicyAttributes policy_attributes { get; init; } = new();
-    public required decimal premium_amount { get; init; }
-    public required string quote_id { get; init; } = string.Empty;
-    public required bool is_test { get; init; }
-    public required VITeamMetadataDto metadata { get; init; } = new();
-    public required VIMakePaymentPolicyHolderDto policy_holder { get; init; }
+    public string id { get; init; } = string.Empty;
+    public string policy_number { get; init; } = string.Empty;
+    public VIMakePaymentPartnerDto? partner { get; init; }
+    public string policy_status { get; init; } = string.Empty;
+    public string issued_date { get; init; } = string.Empty;
+    public string expiration_date { get; init; } = string.Empty;
+    public string effective_date { get; init; } = string.Empty;
+    public string quote_date { get; init; } = string.Empty;
+    public VIPlayerProductDto? product { get; init; }
+    public VIPlayerPolicyAttributes? policy_attributes { get; init; }
+    public decimal premium_amount { get; init; }
+    public string quote_id { get; init; } = string.Empty;
+    public bool is_test { get; init; }
+    public VITeamMetadataDto? metadata { get; init; }
+    public VIMakePaymentPolicyHolderDto? policy_holder { get; init; }
 }
 
 public record VIMakeTokenPaymentMethodDto

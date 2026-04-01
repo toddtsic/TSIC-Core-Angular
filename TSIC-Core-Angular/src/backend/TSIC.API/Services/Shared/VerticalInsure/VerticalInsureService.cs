@@ -190,7 +190,9 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         {
             if (policy.policy_status == "ACTIVE" && !string.IsNullOrWhiteSpace(policy.policy_number))
             {
-                var reg = regs.Find(r => r.RegistrationId == policy.metadata.TsicRegistrationId);
+                var reg = policy.metadata != null
+                    ? regs.Find(r => r.RegistrationId == policy.metadata.TsicRegistrationId)
+                    : null;
                 if (reg != null)
                 {
                     reg.RegsaverPolicyId = policy.policy_number;
