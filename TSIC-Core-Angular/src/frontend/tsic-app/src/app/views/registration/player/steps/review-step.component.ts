@@ -274,7 +274,6 @@ import { JobService } from '@infrastructure/services/job.service';
         border-bottom: 1px solid var(--border-color);
 
         &:nth-child(odd) { border-right: 1px solid var(--border-color); }
-        &:nth-last-child(-n+2) { border-bottom: none; }
       }
 
       .review-field-label {

@@ -706,7 +706,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         balanceDue: entry.balanceDue,
         inherited,
         source: entry.source,
-        activeDiscount: activeModifiers.filter(m => m.type === 'Discount').reduce((s, m) => s + m.amount, 0) || null,
+        activeDiscount: activeModifiers.filter(m => m.type === 'Discount' || m.type === 'EarlyBird').reduce((s, m) => s + m.amount, 0) || null,
         activeLateFee: activeModifiers.filter(m => m.type === 'LateFee').reduce((s, m) => s + m.amount, 0) || null,
       };
     });

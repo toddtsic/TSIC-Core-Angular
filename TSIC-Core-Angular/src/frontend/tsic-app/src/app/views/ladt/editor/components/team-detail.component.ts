@@ -188,6 +188,32 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
               </div>
             </div>
           </div>
+          @for (mod of playerModifiers; track $index) {
+            <div class="modifier-row">
+              <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'pModType' + $index">
+                <option value="EarlyBird">Early Bird</option>
+                <option value="Discount">Discount</option>
+                <option value="LateFee">Late Fee</option>
+              </select>
+              <div class="input-group input-group-sm mod-amount">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="mod.amount" [name]="'pModAmt' + $index">
+              </div>
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.startDate" [name]="'pModStart' + $index">
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.endDate" [name]="'pModEnd' + $index">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
+                      (click)="removeModifier(playerModifiers, $index)">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
+                  (click)="addModifier(playerModifiers)">
+            <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
+          </button>
         </div>
 
         <!-- ── Club Rep Fee Override ── -->
@@ -216,6 +242,32 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
               </div>
             </div>
           </div>
+          @for (mod of clubRepModifiers; track $index) {
+            <div class="modifier-row">
+              <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'cModType' + $index">
+                <option value="EarlyBird">Early Bird</option>
+                <option value="Discount">Discount</option>
+                <option value="LateFee">Late Fee</option>
+              </select>
+              <div class="input-group input-group-sm mod-amount">
+                <span class="input-group-text">$</span>
+                <input class="form-control" type="number" step="0.01"
+                       [(ngModel)]="mod.amount" [name]="'cModAmt' + $index">
+              </div>
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.startDate" [name]="'cModStart' + $index">
+              <input class="form-control form-control-sm mod-date" type="date"
+                     [(ngModel)]="mod.endDate" [name]="'cModEnd' + $index">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
+                      (click)="removeModifier(clubRepModifiers, $index)">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
+                  (click)="addModifier(clubRepModifiers)">
+            <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
+          </button>
         </div>
 
         <!-- ── Dates ── -->
@@ -340,6 +392,14 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
     .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
     .fee-hint { font-size: 0.7rem; color: var(--bs-secondary-color); margin: 0 0 var(--space-2) 0; font-style: italic; }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); font-size: 0.85rem; }
+    .modifier-row {
+      display: flex; gap: var(--space-1); align-items: center;
+      margin-top: var(--space-2); flex-wrap: wrap;
+    }
+    .mod-type { width: 120px; flex-shrink: 0; }
+    .mod-amount { width: 100px; flex-shrink: 0; }
+    .mod-date { width: 140px; flex-shrink: 0; }
+    .btn-icon { padding: 0.15rem 0.35rem; line-height: 1; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -375,6 +435,8 @@ export class TeamDetailComponent implements OnChanges {
     clubRepDeposit: null as number | null,
     clubRepBalanceDue: null as number | null
   };
+  playerModifiers: any[] = [];
+  clubRepModifiers: any[] = [];
   private playerFeeId: string | null = null;
   private clubRepFeeId: string | null = null;
 
@@ -411,6 +473,20 @@ export class TeamDetailComponent implements OnChanges {
               clubRepDeposit: clubRepFee?.deposit ?? null,
               clubRepBalanceDue: clubRepFee?.balanceDue ?? null
             };
+            this.playerModifiers = (playerFee?.modifiers ?? []).map((m: any) => ({
+              feeModifierId: m.feeModifierId,
+              modifierType: m.modifierType,
+              amount: m.amount,
+              startDate: m.startDate?.substring(0, 10) ?? null,
+              endDate: m.endDate?.substring(0, 10) ?? null
+            }));
+            this.clubRepModifiers = (clubRepFee?.modifiers ?? []).map((m: any) => ({
+              feeModifierId: m.feeModifierId,
+              modifierType: m.modifierType,
+              amount: m.amount,
+              startDate: m.startDate?.substring(0, 10) ?? null,
+              endDate: m.endDate?.substring(0, 10) ?? null
+            }));
             this.isLoading.set(false);
           },
           error: () => this.isLoading.set(false)
@@ -462,27 +538,31 @@ export class TeamDetailComponent implements OnChanges {
     const detail = this.team();
     const agegroupId = detail?.agegroupId;
 
-    // Save player fee override (team-level) if any value set
-    if (agegroupId && (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null)) {
+    // Save player fee override (team-level) if any value set or modifiers exist
+    const hasPlayerFee = this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null || this.playerModifiers.length > 0;
+    if (agegroupId && hasPlayerFee) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
         agegroupId,
         teamId: this.teamId,
         deposit: this.feeForm.playerDeposit,
-        balanceDue: this.feeForm.playerBalanceDue
+        balanceDue: this.feeForm.playerBalanceDue,
+        modifiers: this.playerModifiers
       }));
     } else if (this.playerFeeId) {
       saves.push(this.ladtService.deleteFee(this.playerFeeId));
     }
 
-    // Save club rep fee override (team-level) if any value set
-    if (agegroupId && (this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null)) {
+    // Save club rep fee override (team-level) if any value set or modifiers exist
+    const hasClubRepFee = this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null || this.clubRepModifiers.length > 0;
+    if (agegroupId && hasClubRepFee) {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
         agegroupId,
         teamId: this.teamId,
         deposit: this.feeForm.clubRepDeposit,
-        balanceDue: this.feeForm.clubRepBalanceDue
+        balanceDue: this.feeForm.clubRepBalanceDue,
+        modifiers: this.clubRepModifiers
       }));
     } else if (this.clubRepFeeId) {
       saves.push(this.ladtService.deleteFee(this.clubRepFeeId));
@@ -611,6 +691,14 @@ export class TeamDetailComponent implements OnChanges {
         this.saveMessage.set(err.error?.message || 'Failed to move team.');
       }
     });
+  }
+
+  addModifier(list: any[]): void {
+    list.push({ modifierType: 'EarlyBird', amount: null, startDate: null, endDate: null });
+  }
+
+  removeModifier(list: any[], index: number): void {
+    list.splice(index, 1);
   }
 
   cancelChangeClub(): void {

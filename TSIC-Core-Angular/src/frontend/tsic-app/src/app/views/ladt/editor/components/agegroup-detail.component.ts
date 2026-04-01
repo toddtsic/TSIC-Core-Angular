@@ -152,6 +152,7 @@ interface ModifierForm {
           @for (mod of playerModifiers; track $index) {
             <div class="modifier-row">
               <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'pModType' + $index">
+                <option value="EarlyBird">Early Bird</option>
                 <option value="Discount">Discount</option>
                 <option value="LateFee">Late Fee</option>
               </select>
@@ -172,7 +173,7 @@ interface ModifierForm {
           }
           <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
                   (click)="addModifier(playerModifiers)">
-            <i class="bi bi-plus-circle me-1"></i>Add Discount / Late Fee
+            <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
           </button>
         </div>
 
@@ -202,6 +203,7 @@ interface ModifierForm {
           @for (mod of clubRepModifiers; track $index) {
             <div class="modifier-row">
               <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'cModType' + $index">
+                <option value="EarlyBird">Early Bird</option>
                 <option value="Discount">Discount</option>
                 <option value="LateFee">Late Fee</option>
               </select>
@@ -222,7 +224,7 @@ interface ModifierForm {
           }
           <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
                   (click)="addModifier(clubRepModifiers)">
-            <i class="bi bi-plus-circle me-1"></i>Add Discount / Late Fee
+            <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
           </button>
         </div>
 
@@ -457,7 +459,7 @@ export class AgegroupDetailComponent implements OnChanges {
   }
 
   addModifier(list: ModifierForm[]): void {
-    list.push({ modifierType: 'Discount', amount: null, startDate: null, endDate: null });
+    list.push({ modifierType: 'EarlyBird', amount: null, startDate: null, endDate: null });
   }
 
   removeModifier(list: ModifierForm[], index: number): void {
