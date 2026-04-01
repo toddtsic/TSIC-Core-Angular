@@ -193,12 +193,12 @@ import type { LineItem } from '../state/payment-v2.service';
           </div>
         }
 
-        <!-- Existing RegSaver policies (only when no active VI offer — avoids mixing messages) -->
-        @if (state.familyPlayers.regSaverDetails()?.length && !insuranceState.verticalInsureOffer().data) {
+        <!-- Existing RegSaver policies — always shown for covered registrations -->
+        @if (state.familyPlayers.regSaverDetails()?.length) {
           @for (policy of state.familyPlayers.regSaverDetails()!; track policy.policyNumber) {
-            <div class="alert alert-info border-0 mb-2" role="status">
+            <div class="alert alert-success border-0 mb-2" role="status">
               <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-info-subtle text-info-emphasis border">RegSaver</span>
+                <span class="badge bg-success">RegSaver</span>
                 <div>
                   <div class="fw-semibold">{{ policy.playerName || 'Player' }}@if (policy.teamName) { — {{ policy.teamName }} }</div>
                   <div class="small text-muted">
