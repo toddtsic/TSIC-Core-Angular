@@ -74,7 +74,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
         </div>
 
         <!-- Card Details -->
-        <hr class="my-3" style="border-color: var(--border-color); opacity: 0.5;">
+        <hr class="form-divider my-3">
         <div class="row g-2">
           <div class="col-md-3">
             <label for="cc-type" class="form-label small mb-1">CC Type</label>

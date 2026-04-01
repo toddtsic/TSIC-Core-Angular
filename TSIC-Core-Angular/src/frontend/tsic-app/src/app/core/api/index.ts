@@ -116,6 +116,7 @@ export type { ChargeTypeRefDto } from './models/ChargeTypeRefDto';
 export type { ChatMessageDto } from './models/ChatMessageDto';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
 export type { ChildDto } from './models/ChildDto';
+export type { ChildOperationResponse } from './models/ChildOperationResponse';
 export type { CloneBranchRequest } from './models/CloneBranchRequest';
 export type { CloneByDivisionRequest } from './models/CloneByDivisionRequest';
 export type { CloneByDowRequest } from './models/CloneByDowRequest';

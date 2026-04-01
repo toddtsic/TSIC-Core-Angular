@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
+import { PlayerFormModalComponent } from './player-form-modal.component';
+import { FamilyEditModalComponent } from './family-edit-modal.component';
 
 /**
  * Player Selection step — shows family players as checkboxes.
@@ -10,11 +12,15 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 @Component({
     selector: 'app-prw-player-selection-step',
     standalone: true,
-    imports: [DatePipe],
+    imports: [DatePipe, PlayerFormModalComponent, FamilyEditModalComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-2">
+      <div class="card-header card-header-subtle border-0 py-2 d-flex align-items-center">
         <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Select Players</h5>
+        <button type="button" class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
+                (click)="openFamilyEdit()">
+          <i class="bi bi-pencil-square me-1"></i>Edit Account
+        </button>
       </div>
       <div class="card-body pt-3">
         @if (state.familyPlayers.familyPlayersLoading()) {
@@ -24,9 +30,12 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
             </div>
           </div>
         } @else if (state.familyPlayers.familyPlayers().length === 0) {
-          <div class="alert alert-warning">
-            No players found. Please ensure your family account has children added.
+          <div class="alert alert-warning mb-3">
+            No players found on this family account.
           </div>
+          <button type="button" class="btn btn-primary btn-sm" (click)="openAddPlayer()">
+            <i class="bi bi-plus-circle me-1"></i>Add Player
+          </button>
         } @else {
           <p class="wizard-tip">
             @if (hasRegistered()) {
@@ -57,6 +66,11 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
                     <span class="player-dob">{{ player.dob | date:'MM/dd/yyyy' }}</span>
                   }
                 </div>
+                <button type="button" class="btn-edit"
+                        (click)="openEditPlayer(player); $event.preventDefault(); $event.stopPropagation()"
+                        [attr.aria-label]="'Edit ' + player.firstName">
+                  <i class="bi bi-pencil"></i>
+                </button>
                 @if (player.registered) {
                   <span class="reg-badge">
                     <i class="bi bi-check-circle-fill me-1"></i>Registered
@@ -65,9 +79,30 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
               </label>
             }
           </div>
+
+          <button type="button" class="btn btn-outline-primary btn-sm mt-3" (click)="openAddPlayer()">
+            <i class="bi bi-plus-circle me-1"></i>Add Player
+          </button>
         }
       </div>
     </div>
+
+    <!-- Player add/edit modal -->
+    @if (showPlayerModal()) {
+      <app-player-form-modal
+        [mode]="playerModalMode()"
+        [playerId]="editingPlayerId()"
+        [initialData]="editingPlayerData()"
+        (saved)="onPlayerSaved()"
+        (closed)="showPlayerModal.set(false)" />
+    }
+
+    <!-- Family account edit modal -->
+    @if (showFamilyModal()) {
+      <app-family-edit-modal
+        (saved)="onFamilySaved()"
+        (closed)="showFamilyModal.set(false)" />
+    }
   `,
     styles: [`
       .player-list {
@@ -184,6 +219,33 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
         color: var(--bs-success);
         white-space: nowrap;
       }
+
+      .btn-edit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+        flex-shrink: 0;
+
+        &:hover {
+          color: var(--bs-primary);
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.06);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -192,6 +254,15 @@ export class PlayerSelectionStepComponent {
     readonly advance = output<void>();
     readonly hasRegistered = computed(() =>
         this.state.familyPlayers.familyPlayers().some(p => p.registered));
+
+    // ── Player modal ────────────────────────────────────────────────
+    readonly showPlayerModal = signal(false);
+    readonly playerModalMode = signal<'add' | 'edit'>('add');
+    readonly editingPlayerId = signal<string | null>(null);
+    readonly editingPlayerData = signal<{ firstName?: string; lastName?: string; gender?: string; dob?: string } | null>(null);
+
+    // ── Family modal ────────────────────────────────────────────────
+    readonly showFamilyModal = signal(false);
 
     toggle(playerId: string): void {
         this.state.togglePlayerSelection(playerId);
@@ -203,5 +274,46 @@ export class PlayerSelectionStepComponent {
             this.state.togglePlayerSelection(playerId);
         }
         this.advance.emit();
+    }
+
+    openAddPlayer(): void {
+        this.playerModalMode.set('add');
+        this.editingPlayerId.set(null);
+        this.editingPlayerData.set(null);
+        this.showPlayerModal.set(true);
+    }
+
+    openEditPlayer(player: { playerId: string; firstName: string; lastName: string; gender: string; dob?: string | null }): void {
+        this.playerModalMode.set('edit');
+        this.editingPlayerId.set(player.playerId);
+        this.editingPlayerData.set({
+            firstName: player.firstName,
+            lastName: player.lastName,
+            gender: player.gender,
+            dob: player.dob ?? undefined,
+        });
+        this.showPlayerModal.set(true);
+    }
+
+    onPlayerSaved(): void {
+        this.showPlayerModal.set(false);
+        this.refreshPlayers();
+    }
+
+    openFamilyEdit(): void {
+        this.showFamilyModal.set(true);
+    }
+
+    onFamilySaved(): void {
+        this.showFamilyModal.set(false);
+        this.refreshPlayers();
+    }
+
+    private refreshPlayers(): void {
+        const jobPath = this.state.jobCtx.jobPath();
+        const apiBase = this.state.jobCtx.resolveApiBase();
+        if (jobPath && apiBase) {
+            this.state.familyPlayers.loadFamilyPlayersOnce(jobPath, apiBase);
+        }
     }
 }

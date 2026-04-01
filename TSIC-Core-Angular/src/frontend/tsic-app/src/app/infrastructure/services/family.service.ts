@@ -2,6 +2,8 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import type {
+    ChildDto,
+    ChildOperationResponse,
     FamilyRegistrationRequest,
     FamilyRegistrationResponse,
     FamilyUpdateRequest,
@@ -34,5 +36,13 @@ export class FamilyService {
 
     getMyFamily() {
         return this.http.get<FamilyProfileResponse>(`${this.apiUrl}/me`);
+    }
+
+    addChild(request: ChildDto) {
+        return this.http.post<ChildOperationResponse>(`${this.apiUrl}/child`, request);
+    }
+
+    updateChild(childUserId: string, request: ChildDto) {
+        return this.http.put<ChildOperationResponse>(`${this.apiUrl}/child/${childUserId}`, request);
     }
 }

@@ -434,6 +434,58 @@ public sealed class FamilyService : IFamilyService
         return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
     }
 
+    public async Task<ChildOperationResponse> AddChildAsync(string familyUserId, ChildDto request)
+    {
+        var fam = await _familiesRepo.GetByFamilyUserIdAsync(familyUserId);
+        if (fam == null)
+            return new ChildOperationResponse { Success = false, Message = "Family account not found." };
+
+        var (ok, error) = await CreateAndLinkChildAsync(request, familyUserId);
+        if (!ok)
+            return new ChildOperationResponse { Success = false, Message = error };
+
+        await _familyMemberRepo.SaveChangesAsync();
+
+        // Retrieve the newly created child's userId from the family members list
+        var childIds = await _familyMemberRepo.GetChildUserIdsAsync(familyUserId);
+        var newestId = childIds.LastOrDefault();
+
+        return new ChildOperationResponse { Success = true, ChildUserId = newestId };
+    }
+
+    public async Task<ChildOperationResponse> UpdateChildAsync(string familyUserId, string childUserId, ChildDto request)
+    {
+        // Verify the child belongs to this family
+        var childIds = await _familyMemberRepo.GetChildUserIdsAsync(familyUserId);
+        if (!childIds.Contains(childUserId))
+            return new ChildOperationResponse { Success = false, Message = "Child not found in this family." };
+
+        var childUser = await _userManager.FindByIdAsync(childUserId);
+        if (childUser == null)
+            return new ChildOperationResponse { Success = false, Message = "Child user not found." };
+
+        childUser.FirstName = request.FirstName;
+        childUser.LastName = request.LastName;
+        childUser.Gender = request.Gender;
+        childUser.Email = string.IsNullOrWhiteSpace(request.Email) ? childUser.Email : request.Email;
+        childUser.PhoneNumber = string.IsNullOrWhiteSpace(request.Phone) ? childUser.PhoneNumber : request.Phone;
+        childUser.Cellphone = string.IsNullOrWhiteSpace(request.Phone) ? childUser.Cellphone : request.Phone;
+        childUser.Phone = string.IsNullOrWhiteSpace(request.Phone) ? childUser.Phone : request.Phone;
+        childUser.Modified = DateTime.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(request.Dob) && DateTime.TryParse(request.Dob, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDob))
+            childUser.Dob = parsedDob.Date;
+
+        var result = await _userManager.UpdateAsync(childUser);
+        if (!result.Succeeded)
+        {
+            var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+            return new ChildOperationResponse { Success = false, Message = $"Failed to update: {msg}" };
+        }
+
+        return new ChildOperationResponse { Success = true, ChildUserId = childUserId };
+    }
+
     private async Task<(bool ok, string? error)> CreateAndLinkChildAsync(ChildDto child, string familyUserId)
     {
         var childUser = new ApplicationUser

@@ -53,6 +53,13 @@ public record FamilyUpdateRequest
     public required List<ChildDto> Children { get; init; }
 }
 
+public record ChildOperationResponse
+{
+    public required bool Success { get; init; }
+    public string? ChildUserId { get; init; }
+    public string? Message { get; init; }
+}
+
 public record FamilyProfileResponse
 {
     public required string Username { get; init; }

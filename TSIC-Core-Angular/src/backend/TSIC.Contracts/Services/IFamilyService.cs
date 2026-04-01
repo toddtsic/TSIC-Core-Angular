@@ -8,4 +8,6 @@ public interface IFamilyService
     Task<FamilyRegistrationResponse> RegisterAsync(FamilyRegistrationRequest request);
     Task<FamilyRegistrationResponse> UpdateAsync(FamilyUpdateRequest request);
     Task<FamilyPlayersResponseDto> GetFamilyPlayersAsync(string familyUserId, string jobPath);
+    Task<ChildOperationResponse> AddChildAsync(string familyUserId, ChildDto request);
+    Task<ChildOperationResponse> UpdateChildAsync(string familyUserId, string childUserId, ChildDto request);
 }

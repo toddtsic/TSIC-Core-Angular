@@ -625,6 +625,23 @@ mark {
     }
 }
 
+/* Modal Form Utilities */
+.form-divider {
+    border-color: var(--border-color);
+    opacity: 0.4;
+    margin: var(--space-2) 0;
+}
+
+/* Modal Section Heading — compact labeled divider for modal form groups */
+.section-heading {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--space-2);
+}
+
 /* Payment Summary Table */
 .payment-summary {
     border: 2px solid rgba(var(--bs-primary-rgb), 0.2);

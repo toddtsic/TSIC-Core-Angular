@@ -137,7 +137,32 @@ public class FamilyController : ControllerBase
         return Ok(result);
     }
 
-    // ...existing code...
+    [HttpPost("child")]
+    [Authorize]
+    [ProducesResponseType(typeof(ChildOperationResponse), 200)]
+    [ProducesResponseType(typeof(ChildOperationResponse), 400)]
+    public async Task<IActionResult> AddChild([FromBody] ChildDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var result = await _familyService.AddChildAsync(userId, request);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    [HttpPut("child/{childUserId}")]
+    [Authorize]
+    [ProducesResponseType(typeof(ChildOperationResponse), 200)]
+    [ProducesResponseType(typeof(ChildOperationResponse), 400)]
+    public async Task<IActionResult> UpdateChild(string childUserId, [FromBody] ChildDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var result = await _familyService.UpdateChildAsync(userId, childUserId, request);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
     [HttpGet("players")]
     [Authorize]
     [ProducesResponseType(typeof(FamilyPlayersResponseDto), 200)]
