@@ -1,12 +1,14 @@
 import {
-    ChangeDetectionStrategy, Component, OnInit, ViewChild,
+    ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewChild,
     computed, inject, signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService as InfraJobContext } from '@infrastructure/services/job-context.service';
 import { TeamWizardStateService } from './state/team-wizard-state.service';
+import { TeamRegistrationService } from './services/team-registration.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { TeamLoginStepComponent } from './steps/login-step.component';
 import { TeamTeamsStepComponent } from './steps/teams-step.component';
@@ -67,6 +69,8 @@ export class TeamWizardV2Component implements OnInit {
     private readonly auth = inject(AuthService);
     private readonly jobService = inject(JobService);
     private readonly infraJobCtx = inject(InfraJobContext);
+    private readonly teamReg = inject(TeamRegistrationService);
+    private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(TeamWizardStateService);
 
     private readonly _currentIndex = signal(0);
@@ -149,11 +153,13 @@ export class TeamWizardV2Component implements OnInit {
             this.state.initialize(jobPath);
         }
 
-        // Handle refresh: if user already has Phase 2 token, skip login
-        if (this.auth.hasSelectedRole()) {
-            const clubCount = this.auth.getClubRepClubCount();
-            if (clubCount >= 1) {
-                this._currentIndex.set(1); // teams step
+        // Clear any stale Phase 2 token from a previous session/job.
+        // Club reps must re-authenticate for the current event.
+        const currentUser = this.auth.currentUser();
+        if (currentUser?.role === 'Club Rep' && currentUser?.regId) {
+            // Has a Phase 2 token — check if it's for this job
+            if (currentUser.jobPath !== jobPath) {
+                this.auth.logoutLocal();
             }
         }
     }
@@ -179,6 +185,7 @@ export class TeamWizardV2Component implements OnInit {
     }
 
     finish(): void {
+        this.auth.logoutLocal();
         const jobPath = this.state.jobPath();
         if (jobPath) {
             this.router.navigate(['/', jobPath]);
@@ -190,12 +197,44 @@ export class TeamWizardV2Component implements OnInit {
         this.state.resetForRepSwitch();
         this.state.clubRep.setAvailableClubs(result.availableClubs as import('@core/api').ClubRepClubDto[]);
         this.state.clubRep.setSelectedClub(result.clubName);
-        this._currentIndex.set(1); // advance to teams step
+
+        const clubName = result.clubName;
+        const jobPath = this.state.jobPath();
+        if (clubName && jobPath) {
+            this.initAndAdvance(clubName, jobPath);
+        } else {
+            // Multi-club rep without auto-selection — advance to teams step anyway
+            // (teams step will need club selection before loading metadata)
+            this._currentIndex.set(1);
+        }
     }
 
     onRegistrationSuccess(result: { availableClubs: unknown[]; clubName?: string | null }): void {
         this.state.resetForRepSwitch();
         this.state.clubRep.setAvailableClubs(result.availableClubs as import('@core/api').ClubRepClubDto[]);
-        this._currentIndex.set(1); // advance to teams step
+
+        const clubName = result.clubName ?? null;
+        const jobPath = this.state.jobPath();
+        if (clubName && jobPath) {
+            this.initAndAdvance(clubName, jobPath);
+        } else {
+            this._currentIndex.set(1);
+        }
+    }
+
+    /** Call initialize-registration to get a job-scoped Phase 2 token, then advance. */
+    private initAndAdvance(clubName: string, jobPath: string): void {
+        this.teamReg.initializeRegistration(clubName, jobPath)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this._currentIndex.set(1); // advance to teams step
+                },
+                error: (err: unknown) => {
+                    console.error('[TeamWizard] initializeRegistration failed', err);
+                    // Still advance — teams step will show error from missing regId
+                    this._currentIndex.set(1);
+                },
+            });
     }
 }
