@@ -31,7 +31,7 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
             </div>
           } @else {
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
-              <div class="row g-1 mb-1">
+              <div class="row g-2 mb-2">
                 <div class="col-12">
                   <input class="form-control form-control-sm" formControlName="clubName"
                          placeholder="Club Name"
@@ -39,7 +39,7 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                          [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
                 </div>
               </div>
-              <div class="row g-1 mb-1">
+              <div class="row g-2 mb-2">
                 <div class="col-6">
                   <input class="form-control form-control-sm" formControlName="firstName"
                          placeholder="First Name"
@@ -53,7 +53,7 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                          [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
                 </div>
               </div>
-              <div class="row g-1 mb-1">
+              <div class="row g-2 mb-2">
                 <div class="col-7">
                   <input type="email" class="form-control form-control-sm" formControlName="email"
                          placeholder="Email"
@@ -63,11 +63,11 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                 <div class="col-5">
                   <input type="tel" inputmode="numeric" class="form-control form-control-sm"
                          formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
-                         placeholder="Phone"
+                         placeholder="Phone (digits only)"
                          [class.is-required]="!form.controls.cellphone.value?.trim()" />
                 </div>
               </div>
-              <div class="row g-1 mb-1">
+              <div class="row g-2 mb-2">
                 <div class="col-12">
                   <input class="form-control form-control-sm" formControlName="streetAddress"
                          placeholder="Street Address"
@@ -75,7 +75,7 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                          [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
                 </div>
               </div>
-              <div class="row g-1 mb-1">
+              <div class="row g-2 mb-2">
                 <div class="col-5">
                   <input class="form-control form-control-sm" formControlName="city"
                          placeholder="City"
@@ -99,8 +99,8 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
                          [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
                 </div>
               </div>
-              <hr class="form-divider my-1">
-              <div class="row g-1 mb-1">
+              <hr class="form-divider my-2">
+              <div class="row g-2 mb-2">
                 <div class="col-6">
                   <input class="form-control form-control-sm" formControlName="username"
                          placeholder="Username" autocomplete="username"
@@ -116,10 +116,10 @@ import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
               </div>
 
               @if (errorMsg()) {
-                <div class="alert alert-danger py-1 small mb-1">{{ errorMsg() }}</div>
+                <div class="alert alert-danger py-2 small mb-2">{{ errorMsg() }}</div>
               }
 
-              <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold mt-1" [disabled]="saving()">
+              <button type="submit" class="btn btn-primary w-100 fw-semibold mt-3" [disabled]="saving()">
                 @if (saving()) {
                   <span class="spinner-border spinner-border-sm me-1"></span>Creating...
                 } @else {
