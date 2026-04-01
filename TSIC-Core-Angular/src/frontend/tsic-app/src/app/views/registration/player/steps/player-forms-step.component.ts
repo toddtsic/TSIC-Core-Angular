@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, output, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, mergeMap, switchMap, takeUntil, filter } from 'rxjs/operators';
@@ -366,10 +366,12 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlayerFormsStepComponent implements OnDestroy {
+    readonly advance = output<void>();
     readonly state = inject(PlayerWizardStateService);
     private readonly usLaxService = inject(UsLaxValidationService);
     private readonly usLaxTrigger$ = new Subject<{ playerId: string; value: string; field: PlayerProfileFieldSchema }>();
     private readonly destroy$ = new Subject<void>();
+    private _autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
         // Debounced US Lax API validation stream
@@ -434,8 +436,20 @@ export class PlayerFormsStepComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
         this.destroy$.next();
         this.destroy$.complete();
+    }
+
+    /** Auto-advance after 500ms if all visible fields are valued across all unlocked players. */
+    private checkAutoAdvance(): void {
+        if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
+        const allComplete = this.selectedPlayerIds()
+            .filter(pid => !this.isPlayerLocked(pid))
+            .every(pid => this.visibleFields(pid).every(f => this.hasValue(pid, f.name)));
+        if (allComplete) {
+            this._autoAdvanceTimer = setTimeout(() => this.advance.emit(), 500);
+        }
     }
 
     selectedPlayerIds(): string[] {
@@ -513,11 +527,13 @@ export class PlayerFormsStepComponent implements OnDestroy {
                 this.usLaxTrigger$.next({ playerId, value: str, field });
             }
         }
+        this.checkAutoAdvance();
     }
 
     onCheckboxChange(playerId: string, fieldName: string, event: Event): void {
         const checked = (event.target as HTMLInputElement).checked;
         this.state.playerForms.setPlayerFieldValue(playerId, fieldName, checked);
+        this.checkAutoAdvance();
     }
 
     hasValue(playerId: string, fieldName: string): boolean {
@@ -562,6 +578,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
         else if (!checked) arr = arr.filter(v => v !== option);
 
         this.state.playerForms.setPlayerFieldValue(playerId, fieldName, arr);
+        this.checkAutoAdvance();
     }
 
     isHtmlError(error: string): boolean {

@@ -48,8 +48,8 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
         @case ('players') { <app-prw-player-selection-step (advance)="next()" /> }
         @case ('eligibility') { <app-prw-eligibility-step (advance)="next()" /> }
         @case ('teams') { <app-prw-team-selection-step (advance)="next()" /> }
-        @case ('forms') { <app-prw-player-forms-step /> }
-        @case ('waivers') { <app-prw-waivers-step /> }
+        @case ('forms') { <app-prw-player-forms-step (advance)="next()" /> }
+        @case ('waivers') { <app-prw-waivers-step (advance)="next()" /> }
         @case ('review') { <app-prw-review-step (advance)="next()" /> }
         @case ('payment') { <app-prw-payment-step (advance)="next()" /> }
         @case ('confirmation') { <app-prw-confirmation-step (finished)="finish()" /> }
