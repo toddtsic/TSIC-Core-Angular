@@ -57,10 +57,11 @@ export class LandingRouterComponent implements OnInit {
         const user = this.auth.currentUser();
         if (!user) return;
 
-        // Phase 1 (logged in, no role) → redirect to role-selection
-        // This only fires on the job landing page, not on sub-routes.
+        // Phase 1 (logged in, no role selected) on the landing page.
+        // This is a stale incomplete session (e.g. back-button from wizard).
+        // Clear it so the user sees the public home — matches refresh behavior.
         if (!this.auth.hasSelectedRole()) {
-            this.router.navigate(['/', path, 'role-selection'], { replaceUrl: true });
+            this.auth.logoutLocal();
         }
     }
 }

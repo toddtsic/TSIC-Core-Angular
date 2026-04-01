@@ -34,6 +34,17 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private _returnUrl: string | null = null;
 
   ngOnInit(): void {
+    // Back-button can reach role-selection after the session was cleared.
+    // If not authenticated, redirect to job home (matches cold-start guard).
+    if (!this.authService.isAuthenticated()) {
+      const jobPath = this.route.snapshot.paramMap.get('jobPath')
+        ?? this.route.parent?.snapshot.paramMap.get('jobPath')
+        ?? 'tsic';
+      this.authService.logoutLocal();
+      this.router.navigate([`/${jobPath}`]);
+      return;
+    }
+
     const raw = this.route.snapshot.queryParamMap.get('returnUrl');
     // Reject circular returnUrl that points back to role-selection
     this._returnUrl = raw && !raw.includes('role-selection') ? raw : null;
