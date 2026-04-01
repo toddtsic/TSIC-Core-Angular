@@ -241,6 +241,7 @@ export class PlayerWizardV2Component implements OnInit {
     }
 
     finish(): void {
+        this.authService.logoutLocal();
         this.router.navigate([`/${this.resolveJobPath()}`]);
     }
 
