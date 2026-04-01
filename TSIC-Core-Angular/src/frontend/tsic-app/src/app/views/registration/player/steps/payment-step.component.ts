@@ -54,11 +54,13 @@ import type { LineItem } from '../state/payment-v2.service';
           <section class="payment-summary mb-4">
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-0">
-                <thead>
+                <thead class="table-light">
                   <tr>
                     <th>Player</th>
                     <th>Team</th>
-                    <th class="text-end">Amount</th>
+                    <th class="text-end">Fee</th>
+                    <th class="text-end">Paid</th>
+                    <th class="text-end">Due</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -66,6 +68,8 @@ import type { LineItem } from '../state/payment-v2.service';
                     <tr>
                       <td>{{ li.playerName }}</td>
                       <td>{{ li.teamName }}</td>
+                      <td class="text-end">{{ li.feeTotal | currency }}</td>
+                      <td class="text-end">{{ li.paidTotal | currency }}</td>
                       <td class="text-end">{{ li.amount | currency }}</td>
                     </tr>
                   }
@@ -73,12 +77,12 @@ import type { LineItem } from '../state/payment-v2.service';
                 <tfoot>
                   @if (paySvc.appliedDiscount() > 0) {
                     <tr>
-                      <td colspan="2" class="text-end text-success">Discount</td>
+                      <td colspan="4" class="text-end text-success">Discount</td>
                       <td class="text-end text-success">-{{ paySvc.appliedDiscount() | currency }}</td>
                     </tr>
                   }
-                  <tr class="due-now-row">
-                    <th colspan="2" class="text-end">Due Now</th>
+                  <tr class="table-primary due-now-row">
+                    <th colspan="4" class="text-end">Due Now</th>
                     <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                   </tr>
                 </tfoot>

@@ -625,6 +625,12 @@ mark {
     }
 }
 
+/* Form Check — stronger unchecked visibility */
+.form-check-input:not(:checked) {
+    border: 2px solid var(--neutral-400);
+    background-color: var(--brand-surface);
+}
+
 /* Modal Form Utilities */
 .form-divider {
     border-color: var(--border-color);

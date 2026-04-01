@@ -26,6 +26,8 @@ export interface LineItem {
     playerName: string;
     teamName: string;
     amount: number;
+    feeTotal: number;
+    paidTotal: number;
 }
 
 /**
@@ -64,7 +66,9 @@ export class PaymentV2Service {
             const financials = registration?.financials;
             if (!team && !registration) continue;
             const amount = financials ? this.getAmountFromFinancials(financials) : this.getAmount(team);
-            items.push({ playerId: p.id, playerName: p.name, teamName: team?.teamName || registration?.assignedTeamName || '', amount });
+            const feeTotal = financials ? toNumber(financials.feeTotal) : this.getAmount(team);
+            const paidTotal = financials ? toNumber(financials.paidTotal) : 0;
+            items.push({ playerId: p.id, playerName: p.name, teamName: team?.teamName || registration?.assignedTeamName || '', amount, feeTotal, paidTotal });
         }
         return items;
     });
