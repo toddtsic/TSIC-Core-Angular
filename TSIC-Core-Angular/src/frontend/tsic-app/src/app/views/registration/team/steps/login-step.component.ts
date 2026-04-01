@@ -148,6 +148,15 @@ export class TeamLoginStepComponent implements OnInit {
 
     continueWithLogin(): void {
         this.error.set(null);
+
+        // Guard: reject non-ClubRep logins
+        const user = this.auth.currentUser();
+        if (user?.role && !TeamLoginStepComponent.ALLOWED_ROLES.has(user.role)) {
+            this.auth.logoutLocal();
+            this.error.set('This is not a club rep account. Please sign in with a club rep account or create one below.');
+            return;
+        }
+
         this.teamReg.getMyClubs()
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
