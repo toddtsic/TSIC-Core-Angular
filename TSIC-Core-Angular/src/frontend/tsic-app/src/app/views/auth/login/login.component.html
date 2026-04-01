@@ -4,7 +4,9 @@
 
       <div class="card-body">
         <div class="text-center login-hero">
+          @if (!embedded) {
           <img src="favicon.svg" alt="" aria-hidden="true" class="login-favicon" />
+          }
           <h2 id="login-title" class="login-title" [innerHTML]="headerText"></h2>
           <p class="login-subtitle" [innerHTML]="subHeaderText"></p>
         </div>

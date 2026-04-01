@@ -24,6 +24,7 @@ import { LoginComponent } from '../../../auth/login/login.component';
       .account-step {
         max-width: 460px;
         margin: 0 auto;
+        padding-top: var(--space-8);
       }
 
       /* Authenticated state */
@@ -97,49 +98,54 @@ import { LoginComponent } from '../../../auth/login/login.component';
       }
     `],
     template: `
-    <div class="account-step">
-      @if (loadError()) {
-        <div class="error-banner" role="alert">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          <div>
-            <div class="fw-semibold mb-1">Failed to load player data</div>
-            <div class="small text-muted">{{ loadError() }}</div>
-            <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="retryLoad()">
-              Retry
+    <div class="card shadow border-0 card-rounded">
+      <div class="card-body account-step">
+        @if (loadError()) {
+          <div class="error-banner" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div>
+              <div class="fw-semibold mb-1">Failed to load player data</div>
+              <div class="small text-muted">{{ loadError() }}</div>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-2" (click)="retryLoad()">
+                Retry
+              </button>
+            </div>
+          </div>
+        } @else if (auth.isAuthenticated()) {
+          <div class="auth-banner">
+            <span class="spinner-border spinner-border-sm text-primary"></span>
+            <span>Loading player data for <strong>{{ auth.getCurrentUser()?.username }}</strong>...</span>
+          </div>
+        } @else {
+          @if (wizardError()) {
+            <div class="alert alert-danger d-flex align-items-start gap-2 mb-3" role="alert">
+              <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+              <span>{{ wizardError() }}</span>
+            </div>
+          }
+
+          <p class="wizard-tip">Sign in with your family account to register players for this event.</p>
+
+          <app-login
+            [theme]="'player'"
+            [embedded]="true"
+            [headerText]="'Family Account'"
+            [subHeaderText]="'Enter your username and password'"
+            [returnUrl]="returnUrl()"
+            (loginSuccess)="onContinue()" />
+
+          <div class="or-divider">or</div>
+
+          <div class="create-cta">
+            <p>Don't have an account yet?</p>
+            <button type="button"
+                    class="btn btn-outline-primary fw-semibold w-100"
+                    (click)="goToFamilyWizard()">
+              <i class="bi bi-people-fill me-2"></i>Create Family Account
             </button>
           </div>
-        </div>
-      } @else if (auth.isAuthenticated()) {
-        <div class="auth-banner">
-          <span class="spinner-border spinner-border-sm text-primary"></span>
-          <span>Loading player data for <strong>{{ auth.getCurrentUser()?.username }}</strong>...</span>
-        </div>
-      } @else {
-        @if (wizardError()) {
-          <div class="alert alert-danger d-flex align-items-start gap-2 mb-3" role="alert">
-            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
-            <span>{{ wizardError() }}</span>
-          </div>
         }
-        <app-login
-          [theme]="'player'"
-          [embedded]="true"
-          [headerText]="'Family Account Sign In'"
-          [subHeaderText]="'Use your family account username and password'"
-          [returnUrl]="returnUrl()"
-          (loginSuccess)="onContinue()" />
-
-        <div class="or-divider">or</div>
-
-        <div class="create-cta">
-          <p>Don't have an account yet?</p>
-          <button type="button"
-                  class="btn btn-outline-primary fw-semibold w-100"
-                  (click)="goToFamilyWizard()">
-            <i class="bi bi-people-fill me-2"></i>Create Family Account
-          </button>
-        </div>
-      }
+      </div>
     </div>
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
