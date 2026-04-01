@@ -153,12 +153,15 @@ export class TeamWizardV2Component implements OnInit {
             this.state.initialize(jobPath);
         }
 
-        // Clear any stale Phase 2 token from a previous session/job.
-        // Club reps must re-authenticate for the current event.
+        // Only Club Rep accounts are allowed in the team wizard.
+        // Clear any non-ClubRep session or stale cross-job tokens.
         const currentUser = this.auth.currentUser();
-        if (currentUser?.role === 'Club Rep' && currentUser?.regId) {
-            // Has a Phase 2 token — check if it's for this job
-            if (currentUser.jobPath !== jobPath) {
+        if (currentUser) {
+            if (currentUser.role && currentUser.role !== 'Club Rep') {
+                // Wrong role entirely (SuperUser, Family, Player, etc.)
+                this.auth.logoutLocal();
+            } else if (currentUser.role === 'Club Rep' && currentUser.regId && currentUser.jobPath !== jobPath) {
+                // Right role but stale token from a different job
                 this.auth.logoutLocal();
             }
         }
