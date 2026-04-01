@@ -193,13 +193,13 @@ import type { LineItem } from '../state/payment-v2.service';
           </div>
         }
 
-        <!-- Existing RegSaver policy -->
-        @if (state.familyPlayers.regSaverDetails()) {
+        <!-- Existing RegSaver policy (only when no active VI offer — avoids mixing messages) -->
+        @if (state.familyPlayers.regSaverDetails() && !insuranceState.verticalInsureOffer().data) {
           <div class="alert alert-info border-0 mb-3" role="status">
             <div class="d-flex align-items-center gap-2">
               <span class="badge bg-info-subtle text-info-emphasis border">RegSaver</span>
               <div>
-                <div class="fw-semibold">RegSaver policy on file</div>
+                <div class="fw-semibold">RegSaver policy on file — {{ regSaverPlayerName() }}</div>
                 <div class="small text-muted">
                   Policy #: {{ state.familyPlayers.regSaverDetails()!.policyNumber }}
                   &bull; Created: {{ state.familyPlayers.regSaverDetails()!.policyCreateDate | date:'mediumDate' }}
@@ -360,6 +360,13 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
         if (!this.isViCcOnlyFlow()) return false;
         const ccOk = !this.showCcSection() || this.ccValid();
         return ccOk && !this.submitting();
+    });
+
+    /** Names of players who have existing RegSaver coverage (registered + PIF). */
+    readonly regSaverPlayerName = computed(() => {
+        const players = this.state.familyPlayers.familyPlayers().filter(p => p.registered);
+        if (players.length === 0) return '';
+        return players.map(p => `${p.firstName} ${p.lastName}`.trim()).join(', ');
     });
 
     readonly viQuotedPlayers = computed(() => this.insuranceSvc.quotedPlayers());
