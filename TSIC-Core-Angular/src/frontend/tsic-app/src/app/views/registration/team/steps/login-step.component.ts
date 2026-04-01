@@ -161,14 +161,19 @@ export class TeamLoginStepComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (clubs: ClubRepClubDto[]) => {
+                    if (!clubs.length) {
+                        this.auth.logoutLocal();
+                        this.error.set('No clubs found for this account. This is not a club rep account, or your club has not been set up yet.');
+                        return;
+                    }
                     const clubName = clubs.length === 1 ? clubs[0].clubName : null;
                     this.loginSuccess.emit({ availableClubs: clubs, clubName });
                 },
                 error: (err: unknown) => {
                     const httpErr = err as { status?: number };
                     console.error('[TeamLogin] Failed to load clubs', err);
+                    this.auth.logoutLocal();
                     if (httpErr?.status === 403) {
-                        this.auth.logoutLocal();
                         this.error.set('This is not a club rep account. Please sign in with a club rep account or create one below.');
                     } else {
                         this.error.set('Failed to load your clubs. Please try again.');

@@ -38,7 +38,8 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [detailsBadgeLabel]="detailsBadge()"
       [detailsBadgeClass]="detailsBadgeClass()"
       (back)="back()"
-      (continue)="next()">
+      (continue)="next()"
+      (goToStep)="goToStep($event)">
       @switch (currentStepId()) {
         @case ('login') {
           <app-trw-login-step
@@ -187,6 +188,12 @@ export class TeamWizardV2Component implements OnInit {
         this._currentIndex.set(idx + 1);
     }
 
+    goToStep(stepIndex: number): void {
+        if (stepIndex < this._currentIndex()) {
+            this._currentIndex.set(stepIndex);
+        }
+    }
+
     finish(): void {
         this.auth.logoutLocal();
         const jobPath = this.state.jobPath();
@@ -197,6 +204,12 @@ export class TeamWizardV2Component implements OnInit {
 
     // ── Login callbacks ─────────────────────────────────────────────
     onLoginSuccess(result: { availableClubs: unknown[]; clubName: string | null }): void {
+        // Reject accounts with no clubs (not a club rep)
+        if (!result.availableClubs?.length) {
+            this.auth.logoutLocal();
+            return; // login step will show error via its own 403/empty handling
+        }
+
         this.state.resetForRepSwitch();
         this.state.clubRep.setAvailableClubs(result.availableClubs as import('@core/api').ClubRepClubDto[]);
         this.state.clubRep.setSelectedClub(result.clubName);
@@ -206,22 +219,30 @@ export class TeamWizardV2Component implements OnInit {
         if (clubName && jobPath) {
             this.initAndAdvance(clubName, jobPath);
         } else {
-            // Multi-club rep without auto-selection — advance to teams step anyway
-            // (teams step will need club selection before loading metadata)
-            this._currentIndex.set(1);
+            // Multi-club rep — need club picker before advancing
+            // For now, use first club
+            const firstClub = (result.availableClubs as import('@core/api').ClubRepClubDto[])[0]?.clubName;
+            if (firstClub && jobPath) {
+                this.state.clubRep.setSelectedClub(firstClub);
+                this.initAndAdvance(firstClub, jobPath);
+            }
         }
     }
 
     onRegistrationSuccess(result: { availableClubs: unknown[]; clubName?: string | null }): void {
+        if (!result.availableClubs?.length) {
+            this.auth.logoutLocal();
+            return;
+        }
+
         this.state.resetForRepSwitch();
         this.state.clubRep.setAvailableClubs(result.availableClubs as import('@core/api').ClubRepClubDto[]);
 
-        const clubName = result.clubName ?? null;
+        const clubName = result.clubName ?? (result.availableClubs as import('@core/api').ClubRepClubDto[])[0]?.clubName ?? null;
         const jobPath = this.state.jobPath();
         if (clubName && jobPath) {
+            this.state.clubRep.setSelectedClub(clubName);
             this.initAndAdvance(clubName, jobPath);
-        } else {
-            this._currentIndex.set(1);
         }
     }
 
@@ -235,8 +256,9 @@ export class TeamWizardV2Component implements OnInit {
                 },
                 error: (err: unknown) => {
                     console.error('[TeamWizard] initializeRegistration failed', err);
-                    // Still advance — teams step will show error from missing regId
-                    this._currentIndex.set(1);
+                    // Return to login — don't advance with broken token
+                    this.auth.logoutLocal();
+                    this._currentIndex.set(0);
                 },
             });
     }
