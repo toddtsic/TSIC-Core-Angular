@@ -27,7 +27,16 @@ namespace TSIC.API.Controllers;
 public class TeamRegistrationController : ControllerBase
 {
     private const string UserNotAuthenticatedMessage = "User not authenticated";
+    private const string NotClubRepMessage = "This endpoint is restricted to Club Rep accounts.";
     private const string UnknownTeamName = "Unknown";
+
+    private bool IsClubRepRole()
+    {
+        var role = User.FindFirst(ClaimTypes.Role)?.Value
+                ?? User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value;
+        return string.Equals(role, "Club Rep", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(role, "ClubRep", StringComparison.OrdinalIgnoreCase);
+    }
 
     private readonly ITeamRegistrationService _teamRegistrationService;
     private readonly ILogger<TeamRegistrationController> _logger;
@@ -98,9 +107,9 @@ public class TeamRegistrationController : ControllerBase
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
-        {
             return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-        }
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
 
         try
         {
@@ -174,18 +183,16 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> GetMetadata([FromQuery] bool bPayBalanceDue = false)
     {
-        // Extract regId from token
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+
         var regIdClaim = User.FindFirst("regId")?.Value;
         if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
-        {
             return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
-        }
 
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
-        {
             return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-        }
 
         try
         {
@@ -214,18 +221,16 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> RegisterTeam([FromBody] RegisterTeamRequest request)
     {
-        // Extract regId from token
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+
         var regIdClaim = User.FindFirst("regId")?.Value;
         if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
-        {
             return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
-        }
 
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
-        {
             return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-        }
 
         try
         {
@@ -309,6 +314,8 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> CreateClubTeam([FromBody] CreateClubTeamRequest request)
     {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
 
