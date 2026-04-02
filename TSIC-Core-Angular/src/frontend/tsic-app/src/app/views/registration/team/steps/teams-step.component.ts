@@ -181,7 +181,7 @@ type MiniStep = 'library' | 'select' | 'summary';
                        [disabled]="paid || actionInProgress()"
                        (change)="onToggleTeam(team, $event)" />
                 <span class="select-name">{{ team.clubTeamName }}</span>
-                <span class="select-meta">{{ team.clubTeamGradYear }}{{ team.clubTeamLevelOfPlay ? ' · Lvl ' + team.clubTeamLevelOfPlay : '' }}</span>
+                <span class="select-meta">{{ team.clubTeamGradYear }}{{ team.clubTeamLevelOfPlay ? ' · LOP ' + team.clubTeamLevelOfPlay : '' }}</span>
                 @if (entered) {
                   <span class="select-age"><i class="bi bi-diagram-3 me-1"></i>{{ entered.ageGroupName }}</span>
                 }
