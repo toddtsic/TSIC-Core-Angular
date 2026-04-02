@@ -4,6 +4,7 @@ import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { Roles } from '../constants/roles.constants';
 
 /**
  * Unified authentication guard.
@@ -51,6 +52,16 @@ export const authGuard: CanActivateFn = (route, state) => {
 
     // ── Cold start + Phase 1 = stale session ────────────────────────
     if (isColdStart && isAuth && user && !user.regId) {
+        const jp = user.jobPath;
+        auth.logoutLocal();
+        return toJob(jp || 'tsic');
+    }
+
+    // ── Cold start + Phase 2 + non-privileged = stale session ────────
+    // Only SuperUser and Director persist across refresh.
+    // All other roles must re-authenticate.
+    if (isColdStart && isAuth && user?.regId
+        && user.role !== Roles.Superuser && user.role !== Roles.Director) {
         const jp = user.jobPath;
         auth.logoutLocal();
         return toJob(jp || 'tsic');
