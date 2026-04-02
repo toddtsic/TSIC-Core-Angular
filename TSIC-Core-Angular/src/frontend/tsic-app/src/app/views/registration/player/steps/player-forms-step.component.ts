@@ -17,11 +17,19 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
     standalone: true,
     imports: [FormsModule],
     template: `
+    <!-- Centered hero -->
+    <div class="welcome-hero">
+      <h4 class="welcome-title"><i class="bi bi-card-checklist welcome-icon"></i> Player Details</h4>
+      <p class="welcome-desc">
+        <i class="bi bi-pencil-square me-1"></i>Complete required fields
+        <span class="desc-dot"></span>
+        <i class="bi bi-save me-1"></i>Info saved to your account
+        <span class="desc-dot"></span>
+        <i class="bi bi-person me-1"></i>One form per player
+      </p>
+    </div>
+
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-2 d-flex align-items-center">
-        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Player Information</h5>
-        <span class="wizard-tip-inline">Complete the required fields for each player.</span>
-      </div>
       <div class="card-body pt-2">
         <!-- Server validation errors -->
         @if (state.jobCtx.hasServerValidationErrors()) {
@@ -184,6 +192,13 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
     </div>
   `,
     styles: [`
+      .welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-4) var(--space-4) var(--space-3); }
+      .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+      .welcome-icon { font-size: var(--font-size-2xl); color: var(--bs-primary); }
+      .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
+      .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
+      @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
+
       .wizard-tip-inline {
         margin-left: auto;
         font-size: var(--font-size-xs);

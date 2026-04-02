@@ -11,17 +11,26 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
     standalone: true,
     imports: [FormsModule],
     template: `
+    <!-- Centered hero -->
+    <div class="welcome-hero">
+      <h4 class="welcome-title"><i class="bi bi-shield-check welcome-icon" style="color: var(--bs-warning)"></i> Review & Accept Waivers</h4>
+      <p class="welcome-desc">
+        <i class="bi bi-book me-1"></i>Read each waiver
+        <span class="desc-dot"></span>
+        <i class="bi bi-check-square me-1"></i>Check to accept
+        <span class="desc-dot"></span>
+        <i class="bi bi-people me-1"></i>Applies to all selected players
+      </p>
+    </div>
+
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Waivers</h5>
-      </div>
       <div class="card-body">
         @if (waiverDefs().length === 0) {
           <div class="alert alert-info">No waivers required for this event.</div>
         } @else {
-          <div class="alert alert-secondary border-0 small mb-3">
-            These waivers apply to all selected players. Please read each waiver
-            and check the box to accept.
+          <div class="callout-info">
+            <i class="bi bi-info-circle"></i>
+            <span>These waivers apply to <strong>all selected players</strong>. Read each one and check to accept.</span>
           </div>
 
           <!-- Player badges -->
@@ -84,6 +93,21 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
       </div>
     </div>
   `,
+    styles: [`
+      .welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-4) var(--space-4) var(--space-3); }
+      .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+      .welcome-icon { font-size: var(--font-size-2xl); }
+      .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
+      .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
+      .callout-info {
+        display: flex; align-items: center; gap: var(--space-2);
+        padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3);
+        background: rgba(var(--bs-info-rgb), 0.06); border: 1px solid rgba(var(--bs-info-rgb), 0.12);
+        border-radius: var(--radius-md); font-size: var(--font-size-xs); color: var(--brand-text);
+        i { color: var(--bs-info); flex-shrink: 0; }
+      }
+      @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WaiversStepComponent implements AfterViewInit, OnDestroy {

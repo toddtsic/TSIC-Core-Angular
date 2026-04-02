@@ -15,10 +15,19 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
     standalone: true,
     imports: [FormsModule, DropDownListModule],
     template: `
+    <!-- Centered hero -->
+    <div class="welcome-hero">
+      <h4 class="welcome-title"><i class="bi bi-flag-fill welcome-icon" style="color: var(--bs-info)"></i> Assign Teams</h4>
+      <p class="welcome-desc">
+        <i class="bi bi-hand-index me-1"></i>Pick a team for each player
+        <span class="desc-dot"></span>
+        <i class="bi bi-bar-chart me-1"></i>Capacity shown in dropdown
+        <span class="desc-dot"></span>
+        <i class="bi bi-hourglass-split me-1"></i>Waitlist if full
+      </p>
+    </div>
+
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-2">
-        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Team Selection</h5>
-      </div>
       <div class="card-body pt-3">
         @if (teamService.loading()) {
           <div class="text-center py-4">
@@ -29,13 +38,6 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
         } @else if (teamService.error()) {
           <div class="alert alert-danger">{{ teamService.error() }}</div>
         } @else {
-          <p class="wizard-tip">
-            @if (isMultiTeamMode()) {
-              Select one or more teams for each player.
-            } @else {
-              Select a team for each player based on their {{ constraintLabel() }}.
-            }
-          </p>
           <div class="player-list">
             @for (pid of selectedPlayerIds(); track pid) {
               <div class="player-row" [class.is-set]="!!getSelectedTeamId(pid)"
@@ -105,6 +107,13 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
     </div>
   `,
     styles: [`
+      .welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-4) var(--space-4) var(--space-3); }
+      .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+      .welcome-icon { font-size: var(--font-size-2xl); }
+      .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
+      .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
+      @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
+
       .player-list {
         display: flex;
         flex-direction: column;

@@ -11,14 +11,18 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
     standalone: true,
     imports: [FormsModule],
     template: `
+    <!-- Centered hero -->
+    <div class="welcome-hero">
+      <h4 class="welcome-title"><i class="bi bi-bullseye welcome-icon"></i> Set Player {{ cardTitle() }}</h4>
+      <p class="welcome-desc">
+        <i class="bi bi-person-check me-1"></i>Choose {{ constraintLabel() }} per player
+        <span class="desc-dot"></span>
+        <i class="bi bi-diagram-3 me-1"></i>Determines team placement
+      </p>
+    </div>
+
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-2">
-        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">{{ cardTitle() }}</h5>
-      </div>
       <div class="card-body pt-3">
-        <p class="wizard-tip">
-          Select the {{ constraintLabel() }} for each player.
-        </p>
         <div class="player-list">
           @for (pid of selectedPlayerIds(); track pid) {
             <div class="player-row" [class.is-set]="!!state.eligibility.getEligibilityForPlayer(pid)">
@@ -48,6 +52,16 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
     </div>
   `,
     styles: [`
+      .welcome-hero {
+        display: flex; flex-direction: column; align-items: center;
+        text-align: center; padding: var(--space-4) var(--space-4) var(--space-3);
+      }
+      .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+      .welcome-icon { font-size: var(--font-size-2xl); color: var(--bs-primary); }
+      .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
+      .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
+      @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
+
       .player-list {
         display: flex;
         flex-direction: column;

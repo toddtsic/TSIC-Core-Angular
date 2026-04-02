@@ -15,13 +15,14 @@ import { JobService } from '@infrastructure/services/job.service';
     imports: [CurrencyPipe, DatePipe],
     template: `
     <div class="review-shell">
-      <!-- Hero banner -->
-      <div class="review-hero">
-        <i class="bi bi-clipboard-check review-hero-icon"></i>
-        <div>
-          <h5 class="review-hero-title">Almost there!</h5>
-          <p class="review-hero-sub">Review the details below, then hit Submit to proceed to payment.</p>
-        </div>
+      <!-- Centered hero -->
+      <div class="welcome-hero">
+        <h4 class="welcome-title"><i class="bi bi-clipboard-check welcome-icon" style="color: var(--bs-success)"></i> Almost There!</h4>
+        <p class="welcome-desc">
+          <i class="bi bi-eye me-1"></i>Review your details
+          <span class="desc-dot"></span>
+          <i class="bi bi-arrow-right me-1"></i>Then proceed to payment
+        </p>
       </div>
 
       <!-- Server validation errors -->
@@ -111,37 +112,13 @@ import { JobService } from '@infrastructure/services/job.service';
         gap: var(--space-3);
       }
 
-      /* ── Hero banner ──────────────────────────────────── */
-      .review-hero {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding: var(--space-4);
-        border-radius: var(--radius-lg);
-        background: linear-gradient(135deg,
-          rgba(var(--bs-success-rgb), 0.08) 0%,
-          rgba(var(--bs-primary-rgb), 0.06) 100%);
-        border: 1px solid rgba(var(--bs-success-rgb), 0.2);
-      }
-
-      .review-hero-icon {
-        font-size: 2rem;
-        color: var(--bs-success);
-        flex-shrink: 0;
-      }
-
-      .review-hero-title {
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-        margin: 0;
-      }
-
-      .review-hero-sub {
-        font-size: var(--font-size-sm);
-        color: var(--brand-text-muted);
-        margin: var(--space-1) 0 0;
-      }
+      /* ── Welcome Hero (centered) ────────────────────── */
+      .welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-4) var(--space-4) var(--space-3); }
+      .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
+      .welcome-icon { font-size: var(--font-size-2xl); }
+      .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
+      .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
+      @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
 
       /* ── Alert ────────────────────────────────────────── */
       .review-alert {

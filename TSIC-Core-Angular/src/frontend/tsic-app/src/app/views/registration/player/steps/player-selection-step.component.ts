@@ -18,9 +18,21 @@ import { environment } from '@environments/environment';
     standalone: true,
     imports: [DatePipe, PlayerFormModalComponent, FamilyEditModalComponent, ConfirmDialogComponent],
     template: `
+    <!-- Centered hero -->
+    <div class="welcome-hero">
+      <h4 class="welcome-title"><i class="bi bi-people-fill welcome-icon"></i> Choose Your Players</h4>
+      <p class="welcome-desc">
+        <i class="bi bi-check-square me-1"></i>Check players to register
+        <span class="desc-dot"></span>
+        <i class="bi bi-pencil me-1"></i>Edit details anytime
+        <span class="desc-dot"></span>
+        <i class="bi bi-lock me-1"></i>Already registered? Locked in
+      </p>
+    </div>
+
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-2 d-flex align-items-center">
-        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Select Players</h5>
+        <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Your Players</h5>
         <button type="button" class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
                 (click)="openFamilyEdit()">
           <i class="bi bi-pencil-square me-1"></i>Edit Account
@@ -34,20 +46,15 @@ import { environment } from '@environments/environment';
             </div>
           </div>
         } @else if (state.familyPlayers.familyPlayers().length === 0) {
-          <div class="alert alert-warning mb-3">
-            No players found on this family account.
+          <div class="empty-state">
+            <i class="bi bi-person-plus-fill"></i>
+            <strong>No players on this account yet</strong>
+            <span>Add your first player to get started.</span>
+            <button type="button" class="btn btn-primary btn-sm mt-2" (click)="openAddPlayer()">
+              <i class="bi bi-plus-circle me-1"></i>Add Player
+            </button>
           </div>
-          <button type="button" class="btn btn-primary btn-sm" (click)="openAddPlayer()">
-            <i class="bi bi-plus-circle me-1"></i>Add Player
-          </button>
         } @else {
-          <p class="wizard-tip">
-            @if (hasRegistered()) {
-              Select additional players to register. Players already in this event are shown for reference.
-            } @else {
-              Choose which players to register for this event.
-            }
-          </p>
           <div class="player-list">
             @for (player of state.familyPlayers.familyPlayers(); track player.playerId) {
               <label class="player-row"
@@ -130,6 +137,53 @@ import { environment } from '@environments/environment';
     }
   `,
     styles: [`
+      /* ── Welcome Hero ────────────────────────── */
+      .welcome-hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--space-4) var(--space-4) var(--space-3);
+      }
+      .welcome-title {
+        margin: 0;
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+      }
+      .welcome-icon { font-size: var(--font-size-2xl); color: var(--bs-primary); }
+      .welcome-desc {
+        margin: var(--space-2) 0 0;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        i { color: var(--bs-primary); }
+      }
+      .desc-dot {
+        display: inline-block;
+        width: 4px; height: 4px;
+        border-radius: var(--radius-full);
+        background: var(--neutral-300);
+        vertical-align: middle;
+        margin: 0 var(--space-2);
+      }
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-8) var(--space-4);
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        text-align: center;
+        i { font-size: 40px; color: rgba(var(--bs-primary-rgb), 0.2); }
+        strong { color: var(--brand-text); }
+      }
+      @media (max-width: 575.98px) {
+        .welcome-title { font-size: var(--font-size-xl); }
+        .desc-dot { display: none; }
+        .welcome-desc i { display: none; }
+      }
+
       .player-list {
         display: flex;
         flex-direction: column;
