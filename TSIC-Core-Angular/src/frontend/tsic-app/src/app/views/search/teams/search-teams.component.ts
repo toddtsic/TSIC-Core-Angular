@@ -264,7 +264,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		});
 		this.ladtCheckedIds.set(new Set());
 		this.cadtCheckedIds.set(new Set());
-		this.searchResults.set(null);
+		this.executeSearch();
 	}
 
 	removeFilterChip(chip: FilterChip): void {

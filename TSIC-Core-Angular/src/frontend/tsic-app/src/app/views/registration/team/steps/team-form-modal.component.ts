@@ -34,7 +34,7 @@ import type { AgeGroupDto } from '@core/api';
               }
             </div>
             <div class="col-6">
-              <label for="tf-year" class="form-label small fw-medium mb-1">Grad Year</label>
+              <label for="tf-year" class="form-label small fw-medium mb-1">Grad Year <span class="text-muted fw-normal">(majority of team players)</span></label>
               <select id="tf-year" class="form-select form-select-sm"
                       [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
                       [class.is-required]="!gradYear()"
@@ -50,11 +50,22 @@ import type { AgeGroupDto } from '@core/api';
             </div>
             <div class="col-6">
               <label for="tf-lop" class="form-label small fw-medium mb-1">
-                Level of Play <span class="text-muted fw-normal">(optional)</span>
+                Level of Play <span class="text-muted fw-normal">(1 low, 5 high)</span>
               </label>
-              <input id="tf-lop" type="text" class="form-control form-control-sm"
-                     [value]="levelOfPlay()" (input)="levelOfPlay.set($any($event.target).value)"
-                     placeholder="e.g. 1, 2, 3" />
+              <select id="tf-lop" class="form-select form-select-sm"
+                      [ngModel]="levelOfPlay()" (ngModelChange)="levelOfPlay.set($event)"
+                      [class.is-required]="!levelOfPlay()"
+                      [class.is-invalid]="submitted() && !levelOfPlay()">
+                <option value="">Select</option>
+                <option value="1">1 (lowest)</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5 (highest)</option>
+              </select>
+              @if (submitted() && !levelOfPlay()) {
+                <div class="invalid-feedback">Required</div>
+              }
             </div>
           </div>
 
@@ -96,7 +107,7 @@ export class TeamFormModalComponent {
 
     save(): void {
         this.submitted.set(true);
-        if (!this.teamName().trim() || !this.gradYear()) return;
+        if (!this.teamName().trim() || !this.gradYear() || !this.levelOfPlay()) return;
 
         this.saving.set(true);
         this.errorMsg.set(null);

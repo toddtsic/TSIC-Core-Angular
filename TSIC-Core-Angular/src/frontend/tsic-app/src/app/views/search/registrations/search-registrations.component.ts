@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel, SelectionSettingsModel } from '@syncfusion/ej2-angular-grids';
 
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
@@ -140,6 +140,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   // Grid configuration
   pageSettings: PageSettingsModel = { pageSize: 20, pageSizes: [20, 50, 100, 'All'] };
   sortSettings: SortSettingsModel = { columns: [{ field: 'lastName', direction: 'Ascending' }] };
+  selectionSettings: SelectionSettingsModel = { checkboxOnly: true };
 
   // Syncfusion MultiSelect fields
   msFields = { value: 'value', text: 'text' };

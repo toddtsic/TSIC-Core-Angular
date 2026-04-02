@@ -53,7 +53,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 
         <!-- Welcome hero — centered, no card, commanding -->
         <div class="welcome-hero">
-          <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to Your TSIC Team Library!</h4>
+          <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to <span class="text-primary">{{ clubName() }}</span>'s Team Library!</h4>
           <p class="welcome-desc">
             <i class="bi bi-arrow-repeat me-1"></i>Add your teams once
             <span class="desc-dot"></span>
@@ -111,7 +111,7 @@ type MiniStep = 'library' | 'select' | 'summary';
                   <div class="lib-row">
                     <i class="bi bi-people-fill lib-icon"></i>
                     <span class="lib-name">{{ team.clubTeamName }}</span>
-                    <span class="lib-level">{{ team.clubTeamLevelOfPlay ? 'Lvl ' + team.clubTeamLevelOfPlay : '' }}</span>
+                    <span class="lib-level">{{ team.clubTeamLevelOfPlay ? 'LOP ' + team.clubTeamLevelOfPlay : '' }}</span>
                     @if (isEnteredTeam(team.clubTeamId)) {
                       <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
                     }
@@ -884,6 +884,7 @@ export class TeamTeamsStepComponent implements OnInit {
 
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
+    readonly clubName = signal('your club');
     readonly ageGroups = signal<AgeGroupDto[]>([]);
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
@@ -1060,6 +1061,7 @@ export class TeamTeamsStepComponent implements OnInit {
             .subscribe({
                 next: (meta: TeamsMetadataResponse) => {
                     this.loading.set(false);
+                    this.clubName.set(meta.clubName || 'your club');
                     this._registeredTeams.set(meta.registeredTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
