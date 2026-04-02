@@ -107,7 +107,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     activeStatuses: ['True'],  // Default: Active pre-checked
     payStatuses: [],
     arbSubscriptionStatuses: [],
-    mobileRegistrationRoles: [],
     regDateFrom: undefined,
     regDateTo: undefined,
     rosterThreshold: undefined,
@@ -196,7 +195,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     addArrayChips('Grade', 'grades', req.grades, opts?.grades);
     addArrayChips('Age Range', 'ageRangeIds', req.ageRangeIds, opts?.ageRanges);
     addArrayChips('Subscription', 'arbSubscriptionStatuses', req.arbSubscriptionStatuses, opts?.arbSubscriptionStatuses);
-    addArrayChips('Mobile Reg', 'mobileRegistrationRoles', req.mobileRegistrationRoles, opts?.mobileRegistrations);
     addArrayChips('Payment Type', 'paymentTypes', req.paymentTypes, opts?.paymentTypes);
     if (req.name) chips.push({ category: 'Name', label: req.name, filterKey: 'name', value: req.name });
     if (req.email) chips.push({ category: 'Email', label: req.email, filterKey: 'email', value: req.email });
@@ -818,7 +816,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       activeStatuses: clean(req.activeStatuses),
       payStatuses: clean(req.payStatuses),
       arbSubscriptionStatuses: clean(req.arbSubscriptionStatuses),
-      mobileRegistrationRoles: clean(req.mobileRegistrationRoles),
       paymentTypes: clean(req.paymentTypes),
       rosterThreshold: req.rosterThreshold ?? undefined,
       rosterThresholdClubNames: clean(req.rosterThresholdClubNames),

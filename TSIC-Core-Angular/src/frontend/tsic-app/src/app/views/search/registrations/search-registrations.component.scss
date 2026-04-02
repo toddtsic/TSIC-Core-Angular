@@ -19,6 +19,33 @@
 // filter-item, filter-ms overrides, filter-bar-expanded, filter-section,
 // label-tip, tree-collapsed — all provided by global _utilities.scss
 
+// ── Name input — visual distinction + height match to multiselects ──
+.form-group-name {
+  .name-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .name-input-icon {
+    position: absolute;
+    left: var(--space-2);
+    color: var(--bs-secondary-color);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .form-control {
+    padding-left: calc(var(--space-2) + 13px + var(--space-1));
+    border-left: 3px solid var(--bs-primary);
+
+    &::placeholder {
+      color: var(--bs-secondary-color);
+      opacity: 0.6;
+    }
+  }
+}
+
 
 
 // ── Results Container ──

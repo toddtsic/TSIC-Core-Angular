@@ -135,7 +135,7 @@
                 <app-cadt-tree-filter #cadtTreeRef
                   [treeData]="cadtTree()"
                   [checkedIds]="cadtCheckedIds()"
-                  [rootLabel]="jobName()"
+                  rootLabel="C-A-D-T"
                   [showSearch]="false"
                   (checkedIdsChange)="onCadtCheckedChange($event)">
                 </app-cadt-tree-filter>
@@ -173,6 +173,7 @@
               <app-ladt-tree-filter #ladtTreeRef
                 [treeData]="ladtTree()"
                 [checkedIds]="ladtCheckedIds()"
+                rootLabel="L-A-D-T"
                 (checkedIdsChange)="onLadtCheckedChange($event)">
               </app-ladt-tree-filter>
             }

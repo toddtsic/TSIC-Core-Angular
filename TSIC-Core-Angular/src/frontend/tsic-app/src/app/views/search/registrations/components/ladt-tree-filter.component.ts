@@ -193,6 +193,8 @@ export class LadtTreeFilterComponent implements OnChanges {
   @Input() checkedIds = new Set<string>();
   /** Auto-expand nodes at levels < this value on data load. -1 = all collapsed, 0 = expand root (shows L1). */
   @Input() initialExpandLevel = -1;
+  /** When set, overrides the display name of the level-0 root node. */
+  @Input() rootLabel = '';
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
   // Internal state
@@ -298,7 +300,7 @@ export class LadtTreeFilterComponent implements OnChanges {
         result.push({
           id: node.id,
           parentId: node.parentId ?? null,
-          name: node.name,
+          name: (node.level === 0 && this.rootLabel) ? this.rootLabel : node.name,
           level: node.level,
           isLeaf: node.isLeaf,
           teamCount: node.teamCount,
