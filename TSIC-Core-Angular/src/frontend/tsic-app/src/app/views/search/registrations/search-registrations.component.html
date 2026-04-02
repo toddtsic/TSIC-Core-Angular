@@ -31,21 +31,6 @@
       <div class="filter-bar-compact">
         <!-- Row 1: Role, Name, Active Status, Pay Status, Pay Meth -->
         <div class="filter-row-5">
-          <div class="form-group form-group-name">
-            <label for="filterName">Name</label>
-            <div class="name-input-wrap">
-              <svg class="name-input-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input type="text" id="filterName" class="form-control"
-                placeholder="First or Last"
-                [ngModel]="searchRequest().name"
-                (ngModelChange)="updateName($event)"
-                (keydown.enter)="executeSearch()" />
-            </div>
-          </div>
-
           <div class="form-group">
             <label>Role</label>
             <ejs-multiselect #ms1
@@ -65,6 +50,21 @@
               cssClass="filter-ms"
               [popupWidth]="'auto'">
             </ejs-multiselect>
+          </div>
+
+          <div class="form-group form-group-name">
+            <label for="filterName">Name</label>
+            <div class="name-input-wrap">
+              <svg class="name-input-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="filterName" class="form-control"
+                placeholder="First or Last"
+                [ngModel]="searchRequest().name"
+                (ngModelChange)="updateName($event)"
+                (keydown.enter)="executeSearch()" />
+            </div>
           </div>
 
           <div class="form-group">
@@ -132,7 +132,7 @@
         <div class="filter-row-5">
           @if (hasCadtData() && jobName()) {
             <div class="form-group form-group-tree">
-              <label>Club / Agegroup / Division / Team
+              <label><span class="tree-label-accent">Club</span> / Agegroup / Division / Team
                 <span class="tree-toggle-btns">
                   <button class="tree-toggle-btn" title="Expand all" (click)="cadtTreeRef?.expandAll()">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
@@ -170,7 +170,7 @@
           }
 
           <div class="form-group form-group-tree">
-            <label>League / Agegroup / Division / Team
+            <label><span class="tree-label-accent">League</span> / Agegroup / Division / Team
               <span class="tree-toggle-btns">
                 <button class="tree-toggle-btn" title="Expand all" (click)="ladtTreeRef?.expandAll()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
@@ -279,14 +279,6 @@
                   placeholder="Cell phone"
                   [ngModel]="searchRequest().phone"
                   (ngModelChange)="updatePhone($event)"
-                  (keydown.enter)="executeSearch()" />
-              </div>
-              <div class="form-group">
-                <label for="filterInvoice">Invoice #</label>
-                <input type="text" id="filterInvoice" class="form-control"
-                  placeholder="Invoice number"
-                  [ngModel]="searchRequest().invoiceNumber"
-                  (ngModelChange)="updateInvoiceNumber($event)"
                   (keydown.enter)="executeSearch()" />
               </div>
               <div class="form-group">
@@ -417,6 +409,14 @@
                   cssClass="filter-ms">
                 </ejs-multiselect>
               </div>
+              <div class="form-group">
+                <label for="filterInvoice">Invoice #</label>
+                <input type="text" id="filterInvoice" class="form-control"
+                  placeholder="Invoice number"
+                  [ngModel]="searchRequest().invoiceNumber"
+                  (ngModelChange)="updateInvoiceNumber($event)"
+                  (keydown.enter)="executeSearch()" />
+              </div>
             </div>
           </div>
 
@@ -540,13 +540,13 @@
                 [class.btn-segment--active]="emailMode() === 'all'"
                 (click)="onEmailAll()"
                 [disabled]="!searchResults()?.result?.length">
-                All
+                Email All
               </button>
               <button type="button"
                 class="btn btn-segment btn-segment--right"
                 [class.btn-segment--active]="emailMode() === 'selected' && canEmailSelected"
                 (click)="onEmailSelected()">
-                Selected ({{ selectedRegistrations().size }})
+                Email Selected ({{ selectedRegistrations().size }})
               </button>
             </div>
           </div>

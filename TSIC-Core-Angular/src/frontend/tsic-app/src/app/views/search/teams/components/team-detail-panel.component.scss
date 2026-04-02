@@ -86,8 +86,17 @@
 
   .header-tag-value {
     font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-normal);
     color: var(--bs-primary);
+  }
+
+  .club-rep-name {
+    font-weight: var(--font-weight-bold);
+    color: var(--bs-body-color);
+  }
+
+  .club-rep-phone {
+    color: var(--bs-body-color);
   }
 
   .club-rep-email {

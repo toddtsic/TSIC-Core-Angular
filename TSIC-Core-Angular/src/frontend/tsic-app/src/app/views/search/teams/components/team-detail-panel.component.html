@@ -27,7 +27,7 @@
         @if (team.clubRepName) {
         <span class="header-tag">
           <span class="header-tag-label">Club Rep</span>
-          <span class="header-tag-value">{{ team.clubRepName }}@if (team.clubRepCellphone) { · {{ formatPhone(team.clubRepCellphone) }}}@if (team.clubRepEmail) { · <a [href]="'mailto:' + team.clubRepEmail" class="club-rep-email">{{ team.clubRepEmail }}</a>}</span>
+          <span class="header-tag-value"><span class="club-rep-name">{{ team.clubRepName }}</span>@if (team.clubRepCellphone) { · <span class="club-rep-phone">{{ formatPhone(team.clubRepCellphone) }}</span>}@if (team.clubRepEmail) { · <a [href]="'mailto:' + team.clubRepEmail" class="club-rep-email">{{ team.clubRepEmail }}</a>}</span>
         </span>
         }
         <span class="header-tag">
