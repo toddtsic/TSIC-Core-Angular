@@ -136,19 +136,37 @@ type MiniStep = 'library' | 'select' | 'summary';
 
       <!-- ═══ STEP 2: SELECT TEAMS TO REGISTER ═══ -->
       @if (currentMiniStep() === 'select') {
+
+        <!-- Centered hero — same energy as Step 1 -->
+        <div class="welcome-hero">
+          <h4 class="welcome-title"><i class="bi bi-check2-square welcome-icon" style="color: var(--bs-info)"></i> Select Your Teams</h4>
+          <p class="welcome-desc">
+            <i class="bi bi-hand-index me-1"></i>Check a team to register it
+            <span class="desc-dot"></span>
+            <i class="bi bi-diagram-3 me-1"></i>Pick its age group
+            <span class="desc-dot"></span>
+            <i class="bi bi-lightning me-1"></i>Instant confirmation
+          </p>
+        </div>
+
         <div class="step-card">
-          <div class="step-hero">
-            <div class="hero-icon hero-icon-select"><i class="bi bi-check2-square"></i></div>
-            <div class="hero-text">
-              <h6 class="hero-title">Which teams are playing in this event?</h6>
-              <p class="hero-desc">
-                Check each team to register it.
-                You'll pick an <strong class="text-primary">age group</strong> as you go.
-                @if (enteredTeams().length > 0) {
-                  <span class="hero-stat"><i class="bi bi-check-circle-fill text-success me-1"></i>{{ enteredTeams().length }} selected so far</span>
-                }
-              </p>
-            </div>
+
+          <!-- Live progress callout -->
+          <div class="progress-bar-section">
+            @if (enteredTeams().length === 0) {
+              <div class="progress-text">
+                <i class="bi bi-hand-index-thumb text-primary me-2"></i>
+                <strong>Tap a checkbox</strong> to register your first team. An age group picker will appear.
+              </div>
+            } @else {
+              <div class="progress-text progress-active">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong class="text-success">{{ enteredTeams().length }}</strong>
+                {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered
+                <span class="desc-dot"></span>
+                {{ availableCount() }} remaining in library
+              </div>
+            }
           </div>
 
           <div class="scroll-list">
@@ -177,7 +195,7 @@ type MiniStep = 'library' | 'select' | 'summary';
           <div class="step-card-footer">
             <button type="button" class="btn btn-sm btn-outline-secondary"
                     (click)="goToMiniStep('library')">
-              <i class="bi bi-arrow-left me-1"></i>Library
+              <i class="bi bi-arrow-left me-1"></i>Back to Library
             </button>
             <button type="button" class="btn btn-sm btn-primary"
                     [disabled]="enteredTeams().length === 0"
@@ -188,31 +206,38 @@ type MiniStep = 'library' | 'select' | 'summary';
         </div>
       }
 
-      <!-- ═══ STEP 3: TEAMS TO REGISTER (SUMMARY) ═══ -->
+      <!-- ═══ STEP 3: REVIEW ═══ -->
       @if (currentMiniStep() === 'summary') {
+
+        <!-- Centered hero -->
+        <div class="welcome-hero">
+          <h4 class="welcome-title"><i class="bi bi-clipboard-check welcome-icon" style="color: var(--bs-success)"></i> You're All Set!</h4>
+          <p class="welcome-desc">
+            <strong class="text-primary">{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team' : 'teams' }}</strong> registered
+            @if (totalOwed() > 0) {
+              <span class="desc-dot"></span>
+              <strong class="text-danger">{{ totalOwed() | currency }}</strong> due
+            } @else {
+              <span class="desc-dot"></span>
+              <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Fully paid</span>
+            }
+          </p>
+        </div>
+
         <div class="step-card">
-          <div class="step-hero step-hero-success">
-            <div class="hero-icon hero-icon-review"><i class="bi bi-clipboard-check"></i></div>
-            <div class="hero-text">
-              <h6 class="hero-title">Ready for Payment</h6>
-              <p class="hero-desc">
-                <strong class="text-primary">{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team' : 'teams' }}</strong> registered.
-                @if (totalOwed() > 0) {
-                  Total due: <strong class="text-danger">{{ totalOwed() | currency }}</strong>.
-                } @else {
-                  All fees paid!
-                }
-                Review below, then proceed to payment.
-              </p>
-            </div>
+
+          <!-- Confirmation callout -->
+          <div class="confirm-banner">
+            <i class="bi bi-info-circle"></i>
+            <span>Review your teams below. When you're ready, hit <strong>Proceed to Payment</strong> in the top bar.</span>
           </div>
 
           <div class="summary-table-wrap">
             <table class="summary-table">
               <thead>
                 <tr>
-                  <th>Team</th>
-                  <th>Age Group</th>
+                  <th><i class="bi bi-people-fill me-1"></i>Team</th>
+                  <th><i class="bi bi-diagram-3 me-1"></i>Age Group</th>
                   <th class="text-end">Fee</th>
                   <th class="text-end">Paid</th>
                   <th class="text-end">Owed</th>
@@ -225,14 +250,14 @@ type MiniStep = 'library' | 'select' | 'summary';
                       <span class="fw-semibold">{{ team.teamName }}</span>
                     </td>
                     <td>
-                      <span class="summary-age"><i class="bi bi-diagram-3 me-1"></i>{{ team.ageGroupName }}</span>
+                      <span class="summary-age">{{ team.ageGroupName }}</span>
                     </td>
                     <td class="text-end">{{ team.feeTotal | currency }}</td>
                     <td class="text-end">
                       @if (team.paidTotal > 0) {
-                        <span class="text-success">{{ team.paidTotal | currency }}</span>
+                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>{{ team.paidTotal | currency }}</span>
                       } @else {
-                        {{ team.paidTotal | currency }}
+                        <span class="text-muted">{{ team.paidTotal | currency }}</span>
                       }
                     </td>
                     <td class="text-end fw-semibold" [class.text-danger]="team.owedTotal > 0">
@@ -242,14 +267,18 @@ type MiniStep = 'library' | 'select' | 'summary';
                 }
               </tbody>
               <tfoot>
-                <tr>
-                  <td colspan="2" class="fw-semibold">
-                    Total
+                <tr class="totals-row">
+                  <td colspan="2">
+                    <strong>{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team' : 'teams' }}</strong>
                   </td>
-                  <td class="text-end fw-semibold">{{ totalFee() | currency }}</td>
-                  <td class="text-end">{{ totalPaid() | currency }}</td>
-                  <td class="text-end fw-bold" [class.text-danger]="totalOwed() > 0">
-                    {{ totalOwed() | currency }}
+                  <td class="text-end fw-bold">{{ totalFee() | currency }}</td>
+                  <td class="text-end fw-semibold">{{ totalPaid() | currency }}</td>
+                  <td class="text-end">
+                    @if (totalOwed() > 0) {
+                      <span class="total-owed"><i class="bi bi-exclamation-circle me-1"></i>{{ totalOwed() | currency }}</span>
+                    } @else {
+                      <span class="total-paid"><i class="bi bi-check-circle-fill me-1"></i>$0.00</span>
+                    }
                   </td>
                 </tr>
               </tfoot>
@@ -261,7 +290,9 @@ type MiniStep = 'library' | 'select' | 'summary';
                     (click)="goToMiniStep('select')">
               <i class="bi bi-arrow-left me-1"></i>Change Selections
             </button>
-            <span></span>
+            <span class="footer-hint">
+              <i class="bi bi-shield-check me-1"></i>You can always come back to add more teams
+            </span>
           </div>
         </div>
       }
@@ -815,6 +846,57 @@ type MiniStep = 'library' | 'select' | 'summary';
         strong { color: var(--brand-text); }
       }
 
+      /* ── Step 2: Progress Bar ──────────────────── */
+      .progress-bar-section {
+        padding: var(--space-2) var(--space-4);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .progress-text {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
+
+      .progress-active {
+        color: var(--brand-text);
+      }
+
+      /* ── Step 3: Confirm Banner ──────────────────── */
+      .confirm-banner {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        background: rgba(var(--bs-info-rgb), 0.06);
+        border-bottom: 1px solid rgba(var(--bs-info-rgb), 0.12);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text);
+
+        i { color: var(--bs-info); flex-shrink: 0; }
+      }
+
+      /* ── Step 3: Totals Row ──────────────────────── */
+      .totals-row td {
+        border-top: 2px solid var(--border-color);
+        border-bottom: none;
+        padding-top: var(--space-2);
+      }
+
+      .total-owed {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-danger);
+      }
+
+      .total-paid {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-success);
+      }
+
       /* ── Mobile ──────────────────────────────────── */
       @media (max-width: 575.98px) {
         .mini-step-label { display: none; }
@@ -954,6 +1036,9 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly enteredTeams = computed(() => this._registeredTeams());
 
     /** Summary totals for Step 3. */
+    /** How many library teams are not yet entered. */
+    readonly availableCount = computed(() => this._clubTeams().length);
+
     readonly totalFee = computed(() => this._registeredTeams().reduce((s, t) => s + t.feeTotal, 0));
     readonly totalPaid = computed(() => this._registeredTeams().reduce((s, t) => s + t.paidTotal, 0));
     readonly totalOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
