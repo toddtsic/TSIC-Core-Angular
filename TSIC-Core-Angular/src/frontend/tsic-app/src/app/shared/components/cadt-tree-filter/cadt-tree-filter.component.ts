@@ -67,6 +67,14 @@ export interface CadtSelectionEvent {
                 <polyline points="9 6 15 12 9 18"></polyline>
               </svg>
               <span class="tree-name">All</span>
+              <span class="tree-root-actions">
+                <button class="tree-toggle-btn" title="Expand all" (click)="expandAll(); $event.stopPropagation()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 8 12 13 17 8"></polyline><polyline points="7 14 12 19 17 14"></polyline></svg>
+                </button>
+                <button class="tree-toggle-btn" title="Collapse all" (click)="collapseAll(); $event.stopPropagation()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 13 12 8 17 13"></polyline><polyline points="7 19 12 14 17 19"></polyline></svg>
+                </button>
+              </span>
               <span class="tree-badges">
                 <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
                 <span class="tree-badge badge-outline" title="Players">{{ node.playerCount }}</span>
@@ -268,6 +276,30 @@ export interface CadtSelectionEvent {
       color: var(--bs-secondary-color);
       font-size: 0.6875rem;
       cursor: pointer;
+    }
+
+    .tree-root-actions {
+      display: inline-flex;
+      gap: 2px;
+    }
+
+    .tree-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border: none;
+      border-radius: var(--bs-border-radius);
+      background: transparent;
+      color: var(--bs-secondary-color);
+      cursor: pointer;
+    }
+
+    .tree-toggle-btn:hover {
+      background: var(--bs-tertiary-bg);
+      color: var(--bs-body-color);
     }
 
     .tree-root-chevron {
