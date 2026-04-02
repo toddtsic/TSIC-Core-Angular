@@ -35,47 +35,33 @@ public class ClubRepository : IClubRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Single-query approach: gets all clubs with team counts and primary rep contact.
+    /// Replaces the old N+1 loop that issued one COUNT query per club.
+    /// </summary>
     public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
         CancellationToken cancellationToken = default)
     {
-        // Need to do this as a group join since we can't directly access ClubReps from Registrations
-        var clubs = await _context.Clubs
-            .Select(c => new
-            {
-                c.ClubId,
-                c.ClubName,
-                State = c.LebUser!.State
-            })
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-
-        var result = new List<ClubSearchCandidate>();
-        foreach (var c in clubs)
-        {
-            var teamCount = await _context.ClubReps
-                .Where(cr => cr.ClubId == c.ClubId)
-                .Join(_context.Registrations,
-                    cr => cr.ClubRepUserId,
-                    reg => reg.UserId,
-                    (cr, reg) => reg.RegistrationId)
-                .Join(_context.Teams,
-                    regId => regId,
-                    team => team.ClubrepRegistrationid,
-                    (regId, team) => team)
-                .CountAsync(cancellationToken);
-
-            result.Add(new ClubSearchCandidate
+        return await _context.Clubs
+            .Select(c => new ClubSearchCandidate
             {
                 ClubId = c.ClubId,
                 ClubName = c.ClubName!,
-                State = c.State,
-                TeamCount = teamCount
-            });
-        }
-
-        return result;
+                State = c.LebUser!.State,
+                TeamCount = _context.ClubTeams
+                    .Count(ct => ct.ClubId == c.ClubId),
+                RepName = c.LebUser!.FirstName != null && c.LebUser!.LastName != null
+                    ? c.LebUser!.FirstName + " " + c.LebUser!.LastName
+                    : null,
+                RepEmail = c.LebUser!.Email
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Single-query approach with optional state filter.
+    /// </summary>
     public async Task<List<ClubSearchCandidate>> GetSearchCandidatesAsync(
         string? state,
         CancellationToken cancellationToken = default)
@@ -87,41 +73,21 @@ public class ClubRepository : IClubRepository
             query = query.Where(c => c.LebUser!.State == state);
         }
 
-        var clubs = await query
-            .Select(c => new
-            {
-                c.ClubId,
-                c.ClubName,
-                State = c.LebUser!.State
-            })
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-
-        var result = new List<ClubSearchCandidate>();
-        foreach (var c in clubs)
-        {
-            var teamCount = await _context.ClubReps
-                .Where(cr => cr.ClubId == c.ClubId)
-                .Join(_context.Registrations,
-                    cr => cr.ClubRepUserId,
-                    reg => reg.UserId,
-                    (cr, reg) => reg.RegistrationId)
-                .Join(_context.Teams,
-                    regId => regId,
-                    team => team.ClubrepRegistrationid,
-                    (regId, team) => team)
-                .CountAsync(cancellationToken);
-
-            result.Add(new ClubSearchCandidate
+        return await query
+            .Select(c => new ClubSearchCandidate
             {
                 ClubId = c.ClubId,
                 ClubName = c.ClubName!,
-                State = c.State,
-                TeamCount = teamCount
-            });
-        }
-
-        return result;
+                State = c.LebUser!.State,
+                TeamCount = _context.ClubTeams
+                    .Count(ct => ct.ClubId == c.ClubId),
+                RepName = c.LebUser!.FirstName != null && c.LebUser!.LastName != null
+                    ? c.LebUser!.FirstName + " " + c.LebUser!.LastName
+                    : null,
+                RepEmail = c.LebUser!.Email
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
     }
 
     public void Add(Clubs club)

@@ -32,10 +32,10 @@ export class ClubService {
      * Search for clubs by name, state, or other criteria
      * Returns matching clubs with similarity scores
      */
-    searchClubs(clubName?: string, state?: string): Observable<ClubSearchResult[]> {
-        const params: any = {};
-        if (clubName) params.clubName = clubName;
-        if (state) params.state = state;
+    searchClubs(query?: string, state?: string): Observable<ClubSearchResult[]> {
+        const params: Record<string, string> = {};
+        if (query) params['q'] = query;
+        if (state) params['state'] = state;
 
         return this.http.get<ClubSearchResult[]>(`${this.clubsApiUrl}/search`, { params });
     }

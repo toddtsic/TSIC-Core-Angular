@@ -8,5 +8,8 @@ export type ClubSearchResult = {
     state?: string | null;
     teamCount: number;
     matchScore: number;
+    isRelatedClub?: boolean;
+    repName?: string | null;
+    repEmail?: string | null;
 };
 

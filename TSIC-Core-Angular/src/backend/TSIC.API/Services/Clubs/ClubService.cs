@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Transactions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
@@ -15,26 +15,38 @@ namespace TSIC.API.Services.Clubs;
 
 public sealed class ClubService : IClubService
 {
+    private const string ClubCacheKey = "clubs:search_candidates";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
+
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
+    private readonly IMemoryCache _cache;
 
     public ClubService(
         UserManager<ApplicationUser> userManager,
         IClubRepository clubRepo,
         IClubRepRepository clubRepRepo,
-        IUserPrivilegeLevelService privilegeService)
+        IUserPrivilegeLevelService privilegeService,
+        IMemoryCache cache)
     {
         _userManager = userManager;
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
         _privilegeService = privilegeService;
+        _cache = cache;
     }
 
+    /// <summary>
+    /// Register a new club rep account. Enforces a strict gate:
+    /// - If ExistingClubId is set → link user to that club (no new club created)
+    /// - If ConfirmedNewClub is true → create new club
+    /// - If neither is set → run fuzzy search; if matches found, return them
+    ///   with Success=false and DO NOT create anything. Caller must decide first.
+    /// </summary>
     public async Task<ClubRepRegistrationResponse> RegisterAsync(ClubRepRegistrationRequest request)
     {
-        // Validate required fields
         if (string.IsNullOrWhiteSpace(request.ClubName) ||
             string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
@@ -42,12 +54,12 @@ public sealed class ClubService : IClubService
             return new ClubRepRegistrationResponse { Success = false, ClubId = null, UserId = null, Message = "Club name, username, and password are required" };
         }
 
-        // Check if user already exists (by username or email)
+        // ── Validate user account ───────────────────────────────────────
+
         var existingUser = await _userManager.FindByNameAsync(request.Username);
 
         if (existingUser != null)
         {
-            // User exists - validate privilege separation policy
             var isValid = await _privilegeService.ValidatePrivilegeForRegistrationAsync(existingUser.Id, RoleConstants.ClubRep);
             if (!isValid)
             {
@@ -55,44 +67,73 @@ public sealed class ClubService : IClubService
                 var privilegeName = PrivilegeNameMapper.GetPrivilegeName(existingPrivilege);
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
+                    Success = false, ClubId = null, UserId = null,
                     Message = $"This account is locked to {privilegeName} privilege level. To protect player data, one account can only be used for one privilege level. Please use a different email address and username for Club Rep registration."
                 };
             }
 
-            // Verify password for existing user
             var passwordValid = await _userManager.CheckPasswordAsync(existingUser, request.Password);
             if (!passwordValid)
             {
                 return new ClubRepRegistrationResponse
                 {
-                    Success = false,
-                    ClubId = null,
-                    UserId = null,
+                    Success = false, ClubId = null, UserId = null,
                     Message = "Invalid password for existing account."
                 };
             }
         }
 
-        // Check for similar existing clubs (fuzzy match) - search ALL states to find duplicates
-        var similarClubs = await SearchClubsAsync(request.ClubName, null);
+        // ── Club name validation gate (two-tier) ────────────────────────
+        //
+        // Tier 1 — HARD BLOCK (85%+): Club almost certainly exists.
+        //   Registrant could hijack another club's teams. Block entirely
+        //   and show the existing rep's contact info so they can sort it out.
+        //   This block cannot be overridden by ConfirmedNewClub.
+        //
+        // Tier 2 — WARNING (65-84%): Similar name but not certain.
+        //   Show matches, require ConfirmedNewClub to proceed.
+        //
+        // Below 65%: no friction, create new club.
 
-        // Return similar clubs for user to review - DON'T block registration
-        // Frontend will present matches and ask: "Is this your club?"
-        // User can choose to:
-        //   A) Attach to existing club (create ClubRep record with existing ClubId)
-        //   B) Create new club (proceed with new Clubs + ClubRep records)
+        var similarClubs = await SearchClubsAsync(request.ClubName, null);
+        var highConfidenceMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 85);
+
+        if (highConfidenceMatch != null)
+        {
+            // Tier 1: HARD BLOCK — cannot be bypassed by self-registration
+            return new ClubRepRegistrationResponse
+            {
+                Success = false, ClubId = null, UserId = null,
+                Message = $"A club named \"{highConfidenceMatch.ClubName}\" is already registered. "
+                        + "If this is your club, please contact the existing rep to be added. "
+                        + "If you believe this is a different club, contact the tournament director.",
+                SimilarClubs = similarClubs
+            };
+        }
+
+        var warningMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
+
+        if (warningMatches.Count > 0 && !request.ConfirmedNewClub)
+        {
+            // Tier 2: WARNING — require explicit confirmation
+            return new ClubRepRegistrationResponse
+            {
+                Success = false, ClubId = null, UserId = null,
+                Message = "We found clubs with similar names. If none of these are yours, confirm below to create a new club.",
+                SimilarClubs = warningMatches
+            };
+        }
+
+        // Either no matches or caller confirmed new club in warning band
+        int clubId = 0; // sentinel: create new
+
+        // ── Create user + club/link inside transaction ──────────────────
 
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
         ApplicationUser user;
-        bool isNewUser = existingUser == null;
-
-        if (isNewUser)
+        if (existingUser == null)
         {
-            // Create new AspNetUser for the club rep
             user = new ApplicationUser
             {
                 UserName = request.Username,
@@ -117,38 +158,50 @@ public sealed class ClubService : IClubService
         }
         else
         {
-            // Use existing validated user
-            user = existingUser!;
+            user = existingUser;
         }
 
-        // Create Clubs record
-        var club = new Domain.Entities.Clubs
+        if (clubId == 0)
         {
-            ClubName = request.ClubName,
-            LebUserId = user.Id, // Primary owner/contact
-            Modified = DateTime.UtcNow
-        };
-        _clubRepo.Add(club);
-        await _clubRepo.SaveChangesAsync();
+            // Create new club
+            var club = new Domain.Entities.Clubs
+            {
+                ClubName = request.ClubName,
+                LebUserId = user.Id,
+                Modified = DateTime.UtcNow
+            };
+            _clubRepo.Add(club);
+            await _clubRepo.SaveChangesAsync();
+            clubId = club.ClubId;
+            InvalidateSearchCache();
+        }
 
-        // Create ClubReps entry linking user to club
-        var clubRep = new ClubReps
+        // Check if rep link already exists (e.g. user re-registering for same club)
+        var alreadyLinked = await _clubRepRepo.ExistsAsync(user.Id, clubId);
+        if (!alreadyLinked)
         {
-            ClubId = club.ClubId,
-            ClubRepUserId = user.Id
-        };
-        _clubRepRepo.Add(clubRep);
-        await _clubRepRepo.SaveChangesAsync();
+            var clubRep = new ClubReps
+            {
+                ClubId = clubId,
+                ClubRepUserId = user.Id
+            };
+            _clubRepRepo.Add(clubRep);
+            await _clubRepRepo.SaveChangesAsync();
+        }
 
         scope.Complete();
-        return new ClubRepRegistrationResponse { Success = true, ClubId = club.ClubId, UserId = user.Id, Message = null, SimilarClubs = similarClubs.Any() ? similarClubs : null };
+
+        return new ClubRepRegistrationResponse
+        {
+            Success = true,
+            ClubId = clubId,
+            UserId = user.Id,
+            Message = null
+        };
     }
 
     public async Task<AddClubResponse> AddClubAsync(AddClubRequest request, string userId)
     {
-        // Check for similar existing clubs (fuzzy match) - search ALL states
-        var similarClubs = await SearchClubsAsync(request.ClubName, null);
-
         // If user confirmed they want to use existing club
         if (request.UseExistingClubId.HasValue)
         {
@@ -165,7 +218,6 @@ public sealed class ClubService : IClubService
                 };
             }
 
-            // Check if user already has access to this club
             var alreadyExists = await _clubRepRepo.ExistsAsync(userId, request.UseExistingClubId.Value);
             if (alreadyExists)
             {
@@ -179,7 +231,6 @@ public sealed class ClubService : IClubService
                 };
             }
 
-            // Create ClubRep association with existing club
             var clubRep = new ClubReps
             {
                 ClubId = request.UseExistingClubId.Value,
@@ -198,7 +249,10 @@ public sealed class ClubService : IClubService
             };
         }
 
-        // User wants to create new club - get user info for club address
+        // Check for similar clubs
+        var similarClubs = await SearchClubsAsync(request.ClubName, null);
+
+        // User wants to create new club
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
@@ -212,17 +266,16 @@ public sealed class ClubService : IClubService
             };
         }
 
-        // Create new club with user's address info
-        var club = new TSIC.Domain.Entities.Clubs
+        var club = new Domain.Entities.Clubs
         {
             ClubName = request.ClubName,
             LebUserId = user.Id
         };
         _clubRepo.Add(club);
         await _clubRepo.SaveChangesAsync();
+        InvalidateSearchCache();
 
-        // Create ClubRep association
-        var newClubRep = new TSIC.Domain.Entities.ClubReps
+        var newClubRep = new ClubReps
         {
             ClubId = club.ClubId,
             ClubRepUserId = userId
@@ -236,10 +289,15 @@ public sealed class ClubService : IClubService
             Message = "New club created and added successfully",
             ClubRepId = newClubRep.Aid,
             ClubId = club.ClubId,
-            SimilarClubs = similarClubs.Any() ? similarClubs : null
+            SimilarClubs = similarClubs.Count > 0 ? similarClubs : null
         };
     }
 
+    /// <summary>
+    /// Search clubs using composite scoring (Levenshtein + token/Jaccard).
+    /// Results include mega-club detection via IsRelatedClub flag.
+    /// Cached for 5 minutes to support live typeahead without hammering the DB.
+    /// </summary>
     public async Task<List<ClubSearchResult>> SearchClubsAsync(string query, string? state)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 3)
@@ -247,30 +305,50 @@ public sealed class ClubService : IClubService
             return new List<ClubSearchResult>();
         }
 
-        // Business logic: normalize search query
-        var normalized = ClubNameMatcher.NormalizeClubName(query);
+        var candidates = await GetCachedCandidatesAsync();
 
-        // Data access: query clubs via repository (search all states to find duplicates)
-        var clubs = await _clubRepo.GetSearchCandidatesAsync();
-
-        // Business logic: calculate similarity scores using Application layer
-        var results = clubs
-            .Select(c => new ClubSearchResult
+        var results = candidates
+            .Select(c =>
             {
-                ClubId = c.ClubId,
-                ClubName = c.ClubName,
-                State = c.State,
-                TeamCount = c.TeamCount,
-                MatchScore = ClubNameMatcher.CalculateSimilarity(normalized, ClubNameMatcher.NormalizeClubName(c.ClubName))
+                var compositeScore = ClubNameMatcher.CalculateCompositeScore(query, c.ClubName);
+                var isRelated = ClubNameMatcher.AreRelatedClubs(query, c.ClubName);
+
+                return new ClubSearchResult
+                {
+                    ClubId = c.ClubId,
+                    ClubName = c.ClubName,
+                    State = c.State,
+                    TeamCount = c.TeamCount,
+                    MatchScore = compositeScore,
+                    IsRelatedClub = isRelated,
+                    RepName = c.RepName,
+                    RepEmail = c.RepEmail
+                };
             })
-            .Where(r => r.MatchScore >= 60) // Only return 60%+ matches
+            .Where(r => r.MatchScore >= 65 || r.IsRelatedClub)
             .OrderByDescending(r => r.MatchScore)
-            .Take(5)
+            .Take(10)
             .ToList();
 
         return results;
     }
 
+    public void InvalidateSearchCache()
+    {
+        _cache.Remove(ClubCacheKey);
+    }
+
+    // ── Private helpers ─────────────────────────────────────────────────
+
+    private async Task<List<ClubSearchCandidate>> GetCachedCandidatesAsync()
+    {
+        if (_cache.TryGetValue(ClubCacheKey, out List<ClubSearchCandidate>? cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var candidates = await _clubRepo.GetSearchCandidatesAsync();
+        _cache.Set(ClubCacheKey, candidates, CacheTtl);
+        return candidates;
+    }
 }
-
-

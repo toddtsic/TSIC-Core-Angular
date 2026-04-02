@@ -15,6 +15,18 @@ public record ClubRepRegistrationRequest
     public required string State { get; init; }
     public required string PostalCode { get; init; }
     public required string Cellphone { get; init; }
+
+    /// <summary>
+    /// If set, the user chose an existing club instead of creating a new one.
+    /// Skips club creation; links user as rep of this club.
+    /// </summary>
+    public int? ExistingClubId { get; init; }
+
+    /// <summary>
+    /// Must be true when ExistingClubId is null and similar clubs were found.
+    /// Forces the caller to explicitly confirm "create new club" before we proceed.
+    /// </summary>
+    public bool ConfirmedNewClub { get; init; }
 }
 
 public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegistrationRequest>
@@ -87,4 +99,22 @@ public record ClubSearchResult
     public string? State { get; init; }
     public required int TeamCount { get; init; }
     public required int MatchScore { get; init; }
+
+    /// <summary>
+    /// True when this club shares a root organization name with the query
+    /// (mega-club pattern, e.g. "3 Point Lacrosse - VA" vs "3 Point Lacrosse - NC").
+    /// </summary>
+    public bool IsRelatedClub { get; init; }
+
+    /// <summary>
+    /// Primary rep's full name (from Clubs.LebUserId → AspNetUsers).
+    /// Shown to registrant so they can contact the existing rep directly.
+    /// </summary>
+    public string? RepName { get; init; }
+
+    /// <summary>
+    /// Primary rep's email address.
+    /// Shown unmasked so registrant can reach out without director involvement.
+    /// </summary>
+    public string? RepEmail { get; init; }
 }

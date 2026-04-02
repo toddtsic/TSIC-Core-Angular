@@ -137,6 +137,9 @@ export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationReq
 export type { ClubRepRegistrationResponse } from './models/ClubRepRegistrationResponse';
 export type { ClubSearchResult } from './models/ClubSearchResult';
 export type { ClubTeamDto } from './models/ClubTeamDto';
+export type { ClubTeamEventSummaryDto } from './models/ClubTeamEventSummaryDto';
+export type { ClubTeamLibraryEntryDto } from './models/ClubTeamLibraryEntryDto';
+export type { ClubTeamLibraryResponse } from './models/ClubTeamLibraryResponse';
 export type { ClubTeamSummaryDto } from './models/ClubTeamSummaryDto';
 export type { ConstraintSacrificeDto } from './models/ConstraintSacrificeDto';
 export type { ContactDto } from './models/ContactDto';
@@ -147,6 +150,7 @@ export type { CreateAgegroupRequest } from './models/CreateAgegroupRequest';
 export type { CreateAgeRangeRequest } from './models/CreateAgeRangeRequest';
 export type { CreateAttendanceEventRequest } from './models/CreateAttendanceEventRequest';
 export type { CreateBulletinRequest } from './models/CreateBulletinRequest';
+export type { CreateClubTeamRequest } from './models/CreateClubTeamRequest';
 export type { CreateCustomerGroupRequest } from './models/CreateCustomerGroupRequest';
 export type { CreateCustomerRequest } from './models/CreateCustomerRequest';
 export type { CreateDivisionRequest } from './models/CreateDivisionRequest';

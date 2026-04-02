@@ -1,17 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
-using TSIC.API.Services.Players;
-using TSIC.API.Services.Teams;
-using TSIC.API.Services.Families;
-using TSIC.API.Services.Clubs;
-using TSIC.API.Services.Payments;
-using TSIC.API.Services.Metadata;
-using TSIC.API.Services.Shared;
-using TSIC.API.Services.Shared.Adn;
-using TSIC.API.Services.Auth;
-using TSIC.API.Services.Email;
-using TSIC.API.Services.Shared.UsLax;
 
 namespace TSIC.API.Controllers;
 
@@ -26,9 +15,16 @@ public class ClubsController : ControllerBase
         _clubService = clubService;
     }
 
+    /// <summary>
+    /// Live typeahead search for clubs by name. Supports debounced frontend queries.
+    /// Uses composite scoring (Levenshtein + token/Jaccard) with mega-club detection.
+    /// </summary>
     [HttpGet("search")]
     [ProducesResponseType(typeof(List<ClubSearchResult>), 200)]
-    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] string? state)
+    public async Task<IActionResult> Search(
+        [FromQuery] string q,
+        [FromQuery] string? state,
+        CancellationToken cancellationToken)
     {
         var results = await _clubService.SearchClubsAsync(q, state);
         return Ok(results);
