@@ -5,7 +5,7 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
-import { AgeGroupPickerModalComponent } from './enter-team-modal.component';
+import { AgeGroupPickerModalComponent } from './age-group-picker-modal.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 type MiniStep = 'library' | 'select' | 'summary';

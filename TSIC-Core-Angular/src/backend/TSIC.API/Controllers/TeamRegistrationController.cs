@@ -46,7 +46,6 @@ public class TeamRegistrationController : ControllerBase
     private readonly IRegistrationRepository _registrationRepository;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
-    private readonly IClubTeamRepository _clubTeamRepo;
 
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
@@ -58,8 +57,7 @@ public class TeamRegistrationController : ControllerBase
         ITeamRepository teamRepository,
         IRegistrationRepository registrationRepository,
         IRegistrationAccountingRepository accountingRepo,
-        IRegistrationFeeAdjustmentService feeAdjustment,
-        IClubTeamRepository clubTeamRepo)
+        IRegistrationFeeAdjustmentService feeAdjustment)
     {
         _teamRegistrationService = teamRegistrationService;
         _logger = logger;
@@ -69,7 +67,6 @@ public class TeamRegistrationController : ControllerBase
         _registrationRepository = registrationRepository;
         _accountingRepo = accountingRepo;
         _feeAdjustment = feeAdjustment;
-        _clubTeamRepo = clubTeamRepo;
     }
 
     /// <summary>
@@ -93,31 +90,6 @@ public class TeamRegistrationController : ControllerBase
         {
             _logger.LogError(ex, "Error getting clubs for user {UserId}", userId);
             return StatusCode(500, new { Message = "An error occurred while retrieving clubs" });
-        }
-    }
-
-    /// <summary>
-    /// Get the full team library for a club, including cross-event history
-    /// (record, goals, standings rank, division) for every TSIC event each team entered.
-    /// </summary>
-    [HttpGet("team-library/{clubId:int}")]
-    [ProducesResponseType(typeof(ClubTeamLibraryResponse), 200)]
-    [ProducesResponseType(401)]
-    public async Task<IActionResult> GetTeamLibrary(int clubId)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
-
-        try
-        {
-            var library = await _clubTeamRepo.GetLibraryWithHistoryAsync(clubId);
-            return Ok(library);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting team library for club {ClubId}", clubId);
-            return StatusCode(500, new { Message = "An error occurred while retrieving team library" });
         }
     }
 

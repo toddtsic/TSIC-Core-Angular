@@ -1,4 +1,3 @@
-using TSIC.Contracts.Dtos;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -31,12 +30,4 @@ public interface IClubTeamRepository
     /// Persist all changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the full team library for a club, including cross-event history
-    /// (W-L-T, goals, standings rank, division) for every event each team entered.
-    /// </summary>
-    Task<ClubTeamLibraryResponse> GetLibraryWithHistoryAsync(
-        int clubId,
-        CancellationToken cancellationToken = default);
 }
