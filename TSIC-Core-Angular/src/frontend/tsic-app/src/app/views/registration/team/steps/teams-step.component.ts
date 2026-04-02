@@ -50,51 +50,85 @@ type MiniStep = 'library' | 'select' | 'summary';
 
       <!-- ═══ STEP 1: UPDATE CLUB TEAM LIBRARY ═══ -->
       @if (currentMiniStep() === 'library') {
+
+        <!-- Welcome hero — centered, no card, commanding -->
+        <div class="welcome-hero">
+          <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to Your TSIC Team Library!</h4>
+          <p class="welcome-desc">
+            <i class="bi bi-arrow-repeat me-1"></i>Add your teams once
+            <span class="desc-dot"></span>
+            <i class="bi bi-calendar-event me-1"></i>Register in any event
+            <span class="desc-dot"></span>
+            <i class="bi bi-x-circle me-1"></i>No re-entering info, ever
+          </p>
+        </div>
+
         <div class="step-card">
-          <div class="step-hero">
-            <div class="hero-icon hero-icon-library"><i class="bi bi-collection-fill"></i></div>
-            <div class="hero-text">
-              <h6 class="hero-title">Your Club Team Library</h6>
-              <p class="hero-desc">
-                Your library has <strong class="text-primary">{{ allLibraryTeams().length }}</strong> {{ allLibraryTeams().length === 1 ? 'team' : 'teams' }}.
-                Make sure all your teams are listed before entering them in the event.
-              </p>
+
+          <!-- Action callout -->
+          <div class="callout">
+            <div class="callout-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="callout-body">
+              <strong>Before you continue:</strong> make sure every team you plan to register is listed below.<br>
+              Missing a team? <button type="button" class="callout-link" (click)="showAddModal.set(true)"><i class="bi bi-plus-circle me-1"></i>Add it now</button> — takes 10 seconds.
             </div>
-            <button type="button" class="btn btn-primary btn-sm hero-cta"
+          </div>
+
+          <!-- Library header with stats -->
+          <div class="lib-header">
+            <div class="lib-stats">
+              <span class="stat-number">{{ allLibraryTeams().length }}</span>
+              <span class="stat-label">{{ allLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
+              @if (enteredTeams().length > 0) {
+                <span class="stat-divider"></span>
+                <span class="stat-registered"><i class="bi bi-check-circle-fill me-1"></i>{{ enteredTeams().length }} already registered</span>
+              }
+            </div>
+            <button type="button" class="btn btn-primary btn-sm"
                     (click)="showAddModal.set(true)">
-              <i class="bi bi-plus-circle me-1"></i>Add New Team
+              <i class="bi bi-plus-circle me-1"></i>Add Team
             </button>
           </div>
 
           @if (allLibraryTeams().length === 0) {
             <div class="empty-state">
               <i class="bi bi-plus-circle-dotted"></i>
-              <strong>No teams yet</strong>
-              <span>Tap <strong>Add New Team</strong> above to build your library.</span>
+              <strong>Your library is empty</strong>
+              <span>Every team your club fields should be added here.<br>They're saved permanently — add once, register in any event.</span>
+              <button type="button" class="btn btn-primary btn-sm mt-2"
+                      (click)="showAddModal.set(true)">
+                <i class="bi bi-plus-circle me-1"></i>Add Your First Team
+              </button>
             </div>
           } @else {
             <div class="scroll-list">
-              @for (team of allLibraryTeams(); track team.clubTeamId) {
-                <div class="lib-row">
-                  <i class="bi bi-people-fill lib-icon"></i>
-                  <span class="lib-name">{{ team.clubTeamName }}</span>
-                  <span class="lib-meta">{{ team.clubTeamGradYear }}{{ team.clubTeamLevelOfPlay ? ' · Lvl ' + team.clubTeamLevelOfPlay : '' }}</span>
-                  @if (isEnteredTeam(team.clubTeamId)) {
-                    <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
-                  }
+              @for (group of libraryByYear(); track group.year) {
+                <div class="year-group-header">
+                  <span class="year-label">{{ group.year }}</span>
+                  <span class="year-count">{{ group.teams.length }} {{ group.teams.length === 1 ? 'team' : 'teams' }}</span>
                 </div>
+                @for (team of group.teams; track team.clubTeamId) {
+                  <div class="lib-row">
+                    <i class="bi bi-people-fill lib-icon"></i>
+                    <span class="lib-name">{{ team.clubTeamName }}</span>
+                    <span class="lib-level">{{ team.clubTeamLevelOfPlay ? 'Lvl ' + team.clubTeamLevelOfPlay : '' }}</span>
+                    @if (isEnteredTeam(team.clubTeamId)) {
+                      <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
+                    }
+                  </div>
+                }
               }
             </div>
           }
 
           <div class="step-card-footer">
             <span class="footer-hint">
-              <i class="bi bi-info-circle me-1"></i>You can always add teams later
+              <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
             </span>
             <button type="button" class="btn btn-sm btn-primary"
                     [disabled]="allLibraryTeams().length === 0"
                     (click)="goToMiniStep('select')">
-              Next: Select Teams <i class="bi bi-arrow-right ms-1"></i>
+              Looks Good — Select Teams <i class="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
         </div>
@@ -313,6 +347,153 @@ type MiniStep = 'library' | 'select' | 'summary';
         background: var(--border-color);
 
         &.completed { background: var(--bs-success); }
+      }
+
+      /* ── Welcome Hero (centered, no card) ──────── */
+      .welcome-hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--space-4) var(--space-4) var(--space-3);
+      }
+
+      .welcome-icon {
+        font-size: var(--font-size-2xl);
+        color: var(--bs-primary);
+      }
+
+      .welcome-title {
+        margin: 0;
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+      }
+
+      .welcome-desc {
+        margin: var(--space-2) 0 0;
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        line-height: var(--line-height-relaxed);
+
+        i { color: var(--bs-primary); }
+      }
+
+      .desc-dot {
+        display: inline-block;
+        width: 4px;
+        height: 4px;
+        border-radius: var(--radius-full);
+        background: var(--neutral-300);
+        vertical-align: middle;
+        margin: 0 var(--space-2);
+      }
+
+      /* ── Action Callout (inside card) ────────────── */
+      .callout {
+        display: flex;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: rgba(var(--bs-danger-rgb), 0.06);
+        border-bottom: 2px solid rgba(var(--bs-danger-rgb), 0.2);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text);
+        line-height: var(--line-height-normal);
+      }
+
+      .callout-icon {
+        font-size: var(--font-size-lg);
+        color: var(--bs-danger);
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .callout-body strong {
+        color: var(--bs-danger);
+      }
+
+      .callout-link {
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-bold);
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        font-size: inherit;
+
+        &:hover { text-decoration: none; }
+      }
+
+      /* ── Library Header / Stats ──────────────────── */
+      .lib-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-4);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .lib-stats {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
+
+      .stat-number {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-primary);
+        line-height: 1;
+      }
+
+      .stat-label {
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+      }
+
+      .stat-divider {
+        width: 1px;
+        height: 16px;
+        background: var(--border-color);
+      }
+
+      .stat-registered {
+        color: var(--bs-success);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      /* ── Year Group Headers ──────────────────────── */
+      .year-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-1) var(--space-4);
+        background: rgba(var(--bs-primary-rgb), 0.04);
+        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.08);
+      }
+
+      .year-label {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-primary);
+        letter-spacing: 0.02em;
+      }
+
+      .year-count {
+        font-size: 10px;
+        color: var(--brand-text-muted);
+      }
+
+      .lib-level {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+        margin-left: auto;
       }
 
       /* ── Step Card ───────────────────────────────── */
@@ -646,8 +827,39 @@ type MiniStep = 'library' | 'select' | 'summary';
 
         .hero-cta { width: 100%; }
 
+        .welcome-hero {
+          padding: var(--space-4) var(--space-3) var(--space-3);
+        }
+
+        .welcome-title {
+          font-size: var(--font-size-xl);
+        }
+
+        .desc-dot { display: none; }
+        .welcome-desc i { display: none; }
+        .welcome-desc {
+          font-size: var(--font-size-xs);
+        }
+
+        .callout {
+          padding: var(--space-2) var(--space-3);
+        }
+
+        .lib-header {
+          flex-wrap: wrap;
+          padding: var(--space-2) var(--space-3);
+          gap: var(--space-2);
+        }
+
+        .year-group-header {
+          padding-left: var(--space-3);
+          padding-right: var(--space-3);
+        }
+
         .step-card-footer {
           padding: var(--space-2);
+          flex-wrap: wrap;
+          gap: var(--space-2);
         }
 
         .lib-row, .select-row {
@@ -720,6 +932,22 @@ export class TeamTeamsStepComponent implements OnInit {
         const enteredOnly = enteredAsLibrary.filter(t => !availableIds.has(t.clubTeamId));
 
         return [...available, ...enteredOnly];
+    });
+
+    /** Library grouped by grad year for Step 1 display. */
+    readonly libraryByYear = computed(() => {
+        const teams = this.allLibraryTeams();
+        const groups: { year: string; teams: ClubTeamDto[] }[] = [];
+        const map = new Map<string, ClubTeamDto[]>();
+        for (const t of teams) {
+            const year = t.clubTeamGradYear || 'Other';
+            if (!map.has(year)) map.set(year, []);
+            map.get(year)!.push(t);
+        }
+        for (const [year, yearTeams] of map) {
+            groups.push({ year, teams: yearTeams });
+        }
+        return groups;
     });
 
     /** Entered teams (for Step 2 checks and Step 3 table). */
