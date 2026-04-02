@@ -28,73 +28,111 @@ interface TreeFlatNode {
   template: `
     <div class="ladt-tree-filter">
       @for (node of visibleNodes(); track node.id) {
-        <div class="tree-node"
-             [class.tree-special]="node.isSpecial"
-             [style.padding-left.rem]="node.level * 1.25">
-          <!-- Expand/collapse arrow -->
-          @if (node.expandable) {
-            <span class="tree-expand"
-                  [class.expanded]="expandedIds().has(node.id)"
-                  (click)="toggleExpand(node)">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                   fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="9 6 15 12 9 18"></polyline>
-              </svg>
+        @if (node.level === 0) {
+          <!-- Root: totals row, clickable to expand/collapse -->
+          <div class="tree-node tree-root" (click)="toggleExpand(node)">
+            <svg class="tree-root-chevron" [class.expanded]="expandedIds().has(node.id)"
+                 xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 6 15 12 9 18"></polyline>
+            </svg>
+            <span class="tree-name">All</span>
+            <span class="tree-badges">
+              <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+              <span class="tree-badge badge-outline" title="Players">{{ node.playerCount }}</span>
             </span>
-          } @else {
-            <span class="tree-expand-spacer"></span>
-          }
-
-          <!-- Checkbox -->
-          <input type="checkbox"
-                 class="tree-checkbox"
-                 [checked]="checkedIds.has(node.id)"
-                 [indeterminate]="checkState().get(node.id) === 'some'"
-                 (change)="onCheck(node, $event)" />
-
-          <!-- Color dot (agegroups) -->
-          @if (node.color) {
-            <span class="tree-color-dot" [style.background]="node.color"></span>
-          }
-
-          <!-- Name -->
-          <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
-
-          <!-- Count badges: teams (non-leaf) + players -->
-          <span class="tree-badges">
-            @if (node.isLeaf) {
-              <!-- Team leaf: player count only -->
-              <span class="tree-badge"
-                    [style.background]="node.color ?? 'var(--bs-info)'"
-                    [style.color]="contrastText(node.color)"
-                    title="Players">{{ node.playerCount }}</span>
-            } @else if (node.level >= 1) {
-              <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
-              <span class="tree-badge"
-                    [style.background]="node.color ?? 'var(--bs-info)'"
-                    [style.color]="contrastText(node.color)"
-                    title="Players">{{ node.playerCount }}</span>
+          </div>
+        } @else {
+          <div class="tree-node"
+               [class.tree-special]="node.isSpecial"
+               [style.padding-left.rem]="(node.level - 1) * 1.25">
+            <!-- Expand/collapse arrow -->
+            @if (node.expandable) {
+              <span class="tree-expand"
+                    [class.expanded]="expandedIds().has(node.id)"
+                    (click)="toggleExpand(node)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 6 15 12 9 18"></polyline>
+                </svg>
+              </span>
             } @else {
-              <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
-              <span class="tree-badge badge-default" title="Players">{{ node.playerCount }}</span>
+              <span class="tree-expand-spacer"></span>
             }
-          </span>
-        </div>
-      }
 
-      <!-- Totals row -->
+            <!-- Checkbox -->
+            <input type="checkbox"
+                   class="tree-checkbox"
+                   [checked]="checkedIds.has(node.id)"
+                   [indeterminate]="checkState().get(node.id) === 'some'"
+                   (change)="onCheck(node, $event)" />
+
+            <!-- Color dot (agegroups) -->
+            @if (node.color) {
+              <span class="tree-color-dot" [style.background]="node.color"></span>
+            }
+
+            <!-- Name -->
+            <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
+
+            <!-- Count badges -->
+            <span class="tree-badges">
+              @if (node.isLeaf) {
+                <span class="tree-badge"
+                      [style.background]="node.color ?? 'var(--bs-info)'"
+                      [style.color]="contrastText(node.color)"
+                      title="Players">{{ node.playerCount }}</span>
+              } @else {
+                <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+                <span class="tree-badge"
+                      [style.background]="node.color ?? 'var(--bs-info)'"
+                      [style.color]="contrastText(node.color)"
+                      title="Players">{{ node.playerCount }}</span>
+              }
+            </span>
+          </div>
+        }
+      }
     </div>
   `,
   styles: [`
     .ladt-tree-filter {
-      font-size: 0.8125rem;
+      font-size: var(--font-size-xs);
       line-height: 1.4;
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
+      padding: var(--space-1);
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .tree-root {
+      border-bottom: 1px solid var(--bs-border-color-translucent);
+      margin-bottom: 2px;
+      padding-bottom: 2px;
+      font-weight: 600;
+      color: var(--bs-secondary-color);
+      font-size: 0.6875rem;
+      cursor: pointer;
+    }
+
+    .tree-root-chevron {
+      flex-shrink: 0;
+      color: var(--bs-secondary-color);
+      opacity: 0.6;
+      transition: transform 0.15s;
+      cursor: pointer;
+    }
+
+    .tree-root-chevron.expanded {
+      transform: rotate(90deg);
     }
 
     .tree-badges {
       margin-left: auto;
       display: flex;
-      gap: 3px;
+      gap: 6px;
       flex-shrink: 0;
     }
 
@@ -115,6 +153,12 @@ interface TreeFlatNode {
     .badge-default {
       background: var(--bs-info);
       color: var(--bs-white);
+    }
+
+    .badge-outline {
+      background: transparent;
+      border: 1.5px solid var(--bs-body-color);
+      color: var(--bs-body-color);
     }
 
     .badge-muted {
@@ -195,6 +239,8 @@ export class LadtTreeFilterComponent implements OnChanges {
   @Input() initialExpandLevel = -1;
   /** When set, overrides the display name of the level-0 root node. */
   @Input() rootLabel = '';
+  /** Header label shown flush-left above the tree (e.g. "League/Agegroup/Division/Team") */
+  @Input() headerLabel = '';
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
   // Internal state
@@ -321,18 +367,8 @@ export class LadtTreeFilterComponent implements OnChanges {
     recurse(this.treeData);
     this.flatNodes.set(result);
 
-    // Auto-expand nodes at levels <= initialExpandLevel
-    if (this.initialExpandLevel >= 0) {
-      const expanded = new Set<string>();
-      for (const node of result) {
-        if (node.expandable && node.level <= this.initialExpandLevel) {
-          expanded.add(node.id);
-        }
-      }
-      this.expandedIds.set(expanded);
-    } else {
-      this.expandedIds.set(new Set());
-    }
+    // Start collapsed — root not expanded, children hidden
+    this.expandedIds.set(new Set());
   }
 
   private isSpecialAgegroup(name: string): boolean {

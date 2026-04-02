@@ -58,58 +58,77 @@ export interface CadtSelectionEvent {
       <!-- Tree nodes -->
       <div class="tree-container">
         @for (node of visibleNodes(); track node.id) {
-          <div class="tree-node"
-               [style.padding-left.rem]="(hideRootLevel ? node.level - 1 : node.level) * 1.25">
-            <!-- Expand/collapse arrow -->
-            @if (node.expandable) {
-              <span class="tree-expand"
-                    [class.expanded]="expandedIds().has(node.id)"
-                    (click)="toggleExpand(node)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                     fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="9 6 15 12 9 18"></polyline>
-                </svg>
+          @if (node.level === 0) {
+            <!-- Root: totals row, clickable to expand/collapse -->
+            <div class="tree-node tree-root" (click)="toggleExpand(node)">
+              <svg class="tree-root-chevron" [class.expanded]="expandedIds().has(node.id)"
+                   xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 6 15 12 9 18"></polyline>
+              </svg>
+              <span class="tree-name">All</span>
+              <span class="tree-badges">
+                <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+                <span class="tree-badge badge-outline" title="Players">{{ node.playerCount }}</span>
               </span>
-            } @else {
-              <span class="tree-expand-spacer"></span>
-            }
-
-            <!-- Checkbox -->
-            <input type="checkbox"
-                   class="tree-checkbox"
-                   [checked]="checkedIdsSignal().has(node.id)"
-                   [indeterminate]="checkState().get(node.id) === 'some'"
-                   (change)="onCheck(node, $event)" />
-
-            <!-- Agegroup color dot -->
-            @if (node.color) {
-              <span class="tree-color-dot"
-                    [style.background]="node.color"></span>
-            }
-
-            <!-- Name -->
-            <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
-
-            <!-- Count badges: teams (non-leaf) + players -->
-            <span class="tree-badges">
-              @if (node.isLeaf) {
-                <!-- Team leaf: player count only -->
-                <span class="tree-badge"
-                      [style.background]="node.color ?? 'var(--bs-info)'"
-                      [style.color]="contrastText(node.color)"
-                      title="Players">{{ node.playerCount }}</span>
-              } @else if (node.level >= 1) {
-                <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
-                <span class="tree-badge"
-                      [style.background]="node.color ?? 'var(--bs-info)'"
-                      [style.color]="contrastText(node.color)"
-                      title="Players">{{ node.playerCount }}</span>
+            </div>
+          } @else {
+            <div class="tree-node"
+                 [style.padding-left.rem]="(node.level - 1) * 1.25">
+              <!-- Expand/collapse arrow -->
+              @if (node.expandable) {
+                <span class="tree-expand"
+                      [class.expanded]="expandedIds().has(node.id)"
+                      (click)="toggleExpand(node)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                       fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="9 6 15 12 9 18"></polyline>
+                  </svg>
+                </span>
               } @else {
-                <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
-                <span class="tree-badge badge-default" title="Players">{{ node.playerCount }}</span>
+                <span class="tree-expand-spacer"></span>
               }
-            </span>
-          </div>
+
+              <!-- Checkbox -->
+              <input type="checkbox"
+                     class="tree-checkbox"
+                     [checked]="checkedIdsSignal().has(node.id)"
+                     [indeterminate]="checkState().get(node.id) === 'some'"
+                     (change)="onCheck(node, $event)" />
+
+              <!-- Agegroup color dot -->
+              @if (node.color) {
+                <span class="tree-color-dot"
+                      [style.background]="node.color"></span>
+              }
+
+              <!-- Name -->
+              <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
+
+              <!-- Count badges -->
+              <span class="tree-badges">
+                @if (node.isLeaf) {
+                  @if (node.color) {
+                    <span class="tree-badge"
+                          [style.background]="node.color"
+                          [style.color]="contrastText(node.color)"
+                          title="Players">{{ node.playerCount }}</span>
+                  } @else {
+                    <span class="tree-badge badge-outline" title="Players">{{ node.playerCount }}</span>
+                  }
+                } @else if (node.color) {
+                  <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+                  <span class="tree-badge"
+                        [style.background]="node.color"
+                        [style.color]="contrastText(node.color)"
+                        title="Players">{{ node.playerCount }}</span>
+                } @else {
+                  <span class="tree-badge badge-muted" title="Teams">{{ node.teamCount }}</span>
+                  <span class="tree-badge badge-outline" title="Players">{{ node.playerCount }}</span>
+                }
+              </span>
+            </div>
+          }
         }
 
         @if (visibleNodes().length === 0 && searchTerm()) {
@@ -120,10 +139,16 @@ export interface CadtSelectionEvent {
   `,
   styles: [`
     .cadt-tree-filter {
-      font-size: var(--font-size-sm, 0.8125rem);
+      font-size: var(--font-size-xs, 0.75rem);
       line-height: 1.4;
       display: flex;
       flex-direction: column;
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--bs-border-radius);
+      background: var(--bs-body-bg);
+      padding: var(--space-1);
+      max-height: 400px;
+      overflow-y: auto;
     }
 
     .tree-search {
@@ -235,10 +260,32 @@ export interface CadtSelectionEvent {
       cursor: pointer;
     }
 
+    .tree-root {
+      border-bottom: 1px solid var(--bs-border-color-translucent);
+      margin-bottom: 2px;
+      padding-bottom: 2px;
+      font-weight: 600;
+      color: var(--bs-secondary-color);
+      font-size: 0.6875rem;
+      cursor: pointer;
+    }
+
+    .tree-root-chevron {
+      flex-shrink: 0;
+      color: var(--bs-secondary-color);
+      opacity: 0.6;
+      transition: transform 0.15s;
+      cursor: pointer;
+    }
+
+    .tree-root-chevron.expanded {
+      transform: rotate(90deg);
+    }
+
     .tree-badges {
       margin-left: auto;
       display: flex;
-      gap: 3px;
+      gap: 6px;
       flex-shrink: 0;
     }
 
@@ -266,6 +313,12 @@ export interface CadtSelectionEvent {
       color: var(--bs-body-color);
     }
 
+    .badge-outline {
+      background: transparent;
+      border: 1.5px solid var(--bs-body-color);
+      color: var(--bs-body-color);
+    }
+
     .tree-empty {
       padding: var(--space-2, 8px) var(--space-3, 12px);
       color: var(--bs-secondary-color);
@@ -280,6 +333,8 @@ export class CadtTreeFilterComponent implements OnChanges {
   @Input() showSearch = true;
   /** When set, wraps all clubs under a synthetic root node (e.g. job name). */
   @Input() rootLabel = '';
+  /** Header label shown flush-left above the tree (e.g. "Club/Agegroup/Division/Team") */
+  @Input() headerLabel = '';
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
   /** Internal signal for checked state — synced from parent @Input, updated on user interaction. */
@@ -516,13 +571,8 @@ export class CadtTreeFilterComponent implements OnChanges {
     }
 
     this.flatNodes.set(result);
-    // Start fully collapsed, but auto-expand root nodes when hideRootLevel
-    if (this.hideRootLevel) {
-      const roots = new Set(result.filter(n => n.level === 0).map(n => n.id));
-      this.expandedIds.set(roots);
-    } else {
-      this.expandedIds.set(new Set());
-    }
+    // Start collapsed — root not expanded, children hidden
+    this.expandedIds.set(new Set());
   }
 
   private isNodeVisible(
@@ -550,13 +600,7 @@ export class CadtTreeFilterComponent implements OnChanges {
   }
 
   collapseAll(): void {
-    // When hideRootLevel, keep root nodes expanded (they're invisible but need to stay open)
-    if (this.hideRootLevel) {
-      const roots = new Set(this.flatNodes().filter(n => n.level === 0).map(n => n.id));
-      this.expandedIds.set(roots);
-    } else {
-      this.expandedIds.set(new Set());
-    }
+    this.expandedIds.set(new Set());
   }
 
   toggleExpand(node: CadtFlatNode): void {
