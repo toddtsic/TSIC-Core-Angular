@@ -28,7 +28,7 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
         @if (waiverDefs().length === 0) {
           <div class="alert alert-info">No waivers required for this event.</div>
         } @else {
-          <div class="callout-info">
+          <div class="wizard-callout wizard-callout-info">
             <i class="bi bi-info-circle"></i>
             <span>These waivers apply to <strong>all selected players</strong>. Read each one and check to accept.</span>
           </div>
@@ -93,21 +93,7 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
       </div>
     </div>
   `,
-    styles: [`
-      .welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-4) var(--space-4) var(--space-3); }
-      .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
-      .welcome-icon { font-size: var(--font-size-2xl); }
-      .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
-      .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
-      .callout-info {
-        display: flex; align-items: center; gap: var(--space-2);
-        padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3);
-        background: rgba(var(--bs-info-rgb), 0.06); border: 1px solid rgba(var(--bs-info-rgb), 0.12);
-        border-radius: var(--radius-md); font-size: var(--font-size-xs); color: var(--brand-text);
-        i { color: var(--bs-info); flex-shrink: 0; }
-      }
-      @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
-    `],
+    styles: [],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WaiversStepComponent implements AfterViewInit, OnDestroy {

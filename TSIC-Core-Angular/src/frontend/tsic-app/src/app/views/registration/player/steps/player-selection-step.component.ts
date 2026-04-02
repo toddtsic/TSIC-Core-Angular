@@ -46,7 +46,7 @@ import { environment } from '@environments/environment';
             </div>
           </div>
         } @else if (state.familyPlayers.familyPlayers().length === 0) {
-          <div class="empty-state">
+          <div class="wizard-empty-state">
             <i class="bi bi-person-plus-fill"></i>
             <strong>No players on this account yet</strong>
             <span>Add your first player to get started.</span>
@@ -137,53 +137,6 @@ import { environment } from '@environments/environment';
     }
   `,
     styles: [`
-      /* ── Welcome Hero ────────────────────────── */
-      .welcome-hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: var(--space-4) var(--space-4) var(--space-3);
-      }
-      .welcome-title {
-        margin: 0;
-        font-size: var(--font-size-2xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-      }
-      .welcome-icon { font-size: var(--font-size-2xl); color: var(--bs-primary); }
-      .welcome-desc {
-        margin: var(--space-2) 0 0;
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        i { color: var(--bs-primary); }
-      }
-      .desc-dot {
-        display: inline-block;
-        width: 4px; height: 4px;
-        border-radius: var(--radius-full);
-        background: var(--neutral-300);
-        vertical-align: middle;
-        margin: 0 var(--space-2);
-      }
-      .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-8) var(--space-4);
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-sm);
-        text-align: center;
-        i { font-size: 40px; color: rgba(var(--bs-primary-rgb), 0.2); }
-        strong { color: var(--brand-text); }
-      }
-      @media (max-width: 575.98px) {
-        .welcome-title { font-size: var(--font-size-xl); }
-        .desc-dot { display: none; }
-        .welcome-desc i { display: none; }
-      }
-
       .player-list {
         display: flex;
         flex-direction: column;

@@ -14,11 +14,6 @@ import type { JobPulseDto } from '@core/api';
     standalone: true,
     imports: [RouterLink],
     styles: [`
-    .welcome-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-4) var(--space-4) var(--space-3); }
-    .welcome-title { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--brand-text); }
-    .welcome-icon { font-size: var(--font-size-2xl); }
-    .welcome-desc { margin: var(--space-2) 0 0; font-size: var(--font-size-xs); color: var(--brand-text-muted); i { color: var(--bs-primary); } }
-    .desc-dot { display: inline-block; width: 4px; height: 4px; border-radius: var(--radius-full); background: var(--neutral-300); vertical-align: middle; margin: 0 var(--space-2); }
     .confirmation-content { overflow-x: auto; }
     .confirmation-content ::ng-deep table { width: 100%; min-width: 600px; }
     .store-cta {
@@ -32,7 +27,6 @@ import type { JobPulseDto } from '@core/api';
       text-decoration: none;
       font-weight: 600;
     }
-    @media (max-width: 575.98px) { .welcome-title { font-size: var(--font-size-xl); } .desc-dot { display: none; } .welcome-desc i { display: none; } }
   `],
     template: `
     <!-- Centered hero -->

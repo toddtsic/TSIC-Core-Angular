@@ -60,24 +60,6 @@ import { LoginComponent } from '../../../auth/login/login.component';
         margin-top: 2px;
       }
 
-      /* Welcome Hero */
-      .welcome-hero {
-        text-align: center;
-        padding: 0 0 var(--space-3);
-      }
-      .welcome-title {
-        margin: 0;
-        font-size: var(--font-size-xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-      }
-      .welcome-icon { color: var(--bs-primary); }
-      .welcome-desc {
-        margin: var(--space-1) 0 0;
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-      }
-
       /* Divider */
       .or-divider {
         display: flex;

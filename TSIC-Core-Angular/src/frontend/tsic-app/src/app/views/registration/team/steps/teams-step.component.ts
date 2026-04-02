@@ -66,11 +66,11 @@ type MiniStep = 'library' | 'select' | 'summary';
         <div class="step-card">
 
           <!-- Action callout -->
-          <div class="callout">
-            <div class="callout-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
-            <div class="callout-body">
+          <div class="step1-callout">
+            <div class="step1-callout-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div>
               <strong>Before you continue:</strong> make sure every team you plan to register is listed below.<br>
-              Missing a team? <button type="button" class="callout-link" (click)="showAddModal.set(true)"><i class="bi bi-plus-circle me-1"></i>Add it now</button> — takes 10 seconds.
+              Missing a team? <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)"><i class="bi bi-plus-circle me-1"></i>Add it now</button> — takes 10 seconds.
             </div>
           </div>
 
@@ -91,7 +91,7 @@ type MiniStep = 'library' | 'select' | 'summary';
           </div>
 
           @if (allLibraryTeams().length === 0) {
-            <div class="empty-state">
+            <div class="wizard-empty-state">
               <i class="bi bi-plus-circle-dotted"></i>
               <strong>Your library is empty</strong>
               <span>Every team your club fields should be added here.<br>They're saved permanently — add once, register in any event.</span>
@@ -380,48 +380,8 @@ type MiniStep = 'library' | 'select' | 'summary';
         &.completed { background: var(--bs-success); }
       }
 
-      /* ── Welcome Hero (centered, no card) ──────── */
-      .welcome-hero {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: var(--space-4) var(--space-4) var(--space-3);
-      }
-
-      .welcome-icon {
-        font-size: var(--font-size-2xl);
-        color: var(--bs-primary);
-      }
-
-      .welcome-title {
-        margin: 0;
-        font-size: var(--font-size-2xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-      }
-
-      .welcome-desc {
-        margin: var(--space-2) 0 0;
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        line-height: var(--line-height-relaxed);
-
-        i { color: var(--bs-primary); }
-      }
-
-      .desc-dot {
-        display: inline-block;
-        width: 4px;
-        height: 4px;
-        border-radius: var(--radius-full);
-        background: var(--neutral-300);
-        vertical-align: middle;
-        margin: 0 var(--space-2);
-      }
-
-      /* ── Action Callout (inside card) ────────────── */
-      .callout {
+      /* ── Step 1: Danger Callout (team-specific layout) ── */
+      .step1-callout {
         display: flex;
         gap: var(--space-3);
         padding: var(--space-3) var(--space-4);
@@ -432,29 +392,15 @@ type MiniStep = 'library' | 'select' | 'summary';
         line-height: var(--line-height-normal);
       }
 
-      .callout-icon {
+      .step1-callout-icon {
         font-size: var(--font-size-lg);
         color: var(--bs-danger);
         flex-shrink: 0;
         margin-top: 1px;
       }
 
-      .callout-body strong {
+      .step1-callout strong {
         color: var(--bs-danger);
-      }
-
-      .callout-link {
-        background: none;
-        border: none;
-        padding: 0;
-        color: var(--bs-primary);
-        font-weight: var(--font-weight-bold);
-        cursor: pointer;
-        text-decoration: underline;
-        text-underline-offset: 2px;
-        font-size: inherit;
-
-        &:hover { text-decoration: none; }
       }
 
       /* ── Library Header / Stats ──────────────────── */
@@ -827,25 +773,6 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: var(--bs-primary);
       }
 
-      /* ── Empty State ─────────────────────────────── */
-      .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-8) var(--space-4);
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-sm);
-        text-align: center;
-
-        i {
-          font-size: 40px;
-          color: rgba(var(--bs-primary-rgb), 0.2);
-        }
-
-        strong { color: var(--brand-text); }
-      }
-
       /* ── Step 2: Progress Bar ──────────────────── */
       .progress-bar-section {
         padding: var(--space-2) var(--space-4);
@@ -909,21 +836,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 
         .hero-cta { width: 100%; }
 
-        .welcome-hero {
-          padding: var(--space-4) var(--space-3) var(--space-3);
-        }
-
-        .welcome-title {
-          font-size: var(--font-size-xl);
-        }
-
-        .desc-dot { display: none; }
-        .welcome-desc i { display: none; }
-        .welcome-desc {
-          font-size: var(--font-size-xs);
-        }
-
-        .callout {
+        .step1-callout {
           padding: var(--space-2) var(--space-3);
         }
 

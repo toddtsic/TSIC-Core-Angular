@@ -492,6 +492,131 @@ mark {
     line-height: var(--line-height-normal);
 }
 
+/* Wizard Hero — centered welcome/step header used across all wizard steps */
+.welcome-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-4) var(--space-4) var(--space-3);
+}
+
+.welcome-title {
+    margin: 0;
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+}
+
+.welcome-icon {
+    font-size: var(--font-size-2xl);
+    color: var(--bs-primary);
+}
+
+.welcome-desc {
+    margin: var(--space-2) 0 0;
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+}
+
+.welcome-desc i {
+    color: var(--bs-primary);
+}
+
+.desc-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--neutral-300);
+    vertical-align: middle;
+    margin: 0 var(--space-2);
+}
+
+/* Wizard Empty State — friendly empty content placeholder */
+.wizard-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-8) var(--space-4);
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    text-align: center;
+
+    i {
+        font-size: 40px;
+        color: rgba(var(--bs-primary-rgb), 0.2);
+    }
+
+    strong {
+        color: var(--brand-text);
+    }
+}
+
+/* Wizard Callout — action/info banner inside wizard cards */
+.wizard-callout {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    color: var(--brand-text);
+}
+
+.wizard-callout i {
+    flex-shrink: 0;
+}
+
+.wizard-callout-info {
+    background: rgba(var(--bs-info-rgb), 0.06);
+    border: 1px solid rgba(var(--bs-info-rgb), 0.12);
+
+    i { color: var(--bs-info); }
+}
+
+.wizard-callout-danger {
+    background: rgba(var(--bs-danger-rgb), 0.06);
+    border: 2px solid rgba(var(--bs-danger-rgb), 0.2);
+
+    strong { color: var(--bs-danger); }
+    i { color: var(--bs-danger); }
+}
+
+.wizard-callout-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--bs-primary);
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-size: inherit;
+
+    &:hover { text-decoration: none; }
+}
+
+@media (max-width: 575.98px) {
+    .welcome-title {
+        font-size: var(--font-size-xl);
+    }
+
+    .welcome-desc {
+        font-size: var(--font-size-xs);
+    }
+
+    .desc-dot {
+        display: none;
+    }
+
+    .welcome-desc i {
+        display: none;
+    }
+}
+
 /* Card Utilities */
 .card-rounded {
     border-radius: var(--radius-xl);
