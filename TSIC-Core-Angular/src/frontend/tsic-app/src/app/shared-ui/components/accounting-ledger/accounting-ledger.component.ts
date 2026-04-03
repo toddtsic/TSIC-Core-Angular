@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { AccountingRecordDto, CreditCardInfo, ClubTeamSummaryDto } from '@core/api';
 
-type PaymentType = 'cc' | 'check' | 'correction';
+type PaymentType = 'cc' | 'check' | 'correction' | 'refund';
 
 /** Emitted when user confirms a CC charge. Parent handles the API call. */
 export interface CcChargeEvent {
@@ -17,6 +17,12 @@ export interface CheckOrCorrectionEvent {
 	checkNo: string | null;
 	comment: string | null;
 	paymentType: 'Check' | 'Correction';
+}
+
+/** Emitted when user confirms a CC refund. Parent handles the API call. */
+export interface RefundEvent {
+	accountingRecordId: number;
+	refundAmount: number;
 }
 
 
@@ -43,13 +49,16 @@ export class AccountingLedgerComponent {
 	clubBreakdown = input<ClubTeamSummaryDto[] | undefined>(undefined);
 
 	// ── Outputs (callback pattern — parent handles API calls) ──
-	refundRequested = output<AccountingRecordDto>();
 	ccChargeSubmitted = output<CcChargeEvent>();
 	checkSubmitted = output<CheckOrCorrectionEvent>();
+	refundSubmitted = output<RefundEvent>();
 
 	// ── Payment modal state ──
 	showPaymentModal = signal(false);
 	paymentType = signal<PaymentType>('check');
+
+	// ── Refund mode state ──
+	refundRecord = signal<AccountingRecordDto | null>(null);
 	amount = signal<number>(0);
 	comment = signal('');
 	checkNo = signal('');
@@ -107,7 +116,12 @@ export class AccountingLedgerComponent {
 	// ── Transaction table ──
 
 	onRefundClick(record: AccountingRecordDto): void {
-		this.refundRequested.emit(record);
+		this.refundRecord.set(record);
+		this.paymentType.set('refund');
+		this.amount.set(record.paidAmount ?? 0);
+		this.comment.set('');
+		this.showCcConfirm.set(false);
+		this.showPaymentModal.set(true);
 	}
 
 	// ── Payment modal ──
@@ -150,6 +164,7 @@ export class AccountingLedgerComponent {
 
 	closePaymentModal(): void {
 		this.showPaymentModal.set(false);
+		this.refundRecord.set(null);
 	}
 
 	/** Restrict amount to 2 decimal places */
@@ -197,6 +212,10 @@ export class AccountingLedgerComponent {
 		if (type === 'check') {
 			return amt > 0;
 		}
+		if (type === 'refund') {
+			const maxRefund = this.refundRecord()?.paidAmount ?? 0;
+			return amt > 0 && amt <= maxRefund;
+		}
 		return amt !== 0;
 	}
 
@@ -225,7 +244,15 @@ export class AccountingLedgerComponent {
 		const type = this.paymentType();
 		const amt = this.amount();
 
-		if (type === 'cc') {
+		if (type === 'refund') {
+			const record = this.refundRecord();
+			if (record?.aId) {
+				this.refundSubmitted.emit({
+					accountingRecordId: record.aId,
+					refundAmount: amt
+				});
+			}
+		} else if (type === 'cc') {
 			const expiryRaw = this.ccExpiry().replace(/\D/g, '');
 			this.ccChargeSubmitted.emit({
 				creditCard: {

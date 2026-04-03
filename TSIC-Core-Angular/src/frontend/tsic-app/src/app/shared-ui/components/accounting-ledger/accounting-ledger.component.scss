@@ -572,3 +572,62 @@
     flex-direction: column;
   }
 }
+
+// ── Refund Mode ──
+
+.refund-details {
+  padding: var(--space-3);
+  background: rgba(var(--bs-dark-rgb), 0.02);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.refund-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-xs);
+
+  & + & {
+    border-top: 1px solid rgba(var(--bs-dark-rgb), 0.04);
+  }
+}
+
+.refund-label {
+  color: var(--brand-text-muted);
+  font-weight: var(--font-weight-medium);
+
+  i { color: var(--bs-primary); }
+}
+
+.refund-value {
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand-text);
+}
+
+.refund-mono {
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.refund-detail-highlight {
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 2px solid var(--border-color);
+}
+
+.refund-charged {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.refund-amount-section {
+  padding: var(--space-3);
+}
+
+.refund-hint {
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  margin-bottom: var(--space-2);
+}

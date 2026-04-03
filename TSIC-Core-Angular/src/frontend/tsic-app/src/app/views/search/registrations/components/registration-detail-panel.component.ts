@@ -5,7 +5,7 @@ import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
+import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 
@@ -82,7 +82,7 @@ export class RegistrationDetailPanelComponent {
 
   closed = output<void>();
   saved = output<void>();
-  refundRequested = output<AccountingRecordDto>();
+  // refundRequested removed — refunds now handled inside accounting-ledger modal
 
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
@@ -537,7 +537,25 @@ export class RegistrationDetailPanelComponent {
 
   // ── Accounting (delegated to shared AccountingLedgerComponent) ──
 
-  onRefundClick(record: AccountingRecordDto): void { this.refundRequested.emit(record); }
+  onRefundSubmitted(event: RefundEvent): void {
+    this.searchService.processRefund({
+      accountingRecordId: event.accountingRecordId,
+      refundAmount: event.refundAmount,
+      reason: 'Admin refund'
+    }).subscribe({
+      next: (result) => {
+        if (result.success) {
+          this.toast.show(`Refund of $${event.refundAmount.toFixed(2)} processed`, 'success', 4000);
+          this.saved.emit();
+        } else {
+          this.toast.show(result.message ?? 'Refund failed', 'danger', 4000);
+        }
+      },
+      error: () => {
+        this.toast.show('Refund failed', 'danger', 4000);
+      }
+    });
+  }
 
   onCcCharge(event: CcChargeEvent): void {
     const d = this.detail();

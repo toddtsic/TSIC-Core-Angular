@@ -103,7 +103,7 @@
                   </span>
                 }
                 @if (record.canRefund) {
-                  <button type="button" class="icon-btn text-danger" title="Refund" (click)="onRefundClick(record)">
+                  <button type="button" class="icon-btn text-danger" title="Refund CC" (click)="onRefundClick(record)">
                     <i class="bi bi-arrow-counterclockwise"></i>
                   </button>
                 }
@@ -134,13 +134,65 @@
          (click)="$event.stopPropagation()" (keydown.escape)="closePaymentModal()">
 
       <div class="modal-header">
-        <h3>Add Accounting Record</h3>
+        @if (paymentType() === 'refund') {
+          <h3><i class="bi bi-arrow-counterclockwise text-danger me-2"></i>CC Refund</h3>
+        } @else {
+          <h3>Add Accounting Record</h3>
+        }
         <button type="button" class="btn-close-x" (click)="closePaymentModal()" aria-label="Close">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
 
       <div class="modal-body">
+        @if (paymentType() === 'refund') {
+          <!-- ══ Refund Mode ══ -->
+          @if (refundRecord(); as rec) {
+            <div class="refund-details">
+              @if (teamNameFor(rec)) {
+                <div class="refund-detail-row">
+                  <span class="refund-label"><i class="bi bi-people me-1"></i>Team</span>
+                  <span class="refund-value">{{ teamNameFor(rec) }}</span>
+                </div>
+              }
+              @if (rec.adnCc4) {
+                <div class="refund-detail-row">
+                  <span class="refund-label"><i class="bi bi-credit-card me-1"></i>Card</span>
+                  <span class="refund-value">•••• {{ rec.adnCc4 }}</span>
+                </div>
+              }
+              @if (rec.adnTransactionId) {
+                <div class="refund-detail-row">
+                  <span class="refund-label"><i class="bi bi-hash me-1"></i>Transaction</span>
+                  <span class="refund-value refund-mono">{{ rec.adnTransactionId }}</span>
+                </div>
+              }
+              <div class="refund-detail-row refund-detail-highlight">
+                <span class="refund-label"><i class="bi bi-cash-stack me-1"></i>Amount Charged</span>
+                <span class="refund-value refund-charged">{{ rec.paidAmount | currency }}</span>
+              </div>
+            </div>
+
+            <div class="refund-amount-section">
+              <label for="refund-amount" class="form-label fw-semibold">Refund Amount</label>
+              <p class="refund-hint">Enter amount to refund (up to {{ rec.paidAmount | currency }}). CC processing fees apply.</p>
+              <div class="input-group input-group-sm" style="max-width: 200px">
+                <span class="input-group-text">$</span>
+                <input type="number" id="refund-amount" class="form-control form-control-sm"
+                       [ngModel]="amount()" (ngModelChange)="setAmount($event)"
+                       [min]="0.01" [max]="rec.paidAmount ?? 0" step="0.01" />
+              </div>
+              @if (amount() <= 0 || amount() > (rec.paidAmount ?? 0)) {
+                <div class="text-danger small mt-1">
+                  @if (amount() <= 0) { Amount must be greater than $0.00 }
+                  @else { Cannot exceed {{ rec.paidAmount | currency }} }
+                </div>
+              }
+            </div>
+          }
+        } @else {
+        <!-- ══ Normal Mode (CC / Check / Correction) ══ -->
+
         <!-- Payment Type Selector -->
         <div class="type-selector">
           <button type="button" class="type-btn" [class.active]="paymentType() === 'cc'" (click)="selectPaymentType('cc')">
@@ -327,20 +379,27 @@
             </div>
           </div>
         }
+        } <!-- end @else (normal mode) -->
       </div>
 
       @if (!showCcConfirm()) {
         <div class="modal-footer">
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePaymentModal()">Cancel</button>
-          <button type="button" class="btn btn-sm btn-primary" (click)="submitPayment()" [disabled]="!canSubmitPayment()">
-            @if (paymentType() === 'cc') {
-              <i class="bi bi-credit-card me-1"></i> Charge Card
-            } @else if (paymentType() === 'check') {
-              <i class="bi bi-bank me-1"></i> Record Check
-            } @else {
-              <i class="bi bi-pencil-square me-1"></i> Record Correction
-            }
-          </button>
+          @if (paymentType() === 'refund') {
+            <button type="button" class="btn btn-sm btn-danger" (click)="submitPayment()" [disabled]="!canSubmitPayment()">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Refund {{ amount() | currency }}
+            </button>
+          } @else {
+            <button type="button" class="btn btn-sm btn-primary" (click)="submitPayment()" [disabled]="!canSubmitPayment()">
+              @if (paymentType() === 'cc') {
+                <i class="bi bi-credit-card me-1"></i> Charge Card
+              } @else if (paymentType() === 'check') {
+                <i class="bi bi-bank me-1"></i> Record Check
+              } @else {
+                <i class="bi bi-pencil-square me-1"></i> Record Correction
+              }
+            </button>
+          }
         </div>
       }
     </div>

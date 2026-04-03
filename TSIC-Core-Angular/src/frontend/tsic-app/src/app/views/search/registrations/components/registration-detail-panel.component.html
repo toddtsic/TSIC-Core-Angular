@@ -362,7 +362,7 @@
               [feeTotal]="reg.feeTotal"
               [paidTotal]="reg.paidTotal"
               [owedTotal]="reg.owedTotal"
-              (refundRequested)="onRefundClick($event)"
+              (refundSubmitted)="onRefundSubmitted($event)"
               (ccChargeSubmitted)="onCcCharge($event)"
               (checkSubmitted)="onCheckSubmitted($event)">
             </app-accounting-ledger>

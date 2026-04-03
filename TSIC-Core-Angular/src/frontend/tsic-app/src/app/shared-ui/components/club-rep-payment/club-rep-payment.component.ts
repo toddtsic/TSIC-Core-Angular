@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { TeamSearchService } from '../../../views/search/teams/services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
-import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import type { ClubRepAccountingDto, AccountingRecordDto, ClubTeamSummaryDto, RefundResponse } from '@core/api';
 
 type Scope = 'team' | 'club';
@@ -11,7 +11,7 @@ type Scope = 'team' | 'club';
 @Component({
   selector: 'app-club-rep-payment',
   standalone: true,
-  imports: [CommonModule, AccountingLedgerComponent, ConfirmDialogComponent],
+  imports: [CommonModule, AccountingLedgerComponent],
   templateUrl: './club-rep-payment.component.html',
   styleUrl: './club-rep-payment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -37,9 +37,7 @@ export class ClubRepPaymentComponent {
   // Scope
   scope = signal<Scope>('club');
 
-  // Refund confirm
-  showRefundConfirm = signal(false);
-  refundTarget = signal<AccountingRecordDto | null>(null);
+  // Refund (handled by accounting-ledger modal now)
 
   // Computed summaries — all teams, split into scheduled vs other
   allTeams = computed(() => this.data()?.teams ?? []);
@@ -176,26 +174,15 @@ export class ClubRepPaymentComponent {
     });
   }
 
-  onRefundRequested(record: AccountingRecordDto): void {
-    if (!record.aId) return;
-    this.refundTarget.set(record);
-    this.showRefundConfirm.set(true);
-  }
-
-  onRefundConfirmed(): void {
-    const record = this.refundTarget();
-    this.showRefundConfirm.set(false);
-    this.refundTarget.set(null);
-    if (!record?.aId) return;
-
+  onRefundSubmitted(event: RefundEvent): void {
     this.searchService.processRefund({
-      accountingRecordId: record.aId,
-      refundAmount: record.paidAmount ?? 0,
+      accountingRecordId: event.accountingRecordId,
+      refundAmount: event.refundAmount,
       reason: 'Admin refund from club rep payment'
     }).subscribe({
       next: (result: RefundResponse) => {
         if (result.success) {
-          this.toast.show('Refund processed', 'success', 4000);
+          this.toast.show(`Refund of $${event.refundAmount.toFixed(2)} processed`, 'success', 4000);
           this.loadData();
           this.paymentComplete.emit();
         } else {
@@ -206,10 +193,5 @@ export class ClubRepPaymentComponent {
         this.toast.show('Refund failed', 'danger', 4000);
       }
     });
-  }
-
-  onRefundCancelled(): void {
-    this.showRefundConfirm.set(false);
-    this.refundTarget.set(null);
   }
 }
