@@ -4,9 +4,8 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import type { AgeGroupDto } from '@core/api';
 
 /**
- * Age-group picker modal.
- * Shows available age groups with fee, capacity, and best-match highlight.
- * Emits the selected ageGroupId and closes.
+ * Age-group picker modal — full visual treatment with staggered pill animations.
+ * Shows available age groups with fee, capacity, best-match highlight, and current selection.
  */
 @Component({
     selector: 'app-age-group-picker-modal',
@@ -14,124 +13,262 @@ import type { AgeGroupDto } from '@core/api';
     imports: [CurrencyPipe, TsicDialogComponent],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="bi bi-diagram-3 me-2"></i>Choose Age Group
-          </h5>
-          <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-0">
-          <div class="team-banner">
-            Assigning <strong>{{ teamName }}</strong>
+      <div class="modal-content picker-modal">
+
+        <!-- Hero banner -->
+        <div class="picker-hero">
+          <div class="picker-hero-inner">
+            <i class="bi bi-people-fill picker-hero-icon"></i>
+            <h5 class="picker-team-name">{{ teamName }}</h5>
+            @if (levelOfPlay) {
+              <span class="picker-lop-badge">LOP {{ levelOfPlay }}</span>
+            }
           </div>
-          <div class="ag-list" role="radiogroup" [attr.aria-label]="'Age groups for ' + teamName">
-            @for (ag of pills(); track ag.ageGroupId) {
-              <button type="button" class="ag-row" role="radio"
-                      [attr.aria-checked]="false"
-                      [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
+          <p class="picker-tip">
+            @if (currentAgeGroupId) {
+              Tap to change age group
+            } @else {
+              Pick an age group below
+            }
+            @if (hasRecommended()) {
+              <span class="picker-legend-inline"><i class="bi bi-star-fill"></i> = best match</span>
+            }
+          </p>
+        </div>
+
+        <!-- Age group pills -->
+        <div class="picker-body">
+          <div class="picker-pill-grid" role="radiogroup" [attr.aria-label]="'Age groups for ' + teamName">
+            @for (ag of pills(); track ag.ageGroupId; let i = $index) {
+              <button type="button" class="picker-pill" role="radio"
                       [class.is-recommended]="ag.isRecommended"
-                      [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
+                      [class.is-selected]="ag.ageGroupId === currentAgeGroupId"
                       [class.is-full]="ag.isFull"
-                      (click)="selected.emit(ag.ageGroupId)">
-                <span class="ag-name">
+                      [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
+                      [class.is-flashing]="flashingId() === ag.ageGroupId"
+                      [attr.aria-checked]="ag.ageGroupId === currentAgeGroupId"
+                      [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
+                      [style.animation-delay]="(200 + (i * 40)) + 'ms'"
+                      (click)="onPillClick(ag.ageGroupId)">
+                <span class="pill-name">
                   {{ ag.ageGroupName }}
-                  @if (ag.isRecommended) {
-                    <i class="bi bi-star-fill ag-star"></i>
-                  }
+                  @if (ag.isRecommended) { <i class="bi bi-star-fill pill-star"></i> }
+                  @if (ag.ageGroupId === currentAgeGroupId) { <i class="bi bi-check-circle-fill pill-current"></i> }
                 </span>
-                <span class="ag-fee">{{ ag.fee | currency }}</span>
-                <span class="ag-spots" [class.text-warning]="ag.isAlmostFull" [class.text-danger]="ag.isFull">
-                  @if (ag.isFull) {
-                    <i class="bi bi-exclamation-circle me-1"></i>Waitlist
-                  } @else {
-                    {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }}
-                  }
+                <span class="pill-fee">{{ ag.fee | currency }}</span>
+                <span class="pill-spots" [class.text-warning]="ag.isAlmostFull && !ag.isFull" [class.text-danger]="ag.isFull">
+                  @if (ag.isFull) { <i class="bi bi-exclamation-circle me-1"></i>Waitlist }
+                  @else { {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }} }
                 </span>
               </button>
             }
           </div>
         </div>
+
       </div>
     </tsic-dialog>
   `,
     styles: [`
-      .team-banner {
-        padding: var(--space-2) var(--space-3);
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        background: rgba(var(--bs-primary-rgb), 0.03);
-        border-bottom: 1px solid var(--border-color);
+      /* ── Hero Banner ── */
+      .picker-hero {
+        padding: var(--space-4) var(--space-4) var(--space-3);
+        background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.08) 0%, rgba(var(--bs-primary-rgb), 0.02) 100%);
+        border-bottom: 2px solid rgba(var(--bs-primary-rgb), 0.12);
+        text-align: center;
+        animation: heroSlideIn 0.2s ease-out 80ms backwards;
       }
 
-      .ag-list {
-        max-height: 340px;
-        overflow-y: auto;
-      }
-
-      .ag-row {
+      .picker-hero-inner {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: var(--space-2);
-        width: 100%;
-        padding: var(--space-2) var(--space-3);
-        border: none;
-        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
-        background: transparent;
-        cursor: pointer;
-        font-size: var(--font-size-xs);
-        text-align: left;
-        transition: background-color 0.1s ease;
+        flex-wrap: wrap;
+      }
 
-        &:last-child { border-bottom: none; }
-        &:hover { background: rgba(var(--bs-primary-rgb), 0.05); }
+      .picker-hero-icon {
+        font-size: var(--font-size-xl);
+        color: var(--bs-primary);
+      }
+
+      .picker-team-name {
+        margin: 0;
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+      }
+
+      .picker-lop-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-full);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.02em;
+      }
+
+      .picker-tip {
+        margin: var(--space-2) 0 0;
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+        animation: tipFadeIn 0.15s ease-out 150ms backwards;
+      }
+
+      .picker-legend-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: var(--space-2);
+        font-size: var(--font-size-xs);
+        color: var(--neutral-400);
+
+        i { font-size: 8px; color: var(--bs-primary); }
+      }
+
+      /* ── Pill Grid ── */
+      .picker-body {
+        padding: var(--space-4);
+        background: var(--bs-body-bg);
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+      }
+
+      .picker-pill-grid {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--space-3);
+      }
+
+      .picker-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-lg);
+        border: 2px solid var(--border-color);
+        background: var(--brand-surface);
+        cursor: pointer;
+        min-width: 110px;
+        min-height: 60px;
+        box-shadow: var(--shadow-xs);
+        transition: all 0.15s ease;
+
+        /* Staggered entrance — animation-delay set inline */
+        animation: pillEnter 0.25s ease-out backwards;
+
+        &:hover:not(:disabled):not(.is-full) {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.06);
+          box-shadow: var(--shadow-sm);
+          transform: translateY(-2px);
+        }
+
         &:focus-visible {
           outline: none;
-          background: rgba(var(--bs-primary-rgb), 0.08);
-          box-shadow: inset 0 0 0 2px rgba(var(--bs-primary-rgb), 0.2);
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:active:not(:disabled):not(.is-full) {
+          transform: scale(0.97);
         }
 
         &.is-recommended {
-          background: rgba(var(--bs-primary-rgb), 0.04);
+          /* Star icon is the indicator — no border/bg change to avoid looking pre-selected */
         }
 
-        &.is-full { opacity: 0.6; }
+        &.is-selected {
+          border-color: var(--bs-success);
+          background: rgba(var(--bs-success-rgb), 0.08);
+          box-shadow: 0 0 0 2px rgba(var(--bs-success-rgb), 0.2), var(--shadow-xs);
+        }
+
+        &.is-full {
+          opacity: 0.4;
+          cursor: default;
+        }
+
+        &.is-almost-full .pill-spots {
+          font-weight: var(--font-weight-semibold);
+        }
+
+        &.is-flashing {
+          animation: pillFlash 0.25s ease-out;
+        }
+
+        &:disabled { cursor: default; }
       }
 
-      .ag-name {
-        font-weight: var(--font-weight-semibold);
+      .pill-name {
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-sm);
         color: var(--brand-text);
         display: flex;
         align-items: center;
         gap: var(--space-1);
       }
 
-      .ag-star {
+      .pill-star {
         font-size: 9px;
         color: var(--bs-primary);
       }
 
-      .ag-fee {
-        margin-left: auto;
-        font-weight: var(--font-weight-medium);
-        color: var(--brand-text);
-        white-space: nowrap;
+      .pill-current {
+        font-size: 11px;
+        color: var(--bs-success);
       }
 
-      .ag-spots {
+      .pill-fee {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-primary);
+      }
+
+      .pill-spots {
         font-size: 10px;
         color: var(--brand-text-muted);
         white-space: nowrap;
-        min-width: 60px;
-        text-align: right;
       }
 
-      .ag-row.is-almost-full .ag-spots {
-        font-weight: var(--font-weight-semibold);
+      /* ── Keyframes ── */
+      @keyframes heroSlideIn {
+        from { opacity: 0; transform: translateY(-12px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
 
+      @keyframes tipFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+
+      @keyframes pillEnter {
+        from { opacity: 0; transform: translateY(10px) scale(0.95); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes pillFlash {
+        0%   { transform: scale(1); box-shadow: var(--shadow-xs); }
+        50%  { transform: scale(1.06); box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.25), var(--shadow-md); }
+        100% { transform: scale(1); box-shadow: var(--shadow-xs); }
+      }
+
+      /* ── Mobile ── */
+      @media (max-width: 575.98px) {
+        .picker-pill {
+          min-width: unset;
+          flex: 1 1 calc(50% - var(--space-3));
+          min-height: 56px;
+        }
+      }
+
+      /* ── Reduced Motion ── */
       @media (prefers-reduced-motion: reduce) {
-        .ag-row { transition: none; }
+        .picker-hero, .picker-tip, .picker-pill { animation: none; }
+        .picker-pill { transition: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -139,10 +276,13 @@ import type { AgeGroupDto } from '@core/api';
 export class AgeGroupPickerModalComponent {
     @Input() teamName = '';
     @Input() gradYear = '';
+    @Input() levelOfPlay = '';
+    @Input() currentAgeGroupId = '';
     @Input() ageGroups: AgeGroupDto[] = [];
 
     readonly selected = output<string>();
     readonly closed = output<void>();
+    readonly flashingId = signal<string | null>(null);
 
     readonly pills = computed(() => {
         const recommended = this.bestMatch();
@@ -159,6 +299,22 @@ export class AgeGroupPickerModalComponent {
             };
         });
     });
+
+    readonly hasRecommended = computed(() => this.pills().some(p => p.isRecommended));
+
+    onPillClick(ageGroupId: string): void {
+        // Same age group — just close
+        if (ageGroupId === this.currentAgeGroupId) {
+            this.closed.emit();
+            return;
+        }
+
+        // Flash the pill, then emit after animation
+        this.flashingId.set(ageGroupId);
+        setTimeout(() => {
+            this.selected.emit(ageGroupId);
+        }, 250);
+    }
 
     private bestMatch(): string {
         if (!this.gradYear || !this.ageGroups.length) return '';
