@@ -59,6 +59,7 @@ export class AccountingLedgerComponent {
 
 	// ── Refund mode state ──
 	refundRecord = signal<AccountingRecordDto | null>(null);
+	showRefundConfirm = signal(false);
 	amount = signal<number>(0);
 	comment = signal('');
 	checkNo = signal('');
@@ -165,6 +166,7 @@ export class AccountingLedgerComponent {
 	closePaymentModal(): void {
 		this.showPaymentModal.set(false);
 		this.refundRecord.set(null);
+		this.showRefundConfirm.set(false);
 	}
 
 	/** Restrict amount to 2 decimal places */
@@ -179,7 +181,9 @@ export class AccountingLedgerComponent {
 	}
 
 	submitPayment(): void {
-		if (this.paymentType() === 'cc') {
+		if (this.paymentType() === 'refund') {
+			this.showRefundConfirm.set(true);
+		} else if (this.paymentType() === 'cc') {
 			this.showCcConfirm.set(true);
 		} else {
 			this.executePaymentSubmit();
@@ -193,6 +197,15 @@ export class AccountingLedgerComponent {
 
 	dismissCcConfirm(): void {
 		this.showCcConfirm.set(false);
+	}
+
+	confirmRefund(): void {
+		this.showRefundConfirm.set(false);
+		this.executePaymentSubmit();
+	}
+
+	dismissRefundConfirm(): void {
+		this.showRefundConfirm.set(false);
 	}
 
 	ccLast4(): string {

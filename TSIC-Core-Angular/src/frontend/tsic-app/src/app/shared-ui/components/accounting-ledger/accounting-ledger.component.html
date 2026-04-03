@@ -189,6 +189,25 @@
                 </div>
               }
             </div>
+
+            <!-- Refund Confirmation -->
+            @if (showRefundConfirm()) {
+              <div class="cc-confirm">
+                <strong><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Confirm CC Refund</strong>
+                <p class="cc-confirm-detail">
+                  Refunding <strong>{{ amount() | currency }}</strong> to card ending in <strong>{{ rec.adnCc4 ?? '—' }}</strong>.
+                </p>
+                <p class="cc-confirm-warning">This processes immediately via Authorize.Net and cannot be undone.</p>
+                <div class="cc-confirm-actions">
+                  <button type="button" class="btn btn-sm btn-danger" (click)="confirmRefund()">
+                    Yes, Refund {{ amount() | currency }}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissRefundConfirm()">
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            }
           }
         } @else {
         <!-- ══ Normal Mode (CC / Check / Correction) ══ -->
@@ -382,7 +401,7 @@
         } <!-- end @else (normal mode) -->
       </div>
 
-      @if (!showCcConfirm()) {
+      @if (!showCcConfirm() && !showRefundConfirm()) {
         <div class="modal-footer">
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePaymentModal()">Cancel</button>
           @if (paymentType() === 'refund') {
