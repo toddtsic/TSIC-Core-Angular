@@ -190,7 +190,7 @@ public class ClubRegistrationGateTests
         var result = await svc.RegisterAsync(request);
 
         result.SimilarClubs.Should().NotBeNull();
-        var match = result.SimilarClubs!.First();
+        var match = result.SimilarClubs![0];
         match.RepName.Should().Be("John Smith");
         match.RepEmail.Should().Be("j.smith@email.com");
     }
@@ -311,7 +311,7 @@ public class ClubRegistrationGateTests
         var results = await svc.SearchClubsAsync("3 Point Lacrosse - NC", null);
 
         results.Should().NotBeEmpty();
-        results.First().IsRelatedClub.Should().BeTrue(
+        results[0].IsRelatedClub.Should().BeTrue(
             "same root org with different state suffix should be flagged as related");
     }
 }

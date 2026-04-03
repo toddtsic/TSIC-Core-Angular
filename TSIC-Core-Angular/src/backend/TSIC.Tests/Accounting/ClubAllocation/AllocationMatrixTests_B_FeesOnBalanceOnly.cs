@@ -92,7 +92,7 @@ public class AllocationMatrixTests_B_FeesOnBalanceOnly
     [Fact(DisplayName = "B1: Fees on balance only, deposit, CC → no fees yet, $2,000/team")]
     public async Task B1_FeesOnBalance_Deposit_CC()
     {
-        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
+        var (_, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
         // At deposit phase, processing fees haven't been applied yet
         b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase, feeProcessing: 0m);
@@ -187,7 +187,7 @@ public class AllocationMatrixTests_B_FeesOnBalanceOnly
     [Fact(DisplayName = "B4: Fees on balance only, balance due, CC → $1,552.50/team")]
     public async Task B4_FeesOnBalance_BalanceDue_CC()
     {
-        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
+        var (_, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
         // Deposit paid ($500), processing on balance only ($52.50)
         b.AddTeam(jobId, agId, clubRepId, "Team Alpha",

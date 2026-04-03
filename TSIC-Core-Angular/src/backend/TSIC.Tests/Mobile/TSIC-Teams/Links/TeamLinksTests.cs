@@ -58,7 +58,7 @@ public class TeamLinksTests
     [Fact(DisplayName = "Add team link creates record")]
     public async Task AddLink_CreatesRecord()
     {
-        var (svc, b, ctx) = CreateService();
+        var (svc, b, _) = CreateService();
         var job = b.AddJob();
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);
@@ -77,7 +77,7 @@ public class TeamLinksTests
     [Fact(DisplayName = "Add link with AddAllTeams sets JobId instead of TeamId")]
     public async Task AddLink_AddAllTeams_SetsJobId()
     {
-        var (svc, b, ctx) = CreateService();
+        var (svc, b, _) = CreateService();
         var job = b.AddJob();
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);

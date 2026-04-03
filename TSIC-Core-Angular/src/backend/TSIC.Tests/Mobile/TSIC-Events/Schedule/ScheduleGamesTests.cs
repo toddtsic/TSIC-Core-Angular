@@ -1,3 +1,4 @@
+#pragma warning disable S2234 // Tests intentionally swap home/away team IDs
 using FluentAssertions;
 using TSIC.API.Services.Scheduling;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -37,8 +38,8 @@ public class ScheduleGamesTests
     {
         var (svc, b, _, jobId) = CreateService();
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold", t1Name: "Eagles", t2Name: "Hawks");
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t2Id, t1Id, DateTime.Today.AddDays(1), rnd: 2, agegroupName: "U10", divName: "Gold", t1Name: "Hawks", t2Name: "Eagles");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold", t1Name: "Eagles", t2Name: "Hawks");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t2Id, t2Id: t1Id, DateTime.Today.AddDays(1), rnd: 2, agegroupName: "U10", divName: "Gold", t1Name: "Hawks", t2Name: "Eagles");
         await b.SaveAsync();
 
         var result = await svc.GetGamesAsync(jobId, new ScheduleFilterRequest());
@@ -52,9 +53,9 @@ public class ScheduleGamesTests
         var (svc, b, _, jobId) = CreateService();
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
         var t3 = b.AddTeam(divId, "Wolves", agId);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold");
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t3.TeamId, DateTime.Today, rnd: 2, agegroupName: "U10", divName: "Gold");
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t2Id, t3.TeamId, DateTime.Today, rnd: 3, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t3.TeamId, DateTime.Today, rnd: 2, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t2Id, t2Id: t3.TeamId, DateTime.Today, rnd: 3, agegroupName: "U10", divName: "Gold");
         await b.SaveAsync();
 
         var result = await svc.GetGamesAsync(jobId, new ScheduleFilterRequest { TeamIds = [t1Id] });
@@ -69,8 +70,8 @@ public class ScheduleGamesTests
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
         var today = DateTime.Today;
         var tomorrow = today.AddDays(1);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, today, agegroupName: "U10", divName: "Gold");
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t2Id, t1Id, tomorrow, rnd: 2, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, today, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t2Id, t2Id: t1Id, tomorrow, rnd: 2, agegroupName: "U10", divName: "Gold");
         await b.SaveAsync();
 
         var result = await svc.GetGamesAsync(jobId, new ScheduleFilterRequest { GameDays = [today] });
@@ -84,8 +85,8 @@ public class ScheduleGamesTests
     {
         var (svc, b, _, jobId) = CreateService();
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold", t1Score: 3, t2Score: 1);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t2Id, t1Id, DateTime.Today, rnd: 2, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold", t1Score: 3, t2Score: 1);
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t2Id, t2Id: t1Id, DateTime.Today, rnd: 2, agegroupName: "U10", divName: "Gold");
         await b.SaveAsync();
 
         var result = await svc.GetGamesAsync(jobId, new ScheduleFilterRequest { UnscoredOnly = true });
@@ -99,7 +100,7 @@ public class ScheduleGamesTests
     {
         var (svc, b, _, jobId) = CreateService();
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold");
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today, agegroupName: "U10", divName: "Gold");
         await b.SaveAsync();
 
         var result = await svc.GetGamesAsync(jobId, new ScheduleFilterRequest());
@@ -113,11 +114,11 @@ public class ScheduleGamesTests
         var (svc, b, _, jobId) = CreateService();
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
         // Game 1: Eagles 3, Hawks 1 (Eagles win)
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today,
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today,
             agegroupName: "U10", divName: "Gold", t1Name: "Eagles", t2Name: "Hawks",
             t1Score: 3, t2Score: 1);
         // Game 2: unscored — records should still show from game 1
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today.AddDays(1), rnd: 2,
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today.AddDays(1), rnd: 2,
             agegroupName: "U10", divName: "Gold", t1Name: "Eagles", t2Name: "Hawks");
         await b.SaveAsync();
 
@@ -134,7 +135,7 @@ public class ScheduleGamesTests
     {
         var (svc, b, _, jobId) = CreateService();
         var (_, _, leagueId, agId, divId, fieldId, t1Id, t2Id) = SeedStandardSchedule(b, jobId);
-        b.AddGame(jobId, leagueId, fieldId, agId, divId, t1Id, t2Id, DateTime.Today,
+        b.AddGame(jobId, leagueId, fieldId: fieldId, agegroupId: agId, divId: divId, t1Id: t1Id, t2Id: t2Id, DateTime.Today,
             agegroupName: "U10", divName: "Gold");
         await b.SaveAsync();
 

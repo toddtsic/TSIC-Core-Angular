@@ -162,8 +162,8 @@ public class ClubCheckAllocationTests
             bAddProcessingFees: false, rosterFee: 500m, bTeamsFullPaymentRequired: false);
 
         // Teams with different balances — sorted by OwedTotal DESC
-        var t1 = b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: 700m);
-        var t2 = b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: 500m);
+        b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: 700m);
+        b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: 500m);
         var t3 = b.AddTeam(jobId, agId, clubRepId, "Team Charlie", feeBase: 300m);
 
         var clubRep = await ctx.Registrations.FindAsync(clubRepId);
@@ -282,8 +282,8 @@ public class ClubCheckAllocationTests
             bAddProcessingFees: false, rosterFee: 500m);
 
         // Active teams
-        var t1 = b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: 500m);
-        var t2 = b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: 500m);
+        b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: 500m);
+        b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: 500m);
 
         // Dropped team — in a "Dropped Teams" agegroup
         var league = await ctx.Leagues.FirstAsync();

@@ -78,7 +78,7 @@ public class EventBrowseTests
     {
         var (svc, b, _) = CreateService();
         var job = b.AddJob();
-        var alert1 = b.AddPushAlert(job.JobId, "First alert");
+        b.AddPushAlert(job.JobId, "First alert");
         var alert2 = b.AddPushAlert(job.JobId, "Second alert");
         // Make second alert newer
         alert2.Modified = DateTime.UtcNow.AddMinutes(5);

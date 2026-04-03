@@ -106,7 +106,7 @@ public class AllocationMatrixTests_C_FeesOnBoth
     [Fact(DisplayName = "C1: Fees on both, deposit, CC → $2,070/team owed")]
     public async Task C1_FeesOnBoth_Deposit_CC()
     {
-        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
+        var (_, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
         b.AddTeam(jobId, agId, clubRepId, "Team Alpha",
             feeBase: FeeBase, feeProcessing: FeeProcessingPerTeam);
@@ -255,7 +255,7 @@ public class AllocationMatrixTests_C_FeesOnBoth
     [Fact(DisplayName = "C4: Fees on both, balance due, CC → $1,552.50/team")]
     public async Task C4_FeesOnBoth_BalanceDue_CC()
     {
-        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
+        var (_, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
         // Deposit paid by CC ($517.50), remaining processing = $52.50
         b.AddTeam(jobId, agId, clubRepId, "Team Alpha",

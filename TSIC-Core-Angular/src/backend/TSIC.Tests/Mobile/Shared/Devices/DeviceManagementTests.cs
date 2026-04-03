@@ -79,7 +79,7 @@ public class DeviceManagementTests
     [Fact(DisplayName = "Toggle subscribe (new) → creates DeviceTeams")]
     public async Task ToggleSubscribe_New_Subscribes()
     {
-        var (svc, b, ctx) = CreateService();
+        var (svc, b, _) = CreateService();
         var job = b.AddJob();
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);
@@ -98,7 +98,7 @@ public class DeviceManagementTests
     [Fact(DisplayName = "Toggle subscribe (existing) → removes DeviceTeams")]
     public async Task ToggleSubscribe_Existing_Unsubscribes()
     {
-        var (svc, b, ctx) = CreateService();
+        var (svc, b, _) = CreateService();
         var job = b.AddJob();
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);
@@ -118,7 +118,7 @@ public class DeviceManagementTests
     [Fact(DisplayName = "Get subscribed teams → returns correct team IDs for job")]
     public async Task GetSubscribedTeams_ReturnsCorrectIds()
     {
-        var (svc, b, ctx) = CreateService();
+        var (svc, b, _) = CreateService();
         var job = b.AddJob();
         var league = b.AddLeague(job.JobId);
         var ag = b.AddAgegroup(league.LeagueId);

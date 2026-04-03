@@ -87,7 +87,7 @@ public class AllocationMatrixTests_A_NoFees
     [Fact(DisplayName = "A1: No fees, deposit, CC → $500/team, no fee adjustment")]
     public async Task A1_NoFees_Deposit_CC()
     {
-        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
+        var (_, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
         b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase);
         b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: FeeBase);
@@ -177,9 +177,9 @@ public class AllocationMatrixTests_A_NoFees
         result.PerTeamAllocations.Should().OnlyContain(a => a.ProcessingFeeReduction == 0m);
 
         // Alpha: $2,000. Bravo: $1,000 (remaining). Charlie: $0.
-        var alloc1 = result.PerTeamAllocations!.First();
+        var alloc1 = result.PerTeamAllocations![0];
         alloc1.AllocatedAmount.Should().Be(FeeBase, "$2,000 to first team");
-        var alloc2 = result.PerTeamAllocations!.Last();
+        var alloc2 = result.PerTeamAllocations![^1];
         alloc2.AllocatedAmount.Should().Be(1000m, "$1,000 remaining to second team");
 
         // Club rep
@@ -198,7 +198,7 @@ public class AllocationMatrixTests_A_NoFees
     [Fact(DisplayName = "A4: No fees, balance due, CC → $1,500/team owed")]
     public async Task A4_NoFees_BalanceDue_CC()
     {
-        var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
+        var (_, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
         b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase, paidTotal: Deposit);
         b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: FeeBase, paidTotal: Deposit);
@@ -285,9 +285,9 @@ public class AllocationMatrixTests_A_NoFees
         result.PerTeamAllocations.Should().HaveCount(2, "Charlie gets $0, skipped");
         result.PerTeamAllocations.Should().OnlyContain(a => a.ProcessingFeeReduction == 0m);
 
-        var alloc1 = result.PerTeamAllocations!.First();
+        var alloc1 = result.PerTeamAllocations![0];
         alloc1.AllocatedAmount.Should().Be(BalanceDue, "$1,500 to first team");
-        var alloc2 = result.PerTeamAllocations!.Last();
+        var alloc2 = result.PerTeamAllocations![^1];
         alloc2.AllocatedAmount.Should().Be(500m, "$500 remaining to second team");
 
         var updatedClubRep = await ctx.Registrations.FindAsync(clubRepId);

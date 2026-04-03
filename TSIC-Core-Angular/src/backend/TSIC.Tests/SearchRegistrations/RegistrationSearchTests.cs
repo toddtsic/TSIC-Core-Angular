@@ -53,7 +53,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "No filters →returns all registrations for the job")]
     public async Task NoFilters_ReturnsAllRegistrations()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var playerRole = b.AddRole(RoleConstants.Player, "Player");
         var user1 = b.AddUser("Alice", "Smith");
@@ -71,7 +71,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "No filters →does not return registrations from other jobs")]
     public async Task NoFilters_ExcludesOtherJobs()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var otherJob = b.AddJob();
         var role = b.AddRole(RoleConstants.Player, "Player");
@@ -94,7 +94,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Name filter (single term) →matches first or last name")]
     public async Task NameFilter_SingleTerm_MatchesFirstOrLast()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -108,13 +108,13 @@ public class RegistrationSearchTests
         var result = await repo.SearchAsync(jobId, new RegistrationSearchRequest { Name = "Smith" });
 
         result.Count.Should().Be(2);
-        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo(["Alice", "Charlie"]);
+        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo("Alice", "Charlie");
     }
 
     [Fact(DisplayName = "Name filter (first + last) →matches both parts")]
     public async Task NameFilter_FirstAndLast_MatchesBoth()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -136,7 +136,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Email filter →matches partial email")]
     public async Task EmailFilter_MatchesPartial()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith", email: "alice@example.com");
@@ -158,7 +158,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Active status 'True' →returns only active registrations")]
     public async Task ActiveStatus_True_ReturnsActiveOnly()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -179,7 +179,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Active status 'False' →returns only inactive registrations")]
     public async Task ActiveStatus_False_ReturnsInactiveOnly()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -204,7 +204,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Pay status 'PAID IN FULL' →returns registrations with OwedTotal = 0")]
     public async Task PayStatus_PaidInFull_ReturnsZeroOwed()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -225,7 +225,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Pay status 'UNDER PAID' →returns registrations with OwedTotal > 0")]
     public async Task PayStatus_UnderPaid_ReturnsPositiveOwed()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -247,7 +247,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Pay status multi-select →OR logic (PAID IN FULL + UNDER PAID)")]
     public async Task PayStatus_MultiSelect_UsesOrLogic()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -271,7 +271,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Role filter →returns only matching role")]
     public async Task RoleFilter_ReturnsMatchingRole()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var playerRole = b.AddRole(RoleConstants.Player, "Player");
         var clubRepRole = b.AddRole(RoleConstants.ClubRep, "Club Rep");
@@ -297,7 +297,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Club name filter →returns matching club registrations")]
     public async Task ClubNameFilter_ReturnsMatching()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.ClubRep, "Club Rep");
         var u1 = b.AddUser("Alice", "Smith");
@@ -322,7 +322,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Position filter →returns matching positions")]
     public async Task PositionFilter_ReturnsMatching()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -339,7 +339,7 @@ public class RegistrationSearchTests
         });
 
         result.Count.Should().Be(2);
-        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo(["Alice", "Charlie"]);
+        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo("Alice", "Charlie");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -349,7 +349,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Date range filter →returns registrations within range")]
     public async Task DateRange_ReturnsWithinRange()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -377,7 +377,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Team ID filter →returns registrations assigned to that team")]
     public async Task TeamIdFilter_ReturnsAssignedRegistrations()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var league = b.AddLeague(jobId);
@@ -403,7 +403,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Agegroup ID filter →returns registrations in that agegroup")]
     public async Task AgegroupIdFilter_ReturnsMatching()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var league = b.AddLeague(jobId);
@@ -432,7 +432,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Aggregates →TotalFees, TotalPaid, TotalOwed computed correctly")]
     public async Task Aggregates_ComputedCorrectly()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -457,7 +457,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Sort order →results sorted by LastName then FirstName")]
     public async Task SortOrder_ByLastNameThenFirstName()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Charlie", "Adams");
@@ -481,7 +481,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "School name filter →matches partial school name")]
     public async Task SchoolNameFilter_MatchesPartial()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -503,7 +503,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "Combined filters →AND logic between active status + pay status")]
     public async Task CombinedFilters_ActiveAndPayStatus()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");
@@ -531,7 +531,7 @@ public class RegistrationSearchTests
     [Fact(DisplayName = "No matching registrations →returns empty with zero aggregates")]
     public async Task NoMatches_ReturnsEmptyWithZeroAggregates()
     {
-        var (repo, jobId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
 
         var role = b.AddRole(RoleConstants.Player, "Player");
         var u1 = b.AddUser("Alice", "Smith");

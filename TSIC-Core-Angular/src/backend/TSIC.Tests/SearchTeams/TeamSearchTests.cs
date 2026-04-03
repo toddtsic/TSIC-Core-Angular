@@ -53,7 +53,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "No filters →returns all teams for the job")]
     public async Task NoFilters_ReturnsAllTeams()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder");
         b.AddTeam(jobId, leagueId, agId, "Lightning");
@@ -67,7 +67,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "No filters →does not return teams from other jobs")]
     public async Task NoFilters_ExcludesOtherJobs()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder");
 
@@ -90,7 +90,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Active status 'True' →returns only active teams")]
     public async Task ActiveStatus_True_ReturnsActiveOnly()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder", active: true);
         b.AddTeam(jobId, leagueId, agId, "Lightning", active: false);
@@ -108,7 +108,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Active status 'False' →returns only inactive teams")]
     public async Task ActiveStatus_False_ReturnsInactiveOnly()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder", active: true);
         b.AddTeam(jobId, leagueId, agId, "Lightning", active: false);
@@ -130,7 +130,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Club name filter →returns teams belonging to that club")]
     public async Task ClubNameFilter_ReturnsMatchingClub()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var clubRepRole = b.AddRole(RoleConstants.ClubRep, "Club Rep");
         var u1 = b.AddUser("Rep", "Thunder");
@@ -157,7 +157,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Pay status 'PAID IN FULL' →returns teams with OwedTotal = 0")]
     public async Task PayStatus_PaidInFull_ReturnsZeroOwed()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Paid Team", feeBase: 500m, paidTotal: 500m);
         b.AddTeam(jobId, leagueId, agId, "Unpaid Team", feeBase: 500m, paidTotal: 200m);
@@ -175,7 +175,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Pay status 'UNDER PAID' →returns teams with OwedTotal > 0")]
     public async Task PayStatus_UnderPaid_ReturnsPositiveOwed()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Paid Team", feeBase: 500m, paidTotal: 500m);
         b.AddTeam(jobId, leagueId, agId, "Unpaid Team", feeBase: 500m, paidTotal: 200m);
@@ -198,7 +198,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Level of play filter →returns matching teams")]
     public async Task LevelOfPlayFilter_ReturnsMatching()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder AA", levelOfPlay: "AA");
         b.AddTeam(jobId, leagueId, agId, "Lightning A", levelOfPlay: "A");
@@ -211,7 +211,7 @@ public class TeamSearchTests
         });
 
         result.Should().HaveCount(2);
-        result.Select(t => t.TeamName).Should().BeEquivalentTo(["Thunder AA", "Storm AA"]);
+        result.Select(t => t.TeamName).Should().BeEquivalentTo("Thunder AA", "Storm AA");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -221,7 +221,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Agegroup filter →returns teams in that agegroup")]
     public async Task AgegroupFilter_ReturnsMatching()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var ag2 = b.AddAgegroup(leagueId, "U16 Boys");
         b.AddTeam(jobId, leagueId, agId, "Thunder U14");
@@ -244,10 +244,10 @@ public class TeamSearchTests
     [Fact(DisplayName = "LADT tree team ID filter →returns specific team")]
     public async Task LadtTreeTeamId_ReturnsSpecificTeam()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var team1 = b.AddTeam(jobId, leagueId, agId, "Thunder");
-        var team2 = b.AddTeam(jobId, leagueId, agId, "Lightning");
+        b.AddTeam(jobId, leagueId, agId, "Lightning");
         await b.SaveAsync();
 
         var result = await repo.SearchTeamsAsync(jobId, new TeamSearchRequest
@@ -262,7 +262,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "LADT tree league ID filter →returns all teams in league")]
     public async Task LadtTreeLeagueId_ReturnsAllInLeague()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var league2 = b.AddLeague(jobId);
         var ag2 = b.AddAgegroup(league2.LeagueId, "U18 Girls");
@@ -277,7 +277,7 @@ public class TeamSearchTests
         });
 
         result.Should().HaveCount(2);
-        result.Select(t => t.TeamName).Should().BeEquivalentTo(["Thunder", "Lightning"]);
+        result.Select(t => t.TeamName).Should().BeEquivalentTo("Thunder", "Lightning");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -341,7 +341,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Sort order →results sorted by ClubName, AgegroupName, TeamName")]
     public async Task SortOrder_ByClubAgegroupTeam()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var clubRepRole = b.AddRole(RoleConstants.ClubRep, "Club Rep");
         var uB = b.AddUser("Rep", "Beta");
@@ -368,7 +368,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Club rep info →name and email projected correctly")]
     public async Task ClubRepInfo_ProjectedCorrectly()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var clubRepRole = b.AddRole(RoleConstants.ClubRep, "Club Rep");
         var user = b.AddUser("Jane", "Director", email: "jane@club.com");
@@ -391,7 +391,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Financial totals →PaidTotal and OwedTotal projected correctly")]
     public async Task FinancialTotals_ProjectedCorrectly()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder", feeBase: 500m, paidTotal: 200m);
         await b.SaveAsync();
@@ -410,7 +410,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "Combined filters →active + pay status uses AND logic")]
     public async Task CombinedFilters_ActiveAndPayStatus()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Active Paid", active: true, feeBase: 500m, paidTotal: 500m);
         b.AddTeam(jobId, leagueId, agId, "Active Unpaid", active: true, feeBase: 500m, paidTotal: 200m);
@@ -434,7 +434,7 @@ public class TeamSearchTests
     [Fact(DisplayName = "No matching teams →returns empty list")]
     public async Task NoMatches_ReturnsEmptyList()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         b.AddTeam(jobId, leagueId, agId, "Thunder", active: true);
         await b.SaveAsync();
@@ -454,10 +454,10 @@ public class TeamSearchTests
     [Fact(DisplayName = "CADT tree filter →returns only specified team IDs")]
     public async Task CadtTreeFilter_ReturnsSpecifiedTeams()
     {
-        var (repo, jobId, leagueId, agId, b, ctx) = await CreateScenarioAsync();
+        var (repo, jobId, leagueId, agId, b, _) = await CreateScenarioAsync();
 
         var team1 = b.AddTeam(jobId, leagueId, agId, "Thunder");
-        var team2 = b.AddTeam(jobId, leagueId, agId, "Lightning");
+        b.AddTeam(jobId, leagueId, agId, "Lightning");
         var team3 = b.AddTeam(jobId, leagueId, agId, "Storm");
         await b.SaveAsync();
 
@@ -467,6 +467,6 @@ public class TeamSearchTests
         });
 
         result.Should().HaveCount(2);
-        result.Select(t => t.TeamName).Should().BeEquivalentTo(["Thunder", "Storm"]);
+        result.Select(t => t.TeamName).Should().BeEquivalentTo("Thunder", "Storm");
     }
 }
