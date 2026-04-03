@@ -163,20 +163,9 @@ type MiniStep = 'library' | 'select' | 'summary';
         <!-- Coach card — live progress -->
         <div class="coach-card coach-info">
           @if (enteredTeams().length === 0) {
-            <div class="coach-inline">
-              <i class="bi bi-hand-index-thumb me-2"></i>
-              <span><strong>Tap a checkbox</strong> to register your first team. An age group picker will appear.</span>
-            </div>
+            <p class="coach-intro"><i class="bi bi-hand-index-thumb"></i> <strong>Tap a checkbox</strong> to register your first team. An age group picker will appear.</p>
           } @else {
-            <div class="coach-inline">
-              <i class="bi bi-check-circle-fill text-success me-2"></i>
-              <span>
-                <strong class="text-success">{{ enteredTeams().length }}</strong>
-                {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered
-                <span class="desc-dot"></span>
-                {{ availableCount() }} remaining in library
-              </span>
-            </div>
+            <p class="coach-intro"><i class="bi bi-check-circle-fill text-success"></i> <strong class="text-success">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered <span class="desc-dot"></span> {{ availableCount() }} remaining in library</p>
           }
         </div>
 
@@ -239,10 +228,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 
         <!-- Coach card — review guidance -->
         <div class="coach-card coach-success">
-          <div class="coach-inline">
-            <i class="bi bi-info-circle me-2"></i>
-            <span>Review your teams below. When you're ready, hit <strong>Proceed to Payment</strong> in the top bar.</span>
-          </div>
+          <p class="coach-intro"><i class="bi bi-info-circle"></i> Review your teams below. When you're ready, hit <strong>Proceed to Payment</strong> in the top bar.</p>
         </div>
 
         <div class="step-card">
@@ -424,22 +410,12 @@ type MiniStep = 'library' | 'select' | 'summary';
         border-left: 4px solid var(--bs-primary);
         padding: var(--space-4);
         box-shadow: var(--shadow-xs);
-      }
-
-      .coach-primary {
-        border-left-color: var(--bs-primary);
-        background: rgba(var(--bs-primary-rgb), 0.04);
-      }
-
-      .coach-info {
-        border-left-color: var(--bs-info);
         background: rgba(var(--bs-info-rgb), 0.04);
       }
 
-      .coach-success {
-        border-left-color: var(--bs-success);
-        background: rgba(var(--bs-success-rgb), 0.04);
-      }
+      .coach-primary { border-left-color: var(--bs-primary); }
+      .coach-info    { border-left-color: var(--bs-info); }
+      .coach-success { border-left-color: var(--bs-success); }
 
       .coach-intro {
         margin: 0 0 var(--space-3);
@@ -447,6 +423,13 @@ type MiniStep = 'library' | 'select' | 'summary';
         font-weight: var(--font-weight-medium);
         line-height: var(--line-height-relaxed);
         color: var(--brand-text);
+
+        &:last-child { margin-bottom: 0; }
+
+        i {
+          font-size: var(--font-size-sm);
+          vertical-align: -1px;
+        }
       }
 
       .coach-list {
@@ -474,15 +457,6 @@ type MiniStep = 'library' | 'select' | 'summary';
 
       .coach-list li strong {
         color: var(--brand-text);
-      }
-
-      .coach-inline {
-        display: flex;
-        align-items: center;
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-
-        i { flex-shrink: 0; }
       }
 
       /* ── Library Header / Stats ──────────────────── */
