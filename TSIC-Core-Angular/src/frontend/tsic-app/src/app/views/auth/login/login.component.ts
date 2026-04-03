@@ -173,6 +173,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this.authService.login(credentials).subscribe({
       next: (response) => {
         this.authService.loginLoading.set(false);
+
+        // Prompt browser to save credentials (SPA has no navigation to trigger this)
+        this.storeCredential(credentials.username, credentials.password);
+
         const user = this.authService.getCurrentUser();
         if (!user) return;
 
@@ -212,6 +216,16 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   toggleShowPassword() {
     this.showPassword.set(!this.showPassword());
+  }
+
+  /** Ask the browser to save/update credentials (SPA workaround — no navigation to trigger native save prompt). */
+  private storeCredential(username: string, password: string): void {
+    const win = window as any;
+    if (typeof win.PasswordCredential === 'undefined') return;
+    try {
+      const cred = new win.PasswordCredential({ id: username, password });
+      navigator.credentials.store(cred).catch(() => {});
+    } catch { /* browser doesn't support it — ignore */ }
   }
 
   ngOnDestroy() {

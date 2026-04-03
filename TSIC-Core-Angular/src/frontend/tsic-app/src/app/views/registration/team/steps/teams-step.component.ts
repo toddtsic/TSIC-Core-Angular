@@ -5,7 +5,6 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
-import { AgeGroupPickerModalComponent } from './age-group-picker-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
@@ -20,7 +19,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [CurrencyPipe, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent],
+    imports: [CurrencyPipe, TeamFormModalComponent, ConfirmDialogComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -55,6 +54,7 @@ type MiniStep = 'library' | 'select' | 'summary';
         <!-- Welcome hero — centered, no card, commanding -->
         <div class="welcome-hero">
           <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to <span class="club-accent">{{ clubName() }}</span>'s Team Library!</h4>
+          <p class="hero-action">Add any missing teams, then hit Select Teams.</p>
           <p class="welcome-desc">
             <i class="bi bi-arrow-repeat me-1"></i>Add your teams once
             <span class="desc-dot"></span>
@@ -148,11 +148,12 @@ type MiniStep = 'library' | 'select' | 'summary';
       <!-- ═══ STEP 2: SELECT TEAMS TO REGISTER ═══ -->
       @if (currentMiniStep() === 'select') {
 
-        <!-- Centered hero — same energy as Step 1 -->
+        <!-- Centered hero -->
         <div class="welcome-hero">
           <h4 class="welcome-title"><i class="bi bi-check2-square welcome-icon" style="color: var(--bs-info)"></i> Select Your Teams</h4>
+          <p class="hero-action">Tap a team, pick an age group — done.</p>
           <p class="welcome-desc">
-            <i class="bi bi-hand-index me-1"></i>Check a team to register it
+            <i class="bi bi-hand-index me-1"></i>Tap a team
             <span class="desc-dot"></span>
             <i class="bi bi-diagram-3 me-1"></i>Pick its age group
             <span class="desc-dot"></span>
@@ -163,36 +164,156 @@ type MiniStep = 'library' | 'select' | 'summary';
         <!-- Coach card — live progress -->
         <div class="coach-card coach-info">
           @if (enteredTeams().length === 0) {
-            <p class="coach-intro"><i class="bi bi-hand-index-thumb"></i> <strong>Tap a checkbox</strong> to register your first team. An age group picker will appear.</p>
+            <p class="coach-intro"><i class="bi bi-hand-index-thumb"></i> Tap any team below to expand it and choose an age group. Registration is instant.</p>
           } @else {
-            <p class="coach-intro"><i class="bi bi-check-circle-fill text-success"></i> <strong class="text-success">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered <span class="desc-dot"></span> {{ availableCount() }} remaining in library</p>
+            <p class="coach-intro"><i class="bi bi-check-circle-fill text-success"></i> <strong class="text-success">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered <span class="desc-dot"></span> {{ unregisteredTeams().length }} remaining</p>
           }
         </div>
 
-        <div class="step-card">
-
-          <div class="scroll-list">
-            @for (team of allLibraryTeams(); track team.clubTeamId) {
-              @let entered = getEnteredInfo(team.clubTeamId);
-              @let paid = entered !== null && entered.paidTotal > 0;
-              <label class="select-row"
-                     [class.is-checked]="entered !== null"
-                     [class.is-paid]="paid">
-                <input type="checkbox" class="select-check"
-                       [checked]="entered !== null"
-                       [disabled]="paid || actionInProgress()"
-                       (change)="onToggleTeam(team, $event)" />
-                <span class="select-name">{{ team.clubTeamName }}</span>
-                <span class="select-meta">{{ team.clubTeamGradYear }}{{ team.clubTeamLevelOfPlay ? ' · LOP ' + team.clubTeamLevelOfPlay : '' }}</span>
-                @if (entered) {
-                  <span class="select-age"><i class="bi bi-diagram-3 me-1"></i>{{ entered.ageGroupName }}</span>
+        <!-- ── Registered card (always visible, never scrolls away) ── -->
+        @if (enteredTeams().length > 0) {
+          <div class="step-card registered-card">
+            <div class="section-header section-registered">
+              <i class="bi bi-check-circle-fill me-1"></i>
+              Registered ({{ enteredTeams().length }})
+              <span class="registered-total">{{ totalFee() | currency }}</span>
+            </div>
+            @for (team of enteredTeams(); track team.teamId) {
+              @let paid = team.paidTotal > 0;
+              @let isExpanded = expandedTeamId() === team.clubTeamId;
+              <div class="select-row-wrapper" [class.is-expanded]="isExpanded">
+                <div class="select-row is-checked" role="button" tabindex="0"
+                     [class.is-paid]="paid"
+                     [attr.aria-expanded]="isExpanded"
+                     (click)="team.clubTeamId ? onRowClick(team.clubTeamId, paid, $event) : null"
+                     (keydown.enter)="team.clubTeamId ? onRowClick(team.clubTeamId, paid, $event) : null"
+                     (keydown.space)="team.clubTeamId ? onRowClick(team.clubTeamId, paid, $event) : null; $event.preventDefault()">
+                  <span class="select-indicator checked" [class.locked]="paid">
+                    @if (paid) { <i class="bi bi-lock-fill"></i> }
+                    @else { <i class="bi bi-check-lg"></i> }
+                  </span>
+                  <span class="select-name">{{ team.teamName }}</span>
+                  @if (!isExpanded) {
+                    <span class="select-age">{{ team.ageGroupName }}</span>
+                    <span class="select-fee">{{ team.feeTotal | currency }}</span>
+                  }
+                  @if (paid) {
+                    <span class="paid-badge"><i class="bi bi-lock-fill me-1"></i>Paid</span>
+                  }
+                  @if (!paid) {
+                    <i class="bi select-chevron" [class.bi-chevron-down]="!isExpanded" [class.bi-chevron-up]="isExpanded"></i>
+                  }
+                  @if (!paid && !isExpanded) {
+                    <button type="button" class="btn-inline-remove"
+                            [disabled]="actionInProgress()"
+                            (click)="onRemoveTeam(team); $event.stopPropagation()"
+                            title="Remove {{ team.teamName }}">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  }
+                </div>
+                @if (isExpanded && !paid && team.clubTeamId) {
+                  <div class="age-picker-panel">
+                    <div class="age-picker-label">Change age group for <strong>{{ team.teamName }}</strong></div>
+                    <div class="age-pill-row" role="radiogroup" [attr.aria-label]="'Age groups for ' + team.teamName">
+                      @for (ag of agePills(); track ag.ageGroupId) {
+                        <button type="button" class="age-pill" role="radio"
+                                [class.is-recommended]="ag.ageGroupId === bestMatchForTeam(team.ageGroupName)"
+                                [class.is-selected]="team.ageGroupId === ag.ageGroupId"
+                                [class.is-full]="ag.isFull"
+                                [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
+                                [attr.aria-checked]="team.ageGroupId === ag.ageGroupId"
+                                [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
+                                [disabled]="actionInProgress()"
+                                (click)="onSelectAgeGroup({clubTeamId: team.clubTeamId!, clubTeamName: team.teamName, clubTeamGradYear: team.ageGroupName, clubTeamLevelOfPlay: team.levelOfPlay ?? ''}, ag.ageGroupId); $event.stopPropagation()">
+                          <span class="pill-name">
+                            {{ ag.ageGroupName }}
+                            @if (ag.ageGroupId === bestMatchForTeam(team.ageGroupName)) { <i class="bi bi-star-fill pill-star"></i> }
+                            @if (team.ageGroupId === ag.ageGroupId) { <i class="bi bi-check-circle-fill pill-current"></i> }
+                          </span>
+                          <span class="pill-fee">{{ ag.fee | currency }}</span>
+                          <span class="pill-spots" [class.text-warning]="ag.isAlmostFull && !ag.isFull" [class.text-danger]="ag.isFull">
+                            @if (ag.isFull) { <i class="bi bi-exclamation-circle me-1"></i>Waitlist }
+                            @else { {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }} }
+                          </span>
+                        </button>
+                      }
+                    </div>
+                  </div>
                 }
-                @if (paid) {
-                  <span class="paid-badge"><i class="bi bi-lock-fill me-1"></i>Paid</span>
-                }
-              </label>
+              </div>
             }
           </div>
+        }
+
+        <!-- ── Available card (scrollable workhorse) ── -->
+        <div class="step-card">
+          <div class="section-header section-available">
+            <i class="bi bi-list-ul me-1"></i>
+            Available ({{ unregisteredTeams().length }})
+          </div>
+
+          @if (unregisteredTeams().length === 0) {
+            <div class="wizard-empty-state" style="padding: var(--space-6) var(--space-4)">
+              <i class="bi bi-check-circle-dotted"></i>
+              <strong>All teams registered!</strong>
+              <span>Every team in your library has been assigned an age group.</span>
+            </div>
+          } @else {
+            <div class="scroll-list">
+              @for (group of unregisteredByYear(); track group.year) {
+                <div class="year-group-header">
+                  <span class="year-label">{{ group.year }}</span>
+                  <span class="year-count">{{ group.teams.length }} {{ group.teams.length === 1 ? 'team' : 'teams' }}</span>
+                </div>
+                @for (team of group.teams; track team.clubTeamId) {
+                  @let isExpanded = expandedTeamId() === team.clubTeamId;
+                  <div class="select-row-wrapper" [class.is-expanded]="isExpanded">
+                    <div class="select-row" role="button" tabindex="0"
+                         [attr.aria-expanded]="isExpanded"
+                         (click)="onRowClick(team.clubTeamId, false, $event)"
+                         (keydown.enter)="onRowClick(team.clubTeamId, false, $event)"
+                         (keydown.space)="onRowClick(team.clubTeamId, false, $event); $event.preventDefault()">
+                      <span class="select-name">{{ team.clubTeamName }}</span>
+                      <span class="select-meta">{{ team.clubTeamLevelOfPlay ? 'LOP ' + team.clubTeamLevelOfPlay : '' }}</span>
+                      <i class="bi select-chevron" [class.bi-chevron-down]="!isExpanded" [class.bi-chevron-up]="isExpanded"></i>
+                    </div>
+                    @if (isExpanded) {
+                      <div class="age-picker-panel">
+                        <div class="age-picker-tip">
+                          <i class="bi bi-hand-index-thumb"></i>
+                          Tap an age group to register <strong>{{ team.clubTeamName }}</strong> instantly
+                          <span class="tip-legend"><i class="bi bi-star-fill"></i> = best match for grad year</span>
+                        </div>
+                        <div class="age-pill-row" role="radiogroup" [attr.aria-label]="'Age groups for ' + team.clubTeamName">
+                          @for (ag of agePills(); track ag.ageGroupId) {
+                            <button type="button" class="age-pill" role="radio"
+                                    [class.is-recommended]="ag.ageGroupId === bestMatchForTeam(team.clubTeamGradYear)"
+                                    [class.is-full]="ag.isFull"
+                                    [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
+                                    [attr.aria-checked]="false"
+                                    [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
+                                    [disabled]="actionInProgress()"
+                                    (click)="onSelectAgeGroup(team, ag.ageGroupId); $event.stopPropagation()">
+                              <span class="pill-name">
+                                {{ ag.ageGroupName }}
+                                @if (ag.ageGroupId === bestMatchForTeam(team.clubTeamGradYear)) { <i class="bi bi-star-fill pill-star"></i> }
+                              </span>
+                              <span class="pill-fee">{{ ag.fee | currency }}</span>
+                              <span class="pill-spots" [class.text-warning]="ag.isAlmostFull && !ag.isFull" [class.text-danger]="ag.isFull">
+                                @if (ag.isFull) { <i class="bi bi-exclamation-circle me-1"></i>Waitlist }
+                                @else { {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }} }
+                              </span>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
 
           <div class="step-card-footer">
             <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -214,6 +335,7 @@ type MiniStep = 'library' | 'select' | 'summary';
         <!-- Centered hero -->
         <div class="welcome-hero">
           <h4 class="welcome-title"><i class="bi bi-clipboard-check welcome-icon" style="color: var(--bs-success)"></i> You're All Set!</h4>
+          <p class="hero-action">Double-check your teams, then proceed to payment.</p>
           <p class="welcome-desc">
             <strong class="text-primary">{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team' : 'teams' }}</strong> registered
             @if (totalOwed() > 0) {
@@ -329,14 +451,6 @@ type MiniStep = 'library' | 'select' | 'summary';
         (cancelled)="cancelRemove()" />
     }
 
-    @if (ageGroupPickerTeam()) {
-      <app-age-group-picker-modal
-        [teamName]="ageGroupPickerTeam()!.clubTeamName"
-        [gradYear]="ageGroupPickerTeam()!.clubTeamGradYear"
-        [ageGroups]="ageGroups()"
-        (selected)="onAgeGroupSelected($event)"
-        (closed)="onAgeGroupPickerCancelled()" />
-    }
   `,
     styles: [`
       :host { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -629,7 +743,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 
       /* ── Scroll List (shared) ────────────────────── */
       .scroll-list {
-        max-height: 320px;
+        max-height: min(400px, 55vh);
         overflow-y: auto;
       }
 
@@ -678,26 +792,81 @@ type MiniStep = 'library' | 'select' | 'summary';
         flex-shrink: 0;
       }
 
+      /* ── Step 2: Section Headers ──────────────────── */
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-2) var(--space-3);
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .section-registered {
+        color: var(--bs-success);
+        background: rgba(var(--bs-success-rgb), 0.06);
+        border-bottom: 1px solid rgba(var(--bs-success-rgb), 0.12);
+      }
+
+      .section-available {
+        color: var(--brand-text-muted);
+        background: rgba(var(--bs-dark-rgb), 0.03);
+        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.08);
+      }
+
+      .registered-card {
+        max-height: 220px;
+        overflow-y: auto;
+      }
+
+      .registered-total {
+        margin-left: auto;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      /* ── Step 2: Row Wrapper (holds header + expansion panel) ── */
+      .select-row-wrapper {
+        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
+
+        &:last-child { border-bottom: none; }
+
+        &.is-expanded {
+          border-left: 3px solid var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.02);
+          margin: var(--space-1) 0;
+          border-radius: var(--radius-sm);
+          box-shadow: var(--shadow-xs);
+        }
+      }
+
       /* ── Step 2: Select Rows ─────────────────────── */
       .select-row {
         display: flex;
         align-items: center;
         gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
-        min-height: 34px;
-        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
+        padding: var(--space-2) var(--space-3);
+        min-height: 40px;
         font-size: var(--font-size-xs);
         cursor: pointer;
         transition: background-color 0.1s ease;
-
-        &:last-child { border-bottom: none; }
 
         &:hover:not(.is-paid) {
           background: rgba(var(--bs-primary-rgb), 0.03);
         }
 
+        &:focus-visible {
+          outline: none;
+          box-shadow: inset 0 0 0 2px rgba(var(--bs-primary-rgb), 0.2);
+        }
+
         &.is-checked {
-          background: rgba(var(--bs-primary-rgb), 0.05);
+          background: rgba(var(--bs-success-rgb), 0.04);
         }
 
         &.is-paid {
@@ -706,41 +875,31 @@ type MiniStep = 'library' | 'select' | 'summary';
         }
       }
 
-      .select-check {
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        min-width: 18px;
+      /* ── Visual checkbox indicator ── */
+      .select-indicator {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
         border: 2px solid var(--neutral-300);
         border-radius: 4px;
-        background: var(--brand-surface);
-        cursor: pointer;
-        position: relative;
-        transition: border-color 0.1s ease, background-color 0.1s ease;
+        font-size: 11px;
+        color: transparent;
         flex-shrink: 0;
+        transition: all 0.1s ease;
 
-        &:checked {
-          background: var(--bs-primary);
-          border-color: var(--bs-primary);
-          &::after {
-            content: '';
-            position: absolute;
-            top: 2px; left: 4px;
-            width: 5px; height: 9px;
-            border: solid var(--neutral-0);
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
-          }
-        }
-
-        &:disabled:checked {
+        &.checked {
           background: var(--bs-success);
           border-color: var(--bs-success);
+          color: var(--neutral-0);
         }
 
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
+        &.locked {
+          background: var(--neutral-400);
+          border-color: var(--neutral-400);
+          color: var(--neutral-0);
         }
       }
 
@@ -756,10 +915,10 @@ type MiniStep = 'library' | 'select' | 'summary';
       .select-meta {
         color: var(--brand-text-muted);
         white-space: nowrap;
+        margin-left: auto;
       }
 
       .select-age {
-        margin-left: auto;
         font-size: 10px;
         font-weight: var(--font-weight-semibold);
         padding: 2px var(--space-2);
@@ -768,6 +927,45 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: var(--bs-primary);
         white-space: nowrap;
         flex-shrink: 0;
+        margin-left: auto;
+      }
+
+      .select-fee {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .select-chevron {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        flex-shrink: 0;
+        transition: transform 0.15s ease;
+      }
+
+      .select-row-wrapper.is-expanded .select-chevron {
+        color: var(--bs-primary);
+      }
+
+      .btn-inline-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--brand-text-muted);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: var(--font-size-xs);
+        flex-shrink: 0;
+        transition: color 0.1s ease, background-color 0.1s ease;
+
+        &:hover { color: var(--bs-danger); background: rgba(var(--bs-danger-rgb), 0.08); }
+        &:disabled { opacity: 0.4; cursor: default; }
       }
 
       .paid-badge {
@@ -779,6 +977,128 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: var(--bs-success);
         white-space: nowrap;
         flex-shrink: 0;
+      }
+
+      /* ── Step 2: Inline Age Picker Panel ─────────── */
+      .age-picker-panel {
+        padding: var(--space-2) var(--space-3) var(--space-3);
+        border-top: 1px solid rgba(var(--bs-primary-rgb), 0.08);
+        animation: panelSlideIn 0.15s ease-out;
+      }
+
+      .age-picker-tip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        margin-bottom: var(--space-2);
+        line-height: var(--line-height-normal);
+
+        > i { color: var(--bs-primary); }
+      }
+
+      .tip-legend {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: var(--space-2);
+        font-size: 10px;
+        color: var(--neutral-400);
+
+        i {
+          font-size: 8px;
+          color: var(--bs-primary);
+        }
+      }
+
+      .age-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .age-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-md);
+        border: 1.5px solid var(--border-color);
+        background: var(--brand-surface);
+        cursor: pointer;
+        min-width: 80px;
+        min-height: 44px;
+        font-size: var(--font-size-xs);
+        transition: all 0.12s ease;
+
+        &:hover:not(:disabled) {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.04);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:active:not(:disabled) { transform: scale(0.96); }
+
+        &.is-recommended {
+          /* Subtle nudge only — star icon does the work, not the pill chrome */
+        }
+
+        &.is-selected {
+          border-color: var(--bs-success);
+          background: rgba(var(--bs-success-rgb), 0.08);
+        }
+
+        &.is-full {
+          opacity: 0.5;
+        }
+
+        &.is-almost-full .pill-spots {
+          font-weight: var(--font-weight-semibold);
+        }
+
+        &:disabled { cursor: default; }
+      }
+
+      .pill-name {
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+      }
+
+      .pill-star {
+        font-size: 8px;
+        color: var(--bs-primary);
+      }
+
+      .pill-current {
+        font-size: 10px;
+        color: var(--bs-success);
+      }
+
+      .pill-fee {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+      }
+
+      .pill-spots {
+        font-size: 10px;
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+      }
+
+      @keyframes panelSlideIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
       }
 
       /* ── Step 3: Summary Table ───────────────────── */
@@ -886,6 +1206,25 @@ type MiniStep = 'library' | 'select' | 'summary';
           padding-right: var(--space-2);
         }
 
+        .age-pill-row {
+          flex-direction: column;
+        }
+
+        .age-pill {
+          flex-direction: row;
+          justify-content: space-between;
+          width: 100%;
+          min-height: 48px;
+          padding: var(--space-2) var(--space-3);
+        }
+
+        .select-fee { display: none; }
+
+        .btn-inline-remove {
+          min-width: 44px;
+          min-height: 44px;
+        }
+
         .summary-table th,
         .summary-table td {
           padding: var(--space-1) var(--space-2);
@@ -893,7 +1232,8 @@ type MiniStep = 'library' | 'select' | 'summary';
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .select-row, .mini-step-item, .select-check { transition: none; }
+        .select-row, .mini-step-item, .select-indicator, .select-chevron, .age-pill, .btn-inline-remove { transition: none; }
+        .age-picker-panel { animation: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -916,8 +1256,8 @@ export class TeamTeamsStepComponent implements OnInit {
     /** Which mini-step is active. */
     readonly currentMiniStep = signal<MiniStep>('library');
 
-    /** Team awaiting age group selection (opens the picker modal). */
-    readonly ageGroupPickerTeam = signal<ClubTeamDto | null>(null);
+    /** Which team row is expanded in Step 2 (null = all collapsed). */
+    readonly expandedTeamId = signal<number | null>(null);
 
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
@@ -981,6 +1321,39 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly totalPaid = computed(() => this._registeredTeams().reduce((s, t) => s + t.paidTotal, 0));
     readonly totalOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
 
+    /** Unregistered library teams for Step 2 "Available" section. */
+    readonly unregisteredTeams = computed(() => {
+        const enteredIds = new Set(this._registeredTeams().filter(r => r.clubTeamId).map(r => r.clubTeamId!));
+        return this._clubTeams().filter(t => !enteredIds.has(t.clubTeamId));
+    });
+
+    /** Unregistered teams grouped by grad year for Step 2 display. */
+    readonly unregisteredByYear = computed(() => {
+        const teams = this.unregisteredTeams();
+        const map = new Map<string, ClubTeamDto[]>();
+        for (const t of teams) {
+            const year = t.clubTeamGradYear || 'Other';
+            if (!map.has(year)) map.set(year, []);
+            map.get(year)!.push(t);
+        }
+        return Array.from(map, ([year, yearTeams]) => ({ year, teams: yearTeams }));
+    });
+
+    /** Age group pills with computed display data. */
+    readonly agePills = computed(() => {
+        return this.ageGroups().map(ag => {
+            const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
+            return {
+                ageGroupId: ag.ageGroupId,
+                ageGroupName: ag.ageGroupName,
+                fee: (ag.deposit || 0) + (ag.balanceDue || 0),
+                spotsLeft,
+                isFull: spotsLeft === 0,
+                isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
+            };
+        });
+    });
+
     ngOnInit(): void {
         this.loadTeamsMetadata();
     }
@@ -997,57 +1370,82 @@ export class TeamTeamsStepComponent implements OnInit {
         return this._registeredTeams().find(r => r.clubTeamId === clubTeamId) ?? null;
     }
 
-    /** Step 2: toggle a team's participation. Check → open age group picker. Uncheck → unregister. */
-    onToggleTeam(team: ClubTeamDto, event: Event): void {
-        const checked = (event.target as HTMLInputElement).checked;
-        if (checked) {
-            // Open age group picker modal
-            this.ageGroupPickerTeam.set(team);
-        } else {
-            // Unregister
-            const entered = this.getEnteredInfo(team.clubTeamId);
-            if (!entered) return;
-            this.unregisterTeam(entered.teamId, team.clubTeamName);
+    /** Step 2: best-match age group for a given grad year. */
+    bestMatchForTeam(gradYear: string): string {
+        if (!gradYear || !this.ageGroups().length) return '';
+        const groups = this.ageGroups();
+        const exact = groups.find(ag => ag.ageGroupName === gradYear);
+        if (exact) return exact.ageGroupId;
+        const contains = groups.find(ag => ag.ageGroupName.includes(gradYear));
+        if (contains) return contains.ageGroupId;
+        return '';
+    }
+
+    /** Step 2: toggle row expansion and scroll into view. */
+    onRowClick(clubTeamId: number, paid: boolean, event?: Event): void {
+        if (paid) return;
+        const expanding = this.expandedTeamId() !== clubTeamId;
+        this.expandedTeamId.set(expanding ? clubTeamId : null);
+
+        if (expanding && event) {
+            const wrapper = (event.target as HTMLElement).closest('.select-row-wrapper');
+            if (wrapper) {
+                setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+            }
         }
     }
 
-    /** Picker cancelled — reload to reset any optimistic checkbox state. */
-    onAgeGroupPickerCancelled(): void {
-        this.ageGroupPickerTeam.set(null);
-        this.loadTeamsMetadata();
-    }
+    /** Step 2: register (or re-register) a team with the selected age group. */
+    onSelectAgeGroup(team: ClubTeamDto, ageGroupId: string): void {
+        const existing = this.getEnteredInfo(team.clubTeamId);
 
-    /** Age group selected in the picker modal → register the team. */
-    onAgeGroupSelected(ageGroupId: string): void {
-        const team = this.ageGroupPickerTeam();
-        if (!team) return;
+        // If already registered with same age group, just collapse
+        if (existing && existing.ageGroupId === ageGroupId) {
+            this.expandedTeamId.set(null);
+            return;
+        }
 
-        this.ageGroupPickerTeam.set(null);
         this.actionInProgress.set(true);
 
-        this.teamReg.registerTeamForEvent({
-            clubTeamId: team.clubTeamId,
-            ageGroupId,
-            teamName: team.clubTeamName,
-            clubTeamGradYear: team.clubTeamGradYear,
-            levelOfPlay: team.clubTeamLevelOfPlay || undefined,
-        })
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: (resp) => {
+        const doRegister = () => {
+            this.teamReg.registerTeamForEvent({
+                clubTeamId: team.clubTeamId,
+                ageGroupId,
+                teamName: team.clubTeamName,
+                clubTeamGradYear: team.clubTeamGradYear,
+                levelOfPlay: team.clubTeamLevelOfPlay || undefined,
+            })
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe({
+                    next: (resp) => {
+                        this.actionInProgress.set(false);
+                        const msg = resp.isWaitlisted
+                            ? `${team.clubTeamName} waitlisted for ${resp.waitlistAgegroupName ?? ''}`
+                            : `${team.clubTeamName} entered!`;
+                        this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000);
+                        this.expandedTeamId.set(null);
+                        this.loadTeamsMetadata();
+                    },
+                    error: () => {
+                        this.actionInProgress.set(false);
+                        this.toast.show('Failed to register team.', 'danger', 4000);
+                        this.loadTeamsMetadata();
+                    },
+                });
+        };
+
+        // If changing age group, unregister first then re-register
+        if (existing) {
+            this.teamReg.unregisterTeamFromEvent(existing.teamId)
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe({ next: doRegister, error: () => {
                     this.actionInProgress.set(false);
-                    const msg = resp.isWaitlisted
-                        ? `${team.clubTeamName} waitlisted for ${resp.waitlistAgegroupName ?? ''}`
-                        : `${team.clubTeamName} entered!`;
-                    this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000);
+                    this.toast.show('Failed to change age group.', 'danger', 4000);
                     this.loadTeamsMetadata();
-                },
-                error: () => {
-                    this.actionInProgress.set(false);
-                    this.toast.show('Failed to register team.', 'danger', 4000);
-                    this.loadTeamsMetadata();
-                },
-            });
+                }});
+        } else {
+            doRegister();
+        }
     }
 
     onTeamAdded(): void {
