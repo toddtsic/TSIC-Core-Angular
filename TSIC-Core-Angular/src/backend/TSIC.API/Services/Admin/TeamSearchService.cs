@@ -252,8 +252,8 @@ public sealed class TeamSearchService : ITeamSearchService
 
             if (txDetails?.messages?.resultCode != messageTypeEnum.Ok)
             {
-                var adnError = txDetails?.messages?.message?.FirstOrDefault()?.text ?? "Unknown gateway error";
-                return new RefundResponse { Success = false, Message = $"Could not look up original transaction. Gateway: {adnError}" };
+                var adnError = txDetails?.messages?.message?.FirstOrDefault()?.text ?? "Gateway returned no error details";
+                return new RefundResponse { Success = false, Message = adnError };
             }
 
             var txStatus = txDetails.transaction?.transactionStatus;
@@ -272,8 +272,10 @@ public sealed class TeamSearchService : ITeamSearchService
 
                 if (voidResult?.messages?.resultCode != messageTypeEnum.Ok || voidResult.transactionResponse?.messages == null)
                 {
-                    var err = voidResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Void failed.";
-                    return new RefundResponse { Success = false, Message = $"CC Void failed: {err}" };
+                    var err = voidResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                           ?? voidResult?.messages?.message?.FirstOrDefault()?.text
+                           ?? "Gateway returned no error details";
+                    return new RefundResponse { Success = false, Message = err };
                 }
 
                 refundTransId = voidResult.transactionResponse.transId ?? "";
@@ -299,8 +301,10 @@ public sealed class TeamSearchService : ITeamSearchService
 
                 if (refundResult?.messages?.resultCode != messageTypeEnum.Ok || refundResult.transactionResponse?.messages == null)
                 {
-                    var err = refundResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Refund failed.";
-                    return new RefundResponse { Success = false, Message = $"CC Refund failed: {err}" };
+                    var err = refundResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                           ?? refundResult?.messages?.message?.FirstOrDefault()?.text
+                           ?? "Gateway returned no error details";
+                    return new RefundResponse { Success = false, Message = err };
                 }
 
                 refundTransId = refundResult.transactionResponse.transId ?? "";
