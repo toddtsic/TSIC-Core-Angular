@@ -294,12 +294,12 @@ export class RegistrationDetailPanelComponent {
     }).subscribe({
       next: () => {
         this.isSavingProfile.set(false);
-        this.toast.show('Player profile saved', 'success', 3000);
+        this.toast.show('Player profile saved', 'success', 3000, 'Profile Updated');
         this.saved.emit();
       },
       error: (err) => {
         this.isSavingProfile.set(false);
-        this.toast.show('Failed to save: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Save Failed');
       }
     });
   }
@@ -530,7 +530,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isSavingContact.set(false);
-        this.toast.show('Failed to save: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Save Failed');
       }
     });
   }
@@ -545,15 +545,14 @@ export class RegistrationDetailPanelComponent {
     }).subscribe({
       next: (result) => {
         if (result.success) {
-          this.toast.show(`Refund of $${event.refundAmount.toFixed(2)} processed`, 'success', 4000);
+          this.toast.show(`$${event.refundAmount.toFixed(2)} refunded`, 'success', 4000, 'CC Refund');
           this.saved.emit();
         } else {
-          this.toast.show(result.message ?? 'Refund failed', 'danger', 0);
+          this.toast.show(result.message ?? 'Unknown error', 'danger', 0, 'CC Refund Failed');
         }
       },
       error: (err) => {
-        const msg = err?.error?.message || 'Refund failed — unknown error';
-        this.toast.show(msg, 'danger', 0);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'CC Refund Failed');
       }
     });
   }
@@ -569,19 +568,20 @@ export class RegistrationDetailPanelComponent {
     }).subscribe({
       next: (response) => {
         if (response.success) {
-          this.toast.show(`CC charge successful: $${event.amount.toFixed(2)}`, 'success', 3000);
+          this.toast.show(`$${event.amount.toFixed(2)} charged successfully`, 'success', 3000, 'CC Charge');
           this.saved.emit();
         } else {
-          this.toast.show(`CC charge failed: ${response.error || 'Unknown error'}`, 'danger', 5000);
+          this.toast.show(response.error || 'Unknown error', 'danger', 0, 'CC Charge Failed');
         }
       },
-      error: (err) => { this.toast.show(`CC charge failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000); }
+      error: (err) => { this.toast.show(err.error?.message || 'Unknown error', 'danger', 0, 'CC Charge Failed'); }
     });
   }
 
   onCheckSubmitted(event: CheckOrCorrectionEvent): void {
     const d = this.detail();
     if (!d) return;
+    const label = event.paymentType === 'Check' ? 'Check Payment' : 'Correction';
 
     this.searchService.recordPayment(d.registrationId, {
       registrationId: d.registrationId,
@@ -592,13 +592,13 @@ export class RegistrationDetailPanelComponent {
     }).subscribe({
       next: (response) => {
         if (response.success) {
-          this.toast.show(`${event.paymentType} recorded: $${event.amount.toFixed(2)}`, 'success', 3000);
+          this.toast.show(`$${event.amount.toFixed(2)} recorded`, 'success', 3000, label);
           this.saved.emit();
         } else {
-          this.toast.show(`Failed: ${response.error || 'Unknown error'}`, 'danger', 5000);
+          this.toast.show(response.error || 'Unknown error', 'danger', 0, `${label} Failed`);
         }
       },
-      error: (err) => { this.toast.show(`Failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000); }
+      error: (err) => { this.toast.show(err.error?.message || 'Unknown error', 'danger', 0, `${label} Failed`); }
     });
   }
 
@@ -649,7 +649,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isCancellingSubscription.set(false);
-        this.toast.show('Failed to cancel: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Cancel Subscription Failed');
       }
     });
   }
@@ -669,7 +669,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isDraftingAi.set(false);
-        this.toast.show(`AI draft failed: ${err.error?.message || 'Unknown error'}`, 'danger');
+        this.toast.show(err.error?.message || 'Unknown error', 'danger', 0, 'AI Draft Failed');
       }
     });
   }
@@ -693,7 +693,7 @@ export class RegistrationDetailPanelComponent {
         this.emailBody.set('');
       },
       error: (err) => {
-        this.toast.show('Failed to send email: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Email Failed');
       }
     });
   }
@@ -711,7 +711,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isLoadingJobOptions.set(false);
-        this.toast.show('Failed to load job options: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Load Failed');
       }
     });
   }
@@ -737,7 +737,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isChangingJob.set(false);
-        this.toast.show('Failed to change job: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Job Change Failed');
       }
     });
   }
@@ -759,7 +759,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isTogglingActive.set(false);
-        this.toast.show('Failed to update: ' + (err?.error?.message || 'Unknown error'), 'danger', 4000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Update Failed');
       }
     });
   }
@@ -793,7 +793,7 @@ export class RegistrationDetailPanelComponent {
       },
       error: (err) => {
         this.isDeleting.set(false);
-        this.toast.show(err?.error?.message || 'Failed to delete registration', 'danger', 5000);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Delete Failed');
       }
     });
   }

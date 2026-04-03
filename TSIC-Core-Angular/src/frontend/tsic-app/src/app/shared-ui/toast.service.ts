@@ -6,6 +6,7 @@ export interface Toast {
     id: number;
     message: string;
     type: ToastType;
+    title?: string;
     timeout?: number;
 }
 
@@ -16,9 +17,9 @@ export class ToastService {
 
     toasts = this._toasts.asReadonly();
 
-    show(message: string, type: ToastType = 'success', timeout = 2000) {
+    show(message: string, type: ToastType = 'success', timeout = 2000, title?: string) {
         const id = this._nextId++;
-        const toast: Toast = { id, message, type, timeout };
+        const toast: Toast = { id, message, type, title, timeout };
         this._toasts.update(list => [...list, toast]);
 
         if (timeout && timeout > 0) {

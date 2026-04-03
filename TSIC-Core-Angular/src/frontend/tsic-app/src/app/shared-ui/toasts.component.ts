@@ -11,7 +11,12 @@ import { ToastService } from './toast.service';
       @for (t of toasts(); track t) {
         <div class="toast show align-items-center text-bg-{{t.type}} border-0 mb-2 shadow" role="status" aria-live="polite" aria-atomic="true">
           <div class="d-flex">
-            <div class="toast-body">{{ t.message }}</div>
+            <div class="toast-body">
+              @if (t.title) {
+                <strong class="d-block mb-1">{{ t.title }}</strong>
+              }
+              {{ t.message }}
+            </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" aria-label="Close" (click)="dismiss(t.id)"></button>
           </div>
         </div>

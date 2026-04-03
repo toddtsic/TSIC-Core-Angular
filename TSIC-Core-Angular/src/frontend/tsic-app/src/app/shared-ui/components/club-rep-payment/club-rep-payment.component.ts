@@ -130,15 +130,15 @@ export class ClubRepPaymentComponent {
     call.subscribe({
       next: (result) => {
         if (result.success) {
-          this.toast.show(`CC charge successful: $${event.amount.toFixed(2)}`, 'success', 3000);
+          this.toast.show(`$${event.amount.toFixed(2)} charged successfully`, 'success', 3000, 'CC Charge');
           this.loadData();
           this.paymentComplete.emit();
         } else {
-          this.toast.show(`CC charge failed: ${result.error || 'Unknown error'}`, 'danger', 5000);
+          this.toast.show(result.error || 'Unknown error', 'danger', 0, 'CC Charge Failed');
         }
       },
       error: (err) => {
-        this.toast.show(`CC charge failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000);
+        this.toast.show(err.error?.message || 'Unknown error', 'danger', 0, 'CC Charge Failed');
       }
     });
   }
@@ -146,6 +146,7 @@ export class ClubRepPaymentComponent {
   onCheckSubmitted(event: CheckOrCorrectionEvent): void {
     const regId = this.clubRepRegistrationId();
     const tid = this.teamId();
+    const label = event.paymentType === 'Check' ? 'Check Payment' : 'Correction';
     const request = {
       clubRepRegistrationId: regId,
       amount: event.amount,
@@ -161,15 +162,15 @@ export class ClubRepPaymentComponent {
     call.subscribe({
       next: (result) => {
         if (result.success) {
-          this.toast.show(`${event.paymentType} recorded: $${event.amount.toFixed(2)}`, 'success', 3000);
+          this.toast.show(`$${event.amount.toFixed(2)} recorded`, 'success', 3000, label);
           this.loadData();
           this.paymentComplete.emit();
         } else {
-          this.toast.show(`Failed: ${result.error || 'Unknown error'}`, 'danger', 5000);
+          this.toast.show(result.error || 'Unknown error', 'danger', 0, `${label} Failed`);
         }
       },
       error: (err) => {
-        this.toast.show(`Failed: ${err.error?.message || 'Unknown error'}`, 'danger', 5000);
+        this.toast.show(err.error?.message || 'Unknown error', 'danger', 0, `${label} Failed`);
       }
     });
   }
@@ -182,16 +183,15 @@ export class ClubRepPaymentComponent {
     }).subscribe({
       next: (result: RefundResponse) => {
         if (result.success) {
-          this.toast.show(`Refund of $${event.refundAmount.toFixed(2)} processed`, 'success', 4000);
+          this.toast.show(`$${event.refundAmount.toFixed(2)} refunded`, 'success', 4000, 'CC Refund');
           this.loadData();
           this.paymentComplete.emit();
         } else {
-          this.toast.show(result.message ?? 'Refund failed', 'danger', 0);
+          this.toast.show(result.message ?? 'Unknown error', 'danger', 0, 'CC Refund Failed');
         }
       },
       error: (err) => {
-        const msg = err?.error?.message || 'Refund failed — unknown error';
-        this.toast.show(msg, 'danger', 0);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'CC Refund Failed');
       }
     });
   }
