@@ -53,17 +53,24 @@
   margin-bottom: var(--space-2);
 }
 
+// ─── Syncfusion popup list-item padding override ─
+// Popup renders outside component scope — needs ::ng-deep
+::ng-deep .e-dropdownbase .e-list-item {
+  padding: 5px 8px;
+  line-height: 1.4;
+  min-height: 0;
+}
+
 // ─── Dropdown item template ──────────────────────
 .dropdown-item-custom {
   display: flex;
   align-items: center;
-  gap: var(--space-3, 0.75rem);
+  gap: var(--space-1, 0.25rem);
   width: 100%;
-  padding: var(--space-2, 0.5rem) var(--space-1, 0.25rem);
 
   .job-logo {
-    height: 2rem;
-    width: 2rem;
+    height: 1.125rem;
+    width: 1.125rem;
     object-fit: contain;
     flex-shrink: 0;
     border-radius: var(--bs-border-radius-sm, 0.25rem);
