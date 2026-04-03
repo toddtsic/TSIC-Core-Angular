@@ -20,34 +20,14 @@
     background: var(--brand-surface);
 }
 
-// ─── Hero area (icon + title + subtitle) ─────────
+// ─── Hero overrides (login is tighter than other auth pages) ─
 .login-hero {
     margin-bottom: var(--space-4);
-}
 
-.login-favicon {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-    margin-bottom: var(--space-3);
-}
-
-.login-title {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    color: var(--brand-text);
-    margin-bottom: var(--space-1);
-}
-
-.login-subtitle {
-    font-size: var(--font-size-sm);
-    color: var(--brand-text-muted);
-    margin-bottom: 0;
-}
-
-// Spacing between title and subtitle when marks are present
-.login-title + .login-subtitle {
-    margin-top: var(--space-2);
+    .auth-hero-title {
+        font-size: var(--font-size-xl);
+        margin-bottom: var(--space-1);
+    }
 }
 
 // ─── Form fields ──────────────────────────────────
@@ -144,11 +124,11 @@
 
     .login-hero {
         margin-bottom: var(--space-3);
-    }
 
-    .login-title {
-        font-size: var(--font-size-lg);
-        color: var(--bs-primary);
+        .auth-hero-title {
+            font-size: var(--font-size-lg);
+            color: var(--bs-primary);
+        }
     }
 
     @media (max-width: 575.98px) {
@@ -162,14 +142,14 @@
 
         .login-hero {
             margin-bottom: var(--space-1);
-        }
 
-        .login-subtitle {
-            font-size: var(--font-size-xs);
-        }
+            .auth-hero-title {
+                font-size: var(--font-size-base);
+            }
 
-        .login-title {
-            font-size: var(--font-size-base);
+            .auth-hero-subtitle {
+                font-size: var(--font-size-xs);
+            }
         }
 
         .login-field {

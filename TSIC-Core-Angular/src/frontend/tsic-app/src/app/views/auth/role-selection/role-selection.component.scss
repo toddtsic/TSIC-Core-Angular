@@ -6,36 +6,12 @@
   background: var(--brand-surface);
 }
 
-// ─── Hero area (icon + title + subtitle + badge) ──
-.role-hero {
-  margin-bottom: var(--space-6);
-}
-
-.role-favicon {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  margin-bottom: var(--space-3);
-}
-
-.role-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--brand-text);
-  margin-bottom: var(--space-1);
-}
-
-.role-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--brand-text-muted);
-  margin-bottom: var(--space-3);
-}
-
 // ─── Username badge ────────────────────────────────
 .username-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  margin-top: var(--space-3);
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full, 9999px);
   background: rgba(var(--bs-primary-rgb), 0.08);

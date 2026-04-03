@@ -40,16 +40,16 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
                     margin: auto;
                     width: min(720px, 96vw);
                     max-height: 90vh;
-                    box-shadow: 0 0.75rem 1.5rem rgba(0,0,0,.25);
+                    box-shadow: var(--shadow-lg, 0 0.75rem 1.5rem rgba(0,0,0,.25));
                     background: transparent; /* content provides background */
                 }
                 .tsic-dialog.tsic-dialog-sm { width: min(480px, 96vw); }
                 .tsic-dialog.tsic-dialog-lg { width: min(960px, 96vw); }
 
-                        /* Content chrome (Bootstrap-like) - use deep selector so projected content is styled */
+                        /* Content chrome - use deep selector so projected content is styled */
                         :host ::ng-deep .modal-content {
-                    border: 1px solid rgba(0,0,0,.1);
-                    border-radius: 0.5rem;
+                    border: 1px solid var(--border-color, rgba(0,0,0,.1));
+                    border-radius: var(--radius-md, 0.5rem);
                     background: var(--bs-body-bg, #fff);
                     color: var(--bs-body-color, inherit);
                     max-height: 90vh;
@@ -59,20 +59,26 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
                 }
                         :host ::ng-deep .modal-header,
                         :host ::ng-deep .modal-body,
-                        :host ::ng-deep .modal-footer { 
-                    padding: 1rem; 
-                    /* Fallback background so dialogs without .modal-content aren't translucent */
+                        :host ::ng-deep .modal-footer {
+                    padding: var(--space-4, 1rem);
                     background: var(--bs-body-bg, #fff);
                 }
-                        :host ::ng-deep .modal-header { 
+                        :host ::ng-deep .modal-header {
                     display: flex; align-items: center; justify-content: space-between;
-                    border-bottom: 1px solid rgba(0,0,0,.1);
+                    border-bottom: 2px solid var(--bs-primary, rgba(0,0,0,.1));
+                    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
                 }
-                        :host ::ng-deep .modal-footer { 
+                        :host ::ng-deep .modal-footer {
                     display: flex; justify-content: flex-end; gap: .5rem;
-                    border-top: 1px solid rgba(0,0,0,.1);
+                    border-top: 1px solid var(--border-color, rgba(0,0,0,.1));
+                    background: var(--brand-bg-secondary, var(--bs-body-bg, #fff));
                 }
-                        :host ::ng-deep .modal-title { margin: 0; font-size: 1.1rem; font-weight: 600; }
+                        :host ::ng-deep .modal-title {
+                    margin: 0;
+                    font-size: var(--font-size-lg, 1.1rem);
+                    font-weight: var(--font-weight-semibold, 600);
+                }
+                        :host ::ng-deep .modal-title i { color: var(--bs-primary); }
                         :host ::ng-deep .btn-close { box-shadow: none !important; outline: none !important; }
 
                 /* Backdrop */

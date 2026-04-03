@@ -506,10 +506,10 @@ mark {
     font-size: var(--font-size-2xl);
     font-weight: var(--font-weight-bold);
     color: var(--brand-text);
+}
 
-    .club-accent {
-        color: var(--bs-primary);
-    }
+.club-accent {
+    color: var(--bs-primary);
 }
 
 .welcome-icon {
@@ -535,6 +535,42 @@ mark {
     background: var(--neutral-300);
     vertical-align: middle;
     margin: 0 var(--space-2);
+}
+
+/* Auth Hero — centered icon + title + subtitle used across auth pages */
+.auth-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: var(--space-6);
+}
+
+.auth-hero-icon {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: var(--space-3);
+}
+
+.auth-hero-title {
+    margin: 0;
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+    margin-bottom: var(--space-2);
+}
+
+.auth-hero-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+    margin-bottom: 0;
+    line-height: var(--line-height-normal);
+}
+
+.auth-hero-status-icon {
+    font-size: 48px;
+    margin-bottom: var(--space-3);
 }
 
 /* Wizard Empty State — friendly empty content placeholder */

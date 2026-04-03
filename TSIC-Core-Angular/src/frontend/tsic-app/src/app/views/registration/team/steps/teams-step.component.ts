@@ -6,6 +6,7 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AgeGroupPickerModalComponent } from './age-group-picker-modal.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 type MiniStep = 'library' | 'select' | 'summary';
@@ -19,7 +20,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [CurrencyPipe, TeamFormModalComponent, AgeGroupPickerModalComponent],
+    imports: [CurrencyPipe, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -63,16 +64,26 @@ type MiniStep = 'library' | 'select' | 'summary';
           </p>
         </div>
 
-        <div class="step-card">
+        <!-- Coach card — contextual guidance, separate from data -->
+        <div class="coach-card coach-primary">
+          <p class="coach-intro">Make sure your club's team library is up to date before you register. Every team you add here is saved permanently — set it up once and reuse it for any event.</p>
+          <ul class="coach-list">
+            <li>
+              <i class="bi bi-check2-circle text-success"></i>
+              <span>Confirm <strong>every team</strong> you plan to register is listed below</span>
+            </li>
+            <li>
+              <i class="bi bi-plus-circle text-primary"></i>
+              <span>Missing a team? <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add it now</button> — takes 10 seconds</span>
+            </li>
+            <li>
+              <i class="bi bi-arrow-repeat text-info"></i>
+              <span>Your library is <strong>permanent</strong> — add once, register for any event</span>
+            </li>
+          </ul>
+        </div>
 
-          <!-- Action callout -->
-          <div class="step1-callout">
-            <div class="step1-callout-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
-            <div>
-              <strong>Before you continue:</strong> make sure every team you plan to register is listed below.<br>
-              Missing a team? <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)"><i class="bi bi-plus-circle me-1"></i>Add it now</button> — takes 10 seconds.
-            </div>
-          </div>
+        <div class="step-card">
 
           <!-- Library header with stats -->
           <div class="lib-header">
@@ -149,25 +160,27 @@ type MiniStep = 'library' | 'select' | 'summary';
           </p>
         </div>
 
-        <div class="step-card">
-
-          <!-- Live progress callout -->
-          <div class="progress-bar-section">
-            @if (enteredTeams().length === 0) {
-              <div class="progress-text">
-                <i class="bi bi-hand-index-thumb text-primary me-2"></i>
-                <strong>Tap a checkbox</strong> to register your first team. An age group picker will appear.
-              </div>
-            } @else {
-              <div class="progress-text progress-active">
-                <i class="bi bi-check-circle-fill text-success me-2"></i>
+        <!-- Coach card — live progress -->
+        <div class="coach-card coach-info">
+          @if (enteredTeams().length === 0) {
+            <div class="coach-inline">
+              <i class="bi bi-hand-index-thumb me-2"></i>
+              <span><strong>Tap a checkbox</strong> to register your first team. An age group picker will appear.</span>
+            </div>
+          } @else {
+            <div class="coach-inline">
+              <i class="bi bi-check-circle-fill text-success me-2"></i>
+              <span>
                 <strong class="text-success">{{ enteredTeams().length }}</strong>
                 {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered
                 <span class="desc-dot"></span>
                 {{ availableCount() }} remaining in library
-              </div>
-            }
-          </div>
+              </span>
+            </div>
+          }
+        </div>
+
+        <div class="step-card">
 
           <div class="scroll-list">
             @for (team of allLibraryTeams(); track team.clubTeamId) {
@@ -224,13 +237,15 @@ type MiniStep = 'library' | 'select' | 'summary';
           </p>
         </div>
 
-        <div class="step-card">
-
-          <!-- Confirmation callout -->
-          <div class="confirm-banner">
-            <i class="bi bi-info-circle"></i>
+        <!-- Coach card — review guidance -->
+        <div class="coach-card coach-success">
+          <div class="coach-inline">
+            <i class="bi bi-info-circle me-2"></i>
             <span>Review your teams below. When you're ready, hit <strong>Proceed to Payment</strong> in the top bar.</span>
           </div>
+        </div>
+
+        <div class="step-card">
 
           <div class="summary-table-wrap">
             <table class="summary-table">
@@ -241,6 +256,7 @@ type MiniStep = 'library' | 'select' | 'summary';
                   <th class="text-end">Fee</th>
                   <th class="text-end">Paid</th>
                   <th class="text-end">Owed</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -262,6 +278,17 @@ type MiniStep = 'library' | 'select' | 'summary';
                     </td>
                     <td class="text-end fw-semibold" [class.text-danger]="team.owedTotal > 0">
                       {{ team.owedTotal | currency }}
+                    </td>
+                    <td class="text-end">
+                      @if (team.paidTotal === 0) {
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger border-0 px-2 py-0"
+                                [disabled]="actionInProgress()"
+                                (click)="onRemoveTeam(team)"
+                                title="Remove {{ team.teamName }}">
+                          <i class="bi bi-x-lg"></i>
+                        </button>
+                      }
                     </td>
                   </tr>
                 }
@@ -301,9 +328,19 @@ type MiniStep = 'library' | 'select' | 'summary';
     <!-- ═══ MODALS ═══ -->
     @if (showAddModal()) {
       <app-team-form-modal
-        [ageGroups]="ageGroups()"
+        [clubName]="clubName()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
+    }
+
+    @if (pendingRemove()) {
+      <confirm-dialog
+        title="Remove Team"
+        [message]="'Remove <strong>' + pendingRemove()!.teamName + '</strong> from this event?'"
+        confirmLabel="Remove"
+        confirmVariant="danger"
+        (confirmed)="confirmRemove()"
+        (cancelled)="cancelRemove()" />
     }
 
     @if (ageGroupPickerTeam()) {
@@ -380,27 +417,72 @@ type MiniStep = 'library' | 'select' | 'summary';
         &.completed { background: var(--bs-success); }
       }
 
-      /* ── Step 1: Danger Callout (team-specific layout) ── */
-      .step1-callout {
-        display: flex;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        background: rgba(var(--bs-danger-rgb), 0.06);
-        border-bottom: 2px solid rgba(var(--bs-danger-rgb), 0.2);
-        font-size: var(--font-size-xs);
+      /* ── Coach Card — detached contextual guidance ── */
+      .coach-card {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--bs-primary);
+        padding: var(--space-4);
+        box-shadow: var(--shadow-xs);
+      }
+
+      .coach-primary {
+        border-left-color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.04);
+      }
+
+      .coach-info {
+        border-left-color: var(--bs-info);
+        background: rgba(var(--bs-info-rgb), 0.04);
+      }
+
+      .coach-success {
+        border-left-color: var(--bs-success);
+        background: rgba(var(--bs-success-rgb), 0.04);
+      }
+
+      .coach-intro {
+        margin: 0 0 var(--space-3);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        line-height: var(--line-height-relaxed);
         color: var(--brand-text);
+      }
+
+      .coach-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
         line-height: var(--line-height-normal);
       }
 
-      .step1-callout-icon {
-        font-size: var(--font-size-lg);
-        color: var(--bs-danger);
-        flex-shrink: 0;
-        margin-top: 1px;
+      .coach-list li {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
       }
 
-      .step1-callout strong {
-        color: var(--bs-danger);
+      .coach-list li i {
+        flex-shrink: 0;
+        font-size: var(--font-size-sm);
+      }
+
+      .coach-list li strong {
+        color: var(--brand-text);
+      }
+
+      .coach-inline {
+        display: flex;
+        align-items: center;
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+
+        i { flex-shrink: 0; }
       }
 
       /* ── Library Header / Stats ──────────────────── */
@@ -773,38 +855,6 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: var(--bs-primary);
       }
 
-      /* ── Step 2: Progress Bar ──────────────────── */
-      .progress-bar-section {
-        padding: var(--space-2) var(--space-4);
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .progress-text {
-        display: flex;
-        align-items: center;
-        gap: var(--space-1);
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-      }
-
-      .progress-active {
-        color: var(--brand-text);
-      }
-
-      /* ── Step 3: Confirm Banner ──────────────────── */
-      .confirm-banner {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-4);
-        background: rgba(var(--bs-info-rgb), 0.06);
-        border-bottom: 1px solid rgba(var(--bs-info-rgb), 0.12);
-        font-size: var(--font-size-xs);
-        color: var(--brand-text);
-
-        i { color: var(--bs-info); flex-shrink: 0; }
-      }
-
       /* ── Step 3: Totals Row ──────────────────────── */
       .totals-row td {
         border-top: 2px solid var(--border-color);
@@ -836,7 +886,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 
         .hero-cta { width: 100%; }
 
-        .step1-callout {
+        .coach-card {
           padding: var(--space-2) var(--space-3);
         }
 
@@ -1029,6 +1079,24 @@ export class TeamTeamsStepComponent implements OnInit {
     onTeamAdded(): void {
         this.showAddModal.set(false);
         this.loadTeamsMetadata();
+    }
+
+    pendingRemove = signal<RegisteredTeamDto | null>(null);
+
+    onRemoveTeam(team: RegisteredTeamDto): void {
+        if (team.paidTotal > 0) return;
+        this.pendingRemove.set(team);
+    }
+
+    confirmRemove(): void {
+        const team = this.pendingRemove();
+        if (!team) return;
+        this.pendingRemove.set(null);
+        this.unregisterTeam(team.teamId, team.teamName);
+    }
+
+    cancelRemove(): void {
+        this.pendingRemove.set(null);
     }
 
     // ── Private ─────────────────────────────────────────────────────
