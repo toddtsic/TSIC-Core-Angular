@@ -186,11 +186,12 @@ export class ClubRepPaymentComponent {
           this.loadData();
           this.paymentComplete.emit();
         } else {
-          this.toast.show(result.message ?? 'Refund failed', 'danger', 4000);
+          this.toast.show(result.message ?? 'Refund failed', 'danger', 0);
         }
       },
-      error: () => {
-        this.toast.show('Refund failed', 'danger', 4000);
+      error: (err) => {
+        const msg = err?.error?.message || 'Refund failed — unknown error';
+        this.toast.show(msg, 'danger', 0);
       }
     });
   }

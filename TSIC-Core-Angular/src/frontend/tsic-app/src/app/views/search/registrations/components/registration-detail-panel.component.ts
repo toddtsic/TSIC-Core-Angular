@@ -548,11 +548,12 @@ export class RegistrationDetailPanelComponent {
           this.toast.show(`Refund of $${event.refundAmount.toFixed(2)} processed`, 'success', 4000);
           this.saved.emit();
         } else {
-          this.toast.show(result.message ?? 'Refund failed', 'danger', 4000);
+          this.toast.show(result.message ?? 'Refund failed', 'danger', 0);
         }
       },
-      error: () => {
-        this.toast.show('Refund failed', 'danger', 4000);
+      error: (err) => {
+        const msg = err?.error?.message || 'Refund failed — unknown error';
+        this.toast.show(msg, 'danger', 0);
       }
     });
   }

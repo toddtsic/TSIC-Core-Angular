@@ -251,7 +251,10 @@ public sealed class TeamSearchService : ITeamSearchService
             var txDetails = _adnApi.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, original.AdnTransactionId);
 
             if (txDetails?.messages?.resultCode != messageTypeEnum.Ok)
-                return new RefundResponse { Success = false, Message = "Could not look up original transaction details." };
+            {
+                var adnError = txDetails?.messages?.message?.FirstOrDefault()?.text ?? "Unknown gateway error";
+                return new RefundResponse { Success = false, Message = $"Could not look up original transaction. Gateway: {adnError}" };
+            }
 
             var txStatus = txDetails.transaction?.transactionStatus;
             string refundTransId;
