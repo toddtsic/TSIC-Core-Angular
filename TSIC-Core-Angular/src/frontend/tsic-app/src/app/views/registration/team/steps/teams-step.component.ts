@@ -201,7 +201,10 @@ type MiniStep = 'library' | 'select' | 'summary';
                     @else { <i class="bi bi-check-lg"></i> }
                   </span>
                   <span class="select-name">{{ team.teamName }}</span>
-                  <span class="select-age">{{ team.ageGroupName }}</span>
+                  @if (team.levelOfPlay) {
+                    <span class="select-lop">LOP {{ team.levelOfPlay }}</span>
+                  }
+                  <span class="select-age"><i class="bi bi-diagram-3 me-1"></i>{{ team.ageGroupName }}</span>
                   <span class="select-fee">{{ team.feeTotal | currency }}</span>
                   @if (paid) {
                     <span class="paid-badge"><i class="bi bi-lock-fill me-1"></i>Paid</span>
@@ -366,9 +369,10 @@ type MiniStep = 'library' | 'select' | 'summary';
                     (click)="goToMiniStep('select')">
               <i class="bi bi-arrow-left me-1"></i>Change Selections
             </button>
-            <span class="footer-hint">
-              <i class="bi bi-shield-check me-1"></i>You can always come back to add more teams
-            </span>
+            <button type="button" class="btn btn-sm btn-primary"
+                    (click)="proceedToPayment.emit()">
+              Proceed to Payment <i class="bi bi-arrow-right ms-1"></i>
+            </button>
           </div>
         </div>
       }
@@ -862,11 +866,22 @@ type MiniStep = 'library' | 'select' | 'summary';
         margin-left: auto;
       }
 
-      .select-age {
+      .select-lop {
         font-size: 10px;
         font-weight: var(--font-weight-semibold);
         padding: 2px var(--space-2);
         border-radius: var(--radius-full);
+        background: rgba(var(--bs-dark-rgb), 0.06);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .select-age {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
         background: rgba(var(--bs-primary-rgb), 0.1);
         color: var(--bs-primary);
         white-space: nowrap;
