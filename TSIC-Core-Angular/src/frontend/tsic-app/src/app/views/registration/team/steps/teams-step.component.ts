@@ -4,6 +4,7 @@ import { CurrencyPipe } from '@angular/common';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AgeGroupPickerModalComponent } from './age-group-picker-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -173,9 +174,9 @@ type MiniStep = 'library' | 'select' | 'summary';
         <!-- Coach card — live progress -->
         <div class="coach-card coach-info">
           @if (enteredTeams().length === 0) {
-            <p class="coach-intro"><i class="bi bi-hand-index-thumb"></i> Tap any team below to expand it and choose an age group. Registration is instant.</p>
+            <p class="coach-intro"><i class="bi bi-hand-index-thumb"></i> Tap any team to register it for <strong>{{ jobName() }}</strong>.</p>
           } @else {
-            <p class="coach-intro"><i class="bi bi-check-circle-fill text-success"></i> <strong class="text-success">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered <span class="desc-dot"></span> {{ unregisteredTeams().length }} remaining</p>
+            <p class="coach-intro"><i class="bi bi-check-circle-fill text-success"></i> <strong class="text-success">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered for <strong>{{ jobName() }}</strong>. Tap more to add them.</p>
           }
         </div>
 
@@ -1046,7 +1047,10 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly state = inject(TeamWizardStateService);
     private readonly teamReg = inject(TeamRegistrationService);
     private readonly toast = inject(ToastService);
+    private readonly jobService = inject(JobService);
     private readonly destroyRef = inject(DestroyRef);
+
+    readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'this event');
 
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
