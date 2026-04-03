@@ -53,7 +53,7 @@ type MiniStep = 'library' | 'select' | 'summary';
 
         <!-- Welcome hero — centered, no card, commanding -->
         <div class="welcome-hero">
-          <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to <span class="text-primary">{{ clubName() }}</span>'s Team Library!</h4>
+          <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to <span class="club-accent">{{ clubName() }}</span>'s Team Library!</h4>
           <p class="welcome-desc">
             <i class="bi bi-arrow-repeat me-1"></i>Add your teams once
             <span class="desc-dot"></span>
