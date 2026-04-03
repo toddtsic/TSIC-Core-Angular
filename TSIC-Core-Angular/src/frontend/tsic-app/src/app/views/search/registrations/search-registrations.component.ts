@@ -202,8 +202,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
     if (req.regDateFrom) chips.push({ category: 'From', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.regDateTo) chips.push({ category: 'To', label: req.regDateTo, filterKey: 'regDateTo', value: req.regDateTo });
-    if (req.rosterThreshold != null) chips.push({ category: 'CR Roster <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
-    addArrayChips('CR Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
+    if (req.rosterThreshold != null) chips.push({ category: 'Rostered <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
+    addArrayChips('For Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
 
     // CADT tree chips — highest-level checked ancestor only (same pattern as LADT)
     const cadtChecked = this.cadtCheckedIds();

@@ -37,7 +37,7 @@
 
   .form-control {
     padding-left: calc(var(--space-2) + 13px + var(--space-1));
-    border-left: 3px solid var(--bs-primary);
+
 
     &::placeholder {
       color: var(--bs-secondary-color);
@@ -47,6 +47,48 @@
 }
 
 
+
+// ── Billing + Roster Scan — two-column layout ──
+.filter-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+
+  @media (max-width: 992px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Roster Scan paired container ──
+.roster-scan-box {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-3) var(--space-3);
+  background: color-mix(in srgb, var(--bs-primary) 2%, var(--bs-card-bg));
+  margin: 0;
+  min-width: 0;
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    align-items: end;
+  }
+}
+
+.roster-scan-legend {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bs-primary);
+  padding: 0 var(--space-1);
+  width: auto;
+  float: none;
+  margin-bottom: 0;
+  line-height: 1;
+}
 
 // ── Results Container ──
 .results-container {

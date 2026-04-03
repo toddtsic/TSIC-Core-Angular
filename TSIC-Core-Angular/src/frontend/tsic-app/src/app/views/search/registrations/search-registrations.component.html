@@ -357,79 +357,82 @@
             </div>
           </div>
 
-          <!-- Section: Billing & Roster -->
-          <div class="filter-section">
-            <div class="filter-section-label">Billing &amp; Roster</div>
-            <div class="filter-row">
-              <div class="form-group">
-                <label>ARB Subscription</label>
-                <ejs-multiselect #ms10
-                  [dataSource]="filterOptions()?.arbSubscriptionStatuses ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().arbSubscriptionStatuses"
-                  (change)="updateMultiSelect('arbSubscriptionStatuses', $event.value)"
-                  (open)="onMultiSelectOpen(ms10)"
-                  [mode]="'CheckBox'"
-                  [allowFiltering]="false"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [changeOnBlur]="false"
-                  placeholder="All"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-              <div class="form-group">
-                <label for="filterInvoice">Invoice #</label>
-                <input type="text" id="filterInvoice" class="form-control"
-                  placeholder="Invoice number"
-                  [ngModel]="searchRequest().invoiceNumber"
-                  (ngModelChange)="updateInvoiceNumber($event)"
-                  (keydown.enter)="executeSearch()" />
+          <!-- Billing & Roster + Roster Scan — side by side -->
+          <div class="filter-row-2col">
+            <!-- Left: Billing & Roster -->
+            <div class="filter-section">
+              <div class="filter-section-label">Billing &amp; Roster</div>
+              <div class="filter-row">
+                <div class="form-group">
+                  <label>ARB Subscription</label>
+                  <ejs-multiselect #ms10
+                    [dataSource]="filterOptions()?.arbSubscriptionStatuses ?? []"
+                    [fields]="msFields"
+                    [value]="searchRequest().arbSubscriptionStatuses"
+                    (change)="updateMultiSelect('arbSubscriptionStatuses', $event.value)"
+                    (open)="onMultiSelectOpen(ms10)"
+                    [mode]="'CheckBox'"
+                    [allowFiltering]="false"
+                    [showDropDownIcon]="true"
+                    [closePopupOnSelect]="false"
+                    [changeOnBlur]="false"
+                    placeholder="All"
+                    [itemTemplate]="countBadgeTemplate"
+                    cssClass="filter-ms">
+                  </ejs-multiselect>
+                </div>
+                <div class="form-group">
+                  <label for="filterInvoice">Invoice #</label>
+                  <input type="text" id="filterInvoice" class="form-control"
+                    placeholder="Invoice number"
+                    [ngModel]="searchRequest().invoiceNumber"
+                    (ngModelChange)="updateInvoiceNumber($event)"
+                    (keydown.enter)="executeSearch()" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Section: Club Rep Roster -->
-          <div class="filter-section">
-            <div class="filter-section-label">Club Rep Roster</div>
-            <div class="filter-row">
-              <div class="form-group">
-                <label for="rosterThreshold">Teams &lt;=</label>
-                <select id="rosterThreshold" class="form-select"
-                  [ngModel]="searchRequest().rosterThreshold ?? ''"
-                  (ngModelChange)="updateRosterThreshold($event)">
-                  <option value="">-- Not Filtered --</option>
-                  <option [ngValue]="0">0</option>
-                  <option [ngValue]="1">1</option>
-                  <option [ngValue]="2">2</option>
-                  <option [ngValue]="3">3</option>
-                  <option [ngValue]="5">5</option>
-                  <option [ngValue]="10">10</option>
-                  <option [ngValue]="15">15</option>
-                  <option [ngValue]="20">20</option>
-                  <option [ngValue]="25">25</option>
-                </select>
+            <!-- Right: Roster Scan (paired container) -->
+            <fieldset class="roster-scan-box">
+              <legend class="roster-scan-legend">Roster Scan</legend>
+              <div class="filter-row">
+                <div class="form-group">
+                  <label for="rosterThreshold">Rostered Players &lt;=</label>
+                  <select id="rosterThreshold" class="form-select"
+                    [ngModel]="searchRequest().rosterThreshold ?? ''"
+                    (ngModelChange)="updateRosterThreshold($event)">
+                    <option value="">-- Not Filtered --</option>
+                    <option [ngValue]="0">0</option>
+                    <option [ngValue]="1">1</option>
+                    <option [ngValue]="2">2</option>
+                    <option [ngValue]="3">3</option>
+                    <option [ngValue]="5">5</option>
+                    <option [ngValue]="10">10</option>
+                    <option [ngValue]="15">15</option>
+                    <option [ngValue]="20">20</option>
+                    <option [ngValue]="25">25</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>For Club</label>
+                  <ejs-multiselect #ms12
+                    [dataSource]="filterOptions()?.clubRepClubs ?? []"
+                    [fields]="msFields"
+                    [value]="searchRequest().rosterThresholdClubNames"
+                    (change)="updateMultiSelect('rosterThresholdClubNames', $event.value)"
+                    (open)="onMultiSelectOpen(ms12)"
+                    [mode]="'CheckBox'"
+                    [allowFiltering]="true"
+                    [showDropDownIcon]="true"
+                    [closePopupOnSelect]="false"
+                    [changeOnBlur]="false"
+                    placeholder="All Clubs"
+                    [itemTemplate]="countBadgeTemplate"
+                    cssClass="filter-ms">
+                  </ejs-multiselect>
+                </div>
               </div>
-              <div class="form-group">
-                <label>Club</label>
-                <ejs-multiselect #ms12
-                  [dataSource]="filterOptions()?.clubRepClubs ?? []"
-                  [fields]="msFields"
-                  [value]="searchRequest().rosterThresholdClubNames"
-                  (change)="updateMultiSelect('rosterThresholdClubNames', $event.value)"
-                  (open)="onMultiSelectOpen(ms12)"
-                  [mode]="'CheckBox'"
-                  [allowFiltering]="true"
-                  [showDropDownIcon]="true"
-                  [closePopupOnSelect]="false"
-                  [changeOnBlur]="false"
-                  placeholder="All Clubs"
-                  [itemTemplate]="countBadgeTemplate"
-                  cssClass="filter-ms">
-                </ejs-multiselect>
-              </div>
-            </div>
+            </fieldset>
           </div>
         </div>
       }
