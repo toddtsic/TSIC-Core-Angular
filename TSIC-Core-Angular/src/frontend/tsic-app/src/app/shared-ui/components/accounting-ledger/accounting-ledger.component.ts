@@ -48,6 +48,33 @@ export class AccountingLedgerComponent {
 	/** Club team breakdown for payment modal (teams only, optional) */
 	clubBreakdown = input<ClubTeamSummaryDto[] | undefined>(undefined);
 
+	/** IDs of teams that are waitlisted, dropped, or inactive */
+	private otherTeamIds = computed(() => {
+		const breakdown = this.clubBreakdown();
+		if (!breakdown) return new Set<string>();
+		return new Set(
+			breakdown
+				.filter(t => !t.active
+					|| t.agegroupName.toUpperCase().startsWith('WAITLIST')
+					|| t.agegroupName.toUpperCase().startsWith('DROPPED'))
+				.map(t => t.teamId)
+		);
+	});
+
+	/** Active team records */
+	activeRecords = computed(() => {
+		const other = this.otherTeamIds();
+		if (other.size === 0) return this.records();
+		return this.records().filter(r => !r.teamId || !other.has(r.teamId));
+	});
+
+	/** Waitlisted / Dropped / Inactive team records */
+	otherRecords = computed(() => {
+		const other = this.otherTeamIds();
+		if (other.size === 0) return [];
+		return this.records().filter(r => r.teamId && other.has(r.teamId));
+	});
+
 	// ── Outputs (callback pattern — parent handles API calls) ──
 	ccChargeSubmitted = output<CcChargeEvent>();
 	checkSubmitted = output<CheckOrCorrectionEvent>();

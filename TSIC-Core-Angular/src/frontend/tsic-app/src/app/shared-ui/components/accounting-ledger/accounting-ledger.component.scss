@@ -573,6 +573,17 @@
   }
 }
 
+// ── Section Separator (active vs waitlisted/dropped) ──
+
+.section-separator td {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--brand-text-muted);
+  background: rgba(var(--bs-dark-rgb), 0.03);
+  border-top: 2px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
 // ── Refund Mode ──
 
 .refund-details {

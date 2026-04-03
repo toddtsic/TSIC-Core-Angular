@@ -38,83 +38,95 @@
         </tr>
       </thead>
       <tbody>
-        @for (record of records(); track record.aId) {
-            <tr class="txn-row">
-              <td>
-                <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
-                @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
-              </td>
-              <td class="text-end amount">{{ record.dueAmount | currency }}</td>
-              <td class="text-end amount paid-amount">{{ record.paidAmount | currency }}</td>
-              <td class="actions">
-                @if (hasDetails(record)) {
-                  <span class="popover-anchor popover-hover">
-                    <button type="button" class="icon-btn text-muted" title="Details">
-                      <i class="bi bi-info-circle"></i>
-                    </button>
-                      <div class="txn-popover">
-                        <div class="txn-popover-header">
-                          <span class="txn-popover-title">Transaction Details@if (teamNameFor(record); as tn) { · {{ tn }}}</span>
-                        </div>
-                        <div class="txn-popover-body">
-                          <!-- CC-specific fields -->
-                          @if (isCcRecord(record)) {
-                            @if (record.adnTransactionId) {
-                              <div class="txn-popover-field">
-                                <span class="txn-popover-label">Transaction ID</span>
-                                <span class="txn-popover-value mono">{{ record.adnTransactionId }}</span>
-                              </div>
-                            }
-                            @if (record.adnInvoiceNo) {
-                              <div class="txn-popover-field">
-                                <span class="txn-popover-label">Invoice #</span>
-                                <span class="txn-popover-value mono">{{ record.adnInvoiceNo }}</span>
-                              </div>
-                            }
-                            @if (record.adnCc4) {
-                              <div class="txn-popover-field">
-                                <span class="txn-popover-label">Card</span>
-                                <span class="txn-popover-value">****{{ record.adnCc4 }}@if (record.adnCcExpDate) { <span class="cc-exp">exp {{ record.adnCcExpDate }}</span>}</span>
-                              </div>
-                            }
-                          }
-                          <!-- Check-specific fields -->
-                          @if (isCheckRecord(record) && record.checkNo) {
-                            <div class="txn-popover-field">
-                              <span class="txn-popover-label">Check #</span>
-                              <span class="txn-popover-value mono">{{ record.checkNo }}</span>
-                            </div>
-                          }
-                          <!-- Shared fields (all types) -->
-                          @if (record.promoCode) {
-                            <div class="txn-popover-field">
-                              <span class="txn-popover-label">Promo Code</span>
-                              <span class="txn-popover-value">{{ record.promoCode }}</span>
-                            </div>
-                          }
-                          @if (record.comment) {
-                            <div class="txn-popover-field">
-                              <span class="txn-popover-label">Comment</span>
-                              <span class="txn-popover-value">{{ record.comment }}</span>
-                            </div>
-                          }
-                        </div>
-                      </div>
-                  </span>
-                }
-                @if (record.canRefund) {
-                  <button type="button" class="icon-btn text-danger" title="Refund CC" (click)="onRefundClick(record)">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                  </button>
-                }
-              </td>
-            </tr>
+        @for (record of activeRecords(); track record.aId) {
+          <ng-container *ngTemplateOutlet="txnRow; context: { $implicit: record }"></ng-container>
         }
       </tbody>
+      @if (otherRecords().length > 0) {
+        <tbody>
+          <tr class="section-separator">
+            <td colspan="4"><em>Waitlisted / Dropped / Inactive</em></td>
+          </tr>
+          @for (record of otherRecords(); track record.aId) {
+            <ng-container *ngTemplateOutlet="txnRow; context: { $implicit: record }"></ng-container>
+          }
+        </tbody>
+      }
     </table>
   } @else {
     <div class="empty-state">No records yet.</div>
   }
+
+  <!-- Shared row template to avoid duplication -->
+  <ng-template #txnRow let-record>
+    <tr class="txn-row">
+      <td>
+        <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
+        @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
+      </td>
+      <td class="text-end amount">{{ record.dueAmount | currency }}</td>
+      <td class="text-end amount paid-amount">{{ record.paidAmount | currency }}</td>
+      <td class="actions">
+        @if (hasDetails(record)) {
+          <span class="popover-anchor popover-hover">
+            <button type="button" class="icon-btn text-muted" title="Details">
+              <i class="bi bi-info-circle"></i>
+            </button>
+              <div class="txn-popover">
+                <div class="txn-popover-header">
+                  <span class="txn-popover-title">Transaction Details@if (teamNameFor(record); as tn) { · {{ tn }}}</span>
+                </div>
+                <div class="txn-popover-body">
+                  @if (isCcRecord(record)) {
+                    @if (record.adnTransactionId) {
+                      <div class="txn-popover-field">
+                        <span class="txn-popover-label">Transaction ID</span>
+                        <span class="txn-popover-value mono">{{ record.adnTransactionId }}</span>
+                      </div>
+                    }
+                    @if (record.adnInvoiceNo) {
+                      <div class="txn-popover-field">
+                        <span class="txn-popover-label">Invoice #</span>
+                        <span class="txn-popover-value mono">{{ record.adnInvoiceNo }}</span>
+                      </div>
+                    }
+                    @if (record.adnCc4) {
+                      <div class="txn-popover-field">
+                        <span class="txn-popover-label">Card</span>
+                        <span class="txn-popover-value">****{{ record.adnCc4 }}@if (record.adnCcExpDate) { <span class="cc-exp">exp {{ record.adnCcExpDate }}</span>}</span>
+                      </div>
+                    }
+                  }
+                  @if (isCheckRecord(record) && record.checkNo) {
+                    <div class="txn-popover-field">
+                      <span class="txn-popover-label">Check #</span>
+                      <span class="txn-popover-value mono">{{ record.checkNo }}</span>
+                    </div>
+                  }
+                  @if (record.promoCode) {
+                    <div class="txn-popover-field">
+                      <span class="txn-popover-label">Promo Code</span>
+                      <span class="txn-popover-value">{{ record.promoCode }}</span>
+                    </div>
+                  }
+                  @if (record.comment) {
+                    <div class="txn-popover-field">
+                      <span class="txn-popover-label">Comment</span>
+                      <span class="txn-popover-value">{{ record.comment }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+          </span>
+        }
+        @if (record.canRefund) {
+          <button type="button" class="icon-btn text-danger" title="Refund CC" (click)="onRefundClick(record)">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </button>
+        }
+      </td>
+    </tr>
+  </ng-template>
 
   <!-- ── Add Payment Button ── -->
   <div class="ledger-footer">
