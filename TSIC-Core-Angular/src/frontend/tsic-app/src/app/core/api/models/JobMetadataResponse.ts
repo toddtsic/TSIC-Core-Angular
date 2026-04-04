@@ -34,5 +34,10 @@ export type JobMetadataResponse = {
     bScheduleAllowPublicAccess?: boolean;
     bBannerIsCustom?: boolean;
     jobTypeName?: string | null;
+    paymentMethodsAllowedCode?: number;
+    bAddProcessingFees?: boolean;
+    payTo?: string | null;
+    mailTo?: string | null;
+    mailinPaymentWarning?: string | null;
 };
 

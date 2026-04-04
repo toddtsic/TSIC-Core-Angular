@@ -46,11 +46,13 @@ export class PaymentV2Service {
     private readonly _discountMessage = signal<string | null>(null);
     private readonly _discountApplying = signal(false);
     private readonly _appliedDiscountResponse = signal<ApplyDiscountResponseDto | null>(null);
+    private readonly _selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
 
     readonly appliedDiscount = this._appliedDiscount.asReadonly();
     readonly discountMessage = this._discountMessage.asReadonly();
     readonly discountApplying = this._discountApplying.asReadonly();
     readonly appliedDiscountResponse = this._appliedDiscountResponse.asReadonly();
+    readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
 
     lineItems = computed<LineItem[]>(() => {
         const items: LineItem[] = [];
@@ -125,6 +127,51 @@ export class PaymentV2Service {
     });
 
     monthLabel(): string { return this.arbIntervalLength() === 1 ? 'month' : 'months'; }
+
+    // ── Payment method (CC vs Check) ────────────────────────────────────
+    isCheckOnly = computed(() => this.jobCtx.paymentMethodsAllowedCode() === 3);
+    showPaymentMethodSelector = computed(() => this.jobCtx.paymentMethodsAllowedCode() === 2);
+    isCheckPayment = computed(() => this._selectedPaymentMethod() === 'Check');
+    isCcPayment = computed(() => this._selectedPaymentMethod() === 'CC');
+    payTo = computed(() => this.jobCtx.payTo());
+    mailTo = computed(() => this.jobCtx.mailTo());
+    mailinPaymentWarning = computed(() => this.jobCtx.mailinPaymentWarning());
+
+    /** Total processing fees across all line items (from existing registrations). */
+    totalProcessingFees = computed(() => {
+        let sum = 0;
+        for (const li of this.lineItems()) {
+            const reg = this.getExistingRegistration(li.playerId);
+            if (reg?.financials) {
+                sum += toNumber(reg.financials.feeProcessing);
+            }
+        }
+        return sum;
+    });
+
+    /** Amount saved by paying with check instead of CC. */
+    processingFeeSavings = computed(() =>
+        this.jobCtx.bAddProcessingFees() ? this.totalProcessingFees() : 0
+    );
+
+    /** Check payment amount (total minus processing fees). */
+    checkTotal = computed(() => Math.max(0, this.currentTotal() - this.processingFeeSavings()));
+
+    selectPaymentMethod(method: 'CC' | 'Check'): void {
+        this._selectedPaymentMethod.set(method);
+    }
+
+    /**
+     * Initialize payment method based on job config.
+     * Called after job metadata loads. Defaults to Check if check-only.
+     */
+    initPaymentMethod(): void {
+        if (this.jobCtx.paymentMethodsAllowedCode() === 3) {
+            this._selectedPaymentMethod.set('Check');
+        } else {
+            this._selectedPaymentMethod.set('CC');
+        }
+    }
 
     resetDiscount(): void {
         this._appliedDiscount.set(0);

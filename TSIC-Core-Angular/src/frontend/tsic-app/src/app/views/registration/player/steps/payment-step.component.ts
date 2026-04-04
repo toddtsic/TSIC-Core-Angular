@@ -1,6 +1,6 @@
 import {
     ChangeDetectionStrategy, Component, DestroyRef, ElementRef, ViewChild,
-    AfterViewInit, OnDestroy, inject, signal, computed, output,
+    AfterViewInit, OnInit, OnDestroy, inject, signal, computed, output,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgClass, CurrencyPipe, DatePipe } from '@angular/common';
@@ -185,7 +185,7 @@ import type { LineItem } from '../state/payment-v2.service';
             [quotedPlayers]="viQuotedPlayers()"
             [premiumTotal]="viPremiumTotal()"
             [email]="viCcEmail()"
-            [viCcOnlyFlow]="isViCcOnlyFlow()"
+            [viCcOnlyFlow]="isViCcOnlyFlow() || isViCheckHybridFlow()"
             (cancelled)="cancelViConfirm()"
             (confirmed)="confirmViAndContinue()" />
         }
@@ -243,7 +243,36 @@ import type { LineItem } from '../state/payment-v2.service';
           }
         }
 
-        <!-- Credit card form -->
+        <!-- ═══ PAYMENT METHOD SELECTOR (CC or Check) ═══ -->
+        @if (showMethodSelector()) {
+          <div class="method-selector mb-3">
+            <label class="form-label fw-semibold mb-2">Payment Method</label>
+            <div class="d-flex gap-2">
+              <button type="button" class="method-btn"
+                      [class.active]="isCc()"
+                      (click)="selectMethod('CC')">
+                <i class="bi bi-credit-card me-2"></i>Credit Card
+              </button>
+              <button type="button" class="method-btn"
+                      [class.active]="isCheck()"
+                      (click)="selectMethod('Check')">
+                <i class="bi bi-envelope-paper me-2"></i>Pay by Check
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Processing fee savings callout -->
+        @if (isCheck() && processingFeeSavings() > 0) {
+          <div class="alert alert-success border-0 d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-piggy-bank fs-5"></i>
+            <div>
+              <strong>Save {{ processingFeeSavings() | currency }}</strong> in processing fees by paying with check.
+            </div>
+          </div>
+        }
+
+        <!-- ═══ CREDIT CARD FORM ═══ -->
         @if (showCcSection()) {
           @if (isViCcOnlyFlow()) {
             <div class="alert alert-warning border-0 mb-3" role="status">
@@ -252,16 +281,59 @@ import type { LineItem } from '../state/payment-v2.service';
               <strong>Proceed with Insurance Processing</strong>.
             </div>
           }
+          @if (isViCheckHybridFlow()) {
+            <div class="alert alert-info border-0 mb-3" role="status">
+              <span class="badge bg-info-subtle text-info-emphasis border me-1">Insurance Premium</span>
+              Your registration will be paid by check. The credit card below is <strong>only</strong> for your
+              insurance premium ({{ viPremiumTotal() | currency }}) charged by Vertical Insure.
+            </div>
+          }
           <app-credit-card-form
             (validChange)="onCcValidChange($event)"
             (valueChange)="onCcValueChange($event)"
-            [viOnly]="isViCcOnlyFlow()"
+            [viOnly]="isViCcOnlyFlow() || isViCheckHybridFlow()"
             [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
             [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
             [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"
             [defaultZip]="familyUser()?.zipCode ?? familyUser()?.zip ?? familyUser()?.ccInfo?.zip ?? null"
             [defaultEmail]="familyUser()?.ccInfo?.email ?? familyUser()?.email ?? (familyUser()?.userName?.includes('@') ? familyUser()!.userName : null)"
             [defaultPhone]="familyUser()?.ccInfo?.phone ?? familyUser()?.phone ?? null" />
+        }
+
+        <!-- ═══ CHECK PAYMENT INSTRUCTIONS ═══ -->
+        @if (showCheckSection()) {
+          <section class="check-instructions p-3 p-sm-4 mb-3 rounded-3">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-envelope-paper me-2 text-primary"></i>Check Payment Instructions</h6>
+
+            @if (payTo()) {
+              <div class="check-field">
+                <span class="check-label">Make check payable to:</span>
+                <span class="check-value">{{ payTo() }}</span>
+              </div>
+            }
+
+            @if (mailTo()) {
+              <div class="check-field">
+                <span class="check-label">Mail to:</span>
+                <span class="check-value check-address">{{ mailTo() }}</span>
+              </div>
+            }
+
+            <div class="check-field">
+              <span class="check-label">Amount:</span>
+              <span class="check-value fw-bold text-primary">{{ checkTotal() | currency }}</span>
+            </div>
+
+            @if (mailinPaymentWarning()) {
+              <div class="alert alert-warning border-0 mt-3 mb-0 small">
+                <i class="bi bi-exclamation-triangle me-1"></i>{{ mailinPaymentWarning() }}
+              </div>
+            }
+
+            <div class="text-muted small mt-3">
+              <i class="bi bi-info-circle me-1"></i>Your registration will be held pending receipt of payment.
+            </div>
+          </section>
         }
 
         <!-- Submit buttons -->
@@ -288,15 +360,87 @@ import type { LineItem } from '../state/payment-v2.service';
               }
             </button>
           }
+          @if (showCheckSection()) {
+            <button type="button" class="btn btn-primary"
+                    (click)="submitCheck()"
+                    [disabled]="submitting() || (isViCheckHybridFlow() && !ccValid())">
+              @if (submitting()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+              } @else if (isViCheckHybridFlow()) {
+                <i class="bi bi-envelope-paper me-2"></i>Complete Registration &amp; Process Insurance
+              } @else {
+                <i class="bi bi-envelope-paper me-2"></i>Complete Registration
+              }
+            </button>
+          }
           <!-- Zero-balance / ARB Continue handled by shell top-right button -->
         </div>
       </div>
     </div>
   `,
-    styles: [`:host { display: block; }`],
+    styles: [`
+      :host { display: block; }
+
+      .method-selector .method-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-2) var(--space-3);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        color: var(--brand-text);
+        font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover { border-color: var(--bs-primary); }
+
+        &.active {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.08);
+          color: var(--bs-primary);
+          font-weight: var(--font-weight-semibold);
+          box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
+        }
+      }
+
+      .check-instructions {
+        background: rgba(var(--bs-info-rgb), 0.04);
+        border: 1px solid rgba(var(--bs-info-rgb), 0.15);
+      }
+
+      .check-field {
+        display: flex;
+        gap: var(--space-2);
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
+
+        &:last-of-type { border-bottom: none; }
+      }
+
+      .check-label {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+        min-width: 140px;
+      }
+
+      .check-value {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .check-address {
+        white-space: pre-line;
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PaymentStepComponent implements AfterViewInit, OnDestroy {
+export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;
     readonly advance = output<void>();
 
@@ -322,6 +466,7 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
 
     private lastIdemKey: string | null = null;
     private pendingSubmitAfterViConfirm = false;
+    private pendingCheckSubmit = false;
     private viInitRetries = 0;
     private viInitTimeout?: ReturnType<typeof setTimeout>;
 
@@ -352,11 +497,30 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
         && this.insuranceSvc.quotes().length > 0,
     );
 
-    readonly showPayNowButton = computed(() => this.tsicChargeDueNow());
-    readonly showCcSection = computed(() =>
-        this.tsicChargeDueNow() || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0),
+    /** Check payment selected + VI insurance confirmed — hybrid: check for reg, CC for insurance. */
+    readonly isViCheckHybridFlow = computed(() =>
+        this.tsicChargeDueNow()
+        && this.paySvc.isCheckPayment()
+        && this.insuranceState.offerPlayerRegSaver()
+        && this.insuranceState.verticalInsureConfirmed()
+        && this.insuranceSvc.quotes().length > 0,
     );
+
+    readonly showPayNowButton = computed(() => this.tsicChargeDueNow() && this.paySvc.isCcPayment());
+    readonly showCcSection = computed(() =>
+        (this.tsicChargeDueNow() && this.paySvc.isCcPayment())
+        || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0),
+    );
+    readonly showCheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isCheckPayment());
     readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow());
+    readonly showMethodSelector = computed(() => this.paySvc.showPaymentMethodSelector() && this.tsicChargeDueNow());
+    readonly isCc = computed(() => this.paySvc.isCcPayment());
+    readonly isCheck = computed(() => this.paySvc.isCheckPayment());
+    readonly processingFeeSavings = computed(() => this.paySvc.processingFeeSavings());
+    readonly checkTotal = computed(() => this.paySvc.checkTotal());
+    readonly payTo = computed(() => this.paySvc.payTo());
+    readonly mailTo = computed(() => this.paySvc.mailTo());
+    readonly mailinPaymentWarning = computed(() => this.paySvc.mailinPaymentWarning());
 
     readonly canSubmit = computed(() => {
         if (this.arbHideAllOptions()) return false;
@@ -376,6 +540,10 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
     readonly viCcEmail = computed(() => this.familyUser()?.userName || '');
 
     // ── Lifecycle ────────────────────────────────────────────────────────
+    ngOnInit(): void {
+        this.paySvc.initPaymentMethod();
+    }
+
     ngAfterViewInit(): void {
         this.loadStoredIdem();
         this.simpleHydrateFromCc(this.familyUser()?.ccInfo);
@@ -401,6 +569,58 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
     onCcValidChange(valid: boolean): void { this.ccValid.set(!!valid); }
     onCcValueChange(val: Partial<CreditCardFormValue>): void {
         this._creditCard.update(c => ({ ...c, ...val }));
+    }
+
+    // ── Payment method (CC vs Check) ───────────────────────────────────
+    selectMethod(method: 'CC' | 'Check'): void {
+        this.paySvc.selectPaymentMethod(method);
+        this.lastError.set(null);
+    }
+
+    /** Check payment — record intent (and process insurance if hybrid flow). */
+    submitCheck(): void {
+        if (this.submitting()) return;
+
+        // Hybrid flow: check + VI insurance — show charge confirmation first
+        if (this.isViCheckHybridFlow() && this.insuranceSvc.quotes().length > 0) {
+            this.pendingSubmitAfterViConfirm = true;
+            this.pendingCheckSubmit = true;
+            this.showViChargeConfirm.set(true);
+            return;
+        }
+
+        this.finalizeCheckSubmit();
+    }
+
+    private finalizeCheckSubmit(): void {
+        this.submitting.set(true);
+
+        if (this.isViCheckHybridFlow()) {
+            // Check for registration + CC for insurance premium
+            this.insuranceSvc.purchaseInsurance(this._creditCard(), (msg) => {
+                try {
+                    this.paymentState.setLastPayment({
+                        option: this.paymentState.paymentOption(),
+                        amount: this.checkTotal(),
+                        message: 'Payment by check \u2014 pending receipt. ' + (msg || ''),
+                        paymentMethod: 'Check',
+                        viPolicyNumber: this.insuranceState.viConsent()?.policyNumber ?? null,
+                        viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
+                    });
+                } catch (e) { console.warn('[Payment] setLastPayment (check+VI) failed', e); }
+                this.submitting.set(false);
+                this.advance.emit();
+            });
+        } else {
+            this.paymentState.setLastPayment({
+                option: this.paymentState.paymentOption(),
+                amount: this.checkTotal(),
+                message: 'Payment by check \u2014 pending receipt',
+                paymentMethod: 'Check',
+            });
+            this.submitting.set(false);
+            this.advance.emit();
+        }
     }
 
     // ── Payment option ──────────────────────────────────────────────────
@@ -499,6 +719,7 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
     cancelViConfirm(): void {
         this.showViChargeConfirm.set(false);
         this.pendingSubmitAfterViConfirm = false;
+        this.pendingCheckSubmit = false;
     }
 
     confirmViAndContinue(): void {
@@ -506,7 +727,11 @@ export class PaymentStepComponent implements AfterViewInit, OnDestroy {
         if (!this.pendingSubmitAfterViConfirm) return;
         this.pendingSubmitAfterViConfirm = false;
 
-        if (this.isViCcOnlyFlow()) {
+        if (this.pendingCheckSubmit) {
+            // Hybrid flow: check registration + CC insurance
+            this.pendingCheckSubmit = false;
+            this.finalizeCheckSubmit();
+        } else if (this.isViCcOnlyFlow()) {
             this.insuranceSvc.purchaseInsurance(this._creditCard(), msg => {
                 try {
                     this.paymentState.setLastPayment({

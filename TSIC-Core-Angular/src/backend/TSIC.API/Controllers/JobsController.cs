@@ -96,7 +96,12 @@ public class JobsController : ControllerBase
             BEnableStore = jobMetadata.BEnableStore,
             BScheduleAllowPublicAccess = jobMetadata.BScheduleAllowPublicAccess,
             BBannerIsCustom = jobMetadata.BBannerIsCustom,
-            JobTypeName = jobMetadata.JobTypeName
+            JobTypeName = jobMetadata.JobTypeName,
+            PaymentMethodsAllowedCode = jobMetadata.PaymentMethodsAllowedCode,
+            BAddProcessingFees = jobMetadata.BAddProcessingFees,
+            PayTo = jobMetadata.PayTo,
+            MailTo = jobMetadata.MailTo,
+            MailinPaymentWarning = jobMetadata.MailinPaymentWarning
         };
 
         return Ok(response);

@@ -96,6 +96,7 @@ export interface PaymentSummary {
     viPolicyNumber?: string | null;
     viPolicyCreateDate?: string | null;
     message?: string | null;
+    paymentMethod?: 'CC' | 'Check';
 }
 
 // ── JSON helper type (avoids `any`/`unknown` in public fields) ────────

@@ -52,6 +52,18 @@ export class JobContextService {
     readonly adnArbIntervalLength = this._adnArbIntervalLength.asReadonly();
     readonly adnArbStartDate = this._adnArbStartDate.asReadonly();
 
+    // ── Payment method restrictions (1=CC only, 2=CC or Check, 3=Check only) ──
+    private readonly _paymentMethodsAllowedCode = signal<number>(1);
+    private readonly _bAddProcessingFees = signal(false);
+    private readonly _payTo = signal<string | null>(null);
+    private readonly _mailTo = signal<string | null>(null);
+    private readonly _mailinPaymentWarning = signal<string | null>(null);
+    readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
+    readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
+    readonly payTo = this._payTo.asReadonly();
+    readonly mailTo = this._mailTo.asReadonly();
+    readonly mailinPaymentWarning = this._mailinPaymentWarning.asReadonly();
+
     // ── Discount/Amex flags (from /family/players response) ───────────
     private readonly _jobHasActiveDiscountCodes = signal(false);
     private readonly _jobUsesAmex = signal(false);
@@ -141,6 +153,14 @@ export class JobContextService {
                     this._adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
                     this._adnArbStartDate.set(start ? String(start) : null);
                     this._paymentOption.set(this._adnArb() ? 'ARB' : 'PIF');
+
+                    // Payment method restrictions
+                    const pmCode = getPropertyCI<number>(m, 'paymentMethodsAllowedCode');
+                    this._paymentMethodsAllowedCode.set(typeof pmCode === 'number' ? pmCode : 1);
+                    this._bAddProcessingFees.set(!!getPropertyCI<boolean>(m, 'bAddProcessingFees'));
+                    this._payTo.set(getPropertyCI<string>(m, 'payTo') ?? null);
+                    this._mailTo.set(getPropertyCI<string>(m, 'mailTo') ?? null);
+                    this._mailinPaymentWarning.set(getPropertyCI<string>(m, 'mailinPaymentWarning') ?? null);
 
                     // RegSaver insurance offer flag
                     const offer = getPropertyCI<boolean>(m, 'offerPlayerRegsaverInsurance');
@@ -275,6 +295,11 @@ export class JobContextService {
         this._adnArbBillingOccurences.set(null);
         this._adnArbIntervalLength.set(null);
         this._adnArbStartDate.set(null);
+        this._paymentMethodsAllowedCode.set(1);
+        this._bAddProcessingFees.set(false);
+        this._payTo.set(null);
+        this._mailTo.set(null);
+        this._mailinPaymentWarning.set(null);
         this._jobHasActiveDiscountCodes.set(false);
         this._jobUsesAmex.set(false);
         this._offerPlayerRegSaver.set(false);

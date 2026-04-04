@@ -37,4 +37,10 @@ public class JobMetadataResponse
     public bool BBannerIsCustom { get; set; }
     // Job type (e.g. "Players", "League", "Tournament")
     public string? JobTypeName { get; set; }
+    // Payment method restrictions (1=CC only, 2=CC or Check, 3=Check only)
+    public int PaymentMethodsAllowedCode { get; set; }
+    public bool BAddProcessingFees { get; set; }
+    public string? PayTo { get; set; }
+    public string? MailTo { get; set; }
+    public string? MailinPaymentWarning { get; set; }
 }
