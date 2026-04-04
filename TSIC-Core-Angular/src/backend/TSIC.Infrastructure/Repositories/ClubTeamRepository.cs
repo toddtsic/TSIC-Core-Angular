@@ -21,9 +21,13 @@ public class ClubTeamRepository : IClubTeamRepository
         int clubId,
         CancellationToken cancellationToken = default)
     {
+        // Deduplicate: same team entered at different LOPs across events creates separate rows.
+        // Group by identity (ClubId + Name + GradYear), take the row with the highest LOP.
         return await _context.ClubTeams
             .Where(ct => ct.ClubId == clubId)
             .AsNoTracking()
+            .GroupBy(ct => new { ct.ClubId, ct.ClubTeamName, ct.ClubTeamGradYear })
+            .Select(g => g.OrderByDescending(ct => ct.ClubTeamLevelOfPlay).First())
             .ToListAsync(cancellationToken);
     }
 
@@ -34,6 +38,19 @@ public class ClubTeamRepository : IClubTeamRepository
         return await _context.ClubTeams
             .Where(ct => ct.ClubTeamId == clubTeamId)
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<ClubTeams?> FindByIdentityAsync(
+        int clubId, string clubTeamName, string clubTeamGradYear,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ClubTeams
+            .Where(ct => ct.ClubId == clubId
+                && ct.ClubTeamName == clubTeamName
+                && ct.ClubTeamGradYear == clubTeamGradYear)
+            .OrderByDescending(ct => ct.ClubTeamLevelOfPlay)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public void Add(ClubTeams clubTeam)

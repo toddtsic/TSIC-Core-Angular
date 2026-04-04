@@ -132,7 +132,12 @@ public class JobRepository : IJobRepository
                 BEnableStore = jdo.Job.BEnableStore ?? false,
                 BScheduleAllowPublicAccess = jdo.Job.BScheduleAllowPublicAccess ?? false,
                 BBannerIsCustom = jdo.ParallaxSlideCount > 0,
-                JobTypeName = jdo.Job.JobType.JobTypeName
+                JobTypeName = jdo.Job.JobType.JobTypeName,
+                PaymentMethodsAllowedCode = jdo.Job.PaymentMethodsAllowedCode,
+                BAddProcessingFees = jdo.Job.BAddProcessingFees,
+                PayTo = jdo.Job.PayTo,
+                MailTo = jdo.Job.MailTo,
+                MailinPaymentWarning = jdo.Job.MailinPaymentWarning
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -265,7 +270,10 @@ public class JobRepository : IJobRepository
                 BApplyProcessingFeesToTeamDeposit = j.BApplyProcessingFeesToTeamDeposit,
                 PaymentMethodsAllowedCode = j.PaymentMethodsAllowedCode,
                 PlayerRegRefundPolicy = j.PlayerRegRefundPolicy,
-                Season = j.Season ?? ""
+                Season = j.Season ?? "",
+                PayTo = j.PayTo,
+                MailTo = j.MailTo,
+                MailinPaymentWarning = j.MailinPaymentWarning,
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

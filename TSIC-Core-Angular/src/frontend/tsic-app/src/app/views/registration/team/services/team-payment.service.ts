@@ -39,6 +39,9 @@ export class TeamPaymentService {
     private readonly _bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
     private readonly _jobPath = signal<string>('');
     private readonly _selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
+    private readonly _payTo = signal<string | null>(null);
+    private readonly _mailTo = signal<string | null>(null);
+    private readonly _mailinPaymentWarning = signal<string | null>(null);
     private readonly _appliedDiscountResponse = signal<ApplyTeamDiscountResponseDto | null>(null);
     private readonly _discountMessage = signal<string>('');
     private readonly _discountApplying = signal<boolean>(false);
@@ -49,16 +52,25 @@ export class TeamPaymentService {
     readonly bApplyProcessingFeesToTeamDeposit = this._bApplyProcessingFeesToTeamDeposit.asReadonly();
     readonly jobPath = this._jobPath.asReadonly();
     readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
+    readonly payTo = this._payTo.asReadonly();
+    readonly mailTo = this._mailTo.asReadonly();
+    readonly mailinPaymentWarning = this._mailinPaymentWarning.asReadonly();
     readonly appliedDiscountResponse = this._appliedDiscountResponse.asReadonly();
     readonly discountMessage = this._discountMessage.asReadonly();
     readonly discountApplying = this._discountApplying.asReadonly();
 
     // Controlled mutators
     setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }
-    setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean): void {
+    setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean,
+        payTo?: string | null, mailTo?: string | null, mailinPaymentWarning?: string | null): void {
         this._paymentMethodsAllowedCode.set(code);
         this._bAddProcessingFees.set(addFees);
         this._bApplyProcessingFeesToTeamDeposit.set(applyToDeposit);
+        this._payTo.set(payTo ?? null);
+        this._mailTo.set(mailTo ?? null);
+        this._mailinPaymentWarning.set(mailinPaymentWarning ?? null);
+        // Default to Check if check-only
+        if (code === 3) this._selectedPaymentMethod.set('Check');
     }
     setJobPath(value: string): void { this._jobPath.set(value); }
     selectPaymentMethod(method: 'CC' | 'Check'): void { this._selectedPaymentMethod.set(method); }
@@ -114,6 +126,11 @@ export class TeamPaymentService {
             .filter(item => item.owedTotal > 0)
             .map(item => item.teamId)
     );
+
+    // Payment method state
+    isCheckPayment = computed(() => this.selectedPaymentMethod() === 'Check');
+    isCcPayment = computed(() => this.selectedPaymentMethod() === 'CC');
+    isCheckOnly = computed(() => this.paymentMethodsAllowedCode() === 3);
 
     // Column visibility flags
     showPaymentMethodSelector = computed(() => this.paymentMethodsAllowedCode() === 2);
@@ -205,6 +222,9 @@ export class TeamPaymentService {
         this._bApplyProcessingFeesToTeamDeposit.set(false);
         this._selectedPaymentMethod.set('CC');
         this._jobPath.set('');
+        this._payTo.set(null);
+        this._mailTo.set(null);
+        this._mailinPaymentWarning.set(null);
         this.resetDiscount();
     }
 }

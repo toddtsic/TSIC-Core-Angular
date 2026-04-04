@@ -180,17 +180,17 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
         const user = this.authService.getCurrentUser();
         if (!user) return;
 
+        const intendedDestination = this._computeReturnUrl(user.jobPath);
+
+        // Check if TOS signature is required — applies to ALL login flows (embedded or standalone)
+        if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, intendedDestination)) {
+          return; // TOS navigation happened
+        }
+
         // Embedded mode: parent owns post-login flow — just signal success
         if (this.embedded) {
           this.loginSuccess.emit();
           return;
-        }
-
-        const intendedDestination = this._computeReturnUrl(user.jobPath);
-
-        // Check if TOS signature is required (centralized helper)
-        if (this.authService.checkAndNavigateToTosIfRequired(response, this.router, intendedDestination)) {
-          return; // TOS navigation happened
         }
 
         // Phase 1 only (no regId) — route through role-selection, preserving returnUrl

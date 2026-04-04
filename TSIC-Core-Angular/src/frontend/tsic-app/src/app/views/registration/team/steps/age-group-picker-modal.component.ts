@@ -1,7 +1,13 @@
-import { ChangeDetectionStrategy, Component, Input, output, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnInit, output, signal, computed } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { AgeGroupDto } from '@core/api';
+
+export interface AgeGroupSelection {
+    ageGroupId: string;
+    levelOfPlay: string;
+}
 
 /**
  * Age-group picker modal — full visual treatment with staggered pill animations.
@@ -10,7 +16,7 @@ import type { AgeGroupDto } from '@core/api';
 @Component({
     selector: 'app-age-group-picker-modal',
     standalone: true,
-    imports: [CurrencyPipe, TsicDialogComponent],
+    imports: [CurrencyPipe, FormsModule, TsicDialogComponent],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
       <div class="modal-content picker-modal">
@@ -20,9 +26,6 @@ import type { AgeGroupDto } from '@core/api';
           <div class="picker-hero-inner">
             <i class="bi bi-people-fill picker-hero-icon"></i>
             <h5 class="picker-team-name">{{ teamName }}</h5>
-            @if (levelOfPlay) {
-              <span class="picker-lop-badge">LOP {{ levelOfPlay }}</span>
-            }
           </div>
           <p class="picker-tip">
             @if (currentAgeGroupId) {
@@ -36,31 +39,55 @@ import type { AgeGroupDto } from '@core/api';
           </p>
         </div>
 
+        <!-- LOP selector (only when event defines LOP options) -->
+        @if (lopOptions.length > 0) {
+          <div class="lop-selector">
+            <label class="lop-label">Level of Play</label>
+            <div class="lop-pills">
+              @for (lop of lopOptions; track lop) {
+                <button type="button" class="lop-pill"
+                        [class.active]="selectedLop() === lop"
+                        (click)="selectedLop.set(lop)">
+                  {{ lop }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Age group pills -->
         <div class="picker-body">
           <div class="picker-pill-grid" role="radiogroup" [attr.aria-label]="'Age groups for ' + teamName">
             @for (ag of pills(); track ag.ageGroupId; let i = $index) {
-              <button type="button" class="picker-pill" role="radio"
-                      [class.is-recommended]="ag.isRecommended"
-                      [class.is-selected]="ag.ageGroupId === currentAgeGroupId"
-                      [class.is-full]="ag.isFull"
-                      [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
-                      [class.is-flashing]="flashingId() === ag.ageGroupId"
-                      [attr.aria-checked]="ag.ageGroupId === currentAgeGroupId"
-                      [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
-                      [style.animation-delay]="(200 + (i * 40)) + 'ms'"
-                      (click)="onPillClick(ag.ageGroupId)">
-                <span class="pill-name">
-                  {{ ag.ageGroupName }}
-                  @if (ag.isRecommended) { <i class="bi bi-star-fill pill-star"></i> }
-                  @if (ag.ageGroupId === currentAgeGroupId) { <i class="bi bi-check-circle-fill pill-current"></i> }
-                </span>
-                <span class="pill-fee">{{ ag.fee | currency }}</span>
-                <span class="pill-spots" [class.text-warning]="ag.isAlmostFull && !ag.isFull" [class.text-danger]="ag.isFull">
-                  @if (ag.isFull) { <i class="bi bi-exclamation-circle me-1"></i>Waitlist }
-                  @else { {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }} }
-                </span>
-              </button>
+              <div class="pill-flip-wrapper" [style.animation-delay]="(200 + (i * 60)) + 'ms'">
+                <button type="button" class="picker-pill" role="radio"
+                        [class.is-recommended]="ag.isRecommended"
+                        [class.is-selected]="ag.ageGroupId === currentAgeGroupId"
+                        [class.is-full]="ag.isFull"
+                        [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
+                        [class.is-flashing]="flashingId() === ag.ageGroupId"
+                        [attr.aria-checked]="ag.ageGroupId === currentAgeGroupId"
+                        [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
+                        (click)="onPillClick(ag.ageGroupId)">
+                  <!-- Card front (content) -->
+                  <span class="pill-face pill-front">
+                    <span class="pill-name">
+                      {{ ag.ageGroupName }}
+                      @if (ag.isRecommended) { <i class="bi bi-star-fill pill-star"></i> }
+                      @if (ag.ageGroupId === currentAgeGroupId) { <i class="bi bi-check-circle-fill pill-current"></i> }
+                    </span>
+                    <span class="pill-fee">{{ ag.fee | currency }}</span>
+                    <span class="pill-spots" [class.text-warning]="ag.isAlmostFull && !ag.isFull" [class.text-danger]="ag.isFull">
+                      @if (ag.isFull) { <i class="bi bi-exclamation-circle me-1"></i>Waitlist }
+                      @else { {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }} }
+                    </span>
+                  </span>
+                  <!-- Card back (blank) -->
+                  <span class="pill-face pill-back">
+                    <i class="bi bi-people-fill"></i>
+                  </span>
+                </button>
+              </div>
             }
           </div>
         </div>
@@ -128,6 +155,51 @@ import type { AgeGroupDto } from '@core/api';
         i { font-size: 8px; color: var(--bs-primary); }
       }
 
+      /* ── LOP Selector ── */
+      .lop-selector {
+        padding: var(--space-3) var(--space-4) 0;
+        background: var(--bs-body-bg);
+      }
+
+      .lop-label {
+        display: block;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text-muted);
+        margin-bottom: var(--space-2);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .lop-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+      }
+
+      .lop-pill {
+        padding: var(--space-1) var(--space-3);
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-full);
+        background: var(--brand-surface);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: all 0.12s ease;
+        min-width: 36px;
+        text-align: center;
+
+        &:hover { border-color: var(--bs-primary); }
+
+        &.active {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.1);
+          color: var(--bs-primary);
+          font-weight: var(--font-weight-semibold);
+        }
+      }
+
       /* ── Pill Grid ── */
       .picker-body {
         padding: var(--space-4);
@@ -140,15 +212,21 @@ import type { AgeGroupDto } from '@core/api';
         flex-wrap: wrap;
         justify-content: center;
         gap: var(--space-3);
+        perspective: 800px;
+      }
+
+      /* Flip wrapper — handles the 3D card-flip entrance */
+      .pill-flip-wrapper {
+        animation: pillFlipIn 0.5s ease-out backwards;
+        transform-style: preserve-3d;
       }
 
       .picker-pill {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
-        padding: var(--space-2) var(--space-3);
         border-radius: var(--radius-lg);
         border: 2px solid var(--border-color);
         background: var(--brand-surface);
@@ -156,10 +234,8 @@ import type { AgeGroupDto } from '@core/api';
         min-width: 110px;
         min-height: 60px;
         box-shadow: var(--shadow-xs);
-        transition: all 0.15s ease;
-
-        /* Staggered entrance — animation-delay set inline */
-        animation: pillEnter 0.25s ease-out backwards;
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        transform-style: preserve-3d;
 
         &:hover:not(:disabled):not(.is-full) {
           border-color: var(--bs-primary);
@@ -201,6 +277,35 @@ import type { AgeGroupDto } from '@core/api';
         }
 
         &:disabled { cursor: default; }
+      }
+
+      /* Card faces */
+      .pill-face {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: var(--space-2) var(--space-3);
+        backface-visibility: hidden;
+      }
+
+      .pill-front {
+        /* Normal flow — visible after flip */
+      }
+
+      .pill-back {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-lg);
+        background: linear-gradient(135deg, var(--bs-primary), rgba(var(--bs-primary-rgb), 0.7));
+        color: rgba(255, 255, 255, 0.4);
+        font-size: var(--font-size-2xl);
+        transform: rotateY(180deg);
+        backface-visibility: hidden;
       }
 
       .pill-name {
@@ -245,9 +350,10 @@ import type { AgeGroupDto } from '@core/api';
         to   { opacity: 1; }
       }
 
-      @keyframes pillEnter {
-        from { opacity: 0; transform: translateY(10px) scale(0.95); }
-        to   { opacity: 1; transform: translateY(0) scale(1); }
+      @keyframes pillFlipIn {
+        0%   { opacity: 0; transform: rotateY(180deg) scale(0.8); }
+        40%  { opacity: 1; }
+        100% { transform: rotateY(0deg) scale(1); }
       }
 
       @keyframes pillFlash {
@@ -258,31 +364,36 @@ import type { AgeGroupDto } from '@core/api';
 
       /* ── Mobile ── */
       @media (max-width: 575.98px) {
+        .pill-flip-wrapper {
+          flex: 1 1 calc(50% - var(--space-3));
+        }
         .picker-pill {
           min-width: unset;
-          flex: 1 1 calc(50% - var(--space-3));
+          width: 100%;
           min-height: 56px;
         }
       }
 
       /* ── Reduced Motion ── */
       @media (prefers-reduced-motion: reduce) {
-        .picker-hero, .picker-tip, .picker-pill { animation: none; }
+        .picker-hero, .picker-tip, .pill-flip-wrapper { animation: none; }
         .picker-pill { transition: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AgeGroupPickerModalComponent {
+export class AgeGroupPickerModalComponent implements OnInit {
     @Input() teamName = '';
     @Input() gradYear = '';
     @Input() levelOfPlay = '';
     @Input() currentAgeGroupId = '';
     @Input() ageGroups: AgeGroupDto[] = [];
+    @Input() lopOptions: string[] = [];
 
-    readonly selected = output<string>();
+    readonly selected = output<AgeGroupSelection>();
     readonly closed = output<void>();
     readonly flashingId = signal<string | null>(null);
+    readonly selectedLop = signal('');
 
     readonly pills = computed(() => {
         const recommended = this.bestMatch();
@@ -302,9 +413,16 @@ export class AgeGroupPickerModalComponent {
 
     readonly hasRecommended = computed(() => this.pills().some(p => p.isRecommended));
 
+    ngOnInit(): void {
+        // Default LOP to current team's LOP, or first option, or empty
+        this.selectedLop.set(
+            this.levelOfPlay || this.lopOptions[0] || ''
+        );
+    }
+
     onPillClick(ageGroupId: string): void {
-        // Same age group — just close
-        if (ageGroupId === this.currentAgeGroupId) {
+        // Same age group and same LOP — just close
+        if (ageGroupId === this.currentAgeGroupId && this.selectedLop() === this.levelOfPlay) {
             this.closed.emit();
             return;
         }
@@ -312,7 +430,7 @@ export class AgeGroupPickerModalComponent {
         // Flash the pill, then emit after animation
         this.flashingId.set(ageGroupId);
         setTimeout(() => {
-            this.selected.emit(ageGroupId);
+            this.selected.emit({ ageGroupId, levelOfPlay: this.selectedLop() });
         }, 250);
     }
 

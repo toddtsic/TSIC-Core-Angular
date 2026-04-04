@@ -350,6 +350,30 @@ public class TeamRegistrationService : ITeamRegistrationService
             };
         }
 
+        // Parse LOP options from job's JsonOptions
+        var lopOptions = new List<string>();
+        var jobMetadata = await _jobs.GetJobMetadataAsync(jobId);
+        if (!string.IsNullOrWhiteSpace(jobMetadata?.JsonOptions))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(jobMetadata.JsonOptions);
+                if (doc.RootElement.TryGetProperty("List_Lops", out var lopsElement)
+                    && lopsElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var item in lopsElement.EnumerateArray())
+                    {
+                        var value = item.TryGetProperty("Value", out var v) ? v.GetString()
+                                  : item.TryGetProperty("value", out var v2) ? v2.GetString()
+                                  : null;
+                        if (!string.IsNullOrWhiteSpace(value))
+                            lopOptions.Add(value);
+                    }
+                }
+            }
+            catch { /* malformed JSON — return empty list */ }
+        }
+
         return new TeamsMetadataResponse
         {
             ClubId = effectiveClubId,
@@ -365,7 +389,11 @@ public class TeamRegistrationService : ITeamRegistrationService
             BAddProcessingFees = job.BAddProcessingFees ?? false,
             BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
             HasActiveDiscountCodes = (await _discountCodeRepo.GetActiveCodesForJobAsync(jobId, DateTime.UtcNow)).Any(),
-            ClubRepContactInfo = clubRepContactInfo
+            ClubRepContactInfo = clubRepContactInfo,
+            PayTo = job.PayTo,
+            MailTo = job.MailTo,
+            MailinPaymentWarning = job.MailinPaymentWarning,
+            LopOptions = lopOptions,
         };
     }
 
@@ -693,12 +721,43 @@ public class TeamRegistrationService : ITeamRegistrationService
         if (club == null)
             throw new InvalidOperationException("No club found for this user.");
 
+        var name = request.ClubTeamName.Trim();
+        var gradYear = request.ClubTeamGradYear.Trim();
+        var lop = request.LevelOfPlay?.Trim();
+
+        // Check for existing team with same identity (name + grad year) — single SQL query
+        var match = await _clubTeams.FindByIdentityAsync(club.ClubId, name, gradYear);
+
+        if (match != null)
+        {
+            // Update LOP if the new value is higher
+            if (!string.IsNullOrEmpty(lop) &&
+                string.Compare(lop, match.ClubTeamLevelOfPlay ?? "", StringComparison.OrdinalIgnoreCase) > 0)
+            {
+                var tracked = await _clubTeams.GetByIdAsync(match.ClubTeamId);
+                if (tracked != null)
+                {
+                    tracked.ClubTeamLevelOfPlay = lop;
+                    tracked.Modified = DateTime.UtcNow;
+                    await _clubTeams.SaveChangesAsync();
+                }
+            }
+
+            return new ClubTeamDto
+            {
+                ClubTeamId = match.ClubTeamId,
+                ClubTeamName = match.ClubTeamName,
+                ClubTeamGradYear = match.ClubTeamGradYear,
+                ClubTeamLevelOfPlay = match.ClubTeamLevelOfPlay ?? string.Empty,
+            };
+        }
+
         var entity = new Domain.Entities.ClubTeams
         {
             ClubId = club.ClubId,
-            ClubTeamName = request.ClubTeamName.Trim(),
-            ClubTeamGradYear = request.ClubTeamGradYear.Trim(),
-            ClubTeamLevelOfPlay = request.LevelOfPlay?.Trim(),
+            ClubTeamName = name,
+            ClubTeamGradYear = gradYear,
+            ClubTeamLevelOfPlay = lop,
             Active = true,
             Modified = DateTime.UtcNow,
             LebUserId = userId,

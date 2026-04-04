@@ -91,6 +91,10 @@ public sealed record TeamsMetadataResponse
     public required bool BApplyProcessingFeesToTeamDeposit { get; init; }
     public required bool HasActiveDiscountCodes { get; init; }
     public UserContactInfoDto? ClubRepContactInfo { get; init; }
+    public string? PayTo { get; init; }
+    public string? MailTo { get; init; }
+    public string? MailinPaymentWarning { get; init; }
+    public required List<string> LopOptions { get; init; }
 }
 
 public sealed record ClubTeamDto

@@ -14,8 +14,9 @@ import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/servic
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 
 /**
- * Team Payment step — CC form, discount codes, optional VI insurance.
+ * Team Payment step — CC form, check payment, discount codes.
  * Teams only support Pay-In-Full (no ARB/Deposit).
+ * Respects PaymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only.
  */
 @Component({
     selector: 'app-trw-payment-step',
@@ -97,25 +98,155 @@ import type { CreditCardFormValue } from '@views/registration/shared/types/wizar
             </div>
           }
 
-          <!-- Credit card form -->
-          <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
-                   style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-            <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
-            <app-credit-card-form
-              (validChange)="onCcValidChange($event)"
-              (valueChange)="onCcValueChange($event)" />
-          </section>
+          <!-- ═══ PAYMENT METHOD SELECTOR (CC or Check) ═══ -->
+          @if (showMethodSelector()) {
+            <div class="method-selector mb-3">
+              <label class="form-label fw-semibold mb-2">Payment Method</label>
+              <div class="d-flex gap-2">
+                <button type="button" class="method-btn"
+                        [class.active]="isCc()"
+                        (click)="selectMethod('CC')">
+                  <i class="bi bi-credit-card me-2"></i>Credit Card
+                </button>
+                <button type="button" class="method-btn"
+                        [class.active]="isCheck()"
+                        (click)="selectMethod('Check')">
+                  <i class="bi bi-envelope-paper me-2"></i>Pay by Check
+                </button>
+              </div>
+            </div>
+          }
 
-          <!-- Pay button -->
-          <button type="button" class="btn btn-primary"
-                  (click)="submit()"
-                  [disabled]="!canSubmit()">
-            {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' Now' }}
-          </button>
+          <!-- Processing fee savings callout -->
+          @if (isCheck() && processingFeeSavings() > 0) {
+            <div class="alert alert-success border-0 d-flex align-items-center gap-2 mb-3">
+              <i class="bi bi-piggy-bank fs-5"></i>
+              <div>
+                <strong>Save {{ processingFeeSavings() | currency }}</strong> in processing fees by paying with check.
+              </div>
+            </div>
+          }
+
+          <!-- ═══ CREDIT CARD FORM ═══ -->
+          @if (isCc()) {
+            <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
+                     style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+              <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
+              <app-credit-card-form
+                (validChange)="onCcValidChange($event)"
+                (valueChange)="onCcValueChange($event)" />
+            </section>
+
+            <button type="button" class="btn btn-primary"
+                    (click)="submit()"
+                    [disabled]="!canSubmitCc()">
+              {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' Now' }}
+            </button>
+          }
+
+          <!-- ═══ CHECK PAYMENT INSTRUCTIONS ═══ -->
+          @if (isCheck()) {
+            <section class="check-instructions p-3 p-sm-4 mb-3 rounded-3">
+              <h6 class="fw-semibold mb-3"><i class="bi bi-envelope-paper me-2 text-primary"></i>Check Payment Instructions</h6>
+
+              @if (payTo()) {
+                <div class="check-field">
+                  <span class="check-label">Make check payable to:</span>
+                  <span class="check-value">{{ payTo() }}</span>
+                </div>
+              }
+
+              @if (mailTo()) {
+                <div class="check-field">
+                  <span class="check-label">Mail to:</span>
+                  <span class="check-value check-address">{{ mailTo() }}</span>
+                </div>
+              }
+
+              <div class="check-field">
+                <span class="check-label">Amount:</span>
+                <span class="check-value fw-bold text-primary">{{ checkAmount() | currency }}</span>
+              </div>
+
+              @if (mailinPaymentWarning()) {
+                <div class="alert alert-warning border-0 mt-3 mb-0 small">
+                  <i class="bi bi-exclamation-triangle me-1"></i>{{ mailinPaymentWarning() }}
+                </div>
+              }
+
+              <div class="text-muted small mt-3">
+                <i class="bi bi-info-circle me-1"></i>Your teams are registered. Your registration will be held pending receipt of payment.
+              </div>
+            </section>
+
+            <button type="button" class="btn btn-primary"
+                    (click)="submitCheck()"
+                    [disabled]="submitting()">
+              {{ submitting() ? 'Processing...' : 'Complete Registration' }}
+            </button>
+          }
         }
       </div>
     </div>
   `,
+    styles: [`
+      .method-selector .method-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-2) var(--space-3);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        color: var(--brand-text);
+        font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover { border-color: var(--bs-primary); }
+
+        &.active {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.08);
+          color: var(--bs-primary);
+          font-weight: var(--font-weight-semibold);
+          box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
+        }
+      }
+
+      .check-instructions {
+        background: rgba(var(--bs-info-rgb), 0.04);
+        border: 1px solid rgba(var(--bs-info-rgb), 0.15);
+      }
+
+      .check-field {
+        display: flex;
+        gap: var(--space-2);
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
+
+        &:last-of-type { border-bottom: none; }
+      }
+
+      .check-label {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+        min-width: 140px;
+      }
+
+      .check-value {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .check-address {
+        white-space: pre-line;
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamPaymentStepV2Component {
@@ -138,10 +269,23 @@ export class TeamPaymentStepV2Component {
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
     readonly balanceDue = computed(() => this.state.teamPayment.balanceDue());
     readonly lineItems = computed(() => this.state.teamPayment.lineItems());
+    readonly showMethodSelector = computed(() => this.state.teamPayment.showPaymentMethodSelector());
+    readonly isCc = computed(() => this.state.teamPayment.isCcPayment());
+    readonly isCheck = computed(() => this.state.teamPayment.isCheckPayment());
+    readonly processingFeeSavings = computed(() => this.state.teamPayment.processingFeeSavings());
+    readonly checkAmount = computed(() => this.state.teamPayment.totalCkOwed());
+    readonly payTo = computed(() => this.state.teamPayment.payTo());
+    readonly mailTo = computed(() => this.state.teamPayment.mailTo());
+    readonly mailinPaymentWarning = computed(() => this.state.teamPayment.mailinPaymentWarning());
 
-    readonly canSubmit = computed(() =>
+    readonly canSubmitCc = computed(() =>
         this.hasBalance() && this.ccValid() && !this.submitting(),
     );
+
+    selectMethod(method: 'CC' | 'Check'): void {
+        this.state.teamPayment.selectPaymentMethod(method);
+        this.lastError.set(null);
+    }
 
     onCcValidChange(valid: boolean): void { this.ccValid.set(!!valid); }
     onCcValueChange(val: Partial<CreditCardFormValue>): void {
@@ -161,7 +305,7 @@ export class TeamPaymentStepV2Component {
     }
 
     submit(): void {
-        if (this.submitting() || !this.canSubmit()) return;
+        if (this.submitting() || !this.canSubmitCc()) return;
         this.submitting.set(true);
         this.lastError.set(null);
 
@@ -215,5 +359,18 @@ export class TeamPaymentStepV2Component {
                     this.toast.show(msg, 'danger', 6000);
                 },
             });
+    }
+
+    /** Check payment — no backend call, just record intent and move to review. */
+    submitCheck(): void {
+        if (this.submitting()) return;
+        this.submitting.set(true);
+        this.state.teamPaymentState.setLastPayment({
+            amount: this.checkAmount(),
+            message: 'Payment by check — pending receipt',
+            paymentMethod: 'Check',
+        });
+        this.submitting.set(false);
+        this.submitted.emit();
     }
 }

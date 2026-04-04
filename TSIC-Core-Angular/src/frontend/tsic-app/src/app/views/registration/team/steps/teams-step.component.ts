@@ -6,7 +6,7 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
-import { AgeGroupPickerModalComponent } from './age-group-picker-modal.component';
+import { AgeGroupPickerModalComponent, type AgeGroupSelection } from './age-group-picker-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
@@ -125,14 +125,13 @@ type MiniStep = 'library' | 'select' | 'summary';
             <div class="scroll-list">
               @for (group of libraryByYear(); track group.year) {
                 <div class="year-group-header">
-                  <span class="year-label">{{ group.year }}</span>
+                  <span class="year-label"><i class="bi bi-diagram-3"></i>{{ group.year }}</span>
                   <span class="year-count">{{ group.teams.length }} {{ group.teams.length === 1 ? 'team' : 'teams' }}</span>
                 </div>
                 @for (team of group.teams; track team.clubTeamId) {
                   <div class="lib-row">
                     <i class="bi bi-people-fill lib-icon"></i>
                     <span class="lib-name">{{ team.clubTeamName }}</span>
-                    <span class="lib-level">{{ team.clubTeamLevelOfPlay ? 'LOP ' + team.clubTeamLevelOfPlay : '' }}</span>
                     @if (isEnteredTeam(team.clubTeamId)) {
                       <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
                     }
@@ -240,7 +239,7 @@ type MiniStep = 'library' | 'select' | 'summary';
             <div class="scroll-list">
               @for (group of unregisteredByYear(); track group.year) {
                 <div class="year-group-header">
-                  <span class="year-label">{{ group.year }}</span>
+                  <span class="year-label"><i class="bi bi-diagram-3"></i>{{ group.year }}</span>
                   <span class="year-count">{{ group.teams.length }} {{ group.teams.length === 1 ? 'team' : 'teams' }}</span>
                 </div>
                 @for (team of group.teams; track team.clubTeamId) {
@@ -249,8 +248,8 @@ type MiniStep = 'library' | 'select' | 'summary';
                          (click)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)"
                          (keydown.enter)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)"
                          (keydown.space)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false); $event.preventDefault()">
+                      <i class="bi bi-people-fill lib-icon"></i>
                       <span class="select-name">{{ team.clubTeamName }}</span>
-                      <span class="select-meta">{{ team.clubTeamLevelOfPlay ? 'LOP ' + team.clubTeamLevelOfPlay : '' }}</span>
                       <i class="bi bi-chevron-right select-chevron"></i>
                     </div>
                   </div>
@@ -393,6 +392,7 @@ type MiniStep = 'library' | 'select' | 'summary';
         [levelOfPlay]="pickerTeam.levelOfPlay"
         [currentAgeGroupId]="pickerTeam.currentAgeGroupId ?? ''"
         [ageGroups]="ageGroups()"
+        [lopOptions]="lopOptions()"
         (selected)="onModalAgeGroupSelected(pickerTeam, $event)"
         (closed)="agePickerTeam.set(null)" />
     }
@@ -575,16 +575,27 @@ type MiniStep = 'library' | 'select' | 'summary';
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: var(--space-1) var(--space-4);
+        padding: var(--space-1) var(--space-3);
         background: rgba(var(--bs-primary-rgb), 0.04);
         border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.08);
       }
 
       .year-label {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-bold);
         color: var(--bs-primary);
         letter-spacing: 0.02em;
+
+        > i {
+          font-size: var(--font-size-sm);
+          -webkit-text-stroke: 0.5px currentColor;
+          width: 16px;
+          text-align: center;
+          flex-shrink: 0;
+        }
       }
 
       .year-count {
@@ -592,12 +603,6 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: var(--brand-text-muted);
       }
 
-      .lib-level {
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        white-space: nowrap;
-        margin-left: auto;
-      }
 
       /* ── Step Card ───────────────────────────────── */
       .step-card {
@@ -720,6 +725,8 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: rgba(var(--bs-primary-rgb), 0.4);
         font-size: var(--font-size-sm);
         flex-shrink: 0;
+        width: 16px;
+        text-align: center;
       }
 
       .lib-name {
@@ -860,11 +867,6 @@ type MiniStep = 'library' | 'select' | 'summary';
         min-width: 0;
       }
 
-      .select-meta {
-        color: var(--brand-text-muted);
-        white-space: nowrap;
-        margin-left: auto;
-      }
 
       .select-lop {
         font-size: 10px;
@@ -1071,6 +1073,7 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly error = signal<string | null>(null);
     readonly clubName = signal('your club');
     readonly ageGroups = signal<AgeGroupDto[]>([]);
+    readonly lopOptions = signal<string[]>([]);
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
 
@@ -1161,7 +1164,7 @@ export class TeamTeamsStepComponent implements OnInit {
     });
 
     ngOnInit(): void {
-        this.loadTeamsMetadata();
+        this.loadTeamsMetadata(true);
     }
 
     goToMiniStep(step: MiniStep): void {
@@ -1182,18 +1185,18 @@ export class TeamTeamsStepComponent implements OnInit {
         this.agePickerTeam.set(team);
     }
 
-    /** Step 2: handle age group selection from the modal. */
-    onModalAgeGroupSelected(pickerTeam: AgePickerTeam, ageGroupId: string): void {
+    /** Step 2: handle age group + LOP selection from the modal. */
+    onModalAgeGroupSelected(pickerTeam: AgePickerTeam, selection: AgeGroupSelection): void {
         this.agePickerTeam.set(null);
 
-        // Build a ClubTeamDto-compatible object for the register call
+        // Build a ClubTeamDto-compatible object with the modal-selected LOP
         const team: ClubTeamDto = {
             clubTeamId: pickerTeam.clubTeamId,
             clubTeamName: pickerTeam.clubTeamName,
             clubTeamGradYear: pickerTeam.gradYear,
-            clubTeamLevelOfPlay: pickerTeam.levelOfPlay,
+            clubTeamLevelOfPlay: selection.levelOfPlay || pickerTeam.levelOfPlay,
         };
-        this.onSelectAgeGroup(team, ageGroupId);
+        this.onSelectAgeGroup(team, selection.ageGroupId);
     }
 
     /** Step 2: register (or re-register) a team with the selected age group. */
@@ -1291,8 +1294,8 @@ export class TeamTeamsStepComponent implements OnInit {
             });
     }
 
-    private loadTeamsMetadata(): void {
-        this.loading.set(true);
+    private loadTeamsMetadata(showSpinner = false): void {
+        if (showSpinner) this.loading.set(true);
         this.error.set(null);
 
         this.teamReg.getTeamsMetadata()
@@ -1304,12 +1307,16 @@ export class TeamTeamsStepComponent implements OnInit {
                     this._registeredTeams.set(meta.registeredTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
+                    this.lopOptions.set(meta.lopOptions || []);
                     this.state.teamPayment.setTeams(meta.registeredTeams || []);
                     this.state.teamPayment.setJobPath(this.state.jobPath());
                     this.state.teamPayment.setPaymentConfig(
                         meta.paymentMethodsAllowedCode,
                         meta.bAddProcessingFees,
                         meta.bApplyProcessingFeesToTeamDeposit,
+                        meta.payTo,
+                        meta.mailTo,
+                        meta.mailinPaymentWarning,
                     );
                     this.state.setHasActiveDiscountCodes(meta.hasActiveDiscountCodes);
                 },

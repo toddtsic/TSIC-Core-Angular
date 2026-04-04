@@ -57,6 +57,11 @@ public record JobMetadataDto
     public required bool BScheduleAllowPublicAccess { get; init; }
     public required bool BBannerIsCustom { get; init; }
     public string? JobTypeName { get; init; }
+    public required int PaymentMethodsAllowedCode { get; init; }
+    public required bool BAddProcessingFees { get; init; }
+    public string? PayTo { get; init; }
+    public string? MailTo { get; init; }
+    public string? MailinPaymentWarning { get; init; }
 }
 
 public record JobRegistrationStatus
@@ -240,6 +245,9 @@ public record JobFeeSettings
     public required int PaymentMethodsAllowedCode { get; init; }
     public string? PlayerRegRefundPolicy { get; init; }
     public string? Season { get; init; }
+    public string? PayTo { get; init; }
+    public string? MailTo { get; init; }
+    public string? MailinPaymentWarning { get; init; }
 }
 
 public record InsuranceOfferInfo

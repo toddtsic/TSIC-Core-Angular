@@ -22,6 +22,14 @@ public interface IClubTeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Find an existing ClubTeam by identity (club + name + grad year).
+    /// Returns the row with the highest LOP if duplicates exist.
+    /// </summary>
+    Task<ClubTeams?> FindByIdentityAsync(
+        int clubId, string clubTeamName, string clubTeamGradYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add new ClubTeam (does NOT call SaveChanges).
     /// </summary>
     void Add(ClubTeams clubTeam);
