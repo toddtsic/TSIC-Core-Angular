@@ -187,8 +187,8 @@ export class FamilyPlayersService {
         return players;
     }
 
-    private handleError(err: unknown): void {
-        console.warn('[FamilyPlayers] Failed to load family players', err);
+    private handleError(_err: unknown): void {
+        // Interceptor safety net handles the toast; just reset local state.
         this._familyPlayers.set([]);
         this._familyUser.set(null);
         this._regSaverDetails.set(null);

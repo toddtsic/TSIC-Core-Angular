@@ -57,8 +57,8 @@ export class TeamWizardStateService {
                 next: job => {
                     this.fieldData.setJobOptions(job.jsonOptions);
                 },
-                error: (err: unknown) => {
-                    console.error('[TeamWizard] Failed to load job metadata:', err);
+                error: () => {
+                    // Interceptor safety net shows toast; also set inline error for the component.
                     this.clubRep.setMetadataError('Failed to load registration information. Please try again.');
                 },
             });

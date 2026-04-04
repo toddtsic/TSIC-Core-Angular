@@ -14,6 +14,7 @@ import { BatchEmailModalComponent } from './components/batch-email-modal.compone
 import { MobileQuickLookupComponent } from './components/mobile-quick-lookup.component';
 import { LadtTreeFilterComponent } from './components/ladt-tree-filter.component';
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 
 import type {
   RegistrationSearchRequest,
@@ -287,7 +288,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   private loadCadtTree(): void {
     this.cadtTreeLoading.set(true);
-    this.searchService.getCadtTree().subscribe({
+    this.searchService.getCadtTree(skipErrorToast()).subscribe({
       next: (clubs) => {
         this.cadtTree.set(clubs);
         this.cadtTreeLoading.set(false);

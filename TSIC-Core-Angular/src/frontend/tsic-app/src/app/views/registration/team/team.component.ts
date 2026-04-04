@@ -254,9 +254,9 @@ export class TeamWizardV2Component implements OnInit {
                 next: () => {
                     this._currentIndex.set(1); // advance to teams step
                 },
-                error: (err: unknown) => {
-                    console.error('[TeamWizard] initializeRegistration failed', err);
-                    // Return to login — don't advance with broken token
+                error: () => {
+                    // Interceptor safety net handles the toast.
+                    // Return to login — don't advance with broken token.
                     this.auth.logoutLocal();
                     this._currentIndex.set(0);
                 },

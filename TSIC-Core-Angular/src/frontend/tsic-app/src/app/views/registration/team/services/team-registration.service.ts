@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '@environments/environment';
@@ -221,11 +221,13 @@ export class TeamRegistrationService {
     sendConfirmationEmail(
         registrationId: string,
         forceResend: boolean = false,
+        context?: HttpContext,
     ): Observable<{ message: string }> {
         const request = { registrationId, forceResend };
         return this.http.post<{ message: string }>(
             `${this.apiUrl}/send-confirmation-email`,
             request,
+            context ? { context } : undefined,
         );
     }
 

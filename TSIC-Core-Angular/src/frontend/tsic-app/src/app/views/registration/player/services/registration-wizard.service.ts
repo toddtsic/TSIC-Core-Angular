@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Observable, Subscription } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { PlayerStateService } from './player-state.service';
 import { WaiverStateService } from './waiver-state.service';
 import { FormSchemaService } from './form-schema.service';
@@ -317,8 +318,8 @@ export class RegistrationWizardService {
         this.applyPaymentFlags(resp);
     }
 
-    private handleFamilyPlayersError(err: unknown): void {
-        console.warn('[RegWizard] Failed to load family players', err);
+    private handleFamilyPlayersError(_err: unknown): void {
+        // Interceptor safety net handles the toast; just reset local state.
         this._familyPlayers.set([]);
         this._familyUser.set(null);
         this._regSaverDetails.set(null);
@@ -503,8 +504,8 @@ export class RegistrationWizardService {
                     this._jobWaivers.set(waivers);
                     this.parseProfileMetadata();
                 },
-                error: (err: unknown) => {
-                    console.error('[RegWizard] Failed to load job metadata for form parsing', err);
+                error: () => {
+                    // Interceptor safety net handles the toast.
                 }
             });
     }
@@ -950,8 +951,8 @@ export class RegistrationWizardService {
         this.http.get<PlayerRegConfirmationDto>(`${base}/player-registration/confirmation`)
             .subscribe({
                 next: dto => this._confirmation.set(dto),
-                error: err => {
-                    console.warn('[RegWizard] Confirmation fetch failed', err);
+                error: () => {
+                    // Interceptor safety net handles the toast.
                     this._confirmation.set(null);
                 }
             });
@@ -960,10 +961,10 @@ export class RegistrationWizardService {
     /** Trigger server to re-send the confirmation email to the family user's email address. */
     resendConfirmationEmail(): Promise<boolean> {
         const base = this.resolveApiBase();
-        return firstValueFrom(this.http.post(`${base}/player-registration/confirmation/resend`, null))
+        return firstValueFrom(this.http.post(`${base}/player-registration/confirmation/resend`, null, { context: skipErrorToast() }))
             .then(() => true)
-            .catch(err => {
-                console.warn('[RegWizard] Resend confirmation failed', err);
+            .catch(() => {
+                // Component handles UX via the boolean return value.
                 return false;
             });
     }

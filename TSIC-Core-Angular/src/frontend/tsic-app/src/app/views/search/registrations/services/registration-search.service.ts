@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
@@ -130,8 +130,8 @@ export class RegistrationSearchService {
 		return this.http.get<LadtTreeRootDto>(`${environment.apiUrl}/ladt/tree`);
 	}
 
-	getCadtTree(): Observable<CadtClubNode[]> {
-		return this.http.get<CadtClubNode[]>(`${this.apiUrl}/cadt-tree`);
+	getCadtTree(context?: HttpContext): Observable<CadtClubNode[]> {
+		return this.http.get<CadtClubNode[]>(`${this.apiUrl}/cadt-tree`, context ? { context } : undefined);
 	}
 
 	getInviteTargetJobs(): Observable<JobOptionDto[]> {

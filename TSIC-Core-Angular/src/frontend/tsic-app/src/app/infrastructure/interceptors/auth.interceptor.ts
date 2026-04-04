@@ -4,6 +4,8 @@ import { AuthService } from '../services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { environment } from '@environments/environment';
 import { switchMap, catchError, throwError, Observable } from 'rxjs';
+import { SKIP_GLOBAL_ERROR_TOAST } from './http-error-context';
+import { extractHttpErrorMessage } from './http-error-utils';
 
 /**
  * HTTP Interceptor that:
@@ -98,6 +100,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                                                     'You do not have permission to access this resource.';
                                                 toastService.show(msg, 'danger', 5000);
                                             }
+                                        } else if (!request.context.get(SKIP_GLOBAL_ERROR_TOAST)) {
+                                            if (retryError.status >= 500) {
+                                                toastService.show(
+                                                    'Something went wrong. Please try again or contact support.',
+                                                    'danger',
+                                                    7000
+                                                );
+                                            } else if (retryError.status >= 400) {
+                                                const msg = extractHttpErrorMessage(retryError, 'The request could not be completed.');
+                                                toastService.show(msg, 'warning', 5000);
+                                            }
                                         }
                                         return throwError(() => retryError);
                                     })
@@ -109,6 +122,20 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                             return throwError(() => refreshError);
                         })
                     );
+                }
+
+                // Safety net: toast for any unhandled 4xx/5xx that wasn't caught above
+                if (!request.context.get(SKIP_GLOBAL_ERROR_TOAST)) {
+                    if (error.status >= 500) {
+                        toastService.show(
+                            'Something went wrong. Please try again or contact support.',
+                            'danger',
+                            7000
+                        );
+                    } else if (error.status >= 400) {
+                        const msg = extractHttpErrorMessage(error, 'The request could not be completed.');
+                        toastService.show(msg, 'warning', 5000);
+                    }
                 }
 
                 return throwError(() => error);

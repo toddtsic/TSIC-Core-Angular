@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal, computed, output, OnInit, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -72,14 +73,14 @@ export class TeamReviewStepComponent implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: html => this.confirmationHtml.set(html || '<p>Registration confirmed.</p>'),
-                error: (err: unknown) => {
-                    console.error('[TeamReview] Confirmation load failed', err);
+                error: () => {
+                    // Interceptor safety net shows toast; show inline fallback too.
                     this.confirmationHtml.set('<p class="text-muted">Registration confirmed. Confirmation details could not be loaded.</p>');
                 },
             });
 
-        // Auto-send email on load
-        this.teamReg.sendConfirmationEmail(regId)
+        // Auto-send email on load — intentionally silent (no toast on failure)
+        this.teamReg.sendConfirmationEmail(regId, false, skipErrorToast())
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({ error: () => { /* ignore auto-send failure */ } });
     }

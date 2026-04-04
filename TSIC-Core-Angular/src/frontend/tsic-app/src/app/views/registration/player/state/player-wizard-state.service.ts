@@ -2,6 +2,7 @@ import { Injectable, inject, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { getPropertyCI } from '@views/registration/shared/utils/property-utils';
 import { JobContextService } from './job-context.service';
 import { FamilyPlayersService } from './family-players.service';
@@ -214,8 +215,7 @@ export class PlayerWizardStateService {
         try {
             const ve = getPropertyCI<PreSubmitValidationErrorDto[]>(resp as Record<string, unknown>, 'validationErrors');
             this.jobCtx.setServerValidationErrors((ve && Array.isArray(ve) && ve.length) ? ve : []);
-        } catch (e) {
-            console.warn('[PlayerWizard] captureServerValidationErrors failed', e);
+        } catch {
             this.jobCtx.setServerValidationErrors([]);
         }
     }
@@ -228,8 +228,8 @@ export class PlayerWizardStateService {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: dto => this._confirmation.set(dto),
-                error: err => {
-                    console.warn('[PlayerWizard] Confirmation fetch failed', err);
+                error: () => {
+                    // Interceptor safety net handles the toast.
                     this._confirmation.set(null);
                 },
             });
@@ -238,10 +238,10 @@ export class PlayerWizardStateService {
     async resendConfirmationEmail(): Promise<boolean> {
         const apiBase = this.jobCtx.resolveApiBase();
         try {
-            await firstValueFrom(this.http.post(`${apiBase}/player-registration/confirmation/resend`, null));
+            await firstValueFrom(this.http.post(`${apiBase}/player-registration/confirmation/resend`, null, { context: skipErrorToast() }));
             return true;
-        } catch (err: unknown) {
-            console.warn('[PlayerWizard] Resend confirmation failed', err);
+        } catch {
+            // Component handles UX via the boolean return value.
             return false;
         }
     }

@@ -1,5 +1,6 @@
 import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import {
     AdultRegistrationService,
     type AdultRegJobInfoResponse,
@@ -237,14 +238,14 @@ export class AdultWizardStateService {
 
     // ── API: Load confirmation HTML ───────────────────────────────
     private loadConfirmation(registrationId: string): void {
-        this.api.getConfirmation(registrationId)
+        this.api.getConfirmation(registrationId, skipErrorToast())
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (data) => {
                     this._confirmationHtml.set(data.confirmationHtml);
                 },
                 error: () => {
-                    // Non-critical — user still sees success state
+                    // Non-critical — user still sees success state; no toast.
                 },
             });
     }

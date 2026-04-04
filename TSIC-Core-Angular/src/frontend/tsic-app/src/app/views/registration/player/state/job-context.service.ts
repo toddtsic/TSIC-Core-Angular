@@ -178,8 +178,8 @@ export class JobContextService {
                     // Parse profile field schemas
                     this.parseProfileMetadata(selectedPlayerIds, familyPlayers);
                 },
-                error: (err: unknown) => {
-                    console.error('[JobContext] Failed to load job metadata', err);
+                error: () => {
+                    // Interceptor safety net handles the toast.
                 },
             });
     }

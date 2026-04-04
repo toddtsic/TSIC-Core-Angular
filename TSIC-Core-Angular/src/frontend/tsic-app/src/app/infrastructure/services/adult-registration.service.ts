@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import type { AdultRegistrationRequest, AdultRegistrationExistingRequest } from '@core/api';
 
@@ -90,8 +90,11 @@ export class AdultRegistrationService {
         return this.http.post<AdultRegistrationResponse>(`${this.apiUrl}/register-existing`, request);
     }
 
-    getConfirmation(registrationId: string) {
-        return this.http.get<AdultConfirmationResponse>(`${this.apiUrl}/confirmation/${registrationId}`);
+    getConfirmation(registrationId: string, context?: HttpContext) {
+        return this.http.get<AdultConfirmationResponse>(
+            `${this.apiUrl}/confirmation/${registrationId}`,
+            context ? { context } : undefined,
+        );
     }
 
     resendConfirmationEmail(registrationId: string) {
