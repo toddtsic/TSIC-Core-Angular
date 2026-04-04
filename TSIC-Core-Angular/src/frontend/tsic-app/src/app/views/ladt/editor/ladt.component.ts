@@ -855,58 +855,27 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   syncApplying = signal(false);
   syncResult = signal<string | null>(null);
 
-  /** Max division count across all agegroups (determines theme name slot count) */
-  syncMaxDivisions = computed(() => {
-    const previews = this.syncPreviews();
-    if (previews.length === 0) return 0;
-    return Math.max(...previews.map(p => p.divisionCount));
-  });
+  /** Whether at least one theme name has content */
+  syncHasNames = computed(() => this.syncThemeNames().some(n => n.trim().length > 0));
+
+  /** Whether any agegroups exist to theme */
+  syncHasAgegroups = computed(() => this.syncPreviews().length > 0);
 
   openSyncDialog(): void {
     this.actionsOpen.set(false);
     this.syncLoading.set(true);
     this.syncResult.set(null);
+    this.syncThemeNames.set(['']);
     this.showSyncDialog.set(true);
 
-    // Initial preview with empty theme names to discover structure + current names
+    // Fetch current state to show what exists now
     this.ladtService.previewDivisionNameSync([]).subscribe({
       next: (previews) => {
-        // Collect distinct current names across all agegroups (preserves first-seen casing)
-        const seen = new Set<string>();
-        const distinctNames: string[] = [];
-        for (const preview of previews) {
-          for (const div of preview.divisions) {
-            const key = div.currentName.toLowerCase();
-            if (!seen.has(key)) {
-              seen.add(key);
-              distinctNames.push(div.currentName);
-            }
-          }
-        }
-
-        // Sort distinct names alphabetically; pad with "Division N" if max exceeds count
-        distinctNames.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-        const maxDivs = Math.max(...previews.map(p => p.divisionCount), 0);
-        const themeNames = [...distinctNames];
-        for (let i = themeNames.length; i < maxDivs; i++) {
-          themeNames.push(`Division ${i + 1}`);
-        }
-        this.syncThemeNames.set(themeNames);
-
-        // Re-fetch preview with the assembled theme names
-        this.ladtService.previewDivisionNameSync(themeNames).subscribe({
-          next: (updatedPreviews) => {
-            this.syncPreviews.set(updatedPreviews);
-            this.syncLoading.set(false);
-          },
-          error: () => {
-            this.syncPreviews.set(previews);
-            this.syncLoading.set(false);
-          }
-        });
+        this.syncPreviews.set(previews);
+        this.syncLoading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to load division sync preview');
+        this.errorMessage.set(err.error?.message || 'Failed to load divisions');
         this.showSyncDialog.set(false);
         this.syncLoading.set(false);
       }
@@ -920,24 +889,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     this.syncResult.set(null);
   }
 
-  applyQuickFill(pattern: 'pool' | 'division' | 'flight'): void {
-    const count = this.syncMaxDivisions();
-    const names: string[] = [];
-    for (let i = 0; i < count; i++) {
-      switch (pattern) {
-        case 'pool':
-          names.push(`Pool ${String.fromCharCode(65 + i)}`);
-          break;
-        case 'division':
-          names.push(`Division ${i + 1}`);
-          break;
-        case 'flight':
-          names.push(`Flight ${i + 1}`);
-          break;
-      }
-    }
-    this.syncThemeNames.set(names);
-    this.refreshSyncPreview();
+  addThemeName(): void {
+    this.syncThemeNames.update(names => [...names, '']);
   }
 
   updateThemeName(index: number, value: string): void {
@@ -949,6 +902,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   }
 
   removeThemeName(index: number): void {
+    if (this.syncThemeNames().length <= 1) return;
     this.syncThemeNames.update(names => names.filter((_, i) => i !== index));
     this.refreshSyncPreview();
   }
@@ -976,10 +930,15 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     this.ladtService.applyDivisionNameSync(this.syncThemeNames()).subscribe({
       next: (result) => {
         this.syncApplying.set(false);
+        const parts: string[] = [];
+        if (result.divisionsRenamed > 0) parts.push(`${result.divisionsRenamed} renamed`);
+        if (result.divisionsCreated > 0) parts.push(`${result.divisionsCreated} created`);
+        if (result.divisionsDeleted > 0) parts.push(`${result.divisionsDeleted} removed`);
+        const summary = parts.length > 0 ? parts.join(', ') : 'No changes needed';
         if (result.errors.length > 0) {
-          this.syncResult.set(`Renamed ${result.divisionsRenamed} divisions. Errors: ${result.errors.join(', ')}`);
+          this.syncResult.set(`${summary}. Errors: ${result.errors.join(', ')}`);
         } else {
-          this.syncResult.set(`Successfully renamed ${result.divisionsRenamed} divisions.`);
+          this.syncResult.set(`Done! ${summary}.`);
         }
         this.loadTree();
       },

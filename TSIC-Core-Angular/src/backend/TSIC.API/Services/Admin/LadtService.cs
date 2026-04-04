@@ -1242,6 +1242,14 @@ public sealed class LadtService : ILadtService
         "Unassigned"
     };
 
+    private static bool IsExcludedDivision(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return true;
+        var trimmed = name.Trim();
+        return ExcludedDivisionNames.Contains(trimmed)
+            || trimmed.StartsWith("Unassigned", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsSpecialAgegroup(string? name)
     {
         if (string.IsNullOrEmpty(name)) return false;
@@ -1261,14 +1269,42 @@ public sealed class LadtService : ILadtService
             var sorted = divisions.OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase).ToList();
 
             var entries = new List<DivisionRenameEntry>();
-            for (var i = 0; i < sorted.Count; i++)
+
+            // Rename existing divisions up to theme count
+            var renameLimit = Math.Min(sorted.Count, themeNames.Count);
+            for (var i = 0; i < renameLimit; i++)
             {
-                var proposedName = i < themeNames.Count ? themeNames[i] : $"Division {i + 1}";
                 entries.Add(new DivisionRenameEntry
                 {
                     DivId = sorted[i].DivId,
                     CurrentName = sorted[i].DivName ?? "(unnamed)",
-                    ProposedName = proposedName
+                    ProposedName = themeNames[i]
+                });
+            }
+
+            // New divisions to be created (theme names beyond existing count)
+            for (var i = sorted.Count; i < themeNames.Count; i++)
+            {
+                entries.Add(new DivisionRenameEntry
+                {
+                    DivId = Guid.Empty,
+                    CurrentName = "(new)",
+                    ProposedName = themeNames[i],
+                    IsNew = true
+                });
+            }
+
+            // Existing divisions beyond theme count — will be deleted (if no teams)
+            for (var i = themeNames.Count; i < sorted.Count; i++)
+            {
+                var hasTeams = await _divisionRepo.HasTeamsAsync(sorted[i].DivId, cancellationToken);
+                entries.Add(new DivisionRenameEntry
+                {
+                    DivId = sorted[i].DivId,
+                    CurrentName = sorted[i].DivName ?? "(unnamed)",
+                    ProposedName = "",
+                    IsDeleted = true,
+                    HasTeams = hasTeams
                 });
             }
 
@@ -1276,7 +1312,7 @@ public sealed class LadtService : ILadtService
             {
                 AgegroupName = agName,
                 AgegroupId = agId,
-                DivisionCount = sorted.Count,
+                DivisionCount = themeNames.Count,
                 Divisions = entries
             });
         }
@@ -1290,20 +1326,23 @@ public sealed class LadtService : ILadtService
         var agegroupDivisions = await GetSyncableDivisionsAsync(jobId, cancellationToken);
         var errors = new List<string>();
         var renamed = 0;
+        var created = 0;
+        var deleted = 0;
 
-        foreach (var (agName, _, divisions) in agegroupDivisions)
+        foreach (var (agName, agId, divisions) in agegroupDivisions)
         {
             var sorted = divisions.OrderBy(d => d.DivName, StringComparer.OrdinalIgnoreCase).ToList();
 
-            for (var i = 0; i < sorted.Count; i++)
+            // Rename existing divisions
+            var renameLimit = Math.Min(sorted.Count, themeNames.Count);
+            for (var i = 0; i < renameLimit; i++)
             {
-                var newName = i < themeNames.Count ? themeNames[i] : $"Division {i + 1}";
+                var newName = themeNames[i];
                 var div = sorted[i];
 
                 if (string.Equals(div.DivName, newName, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // Fetch tracked entity for update
                 var tracked = await _divisionRepo.GetByIdAsync(div.DivId, cancellationToken);
                 if (tracked == null)
                 {
@@ -1316,25 +1355,54 @@ public sealed class LadtService : ILadtService
                 tracked.Modified = DateTime.UtcNow;
                 renamed++;
 
-                // Cascade to schedule records
                 await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(
                     div.DivId, jobId, newName, cancellationToken);
             }
+
+            // Create new divisions for theme names beyond existing count
+            for (var i = sorted.Count; i < themeNames.Count; i++)
+            {
+                var request = new CreateDivisionRequest
+                {
+                    AgegroupId = agId,
+                    DivName = themeNames[i]
+                };
+                await CreateDivisionAsync(request, jobId, userId, cancellationToken);
+                created++;
+            }
+
+            // Delete extra divisions beyond theme count (only if no teams)
+            for (var i = themeNames.Count; i < sorted.Count; i++)
+            {
+                try
+                {
+                    await DeleteDivisionAsync(sorted[i].DivId, jobId, cancellationToken);
+                    deleted++;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    errors.Add($"{agName}: {sorted[i].DivName} — {ex.Message}");
+                }
+            }
         }
 
+        // CreateDivisionAsync/DeleteDivisionAsync save per-call; flush any remaining renames
         if (renamed > 0)
             await _divisionRepo.SaveChangesAsync(cancellationToken);
 
         return new DivisionNameSyncResult
         {
             DivisionsRenamed = renamed,
+            DivisionsCreated = created,
+            DivisionsDeleted = deleted,
             Errors = errors
         };
     }
 
     /// <summary>
     /// Returns syncable divisions (excluding Unassigned/WAITLIST/DROPPED) grouped by agegroup,
-    /// for all agegroups in the job.
+    /// for all non-special agegroups in the job. Includes agegroups with 0 syncable divisions
+    /// so that new themed divisions can be created for them.
     /// </summary>
     private async Task<List<(string AgName, Guid AgId, List<Divisions> Divisions)>> GetSyncableDivisionsAsync(
         Guid jobId, CancellationToken cancellationToken)
@@ -1354,14 +1422,11 @@ public sealed class LadtService : ILadtService
 
                 var divisions = await _divisionRepo.GetByAgegroupIdAsync(ag.AgegroupId, cancellationToken);
                 var syncable = divisions
-                    .Where(d => !ExcludedDivisionNames.Contains(d.DivName ?? "")
+                    .Where(d => !IsExcludedDivision(d.DivName)
                              && !IsSpecialAgegroup(d.DivName))
                     .ToList();
 
-                if (syncable.Count > 0)
-                {
-                    result.Add((ag.AgegroupName ?? "(unnamed)", ag.AgegroupId, syncable));
-                }
+                result.Add((ag.AgegroupName ?? "(unnamed)", ag.AgegroupId, syncable));
             }
         }
 

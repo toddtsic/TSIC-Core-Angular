@@ -6,5 +6,8 @@ export type DivisionRenameEntry = {
     divId: string;
     currentName: string;
     proposedName: string;
+    isNew?: boolean;
+    isDeleted?: boolean;
+    hasTeams?: boolean;
 };
 

@@ -140,10 +140,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     );
 
-    // Load nav when jobPath changes AND user is authenticated
+    // Load nav when jobPath changes AND user has completed role selection (has regId)
     jobPath$.subscribe(jobPath => {
       const user = this.auth.currentUser();
-      if (jobPath && jobPath !== 'tsic' && user) {
+      if (jobPath && jobPath !== 'tsic' && user?.regId) {
         this.jobService.loadNav();
       } else {
         this.jobService.clearNav();
@@ -163,7 +163,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
           // Reload job metadata so currentJob stays in sync after role/job switch
           this.jobService.loadJobMetadata(jobPath);
           // Load nav if authenticated, clear if logged out
-          if (user) {
+          if (user?.regId) {
             this.jobService.loadNav();
           } else {
             this.jobService.clearNav();

@@ -48,6 +48,20 @@
   <!-- Scrollable content -->
   <div class="wizard-content">
     <ng-content />
+
+    @if (showActionBar()) {
+    <div class="wizard-action-bar-container">
+      <app-wizard-action-bar
+        [canBack]="showBack() && currentIndex() > 0"
+        [canContinue]="canContinue()"
+        [showContinue]="showContinue()"
+        [continueLabel]="continueLabel()"
+        [detailsBadgeLabel]="detailsBadgeLabel()"
+        [detailsBadgeClass]="detailsBadgeClass()"
+        (back)="back.emit()"
+        (continue)="continue.emit()" />
+    </div>
+    }
   </div>
 
 </main>

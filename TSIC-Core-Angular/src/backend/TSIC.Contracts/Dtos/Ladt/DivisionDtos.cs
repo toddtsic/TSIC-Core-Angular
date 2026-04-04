@@ -41,10 +41,15 @@ public record DivisionRenameEntry
     public required Guid DivId { get; init; }
     public required string CurrentName { get; init; }
     public required string ProposedName { get; init; }
+    public bool IsNew { get; init; }
+    public bool IsDeleted { get; init; }
+    public bool HasTeams { get; init; }
 }
 
 public record DivisionNameSyncResult
 {
     public required int DivisionsRenamed { get; init; }
+    public required int DivisionsCreated { get; init; }
+    public required int DivisionsDeleted { get; init; }
     public required List<string> Errors { get; init; }
 }

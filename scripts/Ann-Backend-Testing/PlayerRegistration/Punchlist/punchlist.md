@@ -30,6 +30,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 - [ ] **LADT Setup** -- Leagues, age groups, divisions, and teams are configured correctly before registration
 - [ ] **Family Account Setup** -- Create and manage family accounts before player registration
+- [ ] **Registration Process Review** -- Walk through the player registration flow end to end
 - [ ] **Login & Family Check** -- Log in with your family account, verify it finds your players
 - [ ] **Player Selection** -- Select which players to register, try adding a new player
 - [ ] **Eligibility** -- Pick age group / grad year / club for each player
@@ -50,7 +51,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: LADT tree should collapse back to its original display
 - **What happened**: Tree stayed expanded instead of reverting
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: It does collapse — to the age group level, which is by design. Fully collapsing to root would just add an extra click to get anywhere useful.
 
 ### PL-002: LADT tree items spaced too far apart
 - **Area**: LADT Setup
@@ -58,7 +60,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Compact spacing so more items are visible on one screen
 - **What happened**: Too much space between items, can't see enough of the tree at once
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Font size dropped to match bullet items, tree spacing compressed.
 
 ### PL-003: "Sync Division Names" function unclear
 - **Area**: LADT Setup
@@ -66,7 +69,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear understanding of what it does
 - **What happened**: Not clear what this function is for or when to use it
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Renamed to "Standardize Division Names" and added explanatory subtitle in the dialog: "Pick a naming pattern below. It will rename divisions in every age group to match, in alphabetical order." Also fixed a bug where divisions beyond the template count were force-renamed to a fallback — now they're left untouched.
 
 ### PL-004: "Sync Division Names" placement — only item under Settings
 - **Area**: LADT Setup
@@ -137,6 +141,86 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I did**: Looked at the LADT section heading
 - **What I expected**: "Tree" is more intuitive than "Hierarchy"; full names (Leagues, Age Groups, Divisions, Teams) spelled out somewhere
 - **What happened**: Says "LADT Hierarchy" — "Tree" would be clearer, and the acronym should be expanded at least once for new users
+- **Severity**: UX
+- **Status**: Open
+
+### PL-046: No Next button after selecting two players
+- **Area**: Registration Process Review
+- **What I did**: Checked two players on the Choose Your Players screen
+- **What I expected**: A Next button to proceed to the next step
+- **What happened**: No Next button appears after selecting players — can't advance
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-045: Change "Edit details anytime" to "Edit player details"
+- **Area**: Registration Process Review
+- **What I did**: Saw "Edit details anytime" link/button
+- **What I expected**: Clearer label specifying what details
+- **What happened**: Label is vague — should say "Edit player details" to be specific
+- **Severity**: UX
+- **Status**: Open
+
+### PL-044: "Already registered? Locked in" — can this be removed?
+- **Area**: Registration Process Review
+- **What I did**: Saw "Already registered? Locked in" message on Choose Your Players screen
+- **What I expected**: Cleaner screen without unnecessary messaging
+- **What happened**: Not clear if this message is needed — consider removing it
+- **Severity**: Question
+- **Status**: Open
+
+### PL-043: "Choose Your Players" screen — add Previous/Next buttons at bottom
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the "Choose Your Players" screen
+- **What I expected**: Previous and Next buttons at the bottom to navigate between wizard screens
+- **What happened**: No navigation buttons at the bottom of the screen
+- **Severity**: UX
+- **Status**: Open
+
+### PL-042: Player Registration card — highlight Family Account more prominently
+- **Area**: Registration Process Review
+- **What I did**: Looked at the top card in the Player Registration flow
+- **What I expected**: Family Account info to be prominent since it's key context for the registration
+- **What happened**: Family Account not highlighted enough — consider making it more visible
+- **Severity**: UX
+- **Status**: Open
+
+### PL-041: Family Account card is a DEAD END — no Previous or Next button
+- **Area**: Family Account Setup
+- **What I did**: Arrived at the Family Account card after choosing New Family Account
+- **What I expected**: A "Next" button to proceed and a "Previous" button to go back (e.g., "I already have an account")
+- **What happened**: No way to proceed or go back — complete dead end
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-040: "Family Account" header should say "Create Family Account" for new registrations
+- **Area**: Family Account Setup
+- **What I did**: Clicked "New Family Account" from the registration flow
+- **What I expected**: Header to say "Create Family Account" to match the action
+- **What happened**: Header just says "Family Account" — should be clearer for new parents that they're creating one
+- **Severity**: UX
+- **Status**: Open
+
+### PL-039: Navigation for new families — bulletins/text need work
+- **Area**: Family Account Setup
+- **What I did**: Navigated the site as a new family would
+- **What I expected**: Clear, helpful bulletins and text guiding new families
+- **What happened**: Bulletins and text content need work — more details to follow
+- **Severity**: UX
+- **Status**: Open
+
+### PL-038: Customer/job icon at top should navigate to job home screen
+- **Area**: Family Account Setup
+- **What I did**: Clicked the customer:job icon at the top of the page
+- **What I expected**: Navigate to the home screen for that job
+- **What happened**: Doesn't bring me to the job home screen
+- **Severity**: UX
+- **Status**: Open
+
+### PL-037: Login button — remove Palette, change to "Login" label, and offer new family account option
+- **Area**: Family Account Setup
+- **What I did**: Looked at top-right login area as a new parent would
+- **What I expected**: A clear "Login" button (not a people icon dropdown), no Palette option visible, and an option to create a new family account for first-time parents
+- **What happened**: Shows a people icon with dropdown and Palette option — not intuitive for new parents who don't have an account yet
 - **Severity**: UX
 - **Status**: Open
 

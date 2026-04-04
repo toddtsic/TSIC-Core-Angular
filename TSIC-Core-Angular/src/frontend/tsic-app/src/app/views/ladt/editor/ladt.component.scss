@@ -102,11 +102,11 @@
 .tree-node {
   display: flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 22px;
   padding-right: var(--space-1);
 
   &.has-club {
-    min-height: 40px;
+    min-height: 28px;
   }
 
   &:hover {
@@ -181,9 +181,9 @@
   background: none;
   color: var(--bs-body-color);
   cursor: pointer;
-  padding: var(--space-1);
+  padding: 1px var(--space-1);
   text-align: left;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   min-width: 0;
 
   &.wrap-label {
@@ -423,7 +423,7 @@
 // ── Phantom Node (Inline Creation) ──
 
 .tree-node.phantom {
-  min-height: 32px;
+  min-height: 22px;
 }
 
 .phantom-input {
@@ -452,85 +452,76 @@
 
 // ── Division Name Sync Dialog ──
 
-.sync-quickfill {
+// ── Theme Division Names Dialog ──
+
+.sync-inspiration {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-2);
+  padding: var(--space-3);
   margin-bottom: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.sync-quickfill-label {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--bs-secondary-color);
-}
-
-.sync-theme-table {
-  border: 1px solid var(--bs-border-color);
+  background: rgba(var(--bs-primary-rgb), 0.06);
   border-radius: var(--radius-sm);
-  overflow: hidden;
-  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+
+  .bi-lightbulb {
+    color: var(--bs-warning);
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+  }
 }
 
-.sync-theme-header {
+.sync-name-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: var(--bs-tertiary-bg);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--bs-secondary-color);
+  margin-bottom: var(--space-1);
 }
 
-.sync-theme-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-top: 1px solid var(--bs-border-color);
-}
-
-.sync-theme-col-num {
-  min-width: 24px;
+.sync-name-num {
+  min-width: 20px;
   text-align: center;
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--bs-secondary-color);
 }
 
-.sync-theme-col-name {
-  flex: 1;
+.sync-name-check {
+  color: var(--bs-success);
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
 }
 
-.sync-theme-input {
-  flex: 1;
-}
-
-.sync-theme-col-action {
-  min-width: 28px;
+.sync-add-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .sync-theme-remove {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
   border-radius: var(--radius-sm);
   color: var(--bs-secondary-color);
   background: transparent;
+  flex-shrink: 0;
 
   &:hover {
     color: var(--bs-danger);
     background: rgba(var(--bs-danger-rgb), 0.1);
   }
 }
+
 
 .sync-preview-section {
   border: 1px solid var(--bs-border-color);
@@ -592,4 +583,29 @@
 
 .sync-rename-proposed {
   color: var(--bs-body-color);
+}
+
+.sync-preview-rename.sync-new {
+  .sync-rename-proposed {
+    color: var(--bs-success);
+  }
+}
+
+.sync-preview-rename.sync-deleted {
+  .sync-rename-current {
+    text-decoration: line-through;
+    color: var(--bs-secondary-color);
+  }
+}
+
+.sync-rename-removed {
+  color: var(--bs-danger);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.sync-rename-blocked {
+  color: var(--bs-warning);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
 }

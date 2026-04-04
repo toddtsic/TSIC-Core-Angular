@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { StepIndicatorComponent, type StepDefinition } from '@shared-ui/components/step-indicator/step-indicator.component';
 import { WizardThemeDirective } from '@shared-ui/directives/wizard-theme.directive';
+import { WizardActionBarComponent } from '../wizard-action-bar/wizard-action-bar.component';
 import type { WizardStepDef, WizardShellConfig } from '../types/wizard-shell.types';
 
 /**
@@ -30,7 +31,7 @@ import type { WizardStepDef, WizardShellConfig } from '../types/wizard-shell.typ
 @Component({
     selector: 'app-wizard-shell',
     standalone: true,
-    imports: [StepIndicatorComponent, WizardThemeDirective],
+    imports: [StepIndicatorComponent, WizardThemeDirective, WizardActionBarComponent],
     templateUrl: './wizard-shell.component.html',
     styleUrls: ['./wizard-shell.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,

@@ -126,14 +126,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
                 // Safety net: toast for any unhandled 4xx/5xx that wasn't caught above
                 if (!request.context.get(SKIP_GLOBAL_ERROR_TOAST)) {
+                    const isDev = !environment.production;
+                    const endpoint = request.url.replace(environment.apiUrl, '');
+
                     if (error.status >= 500) {
-                        toastService.show(
-                            'Something went wrong. Please try again or contact support.',
-                            'danger',
-                            7000
-                        );
+                        const msg = isDev
+                            ? `Server error ${error.status} — ${error.statusText}\n${endpoint}`
+                            : 'Something went wrong. Please try again or contact support.';
+                        toastService.show(msg, 'danger', 7000);
                     } else if (error.status >= 400) {
-                        const msg = extractHttpErrorMessage(error, 'The request could not be completed.');
+                        const detail = extractHttpErrorMessage(error, '');
+                        const msg = isDev
+                            ? `${error.status} ${error.statusText} — ${endpoint}${detail ? '\n' + detail : ''}`
+                            : (detail || 'The request could not be completed.');
                         toastService.show(msg, 'warning', 5000);
                     }
                 }

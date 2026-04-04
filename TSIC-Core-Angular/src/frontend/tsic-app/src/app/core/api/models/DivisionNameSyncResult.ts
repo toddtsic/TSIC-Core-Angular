@@ -4,6 +4,8 @@
 /* eslint-disable */
 export type DivisionNameSyncResult = {
     divisionsRenamed: number;
+    divisionsCreated: number;
+    divisionsDeleted: number;
     errors: Array<string>;
 };
 
