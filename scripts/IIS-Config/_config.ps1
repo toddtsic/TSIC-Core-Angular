@@ -37,9 +37,12 @@ $EnvSettings = @{
         AspNetEnv       = 'Development'
         ProdServer      = $null
     }
+    # Staging hostnames — change to final values when ready to go live:
+    #   ApiHostname     = 'tsic-api.teamsportsinfo.com'
+    #   AngularHostname = 'www.teamsportsinfo.com'
     Prod = @{
-        ApiHostname     = 'api.teamsportsinfo.com'
-        AngularHostname = 'teamsportsinfo.com'
+        ApiHostname     = 'claude-api.teamsportsinfo.com'
+        AngularHostname = 'claude-app.teamsportsinfo.com'
         BasePath        = 'E:\Websites'
         StaticsPath     = 'E:\Websites\TSIC-STATICS'
         BackupsPath     = 'E:\Websites\Backups'
