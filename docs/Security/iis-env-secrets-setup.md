@@ -21,6 +21,7 @@ Value mapping (user-secrets ➜ IIS env var):
 - UsLax:Secret ➜ USLAX_SECRET
 - UsLax:Username ➜ USLAX_USERNAME
 - UsLax:Password ➜ USLAX_PASSWORD
+- Anthropic:ApiKey ➜ Anthropic__ApiKey
 
 ### Server apply (no user-secrets needed)
 Run this on the IIS server (fill the values first). This does **not** read user-secrets.
@@ -199,15 +200,51 @@ To test that the API actually reads them (requires app to be running):
   **Remove this endpoint after verification!**
 
 ## 3) Local development reminder
-Use user-secrets instead of IIS env vars when developing locally:
+Use user-secrets instead of IIS env vars when developing locally.
+All secrets live in one file — copy it to set up a new dev machine:
+```
+%APPDATA%\Microsoft\UserSecrets\8eb66727-9711-4eb5-a22e-55bc44b2b6fa\secrets.json
+```
+
+Full list of secrets that must be in user-secrets:
 ```powershell
 cd C:\Users\Administrator\source\TSIC-Core-Angular\TSIC-Core-Angular
 
 # List all secrets
 dotnet user-secrets list --project src/backend/TSIC.API/TSIC.API.csproj
 
-# Set secrets (examples)
+# AWS (email via SES)
 dotnet user-secrets set "AWS:AccessKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
 dotnet user-secrets set "AWS:SecretKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
 dotnet user-secrets set "AWS:Region"    "us-west-2" --project src/backend/TSIC.API/TSIC.API.csproj
+
+# VerticalInsure (insurance quotes)
+dotnet user-secrets set "VerticalInsure:DevClientId"  "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "VerticalInsure:DevSecret"    "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "VerticalInsure:ProdClientId" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "VerticalInsure:ProdSecret"   "..." --project src/backend/TSIC.API/TSIC.API.csproj
+
+# Authorize.Net (payment processing)
+dotnet user-secrets set "AuthorizeNet:SandboxLoginId"       "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "AuthorizeNet:SandboxTransactionKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+
+# US Lacrosse API
+dotnet user-secrets set "UsLax:ClientId" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "UsLax:Secret"   "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "UsLax:Username" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "UsLax:Password" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "UsLax:ApiBase"  "https://api.usalacrosse.com/" --project src/backend/TSIC.API/TSIC.API.csproj
+
+# Anthropic (AI email compose)
+dotnet user-secrets set "Anthropic:ApiKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+
+# JWT auth
+dotnet user-secrets set "JwtSettings:SecretKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+
+# Dev mode (local only)
+dotnet user-secrets set "DevMode:AllowPasswordBypass" "true" --project src/backend/TSIC.API/TSIC.API.csproj
+dotnet user-secrets set "DevMode:BypassPassword"      "..." --project src/backend/TSIC.API/TSIC.API.csproj
+
+# GitHub (profile migration)
+dotnet user-secrets set "GitHub:Token" "..." --project src/backend/TSIC.API/TSIC.API.csproj
 ```
