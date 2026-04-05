@@ -37,9 +37,10 @@ $EnvSettings = @{
         AspNetEnv       = 'Development'
         ProdServer      = $null
     }
-    # Staging hostnames — change to final values when ready to go live:
-    #   ApiHostname     = 'tsic-api.teamsportsinfo.com'
-    #   AngularHostname = 'www.teamsportsinfo.com'
+    # Go-live checklist:
+    #   1. Stop TSIC-Unify-2024 (old Angular catch-all)
+    #   2. Remove claude-app hostname binding from TSIC.App (becomes catch-all)
+    #   3. claude-api stays as the permanent API hostname
     Prod = @{
         ApiHostname     = 'claude-api.teamsportsinfo.com'
         AngularHostname = 'claude-app.teamsportsinfo.com'
