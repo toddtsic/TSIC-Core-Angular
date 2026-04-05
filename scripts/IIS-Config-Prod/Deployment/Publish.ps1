@@ -301,9 +301,8 @@ Write-Host ""
 Write-Host "  API:     https://$ApiHostname" -ForegroundColor Green
 Write-Host "  Angular: https://$AngularHostname" -ForegroundColor Green
 Write-Host ""
-Write-Host "  IMPORTANT: RDP to TSIC-PHOENIX and recycle app pools:" -ForegroundColor Red
-Write-Host "    Restart-WebAppPool -Name '$ApiPoolName'" -ForegroundColor White
-Write-Host "    Restart-WebAppPool -Name '$AngularPoolName'" -ForegroundColor White
+Write-Host "  IMPORTANT: RDP to TSIC-PHOENIX and run:" -ForegroundColor Red
+Write-Host "    E:\Websites\IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1" -ForegroundColor White
 Write-Host ""
 
 } finally {
