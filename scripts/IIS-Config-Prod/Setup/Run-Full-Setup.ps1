@@ -18,11 +18,9 @@ param(
     [string]$Environment = 'Dev',
 
     [string]$SecretsFile,
-    [string]$AllowedUser,
     [switch]$SkipSql,
     [switch]$SkipFirewall,
-    [switch]$SkipSecrets,
-    [switch]$SkipShare
+    [switch]$SkipSecrets
 )
 
 . "$PSScriptRoot\..\_config.ps1" -Environment $Environment
@@ -76,17 +74,6 @@ else {
     $secretsArgs = @{ Environment = $Environment }
     if ($SecretsFile) { $secretsArgs.SecretsFile = $SecretsFile }
     & "$PSScriptRoot\07-Apply-Secrets.ps1" @secretsArgs
-}
-
-# Step 8: File Share (Prod only)
-if ($Environment -eq 'Prod' -and -not $SkipShare) {
-    $shareArgs = @{ Environment = $Environment }
-    if ($AllowedUser) { $shareArgs.AllowedUser = $AllowedUser }
-    & "$PSScriptRoot\08-Create-File-Share.ps1" @shareArgs
-}
-elseif ($SkipShare) {
-    Write-Host ""
-    Write-Host "[Step 8] File share — SKIPPED (-SkipShare)" -ForegroundColor Yellow
 }
 
 # Summary
