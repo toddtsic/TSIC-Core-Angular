@@ -31,10 +31,10 @@ if ($DriveLetter -notin @('C', 'D', 'E')) {
 }
 
 # Unified names (same everywhere)
-$ApiSiteName     = "TSIC.Api"
-$AngularSiteName = "TSIC.App"
-$ApiPoolName     = "TSIC.Api"
-$AngularPoolName = "TSIC.App"
+$ApiSiteName     = "claude-api"
+$AngularSiteName = "claude-app"
+$ApiPoolName     = "claude-api"
+$AngularPoolName = "claude-app"
 $ApiTarget       = "${DriveLetter}:\Websites\$ApiSiteName"
 $AngularTarget   = "${DriveLetter}:\Websites\$AngularSiteName"
 

@@ -1,7 +1,7 @@
 # ============================================================================
 # 05-Create-SQL-Login.ps1 — Create SQL Server login for IIS app pool identity
 # ============================================================================
-# Grants the app pool identity (IIS APPPOOL\TSIC.Api) access to the database.
+# Grants the app pool identity (IIS APPPOOL\claude-api) access to the database.
 # Also run after database restores to fix orphaned users.
 # ============================================================================
 

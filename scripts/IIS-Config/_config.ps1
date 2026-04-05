@@ -16,10 +16,10 @@ param(
 # Unified names (same on every server)
 # ---------------------------------------------------------------------------
 $Config = @{
-    ApiPoolName     = 'TSIC.Api'
-    AngularPoolName = 'TSIC.App'
-    ApiSiteName     = 'TSIC.Api'
-    AngularSiteName = 'TSIC.App'
+    ApiPoolName     = 'claude-api'
+    AngularPoolName = 'claude-app'
+    ApiSiteName     = 'claude-api'
+    AngularSiteName = 'claude-app'
     DatabaseName    = 'TSICV5'
     SqlInstance     = '.\SS2016'
 }
@@ -39,7 +39,7 @@ $EnvSettings = @{
     }
     # Go-live checklist:
     #   1. Stop TSIC-Unify-2024 (old Angular catch-all)
-    #   2. Remove claude-app hostname binding from TSIC.App (becomes catch-all)
+    #   2. Remove claude-app hostname binding from claude-app site (becomes catch-all)
     #   3. claude-api stays as the permanent API hostname
     Prod = @{
         ApiHostname     = 'claude-api.teamsportsinfo.com'

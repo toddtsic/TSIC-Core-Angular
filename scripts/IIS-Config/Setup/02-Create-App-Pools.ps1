@@ -1,5 +1,5 @@
 # ============================================================================
-# 02-Create-App-Pools.ps1 — Create TSIC.Api and TSIC.App application pools
+# 02-Create-App-Pools.ps1 — Create claude-api and claude-app application pools
 # ============================================================================
 # Idempotent. Configures: ApplicationPoolIdentity, No Managed Runtime, 64-bit.
 # ============================================================================

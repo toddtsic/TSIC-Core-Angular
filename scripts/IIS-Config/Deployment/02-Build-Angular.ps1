@@ -140,7 +140,7 @@ if (Test-Path $OutputPath) {
         if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 
         $tempStaging = Join-Path $env:TEMP "TSIC-App-Staging-$(Get-Date -Format 'yyyyMMddHHmmss')"
-        $projectFolder = Join-Path $tempStaging "TSIC.App"
+        $projectFolder = Join-Path $tempStaging "claude-app"
         New-Item -ItemType Directory -Path $projectFolder -Force | Out-Null
         Copy-Item -Path "$OutputPath\*" -Destination $projectFolder -Recurse -Force
         Compress-Archive -Path "$tempStaging\*" -DestinationPath $zipPath -CompressionLevel Optimal

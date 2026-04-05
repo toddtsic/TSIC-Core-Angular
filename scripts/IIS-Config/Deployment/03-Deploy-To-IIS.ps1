@@ -145,7 +145,7 @@ $preservedDirs = @('logs', 'keys')
 
 # Backup API (skip logs/keys — those stay in place)
 if ((Test-Path $apiTarget) -and (Get-ChildItem $apiTarget -ErrorAction SilentlyContinue)) {
-    $apiBackup = Join-Path $backupsPath "TSIC.Api-$Timestamp"
+    $apiBackup = Join-Path $backupsPath "claude-api-$Timestamp"
     New-Item -ItemType Directory -Path $apiBackup -Force | Out-Null
     Get-ChildItem $apiTarget -Force -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notin $preservedDirs } |
@@ -155,7 +155,7 @@ if ((Test-Path $apiTarget) -and (Get-ChildItem $apiTarget -ErrorAction SilentlyC
 
 # Backup Angular
 if ((Test-Path $angularTarget) -and (Get-ChildItem $angularTarget -ErrorAction SilentlyContinue)) {
-    $angularBackup = Join-Path $backupsPath "TSIC.App-$Timestamp"
+    $angularBackup = Join-Path $backupsPath "claude-app-$Timestamp"
     New-Item -ItemType Directory -Path $angularBackup -Force | Out-Null
     Get-ChildItem $angularTarget -Force -ErrorAction SilentlyContinue |
         ForEach-Object { Copy-Item $_.FullName $angularBackup -Recurse -Force -ErrorAction SilentlyContinue }
@@ -163,7 +163,7 @@ if ((Test-Path $angularTarget) -and (Get-ChildItem $angularTarget -ErrorAction S
 }
 
 # Prune old backups (keep 3 most recent per site)
-foreach ($prefix in @('TSIC.Api-', 'TSIC.App-')) {
+foreach ($prefix in @('claude-api-', 'claude-app-')) {
     $old = Get-ChildItem $backupsPath -Directory -Filter "$prefix*" -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending |
         Select-Object -Skip 3
