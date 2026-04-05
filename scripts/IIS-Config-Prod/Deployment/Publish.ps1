@@ -33,7 +33,7 @@ $AspNetEnv       = 'Production'
 $DevApiHost  = 'devapi.teamsportsinfo.com'
 $DevAppHost  = 'dev.teamsportsinfo.com'
 
-$RepoRoot    = (Resolve-Path "$PSScriptRoot\..\..").Path
+$RepoRoot    = (Resolve-Path "$PSScriptRoot\..\..\..").Path
 $SolutionDir = Join-Path $RepoRoot "TSIC-Core-Angular"
 $ProjectPath = Join-Path $SolutionDir "src\backend\TSIC.API\TSIC.API.csproj"
 $AngularPath = Join-Path $SolutionDir "src\frontend\tsic-app"
@@ -161,6 +161,7 @@ try {
         }
     }
 
+    $env:NO_COLOR = '1'
     npm run build -- --configuration production
     if ($LASTEXITCODE -ne 0) { Write-Error "Angular build failed!"; exit 1 }
 } finally {

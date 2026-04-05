@@ -27,7 +27,7 @@ $ApiHostname     = 'devapi.teamsportsinfo.com'
 $AngularHostname = 'dev.teamsportsinfo.com'
 $AspNetEnv       = 'Development'
 
-$RepoRoot    = (Resolve-Path "$PSScriptRoot\..\..").Path
+$RepoRoot    = (Resolve-Path "$PSScriptRoot\..\..\..").Path
 $SolutionDir = Join-Path $RepoRoot "TSIC-Core-Angular"
 $ProjectPath = Join-Path $SolutionDir "src\backend\TSIC.API\TSIC.API.csproj"
 $AngularPath = Join-Path $SolutionDir "src\frontend\tsic-app"
@@ -123,6 +123,7 @@ try {
         Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
     }
 
+    $env:NO_COLOR = '1'
     npm run build -- --configuration production
     if ($LASTEXITCODE -ne 0) { Write-Error "Angular build failed!"; exit 1 }
 } finally {
