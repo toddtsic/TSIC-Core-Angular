@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- index.html: NEVER cache — this is the SPA entry point that references hashed chunks.
+       Browsers must revalidate every time, but get a fast 304 when the file hasn't changed. -->
+  <location path="index.html">
+    <system.webServer>
+      <staticContent>
+        <clientCache cacheControlMode="DisableCache" />
+      </staticContent>
+      <httpProtocol>
+        <customHeaders>
+          <add name="Cache-Control" value="no-cache, no-store, must-revalidate" />
+          <add name="Pragma" value="no-cache" />
+        </customHeaders>
+      </httpProtocol>
+    </system.webServer>
+  </location>
+
+  <location path="." inheritInChildApplications="false">
+    <system.webServer>
+      <!-- Enable directory browsing (optional) -->
+      <directoryBrowse enabled="false" />
+
+      <!-- Default document -->
+      <defaultDocument>
+        <files>
+          <clear />
+          <add value="index.html" />
+        </files>
+      </defaultDocument>
+
+      <!-- Hashed assets (JS/CSS chunks): cache 1 year — filenames change on every build -->
+      <staticContent>
+        <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" />
+      </staticContent>
+
+      <!-- URL Rewrite for Angular routing -->
+      <rewrite>
+        <rules>
+          <rule name="Angular Routes" stopProcessing="true">
+            <match url=".*" />
+            <conditions logicalGrouping="MatchAll">
+              <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+              <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+              <!-- Don't rewrite API calls -->
+              <add input="{REQUEST_URI}" pattern="^/api/" negate="true" />
+            </conditions>
+            <action type="Rewrite" url="/index.html" />
+          </rule>
+        </rules>
+      </rewrite>
+
+      <!-- Security headers -->
+      <httpProtocol>
+        <customHeaders>
+          <add name="X-Frame-Options" value="SAMEORIGIN" />
+          <add name="X-Content-Type-Options" value="nosniff" />
+          <add name="Referrer-Policy" value="strict-origin-when-cross-origin" />
+          <add name="Permissions-Policy" value="geolocation=(), microphone=(), camera=()" />
+        </customHeaders>
+      </httpProtocol>
+
+      <!-- Error pages - serve index.html for SPA routing -->
+      <httpErrors>
+        <remove statusCode="404" subStatusCode="-1" />
+        <error statusCode="404" prefixLanguageFilePath="" path="/index.html" responseMode="ExecuteURL" />
+      </httpErrors>
+    </system.webServer>
+
+    <system.web>
+      <!-- Disable session state for better performance -->
+      <sessionState mode="Off" />
+      <!-- Disable custom errors to let Angular handle them -->
+      <customErrors mode="Off" />
+    </system.web>
+  </location>
+</configuration>
