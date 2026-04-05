@@ -1,10 +1,8 @@
 # ============================================================================
-# Publish.ps1 - Build and deploy to production IIS (TSIC-PHOENIX)
+# Publish.ps1 - Build and deploy to local IIS (Dev / TSIC-SEDONA)
 # ============================================================================
-# Single script: builds .NET API + Angular (with prod URL patching),
-# deploys to \\204.17.37.202\Websites via SMB share, creates rollback backup.
-#
-# IIS on TSIC-PHOENIX must be recycled manually after deploy.
+# Single script: builds .NET API + Angular, deploys to C:\Websites,
+# restarts IIS, fixes DB login, warms up API.
 #
 # Usage:
 #   .\Publish.ps1
@@ -15,23 +13,19 @@
 $ErrorActionPreference = "Stop"
 
 # ---------------------------------------------------------------------------
-# Configuration (Prod - deploys to TSIC-PHOENIX via SMB share)
+# Configuration (Dev - all local, C:\ drive)
 # ---------------------------------------------------------------------------
 $ApiPoolName     = 'claude-api'
 $AngularPoolName = 'claude-app'
 $ApiSiteName     = 'claude-api'
 $AngularSiteName = 'claude-app'
-$ProdServer      = '204.17.37.202'
-$ApiTarget       = "\\$ProdServer\Websites\claude-api"
-$AngularTarget   = "\\$ProdServer\Websites\claude-app"
-$BackupsPath     = "\\$ProdServer\Websites\Backups"
-$ApiHostname     = 'claude-api.teamsportsinfo.com'
-$AngularHostname = 'claude-app.teamsportsinfo.com'
-$AspNetEnv       = 'Production'
-
-# URL patching: Angular environment files have dev URLs baked in at build time
-$DevApiHost  = 'devapi.teamsportsinfo.com'
-$DevAppHost  = 'dev.teamsportsinfo.com'
+$ApiTarget       = 'C:\Websites\claude-api'
+$AngularTarget   = 'C:\Websites\claude-app'
+$BackupsPath     = 'C:\Websites\Backups'
+$SqlInstance     = '.\SS2016'
+$ApiHostname     = 'devapi.teamsportsinfo.com'
+$AngularHostname = 'dev.teamsportsinfo.com'
+$AspNetEnv       = 'Development'
 
 $RepoRoot    = (Resolve-Path "$PSScriptRoot\..\..").Path
 $SolutionDir = Join-Path $RepoRoot "TSIC-Core-Angular"
@@ -40,13 +34,14 @@ $AngularPath = Join-Path $SolutionDir "src\frontend\tsic-app"
 $PublishRoot = Join-Path $RepoRoot "publish"
 $ApiPublish  = Join-Path $PublishRoot "api"
 $AngPublish  = Join-Path $PublishRoot "angular"
-$WebConfigApiSrc = Join-Path $PSScriptRoot "..\IIS-Config-Prod\web.config.api"
-$WebConfigAngSrc = Join-Path $PSScriptRoot "..\IIS-Config-Prod\web.config.angular"
+$WebConfigApiSrc = Join-Path $PSScriptRoot "..\web.config.api"
+$WebConfigAngSrc = Join-Path $PSScriptRoot "..\web.config.angular"
+$FixLoginSql     = Join-Path $PSScriptRoot "Fix-IIS-DbLogin.sql"
 
 $PreservedDirs = @('logs', 'keys')
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "TSIC Publish - PRODUCTION (TSIC-PHOENIX)" -ForegroundColor Cyan
+Write-Host "TSIC Publish - Dev (TSIC-SEDONA)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  API target:     $ApiTarget" -ForegroundColor Yellow
@@ -54,32 +49,12 @@ Write-Host "  Angular target: $AngularTarget" -ForegroundColor Yellow
 Write-Host "  Hostnames:      $ApiHostname / $AngularHostname" -ForegroundColor Yellow
 Write-Host ""
 
-# ── Safety gate ──────────────────────────────────────────────────────
-Write-Host "  *** DEPLOYING TO PRODUCTION ***" -ForegroundColor Red
-Write-Host ""
-$confirm = Read-Host "  Type 'DEPLOY' to continue, anything else to abort"
-if ($confirm -ne 'DEPLOY') {
-    Write-Host "  Aborted." -ForegroundColor Yellow
-    exit 0
-}
-Write-Host ""
-
-# ── Verify share is accessible ───────────────────────────────────────
-if (!(Test-Path "\\$ProdServer\Websites")) {
-    Write-Host "  ERROR: Cannot access \\$ProdServer\Websites" -ForegroundColor Red
-    Write-Host "  Ensure SMB share is created and credentials are mapped:" -ForegroundColor Red
-    Write-Host "    net use \\$ProdServer\Websites /user:TSIC-PHOENIX\Administrator *" -ForegroundColor White
-    exit 1
-}
-Write-Host "  Share accessible: \\$ProdServer\Websites" -ForegroundColor Green
-Write-Host ""
-
 # Transcript logging
 $transcriptStarted = $false
 try {
     $logDir = Join-Path $PublishRoot "build-logs"
     if (!(Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-    $logPath = Join-Path $logDir ("publish-prod-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
+    $logPath = Join-Path $logDir ("publish-dev-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
     Start-Transcript -Path $logPath -Append | Out-Null
     Write-Host ("Logging to: {0}" -f $logPath) -ForegroundColor DarkGray
     $transcriptStarted = $true
@@ -124,8 +99,8 @@ if (Test-Path $WebConfigApiSrc) {
 Write-Host "  API build complete." -ForegroundColor Green
 Write-Host ""
 
-# ── Step 2: Build Angular (with prod URL patching) ──────────────────
-Write-Host "Step 2: Building Angular (prod URLs)..." -ForegroundColor Yellow
+# ── Step 2: Build Angular ───────────────────────────────────────────
+Write-Host "Step 2: Building Angular..." -ForegroundColor Yellow
 
 Push-Location $AngularPath
 try {
@@ -148,32 +123,16 @@ try {
         Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
     }
 
-    # Patch environment URLs: dev -> prod
-    Write-Host "  Patching environment URLs for production..." -ForegroundColor Yellow
-    $envFiles = Get-ChildItem $envDir -Filter "environment*.ts"
-    foreach ($file in $envFiles) {
-        $content = Get-Content $file.FullName -Raw
-        $patched = $content -replace [regex]::Escape($DevApiHost), $ApiHostname `
-                             -replace [regex]::Escape($DevAppHost), $AngularHostname
-        if ($patched -ne $content) {
-            Set-Content $file.FullName $patched -NoNewline -Encoding UTF8
-            Write-Host "    Patched: $($file.Name)" -ForegroundColor White
-        }
-    }
-
     npm run build -- --configuration production
     if ($LASTEXITCODE -ne 0) { Write-Error "Angular build failed!"; exit 1 }
 } finally {
-    # Always reset environment files back to dev
+    # Always reset environment files
     $envDir = Join-Path $AngularPath "src\environments"
     Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
         $content = Get-Content $_.FullName -Raw
         $content = $content -replace "buildVersion:\s*'[^']*'", "buildVersion: 'dev'"
-        $content = $content -replace [regex]::Escape($ApiHostname), $DevApiHost `
-                             -replace [regex]::Escape($AngularHostname), $DevAppHost
         Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
     }
-    Write-Host "  Environment files reset to dev." -ForegroundColor DarkGray
     Pop-Location
 }
 
@@ -201,8 +160,34 @@ if (Test-Path $WebConfigAngSrc) {
 Write-Host "  Angular build complete." -ForegroundColor Green
 Write-Host ""
 
-# ── Step 3: Rollback backup ─────────────────────────────────────────
-Write-Host "Step 3: Creating rollback backup on TSIC-PHOENIX..." -ForegroundColor Yellow
+# ── Step 3: Stop IIS sites ──────────────────────────────────────────
+Write-Host "Step 3: Stopping IIS sites..." -ForegroundColor Yellow
+Import-Module WebAdministration -ErrorAction SilentlyContinue
+if (Get-Module WebAdministration) {
+    try {
+        foreach ($site in @($ApiSiteName, $AngularSiteName)) {
+            if (Get-Website -Name $site -ErrorAction SilentlyContinue) {
+                Stop-Website -Name $site
+                Write-Host "  Stopped website: $site" -ForegroundColor White
+            }
+        }
+        foreach ($pool in @($ApiPoolName, $AngularPoolName)) {
+            if (Get-WebAppPoolState -Name $pool -ErrorAction SilentlyContinue) {
+                Stop-WebAppPool -Name $pool -ErrorAction SilentlyContinue
+                Write-Host "  Stopped app pool: $pool" -ForegroundColor White
+            }
+        }
+    } catch {
+        Write-Host "  Could not stop sites/pools: $_" -ForegroundColor Yellow
+    }
+    Start-Sleep -Seconds 2
+} else {
+    Write-Host "  WebAdministration module not available - stop sites manually" -ForegroundColor Yellow
+}
+Write-Host ""
+
+# ── Step 4: Rollback backup ─────────────────────────────────────────
+Write-Host "Step 4: Creating rollback backup..." -ForegroundColor Yellow
 if (!(Test-Path $BackupsPath)) { New-Item -ItemType Directory -Path $BackupsPath -Force | Out-Null }
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 
@@ -234,11 +219,10 @@ foreach ($prefix in @('claude-api-', 'claude-app-')) {
 }
 Write-Host ""
 
-# ── Step 4: Deploy files to TSIC-PHOENIX ─────────────────────────────
-Write-Host "Step 4: Deploying files to TSIC-PHOENIX..." -ForegroundColor Yellow
+# ── Step 5: Deploy files ────────────────────────────────────────────
+Write-Host "Step 5: Deploying files..." -ForegroundColor Yellow
 
 # API
-if (!(Test-Path $ApiTarget)) { New-Item -ItemType Directory -Path $ApiTarget -Force | Out-Null }
 Write-Host "  Clearing $ApiTarget (preserving logs/, keys/, FirebaseAuth_*)..." -ForegroundColor White
 Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -notin $PreservedDirs -and $_.Name -notlike 'FirebaseAuth_*.json' } |
@@ -254,28 +238,7 @@ if (Test-Path $wcDest) {
     Write-Host "  web.config: ASPNETCORE_ENVIRONMENT = $AspNetEnv" -ForegroundColor White
 }
 
-# Patch appsettings for production paths and hostnames
-Write-Host "  Patching appsettings for production..." -ForegroundColor Yellow
-$settingsFiles = @(
-    (Join-Path $ApiTarget "appsettings.json"),
-    (Join-Path $ApiTarget "appsettings.Production.json")
-)
-foreach ($file in $settingsFiles) {
-    if (Test-Path $file) {
-        $content = Get-Content $file -Raw
-        $original = $content
-        $content = $content -replace 'C:\\\\Websites', 'E:\\Websites' -replace 'C:\\Websites', 'E:\Websites'
-        $content = $content -replace [regex]::Escape($DevApiHost), $ApiHostname
-        $content = $content -replace [regex]::Escape($DevAppHost), $AngularHostname
-        if ($content -ne $original) {
-            Set-Content $file $content -NoNewline
-            Write-Host "    Patched: $(Split-Path $file -Leaf)" -ForegroundColor White
-        }
-    }
-}
-
 # Angular
-if (!(Test-Path $AngularTarget)) { New-Item -ItemType Directory -Path $AngularTarget -Force | Out-Null }
 Write-Host "  Clearing $AngularTarget..." -ForegroundColor White
 Get-ChildItem $AngularTarget -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Copy-Item "$AngPublish\*" $AngularTarget -Recurse -Force
@@ -289,21 +252,70 @@ if (!(Test-Path $angIdx) -and (Test-Path (Join-Path $angBrowser "index.html"))) 
     Remove-Item $angBrowser -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# Angular web.config (already in publish output from build step)
 Write-Host "  Files deployed!" -ForegroundColor Green
+Write-Host ""
+
+# ── Step 6: Start IIS sites ─────────────────────────────────────────
+Write-Host "Step 6: Starting IIS sites..." -ForegroundColor Yellow
+if (Get-Module WebAdministration) {
+    try {
+        foreach ($pool in @($ApiPoolName, $AngularPoolName)) {
+            if (Get-WebAppPoolState -Name $pool -ErrorAction SilentlyContinue) {
+                Start-WebAppPool -Name $pool -ErrorAction SilentlyContinue
+                Write-Host "  Started app pool: $pool" -ForegroundColor White
+            }
+        }
+        foreach ($site in @($ApiSiteName, $AngularSiteName)) {
+            if (Get-Website -Name $site -ErrorAction SilentlyContinue) {
+                Start-Website -Name $site
+                Write-Host "  Started website: $site" -ForegroundColor White
+            }
+        }
+    } catch {
+        Write-Host "  Could not start sites/pools: $_" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  WebAdministration module not available - start sites manually" -ForegroundColor Yellow
+}
+Write-Host ""
+
+# ── Step 7: Fix DB login ────────────────────────────────────────────
+Write-Host "Step 7: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
+if (Test-Path $FixLoginSql) {
+    try {
+        sqlcmd -S $SqlInstance -E -i $FixLoginSql -b
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  DB login verified for IIS APPPOOL\$ApiPoolName" -ForegroundColor Green
+        } else {
+            Write-Host "  sqlcmd returned exit code $LASTEXITCODE - check SQL output above" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  Could not run Fix-IIS-DbLogin.sql: $_" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  Fix-IIS-DbLogin.sql not found - skipping" -ForegroundColor Yellow
+}
+Write-Host ""
+
+# ── Step 8: Warmup ──────────────────────────────────────────────────
+Write-Host "Step 8: Warming up API..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+try {
+    $null = Invoke-WebRequest -Uri "https://$ApiHostname/api/jobs/tsic" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
+    Write-Host "  API warmed up!" -ForegroundColor Green
+} catch {
+    Write-Host "  Warmup failed (app may still be starting): $($_.Exception.Message)" -ForegroundColor Yellow
+}
 Write-Host ""
 
 # ── Done ─────────────────────────────────────────────────────────────
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "SUCCESS! Published to TSIC-PHOENIX." -ForegroundColor Green
+Write-Host "SUCCESS! Published to Dev." -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  API:     https://$ApiHostname" -ForegroundColor Green
 Write-Host "  Angular: https://$AngularHostname" -ForegroundColor Green
-Write-Host ""
-Write-Host "  IMPORTANT: RDP to TSIC-PHOENIX and recycle app pools:" -ForegroundColor Red
-Write-Host "    Restart-WebAppPool -Name '$ApiPoolName'" -ForegroundColor White
-Write-Host "    Restart-WebAppPool -Name '$AngularPoolName'" -ForegroundColor White
-Write-Host ""
 
 } finally {
     if ($transcriptStarted) {

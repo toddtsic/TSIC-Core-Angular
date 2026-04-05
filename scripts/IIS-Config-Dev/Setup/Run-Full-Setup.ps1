@@ -99,7 +99,7 @@ Write-Host ""
 Write-Host "  Next Steps:" -ForegroundColor Yellow
 Write-Host "    1. Deploy application files:" -ForegroundColor White
 Write-Host "       cd ..\Deployment" -ForegroundColor White
-Write-Host "       .\03-Deploy-To-IIS.ps1" -ForegroundColor White
+Write-Host "       .\Publish.ps1" -ForegroundColor White
 Write-Host "    2. Verify: https://$($Config.AngularHostname)" -ForegroundColor White
 Write-Host "    3. Verify: https://$($Config.ApiHostname)/swagger" -ForegroundColor White
 Write-Host ""
