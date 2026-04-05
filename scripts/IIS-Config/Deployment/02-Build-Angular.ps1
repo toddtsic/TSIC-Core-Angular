@@ -134,7 +134,7 @@ if (Test-Path $OutputPath) {
     $fileCount = (Get-ChildItem $OutputPath -Recurse -File).Count
     if ($fileCount -gt 0) {
         Write-Host "Creating backup archive..." -ForegroundColor Cyan
-        $backupDir = "C:\Users\Administrator\Documents\Backups\DOTNETPublishedOutputs"
+        $backupDir = Join-Path $PSScriptRoot "..\..\..\publish\build-archives"
         $zipPath = Join-Path $backupDir "TSIC-app.zip"
         if (!(Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir -Force | Out-Null }
         if (Test-Path $zipPath) { Remove-Item $zipPath -Force }

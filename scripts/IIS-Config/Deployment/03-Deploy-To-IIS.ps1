@@ -31,14 +31,32 @@ $AngularSource = Join-Path $PublishRoot "angular"
 $DevApiHost  = 'devapi.teamsportsinfo.com'
 $DevAppHost  = 'dev.teamsportsinfo.com'
 
+# Deploy targets — local for Dev, UNC share for Prod
+$apiTarget     = $Config.DeployApiPath
+$angularTarget = $Config.DeployAngularPath
+$backupsPath   = $Config.DeployBackupsPath
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "TSIC Deploy to IIS ($Environment)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  API target:     $($Config.ApiPath)" -ForegroundColor Yellow
-Write-Host "  Angular target: $($Config.AngularPath)" -ForegroundColor Yellow
+Write-Host "  API target:     $apiTarget" -ForegroundColor Yellow
+Write-Host "  Angular target: $angularTarget" -ForegroundColor Yellow
+Write-Host "  Backups:        $backupsPath" -ForegroundColor Yellow
 Write-Host "  Hostnames:      $($Config.ApiHostname) / $($Config.AngularHostname)" -ForegroundColor Yellow
 Write-Host ""
+
+# ── Prod safety gate ─────────────────────────────────────────────────
+if ($Environment -eq 'Prod') {
+    Write-Host "  *** DEPLOYING TO PRODUCTION ***" -ForegroundColor Red
+    Write-Host ""
+    $confirm = Read-Host "  Type 'DEPLOY' to continue, anything else to abort"
+    if ($confirm -ne 'DEPLOY') {
+        Write-Host "  Aborted." -ForegroundColor Yellow
+        exit 0
+    }
+    Write-Host ""
+}
 
 # Transcript logging
 $transcriptStarted = $false
@@ -84,41 +102,86 @@ if (!(Test-Path $AngularSource)) {
     exit 1
 }
 
-# ── Step 3: Stop IIS sites ──────────────────────────────────────────
-Write-Host "Step 2: Stopping IIS sites..." -ForegroundColor Yellow
-Import-Module WebAdministration -ErrorAction SilentlyContinue
-if (Get-Module WebAdministration) {
-    try {
-        foreach ($siteName in @($Config.ApiSiteName, $Config.AngularSiteName)) {
-            if (Get-Website -Name $siteName -ErrorAction SilentlyContinue) {
-                Stop-Website -Name $siteName
-                Write-Host "  Stopped website: $siteName" -ForegroundColor White
-            }
-        }
-        foreach ($poolName in @($Config.ApiPoolName, $Config.AngularPoolName)) {
-            if (Get-WebAppPoolState -Name $poolName -ErrorAction SilentlyContinue) {
-                Stop-WebAppPool -Name $poolName -ErrorAction SilentlyContinue
-                Write-Host "  Stopped app pool: $poolName" -ForegroundColor White
-            }
-        }
-    } catch {
-        Write-Host "  Could not stop sites/pools: $_" -ForegroundColor Yellow
-    }
-    Start-Sleep -Seconds 2
+# ── Step 2: Stop IIS sites ──────────────────────────────────────────
+# For Dev: stop locally. For Prod: IIS is on TSIC-PHOENIX, not this machine.
+$isRemoteDeploy = ($Environment -eq 'Prod' -and $Config.ProdServer)
+
+if ($isRemoteDeploy) {
+    Write-Host "Step 2: Remote deployment — IIS stop/start must be done on $($Config.ProdServer)." -ForegroundColor Yellow
+    Write-Host "  Files will be copied via UNC share. After deploy, recycle app pools on $($Config.ProdServer)." -ForegroundColor Yellow
 } else {
-    Write-Host "  WebAdministration module not available — stop sites manually" -ForegroundColor Yellow
+    Write-Host "Step 2: Stopping IIS sites..." -ForegroundColor Yellow
+    Import-Module WebAdministration -ErrorAction SilentlyContinue
+    if (Get-Module WebAdministration) {
+        try {
+            foreach ($siteName in @($Config.ApiSiteName, $Config.AngularSiteName)) {
+                if (Get-Website -Name $siteName -ErrorAction SilentlyContinue) {
+                    Stop-Website -Name $siteName
+                    Write-Host "  Stopped website: $siteName" -ForegroundColor White
+                }
+            }
+            foreach ($poolName in @($Config.ApiPoolName, $Config.AngularPoolName)) {
+                if (Get-WebAppPoolState -Name $poolName -ErrorAction SilentlyContinue) {
+                    Stop-WebAppPool -Name $poolName -ErrorAction SilentlyContinue
+                    Write-Host "  Stopped app pool: $poolName" -ForegroundColor White
+                }
+            }
+        } catch {
+            Write-Host "  Could not stop sites/pools: $_" -ForegroundColor Yellow
+        }
+        Start-Sleep -Seconds 2
+    } else {
+        Write-Host "  WebAdministration module not available — stop sites manually" -ForegroundColor Yellow
+    }
 }
 Write-Host ""
 
-# ── Step 4: Deploy files ────────────────────────────────────────────
-Write-Host "Step 3: Deploying files..." -ForegroundColor Yellow
+# ── Step 4: Rollback backup ─────────────────────────────────────────
+Write-Host "Step 3: Creating rollback backup..." -ForegroundColor Yellow
+if (!(Test-Path $backupsPath)) { New-Item -ItemType Directory -Path $backupsPath -Force | Out-Null }
+
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$preservedDirs = @('logs', 'keys')
+
+# Backup API (skip logs/keys — those stay in place)
+if ((Test-Path $apiTarget) -and (Get-ChildItem $apiTarget -ErrorAction SilentlyContinue)) {
+    $apiBackup = Join-Path $backupsPath "TSIC.Api-$Timestamp"
+    New-Item -ItemType Directory -Path $apiBackup -Force | Out-Null
+    Get-ChildItem $apiTarget -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notin $preservedDirs } |
+        ForEach-Object { Copy-Item $_.FullName $apiBackup -Recurse -Force -ErrorAction SilentlyContinue }
+    Write-Host "  API backed up to: $apiBackup" -ForegroundColor Green
+}
+
+# Backup Angular
+if ((Test-Path $angularTarget) -and (Get-ChildItem $angularTarget -ErrorAction SilentlyContinue)) {
+    $angularBackup = Join-Path $backupsPath "TSIC.App-$Timestamp"
+    New-Item -ItemType Directory -Path $angularBackup -Force | Out-Null
+    Get-ChildItem $angularTarget -Force -ErrorAction SilentlyContinue |
+        ForEach-Object { Copy-Item $_.FullName $angularBackup -Recurse -Force -ErrorAction SilentlyContinue }
+    Write-Host "  Angular backed up to: $angularBackup" -ForegroundColor Green
+}
+
+# Prune old backups (keep 3 most recent per site)
+foreach ($prefix in @('TSIC.Api-', 'TSIC.App-')) {
+    $old = Get-ChildItem $backupsPath -Directory -Filter "$prefix*" -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending |
+        Select-Object -Skip 3
+    foreach ($dir in $old) {
+        Remove-Item $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Pruned old backup: $($dir.Name)" -ForegroundColor DarkGray
+    }
+}
+Write-Host ""
+
+# ── Step 5: Deploy files ────────────────────────────────────────────
+Write-Host "Step 4: Deploying files..." -ForegroundColor Yellow
 
 # Deploy API (preserve logs/, keys/, FirebaseAuth_*)
-$apiTarget = $Config.ApiPath
 if (!(Test-Path $apiTarget)) { New-Item -ItemType Directory -Path $apiTarget -Force | Out-Null }
 Write-Host "  Clearing $apiTarget (preserving logs/, keys/, FirebaseAuth_*)..." -ForegroundColor White
 Get-ChildItem $apiTarget -Force -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -notin @('logs', 'keys') -and $_.Name -notlike 'FirebaseAuth_*.json' } |
+    Where-Object { $_.Name -notin $preservedDirs -and $_.Name -notlike 'FirebaseAuth_*.json' } |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "  Copying API files..." -ForegroundColor White
 Copy-Item "$ApiSource\*" $apiTarget -Recurse -Force
@@ -135,7 +198,6 @@ if (Test-Path $apiConfigSrc) {
 }
 
 # Deploy Angular
-$angularTarget = $Config.AngularPath
 if (!(Test-Path $angularTarget)) { New-Item -ItemType Directory -Path $angularTarget -Force | Out-Null }
 Write-Host "  Clearing $angularTarget..." -ForegroundColor White
 Get-ChildItem $angularTarget -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -162,7 +224,7 @@ Write-Host ""
 
 # ── Step 5: Patch appsettings for Prod ──────────────────────────────
 if ($Environment -eq 'Prod') {
-    Write-Host "Step 4: Patching appsettings for production..." -ForegroundColor Yellow
+    Write-Host "Step 5: Patching appsettings for production..." -ForegroundColor Yellow
     $settingsFiles = @(
         (Join-Path $apiTarget "appsettings.json"),
         (Join-Path $apiTarget "appsettings.Production.json")
@@ -189,32 +251,38 @@ if ($Environment -eq 'Prod') {
 }
 
 # ── Step 6: Start IIS sites ─────────────────────────────────────────
-Write-Host "Step 5: Starting IIS sites..." -ForegroundColor Yellow
-if (Get-Module WebAdministration) {
-    try {
-        foreach ($poolName in @($Config.ApiPoolName, $Config.AngularPoolName)) {
-            if (Get-WebAppPoolState -Name $poolName -ErrorAction SilentlyContinue) {
-                Start-WebAppPool -Name $poolName -ErrorAction SilentlyContinue
-                Write-Host "  Started app pool: $poolName" -ForegroundColor White
-            }
-        }
-        foreach ($siteName in @($Config.ApiSiteName, $Config.AngularSiteName)) {
-            if (Get-Website -Name $siteName -ErrorAction SilentlyContinue) {
-                Start-Website -Name $siteName
-                Write-Host "  Started website: $siteName" -ForegroundColor White
-            }
-        }
-    } catch {
-        Write-Host "  Could not start sites/pools: $_" -ForegroundColor Yellow
-    }
+if ($isRemoteDeploy) {
+    Write-Host "Step 6: Files deployed to \\$($Config.ProdServer). Skipping local IIS start." -ForegroundColor Yellow
 } else {
-    Write-Host "  WebAdministration module not available — start sites manually" -ForegroundColor Yellow
+    Write-Host "Step 6: Starting IIS sites..." -ForegroundColor Yellow
+    if (Get-Module WebAdministration) {
+        try {
+            foreach ($poolName in @($Config.ApiPoolName, $Config.AngularPoolName)) {
+                if (Get-WebAppPoolState -Name $poolName -ErrorAction SilentlyContinue) {
+                    Start-WebAppPool -Name $poolName -ErrorAction SilentlyContinue
+                    Write-Host "  Started app pool: $poolName" -ForegroundColor White
+                }
+            }
+            foreach ($siteName in @($Config.ApiSiteName, $Config.AngularSiteName)) {
+                if (Get-Website -Name $siteName -ErrorAction SilentlyContinue) {
+                    Start-Website -Name $siteName
+                    Write-Host "  Started website: $siteName" -ForegroundColor White
+                }
+            }
+        } catch {
+            Write-Host "  Could not start sites/pools: $_" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  WebAdministration module not available — start sites manually" -ForegroundColor Yellow
+    }
 }
 Write-Host ""
 
 # ── Step 7: Fix DB login ────────────────────────────────────────────
-if (-not $SkipDbLogin) {
-    Write-Host "Step 6: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
+if ($isRemoteDeploy) {
+    Write-Host "Step 7: DB login — run Fix-IIS-DbLogin.sql on $($Config.ProdServer) if needed." -ForegroundColor Yellow
+} elseif (-not $SkipDbLogin) {
+    Write-Host "Step 7: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
     $fixLoginSql = Join-Path $PSScriptRoot "Fix-IIS-DbLogin.sql"
     if (Test-Path $fixLoginSql) {
         try {
@@ -231,12 +299,12 @@ if (-not $SkipDbLogin) {
     } else {
         Write-Host "  Fix-IIS-DbLogin.sql not found — skipping." -ForegroundColor Yellow
     }
-    Write-Host ""
 }
+Write-Host ""
 
 # ── Step 8: Warmup ──────────────────────────────────────────────────
 if (-not $SkipWarmup) {
-    Write-Host "Step 7: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
+    Write-Host "Step 8: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
     Start-Sleep -Seconds 3
     try {
         $warmupUrl = "https://$($Config.ApiHostname)/api/jobs/tsic"
@@ -251,11 +319,17 @@ if (-not $SkipWarmup) {
 
 # ── Done ─────────────────────────────────────────────────────────────
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "SUCCESS! Deployed to $Environment IIS." -ForegroundColor Green
+Write-Host "SUCCESS! Deployed to $Environment." -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  API:     https://$($Config.ApiHostname)" -ForegroundColor Green
 Write-Host "  Angular: https://$($Config.AngularHostname)" -ForegroundColor Green
+if ($isRemoteDeploy) {
+    Write-Host ""
+    Write-Host "  IMPORTANT: RDP to $($Config.ProdServer) and recycle app pools:" -ForegroundColor Red
+    Write-Host "    Restart-WebAppPool -Name '$($Config.ApiPoolName)'" -ForegroundColor White
+    Write-Host "    Restart-WebAppPool -Name '$($Config.AngularPoolName)'" -ForegroundColor White
+}
 
 } finally {
     if ($transcriptStarted) {

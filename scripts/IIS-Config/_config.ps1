@@ -33,14 +33,18 @@ $EnvSettings = @{
         AngularHostname = 'dev.teamsportsinfo.com'
         BasePath        = 'C:\Websites'
         StaticsPath     = 'C:\Websites\TSIC-STATICS'
+        BackupsPath     = 'C:\Websites\Backups'
         AspNetEnv       = 'Development'
+        ProdServer      = $null
     }
     Prod = @{
         ApiHostname     = 'api.teamsportsinfo.com'
         AngularHostname = 'teamsportsinfo.com'
-        BasePath        = 'D:\Websites'
+        BasePath        = 'E:\Websites'
         StaticsPath     = 'E:\Websites\TSIC-STATICS'
+        BackupsPath     = 'E:\Websites\Backups'
         AspNetEnv       = 'Production'
+        ProdServer      = 'TSIC-PHOENIX'
     }
 }
 
@@ -57,6 +61,20 @@ $Config.StaticsPath     = $Env.StaticsPath
 $Config.ApiPath         = Join-Path $Env.BasePath $Config.ApiSiteName
 $Config.AngularPath     = Join-Path $Env.BasePath $Config.AngularSiteName
 $Config.AspNetEnv       = $Env.AspNetEnv
+$Config.BackupsPath     = $Env.BackupsPath
+$Config.ProdServer      = $Env.ProdServer
+
+# For Prod deploys from dev machine: resolve paths to UNC share
+# E:\Websites on TSIC-PHOENIX is shared as \\TSIC-PHOENIX\Websites
+if ($Environment -eq 'Prod' -and $Config.ProdServer) {
+    $Config.DeployApiPath     = "\\$($Config.ProdServer)\Websites\$($Config.ApiSiteName)"
+    $Config.DeployAngularPath = "\\$($Config.ProdServer)\Websites\$($Config.AngularSiteName)"
+    $Config.DeployBackupsPath = "\\$($Config.ProdServer)\Websites\Backups"
+} else {
+    $Config.DeployApiPath     = $Config.ApiPath
+    $Config.DeployAngularPath = $Config.AngularPath
+    $Config.DeployBackupsPath = $Config.BackupsPath
+}
 
 # ---------------------------------------------------------------------------
 # Display (when sourced interactively)
@@ -67,10 +85,16 @@ function Show-Config {
     Write-Host "  API Pool/Site:  $($Config.ApiPoolName)" -ForegroundColor White
     Write-Host "  API Hostname:   $($Config.ApiHostname)" -ForegroundColor White
     Write-Host "  API Path:       $($Config.ApiPath)" -ForegroundColor White
+    Write-Host "  Deploy API:     $($Config.DeployApiPath)" -ForegroundColor White
     Write-Host "  Angular Pool:   $($Config.AngularPoolName)" -ForegroundColor White
     Write-Host "  Angular Host:   $($Config.AngularHostname)" -ForegroundColor White
     Write-Host "  Angular Path:   $($Config.AngularPath)" -ForegroundColor White
+    Write-Host "  Deploy Angular: $($Config.DeployAngularPath)" -ForegroundColor White
     Write-Host "  Statics:        $($Config.StaticsPath)" -ForegroundColor White
+    Write-Host "  Backups:        $($Config.DeployBackupsPath)" -ForegroundColor White
     Write-Host "  SQL:            $($Config.SqlInstance) / $($Config.DatabaseName)" -ForegroundColor White
+    if ($Config.ProdServer) {
+        Write-Host "  Prod Server:    $($Config.ProdServer)" -ForegroundColor White
+    }
     Write-Host ""
 }
