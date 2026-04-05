@@ -59,7 +59,7 @@ if (-not $SecretsFile -or -not (Test-Path $SecretsFile)) {
     Write-Host "    Anthropic__ApiKey" -ForegroundColor White
     Write-Host ""
     Write-Host "  See docs/Security/iis-env-secrets-setup.md for template and instructions." -ForegroundColor Yellow
-    exit 1
+    throw "No secrets file found. Provide via -SecretsFile parameter or place app-pool-secrets.ps1 in Setup/."
 }
 
 Write-Host "  Secrets file: $SecretsFile" -ForegroundColor White
@@ -69,14 +69,12 @@ Write-Host "  Secrets file: $SecretsFile" -ForegroundColor White
 
 # Verify $envVars was defined by the sourced file
 if (-not $envVars -or $envVars.Count -eq 0) {
-    Write-Host "  ERROR: Secrets file did not define `$envVars hashtable." -ForegroundColor Red
-    exit 1
+    throw "Secrets file did not define `$envVars hashtable."
 }
 
 # Check for placeholder values
 if ($envVars.Values -match "FILL_ME|YOUR_") {
-    Write-Host "  ERROR: Replace all placeholder values before running." -ForegroundColor Red
-    exit 1
+    throw "Secrets file contains placeholder values (FILL_ME / YOUR_). Replace all before running."
 }
 
 # Add ASPNETCORE_ENVIRONMENT (from _config.ps1, not the secrets file)
@@ -87,15 +85,13 @@ Write-Host "  Applying $($envVars.Count) environment variables to '$($Config.Api
 
 $appcmd = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
 if (-not (Test-Path $appcmd)) {
-    Write-Host "  ERROR: appcmd.exe not found at $appcmd" -ForegroundColor Red
-    exit 1
+    throw "appcmd.exe not found at $appcmd"
 }
 
 Import-Module WebAdministration -ErrorAction Stop
 
 if (-not (Test-Path "IIS:\AppPools\$($Config.ApiPoolName)")) {
-    Write-Host "  ERROR: App pool '$($Config.ApiPoolName)' does not exist. Run 02-Create-App-Pools.ps1 first." -ForegroundColor Red
-    exit 1
+    throw "App pool '$($Config.ApiPoolName)' does not exist. Run 02-Create-App-Pools.ps1 first."
 }
 
 foreach ($kvp in $envVars.GetEnumerator()) {

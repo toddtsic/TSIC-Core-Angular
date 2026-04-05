@@ -10,37 +10,55 @@
 
 . "$PSScriptRoot\..\_config.ps1"
 
+# Capture all config values BEFORE importing WebAdministration (module side-effects)
+$apiSite = $Config.ApiSiteName
+$apiPool = $Config.ApiPoolName
+$apiPath = $Config.ApiPath
+$apiHost = $Config.ApiHostname
+$angSite = $Config.AngularSiteName
+$angPool = $Config.AngularPoolName
+$angPath = $Config.AngularPath
+$angHost = $Config.AngularHostname
+
+foreach ($v in @('apiSite','apiPool','apiPath','apiHost','angSite','angPool','angPath','angHost')) {
+    if (-not (Get-Variable $v -ValueOnly)) {
+        throw "Config value '$v' is null. Check _config.ps1."
+    }
+}
+
 Write-Host ""
 Write-Host "[Step 4] Creating IIS sites with HTTPS bindings (Dev)..." -ForegroundColor Green
 
 Import-Module WebAdministration -ErrorAction Stop
 
-# --- Find Wildcard Certificate ---
-$cert = Get-ChildItem Cert:\LocalMachine\My |
-    Where-Object { $_.Subject -like '*teamsportsinfo.com*' -and $_.NotAfter -gt (Get-Date) } |
-    Sort-Object NotAfter -Descending |
-    Select-Object -First 1
+# --- Find Wildcard Certificate (check Personal and WebHosting stores) ---
+$cert = $null
+$certStore = $null
+foreach ($store in @('My', 'WebHosting')) {
+    $found = Get-ChildItem "Cert:\LocalMachine\$store" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Subject -like '*teamsportsinfo.com*' -and $_.NotAfter -gt (Get-Date) } |
+        Sort-Object NotAfter -Descending |
+        Select-Object -First 1
+    if ($found) {
+        $cert = $found
+        $certStore = $store
+        break
+    }
+}
 
 if ($cert) {
-    Write-Host "  Found cert: $($cert.Subject)" -ForegroundColor Green
+    Write-Host "  Found cert: $($cert.Subject) (store: $certStore)" -ForegroundColor Green
     Write-Host "  Thumbprint: $($cert.Thumbprint)" -ForegroundColor White
     Write-Host "  Expires:    $($cert.NotAfter.ToString('yyyy-MM-dd'))" -ForegroundColor White
 }
 else {
-    Write-Host "  ERROR: No valid *.teamsportsinfo.com certificate found in LocalMachine\My" -ForegroundColor Red
-    Write-Host "  Import your wildcard cert before running this script." -ForegroundColor Red
-    exit 1
+    Write-Host "  Checked stores: Personal (My) and WebHosting" -ForegroundColor Red
+    throw "No valid *.teamsportsinfo.com certificate found in LocalMachine cert stores"
 }
 
 $certHash = $cert.Thumbprint
-$certStore = "My"
 
 # --- API Site ---
-$apiSite = $Config.ApiSiteName
-$apiPool = $Config.ApiPoolName
-$apiPath = $Config.ApiPath
-$apiHost = $Config.ApiHostname
-
 if (Get-Website -Name $apiSite -ErrorAction SilentlyContinue) {
     Write-Host "  Site '$apiSite' already exists - updating configuration." -ForegroundColor DarkGray
     Set-ItemProperty "IIS:\Sites\$apiSite" -Name physicalPath -Value $apiPath
@@ -67,17 +85,20 @@ else {
     Write-Host "  HTTPS binding exists: https://$apiHost" -ForegroundColor DarkGray
 }
 
-# Bind the certificate (using netsh for SNI-enabled bindings)
-$certBindCmd = "netsh http add sslcert hostnameport=${apiHost}:443 certhash=$certHash certstorename=$certStore appid='{4dc3e181-e14b-4a21-b022-59fc669b0914}'"
-& cmd /c $certBindCmd 2>$null
-Write-Host "  Bound certificate to https://${apiHost}:443" -ForegroundColor White
+# Bind the certificate to the HTTPS binding
+try {
+    $binding = Get-WebBinding -Name $apiSite -Protocol "https" -Port 443 -HostHeader $apiHost
+    $binding.AddSslCertificate($certHash, $certStore)
+    Write-Host "  Bound certificate to https://${apiHost}:443 (store: $certStore)" -ForegroundColor Green
+} catch {
+    if ($_.Exception.Message -match 'already') {
+        Write-Host "  Certificate already bound to https://${apiHost}:443" -ForegroundColor DarkGray
+    } else {
+        Write-Host "  WARNING: Certificate binding failed for https://${apiHost}:443 — $_" -ForegroundColor Yellow
+    }
+}
 
 # --- Angular Site ---
-$angSite = $Config.AngularSiteName
-$angPool = $Config.AngularPoolName
-$angPath = $Config.AngularPath
-$angHost = $Config.AngularHostname
-
 if (Get-Website -Name $angSite -ErrorAction SilentlyContinue) {
     Write-Host "  Site '$angSite' already exists - updating configuration." -ForegroundColor DarkGray
     Set-ItemProperty "IIS:\Sites\$angSite" -Name physicalPath -Value $angPath
@@ -104,9 +125,18 @@ else {
     Write-Host "  HTTPS binding exists: https://$angHost" -ForegroundColor DarkGray
 }
 
-$certBindCmd = "netsh http add sslcert hostnameport=${angHost}:443 certhash=$certHash certstorename=$certStore appid='{4dc3e181-e14b-4a21-b022-59fc669b0915}'"
-& cmd /c $certBindCmd 2>$null
-Write-Host "  Bound certificate to https://${angHost}:443" -ForegroundColor White
+# Bind the certificate to the HTTPS binding
+try {
+    $binding = Get-WebBinding -Name $angSite -Protocol "https" -Port 443 -HostHeader $angHost
+    $binding.AddSslCertificate($certHash, $certStore)
+    Write-Host "  Bound certificate to https://${angHost}:443 (store: $certStore)" -ForegroundColor Green
+} catch {
+    if ($_.Exception.Message -match 'already') {
+        Write-Host "  Certificate already bound to https://${angHost}:443" -ForegroundColor DarkGray
+    } else {
+        Write-Host "  WARNING: Certificate binding failed for https://${angHost}:443 — $_" -ForegroundColor Yellow
+    }
+}
 
 # Add HTTP binding on port 80 for Angular (web.config redirects to HTTPS)
 $httpBinding = Get-WebBinding -Name $angSite -Protocol "http" -Port 80 -HostHeader $angHost -ErrorAction SilentlyContinue

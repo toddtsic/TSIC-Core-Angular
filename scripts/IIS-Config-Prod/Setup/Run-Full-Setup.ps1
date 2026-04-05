@@ -31,6 +31,10 @@ Write-Host "  TSIC IIS Server Setup — $Environment Environment" -ForegroundCol
 Write-Host "============================================================" -ForegroundColor Cyan
 Show-Config
 
+$stepFailed = $false
+
+try {
+
 # Step 1: IIS Features
 & "$PSScriptRoot\01-Install-IIS-Features.ps1"
 
@@ -70,6 +74,19 @@ else {
     $secretsArgs = @{ Environment = $Environment }
     if ($SecretsFile) { $secretsArgs.SecretsFile = $SecretsFile }
     & "$PSScriptRoot\07-Apply-Secrets.ps1" @secretsArgs
+}
+
+} catch {
+    $stepFailed = $true
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Red
+    Write-Host "  SETUP FAILED — $Environment Environment" -ForegroundColor Red
+    Write-Host "============================================================" -ForegroundColor Red
+    Write-Host "  Error: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Fix the issue above and re-run. Steps are idempotent." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
 }
 
 # Summary

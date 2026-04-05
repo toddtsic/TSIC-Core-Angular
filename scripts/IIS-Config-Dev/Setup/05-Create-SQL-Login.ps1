@@ -47,7 +47,13 @@ $sqlcmdAvailable = Get-Command sqlcmd -ErrorAction SilentlyContinue
 
 if ($invokeSqlAvailable) {
     try {
-        Invoke-Sqlcmd -ServerInstance $Config.SqlInstance -Query $sqlCheck -TrustServerCertificate
+        # Legacy SQLPS module (v15.0) doesn't support -TrustServerCertificate; newer SqlServer module does
+        $sqlArgs = @{ ServerInstance = $Config.SqlInstance; Query = $sqlCheck }
+        $cmdInfo = Get-Command Invoke-Sqlcmd
+        if ($cmdInfo.Parameters.ContainsKey('TrustServerCertificate')) {
+            $sqlArgs.TrustServerCertificate = $true
+        }
+        Invoke-Sqlcmd @sqlArgs
         Write-Host "  SQL Server login configured via Invoke-Sqlcmd." -ForegroundColor Green
     }
     catch {
