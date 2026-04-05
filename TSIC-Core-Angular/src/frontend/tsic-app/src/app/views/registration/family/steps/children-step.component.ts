@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators, ValidatorFn, AbstractControl } from '@angular/forms';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
+import { FamilyService } from '@infrastructure/services/family.service';
 import { FamilyStateService } from '../state/family-state.service';
 
 /**
@@ -28,14 +29,34 @@ import { FamilyStateService } from '../state/family-state.service';
               <h6 class="fw-semibold mb-3">Children added</h6>
               <ul class="list-group mb-0">
                 @for (c of state.children(); track $index) {
-                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <li class="list-group-item d-flex justify-content-between align-items-center"
+                      [class.editing-row]="editingIndex() === $index">
                     <div>
                       <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
                       @if (c.dob) { <div class="text-muted small">DOB: {{ c.dob }}</div> }
                       @if (c.email) { <div class="text-muted small">Email: {{ c.email }}</div> }
                       @if (c.phone) { <div class="text-muted small">Cell: {{ c.phone }}</div> }
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove($index)">Remove</button>
+                    <div class="d-flex gap-1 align-items-center">
+                      <button type="button" class="icon-action" (click)="edit($index)"
+                              [attr.aria-label]="'Edit ' + c.firstName">
+                        <i class="bi bi-pencil-fill"></i>
+                      </button>
+                      @if (c.hasRegistrations) {
+                        <span class="icon-locked" title="Has registrations — cannot remove">
+                          <i class="bi bi-lock-fill"></i>
+                        </span>
+                      } @else if (removing() === $index) {
+                        <span class="icon-locked">
+                          <span class="spinner-border spinner-border-sm text-danger"></span>
+                        </span>
+                      } @else {
+                        <button type="button" class="icon-action icon-danger" (click)="remove($index)"
+                                [attr.aria-label]="'Remove ' + c.firstName">
+                          <i class="bi bi-trash3-fill"></i>
+                        </button>
+                      }
+                    </div>
                   </li>
                 }
               </ul>
@@ -44,7 +65,8 @@ import { FamilyStateService } from '../state/family-state.service';
         </div>
 
         <!-- Add child form -->
-        <div class="card bg-body-tertiary border-0 mb-3">
+        <div class="card border-0 mb-3" [class.form-editing]="editingIndex() !== null"
+             [class.bg-body-tertiary]="editingIndex() === null">
           <div class="card-body">
             <form [formGroup]="form" (ngSubmit)="addChild()" class="row g-3">
               <div class="col-12 col-md-3">
@@ -96,8 +118,13 @@ import { FamilyStateService } from '../state/family-state.service';
                        [class.is-invalid]="submitted() && form.controls.phone.errors?.['pattern']" />
                 @if (submitted() && form.controls.phone.errors?.['pattern']) { <div class="field-error">Numbers only</div> }
               </div>
-              <div class="col-12">
-                <button type="submit" class="btn btn-outline-primary">Add child</button>
+              <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary">
+                  {{ editingIndex() !== null ? 'Save changes' : 'Add child' }}
+                </button>
+                @if (editingIndex() !== null) {
+                  <button type="button" class="btn btn-outline-secondary" (click)="cancelEdit()">Cancel</button>
+                }
               </div>
             </form>
           </div>
@@ -105,14 +132,67 @@ import { FamilyStateService } from '../state/family-state.service';
       </div>
     </div>
   `,
+    styles: [`
+      .icon-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: none;
+        border-radius: var(--radius-sm);
+        color: var(--neutral-500);
+        cursor: pointer;
+        transition: color 0.15s ease, background-color 0.15s ease;
+
+        &:hover {
+          color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.08);
+        }
+
+        &.icon-danger:hover {
+          color: var(--bs-danger);
+          background: rgba(var(--bs-danger-rgb), 0.08);
+        }
+      }
+
+      .icon-locked {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        color: var(--neutral-400);
+      }
+
+      .editing-row {
+        border-color: var(--bs-primary) !important;
+        background: rgba(var(--bs-primary-rgb), 0.04);
+      }
+
+      .form-editing {
+        border: 2px solid var(--bs-primary) !important;
+        background: rgba(var(--bs-primary-rgb), 0.03);
+        animation: edit-pulse 1.5s ease-in-out 2;
+      }
+
+      @keyframes edit-pulse {
+        0%, 100% { border-color: var(--bs-primary); }
+        50% { border-color: rgba(var(--bs-primary-rgb), 0.3); }
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChildrenStepComponent {
     private readonly fb = inject(FormBuilder);
     private readonly fieldData = inject(FormFieldDataService);
+    private readonly familyApi = inject(FamilyService);
     readonly state = inject(FamilyStateService);
+    readonly removing = signal<number | null>(null);
 
     readonly submitted = signal(false);
+    readonly editingIndex = signal<number | null>(null);
     readonly genderOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('genders');
 
     readonly form = this.fb.group({
@@ -140,20 +220,70 @@ export class ChildrenStepComponent {
         this.submitted.set(true);
         if (this.form.invalid) return;
         const v = this.form.value;
-        this.state.addChild({
+        const child = {
             firstName: v.firstName ?? '',
             lastName: v.lastName ?? '',
             dob: v.dob || undefined,
             gender: v.gender ?? '',
             email: v.email || undefined,
             phone: v.phone || undefined,
+        };
+        const idx = this.editingIndex();
+        if (idx !== null) {
+            const existing = this.state.children()[idx];
+            this.state.updateChildAt(idx, { ...child, userId: existing?.userId, hasRegistrations: existing?.hasRegistrations });
+            this.editingIndex.set(null);
+        } else {
+            this.state.addChild(child);
+        }
+        this.form.reset();
+        this.submitted.set(false);
+    }
+
+    edit(index: number): void {
+        const c = this.state.children()[index];
+        if (!c) return;
+        this.form.patchValue({
+            firstName: c.firstName,
+            lastName: c.lastName,
+            gender: c.gender,
+            dob: c.dob ?? '',
+            email: c.email ?? '',
+            phone: c.phone ?? '',
         });
+        this.editingIndex.set(index);
+        this.submitted.set(false);
+    }
+
+    cancelEdit(): void {
+        this.editingIndex.set(null);
         this.form.reset();
         this.submitted.set(false);
     }
 
     remove(index: number): void {
-        this.state.removeChildAt(index);
+        const child = this.state.children()[index];
+        if (!child) return;
+        if (this.editingIndex() === index) this.cancelEdit();
+
+        // New child (no userId) — just remove locally
+        if (!child.userId) {
+            this.state.removeChildAt(index);
+            return;
+        }
+
+        // Existing child — delete via API, then remove locally
+        this.removing.set(index);
+        this.familyApi.removeChild(child.userId).subscribe({
+            next: () => {
+                this.state.removeChildAt(index);
+                this.removing.set(null);
+            },
+            error: (err) => {
+                console.error('[ChildrenStep] remove failed', err);
+                this.removing.set(null);
+            },
+        });
     }
 
     onDigitsOnly(ev: Event): void {

@@ -51,4 +51,8 @@ export class FamilyService {
     updateChild(childUserId: string, request: ChildDto) {
         return this.http.put<ChildOperationResponse>(`${this.apiUrl}/child/${childUserId}`, request);
     }
+
+    removeChild(childUserId: string) {
+        return this.http.delete<ChildOperationResponse>(`${this.apiUrl}/child/${childUserId}`);
+    }
 }

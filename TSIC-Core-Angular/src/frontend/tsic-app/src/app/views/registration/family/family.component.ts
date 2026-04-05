@@ -141,6 +141,9 @@ export class FamilyWizardV2Component implements OnInit {
                     }
                     if (res.exists && res.profile) {
                         // Existing account — switch to edit mode and prefill
+                        if (res.accessToken) {
+                            this.auth.applyNewToken(res.accessToken);
+                        }
                         this.state.populateFromProfile(res.profile);
                     } else {
                         // New account — stay in create mode

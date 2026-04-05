@@ -11,4 +11,5 @@ public interface IFamilyService
     Task<FamilyPlayersResponseDto> GetFamilyPlayersAsync(string familyUserId, string jobPath);
     Task<ChildOperationResponse> AddChildAsync(string familyUserId, ChildDto request);
     Task<ChildOperationResponse> UpdateChildAsync(string familyUserId, string childUserId, ChildDto request);
+    Task<ChildOperationResponse> RemoveChildAsync(string familyUserId, string childUserId);
 }

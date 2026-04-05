@@ -22,6 +22,7 @@ using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
+using TSIC.API.Services.Auth;
 using TSIC.API.Services.Shared.UsLax;
 
 namespace TSIC.API.Controllers;
@@ -33,15 +34,21 @@ public class FamilyController : ControllerBase
     private readonly IFamilyRepository _familyRepo;
     private readonly IUserRepository _userRepo;
     private readonly IFamilyService _familyService;
+    private readonly ITokenService _tokenService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public FamilyController(
         IFamilyRepository familyRepo,
         IUserRepository userRepo,
-        IFamilyService familyService)
+        IFamilyService familyService,
+        ITokenService tokenService,
+        UserManager<ApplicationUser> userManager)
     {
         _familyRepo = familyRepo;
         _userRepo = userRepo;
         _familyService = familyService;
+        _tokenService = tokenService;
+        _userManager = userManager;
     }
 
     [HttpGet("me")]
@@ -68,6 +75,18 @@ public class FamilyController : ControllerBase
             return BadRequest(result);
         if (result.Message != null && result.Exists && result.Profile == null)
             return BadRequest(result);
+
+        // Issue phase 1 token for authenticated family operations (child edit/delete)
+        if (result.Exists && result.Profile != null)
+        {
+            var user = await _userManager.FindByNameAsync(request.Username);
+            if (user != null)
+            {
+                var token = _tokenService.GenerateMinimalJwtToken(user);
+                result = result with { AccessToken = token };
+            }
+        }
+
         return Ok(result);
     }
 
@@ -172,6 +191,19 @@ public class FamilyController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
         var result = await _familyService.UpdateChildAsync(userId, childUserId, request);
+        if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    [HttpDelete("child/{childUserId}")]
+    [Authorize]
+    [ProducesResponseType(typeof(ChildOperationResponse), 200)]
+    [ProducesResponseType(typeof(ChildOperationResponse), 400)]
+    public async Task<IActionResult> RemoveChild(string childUserId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var result = await _familyService.RemoveChildAsync(userId, childUserId);
         if (!result.Success) return BadRequest(result);
         return Ok(result);
     }

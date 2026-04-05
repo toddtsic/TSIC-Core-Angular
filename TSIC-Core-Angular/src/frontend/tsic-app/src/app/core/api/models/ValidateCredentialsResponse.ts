@@ -7,5 +7,6 @@ export type ValidateCredentialsResponse = {
     exists: boolean;
     profile?: (null | FamilyProfileResponse);
     message?: string | null;
+    accessToken?: string | null;
 };
 

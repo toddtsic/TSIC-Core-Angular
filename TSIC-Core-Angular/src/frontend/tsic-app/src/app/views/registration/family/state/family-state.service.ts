@@ -22,12 +22,14 @@ export interface FamilyAddress {
 }
 
 export interface ChildProfileDraft {
+    userId?: string;
     firstName: string;
     lastName: string;
     dob?: string;
     gender: string;
     email?: string;
     phone?: string;
+    hasRegistrations?: boolean;
 }
 
 const EMPTY_CONTACT: FamilyContact = { firstName: '', lastName: '', phone: '', email: '', emailConfirm: '' };
@@ -168,12 +170,14 @@ export class FamilyStateService {
         });
         this._children.set(
             (profile.children ?? []).map(c => ({
+                userId: c.userId ?? undefined,
                 firstName: c.firstName ?? '',
                 lastName: c.lastName ?? '',
                 gender: c.gender ?? '',
                 dob: c.dob ?? undefined,
                 email: c.email ?? undefined,
                 phone: c.phone ?? undefined,
+                hasRegistrations: c.hasRegistrations ?? false,
             })),
         );
     }
@@ -265,6 +269,7 @@ export class FamilyStateService {
         this._submitSuccess.set(false);
 
         const children = this._children().map(c => ({
+            userId: c.userId,
             firstName: c.firstName,
             lastName: c.lastName,
             gender: c.gender,

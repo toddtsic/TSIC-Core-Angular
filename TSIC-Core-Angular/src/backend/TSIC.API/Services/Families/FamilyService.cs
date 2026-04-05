@@ -230,15 +230,19 @@ public sealed class FamilyService : IFamilyService
 
         var childIds = await _familyMemberRepo.GetChildUserIdsAsync(fam.FamilyUserId);
         var children = await _userRepo.GetUsersForFamilyAsync(childIds);
+        var childRegs = await _registrationRepo.GetRegistrationsByUserIdsAsync(childIds);
+        var registeredChildIds = new HashSet<string>(childRegs.Select(r => r.UserId!), StringComparer.OrdinalIgnoreCase);
 
         var childDtos = children.Select(c => new ChildDto
         {
+            UserId = c.Id,
             FirstName = c.FirstName ?? string.Empty,
             LastName = c.LastName ?? string.Empty,
             Gender = c.Gender ?? string.Empty,
             Dob = c.Dob?.ToString(DateFormat),
             Email = c.Email,
-            Phone = c.Cellphone ?? c.Phone
+            Phone = c.Cellphone ?? c.Phone,
+            HasRegistrations = registeredChildIds.Contains(c.Id)
         }).ToList();
 
         string Fallback(string? primary, string? fallback) => !string.IsNullOrWhiteSpace(primary) ? primary! : (fallback ?? string.Empty);
@@ -483,8 +487,23 @@ public sealed class FamilyService : IFamilyService
         _familiesRepo.Update(fam);
         await _familiesRepo.SaveChangesAsync();
 
-        // Simplify: controller had complex child sync logic. Preserve existing children unchanged for now.
-        // Future: extract full child synchronization rules into this service if still required.
+        // Sync children: update existing, create new
+        foreach (var child in request.Children)
+        {
+            if (!string.IsNullOrWhiteSpace(child.UserId))
+            {
+                var updateResult = await UpdateChildAsync(fam.FamilyUserId, child.UserId, child);
+                if (!updateResult.Success)
+                    return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = updateResult.Message };
+            }
+            else
+            {
+                var (ok, error) = await CreateAndLinkChildAsync(child, fam.FamilyUserId);
+                if (!ok)
+                    return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = error };
+            }
+        }
+        await _familyMemberRepo.SaveChangesAsync();
 
         scope.Complete();
         return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
@@ -529,14 +548,47 @@ public sealed class FamilyService : IFamilyService
         childUser.Phone = string.IsNullOrWhiteSpace(request.Phone) ? childUser.Phone : request.Phone;
         childUser.Modified = DateTime.UtcNow;
 
-        if (!string.IsNullOrWhiteSpace(request.Dob) && DateTime.TryParse(request.Dob, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDob))
-            childUser.Dob = parsedDob.Date;
+        if (!string.IsNullOrWhiteSpace(request.Dob) && DateTime.TryParseExact(request.Dob, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDob))
+            childUser.Dob = parsedDob;
 
         var result = await _userManager.UpdateAsync(childUser);
         if (!result.Succeeded)
         {
             var msg = string.Join("; ", result.Errors.Select(e => e.Description));
             return new ChildOperationResponse { Success = false, Message = $"Failed to update: {msg}" };
+        }
+
+        return new ChildOperationResponse { Success = true, ChildUserId = childUserId };
+    }
+
+    public async Task<ChildOperationResponse> RemoveChildAsync(string familyUserId, string childUserId)
+    {
+        // Verify the child belongs to this family
+        var childIds = await _familyMemberRepo.GetChildUserIdsAsync(familyUserId);
+        if (!childIds.Contains(childUserId))
+            return new ChildOperationResponse { Success = false, Message = "Child not found in this family." };
+
+        // Block removal if child has any registrations
+        var regs = await _registrationRepo.GetRegistrationsByUserIdsAsync(new List<string> { childUserId });
+        if (regs.Count > 0)
+            return new ChildOperationResponse { Success = false, Message = "Cannot remove a child who has registrations." };
+
+        // Unlink from family
+        var unlinked = await _familyMemberRepo.RemoveByChildUserIdAsync(familyUserId, childUserId);
+        if (!unlinked)
+            return new ChildOperationResponse { Success = false, Message = "Failed to unlink child from family." };
+        await _familyMemberRepo.SaveChangesAsync();
+
+        // Delete user record
+        var childUser = await _userManager.FindByIdAsync(childUserId);
+        if (childUser != null)
+        {
+            var result = await _userManager.DeleteAsync(childUser);
+            if (!result.Succeeded)
+            {
+                var msg = string.Join("; ", result.Errors.Select(e => e.Description));
+                return new ChildOperationResponse { Success = false, Message = $"Unlinked but failed to delete user: {msg}" };
+            }
         }
 
         return new ChildOperationResponse { Success = true, ChildUserId = childUserId };
@@ -556,9 +608,9 @@ public sealed class FamilyService : IFamilyService
             Phone = string.IsNullOrWhiteSpace(child.Phone) ? null : child.Phone,
             Modified = DateTime.UtcNow
         };
-        if (!string.IsNullOrWhiteSpace(child.Dob) && DateTime.TryParse(child.Dob, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedDob))
+        if (!string.IsNullOrWhiteSpace(child.Dob) && DateTime.TryParseExact(child.Dob, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDob))
         {
-            childUser.Dob = parsedDob.Date;
+            childUser.Dob = parsedDob;
         }
 
         var createChildResult = await _userManager.CreateAsync(childUser);

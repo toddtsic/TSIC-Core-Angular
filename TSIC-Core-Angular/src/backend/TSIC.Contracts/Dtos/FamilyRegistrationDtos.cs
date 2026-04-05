@@ -28,12 +28,14 @@ public record AddressDto
 
 public record ChildDto
 {
+    public string? UserId { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
     public required string Gender { get; init; }
     public string? Dob { get; init; }
     public string? Email { get; init; }
     public string? Phone { get; init; }
+    public bool HasRegistrations { get; init; }
 }
 
 public record FamilyRegistrationResponse
@@ -80,4 +82,5 @@ public record ValidateCredentialsResponse
     public required bool Exists { get; init; }
     public FamilyProfileResponse? Profile { get; init; }
     public string? Message { get; init; }
+    public string? AccessToken { get; init; }
 }

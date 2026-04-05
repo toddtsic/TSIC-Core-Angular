@@ -19,6 +19,11 @@ public interface IFamilyMemberRepository
     void Add(FamilyMembers familyMember);
 
     /// <summary>
+    /// Remove the link between a family and a child user.
+    /// </summary>
+    Task<bool> RemoveByChildUserIdAsync(string familyUserId, string childUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Persist changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

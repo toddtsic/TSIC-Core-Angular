@@ -29,6 +29,15 @@ public class FamilyMemberRepository : IFamilyMemberRepository
         _context.FamilyMembers.Add(familyMember);
     }
 
+    public async Task<bool> RemoveByChildUserIdAsync(string familyUserId, string childUserId, CancellationToken cancellationToken = default)
+    {
+        var link = await _context.FamilyMembers
+            .FirstOrDefaultAsync(fm => fm.FamilyUserId == familyUserId && fm.FamilyMemberUserId == childUserId, cancellationToken);
+        if (link == null) return false;
+        _context.FamilyMembers.Remove(link);
+        return true;
+    }
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return _context.SaveChangesAsync(cancellationToken);
