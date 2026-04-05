@@ -36,8 +36,7 @@ Write-Host "[Step 7] Applying app pool environment variables ($Environment)..." 
 # Resolve secrets file path
 if (-not $SecretsFile) {
     $candidates = @(
-        (Join-Path $PSScriptRoot "secrets.local.ps1"),
-        (Join-Path $PSScriptRoot "..\..\..\docs\Security\iis-env-secrets-setup.local.ps1")
+        (Join-Path $PSScriptRoot "app-pool-secrets.ps1")
     )
     foreach ($candidate in $candidates) {
         if (Test-Path $candidate) {
@@ -49,7 +48,7 @@ if (-not $SecretsFile) {
 
 if (-not $SecretsFile -or -not (Test-Path $SecretsFile)) {
     Write-Host "  WARNING: No secrets file found." -ForegroundColor Yellow
-    Write-Host "  Looked for: secrets.local.ps1 (in Setup/), iis-env-secrets-setup.local.ps1 (in docs/Security/)" -ForegroundColor Yellow
+    Write-Host "  Looked for: app-pool-secrets.ps1 (in Setup/ alongside this script)" -ForegroundColor Yellow
     Write-Host "  Provide via -SecretsFile parameter." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Required environment variables:" -ForegroundColor Yellow
@@ -65,9 +64,7 @@ if (-not $SecretsFile -or -not (Test-Path $SecretsFile)) {
 
 Write-Host "  Secrets file: $SecretsFile" -ForegroundColor White
 
-# The secrets file defines $envVars hashtable. Source it.
-# Override $appPool so the sourced script targets the correct pool.
-$appPool = $Config.ApiPoolName
+# The secrets file defines $envVars hashtable only — no execution logic.
 . $SecretsFile
 
 # Verify $envVars was defined by the sourced file

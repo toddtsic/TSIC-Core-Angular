@@ -19,7 +19,7 @@ Write-Host ""
 Write-Host "[Step 3] Creating directories ($Environment)..." -ForegroundColor Green
 
 # Create main directories
-foreach ($dir in @($Config.ApiPath, $Config.AngularPath, $Config.StaticsPath)) {
+foreach ($dir in @($Config.ApiPath, $Config.AngularPath)) {
     if (Test-Path $dir) {
         Write-Host "  Directory exists: $dir" -ForegroundColor DarkGray
     }
@@ -36,13 +36,6 @@ foreach ($subdir in @('logs', 'keys')) {
         New-Item -ItemType Directory -Path $subdirPath -Force | Out-Null
         Write-Host "  Created: $subdirPath" -ForegroundColor Green
     }
-}
-
-# Create statics subdirectory for banner images
-$bannerPath = Join-Path $Config.StaticsPath "BannerFiles"
-if (-not (Test-Path $bannerPath)) {
-    New-Item -ItemType Directory -Path $bannerPath -Force | Out-Null
-    Write-Host "  Created: $bannerPath" -ForegroundColor Green
 }
 
 # Set permissions: IIS_IUSRS read/execute on site roots
@@ -65,13 +58,5 @@ foreach ($subdir in @('logs', 'keys')) {
     Set-Acl -Path $subdirPath -AclObject $acl
     Write-Host "  Granted '$($Config.ApiPoolName)' Modify on $subdirPath" -ForegroundColor White
 }
-
-# Grant app pool identity write access to statics (image uploads)
-$acl = Get-Acl $Config.StaticsPath
-$rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "IIS AppPool\$($Config.ApiPoolName)", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
-$acl.SetAccessRule($rule)
-Set-Acl -Path $Config.StaticsPath -AclObject $acl
-Write-Host "  Granted '$($Config.ApiPoolName)' Modify on $($Config.StaticsPath)" -ForegroundColor White
 
 Write-Host "[Step 3] Complete." -ForegroundColor Green
