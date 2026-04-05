@@ -33,19 +33,15 @@ Show-Config
 
 # Step 1: IIS Features
 & "$PSScriptRoot\01-Install-IIS-Features.ps1"
-if ($LASTEXITCODE -ne 0) { Write-Host "Step 1 failed!" -ForegroundColor Red; exit 1 }
 
 # Step 2: App Pools
 & "$PSScriptRoot\02-Create-App-Pools.ps1" -Environment $Environment
-if ($LASTEXITCODE -ne 0) { Write-Host "Step 2 failed!" -ForegroundColor Red; exit 1 }
 
 # Step 3: Directories
 & "$PSScriptRoot\03-Create-Directories.ps1" -Environment $Environment
-if ($LASTEXITCODE -ne 0) { Write-Host "Step 3 failed!" -ForegroundColor Red; exit 1 }
 
 # Step 4: IIS Sites
 & "$PSScriptRoot\04-Create-IIS-Sites.ps1" -Environment $Environment
-if ($LASTEXITCODE -ne 0) { Write-Host "Step 4 failed!" -ForegroundColor Red; exit 1 }
 
 # Step 5: SQL Login
 if ($SkipSql) {
