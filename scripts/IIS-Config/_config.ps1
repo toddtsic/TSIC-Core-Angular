@@ -44,7 +44,7 @@ $EnvSettings = @{
         StaticsPath     = 'E:\Websites\TSIC-STATICS'
         BackupsPath     = 'E:\Websites\Backups'
         AspNetEnv       = 'Production'
-        ProdServer      = 'TSIC-PHOENIX'
+        ProdServer      = '204.17.37.202'   # TSIC-PHOENIX (hostname doesn't resolve from dev)
     }
 }
 
