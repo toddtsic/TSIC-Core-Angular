@@ -153,6 +153,198 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Status**: Fixed
 - **Note**: Added bottom action bar (Back/Continue) to all wizard steps via WizardShellComponent. Both player and team registration wizards now have navigation at top and bottom of each step.
 
+### PL-047: Bottom Continue button needs visual separation from the card above
+- **Area**: Registration Process Review
+- **What I did**: Looked at the new Continue button at the bottom of the Choose Your Players screen
+- **What I expected**: Clear spacing or divider between the card content and the bottom button
+- **What happened**: Continue button sits too close to the card above — needs separation
+- **Severity**: UX
+- **Status**: Open
+
+### PL-048: Remove arrow icon from Continue buttons
+- **Area**: Registration Process Review
+- **What I did**: Noticed arrow icons in both the top and bottom Continue buttons
+- **What I expected**: Clean button with just the text "Continue"
+- **What happened**: Both Continue buttons have an arrow that isn't needed
+- **Severity**: UX
+- **Status**: Open
+
+### PL-049: Standardize "Next" vs "Continue" wording across all registration processes
+- **Area**: Registration Process Review
+- **What I did**: Noticed the button says "Continue" — but other screens may say "Next"
+- **What I expected**: Consistent wording throughout all registration flows
+- **What happened**: Need to confirm whether we're using "Next" or "Continue" everywhere and standardize
+- **Severity**: Question
+- **Status**: Open
+
+### PL-050: Add Back/Previous button on Choose Your Players screen
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the Choose Your Players screen
+- **What I expected**: A Back or Previous button to return to the prior step
+- **What happened**: No way to go back — only a Continue button forward
+- **Severity**: UX
+- **Status**: Open
+
+### PL-051: Add trash can icon next to pencil icon to delete players on Choose Your Players card
+- **Area**: Registration Process Review
+- **What I did**: Looked at player rows on the Choose Your Players card
+- **What I expected**: A delete (trash can) icon next to the edit (pencil) icon for each player
+- **What happened**: Only a pencil icon is available — no way to delete a player from the list
+- **Severity**: UX
+- **Status**: Open
+
+### PL-052: Set Player Graduation Year — Back and Continue buttons need stronger hover/selected contrast
+- **Area**: Registration Process Review
+- **What I did**: Hovered over and clicked the Back and Continue buttons on the Set Player Graduation Year screen
+- **What I expected**: Clear visual feedback with strong color contrast on hover and selected states
+- **What happened**: Buttons don't change enough visually when hovered or selected — hard to tell they're interactive
+- **Severity**: UX
+- **Status**: Open
+
+### PL-070: Discount Code section needs better visual emphasis and white input field
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Discount Code section on the payment screen
+- **What I expected**: Discount Code title to stand out (e.g., red or highlighted) and the "Enter Code" input field to be white so it's clearly a data entry field
+- **What happened**: Title doesn't stand out enough and the input field blends in with the background — needs a highlighted title (maybe red) and a white input field
+- **Severity**: UX
+- **Status**: Open
+
+### PL-069: Complete Payment — can't change Refund Protection choice after declining
+- **Area**: Registration Process Review
+- **What I did**: Declined refund protection coverage, then went Back and clicked Continue to return to the payment screen
+- **What I expected**: Ability to change my mind and add coverage before paying
+- **What happened**: My decline choice is locked in — no way to reset or change the refund protection selection on the payment screen
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-068: Complete Payment — what is "Pay in Full" button for before Add Refund Protection?
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the Complete Payment screen and saw a "Pay in Full" button appearing before the Add Refund Protection option
+- **What I expected**: Clear understanding of what "Pay in Full" does at that point in the flow
+- **What happened**: Not clear why "Pay in Full" appears before the refund protection option — shouldn't the parent decide on refund protection first?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-067: "Almost There!" screen — should accounting/fee summary be shown here?
+- **Area**: Registration Process Review
+- **What I did**: Reviewed the Almost There screen before proceeding to payment
+- **What I expected**: Possibly a fee summary or accounting breakdown before the parent commits
+- **What happened**: No accounting or fee information shown — should parents see what they owe before continuing?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-066: "Almost There!" screen — player names as section headers need bolder font weight
+- **Area**: Registration Process Review
+- **What I did**: Looked at player name headers on the Almost There review screen
+- **What I expected**: Player names to stand out clearly as section headers
+- **What happened**: Names aren't bold enough — need heavier font weight so they read as headers
+- **Severity**: UX
+- **Status**: Open
+
+### PL-065: "Almost There!" screen — "Review your details" notes slightly too small
+- **Area**: Registration Process Review
+- **What I did**: Read the "Review your details" section on the Almost There screen
+- **What I expected**: Text large enough to read comfortably without being oversized
+- **What happened**: All the detail notes are a bit too small — bump up the font size slightly (not too much, just enough to improve readability)
+- **Severity**: UX
+- **Status**: Open
+
+### PL-064: "Almost There!" screen — change "F" to "Female" (spell out gender)
+- **Area**: Registration Process Review
+- **What I did**: Saw gender displayed as "F" on the Almost There review screen
+- **What I expected**: Full word "Female" (and presumably "Male" instead of "M")
+- **What happened**: Gender shows as a single letter abbreviation — should be spelled out
+- **Severity**: UX
+- **Status**: Open
+
+### PL-063: "Almost There!" screen — Team selection text needs larger font
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the "Almost There!" review screen
+- **What I expected**: Team selection info displayed prominently
+- **What happened**: Team selection text is too small — needs a larger font so it stands out
+- **Severity**: UX
+- **Status**: Open
+
+### PL-062: Review and Accept Waivers — make "ALL" capitalized and increase font size of intro text
+- **Area**: Registration Process Review
+- **What I did**: Read the intro text on the waivers screen ("These waivers apply to all selected players...")
+- **What I expected**: Prominent, easy-to-read text with emphasis on "ALL"
+- **What happened**: Text is too small and "all" is not capitalized — change to "ALL" (caps) and make the entire intro line larger so parents don't miss it
+- **Severity**: UX
+- **Status**: Open
+
+### PL-061: Review and Accept Waivers — larger player names in a list with individual checkboxes
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the Review and Accept Waivers screen
+- **What I expected**: Player names displayed prominently in a list with a checkbox next to each name for the parent to actively confirm
+- **What happened**: Player names are too small and not listed clearly — consider having the parent check a box next to each player's name to acknowledge the waiver for each child individually
+- **Severity**: UX
+- **Status**: Open
+
+### PL-060: Player Details — white data entry fields with tinted surrounding background for consistency
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Player Details form styling
+- **What I expected**: White input fields on a tinted/shaded background, matching the look of other registration screens
+- **What happened**: Fields and background don't have enough contrast between them — make input fields white and the surrounding card background tinted for visual consistency across all registration screens
+- **Severity**: UX
+- **Status**: Open
+
+### PL-059: Player Details form — increase font size of Team Selected next to Player Name
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Player Details form heading
+- **What I expected**: Team Selected to be prominent and easy to read next to the Player Name
+- **What happened**: Team Selected text is too small — needs a bigger font so it stands out
+- **Severity**: UX
+- **Status**: Open
+
+### PL-058: Player form — move Weight next to Height, make Height optional, move Shorts Size next to T-shirt Size
+- **Area**: Registration Process Review
+- **What I did**: Filled out the player form for The Players Series: Girls Summer Showcase 2026
+- **What I expected**: Related fields grouped together — Height/Weight side by side, Shorts Size/T-shirt Size side by side; Height should be optional
+- **What happened**: Weight is not next to Height, Shorts Size is not next to T-shirt Size, and Height is required when it shouldn't be
+- **Severity**: UX
+- **Status**: Open
+
+### PL-057: USA Lacrosse Number validation — wrap phone number on one line in failed entry popup
+- **Area**: Registration Process Review
+- **What I did**: Entered an invalid USA Lacrosse Number and got the validation failure popup
+- **What I expected**: Phone number displayed fully on one line
+- **What happened**: Phone number wraps awkwardly across two lines — needs to stay on a single line
+- **Severity**: UX
+- **Status**: Open
+
+### PL-056: Choose Your Players — change "Edit Account" to "Edit Family Contact Info"
+- **Area**: Registration Process Review
+- **What I did**: Saw "Edit Account" link on the Choose Your Players screen
+- **What I expected**: Label that clearly describes what you're editing
+- **What happened**: "Edit Account" is vague — should say "Edit Family Contact Info" to be specific
+- **Severity**: UX
+- **Status**: Open
+
+### PL-055: Consider merging Graduation Year and Assign Teams into one screen
+- **Area**: Registration Process Review
+- **What I did**: Went through Set Player Graduation Year and then Assign Teams as separate steps
+- **What I expected**: Possibly a single screen since both are short player setup tasks
+- **What happened**: Two separate screens for related info — could these be combined into one step to reduce clicks?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-054: Assign Teams — use same white background card style as Graduation Year screen
+- **Area**: Registration Process Review
+- **What I did**: Compared the Assign Teams screen to the Set Player Graduation Year screen
+- **What I expected**: Consistent white card background for the team assignment area, matching the grad year selection style
+- **What happened**: Assign Teams section doesn't have the same white background treatment — looks inconsistent with the previous screen
+- **Severity**: UX
+- **Status**: Open
+
+### PL-053: Assign Teams — remove "Capacity shown in dropdown" text
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the Assign Teams screen
+- **What I expected**: Clean screen without unnecessary instructional text
+- **What happened**: Text says "Capacity shown in dropdown" — this is obvious from the dropdown itself and should be removed
+- **Severity**: UX
+- **Status**: Open
+
 ### PL-045: Change "Edit details anytime" to "Edit player details"
 - **Area**: Registration Process Review
 - **What I did**: Saw "Edit details anytime" link/button
@@ -415,5 +607,85 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All columns visible without horizontal scrolling, or scroll bar directly below table
 - **What happened**: Columns are too wide so right-hand columns are cut off; if a scroll bar is needed, it should be placed directly below the table
 - **Severity**: UX
+- **Status**: Open
+
+### PL-071: Confirm Registration Payment + Insurance popup — standardize font size and replace icons with bullets
+- **Area**: Registration Process Review
+- **What I did**: Opened the Confirm Registration Payment + Insurance popup
+- **What I expected**: All text items in the same (larger) font size, with simple bullet points instead of icons
+- **What happened**: Mixed font sizes and icons used instead of bullets — needs uniform larger font and plain bullet list
+- **Severity**: UX
+- **Status**: Open
+
+### PL-072: Most Recent Transaction(s) only shows one payment after paying for two players
+- **Area**: Registration Process Review
+- **What I did**: Paid for two players in a family account
+- **What I expected**: Both payments to appear under Most Recent Transaction(s) on the Family Players Table
+- **What happened**: Family Players Table shows both players, but Most Recent Transaction(s) only shows one payment
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-073: Registration Complete Confirmation page needs cleaner layout with distinct card areas
+- **Area**: Registration Process Review
+- **What I did**: Completed registration and viewed the confirmation page
+- **What I expected**: Crisp, well-organized layout — 3 tables should stand out clearly, organization info in its own card, waiver info in its own card
+- **What happened**: Page feels cluttered — tables don't stand out, organization information and waiver content are not separated into their own distinct card areas
+- **Severity**: UX
+- **Status**: Open
+
+### PL-074: Waiver area on confirmation shows "BY CLICKING NEXT BELOW, I AGREE..." — confuses parents
+- **Area**: Registration Process Review
+- **What I did**: Completed registration and saw the waiver section on the confirmation page
+- **What I expected**: Clear indication that the waiver was already accepted during registration — no action needed
+- **What happened**: Text says "BY CLICKING NEXT BELOW, I AGREE WITH THE ABOVE RELEASE OF LIABILITY" which makes parents think they need to do something else. Either remove this text or add a clarifying note outside the waiver card (e.g., "Waiver accepted during registration")
+- **Severity**: UX
+- **Status**: Open
+
+### PL-075: After finishing registration and logging back in — no menus or info to review/edit
+- **Area**: Registration Process Review
+- **What I did**: Finished registration (got logged out), logged back in, and selected one of my registration options
+- **What I expected**: Menus and information available to review or edit my registration details
+- **What happened**: After selecting a registration, there are no menus or information shown — nothing to review or edit
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-076: Player Details form missing Academic Honors and Athletic Honors/Awards fields
+- **Area**: Registration Process Review
+- **What I did**: Registered for The Players Series: Girls Summer Showcase 2026 and looked at the Player Details form
+- **What I expected**: Academic Honors and Athletic Honors/Awards text entry fields to appear, as they do in the Legacy system
+- **What happened**: Both fields are missing from the new Player Details form — they exist in Legacy but aren't showing up here
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-077: Standardize how optional fields are indicated across all forms
+- **Area**: Registration Process Review
+- **What I did**: Looked at optional fields across registration forms
+- **What I expected**: Consistent treatment — either "(OPTIONAL)" after the label or placeholder text like "Leave blank if unknown" inside the field
+- **What happened**: No consistent pattern for marking optional fields — need to pick one approach and apply it everywhere
+- **Severity**: UX
+- **Status**: Open
+
+### PL-078: "Click Here to Begin" bulletin only goes to Adult Registration — consider splitting Player and Coach paths
+- **Area**: Registration Process Review
+- **What I did**: Clicked "Click Here to Begin a Player or Coach registration and waiver" on the Player Self-Rostering page
+- **What I expected**: Option to choose between Player registration and Coach registration
+- **What happened**: Only brings me to Adult Registration — no way to go to Player registration. Does it make sense to split the bulletin into separate links for Player and Coach paths?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-079: Public Rosters "Click Here to view currently rostered players" leads to 404 error
+- **Area**: Registration Process Review
+- **What I did**: Clicked "Click Here to view currently rostered players" on the Public Rosters page
+- **What I expected**: A page showing the currently rostered players
+- **What happened**: Screen shows a 404 error
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-080: Assign Teams dropdown on Players ARB site no longer shows cost per option
+- **Area**: Registration Process Review
+- **What I did**: Opened the Assign Teams dropdown on the Players ARB site
+- **What I expected**: Cost of each team option shown in parentheses next to the name, like it was in Legacy
+- **What happened**: Cost is no longer displayed in the dropdown — should we add it back?
+- **Severity**: Question
 - **Status**: Open
 
