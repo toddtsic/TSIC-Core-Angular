@@ -54,14 +54,7 @@ Write-Host "  Angular target: $AngularTarget" -ForegroundColor Yellow
 Write-Host "  Hostnames:      $ApiHostname / $AngularHostname" -ForegroundColor Yellow
 Write-Host ""
 
-# ── Safety gate ──────────────────────────────────────────────────────
 Write-Host "  *** DEPLOYING TO PRODUCTION ***" -ForegroundColor Red
-Write-Host ""
-$confirm = Read-Host "  Type 'DEPLOY' to continue, anything else to abort"
-if ($confirm -ne 'DEPLOY') {
-    Write-Host "  Aborted." -ForegroundColor Yellow
-    exit 0
-}
 Write-Host ""
 
 # ── Verify share is accessible ───────────────────────────────────────
