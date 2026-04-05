@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 03-Create-Directories.ps1 — Create website directories with permissions
 # ============================================================================
 # Creates API, Angular, and Statics directories.
@@ -10,7 +10,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev'
+    [string]$Environment = 'Prod'
 )
 
 . "$PSScriptRoot\..\_config.ps1" -Environment $Environment

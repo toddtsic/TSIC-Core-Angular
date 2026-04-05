@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 04-Create-IIS-Sites.ps1 — Create IIS sites with HTTPS bindings
 # ============================================================================
 # Requires: wildcard cert (*.teamsportsinfo.com) in LocalMachine\My store.
@@ -10,7 +10,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev'
+    [string]$Environment = 'Prod'
 )
 
 . "$PSScriptRoot\..\_config.ps1" -Environment $Environment

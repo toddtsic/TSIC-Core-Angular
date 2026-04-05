@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # Run-Full-Setup.ps1 — Execute all setup steps in order
 # ============================================================================
 # Orchestrates steps 01-07 for a complete IIS server setup.
@@ -15,7 +15,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev',
+    [string]$Environment = 'Prod',
 
     [string]$SecretsFile,
     [switch]$SkipSql,

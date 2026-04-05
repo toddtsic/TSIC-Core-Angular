@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 07-Apply-Secrets.ps1 — Set app pool environment variables for secrets
 # ============================================================================
 # Applies secrets from a local (untracked) file to the API app pool.
@@ -23,7 +23,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev',
+    [string]$Environment = 'Prod',
 
     [string]$SecretsFile
 )

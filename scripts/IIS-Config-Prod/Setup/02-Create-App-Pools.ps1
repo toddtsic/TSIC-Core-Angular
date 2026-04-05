@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 02-Create-App-Pools.ps1 — Create claude-api and claude-app application pools
 # ============================================================================
 # Idempotent. Configures: ApplicationPoolIdentity, No Managed Runtime, 64-bit.
@@ -8,7 +8,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev'
+    [string]$Environment = 'Prod'
 )
 
 . "$PSScriptRoot\..\_config.ps1" -Environment $Environment

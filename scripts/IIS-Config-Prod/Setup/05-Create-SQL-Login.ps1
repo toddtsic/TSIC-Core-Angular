@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 05-Create-SQL-Login.ps1 — Create SQL Server login for IIS app pool identity
 # ============================================================================
 # Grants the app pool identity (IIS APPPOOL\claude-api) access to the database.
@@ -9,7 +9,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev'
+    [string]$Environment = 'Prod'
 )
 
 . "$PSScriptRoot\..\_config.ps1" -Environment $Environment

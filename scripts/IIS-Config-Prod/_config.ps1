@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # _config.ps1 — Shared IIS Configuration for TSIC Application
 # ============================================================================
 # Dot-source this file from any Setup or Deployment script:
@@ -9,7 +9,7 @@
 
 param(
     [ValidateSet('Dev', 'Prod')]
-    [string]$Environment = 'Dev'
+    [string]$Environment = 'Prod'
 )
 
 # ---------------------------------------------------------------------------
