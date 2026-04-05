@@ -17,10 +17,9 @@ import { FamilyStateService } from '../state/family-state.service';
     imports: [LoginComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Review & Save</h5>
-      </div>
       <div class="card-body">
+        <h5 class="mb-1 fw-semibold">Review & Save</h5>
+        <p class="wizard-tip">Please verify your information below. Your account will be saved automatically.</p>
         <!-- Parent summary -->
         <div class="row g-3">
           <div class="col-12 col-md-6">

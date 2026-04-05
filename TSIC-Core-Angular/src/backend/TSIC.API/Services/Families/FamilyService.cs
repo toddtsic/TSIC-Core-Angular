@@ -275,6 +275,44 @@ public sealed class FamilyService : IFamilyService
         };
     }
 
+    public async Task<ValidateCredentialsResponse> ValidateCredentialsAsync(ValidateCredentialsRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return new ValidateCredentialsResponse { Exists = false, Message = "Username and password are required." };
+        }
+
+        var existingUser = await _userManager.FindByNameAsync(request.Username);
+        if (existingUser == null)
+        {
+            return new ValidateCredentialsResponse { Exists = false };
+        }
+
+        // Validate privilege separation
+        var isValid = await _privilegeService.ValidatePrivilegeForRegistrationAsync(existingUser.Id, RoleConstants.Player);
+        if (!isValid)
+        {
+            var existingPrivilege = await _privilegeService.GetUserPrivilegeLevelAsync(existingUser.Id);
+            var privilegeName = PrivilegeNameMapper.GetPrivilegeName(existingPrivilege);
+            return new ValidateCredentialsResponse
+            {
+                Exists = true,
+                Message = $"This account is locked to {privilegeName} privilege level. Please use a different username for Family registration."
+            };
+        }
+
+        // Verify password
+        var passwordValid = await _userManager.CheckPasswordAsync(existingUser, request.Password);
+        if (!passwordValid)
+        {
+            return new ValidateCredentialsResponse { Exists = true, Message = "Invalid password." };
+        }
+
+        // Load family profile
+        var profile = await GetMyFamilyAsync(existingUser.Id);
+        return new ValidateCredentialsResponse { Exists = true, Profile = profile };
+    }
+
     public async Task<FamilyRegistrationResponse> RegisterAsync(FamilyRegistrationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
@@ -286,9 +324,8 @@ public sealed class FamilyService : IFamilyService
             return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "At least one child is required." };
         }
 
-        // Check if user already exists (by username or email)
-        var existingUser = await _userManager.FindByNameAsync(request.Username)
-            ?? await _userManager.FindByEmailAsync(request.Primary.Email);
+        // Check if username already exists
+        var existingUser = await _userManager.FindByNameAsync(request.Username);
 
         if (existingUser != null)
         {
@@ -355,22 +392,41 @@ public sealed class FamilyService : IFamilyService
             user = existingUser!;
         }
 
-        var fam = new TSIC.Domain.Entities.Families
+        // Check for existing family record (handles retry after partial failure)
+        var fam = await _familiesRepo.GetByFamilyUserIdAsync(user.Id);
+        if (fam != null)
         {
-            FamilyUserId = user.Id,
-            MomFirstName = request.Primary.FirstName,
-            MomLastName = request.Primary.LastName,
-            MomCellphone = request.Primary.Cellphone,
-            MomEmail = request.Primary.Email,
-            DadFirstName = request.Secondary.FirstName,
-            DadLastName = request.Secondary.LastName,
-            DadCellphone = request.Secondary.Cellphone,
-            DadEmail = request.Secondary.Email,
-            Modified = DateTime.UtcNow,
-            LebUserId = TsicConstants.SuperUserId
-        };
-        _familiesRepo.Add(fam);
-        await _familiesRepo.SaveChangesAsync();
+            // Update existing family record
+            fam.MomFirstName = request.Primary.FirstName;
+            fam.MomLastName = request.Primary.LastName;
+            fam.MomCellphone = request.Primary.Cellphone;
+            fam.MomEmail = request.Primary.Email;
+            fam.DadFirstName = request.Secondary.FirstName;
+            fam.DadLastName = request.Secondary.LastName;
+            fam.DadCellphone = request.Secondary.Cellphone;
+            fam.DadEmail = request.Secondary.Email;
+            fam.Modified = DateTime.UtcNow;
+            await _familiesRepo.SaveChangesAsync();
+        }
+        else
+        {
+            fam = new TSIC.Domain.Entities.Families
+            {
+                FamilyUserId = user.Id,
+                MomFirstName = request.Primary.FirstName,
+                MomLastName = request.Primary.LastName,
+                MomCellphone = request.Primary.Cellphone,
+                MomEmail = request.Primary.Email,
+                DadFirstName = request.Secondary.FirstName,
+                DadLastName = request.Secondary.LastName,
+                DadCellphone = request.Secondary.Cellphone,
+                DadEmail = request.Secondary.Email,
+                Modified = DateTime.UtcNow,
+                LebUserId = TsicConstants.SuperUserId
+            };
+            _familiesRepo.Add(fam);
+            await _familiesRepo.SaveChangesAsync();
+        }
 
         // Create and link children
         foreach (var child in request.Children)

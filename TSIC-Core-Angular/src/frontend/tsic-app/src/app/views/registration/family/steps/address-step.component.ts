@@ -13,39 +13,43 @@ import { FamilyStateService } from '../state/family-state.service';
     imports: [ReactiveFormsModule],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Address</h5>
-      </div>
       <div class="card-body">
+        <h5 class="mb-1 fw-semibold">Address</h5>
+        <p class="wizard-tip">Enter your family's mailing address.</p>
+
         <div [formGroup]="form" class="row g-3">
           <div class="col-12">
-            <label class="form-label" for="v2-addr1">Street Address</label>
-            <input id="v2-addr1" type="text" formControlName="address1" class="form-control"
+            <label class="field-label" for="v2-addr1">Street Address</label>
+            <input id="v2-addr1" type="text" formControlName="address1" class="field-input"
+                   [class.is-required]="!form.controls.address1.value?.trim()"
                    [class.is-invalid]="touched() && form.controls.address1.invalid" (blur)="syncToState()" />
-            @if (touched() && form.controls.address1.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+            @if (touched() && form.controls.address1.errors?.['required']) { <div class="field-error">Required</div> }
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label" for="v2-city">City</label>
-            <input id="v2-city" type="text" formControlName="city" class="form-control"
+            <label class="field-label" for="v2-city">City</label>
+            <input id="v2-city" type="text" formControlName="city" class="field-input"
+                   [class.is-required]="!form.controls.city.value?.trim()"
                    [class.is-invalid]="touched() && form.controls.city.invalid" (blur)="syncToState()" />
-            @if (touched() && form.controls.city.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+            @if (touched() && form.controls.city.errors?.['required']) { <div class="field-error">Required</div> }
           </div>
           <div class="col-6 col-md-3">
-            <label class="form-label" for="v2-state">State</label>
-            <select id="v2-state" formControlName="state" class="form-select"
+            <label class="field-label" for="v2-state">State</label>
+            <select id="v2-state" formControlName="state" class="field-input field-select"
+                    [class.is-required]="!form.controls.state.value"
                     [class.is-invalid]="touched() && form.controls.state.invalid" (change)="syncToState()">
-              <option value="" disabled>Select a state</option>
+              <option value="" disabled>Select</option>
               @for (s of statesOptions; track s.value) {
                 <option [value]="s.value">{{ s.label }}</option>
               }
             </select>
-            @if (touched() && form.controls.state.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+            @if (touched() && form.controls.state.errors?.['required']) { <div class="field-error">Required</div> }
           </div>
           <div class="col-6 col-md-3">
-            <label class="form-label" for="v2-postal">Postal code</label>
-            <input id="v2-postal" type="text" formControlName="postalCode" class="form-control"
+            <label class="field-label" for="v2-postal">Postal code</label>
+            <input id="v2-postal" type="text" formControlName="postalCode" class="field-input"
+                   [class.is-required]="!form.controls.postalCode.value?.trim()"
                    [class.is-invalid]="touched() && form.controls.postalCode.invalid" (blur)="syncToState()" />
-            @if (touched() && form.controls.postalCode.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+            @if (touched() && form.controls.postalCode.errors?.['required']) { <div class="field-error">Required</div> }
           </div>
         </div>
       </div>

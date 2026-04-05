@@ -14,10 +14,10 @@ import { FamilyStateService } from '../state/family-state.service';
     imports: [ReactiveFormsModule],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Add Children</h5>
-      </div>
       <div class="card-body">
+        <h5 class="mb-1 fw-semibold">Add Children</h5>
+        <p class="wizard-tip">Add each child who will be registered as a player.</p>
+
         <!-- Children list -->
         <div class="mb-4">
           @if (state.children().length === 0) {
@@ -48,49 +48,53 @@ import { FamilyStateService } from '../state/family-state.service';
           <div class="card-body">
             <form [formGroup]="form" (ngSubmit)="addChild()" class="row g-3">
               <div class="col-12 col-md-3">
-                <label class="form-label" for="v2-childFirst">First name</label>
-                <input id="v2-childFirst" type="text" formControlName="firstName" class="form-control"
+                <label class="field-label" for="v2-childFirst">First name</label>
+                <input id="v2-childFirst" type="text" formControlName="firstName" class="field-input"
+                       [class.is-required]="!form.controls.firstName.value?.trim()"
                        [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
-                @if (submitted() && form.controls.firstName.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+                @if (submitted() && form.controls.firstName.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12 col-md-3">
-                <label class="form-label" for="v2-childLast">Last name</label>
-                <input id="v2-childLast" type="text" formControlName="lastName" class="form-control"
+                <label class="field-label" for="v2-childLast">Last name</label>
+                <input id="v2-childLast" type="text" formControlName="lastName" class="field-input"
+                       [class.is-required]="!form.controls.lastName.value?.trim()"
                        [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
-                @if (submitted() && form.controls.lastName.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+                @if (submitted() && form.controls.lastName.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12 col-md-3">
-                <label class="form-label" for="v2-childGender">Gender</label>
-                <select id="v2-childGender" formControlName="gender" class="form-select"
+                <label class="field-label" for="v2-childGender">Gender</label>
+                <select id="v2-childGender" formControlName="gender" class="field-input field-select"
+                        [class.is-required]="!form.controls.gender.value"
                         [class.is-invalid]="submitted() && form.controls.gender.invalid">
                   <option value="" disabled>Select</option>
                   @for (g of genderOptions; track g.value) { <option [value]="g.value">{{ g.label }}</option> }
                 </select>
-                @if (submitted() && form.controls.gender.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+                @if (submitted() && form.controls.gender.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12 col-md-3">
-                <label class="form-label" for="v2-childDob">Date of birth</label>
-                <input id="v2-childDob" type="date" formControlName="dob" class="form-control"
+                <label class="field-label" for="v2-childDob">Date of birth</label>
+                <input id="v2-childDob" type="date" formControlName="dob" class="field-input"
                        [attr.min]="minDob" [attr.max]="maxDob"
+                       [class.is-required]="!form.controls.dob.value"
                        [class.is-invalid]="submitted() && form.controls.dob.invalid" />
-                @if (submitted() && form.controls.dob.errors?.['required']) { <div class="invalid-feedback">Required</div> }
+                @if (submitted() && form.controls.dob.errors?.['required']) { <div class="field-error">Required</div> }
                 @if (submitted() && (form.controls.dob.errors?.['ageTooYoung'] || form.controls.dob.errors?.['ageTooOld'])) {
-                  <div class="invalid-feedback">Age must be between 2 and 99 years.</div>
+                  <div class="field-error">Age must be between 2 and 99 years.</div>
                 }
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label" for="v2-childEmail">Email <span class="text-muted small">(optional)</span></label>
-                <input id="v2-childEmail" type="email" formControlName="email" class="form-control"
+                <label class="field-label" for="v2-childEmail">Email <span class="tip">(optional)</span></label>
+                <input id="v2-childEmail" type="email" formControlName="email" class="field-input"
                        [class.is-invalid]="submitted() && form.controls.email.errors?.['email']" />
-                @if (submitted() && form.controls.email.errors?.['email']) { <div class="invalid-feedback">Invalid email</div> }
+                @if (submitted() && form.controls.email.errors?.['email']) { <div class="field-error">Invalid email</div> }
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label" for="v2-childPhone">Cellphone <span class="text-muted small">(optional)</span></label>
-                <input id="v2-childPhone" type="tel" inputmode="numeric" formControlName="phone" class="form-control"
+                <label class="field-label" for="v2-childPhone">Cellphone <span class="tip">(optional)</span></label>
+                <input id="v2-childPhone" type="tel" inputmode="numeric" formControlName="phone" class="field-input"
                        autocomplete="off" placeholder="Numbers only"
                        (input)="onDigitsOnly($event)"
                        [class.is-invalid]="submitted() && form.controls.phone.errors?.['pattern']" />
-                @if (submitted() && form.controls.phone.errors?.['pattern']) { <div class="invalid-feedback">Numbers only</div> }
+                @if (submitted() && form.controls.phone.errors?.['pattern']) { <div class="field-error">Numbers only</div> }
               </div>
               <div class="col-12">
                 <button type="submit" class="btn btn-outline-primary">Add child</button>

@@ -2,7 +2,7 @@ import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { FamilyService } from '@infrastructure/services/family.service';
-import type { FamilyRegistrationRequest, FamilyUpdateRequest } from '@core/api';
+import type { FamilyRegistrationRequest, FamilyUpdateRequest, FamilyProfileResponse } from '@core/api';
 import { formatHttpError } from '../../shared/utils/error-utils';
 
 // ── Local interfaces (form-only, not backend DTOs) ─────────────────
@@ -51,11 +51,14 @@ export class FamilyStateService {
     private readonly _mode = signal<'create' | 'edit'>('create');
     readonly mode = this._mode.asReadonly();
 
-    // ── Credentials (create mode only) ──────────────────────────────
+    // ── Credentials ─────────────────────────────────────────────────
     private readonly _username = signal('');
     private readonly _password = signal('');
+    private readonly _confirmPassword = signal('');
+    private readonly _accountExists = signal(false);
     readonly username = this._username.asReadonly();
     readonly password = this._password.asReadonly();
+    readonly accountExists = this._accountExists.asReadonly();
 
     // ── Parent contacts ─────────────────────────────────────────────
     private readonly _parent1 = signal<FamilyContact>({ ...EMPTY_CONTACT });
@@ -86,14 +89,30 @@ export class FamilyStateService {
     readonly profileError = this._profileError.asReadonly();
 
     // ── Derived ─────────────────────────────────────────────────────
-    readonly hasValidCredentials = computed(() =>
-        this._username().trim().length >= 3 && this._password().trim().length >= 6,
-    );
+    readonly hasValidCredentials = computed(() => {
+        const u = this._username().trim().length >= 3;
+        const p = this._password().trim().length >= 6;
+        if (!u || !p) return false;
+        // Existing accounts don't need confirm password
+        if (this._accountExists()) return true;
+        return this._confirmPassword().length >= 6
+            && this._confirmPassword() === this._password();
+    });
 
     readonly hasValidParent1 = computed(() => {
         const p = this._parent1();
         return p.firstName.trim().length > 0
             && p.lastName.trim().length > 0
+            && p.phone.trim().length > 0
+            && p.email.trim().length > 0
+            && p.email === p.emailConfirm;
+    });
+
+    readonly hasValidParent2 = computed(() => {
+        const p = this._parent2();
+        return p.firstName.trim().length > 0
+            && p.lastName.trim().length > 0
+            && p.phone.trim().length > 0
             && p.email.trim().length > 0
             && p.email === p.emailConfirm;
     });
@@ -114,9 +133,49 @@ export class FamilyStateService {
     // ── Controlled mutators ─────────────────────────────────────────
     setMode(v: 'create' | 'edit'): void { this._mode.set(v); }
 
-    setCredentials(username: string, password: string): void {
+    setCredentials(username: string, password: string, confirmPassword: string = ''): void {
         this._username.set(username);
         this._password.set(password);
+        this._confirmPassword.set(confirmPassword);
+    }
+
+    setAccountExists(exists: boolean): void { this._accountExists.set(exists); }
+
+    /** Populate wizard state from a validated profile response (existing account). */
+    populateFromProfile(profile: FamilyProfileResponse): void {
+        this._mode.set('edit');
+        this._accountExists.set(true);
+        this._username.set(profile.username ?? '');
+        this._parent1.set({
+            firstName: profile.primary?.firstName ?? '',
+            lastName: profile.primary?.lastName ?? '',
+            phone: profile.primary?.cellphone ?? '',
+            email: profile.primary?.email ?? '',
+            emailConfirm: profile.primary?.email ?? '',
+        });
+        this._parent2.set({
+            firstName: profile.secondary?.firstName ?? '',
+            lastName: profile.secondary?.lastName ?? '',
+            phone: profile.secondary?.cellphone ?? '',
+            email: profile.secondary?.email ?? '',
+            emailConfirm: profile.secondary?.email ?? '',
+        });
+        this._address.set({
+            address1: profile.address?.streetAddress ?? '',
+            city: profile.address?.city ?? '',
+            state: profile.address?.state ?? '',
+            postalCode: profile.address?.postalCode ?? '',
+        });
+        this._children.set(
+            (profile.children ?? []).map(c => ({
+                firstName: c.firstName ?? '',
+                lastName: c.lastName ?? '',
+                gender: c.gender ?? '',
+                dob: c.dob ?? undefined,
+                email: c.email ?? undefined,
+                phone: c.phone ?? undefined,
+            })),
+        );
     }
 
     setParent1(contact: FamilyContact): void { this._parent1.set({ ...contact }); }
@@ -284,6 +343,8 @@ export class FamilyStateService {
         this._mode.set('create');
         this._username.set('');
         this._password.set('');
+        this._confirmPassword.set('');
+        this._accountExists.set(false);
         this._parent1.set({ ...EMPTY_CONTACT });
         this._parent2.set({ ...EMPTY_CONTACT });
         this._address.set({ ...EMPTY_ADDRESS });

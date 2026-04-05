@@ -4,10 +4,9 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { FamilyStateService } from '../state/family-state.service';
 
 /**
- * Family wizard v2 — Credentials step.
- * Collects username + password for new account creation.
- * Skipped entirely in edit mode (shell handles step filtering).
- * Writes to FamilyStateService on every valid change.
+ * Family wizard v2 — Account step (unified create/edit).
+ * New users: enter username + password + confirm password → create flow.
+ * Returning users: enter existing username + password → edit flow (data prefilled on advance).
  */
 @Component({
     selector: 'app-fam-credentials-step',
@@ -15,19 +14,26 @@ import { FamilyStateService } from '../state/family-state.service';
     imports: [ReactiveFormsModule],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Create Login</h5>
-        <div class="text-muted small">Choose a username and password for your new Family Account.</div>
-      </div>
       <div class="card-body">
+        <h5 class="mb-1 fw-semibold">Family Account</h5>
+        <p class="wizard-tip">New here? Choose a username and password. Already have an account? Enter your existing credentials.</p>
+
+        @if (validationError()) {
+          <div class="alert alert-danger d-flex align-items-start gap-2 mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <span>{{ validationError() }}</span>
+          </div>
+        }
+
         <div [formGroup]="form" class="row g-3">
           <div class="col-12 col-md-6">
-            <label class="form-label" for="v2-cred-username">Username</label>
-            <input id="v2-cred-username" type="text" formControlName="username" class="form-control"
+            <label class="field-label" for="v2-cred-username">Username</label>
+            <input id="v2-cred-username" type="text" formControlName="username" class="field-input"
+                   [class.is-required]="!form.controls.username.value?.trim()"
                    [class.is-invalid]="touched() && form.controls.username.invalid"
-                   (blur)="syncToState()" />
+                   (input)="syncToState()" (blur)="syncToState()" />
             @if (touched() && form.controls.username.errors) {
-              <div class="invalid-feedback">
+              <div class="field-error">
                 @if (form.controls.username.errors['required']) { <span>Required</span> }
                 @if (form.controls.username.errors['minlength']) { <span>Min 3 characters</span> }
                 @if (form.controls.username.errors['pattern']) { <span>Letters, numbers, dot, underscore, hyphen only</span> }
@@ -37,31 +43,36 @@ import { FamilyStateService } from '../state/family-state.service';
           <div class="col-12 col-md-6"></div>
 
           <div class="col-12 col-md-6">
-            <label class="form-label" for="v2-cred-password">Password</label>
-            <input id="v2-cred-password" type="password" formControlName="password" class="form-control"
+            <label class="field-label" for="v2-cred-password">Password</label>
+            <input id="v2-cred-password" type="password" formControlName="password" class="field-input"
                    autocomplete="new-password"
+                   [class.is-required]="!form.controls.password.value"
                    [class.is-invalid]="touched() && form.controls.password.invalid"
-                   (blur)="syncToState()" />
+                   (input)="syncToState()" (blur)="syncToState()" />
             @if (touched() && form.controls.password.errors) {
-              <div class="invalid-feedback">
+              <div class="field-error">
                 @if (form.controls.password.errors['required']) { <span>Required</span> }
                 @if (form.controls.password.errors['minlength']) { <span>Min 6 characters</span> }
               </div>
             }
           </div>
+
+          @if (!state.accountExists()) {
           <div class="col-12 col-md-6">
-            <label class="form-label" for="v2-cred-confirm">Confirm password</label>
-            <input id="v2-cred-confirm" type="password" formControlName="confirmPassword" class="form-control"
+            <label class="field-label" for="v2-cred-confirm">Confirm password</label>
+            <input id="v2-cred-confirm" type="password" formControlName="confirmPassword" class="field-input"
                    autocomplete="new-password"
+                   [class.is-required]="!form.controls.confirmPassword.value"
                    [class.is-invalid]="touched() && (form.controls.confirmPassword.invalid || form.errors?.['passwordMismatch'])"
-                   (blur)="syncToState()" />
+                   (input)="syncToState()" (blur)="syncToState()" />
             @if (touched() && (form.controls.confirmPassword.errors || form.errors?.['passwordMismatch'])) {
-              <div class="invalid-feedback">
+              <div class="field-error">
                 @if (form.controls.confirmPassword.errors?.['required']) { <span>Required</span> }
                 @if (form.errors?.['passwordMismatch']) { <span>Passwords do not match</span> }
               </div>
             }
           </div>
+          }
         </div>
       </div>
     </div>
@@ -71,9 +82,10 @@ import { FamilyStateService } from '../state/family-state.service';
 export class CredentialsStepComponent {
     private readonly fb = inject(FormBuilder);
     private readonly auth = inject(AuthService);
-    private readonly state = inject(FamilyStateService);
+    readonly state = inject(FamilyStateService);
 
     readonly touched = signal(false);
+    readonly validationError = signal<string | null>(null);
 
     readonly form = this.fb.group({
         username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
@@ -87,12 +99,11 @@ export class CredentialsStepComponent {
         },
     });
 
-    /** Push form values into state service on blur (so canContinue reacts). */
+    /** Push form values into state service on every keystroke. */
     syncToState(): void {
         this.touched.set(true);
+        this.validationError.set(null);
         const v = this.form.value;
-        if (!this.auth.isAuthenticated()) {
-            this.state.setCredentials(v.username ?? '', v.password ?? '');
-        }
+        this.state.setCredentials(v.username ?? '', v.password ?? '', v.confirmPassword ?? '');
     }
 }

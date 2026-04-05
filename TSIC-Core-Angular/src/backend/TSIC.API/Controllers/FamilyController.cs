@@ -58,6 +58,19 @@ public class FamilyController : ControllerBase
         return Ok(resp);
     }
 
+    [HttpPost("validate-credentials")]
+    [ProducesResponseType(typeof(ValidateCredentialsResponse), 200)]
+    [ProducesResponseType(typeof(ValidateCredentialsResponse), 400)]
+    public async Task<IActionResult> ValidateCredentials([FromBody] ValidateCredentialsRequest request)
+    {
+        var result = await _familyService.ValidateCredentialsAsync(request);
+        if (result.Message != null && !result.Exists)
+            return BadRequest(result);
+        if (result.Message != null && result.Exists && result.Profile == null)
+            return BadRequest(result);
+        return Ok(result);
+    }
+
     [HttpPost("register")]
     [ProducesResponseType(typeof(FamilyRegistrationResponse), 200)]
     [ProducesResponseType(typeof(FamilyRegistrationResponse), 400)]

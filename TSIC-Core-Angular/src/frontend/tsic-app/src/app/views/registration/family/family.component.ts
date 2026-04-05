@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { FamilyService as FamilyHttpService } from '@infrastructure/services/family.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { FamilyStateService } from './state/family-state.service';
 import { CredentialsStepComponent } from './steps/credentials-step.component';
@@ -33,13 +35,18 @@ export class FamilyWizardV2Component implements OnInit {
     private readonly router = inject(Router);
     private readonly jobService = inject(JobService);
     private readonly auth = inject(AuthService);
+    private readonly familyHttp = inject(FamilyHttpService);
+    private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(FamilyStateService);
+
+    @ViewChild(CredentialsStepComponent) credentialsStep?: CredentialsStepComponent;
 
     // ── Step management ─────────────────────────────────────────────
     readonly currentIndex = signal(0);
+    readonly validating = signal(false);
 
     readonly steps = computed<WizardStepDef[]>(() => [
-        { id: 'credentials', label: 'Credentials', enabled: this.state.mode() === 'create' },
+        { id: 'credentials', label: 'Account', enabled: true },
         { id: 'contacts', label: 'Contacts', enabled: true },
         { id: 'address', label: 'Address', enabled: true },
         { id: 'children', label: 'Children', enabled: true },
@@ -47,7 +54,7 @@ export class FamilyWizardV2Component implements OnInit {
     ]);
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
-    readonly currentStepId = computed<FamilyStepId>(() => (this.activeSteps()[this.currentIndex()]?.id ?? 'contacts') as FamilyStepId);
+    readonly currentStepId = computed<FamilyStepId>(() => (this.activeSteps()[this.currentIndex()]?.id ?? 'credentials') as FamilyStepId);
 
     // ── Shell config ────────────────────────────────────────────────
     readonly shellConfig = computed<WizardShellConfig>(() => ({
@@ -57,12 +64,13 @@ export class FamilyWizardV2Component implements OnInit {
     }));
 
     readonly canContinue = computed(() => {
+        if (this.validating()) return false;
         switch (this.currentStepId()) {
             case 'credentials': return this.state.hasValidCredentials() || this.auth.isAuthenticated();
-            case 'contacts': return this.state.hasValidParent1();
+            case 'contacts': return this.state.hasValidParent1() && this.state.hasValidParent2();
             case 'address': return this.state.hasValidAddress();
             case 'children': return this.state.hasChildren();
-            case 'review': return false; // review has its own submit button
+            case 'review': return false;
             default: return false;
         }
     });
@@ -80,29 +88,10 @@ export class FamilyWizardV2Component implements OnInit {
         const qp = this.route.snapshot.queryParamMap;
         this.returnUrl = qp.get('returnUrl');
         if (qp.get('next') === 'register-player') this.nextAction = 'register-player';
-        if (qp.get('mode') === 'edit') this.state.setMode('edit');
 
         // Pre-load job metadata for dynamic labels if returnUrl carries a jobPath
         const jobPath = this.extractJobPathFromUrl(this.returnUrl);
         if (jobPath) this.jobService.loadJobMetadata(jobPath);
-
-        // If editing and not authenticated, redirect to login
-        if (this.state.mode() === 'edit' && !this.auth.isAuthenticated()) {
-            this.router.navigate(['/tsic/login'], {
-                queryParams: {
-                    returnUrl: this.router.url,
-                    theme: 'family',
-                    header: 'Family Account Login',
-                    subHeader: 'Sign in to continue',
-                },
-            });
-            return;
-        }
-
-        // If editing and authenticated, load existing profile
-        if (this.state.mode() === 'edit' && this.auth.isAuthenticated()) {
-            this.state.loadProfile();
-        }
 
         // Deep-link: ?step=<id>
         const stepParam = qp.get('step');
@@ -114,6 +103,12 @@ export class FamilyWizardV2Component implements OnInit {
 
     // ── Navigation ──────────────────────────────────────────────────
     next(): void {
+        // Intercept credentials step — validate against backend before advancing
+        if (this.currentStepId() === 'credentials') {
+            this.validateAndAdvance();
+            return;
+        }
+
         if (this.currentIndex() < this.activeSteps().length - 1) {
             this.currentIndex.update(i => i + 1);
         }
@@ -121,6 +116,47 @@ export class FamilyWizardV2Component implements OnInit {
 
     back(): void {
         this.currentIndex.update(i => Math.max(0, i - 1));
+    }
+
+    /** Validate credentials against backend, then advance or show error. */
+    private validateAndAdvance(): void {
+        this.validating.set(true);
+        if (this.credentialsStep) {
+            this.credentialsStep.validationError.set(null);
+        }
+
+        this.familyHttp.validateCredentials({
+            username: this.state.username(),
+            password: this.state.password(),
+        }).pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (res) => {
+                    this.validating.set(false);
+                    if (res.message) {
+                        // Backend returned an error (wrong password, privilege conflict)
+                        if (this.credentialsStep) {
+                            this.credentialsStep.validationError.set(res.message);
+                        }
+                        return;
+                    }
+                    if (res.exists && res.profile) {
+                        // Existing account — switch to edit mode and prefill
+                        this.state.populateFromProfile(res.profile);
+                    } else {
+                        // New account — stay in create mode
+                        this.state.setAccountExists(false);
+                    }
+                    this.currentIndex.update(i => i + 1);
+                },
+                error: (err: unknown) => {
+                    this.validating.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    const msg = httpErr?.error?.message ?? 'Unable to validate credentials. Please try again.';
+                    if (this.credentialsStep) {
+                        this.credentialsStep.validationError.set(msg);
+                    }
+                },
+            });
     }
 
     /** Called by review step on completion. */

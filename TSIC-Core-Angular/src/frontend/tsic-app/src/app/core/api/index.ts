@@ -632,6 +632,8 @@ export type { UserContactInfoDto } from './models/UserContactInfoDto';
 export type { UserDemographicsDto } from './models/UserDemographicsDto';
 export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { UserWidgetEntryDto } from './models/UserWidgetEntryDto';
+export type { ValidateCredentialsRequest } from './models/ValidateCredentialsRequest';
+export type { ValidateCredentialsResponse } from './models/ValidateCredentialsResponse';
 export type { ValidationTestResult } from './models/ValidationTestResult';
 export type { VIAddress } from './models/VIAddress';
 export type { VIColorsDto } from './models/VIColorsDto';

@@ -7,7 +7,9 @@ import type {
     FamilyRegistrationRequest,
     FamilyRegistrationResponse,
     FamilyUpdateRequest,
-    FamilyProfileResponse
+    FamilyProfileResponse,
+    ValidateCredentialsRequest,
+    ValidateCredentialsResponse,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -32,6 +34,10 @@ export class FamilyService {
         this.createError.set(null);
         this.createResult.set(null);
         return this.http.put<FamilyRegistrationResponse>(`${this.apiUrl}/update`, request);
+    }
+
+    validateCredentials(request: ValidateCredentialsRequest) {
+        return this.http.post<ValidateCredentialsResponse>(`${this.apiUrl}/validate-credentials`, request);
     }
 
     getMyFamily() {

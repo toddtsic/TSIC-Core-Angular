@@ -53,6 +53,8 @@ export class WizardShellComponent {
     readonly showContinue = input(true);
     /** Whether to show the Back button at all. */
     readonly showBack = input(true);
+    /** Whether to show the action bar on the first step (default: false — login steps have own CTAs). */
+    readonly showActionBarOnFirstStep = input(false);
     /** Optional badge text on the action bar (e.g. "$120.00 due"). */
     readonly detailsBadgeLabel = input<string | null>(null);
     /** CSS class for the action bar badge. */
@@ -99,6 +101,6 @@ export class WizardShellComponent {
         return idx >= 0 ? idx : 0;
     });
 
-    /** Show the action bar when we're past the first step (first step typically has its own CTAs). */
-    readonly showActionBar = computed(() => this.currentIndex() > 0);
+    /** Show the action bar when we're past the first step, or when explicitly enabled for step 0. */
+    readonly showActionBar = computed(() => this.currentIndex() > 0 || this.showActionBarOnFirstStep());
 }

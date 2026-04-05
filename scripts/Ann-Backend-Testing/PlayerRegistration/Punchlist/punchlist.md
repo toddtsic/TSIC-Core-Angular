@@ -150,7 +150,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Next button to proceed to the next step
 - **What happened**: No Next button appears after selecting players — can't advance
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Added bottom action bar (Back/Continue) to all wizard steps via WizardShellComponent. Both player and team registration wizards now have navigation at top and bottom of each step.
 
 ### PL-045: Change "Edit details anytime" to "Edit player details"
 - **Area**: Registration Process Review

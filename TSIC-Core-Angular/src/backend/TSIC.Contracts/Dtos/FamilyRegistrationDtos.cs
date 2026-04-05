@@ -68,3 +68,16 @@ public record FamilyProfileResponse
     public required AddressDto Address { get; init; }
     public required List<ChildDto> Children { get; init; }
 }
+
+public record ValidateCredentialsRequest
+{
+    public required string Username { get; init; }
+    public required string Password { get; init; }
+}
+
+public record ValidateCredentialsResponse
+{
+    public required bool Exists { get; init; }
+    public FamilyProfileResponse? Profile { get; init; }
+    public string? Message { get; init; }
+}
