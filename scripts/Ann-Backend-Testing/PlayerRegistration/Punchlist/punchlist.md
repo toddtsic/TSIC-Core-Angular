@@ -689,3 +689,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Severity**: Question
 - **Status**: Open
 
+### PL-081: ARB site Complete Payment — subscription and recurring payments charged separately per player in family
+- **Area**: Registration Process Review
+- **What I did**: Registered multiple players on the ARB site and reached the Complete Payment screen
+- **What I expected**: Unclear — should subscription setup and recurring payments be combined for the family or separate per player?
+- **What happened**: Subscription setup and recurring payments are charged separately for each player in the family — need to confirm if this is intended or should be consolidated
+- **Severity**: Question
+- **Status**: Open
+
