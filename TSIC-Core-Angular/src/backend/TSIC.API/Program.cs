@@ -546,6 +546,8 @@ builder.Services.AddCors(options =>
                   "https://cp-ng.teamsportsinfo.com",
                   "http://dev.teamsportsinfo.com",
                   "https://dev.teamsportsinfo.com",
+                  "http://claude-app.teamsportsinfo.com",
+                  "https://claude-app.teamsportsinfo.com",
                   "http://bear.teamsportsinfo.com",
                   "https://bear.teamsportsinfo.com",
                   "http://www.teamsportsinfo.com",
