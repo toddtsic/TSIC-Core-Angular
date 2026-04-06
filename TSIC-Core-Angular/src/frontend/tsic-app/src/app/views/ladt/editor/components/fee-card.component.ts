@@ -61,7 +61,6 @@ export interface ModifierForm {
           <select class="form-select form-select-sm mod-type"
                   [(ngModel)]="mod.modifierType" [name]="namePrefix + 'ModType' + $index">
             <option value="EarlyBird">Early Bird</option>
-            <option value="Discount">Discount</option>
             <option value="LateFee">Late Fee</option>
           </select>
           <div class="input-group input-group-sm mod-amount">
@@ -98,7 +97,7 @@ export interface ModifierForm {
       <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
               [disabled]="!canAddModifier()"
               (click)="addModifier()">
-        <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
+        <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Late Fee
       </button>
     </div>
   `,
