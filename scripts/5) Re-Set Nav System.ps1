@@ -2,20 +2,18 @@
 # 5) Re-Set Nav System.ps1
 #
 # Walks the views/ folder structure to discover all nav-worthy components,
-# then rebuilds nav platform defaults (JobId IS NULL) from scratch.
+# then generates an idempotent T-SQL script that rebuilds nav platform
+# defaults (JobId IS NULL) from scratch.
 # Job-level overrides (JobId IS NOT NULL) are preserved.
 #
 # Source of truth: views/ folder tree (L1 = section, L2 = item)
 # Guard metadata: cross-referenced from app.routes.ts
 #
+# Output: scripts/5) Re-Set Nav System.sql  (run on any target server)
+#
 # Usage:
-#   .\scripts\"5) Re-Set Nav System.ps1"                          # uses appsettings
-#   .\scripts\"5) Re-Set Nav System.ps1" -ConnectionString "..."  # explicit
+#   .\scripts\"5) Re-Set Nav System.ps1"
 # ============================================================================
-
-param(
-    [string]$ConnectionString
-)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -26,26 +24,10 @@ Write-Host "|   Nav System Reset -- Route-Driven Rebuild    |" -ForegroundColor 
 Write-Host "+================================================+" -ForegroundColor Cyan
 Write-Host ""
 
-# --Resolve connection string ----------------------------------------------
-
-if (-not $ConnectionString) {
-    $apiDir = Join-Path $PSScriptRoot '..\TSIC-Core-Angular\src\backend\TSIC.API'
-    $settingsFile = Join-Path $apiDir 'appsettings.Development.json'
-    if (-not (Test-Path $settingsFile)) {
-        $settingsFile = Join-Path $apiDir 'appsettings.json'
-    }
-    if (-not (Test-Path $settingsFile)) {
-        Write-Error "Cannot find appsettings. Use -ConnectionString parameter."
-        return
-    }
-    $settings = Get-Content $settingsFile -Raw | ConvertFrom-Json
-    $ConnectionString = $settings.ConnectionStrings.DefaultConnection
-    Write-Host "DB: $($ConnectionString -replace 'Password=[^;]+','Password=***')" -ForegroundColor DarkGray
-}
-
 # --Walk views/ folder structure ------------------------------------------
 
-$viewsDir = Join-Path $PSScriptRoot '..\TSIC-Core-Angular\src\frontend\tsic-app\src\app\views'
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\TSIC-Core-Angular')).Path
+$viewsDir = Join-Path $repoRoot 'src\frontend\tsic-app\src\app\views'
 if (-not (Test-Path $viewsDir)) {
     Write-Error "Cannot find views/ directory at: $viewsDir"
     return
@@ -61,7 +43,7 @@ $skipSubfolders = @('shared', 'dashboard', 'auto-build', 'wizards', 'wizards-v2'
 $storeNavItems = @('admin')
 
 # Build guard lookup from app.routes.ts (folder = source of truth, routes = guard metadata)
-$routesFile = Join-Path $PSScriptRoot '..\TSIC-Core-Angular\src\frontend\tsic-app\src\app\app.routes.ts'
+$routesFile = Join-Path $repoRoot 'src\frontend\tsic-app\src\app\app.routes.ts'
 $guardMap = @{}
 if (Test-Path $routesFile) {
     $routesContent = Get-Content $routesFile -Raw
@@ -168,6 +150,7 @@ $itemIconMap = @{
     'configure/age-ranges'       = 'sliders'
     'configure/discount-codes'   = 'tags'
     'configure/uniform-upload'   = 'upload'
+    'tools/uniform-upload'       = 'upload'
     'configure/administrators'   = 'person-badge'
     'configure/customer-groups'  = 'people'
     'configure/ddl-options'      = 'list'
@@ -295,33 +278,30 @@ Write-Host ("-" * 80) -ForegroundColor DarkGray
 Write-Host "Total: $($manifest.Count) items in $($manifest | Select-Object -ExpandProperty Section -Unique | Measure-Object | Select-Object -ExpandProperty Count) sections" -ForegroundColor Green
 Write-Host ""
 
-# --Build and execute SQL directly ----------------------------------------
+# --Generate idempotent T-SQL script ---------------------------------------
 
-Write-Host "Executing against database..." -ForegroundColor Yellow
-Write-Host ""
+$sqlOutputPath = Join-Path $PSScriptRoot '5) Re-Set Nav System.sql'
 
-try {
-    $conn = New-Object System.Data.SqlClient.SqlConnection($ConnectionString)
-    $conn.Open()
+$sql = [System.Text.StringBuilder]::new()
 
-    # Capture SQL PRINT messages
-    $handler = [System.Data.SqlClient.SqlInfoMessageEventHandler] {
-        param($s, $e)
-        Write-Host "  SQL: $($e.Message)" -ForegroundColor DarkGray
-    }
-    $conn.add_InfoMessage($handler)
+[void]$sql.AppendLine("-- ============================================================================")
+[void]$sql.AppendLine("-- 5) Re-Set Nav System.sql")
+[void]$sql.AppendLine("-- Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') by 5) Re-Set Nav System.ps1")
+[void]$sql.AppendLine("-- Idempotent: safe to run multiple times on any target database")
+[void]$sql.AppendLine("-- Preserves: job-level overrides, reporting items, visibility rules")
+[void]$sql.AppendLine("-- ============================================================================")
+[void]$sql.AppendLine("")
+[void]$sql.AppendLine("SET NOCOUNT ON;")
+[void]$sql.AppendLine("SET XACT_ABORT ON;")
+[void]$sql.AppendLine("BEGIN TRANSACTION;")
+[void]$sql.AppendLine("")
 
-    # --Helper to run a SQL batch --
-    function Invoke-Sql([string]$text) {
-        $c = $conn.CreateCommand()
-        $c.CommandText = $text
-        $c.CommandTimeout = 60
-        $c.ExecuteNonQuery() | Out-Null
-    }
+# --1. Ensure schema + tables exist --
 
-    # --1. Ensure schema + tables exist --
-
-    Invoke-Sql @"
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 1. Ensure schema + tables exist")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine(@"
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'nav')
     EXEC('CREATE SCHEMA [nav] AUTHORIZATION [dbo]');
 
@@ -356,21 +336,26 @@ BEGIN
     );
     PRINT 'Created table: nav.NavItem';
 END
-"@
+"@)
+[void]$sql.AppendLine("")
 
-    # --2. Preserve reporting items + visibility rules --
+# --2. Preserve reporting items + visibility rules --
 
-    Invoke-Sql @"
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 2. Preserve reporting items + visibility rules")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine(@"
+DECLARE @cnt INT;
+
 IF OBJECT_ID('tempdb..#ReportingItems') IS NOT NULL DROP TABLE #ReportingItems;
 SELECT ni.NavItemId, ni.NavId, ni.ParentNavItemId, ni.Active, ni.SortOrder,
        ni.[Text], ni.IconName, ni.RouterLink, ni.NavigateUrl, ni.[Target]
 INTO #ReportingItems
 FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId
 WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%';
-DECLARE @rc INT; SELECT @rc = COUNT(*) FROM #ReportingItems;
-PRINT CONCAT('Preserved ', @rc, ' reporting item(s)');
+SELECT @cnt = COUNT(*) FROM #ReportingItems;
+PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
 
--- Snapshot visibility rules keyed by RoleId + RouterLink (survives NavItemId changes)
 IF OBJECT_ID('tempdb..#VisRules') IS NOT NULL DROP TABLE #VisRules;
 SELECT n.RoleId, ni.RouterLink, ni.VisibilityRules
 INTO #VisRules
@@ -379,93 +364,105 @@ WHERE n.JobId IS NULL
   AND ni.RouterLink IS NOT NULL
   AND ni.VisibilityRules IS NOT NULL
   AND ni.VisibilityRules <> '';
-DECLARE @vrCount INT; SELECT @vrCount = COUNT(*) FROM #VisRules;
-PRINT CONCAT('Preserved ', @vrCount, ' visibility rule(s)');
-"@
+SELECT @cnt = COUNT(*) FROM #VisRules;
+PRINT CONCAT('Preserved ', @cnt, ' visibility rule(s)');
+"@)
+[void]$sql.AppendLine("")
 
-    # --3. Clear platform defaults --
+# --3. Clear platform defaults --
 
-    Invoke-Sql @"
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 3. Clear platform defaults (job overrides preserved)")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine(@"
 DELETE FROM [nav].[NavItem] WHERE [NavId] IN (SELECT [NavId] FROM [nav].[Nav] WHERE [JobId] IS NULL);
 DELETE FROM [nav].[Nav] WHERE [JobId] IS NULL;
 PRINT 'Cleared platform defaults (job overrides preserved)';
-"@
+"@)
+[void]$sql.AppendLine("")
 
-    # --4. Insert Nav records (one per role) --
+# --4. Insert Nav records (one per role) --
 
-    $roleGuids = @{
-        Director       = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06'
-        SuperDirector  = '7B9EB503-53C9-44FA-94A0-17760C512440'
-        SuperUser      = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9'
-        Staff          = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA'
-        RefAssignor    = '122075A3-2C42-4092-97F1-9673DF5B6A2C'
-        StoreAdmin     = '5B9B7055-4530-4E46-B403-1019FD8B8418'
-        Family         = 'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0'
-        Player         = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
-        ClubRep        = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
-        UnassignedAdult = 'CE2CB370-5880-4624-A43E-048379C64331'
-    }
+$roleGuids = @{
+    Director       = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06'
+    SuperDirector  = '7B9EB503-53C9-44FA-94A0-17760C512440'
+    SuperUser      = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9'
+    Staff          = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA'
+    RefAssignor    = '122075A3-2C42-4092-97F1-9673DF5B6A2C'
+    StoreAdmin     = '5B9B7055-4530-4E46-B403-1019FD8B8418'
+    Family         = 'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0'
+    Player         = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
+    ClubRep        = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+    UnassignedAdult = 'CE2CB370-5880-4624-A43E-048379C64331'
+}
 
-    $insertNavSql = ($roleGuids.Values | ForEach-Object {
-        "INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('$_',NULL,1,GETDATE());"
-    }) -join "`n"
-    Invoke-Sql "$insertNavSql`nPRINT 'Inserted $($roleGuids.Count) Nav records';"
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 4. Insert Nav records (one per role)")
+[void]$sql.AppendLine("-- ================================================================")
+foreach ($roleId in $roleGuids.Values) {
+    [void]$sql.AppendLine("INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('$roleId',NULL,1,GETDATE());")
+}
+[void]$sql.AppendLine("PRINT 'Inserted $($roleGuids.Count) Nav records';")
+[void]$sql.AppendLine("")
 
-    # --5. Admin roles get 'admin' items; SuperUser gets 'admin' + 'superuser' --
+# --5. Admin roles: insert sections + items using T-SQL variables --
 
-    $adminRoles = @('Director','SuperDirector','SuperUser','Staff','RefAssignor','StoreAdmin')
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 5. Insert nav items per admin role")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("DECLARE @navId INT, @parentId INT;")
+[void]$sql.AppendLine("")
 
-    foreach ($roleName in $adminRoles) {
-        $roleId = $roleGuids[$roleName]
-        $guardLevel = if ($roleName -eq 'SuperUser') { 'superuser' } else { 'admin' }
+$adminRoles = @('Director','SuperDirector','SuperUser','Staff','RefAssignor','StoreAdmin')
 
-        # Get this role's NavId
-        $cmd = $conn.CreateCommand()
-        $cmd.CommandText = "SELECT NavId FROM nav.Nav WHERE RoleId='$roleId' AND JobId IS NULL"
-        $navId = $cmd.ExecuteScalar()
+foreach ($roleName in $adminRoles) {
+    $roleId = $roleGuids[$roleName]
+    $guardLevel = if ($roleName -eq 'SuperUser') { 'superuser' } else { 'admin' }
 
-        # Get sections visible to this role
-        $visibleSections = @($manifest | Where-Object {
-            $_.Guard -eq 'admin' -or ($guardLevel -eq 'superuser' -and $_.Guard -eq 'superuser')
-        } | Select-Object -ExpandProperty Section -Unique)
+    [void]$sql.AppendLine("-- --- $roleName ---")
+    [void]$sql.AppendLine("SELECT @navId = NavId FROM nav.Nav WHERE RoleId = '$roleId' AND JobId IS NULL;")
 
-        foreach ($sectionName in $visibleSections) {
-            $sSort = if ($sectionSortMap.ContainsKey($sectionName)) { $sectionSortMap[$sectionName] } else { 99 }
-            $sIcon = ($manifest | Where-Object { $_.Section -eq $sectionName } | Select-Object -First 1).SectionIcon
+    # Get sections visible to this role
+    $visibleSections = @($manifest | Where-Object {
+        $_.Guard -eq 'admin' -or ($guardLevel -eq 'superuser' -and $_.Guard -eq 'superuser')
+    } | Select-Object -ExpandProperty Section -Unique)
 
-            # Get items in this section visible to this role
-            $sectionItems = @($manifest | Where-Object {
-                $_.Section -eq $sectionName -and
-                ($_.Guard -eq 'admin' -or ($guardLevel -eq 'superuser' -and $_.Guard -eq 'superuser'))
-            } | Sort-Object ItemSort)
+    foreach ($sectionName in $visibleSections) {
+        $sSort = if ($sectionSortMap.ContainsKey($sectionName)) { $sectionSortMap[$sectionName] } else { 99 }
+        $sIcon = ($manifest | Where-Object { $_.Section -eq $sectionName } | Select-Object -First 1).SectionIcon
 
-            if ($sectionItems.Count -eq 0) { continue }
+        # Get items in this section visible to this role
+        $sectionItems = @($manifest | Where-Object {
+            $_.Section -eq $sectionName -and
+            ($_.Guard -eq 'admin' -or ($guardLevel -eq 'superuser' -and $_.Guard -eq 'superuser'))
+        } | Sort-Object ItemSort)
 
-            # Insert L1 parent
-            $escapedSection = $sectionName -replace "'", "''"
-            $cmd = $conn.CreateCommand()
-            $cmd.CommandText = "INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES($navId,NULL,1,$sSort,N'$escapedSection',N'$sIcon',GETDATE()); SELECT SCOPE_IDENTITY();"
-            $parentId = [int]$cmd.ExecuteScalar()
+        if ($sectionItems.Count -eq 0) { continue }
 
-            # Insert L2 children
-            foreach ($item in $sectionItems) {
-                $escapedText = $item.ItemText -replace "'", "''"
-                $cmd = $conn.CreateCommand()
-                $cmd.CommandText = "INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES($navId,$parentId,1,$($item.ItemSort),N'$escapedText',N'$($item.ItemIcon)',N'$($item.RouterLink)',GETDATE());"
-                $cmd.ExecuteNonQuery() | Out-Null
-            }
+        $escapedSection = $sectionName -replace "'", "''"
+        [void]$sql.AppendLine("INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,$sSort,N'$escapedSection',N'$sIcon',GETDATE());")
+        [void]$sql.AppendLine("SET @parentId = SCOPE_IDENTITY();")
+
+        foreach ($item in $sectionItems) {
+            $escapedText = $item.ItemText -replace "'", "''"
+            [void]$sql.AppendLine("INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,$($item.ItemSort),N'$escapedText',N'$($item.ItemIcon)',N'$($item.RouterLink)',GETDATE());")
         }
-
-        Write-Host "  $roleName`: $($visibleSections.Count) sections" -ForegroundColor DarkGray
     }
 
-    Write-Host "  Non-admin roles (Family, Player, ClubRep, UnassignedAdult): nav records only" -ForegroundColor DarkGray
+    [void]$sql.AppendLine("")
+    Write-Host "  $roleName`: $($visibleSections.Count) sections" -ForegroundColor DarkGray
+}
 
-    # --6. Restore reporting items --
+Write-Host "  Non-admin roles (Family, Player, ClubRep, UnassignedAdult): nav records only" -ForegroundColor DarkGray
 
-    Invoke-Sql @"
-DECLARE @rc INT; SELECT @rc = COUNT(*) FROM #ReportingItems;
-IF @rc > 0
+# --6. Restore reporting items --
+
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 6. Restore reporting items")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine(@"
+SELECT @cnt = COUNT(*) FROM #ReportingItems;
+IF @cnt > 0
 BEGIN
     DECLARE @suNavId INT;
     SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9' AND JobId IS NULL;
@@ -483,60 +480,53 @@ BEGIN
     INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,NavigateUrl,[Target],Modified)
     SELECT @suNavId, @apId, r.Active, r.SortOrder, r.[Text], r.IconName, r.RouterLink, r.NavigateUrl, r.[Target], GETDATE()
     FROM #ReportingItems r;
-    PRINT CONCAT('Restored ', @rc, ' reporting item(s) under Analyze section');
+    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze section');
 END
 DROP TABLE #ReportingItems;
-"@
+"@)
+[void]$sql.AppendLine("")
 
-    # --7. Restore visibility rules --
+# --7. Restore visibility rules --
 
-    Invoke-Sql @"
-DECLARE @vrRestored INT = 0;
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 7. Restore visibility rules")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine(@"
 UPDATE ni
 SET ni.VisibilityRules = vr.VisibilityRules
 FROM nav.NavItem ni
 JOIN nav.Nav n ON ni.NavId = n.NavId
 JOIN #VisRules vr ON vr.RoleId = n.RoleId AND vr.RouterLink = ni.RouterLink
 WHERE n.JobId IS NULL;
-SET @vrRestored = @@ROWCOUNT;
-PRINT CONCAT('Restored ', @vrRestored, ' visibility rule(s)');
+PRINT CONCAT('Restored ', @@ROWCOUNT, ' visibility rule(s)');
 DROP TABLE #VisRules;
-"@
+"@)
+[void]$sql.AppendLine("")
 
-    # --8. Summary --
+# --8. Summary + commit --
 
-    $cmd = $conn.CreateCommand()
-    $cmd.CommandText = @"
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- 8. Summary")
+[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine(@"
+COMMIT TRANSACTION;
+
 SELECT
-    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL) AS Navs,
-    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL) AS Items,
-    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL) AS Sections,
-    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NOT NULL) AS Overrides
-"@
-    $reader = $cmd.ExecuteReader()
-    if ($reader.Read()) {
-        $navs = $reader.GetInt32(0)
-        $items = $reader.GetInt32(1)
-        $sections = $reader.GetInt32(2)
-        $overrides = $reader.GetInt32(3)
-        $reader.Close()
+    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL) AS [Platform Navs],
+    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL) AS [Platform Items],
+    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL) AS [Sections],
+    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NOT NULL) AS [Job Overrides (preserved)];
 
-        Write-Host ""
-        Write-Host ("=" * 64) -ForegroundColor Green
-        Write-Host " Platform defaults: $navs navs, $items items ($sections sections, $($items - $sections) children)" -ForegroundColor Green
-        Write-Host " Job overrides:     $overrides (preserved)" -ForegroundColor Green
-        Write-Host ("=" * 64) -ForegroundColor Green
-    } else {
-        $reader.Close()
-    }
+PRINT 'Nav system reset complete.';
+"@)
 
-    $conn.Close()
+# --Write the file --------------------------------------------------------
 
-    Write-Host ""
-    Write-Host "Nav system reset complete." -ForegroundColor Green
-    Write-Host ""
-}
-catch {
-    Write-Error "SQL execution failed: $_"
-    if ($conn -and $conn.State -eq 'Open') { $conn.Close() }
-}
+$sql.ToString() | Set-Content -Path $sqlOutputPath -Encoding UTF8
+Write-Host ""
+Write-Host ("=" * 64) -ForegroundColor Green
+Write-Host " Generated: $sqlOutputPath" -ForegroundColor Green
+Write-Host " $($manifest.Count) nav items across $($adminRoles.Count) admin roles" -ForegroundColor Green
+Write-Host " Copy to server and run with: sqlcmd -i `"5) Re-Set Nav System.sql`"" -ForegroundColor Green
+Write-Host ("=" * 64) -ForegroundColor Green
+Write-Host ""

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, i
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
-import { ProfileSummary } from '@infrastructure/view-models/profile-migration.models';
+import { ProfileSummary, ProfileMigrationResult } from '@infrastructure/view-models/profile-migration.models';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ProfileFormPreviewComponent } from '@shared-ui/components/profile-form-preview/profile-form-preview.component';
@@ -254,10 +254,24 @@ export class ProfileMigrationComponent implements OnInit {
         this.selectedProfile.set(profile);
         this.showJsonView.set(false); // Default to form view
 
-        // Use the preview endpoint to get full job list and metadata
-        this.migrationService.previewProfileMigration(
+        // Read stored metadata from DB (no git dependency)
+        this.migrationService.getProfileMetadata(
             profile.profileType,
-            (_result) => { },
+            (metadata) => {
+                // Build a preview result from the stored metadata + summary info
+                const result: ProfileMigrationResult = {
+                    profileType: profile.profileType,
+                    success: true,
+                    fieldCount: metadata.fields?.length ?? 0,
+                    jobsAffected: profile.jobCount,
+                    affectedJobIds: [],
+                    affectedJobNames: profile.sampleJobNames ?? [],
+                    affectedJobYears: [],
+                    generatedMetadata: metadata,
+                    warnings: []
+                };
+                this.migrationService.setPreviewResult(result);
+            },
             (error) => {
                 this.errorMessage.set(error || 'Failed to load profile metadata');
             }

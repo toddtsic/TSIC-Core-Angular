@@ -27,20 +27,34 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
         _environment = environment;
 
         // Navigate from API project to repo root: ../../../../ then to reference/TSIC-Unify-2024
-        var apiPath = _environment.ContentRootPath; // C:\...\TSIC-Core-Angular\src\backend\TSIC.API
-        var backendPath = Path.GetDirectoryName(apiPath); // C:\...\TSIC-Core-Angular\src\backend
-        var srcPath = Path.GetDirectoryName(backendPath); // C:\...\TSIC-Core-Angular\src
-        var innerRoot = Path.GetDirectoryName(srcPath); // C:\...\TSIC-Core-Angular\TSIC-Core-Angular
-        var repoRoot = Path.GetDirectoryName(innerRoot); // C:\...\TSIC-Core-Angular
-        _repoBasePath = Path.Combine(repoRoot!, "reference", "TSIC-Unify-2024");
+        // On prod/IIS the path hierarchy won't match — degrade gracefully
+        var apiPath = _environment.ContentRootPath;
+        var backendPath = Path.GetDirectoryName(apiPath);
+        var srcPath = backendPath != null ? Path.GetDirectoryName(backendPath) : null;
+        var innerRoot = srcPath != null ? Path.GetDirectoryName(srcPath) : null;
+        var repoRoot = innerRoot != null ? Path.GetDirectoryName(innerRoot) : null;
 
-        if (!Directory.Exists(_repoBasePath))
+        if (repoRoot != null)
         {
-            _logger.LogError("Local reference repository not found at: {Path}", _repoBasePath);
-            throw new DirectoryNotFoundException($"TSIC-Unify-2024 submodule not found at {_repoBasePath}");
+            _repoBasePath = Path.Combine(repoRoot, "reference", "TSIC-Unify-2024");
+        }
+        else
+        {
+            _repoBasePath = string.Empty;
         }
 
-        _logger.LogInformation("Using local repository at: {Path}", _repoBasePath);
+        if (string.IsNullOrEmpty(_repoBasePath) || !Directory.Exists(_repoBasePath))
+        {
+            _logger.LogWarning(
+                "Local reference repository not found (ContentRootPath: {Path}). " +
+                "Profile fetching from source is unavailable — use Export SQL from dev instead.",
+                apiPath);
+            _repoBasePath = string.Empty;
+        }
+        else
+        {
+            _logger.LogInformation("Using local repository at: {Path}", _repoBasePath);
+        }
     }
 
     /// <summary>
@@ -49,6 +63,11 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
     /// <param name="profileType">e.g., "PP10", "PP17", "CAC05"</param>
     public async Task<(string sourceCode, string commitSha)> FetchProfileSourceAsync(string profileType)
     {
+        if (string.IsNullOrEmpty(_repoBasePath))
+            throw new InvalidOperationException(
+                "Profile source fetching is unavailable on this server. " +
+                "Run migrations on dev and use Export SQL for production deployment.");
+
         var cacheKey = $"{CacheKeyPrefix}{profileType}";
 
         if (_cache.TryGetValue<(string, string)>(cacheKey, out var cached))
@@ -116,6 +135,11 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
     /// </summary>
     public async Task<(string sourceCode, string commitSha)> FetchBaseClassSourceAsync()
     {
+        if (string.IsNullOrEmpty(_repoBasePath))
+            throw new InvalidOperationException(
+                "Profile source fetching is unavailable on this server. " +
+                "Run migrations on dev and use Export SQL for production deployment.");
+
         var cacheKey = $"{CacheKeyPrefix}{BaseClassFileName}";
 
         if (_cache.TryGetValue<(string, string)>(cacheKey, out var cached))
@@ -194,6 +218,11 @@ public class GitHubProfileFetcher : IGitHubProfileFetcher
     /// <param name="profileType">e.g., "PP10", "PP17", "CAC05"</param>
     public async Task<string?> FetchViewFileAsync(string profileType)
     {
+        if (string.IsNullOrEmpty(_repoBasePath))
+            throw new InvalidOperationException(
+                "Profile source fetching is unavailable on this server. " +
+                "Run migrations on dev and use Export SQL for production deployment.");
+
         try
         {
             string folder = profileType.StartsWith("CAC") ? "PlayerMulti" : "PlayerSingle";

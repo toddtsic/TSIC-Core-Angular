@@ -413,23 +413,23 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     {
         var jobs = await _repo.GetJobsWithProfileMetadataAsync();
 
+        var jobsWithMetadata = jobs.Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson)).ToList();
+
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("-- =====================================================");
         sb.AppendLine("-- Profile Migration SQL Export");
         sb.AppendLine($"-- Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
-        sb.AppendLine($"-- Jobs with metadata: {jobs.Count}");
+        sb.AppendLine($"-- Jobs with metadata: {jobsWithMetadata.Count}");
+        sb.AppendLine("-- Idempotent: safe to run multiple times");
+        sb.AppendLine("-- Only touches: [Jobs].[Jobs].[PlayerProfileMetadataJson]");
         sb.AppendLine("-- =====================================================");
         sb.AppendLine();
-        sb.AppendLine("-- Instructions:");
-        sb.AppendLine("-- 1. Backup production database before running");
-        sb.AppendLine("-- 2. Review the updates below");
-        sb.AppendLine("-- 3. For large migrations, consider running in batches");
-        sb.AppendLine("-- 4. Transaction wrapper is optional - uncomment if desired");
-        sb.AppendLine();
-        sb.AppendLine("-- BEGIN TRANSACTION;");
+        sb.AppendLine("SET NOCOUNT ON;");
+        sb.AppendLine("SET XACT_ABORT ON;");
+        sb.AppendLine("BEGIN TRANSACTION;");
         sb.AppendLine();
 
-        foreach (var job in jobs.Where(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson)))
+        foreach (var job in jobsWithMetadata)
         {
             var escapedJson = job.PlayerProfileMetadataJson!.Replace("'", "''");
             sb.AppendLine($"-- {job.JobName ?? "Unnamed"} (Job ID: {job.JobId})");
@@ -439,16 +439,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             sb.AppendLine();
         }
 
-        sb.AppendLine("-- If using transaction wrapper above, commit here:");
-        sb.AppendLine("-- COMMIT TRANSACTION;");
+        sb.AppendLine("COMMIT TRANSACTION;");
         sb.AppendLine();
-        sb.AppendLine("-- Or to rollback (must run BEFORE commit):");
-        sb.AppendLine("-- ROLLBACK TRANSACTION;");
-        sb.AppendLine();
-        sb.AppendLine($"-- Migration completed: {jobs.Count(j => !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))} jobs updated");
+        sb.AppendLine($"PRINT 'Profile migration complete: {jobsWithMetadata.Count} jobs updated';");
         sb.AppendLine();
         sb.AppendLine("-- Verify results:");
-        sb.AppendLine("-- SELECT COUNT(*) FROM [Jobs].[Jobs] WHERE [PlayerProfileMetadataJson] IS NOT NULL;");
+        sb.AppendLine("SELECT COUNT(*) AS [Jobs With Metadata] FROM [Jobs].[Jobs] WHERE [PlayerProfileMetadataJson] IS NOT NULL;");
 
         return sb.ToString();
     }

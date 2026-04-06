@@ -325,5 +325,9 @@ export class ProfileMigrationService {
         this._previewResult.set(null);
     }
 
+    setPreviewResult(result: ProfileMigrationResult): void {
+        this._previewResult.set(result);
+    }
+
     // (Removed) Current job option sources APIs – UI no longer exposes these
 }

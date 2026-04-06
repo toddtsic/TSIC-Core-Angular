@@ -69,6 +69,7 @@
                             </small>
                         </div>
                         <div class="btn-group">
+                            @if (isDevMode) {
                             <button class="btn btn-success" (click)="migrateAllPending()"
                                 [disabled]="isLoading() || isMigrating() || pendingProfiles.length === 0">
                                 @if (isMigrating()) {
@@ -83,6 +84,7 @@
                                 title="Force re-migration of all profiles, even if already migrated">
                                 <i class="bi bi-arrow-repeat"></i> Re-Migrate All
                             </button>
+                            }
                             @if (isDevMode && allMigrated()) {
                             <button class="btn btn-success" (click)="exportSql()"
                                 [disabled]="isLoading() || isMigrating()"
@@ -205,11 +207,13 @@
                                                 [title]="profile.allJobsMigrated ? 'View current metadata' : 'Migrate first to preview'">
                                                 <i class="bi bi-eye"></i> Preview
                                             </button>
+                                            @if (isDevMode) {
                                             <button class="btn btn-outline-success" (click)="migrateSingle(profile)"
                                                 [disabled]="isMigrating()">
                                                 <i class="bi bi-arrow-repeat"></i>
                                                 {{ profile.allJobsMigrated ? 'Re-migrate' : 'Migrate' }}
                                             </button>
+                                            }
                                         </fieldset>
                                     </td>
                                 </tr>
@@ -365,7 +369,7 @@
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" (click)="closePreview()" autofocus>Close</button>
-            @if (previewResult()?.success && selectedProfile() && !selectedProfile()?.allJobsMigrated) {
+            @if (isDevMode && previewResult()?.success && selectedProfile() && !selectedProfile()?.allJobsMigrated) {
             <button type="button" class="btn btn-success" (click)="migrateSingle(selectedProfile()!); closePreview()">
                 <i class="bi bi-check-circle"></i> Migrate Now
             </button>
