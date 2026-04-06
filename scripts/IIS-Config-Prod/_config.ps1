@@ -68,16 +68,27 @@ $Config.AspNetEnv       = $Env.AspNetEnv
 $Config.BackupsPath     = $Env.BackupsPath
 $Config.ProdServer      = $Env.ProdServer
 
+# Staging folders sit next to live folders
+$Config.ApiStagingName     = "$($Config.ApiSiteName)-STAGING"
+$Config.AngularStagingName = "$($Config.AngularSiteName)-STAGING"
+$Config.ApiStagingPath     = Join-Path $Env.BasePath $Config.ApiStagingName
+$Config.AngularStagingPath = Join-Path $Env.BasePath $Config.AngularStagingName
+
 # For Prod deploys from dev machine: resolve paths to UNC share
 # E:\Websites on TSIC-PHOENIX is shared as \\TSIC-PHOENIX\Websites
 if ($Environment -eq 'Prod' -and $Config.ProdServer) {
-    $Config.DeployApiPath     = "\\$($Config.ProdServer)\Websites\$($Config.ApiSiteName)"
-    $Config.DeployAngularPath = "\\$($Config.ProdServer)\Websites\$($Config.AngularSiteName)"
-    $Config.DeployBackupsPath = "\\$($Config.ProdServer)\Websites\Backups"
+    $share = "\\$($Config.ProdServer)\Websites"
+    $Config.DeployApiPath         = "$share\$($Config.ApiSiteName)"
+    $Config.DeployAngularPath     = "$share\$($Config.AngularSiteName)"
+    $Config.DeployApiStagingPath  = "$share\$($Config.ApiStagingName)"
+    $Config.DeployAngularStagingPath = "$share\$($Config.AngularStagingName)"
+    $Config.DeployBackupsPath     = "$share\Backups"
 } else {
-    $Config.DeployApiPath     = $Config.ApiPath
-    $Config.DeployAngularPath = $Config.AngularPath
-    $Config.DeployBackupsPath = $Config.BackupsPath
+    $Config.DeployApiPath         = $Config.ApiPath
+    $Config.DeployAngularPath     = $Config.AngularPath
+    $Config.DeployApiStagingPath  = $Config.ApiStagingPath
+    $Config.DeployAngularStagingPath = $Config.AngularStagingPath
+    $Config.DeployBackupsPath     = $Config.BackupsPath
 }
 
 # ---------------------------------------------------------------------------
@@ -94,6 +105,8 @@ function Show-Config {
     Write-Host "  Angular Host:   $($Config.AngularHostname)" -ForegroundColor White
     Write-Host "  Angular Path:   $($Config.AngularPath)" -ForegroundColor White
     Write-Host "  Deploy Angular: $($Config.DeployAngularPath)" -ForegroundColor White
+    Write-Host "  API Staging:    $($Config.DeployApiStagingPath)" -ForegroundColor White
+    Write-Host "  Angular Staging:$($Config.DeployAngularStagingPath)" -ForegroundColor White
     Write-Host "  Statics:        $($Config.StaticsPath)" -ForegroundColor White
     Write-Host "  Backups:        $($Config.DeployBackupsPath)" -ForegroundColor White
     Write-Host "  SQL:            $($Config.SqlInstance) / $($Config.DatabaseName)" -ForegroundColor White
