@@ -35,23 +35,20 @@
         <span class="badge bg-primary-subtle text-primary-emphasis">{{ totalTeams() | number }} teams</span>
         <span class="badge bg-success-subtle text-success-emphasis">{{ totalPlayers() | number }} players</span>
       </div>
-      <div class="tree-kpis">
-        <span class="kpi-badge kpi-waitlisted">
-          <span class="kpi-dot"></span>
+      <ul class="list-unstyled mt-2 mb-0 small text-secondary">
+        <li class="d-flex align-items-center justify-content-between mb-1">
           Active Waitlisted Teams
-          <span class="kpi-count">{{ teamStatusKpis().waitlisted }}</span>
-        </span>
-        <span class="kpi-badge kpi-active">
-          <span class="kpi-dot"></span>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ teamStatusKpis().waitlisted }}</span>
+        </li>
+        <li class="d-flex align-items-center justify-content-between mb-1">
           Active Non Waitlisted Teams
-          <span class="kpi-count">{{ teamStatusKpis().nonWaitlisted }}</span>
-        </span>
-        <span class="kpi-badge kpi-scheduled">
-          <span class="kpi-dot"></span>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ teamStatusKpis().nonWaitlisted }}</span>
+        </li>
+        <li class="d-flex align-items-center justify-content-between">
           Active Scheduled Teams
-          <span class="kpi-count">{{ teamStatusKpis().scheduled }}</span>
-        </span>
-      </div>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ teamStatusKpis().scheduled }}</span>
+        </li>
+      </ul>
     </div>
 
     <div class="tree-toolbar">

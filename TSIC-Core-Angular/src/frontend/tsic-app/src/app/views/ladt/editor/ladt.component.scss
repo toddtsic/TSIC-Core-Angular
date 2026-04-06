@@ -41,43 +41,7 @@
   }
 }
 
-// ── Team Status KPIs ──
-
-.tree-kpis {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-}
-
-.kpi-badge {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--bs-secondary-color);
-  padding: var(--space-1) 0;
-}
-
-.kpi-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.kpi-waitlisted .kpi-dot { background: var(--bs-danger); }
-.kpi-active .kpi-dot { background: var(--bs-success); }
-.kpi-scheduled .kpi-dot { background: var(--bs-primary); }
-
-.kpi-count {
-  font-weight: 700;
-  color: var(--bs-body-color);
-  margin-left: auto;
-  min-width: 1.5em;
-  text-align: right;
-}
+// ── Team Status KPIs ── (uses Bootstrap utility classes, no custom CSS needed)
 
 .dropdown-anchor {
   position: relative;

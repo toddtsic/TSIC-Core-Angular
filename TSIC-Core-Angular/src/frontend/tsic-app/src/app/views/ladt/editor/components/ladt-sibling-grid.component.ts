@@ -18,7 +18,7 @@ export interface ParentBreadcrumb {
       <i class="bi {{ levelIcon }} me-2"></i>
       <span class="fw-semibold">{{ levelLabel }}s</span>
       @if (parentParts.length) {
-        <span class="text-body-secondary ms-2">in</span>
+        <span class="text-body-secondary ms-2">under</span>
         @for (part of parentParts; track part.level) {
           <span class="badge ms-1 breadcrumb-link" [ngClass]="getBadgeClass(part.level)"
                 (click)="navigateTo.emit(part.id); $event.stopPropagation()"
@@ -78,25 +78,25 @@ export interface ParentBreadcrumb {
                 @if (!row['_isSpecial']) {
                   <span class="nav-badges">
                     @if (level === 2) {
-                      <span class="drill-badge drill-up" title="Navigate to parent agegroup"
+                      <span class="drill-badge drill-up" title="Navigate up to Age Group"
                             (click)="navigateTo.emit(row['_parentAgId']); $event.stopPropagation()">
                         <i class="bi bi-arrow-up-short"></i>A
                       </span>
                     }
                     @if (level === 3) {
-                      <span class="drill-badge drill-up" title="Navigate to parent division"
+                      <span class="drill-badge drill-up" title="Navigate up to Division"
                             (click)="navigateTo.emit(row['_parentDivId']); $event.stopPropagation()">
                         <i class="bi bi-arrow-up-short"></i>D
                       </span>
                     }
                     @if (level === 1 && (row['divisionCount'] ?? 0) > 0) {
-                      <span class="drill-badge" title="Show {{ row['divisionCount'] }} divisions"
+                      <span class="drill-badge" title="Navigate down to {{ row['divisionCount'] }} Divisions"
                             (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
                         D<i class="bi bi-arrow-down-short"></i>{{ row['divisionCount'] }}
                       </span>
                     }
                     @if (level === 2 && (row['teamCount'] ?? 0) > 0) {
-                      <span class="drill-badge" title="Show {{ row['teamCount'] }} teams"
+                      <span class="drill-badge" title="Navigate down to {{ row['teamCount'] }} Teams"
                             (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
                         T<i class="bi bi-arrow-down-short"></i>{{ row['teamCount'] }}
                       </span>

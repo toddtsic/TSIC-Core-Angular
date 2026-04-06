@@ -88,7 +88,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Text relevant to player registration sites
 - **What happened**: Popup says "Otherwise it will be moved to Dropped Teams and deactivated" — player sites don't have Dropped Teams or Inactive Teams
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Text is accurate — the backend creates a "Dropped Teams" agegroup on all job types (including player sites) to preserve history of teams that had players, payments, or schedule history. Teams with no footprint are permanently deleted instead. Keeping team history in a Dropped Teams agegroup is intentional.
 
 ### PL-007: League edit — Sport dropdown needs cleanup
 - **Area**: League Settings
@@ -152,7 +153,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Wording that reinforces the tree hierarchy
 - **What happened**: Header says "AgeGroups in [League name]" — should say "under" instead of "in" to reinforce the tree concept
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Changed "in" to "under" in the shared sibling grid header — applies to all levels (Age Groups, Divisions, Teams).
 
 ### PL-015: "Add New Age Group" button adds a Division instead
 - **Area**: Age Group Settings
@@ -160,7 +162,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A new Age Group to be added in the tree
 - **What happened**: A new Division was added in the tree instead
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Expected behavior — you add from the parent level. The "+" on a League adds an Age Group; the "+" on an Age Group adds a Division; the "+" on a Division adds a Team. Automated tests confirm each create (age group, division, team) functions correctly (see TSIC.Tests/Ladt/LadtStubTests.cs).
 
 ### PL-016: Consider new placement for "Add New Age Group" button
 - **Area**: Age Group Settings
@@ -192,7 +195,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Full option labels visible in the dropdown
 - **What happened**: Option labels are cut off — dropdown needs to be wide enough to show entire text
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Extracted shared `FeeCardComponent` from agegroup-detail and team-detail. Fixed modifier row layout to a deliberate 2-line grid (type+amount+delete on line 1, dates on line 2) that fits within the fly-in width. Added empty-row guard to prevent unlimited stacking from repeated "Add" clicks. Follow-up fix: added proper spacing between date row and type/amount row, replaced all hardcoded font sizes and gaps with design system tokens, and converted tree KPI counts from colored dots to neutral pill badges.
 
 ### PL-020: Reminder — test Early Bird and other accounting functions in future
 - **Area**: Age Group Settings
@@ -232,7 +236,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A new Division to be added
 - **What happened**: Button needs a better location, and functionally it adds a Team prompt in the tree under the last Division listed instead of adding a Division
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Same as PL-015 — expected behavior. You add from the parent level. The "+" on an Age Group adds a Division. Automated tests confirm each create functions correctly (see TSIC.Tests/Ladt/LadtStubTests.cs).
 
 ### PL-025: LADT tree — add "Teams" and "Players" column headers with numbers centered below
 - **Area**: Tree Navigation
@@ -248,7 +253,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: "Teams under [name]" wording; hover text like "Navigate to League: [name]"
 - **What happened**: Says "in" instead of "under"; L/A/D hover text doesn't explain what they navigate to
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: "in" → "under" covered by PL-014 fix. L/A/D hover text now says "Navigate up to Age Group", "Navigate up to Division", "Navigate down to N Divisions", "Navigate down to N Teams".
 
 ### PL-027: Trash can icons — do they appear at higher levels (Division, etc.) when empty?
 - **Area**: Tree Navigation

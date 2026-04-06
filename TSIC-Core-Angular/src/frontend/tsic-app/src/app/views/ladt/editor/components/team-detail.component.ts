@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
+import { FeeCardComponent, type ModifierForm } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 
@@ -12,7 +13,7 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -163,112 +164,16 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
         </div>
 
         <!-- ── Player Fee Override ── -->
-        <div class="section-card fee-card-player">
-          <div class="section-card-header">
-            <i class="bi bi-person"></i> Player Fee Override
-          </div>
-          <p class="fee-hint">Leave blank to use the agegroup default.</p>
-          <div class="fee-row">
-            <div class="fee-field">
-              <label class="fee-label">Deposit</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text">$</span>
-                <input class="form-control" type="number" step="0.01"
-                       [(ngModel)]="feeForm.playerDeposit" name="playerDeposit"
-                       placeholder="Agegroup default">
-              </div>
-            </div>
-            <div class="fee-field">
-              <label class="fee-label">Balance Due</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text">$</span>
-                <input class="form-control" type="number" step="0.01"
-                       [(ngModel)]="feeForm.playerBalanceDue" name="playerBalanceDue"
-                       placeholder="Agegroup default">
-              </div>
-            </div>
-          </div>
-          @for (mod of playerModifiers; track $index) {
-            <div class="modifier-row">
-              <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'pModType' + $index">
-                <option value="EarlyBird">Early Bird</option>
-                <option value="Discount">Discount</option>
-                <option value="LateFee">Late Fee</option>
-              </select>
-              <div class="input-group input-group-sm mod-amount">
-                <span class="input-group-text">$</span>
-                <input class="form-control" type="number" step="0.01"
-                       [(ngModel)]="mod.amount" [name]="'pModAmt' + $index">
-              </div>
-              <input class="form-control form-control-sm mod-date" type="date"
-                     [(ngModel)]="mod.startDate" [name]="'pModStart' + $index">
-              <input class="form-control form-control-sm mod-date" type="date"
-                     [(ngModel)]="mod.endDate" [name]="'pModEnd' + $index">
-              <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
-                      (click)="removeModifier(playerModifiers, $index)">
-                <i class="bi bi-x"></i>
-              </button>
-            </div>
-          }
-          <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
-                  (click)="addModifier(playerModifiers)">
-            <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
-          </button>
-        </div>
+        <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
+          namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+          [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
 
         <!-- ── Club Rep Fee Override ── -->
-        <div class="section-card fee-card-clubrep">
-          <div class="section-card-header">
-            <i class="bi bi-shield"></i> Club Rep Fee Override
-          </div>
-          <p class="fee-hint">Leave blank to use the agegroup default.</p>
-          <div class="fee-row">
-            <div class="fee-field">
-              <label class="fee-label">Deposit</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text">$</span>
-                <input class="form-control" type="number" step="0.01"
-                       [(ngModel)]="feeForm.clubRepDeposit" name="clubRepDeposit"
-                       placeholder="Agegroup default">
-              </div>
-            </div>
-            <div class="fee-field">
-              <label class="fee-label">Balance Due</label>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text">$</span>
-                <input class="form-control" type="number" step="0.01"
-                       [(ngModel)]="feeForm.clubRepBalanceDue" name="clubRepBalanceDue"
-                       placeholder="Agegroup default">
-              </div>
-            </div>
-          </div>
-          @for (mod of clubRepModifiers; track $index) {
-            <div class="modifier-row">
-              <select class="form-select form-select-sm mod-type" [(ngModel)]="mod.modifierType" [name]="'cModType' + $index">
-                <option value="EarlyBird">Early Bird</option>
-                <option value="Discount">Discount</option>
-                <option value="LateFee">Late Fee</option>
-              </select>
-              <div class="input-group input-group-sm mod-amount">
-                <span class="input-group-text">$</span>
-                <input class="form-control" type="number" step="0.01"
-                       [(ngModel)]="mod.amount" [name]="'cModAmt' + $index">
-              </div>
-              <input class="form-control form-control-sm mod-date" type="date"
-                     [(ngModel)]="mod.startDate" [name]="'cModStart' + $index">
-              <input class="form-control form-control-sm mod-date" type="date"
-                     [(ngModel)]="mod.endDate" [name]="'cModEnd' + $index">
-              <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
-                      (click)="removeModifier(clubRepModifiers, $index)">
-                <i class="bi bi-x"></i>
-              </button>
-            </div>
-          }
-          <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
-                  (click)="addModifier(clubRepModifiers)">
-            <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Discount / Late Fee
-          </button>
-        </div>
+        <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+          namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+          [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
 
         <!-- ── Dates ── -->
         <div class="section-card">
@@ -383,23 +288,8 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
     }
     .settings-card { background: var(--bs-tertiary-bg); box-shadow: var(--shadow-sm); }
     .settings-card .section-card-header { color: var(--bs-secondary-color); }
-    .fee-card-player { border-left: 3px solid var(--bs-info); background: rgba(var(--bs-info-rgb), 0.04); box-shadow: var(--shadow-sm); }
-    .fee-card-player .section-card-header { color: var(--bs-info); }
-    .fee-card-clubrep { border-left: 3px solid var(--bs-warning); background: rgba(var(--bs-warning-rgb), 0.04); box-shadow: var(--shadow-sm); }
-    .fee-card-clubrep .section-card-header { color: var(--bs-warning); }
-    .fee-row { display: flex; gap: var(--space-2); }
-    .fee-field { flex: 1; }
     .fee-label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
-    .fee-hint { font-size: 0.7rem; color: var(--bs-secondary-color); margin: 0 0 var(--space-2) 0; font-style: italic; }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); font-size: 0.85rem; }
-    .modifier-row {
-      display: flex; gap: var(--space-1); align-items: center;
-      margin-top: var(--space-2); flex-wrap: wrap;
-    }
-    .mod-type { width: 120px; flex-shrink: 0; }
-    .mod-amount { width: 100px; flex-shrink: 0; }
-    .mod-date { width: 140px; flex-shrink: 0; }
-    .btn-icon { padding: 0.15rem 0.35rem; line-height: 1; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -435,8 +325,8 @@ export class TeamDetailComponent implements OnChanges {
     clubRepDeposit: null as number | null,
     clubRepBalanceDue: null as number | null
   };
-  playerModifiers: any[] = [];
-  clubRepModifiers: any[] = [];
+  playerModifiers: ModifierForm[] = [];
+  clubRepModifiers: ModifierForm[] = [];
   private playerFeeId: string | null = null;
   private clubRepFeeId: string | null = null;
 
@@ -691,14 +581,6 @@ export class TeamDetailComponent implements OnChanges {
         this.saveMessage.set(err.error?.message || 'Failed to move team.');
       }
     });
-  }
-
-  addModifier(list: any[]): void {
-    list.push({ modifierType: 'EarlyBird', amount: null, startDate: null, endDate: null });
-  }
-
-  removeModifier(list: any[], index: number): void {
-    list.splice(index, 1);
   }
 
   cancelChangeClub(): void {
