@@ -9,6 +9,7 @@ Each functional area has its own punchlist under `scripts/Ann-Backend-Testing/`:
 ```
 scripts/Ann-Backend-Testing/
   Accounting/Punchlist/punchlist.md
+  LADT/Punchlist/punchlist.md
   PlayerRegistration/Punchlist/punchlist.md
   SearchRegistrations/Punchlist/punchlist.md
   SearchTeams/Punchlist/punchlist.md
@@ -17,7 +18,7 @@ scripts/Ann-Backend-Testing/
   TSIC-Teams/Punchlist/punchlist.md
 ```
 
-**Routing:** Determine which punchlist to use from context -- what Ann is currently testing. If unclear, ask: "Which area are you testing right now?" Use short names she'll recognize: Player Registration, Team Registration, Accounting, Search, Events, Teams.
+**Routing:** Determine which punchlist to use from context -- what Ann is currently testing. If unclear, ask: "Which area are you testing right now?" Use short names she'll recognize: LADT, Player Registration, Team Registration, Accounting, Search, Events, Teams.
 
 ---
 
@@ -25,6 +26,7 @@ scripts/Ann-Backend-Testing/
 
 1. Set the active functional area for the rest of the conversation
 2. Map casual names to folder names:
+   - "LADT" / "Leagues" / "Age Groups" → LADT
    - "Player Registration" / "Player Reg" → PlayerRegistration
    - "Team Registration" / "Team Reg" → TeamRegistration
    - "Accounting" → Accounting
