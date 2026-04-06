@@ -82,7 +82,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A "Next" button to proceed and a "Previous" button to go back (e.g., "I already have an account")
 - **What happened**: No way to proceed or go back — complete dead end
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Addressed by Registration Wizards v2 rewrite — WizardShellComponent provides Back/Continue navigation on all steps.
 
 ### PL-006: Player Registration card — highlight Family Account more prominently
 - **Area**: Registration Process Review
@@ -307,7 +308,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Ability to change my mind and add coverage before paying
 - **What happened**: My decline choice is locked in — no way to reset or change the refund protection selection on the payment screen
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — once refund protection is declined, the choice is locked for that session.
 
 ### PL-034: Discount Code section needs better visual emphasis and white input field
 - **Area**: Registration Process Review
@@ -331,7 +333,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Both payments to appear under Most Recent Transaction(s) on the Family Players Table
 - **What happened**: Family Players Table shows both players, but Most Recent Transaction(s) only shows one payment
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause: `!F-ACCOUNTING` token only queried transactions for the first registration in the family. Fixed `BuildAccountingTableHtmlAsync` to query all family registration IDs. Added `GetAccountingTransactionsAsync(List<Guid>)` overload to `ITextSubstitutionRepository`. Same fix applies to on-screen confirmation and email confirmation.
 
 ### PL-037: Registration Complete Confirmation page needs cleaner layout with distinct card areas
 - **Area**: Registration Process Review

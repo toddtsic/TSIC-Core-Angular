@@ -27,6 +27,11 @@ public interface ITextSubstitutionRepository
     Task<List<AccountingTransactionRow>> GetAccountingTransactionsAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get accounting transaction rows for multiple registrations (family scope).
+    /// </summary>
+    Task<List<AccountingTransactionRow>> GetAccountingTransactionsAsync(List<Guid> registrationIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get team and club names for registrations.
     /// </summary>
     Task<Dictionary<Guid, string>> GetTeamClubNamesAsync(List<Guid> registrationIds, CancellationToken cancellationToken = default);

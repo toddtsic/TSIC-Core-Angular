@@ -306,13 +306,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
         if (template.Contains("!F-ACCOUNTING", StringComparison.OrdinalIgnoreCase))
         {
-            if (registrationId.HasValue)
+            var allRegIds = list.Select(f => f.RegistrationId).ToList();
+            if (allRegIds.Count > 0)
             {
-                tokens["!F-ACCOUNTING"] = await BuildAccountingTableHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
+                tokens["!F-ACCOUNTING"] = await BuildAccountingTableHtmlAsync(allRegIds, paymentMethodCreditCardId, emailMode);
             }
             else
             {
-                // Ensure token removed from output when no registration context
                 tokens["!F-ACCOUNTING"] = string.Empty;
             }
         }
@@ -375,9 +375,9 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!F-COACHFULLTEAMNAMECHOICES"] = await BuildCoachFullTeamNameChoicesAsync(registrationId.Value, emailMode);
     }
 
-    private async Task<string> BuildAccountingTableHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, bool emailMode)
+    private async Task<string> BuildAccountingTableHtmlAsync(List<Guid> registrationIds, Guid paymentMethodCreditCardId, bool emailMode)
     {
-        var rows = await _repo.GetAccountingTransactionsAsync(registrationId);
+        var rows = await _repo.GetAccountingTransactionsAsync(registrationIds);
         if (rows.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);

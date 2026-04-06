@@ -160,6 +160,28 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       }).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<AccountingTransactionRow>> GetAccountingTransactionsAsync(List<Guid> registrationIds, CancellationToken cancellationToken = default)
+    {
+        return await (from ra in _context.RegistrationAccounting
+                      join r in _context.Registrations on ra.RegistrationId equals r.RegistrationId
+                      join u in _context.AspNetUsers on r.UserId equals u.Id
+                      join pm in _context.AccountingPaymentMethods on ra.PaymentMethodId equals pm.PaymentMethodId
+                      where ra.RegistrationId.HasValue && registrationIds.Contains(ra.RegistrationId.Value) && ra.Active == true
+                      orderby ra.AId
+                      select new AccountingTransactionRow
+                      {
+                          AId = ra.AId,
+                          RegistrantName = u.FirstName + " " + u.LastName,
+                          PaymentMethod = pm.PaymentMethod,
+                          Createdate = ra.Createdate,
+                          Payamt = ra.Payamt,
+                          Dueamt = ra.Dueamt,
+                          DiscountCodeAi = ra.DiscountCodeAi,
+                          PaymentMethodId = ra.PaymentMethodId,
+                          Comment = ra.Comment
+                      }).ToListAsync(cancellationToken);
+    }
+
     public async Task<Dictionary<Guid, string>> GetTeamClubNamesAsync(List<Guid> registrationIds, CancellationToken cancellationToken = default)
     {
         var results = await (from r in _context.Registrations
