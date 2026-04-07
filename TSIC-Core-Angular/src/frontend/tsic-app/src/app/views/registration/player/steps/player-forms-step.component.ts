@@ -63,7 +63,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
               <!-- Dynamic form fields -->
               <div class="field-grid">
                 @for (field of visibleFields(pid); track field.name) {
-                  <div class="field-row">
+                  <div class="field-row" [class.field-row--wide]="getFieldType(field) === 'textarea'">
                     <label class="field-label" [for]="'field-' + pid + '-' + field.name">
                       {{ field.label }}
                       @if (field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)) {
@@ -139,6 +139,16 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                                [disabled]="isPlayerLocked(pid)"
                                [attr.placeholder]="field.placeholder"
                                [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+                      }
+                      @case ('textarea') {
+                        <textarea class="field-input"
+                               [id]="'field-' + pid + '-' + field.name"
+                               [ngModel]="getFieldValue(pid, field.name)"
+                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                               [disabled]="isPlayerLocked(pid)"
+                               [attr.placeholder]="field.placeholder"
+                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)"
+                               rows="5" style="resize: vertical;"></textarea>
                       }
                       @default {
                         <input type="text" class="field-input"
@@ -269,6 +279,9 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
         display: flex;
         flex-direction: column;
         gap: 1px;
+      }
+      .field-row--wide {
+        grid-column: 1 / -1;
       }
 
       /* field-label, req-star, field-input, field-select,
@@ -508,6 +521,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
         if (t === 'select' || t === 'dropdown') return 'select';
         if (t === 'checkbox') return 'checkbox';
         if (t === 'multiselect' || t === 'multi-select') return 'multiselect';
+        if (t === 'textarea') return 'textarea';
         if (t === 'date') return 'date';
         if (t === 'number' || t === 'numeric') return 'number';
         if (t === 'text') {

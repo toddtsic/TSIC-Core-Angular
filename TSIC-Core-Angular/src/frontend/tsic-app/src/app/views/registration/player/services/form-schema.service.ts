@@ -69,6 +69,7 @@ export class FormSchemaService {
                     case 'select': case 'dropdown': return 'select';
                     case 'multiselect': case 'multi-select': return 'multiselect';
                     case 'checkbox': case 'bool': case 'boolean': return 'checkbox';
+                    case 'textarea': return 'textarea';
                     default: return 'text';
                 }
             };
