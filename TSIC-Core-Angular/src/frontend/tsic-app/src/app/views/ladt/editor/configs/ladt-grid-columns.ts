@@ -55,13 +55,13 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
   { field: 'active', header: 'Active', type: 'boolean' },
   { field: 'playerCount', header: 'Players', type: 'number' },
+  { field: 'maxCount', header: 'Max Roster', type: 'number' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: 'divRank', header: 'Rank', type: 'number' },
   { field: 'divisionRequested', header: 'Div Requested', type: 'string' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string' },
   { field: 'levelOfPlay', header: 'LOP', type: 'string' },
   // Roster
-  { field: 'maxCount', header: 'Max Roster', type: 'number', group: 'Roster' },
   { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster' },
   { field: 'bHideRoster', header: 'Hide Roster', type: 'boolean', group: 'Roster' },
   // Dates

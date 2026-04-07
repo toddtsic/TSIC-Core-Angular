@@ -163,18 +163,6 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
           </div>
         </div>
 
-        <!-- ── Player Fee Override ── -->
-        <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-          namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-          [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
-          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
-
-        <!-- ── Club Rep Fee Override ── -->
-        <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-          namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-          [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
-          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
-
         <!-- ── Dates ── -->
         <div class="section-card">
           <div class="section-card-header">
@@ -199,6 +187,18 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
             </div>
           </div>
         </div>
+
+        <!-- ── Player Fee Override ── -->
+        <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
+          namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+          [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+
+        <!-- ── Club Rep Fee Override ── -->
+        <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+          namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+          [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
 
         <!-- ── Eligibility ── -->
         <div class="section-card">
