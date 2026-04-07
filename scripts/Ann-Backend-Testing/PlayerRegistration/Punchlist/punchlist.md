@@ -358,7 +358,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Menus and information available to review or edit my registration details
 - **What happened**: After selecting a registration, there are no menus or information shown — nothing to review or edit
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — the bulletin provides Begin/Edit registration links. That's the intended entry point for reviewing or editing registration details.
 
 ### PL-040: Player Details form missing Academic Honors and Athletic Honors/Awards fields
 - **Area**: Registration Process Review
@@ -366,7 +367,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Academic Honors and Athletic Honors/Awards text entry fields to appear, as they do in the Legacy system
 - **What happened**: Both fields are missing from the new Player Details form — they exist in Legacy but aren't showing up here
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Profile migration parser (CSharpToMetadataParser) had no regex pattern for `<textarea asp-for="...">` — only `<input>`, `<select>`, and `@Html.*For()` helpers. Added Pattern 3c for textarea tag helpers. This also fixes other textarea fields across PP03, PP09, PP43, PP45, CAC14 profiles. Re-run migration for affected profiles to pick up the missing fields.
 
 ### PL-041: Standardize how optional fields are indicated across all forms
 - **Area**: Registration Process Review

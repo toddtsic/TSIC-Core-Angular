@@ -231,6 +231,24 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             }
         }
 
+        // Pattern 3c: <textarea asp-for="FieldName" ...>
+        var textareaPattern = @"<textarea[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>";
+        foreach (Match match in Regex.Matches(viewContent, textareaPattern, RegexOptions.IgnoreCase))
+        {
+            var aspForValue = match.Groups[1].Value;
+            var fieldName = ExtractFieldName(aspForValue);
+
+            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
+            {
+                fields.Add(new ViewFieldInfo
+                {
+                    Name = fieldName,
+                    Visibility = "public",
+                    InputType = "TEXTAREA"
+                });
+            }
+        }
+
         // Pattern 4: @Html.TextBoxFor / CheckBoxFor / etc
         var htmlHelperPattern = @"@Html\.(TextBoxFor|CheckBoxFor|TextAreaFor|DropDownListFor|EditorFor)\(m\s*=>\s*m\.([^),\s]+)";
         foreach (Match match in Regex.Matches(viewContent, htmlHelperPattern))
