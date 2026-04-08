@@ -8,6 +8,8 @@ namespace TSIC.Contracts.Dtos;
 public record PublicRosterTreeDto
 {
     public required List<CadtClubNode> Clubs { get; init; }
+    /// <summary>Whether the event allows public schedule viewing (controls "View Schedule" link visibility).</summary>
+    public required bool SchedulePublic { get; init; }
 }
 
 /// <summary>

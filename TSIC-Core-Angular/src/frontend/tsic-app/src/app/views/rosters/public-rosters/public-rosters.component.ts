@@ -50,6 +50,9 @@ export class PublicRostersComponent {
 	// Pre-built flat team index — always visible, filtered by search
 	allTeams = signal<FlatTeam[]>([]);
 
+	// Whether the event allows public schedule viewing
+	schedulePublic = signal(false);
+
 	// Team results modal
 	teamResultsVisible = signal(false);
 	teamResultsName = signal('');
@@ -72,15 +75,12 @@ export class PublicRostersComponent {
 				const clubs = data.clubs ?? [];
 				this.clubs.set(clubs);
 				this.allTeams.set(this.buildFlatIndex(clubs));
+				this.schedulePublic.set(data.schedulePublic ?? false);
 				this.isLoadingTree.set(false);
 			},
-			error: (err) => {
+			error: () => {
 				this.isLoadingTree.set(false);
-				if (err.status === 403) {
-					this.errorMessage.set('Public rosters are not available for this event.');
-				} else {
-					this.errorMessage.set('Failed to load rosters.');
-				}
+				this.errorMessage.set('Failed to load rosters.');
 			}
 		});
 	}
