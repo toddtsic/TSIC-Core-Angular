@@ -1,10 +1,12 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.API.Services.Teams;
 
 namespace TSIC.API.Services.Admin;
 
@@ -15,10 +17,14 @@ namespace TSIC.API.Services.Admin;
 public class JobConfigService : IJobConfigService
 {
     private readonly IJobConfigRepository _repo;
+    private readonly ITeamRegistrationService _teamRegService;
+    private readonly ILogger<JobConfigService> _logger;
 
-    public JobConfigService(IJobConfigRepository repo)
+    public JobConfigService(IJobConfigRepository repo, ITeamRegistrationService teamRegService, ILogger<JobConfigService> logger)
     {
         _repo = repo;
+        _teamRegService = teamRegService;
+        _logger = logger;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -88,6 +94,12 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        // Snapshot fee-affecting flags before update
+        var prevFullPayReq = job.BTeamsFullPaymentRequired ?? false;
+        var prevAddProcessing = job.BAddProcessingFees;
+        var prevApplyProcToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false;
+        var prevProcessingRate = job.ProcessingFeePercent;
+
         // Admin-editable
         job.PaymentMethodsAllowedCode = req.PaymentMethodsAllowedCode;
         job.BAddProcessingFees = req.BAddProcessingFees;
@@ -116,6 +128,30 @@ public class JobConfigService : IJobConfigService
 
         job.Modified = DateTime.UtcNow;
         await _repo.SaveChangesAsync(ct);
+
+        // Auto-recalculate team fees if any fee-affecting flag changed
+        var feeConfigChanged =
+            prevFullPayReq != req.BTeamsFullPaymentRequired ||
+            prevAddProcessing != req.BAddProcessingFees ||
+            prevApplyProcToDeposit != req.BApplyProcessingFeesToTeamDeposit ||
+            prevProcessingRate != req.ProcessingFeePercent;
+
+        if (feeConfigChanged)
+        {
+            _logger.LogInformation(
+                "Fee-affecting config changed for Job {JobId} — auto-recalculating team fees. " +
+                "FullPayReq: {Prev}→{New}, AddProcessing: {PrevP}→{NewP}, ApplyToDeposit: {PrevD}→{NewD}",
+                jobId,
+                prevFullPayReq, req.BTeamsFullPaymentRequired,
+                prevAddProcessing, req.BAddProcessingFees,
+                prevApplyProcToDeposit, req.BApplyProcessingFeesToTeamDeposit);
+
+            var result = await _teamRegService.RecalculateTeamFeesAsync(
+                new RecalculateTeamFeesRequest { JobId = jobId },
+                "system:job-config-auto-recalc");
+
+            _logger.LogInformation("Auto-recalculated {Count} team fees for Job {JobId}", result.UpdatedCount, jobId);
+        }
     }
 
     public async Task UpdateCommunicationsAsync(Guid jobId, UpdateJobConfigCommunicationsRequest req, CancellationToken ct = default)
