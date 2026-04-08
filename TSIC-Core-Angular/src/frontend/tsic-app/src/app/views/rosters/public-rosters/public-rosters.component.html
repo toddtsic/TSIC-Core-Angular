@@ -1,0 +1,143 @@
+<div class="public-rosters-container">
+	<h3 class="rosters-title">Club Team Rosters</h3>
+
+	@if (errorMessage()) {
+		<div class="alert alert-warning text-center">{{ errorMessage() }}</div>
+	} @else {
+		<div class="rosters-layout">
+			<!-- Left: Team finder -->
+			<div class="finder-panel">
+				<div class="search-section">
+					<div class="search-wrapper">
+						<i class="bi bi-search search-icon"></i>
+						<input
+							type="text"
+							class="field-input search-input"
+							placeholder="Type your team or club name..."
+						#searchInput
+							[value]="searchText()"
+							(input)="onSearchChange($event)" />
+						@if (searchText()) {
+							<button type="button" class="search-clear" (click)="clearSearch()" aria-label="Clear search">
+								<i class="bi bi-x-lg"></i>
+							</button>
+						}
+					</div>
+				</div>
+
+				@if (isLoadingTree()) {
+					<div class="text-center py-3">
+						<span class="spinner-border spinner-border-sm"></span> Loading...
+					</div>
+				} @else {
+					<div class="team-list">
+						@if (!searchText()) {
+							<div class="search-prompt">
+								<i class="bi bi-search"></i>
+								<p>Start typing to find your team</p>
+							</div>
+						} @else if (filteredTeams().length === 0) {
+							<div class="text-muted text-center py-3">
+								No matches for "{{ searchText() }}"
+							</div>
+						} @else {
+							<div class="list-count">
+								{{ filteredTeams().length }} team{{ filteredTeams().length === 1 ? '' : 's' }}
+							</div>
+							@for (ft of filteredTeams(); track ft.team.teamId) {
+								<div class="team-item"
+									[class.active]="selectedTeamId() === ft.team.teamId"
+									(click)="selectFlatTeam(ft)">
+									<div class="team-name-row">
+										<i class="bi bi-people-fill"></i>
+										<span class="team-name">{{ ft.clubName }} — {{ ft.team.teamName }}</span>
+										<span class="badge bg-secondary-subtle text-secondary">{{ ft.team.playerCount }}</span>
+									</div>
+									<div class="team-placement">
+										<span class="placement-label">Playing in</span>
+										<span class="placement-label">Agegroup:</span>
+										<span class="placement-badge" [style.background]="ft.color || 'var(--neutral-400)'"
+											[style.color]="contrastText(ft.color)">{{ ft.agegroupName }}</span>
+										<span class="placement-label">Pool:</span>
+										<span class="placement-badge" [style.background]="ft.color || 'var(--neutral-400)'"
+											[style.color]="contrastText(ft.color)">{{ ft.divName }}</span>
+									</div>
+								</div>
+							}
+						}
+					</div>
+				}
+			</div>
+
+			<!-- Right: Roster table -->
+			<div class="roster-panel">
+				@if (isLoadingRoster()) {
+					<div class="text-center py-5">
+						<span class="spinner-border spinner-border-sm"></span> Loading roster...
+					</div>
+				} @else if (!selectedTeamId()) {
+					<div class="empty-state">
+						<i class="bi bi-card-list"></i>
+						<p>Type a team or club name to view their roster</p>
+					</div>
+				} @else if (rosterPlayers().length === 0) {
+					<div class="empty-state">
+						<i class="bi bi-person-x"></i>
+						<p>No roster details available for this team</p>
+					</div>
+				} @else {
+					<div class="roster-header">
+						<h5 class="roster-team-name">{{ selectedTeamName() }}</h5>
+						<div class="roster-placement">
+							<span class="placement-label">Playing in</span>
+							<span class="placement-label">Agegroup:</span>
+							<span class="placement-badge" [style.background]="selectedColor() || 'var(--neutral-400)'"
+								[style.color]="contrastText(selectedColor())">{{ selectedAgegroupName() }}</span>
+							<span class="placement-label">Pool:</span>
+							<span class="placement-badge" [style.background]="selectedColor() || 'var(--neutral-400)'"
+								[style.color]="contrastText(selectedColor())">{{ selectedDivName() }}</span>
+							<span class="schedule-link" (click)="viewTeamSchedule(selectedTeamId()!)">
+								<i class="bi bi-calendar3"></i> View Schedule
+							</span>
+						</div>
+					</div>
+					<div class="table-responsive">
+						<table class="table table-striped table-sm roster-table">
+							<thead>
+								<tr>
+									<th>#</th>
+									<th class="sortable" (click)="toggleSort('displayName')">
+										Player <i class="bi" [ngClass]="sortIcon('displayName')"></i>
+									</th>
+									<th class="sortable" (click)="toggleSort('position')">
+										Position <i class="bi" [ngClass]="sortIcon('position')"></i>
+									</th>
+									<th class="sortable text-center" (click)="toggleSort('uniformNo')">
+										Uniform <i class="bi" [ngClass]="sortIcon('uniformNo')"></i>
+									</th>
+									</tr>
+							</thead>
+							<tbody>
+								@for (player of sortedPlayers(); track $index) {
+									<tr [class.staff-row]="player.roleLabel !== 'Player'">
+										<td>{{ $index + 1 }}</td>
+										<td>{{ player.displayName }}</td>
+										<td>{{ player.position ?? '' }}</td>
+										<td class="text-center">{{ player.uniformNo ?? '' }}</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</div>
+	}
+</div>
+
+<app-team-results-modal
+	[results]="teamResults()"
+	[teamName]="teamResultsName()"
+	[visible]="teamResultsVisible()"
+	(close)="teamResultsVisible.set(false)"
+	(viewOpponent)="viewTeamSchedule($event)" />

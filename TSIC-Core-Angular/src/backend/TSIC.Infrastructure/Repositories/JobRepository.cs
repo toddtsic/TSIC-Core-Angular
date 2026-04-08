@@ -111,6 +111,7 @@ public class JobRepository : IJobRepository
                 JobBannerText2 = jdo.ParallaxSlide1Text2,
                 JobBannerBackgroundPath = jdo.ParallaxBackgroundImage,
                 CoreRegformPlayer = jdo.Job.CoreRegformPlayer == "1",
+                CoreRegformPlayerRaw = jdo.Job.CoreRegformPlayer,
                 USLaxNumberValidThroughDate = jdo.Job.UslaxNumberValidThroughDate,
                 ExpiryUsers = jdo.Job.ExpiryUsers,
                 PlayerProfileMetadataJson = jdo.Job.PlayerProfileMetadataJson,
@@ -320,6 +321,15 @@ public class JobRepository : IJobRepository
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
             .Select(j => j.BUseWaitlists)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BScheduleAllowPublicAccess == true)
             .FirstOrDefaultAsync(cancellationToken);
     }
 

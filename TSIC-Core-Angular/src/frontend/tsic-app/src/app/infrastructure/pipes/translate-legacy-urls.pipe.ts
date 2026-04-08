@@ -10,6 +10,7 @@ import { Pipe, PipeTransform } from '@angular/core';
  * - StartARegistration + bPlayer=true → /{jobPath}/registration/player
  * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
  * - StartARegistration + bStaff=true → /{jobPath}/registration/adult
+ * - Rosters/RostersPublicLookupTourny → /{jobPath}/rosters
  */
 @Pipe({
     name: 'translateLegacyUrls',
@@ -60,6 +61,11 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
         // Check for JobAdministrator/Admin
         if (lower.includes('jobadministrator/admin')) {
             return `/${jobPath}/configure/administrators`;
+        }
+
+        // Check for public rosters
+        if (lower.includes('rosters/rosterspubliclookuptourny')) {
+            return `/${jobPath}/rosters`;
         }
 
         // No translation pattern matched - return original URL

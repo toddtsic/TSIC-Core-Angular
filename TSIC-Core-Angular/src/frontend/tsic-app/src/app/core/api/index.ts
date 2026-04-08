@@ -396,6 +396,8 @@ export type { ProjectedAgegroupConfig } from './models/ProjectedAgegroupConfig';
 export type { ProjectedGameDay } from './models/ProjectedGameDay';
 export type { ProjectedScheduleConfigDto } from './models/ProjectedScheduleConfigDto';
 export type { ProjectedTimingDefaults } from './models/ProjectedTimingDefaults';
+export type { PublicRosterPlayerDto } from './models/PublicRosterPlayerDto';
+export type { PublicRosterTreeDto } from './models/PublicRosterTreeDto';
 export type { PushNotificationDeviceCountDto } from './models/PushNotificationDeviceCountDto';
 export type { PushNotificationHistoryDto } from './models/PushNotificationHistoryDto';
 export type { QaBackToBack } from './models/QaBackToBack';
