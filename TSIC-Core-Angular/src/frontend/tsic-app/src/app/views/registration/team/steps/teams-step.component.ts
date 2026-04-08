@@ -18,13 +18,9 @@ interface AgePickerTeam {
     currentAgeGroupId?: string;
 }
 
-type MiniStep = 'library' | 'select' | 'summary';
-
 /**
- * Teams step — mini-wizard with three micro-steps:
- *   1. Update Club Team Library  (add/remove from permanent library)
- *   2. Select Teams to Register  (checkbox, age group modal on check)
- *   3. Teams to Register         (summary table with fees)
+ * Teams step — single screen combining library management + event registration.
+ * Assigning an age group IS the registration act. No separate review step needed.
  */
 @Component({
     selector: 'app-trw-teams-step',
@@ -41,269 +37,44 @@ type MiniStep = 'library' | 'select' | 'summary';
       <div class="alert alert-danger">{{ error() }}</div>
     } @else {
 
-      <!-- ═══ MINI-STEP INDICATOR ═══ -->
-      <div class="mini-steps">
-        @for (s of miniStepDefs; track s.id; let i = $index) {
-          <button type="button" class="mini-step-item"
-                  [class.active]="currentMiniStep() === s.id"
-                  [class.completed]="miniStepIndex() > i"
-                  [disabled]="i > miniStepIndex()"
-                  (click)="goToMiniStep(s.id)">
-            <span class="mini-step-num">{{ i + 1 }}</span>
-            <span class="mini-step-label">{{ s.label }}</span>
-          </button>
-          @if (i < miniStepDefs.length - 1) {
-            <span class="mini-step-line" [class.completed]="miniStepIndex() > i"></span>
-          }
-        }
+      <!-- Welcome hero -->
+      <div class="welcome-hero">
+        <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> {{ jobName() }}</h4>
+        <p class="hero-action">Register <span class="club-accent">{{ clubName() }}</span>'s teams for this event.</p>
       </div>
 
-      <!-- ═══ STEP 1: UPDATE CLUB TEAM LIBRARY ═══ -->
-      @if (currentMiniStep() === 'library') {
-
-        <!-- Welcome hero — centered, no card, commanding -->
-        <div class="welcome-hero">
-          <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Welcome to <span class="club-accent">{{ clubName() }}</span>'s Team Library!</h4>
-          <p class="hero-action">Add any missing teams, then hit Select Teams.</p>
-          <p class="welcome-desc">
-            <i class="bi bi-arrow-repeat me-1"></i>Add your teams once
-            <span class="desc-dot"></span>
-            <i class="bi bi-calendar-event me-1"></i>Register in any event
-            <span class="desc-dot"></span>
-            <i class="bi bi-x-circle me-1"></i>No re-entering info, ever
-          </p>
-        </div>
-
-        <!-- Coach card — contextual guidance, separate from data -->
+      <!-- Coach card — conditional based on library state -->
+      @if (allLibraryTeams().length === 0) {
         <div class="coach-card coach-primary">
-          <p class="coach-intro">Make sure your club's team library is up to date before you register. Every team you add here is saved permanently — set it up once and reuse it for any event.</p>
+          <p class="coach-intro">Welcome! Start by building your team library — you only do this once. Every team you add is saved permanently and can be registered in any event.</p>
           <ul class="coach-list">
             <li>
-              <i class="bi bi-check2-circle text-success"></i>
-              <span>Confirm <strong>every team</strong> you plan to register is listed below</span>
-            </li>
-            <li>
               <i class="bi bi-plus-circle text-primary"></i>
-              <span>Missing a team? <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add it now</button> — takes 10 seconds</span>
-            </li>
-            <li>
-              <i class="bi bi-arrow-repeat text-info"></i>
-              <span>Your library is <strong>permanent</strong> — add once, register for any event</span>
+              <span>Click <strong>Add Team</strong> to add your first team</span>
             </li>
           </ul>
         </div>
-
-        <div class="step-card">
-
-          <!-- Library header with stats -->
-          <div class="lib-header">
-            <div class="lib-stats">
-              <span class="stat-number">{{ allLibraryTeams().length }}</span>
-              <span class="stat-label">{{ allLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
-              @if (enteredTeams().length > 0) {
-                <span class="stat-divider"></span>
-                <span class="stat-registered"><i class="bi bi-check-circle-fill me-1"></i>{{ enteredTeams().length }} already registered</span>
-              }
-            </div>
-            <button type="button" class="btn btn-primary btn-sm"
-                    (click)="showAddModal.set(true)">
-              <i class="bi bi-plus-circle me-1"></i>Add Team
-            </button>
-          </div>
-
-          @if (allLibraryTeams().length === 0) {
-            <div class="wizard-empty-state">
-              <i class="bi bi-plus-circle-dotted"></i>
-              <strong>Your library is empty</strong>
-              <span>Every team your club fields should be added here.<br>They're saved permanently — add once, register in any event.</span>
-              <button type="button" class="btn btn-primary btn-sm mt-2"
-                      (click)="showAddModal.set(true)">
-                <i class="bi bi-plus-circle me-1"></i>Add Your First Team
-              </button>
-            </div>
-          } @else {
-            <div class="scroll-list">
-              @for (group of libraryByYear(); track group.year) {
-                <div class="year-group-header">
-                  <span class="year-label"><i class="bi bi-diagram-3"></i>{{ group.year }}</span>
-                  <span class="year-count">{{ group.teams.length }} {{ group.teams.length === 1 ? 'team' : 'teams' }}</span>
-                </div>
-                @for (team of group.teams; track team.clubTeamId) {
-                  <div class="lib-row">
-                    <i class="bi bi-people-fill lib-icon"></i>
-                    <span class="lib-name">{{ team.clubTeamName }}</span>
-                    @if (isEnteredTeam(team.clubTeamId)) {
-                      <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
-                    }
-                  </div>
-                }
-              }
-            </div>
-          }
-
-          <div class="step-card-footer">
-            <span class="footer-hint">
-              <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
-            </span>
-            <button type="button" class="btn btn-sm btn-primary"
-                    [disabled]="allLibraryTeams().length === 0"
-                    (click)="goToMiniStep('select')">
-              Looks Good — Select Teams <i class="bi bi-arrow-right ms-1"></i>
-            </button>
-          </div>
+      } @else {
+        <div class="coach-card coach-primary">
+          <p class="coach-intro">Tap <strong>Register</strong> next to a team to enter it. Missing a team? <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add it now</button> — takes 10 seconds.</p>
         </div>
       }
 
-      <!-- ═══ STEP 2: SELECT TEAMS TO REGISTER ═══ -->
-      @if (currentMiniStep() === 'select') {
-
-        <!-- Centered hero -->
-        <div class="welcome-hero">
-          <h4 class="welcome-title"><i class="bi bi-check2-square welcome-icon" style="color: var(--bs-info)"></i> Select Your Teams</h4>
-          <p class="hero-action">Tap a team, pick an age group — done.</p>
-          <p class="welcome-desc">
-            <i class="bi bi-hand-index me-1"></i>Tap a team
-            <span class="desc-dot"></span>
-            <i class="bi bi-diagram-3 me-1"></i>Pick its age group
-            <span class="desc-dot"></span>
-            <i class="bi bi-lightning me-1"></i>Instant confirmation
-          </p>
-        </div>
-
-        <!-- Coach card — live progress -->
-        <div class="coach-card coach-info">
-          @if (enteredTeams().length === 0) {
-            <p class="coach-intro"><i class="bi bi-hand-index-thumb"></i> Tap any team to register it for <strong>{{ jobName() }}</strong>.</p>
-          } @else {
-            <p class="coach-intro"><i class="bi bi-check-circle-fill text-success"></i> <strong class="text-success">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered for <strong>{{ jobName() }}</strong>. Tap more to add them.</p>
-          }
-        </div>
-
-        <!-- ── Registered card (always visible, never scrolls away) ── -->
-        @if (enteredTeams().length > 0) {
-          <div class="step-card registered-card">
-            <div class="section-header section-registered">
-              <i class="bi bi-check-circle-fill me-1"></i>
-              Registered ({{ enteredTeams().length }})
-              <span class="registered-total">{{ totalFee() | currency }}</span>
-            </div>
-            @for (team of enteredTeams(); track team.teamId) {
-              @let paid = team.paidTotal > 0;
-              <div class="select-row-wrapper">
-                <div class="select-row is-checked" role="button" tabindex="0"
-                     [class.is-paid]="paid"
-                     (click)="team.clubTeamId ? openAgePicker({clubTeamId: team.clubTeamId!, clubTeamName: team.teamName, gradYear: team.ageGroupName, levelOfPlay: team.levelOfPlay ?? '', currentAgeGroupId: team.ageGroupId}, paid) : null"
-                     (keydown.enter)="team.clubTeamId ? openAgePicker({clubTeamId: team.clubTeamId!, clubTeamName: team.teamName, gradYear: team.ageGroupName, levelOfPlay: team.levelOfPlay ?? '', currentAgeGroupId: team.ageGroupId}, paid) : null"
-                     (keydown.space)="team.clubTeamId ? openAgePicker({clubTeamId: team.clubTeamId!, clubTeamName: team.teamName, gradYear: team.ageGroupName, levelOfPlay: team.levelOfPlay ?? '', currentAgeGroupId: team.ageGroupId}, paid) : null; $event.preventDefault()">
-                  <span class="select-indicator checked" [class.locked]="paid">
-                    @if (paid) { <i class="bi bi-lock-fill"></i> }
-                    @else { <i class="bi bi-check-lg"></i> }
-                  </span>
-                  <span class="select-name">{{ team.teamName }}</span>
-                  @if (team.levelOfPlay) {
-                    <span class="select-lop">LOP {{ team.levelOfPlay }}</span>
-                  }
-                  <span class="select-age"><i class="bi bi-diagram-3 me-1"></i>{{ team.ageGroupName }}</span>
-                  <span class="select-fee">{{ team.feeTotal | currency }}</span>
-                  @if (paid) {
-                    <span class="paid-badge"><i class="bi bi-lock-fill me-1"></i>Paid</span>
-                  }
-                  @if (!paid) {
-                    <button type="button" class="btn-inline-remove"
-                            [disabled]="actionInProgress()"
-                            (click)="onRemoveTeam(team); $event.stopPropagation()"
-                            title="Remove {{ team.teamName }}">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        }
-
-        <!-- ── Available card (scrollable workhorse) ── -->
+      <!-- ── Registered for this event (top section) ── -->
+      @if (enteredTeams().length > 0) {
         <div class="step-card">
-          <div class="section-header section-available">
-            <i class="bi bi-list-ul me-1"></i>
-            Available ({{ unregisteredTeams().length }})
+          <div class="section-header section-registered">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            Registered ({{ enteredTeams().length }})
+            <span class="registered-total">{{ totalFee() | currency }}</span>
           </div>
-
-          @if (unregisteredTeams().length === 0) {
-            <div class="wizard-empty-state" style="padding: var(--space-6) var(--space-4)">
-              <i class="bi bi-check-circle-dotted"></i>
-              <strong>All teams registered!</strong>
-              <span>Every team in your library has been assigned an age group.</span>
-            </div>
-          } @else {
-            <div class="scroll-list">
-              @for (group of unregisteredByYear(); track group.year) {
-                <div class="year-group-header">
-                  <span class="year-label"><i class="bi bi-diagram-3"></i>{{ group.year }}</span>
-                  <span class="year-count">{{ group.teams.length }} {{ group.teams.length === 1 ? 'team' : 'teams' }}</span>
-                </div>
-                @for (team of group.teams; track team.clubTeamId) {
-                  <div class="select-row-wrapper">
-                    <div class="select-row" role="button" tabindex="0"
-                         (click)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)"
-                         (keydown.enter)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)"
-                         (keydown.space)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false); $event.preventDefault()">
-                      <i class="bi bi-people-fill lib-icon"></i>
-                      <span class="select-name">{{ team.clubTeamName }}</span>
-                      <i class="bi bi-chevron-right select-chevron"></i>
-                    </div>
-                  </div>
-                }
-              }
-            </div>
-          }
-
-          <div class="step-card-footer">
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    (click)="goToMiniStep('library')">
-              <i class="bi bi-arrow-left me-1"></i>Back to Library
-            </button>
-            <button type="button" class="btn btn-sm btn-primary"
-                    [disabled]="enteredTeams().length === 0"
-                    (click)="goToMiniStep('summary')">
-              Review {{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'Team' : 'Teams' }} <i class="bi bi-arrow-right ms-1"></i>
-            </button>
-          </div>
-        </div>
-      }
-
-      <!-- ═══ STEP 3: REVIEW ═══ -->
-      @if (currentMiniStep() === 'summary') {
-
-        <!-- Centered hero -->
-        <div class="welcome-hero">
-          <h4 class="welcome-title"><i class="bi bi-clipboard-check welcome-icon" style="color: var(--bs-success)"></i> You're All Set!</h4>
-          <p class="hero-action">Double-check your teams, then proceed to payment.</p>
-          <p class="welcome-desc">
-            <strong class="text-primary">{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team' : 'teams' }}</strong> registered
-            @if (totalOwed() > 0) {
-              <span class="desc-dot"></span>
-              <strong class="text-danger">{{ totalOwed() | currency }}</strong> due
-            } @else {
-              <span class="desc-dot"></span>
-              <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Fully paid</span>
-            }
-          </p>
-        </div>
-
-        <!-- Coach card — review guidance -->
-        <div class="coach-card coach-success">
-          <p class="coach-intro"><i class="bi bi-info-circle"></i> Review your teams below. When you're ready, hit <strong>Proceed to Payment</strong> in the top bar.</p>
-        </div>
-
-        <div class="step-card">
 
           <div class="summary-table-wrap">
             <table class="summary-table">
               <thead>
                 <tr>
-                  <th><i class="bi bi-people-fill me-1"></i>Team</th>
-                  <th><i class="bi bi-diagram-3 me-1"></i>Age Group</th>
+                  <th>Team</th>
+                  <th>Event Age Group</th>
                   <th class="text-end">Fee</th>
                   <th class="text-end">Paid</th>
                   <th class="text-end">Owed</th>
@@ -312,17 +83,21 @@ type MiniStep = 'library' | 'select' | 'summary';
               </thead>
               <tbody>
                 @for (team of enteredTeams(); track team.teamId) {
-                  <tr [class.is-paid]="team.paidTotal > 0">
+                  @let paid = team.paidTotal > 0;
+                  <tr [class.is-paid]="paid">
                     <td>
                       <span class="fw-semibold">{{ team.teamName }}</span>
+                      @if (team.levelOfPlay) {
+                        <span class="select-lop ms-1">LOP {{ team.levelOfPlay }}</span>
+                      }
                     </td>
                     <td>
                       <span class="summary-age">{{ team.ageGroupName }}</span>
                     </td>
                     <td class="text-end">{{ team.feeTotal | currency }}</td>
                     <td class="text-end">
-                      @if (team.paidTotal > 0) {
-                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>{{ team.paidTotal | currency }}</span>
+                      @if (paid) {
+                        <span class="text-success">{{ team.paidTotal | currency }}</span>
                       } @else {
                         <span class="text-muted">{{ team.paidTotal | currency }}</span>
                       }
@@ -331,14 +106,15 @@ type MiniStep = 'library' | 'select' | 'summary';
                       {{ team.owedTotal | currency }}
                     </td>
                     <td class="text-end">
-                      @if (team.paidTotal === 0) {
-                        <button type="button"
-                                class="btn btn-sm btn-outline-danger border-0 px-2 py-0"
+                      @if (!paid) {
+                        <button type="button" class="btn-inline-remove"
                                 [disabled]="actionInProgress()"
                                 (click)="onRemoveTeam(team)"
                                 title="Remove {{ team.teamName }}">
                           <i class="bi bi-x-lg"></i>
                         </button>
+                      } @else {
+                        <i class="bi bi-lock-fill text-muted" style="font-size: var(--font-size-xs)"></i>
                       }
                     </td>
                   </tr>
@@ -353,28 +129,88 @@ type MiniStep = 'library' | 'select' | 'summary';
                   <td class="text-end fw-semibold">{{ totalPaid() | currency }}</td>
                   <td class="text-end">
                     @if (totalOwed() > 0) {
-                      <span class="total-owed"><i class="bi bi-exclamation-circle me-1"></i>{{ totalOwed() | currency }}</span>
+                      <span class="total-owed">{{ totalOwed() | currency }}</span>
                     } @else {
                       <span class="total-paid"><i class="bi bi-check-circle-fill me-1"></i>$0.00</span>
                     }
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
           <div class="step-card-footer">
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    (click)="goToMiniStep('select')">
-              <i class="bi bi-arrow-left me-1"></i>Change Selections
-            </button>
+            <span class="footer-hint">
+              <strong class="text-primary">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered
+            </span>
             <button type="button" class="btn btn-sm btn-primary"
                     (click)="proceedToPayment.emit()">
               Proceed to Payment <i class="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
         </div>
+      } @else {
+        <div class="step-card">
+          <div class="wizard-empty-state" style="padding: var(--space-6) var(--space-4)">
+            <i class="bi bi-clipboard-plus"></i>
+            <strong>No teams registered yet</strong>
+            <span>Tap <strong>Register</strong> next to a team below to get started.</span>
+          </div>
+        </div>
       }
+
+      <!-- ── Team Library (bottom section) ── -->
+      <div class="step-card">
+
+        <!-- Library header with stats -->
+        <div class="lib-header">
+          <div class="lib-stats">
+            <span class="stat-number">{{ allLibraryTeams().length }}</span>
+            <span class="stat-label">{{ allLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm"
+                  (click)="showAddModal.set(true)">
+            <i class="bi bi-plus-circle me-1"></i>Add Team
+          </button>
+        </div>
+
+        @if (allLibraryTeams().length === 0) {
+          <div class="wizard-empty-state">
+            <i class="bi bi-plus-circle-dotted"></i>
+            <strong>Your library is empty</strong>
+            <span>Every team your club fields should be added here.<br>They're saved permanently — add once, register in any event.</span>
+            <button type="button" class="btn btn-primary btn-sm mt-2"
+                    (click)="showAddModal.set(true)">
+              <i class="bi bi-plus-circle me-1"></i>Add Your First Team
+            </button>
+          </div>
+        } @else {
+          <div class="scroll-list">
+            @for (team of allLibraryTeamsSorted(); track team.clubTeamId) {
+              <div class="lib-row" [class.lib-row-registered]="isEnteredTeam(team.clubTeamId)">
+                <i class="bi bi-people-fill lib-icon"></i>
+                <span class="lib-name">{{ team.clubTeamName }}</span>
+                @if (isEnteredTeam(team.clubTeamId)) {
+                  <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
+                } @else {
+                  <button type="button" class="btn-register"
+                          [disabled]="actionInProgress()"
+                          (click)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)">
+                    Register
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <div class="step-card-footer">
+          <span class="footer-hint">
+            <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
+          </span>
+        </div>
+      </div>
     }
 
     <!-- ═══ MODALS ═══ -->
@@ -410,68 +246,6 @@ type MiniStep = 'library' | 'select' | 'summary';
   `,
     styles: [`
       :host { display: flex; flex-direction: column; gap: var(--space-3); }
-
-      /* ── Mini-Step Indicator ──────────────────────── */
-      .mini-steps {
-        display: flex;
-        align-items: center;
-        gap: 0;
-        padding: var(--space-1) 0;
-      }
-
-      .mini-step-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-1);
-        padding: var(--space-1) var(--space-2);
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        white-space: nowrap;
-        transition: color 0.15s ease;
-
-        &:disabled { cursor: default; opacity: 0.5; }
-
-        &.active {
-          color: var(--bs-primary);
-          font-weight: var(--font-weight-semibold);
-          .mini-step-num {
-            background: var(--bs-primary);
-            color: var(--neutral-0);
-          }
-        }
-
-        &.completed {
-          color: var(--bs-success);
-          .mini-step-num {
-            background: var(--bs-success);
-            color: var(--neutral-0);
-          }
-        }
-      }
-
-      .mini-step-num {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-        border-radius: var(--radius-full);
-        border: 1.5px solid var(--border-color);
-        font-size: 10px;
-        font-weight: var(--font-weight-bold);
-        flex-shrink: 0;
-      }
-
-      .mini-step-line {
-        flex: 0 0 16px;
-        height: 1px;
-        background: var(--border-color);
-
-        &.completed { background: var(--bs-success); }
-      }
 
       /* ── Coach Card — detached contextual guidance ── */
       .coach-card {
@@ -738,6 +512,13 @@ type MiniStep = 'library' | 'select' | 'summary';
         min-width: 0;
       }
 
+      .lib-row-registered {
+        background: rgba(var(--bs-success-rgb), 0.06);
+
+        .lib-icon { color: var(--bs-success); }
+        .lib-name { color: var(--bs-success); }
+      }
+
       .lib-meta {
         color: var(--brand-text-muted);
         white-space: nowrap;
@@ -753,6 +534,38 @@ type MiniStep = 'library' | 'select' | 'summary';
         color: var(--bs-success);
         white-space: nowrap;
         flex-shrink: 0;
+        margin-left: auto;
+      }
+
+      /* ── Register button (library rows) ── */
+      .btn-register {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-1) var(--space-3);
+        border: 1.5px solid rgba(var(--bs-primary-rgb), 0.3);
+        border-radius: var(--radius-sm);
+        background: rgba(var(--bs-primary-rgb), 0.06);
+        color: var(--bs-primary);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        flex-shrink: 0;
+        margin-left: auto;
+        white-space: nowrap;
+        transition: background-color 0.1s ease, border-color 0.1s ease;
+
+        &:hover:not(:disabled) {
+          background: rgba(var(--bs-primary-rgb), 0.14);
+          border-color: var(--bs-primary);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:disabled { opacity: 0.4; cursor: default; }
       }
 
       /* ── Step 2: Section Headers ──────────────────── */
@@ -899,13 +712,6 @@ type MiniStep = 'library' | 'select' | 'summary';
         flex-shrink: 0;
       }
 
-      .select-chevron {
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        flex-shrink: 0;
-        transition: transform 0.15s ease;
-      }
-
       .btn-inline-remove {
         display: inline-flex;
         align-items: center;
@@ -1005,8 +811,6 @@ type MiniStep = 'library' | 'select' | 'summary';
 
       /* ── Mobile ──────────────────────────────────── */
       @media (max-width: 575.98px) {
-        .mini-step-label { display: none; }
-
         .step-hero {
           flex-wrap: wrap;
           padding: var(--space-2) var(--space-3);
@@ -1046,6 +850,10 @@ type MiniStep = 'library' | 'select' | 'summary';
           min-height: 44px;
         }
 
+        .btn-register {
+          min-height: 44px;
+        }
+
         .summary-table th,
         .summary-table td {
           padding: var(--space-1) var(--space-2);
@@ -1053,7 +861,7 @@ type MiniStep = 'library' | 'select' | 'summary';
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .select-row, .mini-step-item, .select-indicator, .select-chevron, .btn-inline-remove { transition: none; }
+        .select-row, .select-indicator, .btn-inline-remove, .btn-register { transition: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1077,26 +885,13 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
 
-    /** Which mini-step is active. */
-    readonly currentMiniStep = signal<MiniStep>('library');
-
     /** Which team's age picker modal is open (null = closed). */
     readonly agePickerTeam = signal<AgePickerTeam | null>(null);
 
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
 
-    readonly miniStepDefs: { id: MiniStep; label: string }[] = [
-        { id: 'library', label: 'Team Library' },
-        { id: 'select', label: 'Select Teams' },
-        { id: 'summary', label: 'Review' },
-    ];
-
-    readonly miniStepIndex = computed(() =>
-        this.miniStepDefs.findIndex(s => s.id === this.currentMiniStep()),
-    );
-
-    /** All library teams: available + entered (for Steps 1 & 2). */
+    /** All library teams: available + entered. */
     readonly allLibraryTeams = computed<ClubTeamDto[]>(() => {
         const available = this._clubTeams();
         const entered = this._registeredTeams();
@@ -1118,57 +913,20 @@ export class TeamTeamsStepComponent implements OnInit {
         return [...available, ...enteredOnly];
     });
 
-    /** Library grouped by grad year for Step 1 display. */
-    readonly libraryByYear = computed(() => {
-        const teams = this.allLibraryTeams();
-        const groups: { year: string; teams: ClubTeamDto[] }[] = [];
-        const map = new Map<string, ClubTeamDto[]>();
-        for (const t of teams) {
-            const year = t.clubTeamGradYear || 'Other';
-            if (!map.has(year)) map.set(year, []);
-            map.get(year)!.push(t);
-        }
-        for (const [year, yearTeams] of map) {
-            groups.push({ year, teams: yearTeams });
-        }
-        return groups;
-    });
+    /** Library teams sorted alphabetically (flat, no year grouping). */
+    readonly allLibraryTeamsSorted = computed(() =>
+        [...this.allLibraryTeams()].sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName)),
+    );
 
-    /** Entered teams (for Step 2 checks and Step 3 table). */
+    /** Entered teams (registered for this event). */
     readonly enteredTeams = computed(() => this._registeredTeams());
-
-    /** Summary totals for Step 3. */
-    /** How many library teams are not yet entered. */
-    readonly availableCount = computed(() => this._clubTeams().length);
 
     readonly totalFee = computed(() => this._registeredTeams().reduce((s, t) => s + t.feeTotal, 0));
     readonly totalPaid = computed(() => this._registeredTeams().reduce((s, t) => s + t.paidTotal, 0));
     readonly totalOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
 
-    /** Unregistered library teams for Step 2 "Available" section. */
-    readonly unregisteredTeams = computed(() => {
-        const enteredIds = new Set(this._registeredTeams().filter(r => r.clubTeamId).map(r => r.clubTeamId!));
-        return this._clubTeams().filter(t => !enteredIds.has(t.clubTeamId));
-    });
-
-    /** Unregistered teams grouped by grad year for Step 2 display. */
-    readonly unregisteredByYear = computed(() => {
-        const teams = this.unregisteredTeams();
-        const map = new Map<string, ClubTeamDto[]>();
-        for (const t of teams) {
-            const year = t.clubTeamGradYear || 'Other';
-            if (!map.has(year)) map.set(year, []);
-            map.get(year)!.push(t);
-        }
-        return Array.from(map, ([year, yearTeams]) => ({ year, teams: yearTeams }));
-    });
-
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
-    }
-
-    goToMiniStep(step: MiniStep): void {
-        this.currentMiniStep.set(step);
     }
 
     isEnteredTeam(clubTeamId: number): boolean {
@@ -1179,13 +937,13 @@ export class TeamTeamsStepComponent implements OnInit {
         return this._registeredTeams().find(r => r.clubTeamId === clubTeamId) ?? null;
     }
 
-    /** Step 2: open age picker modal for a team. */
+    /** Open age picker modal for a team. */
     openAgePicker(team: AgePickerTeam, paid: boolean): void {
         if (paid) return;
         this.agePickerTeam.set(team);
     }
 
-    /** Step 2: handle age group + LOP selection from the modal. */
+    /** Handle age group + LOP selection from the modal. */
     onModalAgeGroupSelected(pickerTeam: AgePickerTeam, selection: AgeGroupSelection): void {
         this.agePickerTeam.set(null);
 
@@ -1199,7 +957,7 @@ export class TeamTeamsStepComponent implements OnInit {
         this.onSelectAgeGroup(team, selection.ageGroupId);
     }
 
-    /** Step 2: register (or re-register) a team with the selected age group. */
+    /** Register (or re-register) a team with the selected age group. */
     onSelectAgeGroup(team: ClubTeamDto, ageGroupId: string): void {
         const existing = this.getEnteredInfo(team.clubTeamId);
 
