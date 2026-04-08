@@ -195,7 +195,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
     }
 
-    private void AddResult(List<PreSubmitTeamResultDto> results, string playerId, Guid teamId, bool isFull, string teamName, string message, bool created)
+    private void AddResult(List<PreSubmitTeamResultDto> results, string playerId, Guid teamId, bool isFull, string teamName, string message, bool created, bool isWaitlisted = false, string? waitlistTeamName = null)
     {
         results.Add(new PreSubmitTeamResultDto
         {
@@ -204,7 +204,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             IsFull = isFull,
             TeamName = teamName,
             Message = message,
-            RegistrationCreated = created
+            RegistrationCreated = created,
+            IsWaitlisted = isWaitlisted,
+            WaitlistTeamName = waitlistTeamName
         });
     }
 
@@ -220,6 +222,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         // Check roster capacity — may redirect to waitlist team mirror
         var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
         var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+        var isWaitlisted = false;
+        string? waitlistTeamName = null;
         if (isFull)
         {
             try
@@ -228,6 +232,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                     ctx.JobId, team.TeamId, ctx.FamilyUserId);
                 if (rosterPlacement.IsWaitlisted)
                 {
+                    isWaitlisted = true;
+                    waitlistTeamName = rosterPlacement.WaitlistTeamName;
                     // Swap to the waitlist team — continue registration on that team
                     team = ctx.Teams.Find(t => t.TeamId == rosterPlacement.TeamId)
                         ?? await _teams.GetTeamFromTeamId(rosterPlacement.TeamId)
@@ -256,6 +262,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
 
         var sel = selections[^1];
+        var countBefore = teamResults.Count;
         if (regToUpdate != null)
         {
             await UpdateExistingRegistrationAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
@@ -263,6 +270,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         else
         {
             await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
+        }
+
+        // Stamp waitlist state on any results added by the downstream methods
+        if (isWaitlisted)
+        {
+            for (var i = countBefore; i < teamResults.Count; i++)
+            {
+                teamResults[i] = teamResults[i] with { IsWaitlisted = true, WaitlistTeamName = waitlistTeamName };
+            }
         }
     }
 
@@ -290,6 +306,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
             var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
             var effectiveTeamId = team.TeamId;
+            var isWaitlisted = false;
+            string? waitlistTeamName = null;
             if (isFull)
             {
                 try
@@ -298,6 +316,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                         ctx.JobId, team.TeamId, ctx.FamilyUserId);
                     if (rosterPlacement.IsWaitlisted)
                     {
+                        isWaitlisted = true;
+                        waitlistTeamName = rosterPlacement.WaitlistTeamName;
                         team = ctx.Teams.Find(t => t.TeamId == rosterPlacement.TeamId)
                             ?? await _teams.GetTeamFromTeamId(rosterPlacement.TeamId)
                             ?? team;
@@ -310,6 +330,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                     continue;
                 }
             }
+            var countBefore = teamResults.Count;
             if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, effectiveTeamId), out var existing))
             {
                 existing.Modified = DateTime.UtcNow;
@@ -325,6 +346,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
                 await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
+            }
+
+            // Stamp waitlist state on any results added above
+            if (isWaitlisted)
+            {
+                for (var i = countBefore; i < teamResults.Count; i++)
+                {
+                    teamResults[i] = teamResults[i] with { IsWaitlisted = true, WaitlistTeamName = waitlistTeamName };
+                }
             }
         }
     }

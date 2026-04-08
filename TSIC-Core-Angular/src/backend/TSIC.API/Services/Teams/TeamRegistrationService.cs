@@ -658,8 +658,23 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Resolve placement (may redirect to waitlist if agegroup is full)
-        var placement = await _placement.ResolvePlacementAsync(
-            jobId, request.AgeGroupId, teamName, userId: userId);
+        TeamPlacementResult placement;
+        try
+        {
+            placement = await _placement.ResolvePlacementAsync(
+                jobId, request.AgeGroupId, teamName, userId: userId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Agegroup placement failed for team {TeamName} in agegroup {AgeGroupId}", teamName, request.AgeGroupId);
+            return new RegisterTeamResponse
+            {
+                Success = false,
+                TeamId = Guid.Empty,
+                Message = ex.Message,
+                IsWaitlisted = false
+            };
+        }
 
         // Create team registration
         var team = new Domain.Entities.Teams

@@ -38,6 +38,8 @@ namespace TSIC.Contracts.Dtos
         public required string TeamName { get; init; } = string.Empty;
         public required string Message { get; init; } = string.Empty;
         public required bool RegistrationCreated { get; init; }
+        public bool IsWaitlisted { get; init; }
+        public string? WaitlistTeamName { get; init; }
     }
 
     public record PreSubmitInsuranceDto

@@ -153,6 +153,7 @@ public class PlayerRosterCapacityTests
         // Assert — registration was created, team is not full
         result.TeamResults.Should().HaveCount(1);
         result.TeamResults[0].IsFull.Should().BeFalse("team has room for 1 more player");
+        result.TeamResults[0].IsWaitlisted.Should().BeFalse("direct placement, not waitlisted");
         result.HasFullTeams.Should().BeFalse();
 
         // Verify a registration entity was added
@@ -218,6 +219,8 @@ public class PlayerRosterCapacityTests
         // Assert — registration was created on the WAITLIST team, not the original
         result.TeamResults.Should().HaveCount(1);
         result.TeamResults[0].IsFull.Should().BeFalse("waitlist absorbed the registration");
+        result.TeamResults[0].IsWaitlisted.Should().BeTrue("registrant must be told they are on a waitlist");
+        result.TeamResults[0].WaitlistTeamName.Should().Be("WAITLIST - Test Team");
 
         regRepo.Verify(r => r.Add(It.Is<Registrations>(reg =>
             reg.AssignedTeamId == waitlistTeam.TeamId)),

@@ -241,6 +241,15 @@ export class PlayerWizardV2Component implements OnInit {
                     );
                     return; // stay on teams step
                 }
+                // Notify parent if any players were placed on a waitlist
+                const waitlisted = resp.teamResults.filter(r => r.isWaitlisted);
+                if (waitlisted.length > 0) {
+                    const names = waitlisted.map(r => r.waitlistTeamName ?? r.teamName).join(', ');
+                    this.toast.show(
+                        `Note: Your selected team is full. You have been placed on the waitlist: ${names}`,
+                        'warning', 8000,
+                    );
+                }
             } catch (err: unknown) {
                 console.error('[PlayerWizard] reserveTeams failed', err);
                 this.toast.show('Could not reserve team spots. Please try again.', 'danger', 5000);

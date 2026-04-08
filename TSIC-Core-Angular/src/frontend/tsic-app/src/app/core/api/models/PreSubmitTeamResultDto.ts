@@ -9,5 +9,7 @@ export type PreSubmitTeamResultDto = {
     teamName: string;
     message: string;
     registrationCreated: boolean;
+    isWaitlisted?: boolean;
+    waitlistTeamName?: string | null;
 };
 
