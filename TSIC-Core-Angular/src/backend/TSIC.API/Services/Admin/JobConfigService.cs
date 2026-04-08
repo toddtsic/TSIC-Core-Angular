@@ -161,7 +161,8 @@ public class JobConfigService : IJobConfigService
                 job.BOfferPlayerRegsaverInsurance = req.BOfferPlayerRegsaverInsurance.Value;
             job.MomLabel = req.MomLabel;
             job.DadLabel = req.DadLabel;
-            job.PlayerProfileMetadataJson = req.PlayerProfileMetadataJson;
+            if (req.PlayerProfileMetadataJson is not null)
+                job.PlayerProfileMetadataJson = req.PlayerProfileMetadataJson;
         }
 
         job.Modified = DateTime.UtcNow;
