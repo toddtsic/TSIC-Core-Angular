@@ -82,7 +82,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A "Next" button to proceed and a "Previous" button to go back (e.g., "I already have an account")
 - **What happened**: No way to proceed or go back — complete dead end
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Addressed by Registration Wizards v2 rewrite — WizardShellComponent provides Back/Continue navigation on all steps.
 
 ### PL-006: Player Registration card — highlight Family Account more prominently
 - **Area**: Registration Process Review
@@ -307,7 +308,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Ability to change my mind and add coverage before paying
 - **What happened**: My decline choice is locked in — no way to reset or change the refund protection selection on the payment screen
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — once refund protection is declined, the choice is locked for that session.
 
 ### PL-034: Discount Code section needs better visual emphasis and white input field
 - **Area**: Registration Process Review
@@ -331,7 +333,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Both payments to appear under Most Recent Transaction(s) on the Family Players Table
 - **What happened**: Family Players Table shows both players, but Most Recent Transaction(s) only shows one payment
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause: `!F-ACCOUNTING` token only queried transactions for the first registration in the family. Fixed `BuildAccountingTableHtmlAsync` to query all family registration IDs. Added `GetAccountingTransactionsAsync(List<Guid>)` overload to `ITextSubstitutionRepository`. Same fix applies to on-screen confirmation and email confirmation.
 
 ### PL-037: Registration Complete Confirmation page needs cleaner layout with distinct card areas
 - **Area**: Registration Process Review
@@ -355,7 +358,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Menus and information available to review or edit my registration details
 - **What happened**: After selecting a registration, there are no menus or information shown — nothing to review or edit
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — the bulletin provides Begin/Edit registration links. That's the intended entry point for reviewing or editing registration details.
 
 ### PL-040: Player Details form missing Academic Honors and Athletic Honors/Awards fields
 - **Area**: Registration Process Review
@@ -363,7 +367,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Academic Honors and Athletic Honors/Awards text entry fields to appear, as they do in the Legacy system
 - **What happened**: Both fields are missing from the new Player Details form — they exist in Legacy but aren't showing up here
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Profile migration parser (CSharpToMetadataParser) had no regex pattern for `<textarea asp-for="...">` — only `<input>`, `<select>`, and `@Html.*For()` helpers. Added Pattern 3c for textarea tag helpers. This also fixes other textarea fields across PP03, PP09, PP43, PP45, CAC14 profiles. Re-run migration for affected profiles to pick up the missing fields.
 
 ### PL-041: Standardize how optional fields are indicated across all forms
 - **Area**: Registration Process Review

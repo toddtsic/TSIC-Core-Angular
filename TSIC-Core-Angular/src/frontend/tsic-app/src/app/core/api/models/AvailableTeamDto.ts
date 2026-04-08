@@ -18,5 +18,8 @@ export type AvailableTeamDto = {
     deposit?: number | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    perRegistrantFee?: number | null;
 };
 

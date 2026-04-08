@@ -34,6 +34,12 @@ public partial class BulletinService : IBulletinService
         RegexOptions.IgnoreCase)]
     private static partial Regex StaffRegistrationUrlPattern();
 
+    // Matches: /JSEG/Rosters/RostersPublicLookupTourny (public tournament rosters)
+    [GeneratedRegex(
+        @"(?:https?://[^/""']*)?/[^/""']+/Rosters/RostersPublicLookupTourny[^""']*",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex PublicRosterUrlPattern();
+
     private readonly IJobLookupService _jobLookupService;
     private readonly IBulletinRepository _bulletinRepository;
     private readonly ILogger<BulletinService> _logger;
@@ -67,6 +73,7 @@ public partial class BulletinService : IBulletinService
         var playerRegUrl = $"/{jobPath}/registration/player";
         var teamRegUrl = $"/{jobPath}/registration/team";
         var staffRegUrl = $"/{jobPath}/registration/adult";
+        var publicRosterUrl = $"/{jobPath}/rosters";
 
         var processedBulletins = new List<BulletinDto>();
         foreach (var bulletin in bulletins)
@@ -74,11 +81,12 @@ public partial class BulletinService : IBulletinService
             var processedTitle = ReplaceTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
             var processedText = ReplaceTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
 
-            // Translate legacy registration URLs to Angular routes
+            // Translate legacy URLs to Angular routes
             // More specific patterns first: team (bClubRep=true), staff (bStaff=true), then player (bPlayer=true)
             processedText = TeamRegistrationUrlPattern().Replace(processedText, teamRegUrl);
             processedText = StaffRegistrationUrlPattern().Replace(processedText, staffRegUrl);
             processedText = PlayerRegistrationUrlPattern().Replace(processedText, playerRegUrl);
+            processedText = PublicRosterUrlPattern().Replace(processedText, publicRosterUrl);
 
             processedBulletins.Add(new BulletinDto
             {

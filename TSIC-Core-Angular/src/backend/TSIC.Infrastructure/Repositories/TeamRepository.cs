@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
@@ -141,7 +142,10 @@ public class TeamRepository : ITeamRepository
                 DivisionName = t.Div != null ? t.Div.DivName : null,
                 MaxCount = t.MaxCount,
                 TeamAllowsSelfRostering = t.BAllowSelfRostering,
-                AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering
+                AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering,
+                StartDate = t.Startdate,
+                EndDate = t.Enddate,
+                PerRegistrantFee = t.PerRegistrantFee
             })
             .ToListAsync(cancellationToken);
     }
@@ -1250,6 +1254,113 @@ public class TeamRepository : ITeamRepository
             .ToList();
 
         return new TeamRosterDetailDto { Staff = staff, Players = players };
+    }
+
+    // ── Public Roster methods ──
+
+    public async Task<List<CadtClubNode>> GetPublicRosterTreeAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // Flat projection: all active teams excluding WAITLIST/DROPPED agegroups
+        var rows = await (
+            from t in _context.Teams
+            join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+            join div in _context.Divisions on t.DivId equals div.DivId into divJoin
+            from div in divJoin.DefaultIfEmpty()
+            join clubReg in _context.Registrations on t.ClubrepRegistrationid equals clubReg.RegistrationId into clubJoin
+            from clubReg in clubJoin.DefaultIfEmpty()
+            where t.JobId == jobId
+                  && t.Active == true
+                  && (ag.AgegroupName == null || !ag.AgegroupName.Contains("WAITLIST"))
+                  && (ag.AgegroupName == null || !ag.AgegroupName.Contains("DROPPED"))
+            select new
+            {
+                ClubName = clubReg != null ? clubReg.ClubName : null,
+                ag.AgegroupId,
+                ag.AgegroupName,
+                ag.Color,
+                DivId = div != null ? div.DivId : (Guid?)null,
+                DivName = div != null ? div.DivName : null,
+                t.TeamId,
+                t.TeamName,
+                PlayerCount = _context.Registrations
+                    .Count(r => r.AssignedTeamId == t.TeamId
+                                && r.BActive == true
+                                && r.RoleId == RoleConstants.Player)
+            }
+        ).AsNoTracking().ToListAsync(ct);
+
+        // Group: Club → Agegroup → Division → Team
+        return rows
+            .GroupBy(r => r.ClubName ?? "(No Club)")
+            .OrderBy(g => g.Key)
+            .Select(clubGroup => new CadtClubNode
+            {
+                ClubName = clubGroup.Key,
+                TeamCount = clubGroup.Count(),
+                PlayerCount = clubGroup.Sum(r => r.PlayerCount),
+                Agegroups = clubGroup
+                    .GroupBy(r => new { r.AgegroupId, r.AgegroupName, r.Color })
+                    .OrderBy(g => g.Key.AgegroupName)
+                    .Select(agGroup => new CadtAgegroupNode
+                    {
+                        AgegroupId = agGroup.Key.AgegroupId,
+                        AgegroupName = agGroup.Key.AgegroupName,
+                        Color = agGroup.Key.Color,
+                        TeamCount = agGroup.Count(),
+                        PlayerCount = agGroup.Sum(r => r.PlayerCount),
+                        Divisions = agGroup
+                            .GroupBy(r => new { DivId = r.DivId ?? Guid.Empty, DivName = r.DivName ?? "(No Division)" })
+                            .OrderBy(g => g.Key.DivName)
+                            .Select(divGroup => new CadtDivisionNode
+                            {
+                                DivId = divGroup.Key.DivId,
+                                DivName = divGroup.Key.DivName,
+                                TeamCount = divGroup.Count(),
+                                PlayerCount = divGroup.Sum(r => r.PlayerCount),
+                                Teams = divGroup
+                                    .OrderBy(r => r.TeamName)
+                                    .Select(r => new CadtTeamNode
+                                    {
+                                        TeamId = r.TeamId,
+                                        TeamName = r.TeamName ?? string.Empty,
+                                        PlayerCount = r.PlayerCount
+                                    }).ToList()
+                            }).ToList()
+                    }).ToList()
+            }).ToList();
+    }
+
+    public async Task<List<PublicRosterPlayerDto>> GetPublicTeamRosterAsync(
+        Guid jobId, Guid teamId, CancellationToken ct = default)
+    {
+        return await (
+            from r in _context.Registrations
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join clubReg in _context.Registrations on t.ClubrepRegistrationid equals clubReg.RegistrationId into clubJoin
+            from clubReg in clubJoin.DefaultIfEmpty()
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            where r.AssignedTeamId == teamId
+                  && r.JobId == jobId
+                  && r.BActive == true
+                  && (
+                      (r.RoleId == RoleConstants.Player && r.BWaiverSigned1 == true)
+                      || r.RoleId == RoleConstants.Staff
+                  )
+            orderby role.Name descending, u.LastName, u.FirstName
+            select new PublicRosterPlayerDto
+            {
+                DisplayName = role.Name == "Player"
+                    ? $"{u.LastName}, {u.FirstName}"
+                    : $"Staff: {u.LastName}, {u.FirstName}",
+                RoleLabel = role.Name ?? "Player",
+                Position = r.Position,
+                UniformNo = r.UniformNo,
+                ClubName = clubReg != null ? clubReg.ClubName : null,
+                TeamName = t.TeamName
+            }
+        ).AsNoTracking().ToListAsync(ct);
     }
 }
 

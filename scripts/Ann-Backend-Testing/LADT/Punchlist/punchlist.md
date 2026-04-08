@@ -88,7 +88,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Text relevant to player registration sites
 - **What happened**: Popup says "Otherwise it will be moved to Dropped Teams and deactivated" — player sites don't have Dropped Teams or Inactive Teams
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Text is accurate — the backend creates a "Dropped Teams" agegroup on all job types (including player sites) to preserve history of teams that had players, payments, or schedule history. Teams with no footprint are permanently deleted instead. Keeping team history in a Dropped Teams agegroup is intentional.
 
 ### PL-007: League edit — Sport dropdown needs cleanup
 - **Area**: League Settings
@@ -128,7 +129,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Hover tooltip indicating which level each item is (League, AgeGroup, Division, Team)
 - **What happened**: No level indicator on hover — would help orient users
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Hover text now shows "League: [name]", "Agegroup: [name]", etc. LADT heading also spells out the acronym on hover.
 
 ### PL-012: Age Group table — columns too wide, right-hand columns not visible
 - **Area**: Age Group Settings
@@ -136,7 +138,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All columns visible without horizontal scrolling, or scroll bar directly below table
 - **What happened**: Columns are too wide so right-hand columns are cut off; if a scroll bar is needed, it should be placed directly below the table
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Migrated to Syncfusion ejs-grid with `[allowResizing]="true"` — users can drag column borders to resize. Header text wraps for long labels.
 
 ### PL-013: Add labeled bar above data table to show which level you're editing
 - **Area**: Tree Navigation
@@ -144,7 +147,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A bar above the table with a centered label ("League", "Age Group", etc.) so I know what level I'm looking at
 - **What happened**: No label bar — easy to lose track of which level the table is showing
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Breadcrumb header bar above the grid shows level icon + label (e.g. "Age Groups under [League]") with clickable ancestor badges and count. "Add New" button also moved here.
 
 ### PL-014: Table header — change "AgeGroups in [League]" to "AgeGroups under [League]"
 - **Area**: Age Group Settings
@@ -152,7 +156,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Wording that reinforces the tree hierarchy
 - **What happened**: Header says "AgeGroups in [League name]" — should say "under" instead of "in" to reinforce the tree concept
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Changed "in" to "under" in the shared sibling grid header — applies to all levels (Age Groups, Divisions, Teams).
 
 ### PL-015: "Add New Age Group" button adds a Division instead
 - **Area**: Age Group Settings
@@ -160,7 +165,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A new Age Group to be added in the tree
 - **What happened**: A new Division was added in the tree instead
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Expected behavior — you add from the parent level. The "+" on a League adds an Age Group; the "+" on an Age Group adds a Division; the "+" on a Division adds a Team. Automated tests confirm each create (age group, division, team) functions correctly (see TSIC.Tests/Ladt/LadtStubTests.cs).
 
 ### PL-016: Consider new placement for "Add New Age Group" button
 - **Area**: Age Group Settings
@@ -168,7 +174,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Button in a more intuitive location
 - **What happened**: Current placement could be improved for better discoverability / workflow
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: "Add New" button moved from action column header to breadcrumb header bar (flush right, with + icon). Applies to all levels.
 
 ### PL-017: Up/down nav buttons confusing next to edit buttons; simplify Age Group table
 - **Area**: Age Group Settings
@@ -192,7 +199,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Full option labels visible in the dropdown
 - **What happened**: Option labels are cut off — dropdown needs to be wide enough to show entire text
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Extracted shared `FeeCardComponent` from agegroup-detail and team-detail. Fixed modifier row layout to a deliberate 2-line grid (type+amount+delete on line 1, dates on line 2) that fits within the fly-in width. Added empty-row guard to prevent unlimited stacking from repeated "Add" clicks. Follow-up fix: added proper spacing between date row and type/amount row, replaced all hardcoded font sizes and gaps with design system tokens, and converted tree KPI counts from colored dots to neutral pill badges.
 
 ### PL-020: Reminder — test Early Bird and other accounting functions in future
 - **Area**: Age Group Settings
@@ -232,7 +240,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A new Division to be added
 - **What happened**: Button needs a better location, and functionally it adds a Team prompt in the tree under the last Division listed instead of adding a Division
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Same as PL-015 — expected behavior. You add from the parent level. The "+" on an Age Group adds a Division. Automated tests confirm each create functions correctly (see TSIC.Tests/Ladt/LadtStubTests.cs).
 
 ### PL-025: LADT tree — add "Teams" and "Players" column headers with numbers centered below
 - **Area**: Tree Navigation
@@ -248,7 +257,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: "Teams under [name]" wording; hover text like "Navigate to League: [name]"
 - **What happened**: Says "in" instead of "under"; L/A/D hover text doesn't explain what they navigate to
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: "in" → "under" covered by PL-014 fix. L/A/D hover text now says "Navigate up to Age Group", "Navigate up to Division", "Navigate down to N Divisions", "Navigate down to N Teams".
 
 ### PL-027: Trash can icons — do they appear at higher levels (Division, etc.) when empty?
 - **Area**: Tree Navigation
@@ -264,7 +274,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Most important columns visible without scrolling
 - **What happened**: Too many wide columns push important data off-screen to the right — need to reorder columns by priority and narrow widths
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Syncfusion grid with resizable columns — users can drag to adjust widths. Club column auto-hidden when job has ≤1 club.
 
 ### PL-029: Team Details — Max Rostered should be right next to # Players Registered
 - **Area**: Team Settings
@@ -272,7 +283,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Max Rostered column adjacent to # Players Registered for easy comparison
 - **What happened**: These columns are separated — should be next to each other
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Reordered team columns: Players and Max Roster now adjacent. Resizable columns let users adjust as needed.
 
 ### PL-030: Team Details — "More Actions" button is empty, is it needed?
 - **Area**: Team Settings
@@ -296,7 +308,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Most frequently used sections first
 - **What happened**: Dates section appears after Overrides — since dates are always used, they should come first
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Reordered team detail sections: Settings → Dates → Fee Overrides → Eligibility.
 
 ### PL-033: Review Override cards — is "Club Rep Fee Override" really "Team Fee Override"?
 - **Area**: Team Settings
@@ -328,4 +341,5 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: "Tree" is more intuitive than "Hierarchy"; full names (Leagues, Age Groups, Divisions, Teams) spelled out somewhere
 - **What happened**: Says "LADT Hierarchy" — "Tree" would be clearer, and the acronym should be expanded at least once for new users
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Renamed to "LADT Tree". Hover text on the heading shows "Leagues, Age Groups, Divisions, Teams".

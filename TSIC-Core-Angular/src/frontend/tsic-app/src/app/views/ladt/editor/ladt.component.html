@@ -30,28 +30,25 @@
   <!-- Tree panel (left) -->
   <aside class="tree-panel" [class.drawer-open]="drawerOpen()">
     <div class="tree-header">
-      <h6 class="mb-0">LADT Hierarchy</h6>
+      <h6 class="mb-0" title="Leagues, Age Groups, Divisions, Teams">LADT Tree</h6>
       <div class="tree-stats">
         <span class="badge bg-primary-subtle text-primary-emphasis">{{ totalTeams() | number }} teams</span>
         <span class="badge bg-success-subtle text-success-emphasis">{{ totalPlayers() | number }} players</span>
       </div>
-      <div class="tree-kpis">
-        <span class="kpi-badge kpi-waitlisted">
-          <span class="kpi-dot"></span>
+      <ul class="list-unstyled mt-2 mb-0 small text-secondary">
+        <li class="d-flex align-items-center justify-content-between mb-1">
           Active Waitlisted Teams
-          <span class="kpi-count">{{ teamStatusKpis().waitlisted }}</span>
-        </span>
-        <span class="kpi-badge kpi-active">
-          <span class="kpi-dot"></span>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ teamStatusKpis().waitlisted }}</span>
+        </li>
+        <li class="d-flex align-items-center justify-content-between mb-1">
           Active Non Waitlisted Teams
-          <span class="kpi-count">{{ teamStatusKpis().nonWaitlisted }}</span>
-        </span>
-        <span class="kpi-badge kpi-scheduled">
-          <span class="kpi-dot"></span>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ teamStatusKpis().nonWaitlisted }}</span>
+        </li>
+        <li class="d-flex align-items-center justify-content-between">
           Active Scheduled Teams
-          <span class="kpi-count">{{ teamStatusKpis().scheduled }}</span>
-        </span>
-      </div>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">{{ teamStatusKpis().scheduled }}</span>
+        </li>
+      </ul>
     </div>
 
     <div class="tree-toolbar">
@@ -115,7 +112,7 @@
             } @else {
               <span class="tree-toggle-spacer"></span>
               <button class="tree-node-btn" [class.wrap-label]="node.level === 0" (click)="selectNode(node)"
-                      [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
+                      [title]="getLevelLabel(node.level) + ': ' + (node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name)">
                 @if (node.level !== 1 && node.level !== 2) {
                   <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
                 }
@@ -170,7 +167,7 @@
                  [class.bi-chevron-down]="isNodeExpanded(node)"></i>
             </button>
             <button class="tree-node-btn" [class.wrap-label]="node.level === 0" (click)="selectNode(node)"
-                    [title]="node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name">
+                    [title]="getLevelLabel(node.level) + ': ' + (node.clubName ? node.clubName + ' \u2014 ' + node.name : node.name)">
               @if (node.level !== 1 && node.level !== 2) {
                 <i class="bi {{ getLevelIcon(node.level) }} tree-icon level-{{ node.level }}"></i>
               }

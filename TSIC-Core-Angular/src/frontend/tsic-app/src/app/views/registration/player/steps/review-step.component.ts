@@ -49,28 +49,38 @@ import { JobService } from '@infrastructure/services/job.service';
         <div class="review-section-body">
           @for (player of selectedPlayers(); track player.userId; let last = $last) {
             <div class="review-player-row" [class.border-bottom]="!last">
-              <div class="review-player-info">
-                <span class="review-player-name">{{ player.name }}</span>
-                @if (player.dob || player.gender) {
-                  <span class="review-player-meta">
-                    @if (player.gender) { {{ player.gender }} }
-                    @if (player.gender && player.dob) { &middot; }
-                    @if (player.dob) { DOB: {{ player.dob | date:'mediumDate' }} }
-                  </span>
-                }
+              <div class="review-player-top">
+                <div class="review-player-info">
+                  <span class="review-player-name">{{ player.name }}</span>
+                  @if (player.dob || player.gender) {
+                    <span class="review-player-meta">
+                      @if (player.gender) { {{ player.gender }} }
+                      @if (player.gender && player.dob) { &middot; }
+                      @if (player.dob) { DOB: {{ player.dob | date:'mediumDate' }} }
+                    </span>
+                  }
+                </div>
+                <div class="review-player-amount">
+                  @if (getAmountForPlayer(player.userId) !== null) {
+                    {{ getAmountForPlayer(player.userId) | currency }}
+                  } @else {
+                    <span class="text-muted">&ndash;</span>
+                  }
+                </div>
               </div>
-              <div class="review-player-teams">
-                @for (t of getTeamsForPlayer(player.userId); track t) {
-                  <span class="review-team-pill">{{ t }}</span>
-                }
-              </div>
-              <div class="review-player-amount">
-                @if (getAmountForPlayer(player.userId) !== null) {
-                  {{ getAmountForPlayer(player.userId) | currency }}
-                } @else {
-                  <span class="text-muted">&ndash;</span>
-                }
-              </div>
+              @if (state.jobCtx.isCacMode() && getTeamsForPlayer(player.userId).length > 1) {
+                <ul class="review-events-list">
+                  @for (t of getTeamsForPlayer(player.userId); track t) {
+                    <li>{{ t }}</li>
+                  }
+                </ul>
+              } @else {
+                <div class="review-player-teams">
+                  @for (t of getTeamsForPlayer(player.userId); track t) {
+                    <span class="review-team-pill">{{ t }}</span>
+                  }
+                </div>
+              }
             </div>
           }
           @if (paySvc.totalAmount() > 0) {
@@ -158,13 +168,19 @@ import { JobService } from '@infrastructure/services/job.service';
 
       /* ── Player rows ──────────────────────────────────── */
       .review-player-row {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        align-items: center;
-        gap: var(--space-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
         padding: var(--space-3);
 
         &.border-bottom { border-bottom: 1px solid var(--border-color); }
+      }
+
+      .review-player-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-3);
       }
 
       .review-player-info {
@@ -200,6 +216,23 @@ import { JobService } from '@infrastructure/services/job.service';
         color: var(--bs-primary);
         border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
         white-space: nowrap;
+      }
+
+      .review-events-list {
+        list-style: none;
+        margin: 0;
+        padding: 0 0 0 var(--space-4);
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+
+        li {
+          padding: 2px 0;
+          &::before {
+            content: '•';
+            color: var(--bs-primary);
+            margin-right: var(--space-2);
+          }
+        }
       }
 
       .review-player-amount {
@@ -321,7 +354,7 @@ export class ReviewStepComponent {
         return !t || t === 'BYCLUBNAME';
     }
 
-    getFormFields(playerId: string): { name: string; label: string; value: string }[] {
+    getFormFields(playerId: string): { name: string; label: string; value: string; required: boolean }[] {
         const schemas = this.state.jobCtx.profileFieldSchemas();
         const wfn = this.state.jobCtx.waiverFieldNames();
         const tct = this.state.eligibility.teamConstraintType();
@@ -334,8 +367,8 @@ export class ReviewStepComponent {
                 else if (Array.isArray(raw)) value = raw.join(', ');
                 else if (typeof raw === 'boolean') value = raw ? 'Yes' : 'No';
                 else value = String(raw).trim();
-                return { name: f.name, label: f.label, value };
+                return { name: f.name, label: f.label, value, required: !!f.required };
             })
-            .filter(f => f.value.length > 0);
+;
     }
 }

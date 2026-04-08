@@ -30,7 +30,7 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
 export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
   { field: 'gender', header: 'Gender', type: 'string' },
-  { field: '_fees', header: 'Fees', type: 'fees', width: '280px' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits' },
   // Settings
@@ -44,7 +44,7 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
 
 export const DIVISION_COLUMNS: LadtColumnDef[] = [
   { field: 'divName', header: 'Division', type: 'string', frozen: true, width: '180px' },
-  { field: '_fees', header: 'Fees', type: 'fees', width: '280px' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: 'maxRoundNumberToShow', header: 'Max Round#', type: 'number' },
 ];
 
@@ -55,13 +55,13 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'teamName', header: 'Team', type: 'string', frozen: true, width: '160px' },
   { field: 'active', header: 'Active', type: 'boolean' },
   { field: 'playerCount', header: 'Players', type: 'number' },
-  { field: '_fees', header: 'Fees', type: 'fees', width: '280px' },
+  { field: 'maxCount', header: 'Max Roster', type: 'number' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: 'divRank', header: 'Rank', type: 'number' },
   { field: 'divisionRequested', header: 'Div Requested', type: 'string' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string' },
   { field: 'levelOfPlay', header: 'LOP', type: 'string' },
   // Roster
-  { field: 'maxCount', header: 'Max Roster', type: 'number', group: 'Roster' },
   { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster' },
   { field: 'bHideRoster', header: 'Hide Roster', type: 'boolean', group: 'Roster' },
   // Dates
@@ -90,3 +90,8 @@ export const ID_FIELD_BY_LEVEL = ['leagueId', 'agegroupId', 'divId', 'teamId'] a
 
 /** Maps hierarchy level (0-3) to the frozen column's field name */
 export const NAME_FIELD_BY_LEVEL = ['leagueName', 'agegroupName', 'divName', 'teamName'] as const;
+
+/** Returns the total frozen column count (frozen data cols + 1 for the action column) */
+export function countFrozenColumns(defs: LadtColumnDef[]): number {
+  return 1 + defs.filter(c => c.frozen).length;
+}

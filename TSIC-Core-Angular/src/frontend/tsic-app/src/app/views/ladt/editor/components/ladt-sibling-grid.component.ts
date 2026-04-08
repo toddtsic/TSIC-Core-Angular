@@ -1,6 +1,8 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, ViewChild, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
+import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
+import { countFrozenColumns } from '../configs/ladt-grid-columns';
 
 export interface ParentBreadcrumb {
   name: string;
@@ -11,14 +13,15 @@ export interface ParentBreadcrumb {
 @Component({
   selector: 'app-ladt-sibling-grid',
   standalone: true,
-  imports: [DecimalPipe, NgClass],
+  imports: [DecimalPipe, NgClass, GridAllModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="sibling-grid-header">
       <i class="bi {{ levelIcon }} me-2"></i>
       <span class="fw-semibold">{{ levelLabel }}s</span>
       @if (parentParts.length) {
-        <span class="text-body-secondary ms-2">in</span>
+        <span class="text-body-secondary ms-2">under</span>
         @for (part of parentParts; track part.level) {
           <span class="badge ms-1 breadcrumb-link" [ngClass]="getBadgeClass(part.level)"
                 (click)="navigateTo.emit(part.id); $event.stopPropagation()"
@@ -27,177 +30,163 @@ export interface ParentBreadcrumb {
           </span>
         }
       }
-      <span class="badge bg-primary-subtle text-primary-emphasis ms-auto">{{ dataSignal().length }}</span>
+      @if (level > 0) {
+        <span class="add-badge ms-auto" title="Add {{ levelLabel }}"
+              (click)="addSibling.emit(); $event.stopPropagation()">
+          <i class="bi bi-plus-circle me-1"></i>Add New {{ levelLabel }}
+        </span>
+      }
+      <span class="badge bg-primary-subtle text-primary-emphasis" [class.ms-auto]="level === 0" [class.ms-2]="level > 0">{{ dataSignal().length }}</span>
     </div>
 
-    <div class="sibling-grid-scroll">
-      <table class="sibling-table">
-        <thead>
-          <tr>
-            <th class="action-col-header frozen-col" [style.left.px]="0">
-              @if (level > 0) {
-                <span class="add-badge" title="Add {{ levelLabel }}"
-                      (click)="addSibling.emit(); $event.stopPropagation()">
-                  Add New {{ levelLabel }}
-                </span>
-              }
-            </th>
-            @for (col of columns; track col.field) {
-              <th [class.frozen-col]="col.frozen"
-                  [style.min-width]="col.width ?? '120px'"
-                  [style.left.px]="col.frozen ? frozenOffsets().get(col.field) : null"
-                  class="sortable"
-                  (click)="toggleSort(col.field)">
-                {{ col.header }}
-                @if (sortField() === col.field) {
-                  <i class="bi sort-icon"
-                     [class.bi-caret-up-fill]="sortDirection() === 'asc'"
-                     [class.bi-caret-down-fill]="sortDirection() === 'desc'"></i>
-                }
-              </th>
+    <ejs-grid #grid
+      [dataSource]="sortedData()"
+      [allowSorting]="true"
+      [allowResizing]="true"
+      [allowTextWrap]="true"
+      [textWrapSettings]="{ wrapMode: 'Header' }"
+      [frozenColumns]="frozenCount()"
+      [enableStickyHeader]="true"
+      [rowHeight]="32"
+      [allowSelection]="true"
+      (actionBegin)="onActionBegin($event)"
+      (rowDataBound)="onRowDataBound($event)"
+      (rowSelected)="onRowSelect($event)"
+      class="ladt-grid">
+
+      <e-columns>
+        <!-- Action column (always first, frozen) -->
+        <e-column headerText="" [width]="actionColWidth()" textAlign="Center"
+                  [allowSorting]="false" [allowResizing]="false">
+          <ng-template #template let-data>
+            <button class="btn-action btn-edit" title="Edit"
+                    (click)="editRow.emit(data[idField]); $event.stopPropagation()">
+              <i class="bi bi-pencil"></i>
+            </button>
+            @if (canDeleteFn(data)) {
+              <button class="btn-action btn-del" title="Delete"
+                      (click)="deleteRow.emit(data[idField]); $event.stopPropagation()">
+                <i class="bi bi-trash"></i>
+              </button>
             }
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of sortedData(); track row[idField]; let i = $index) {
-            <tr [class.selected]="row[idField] === selectedId"
-                [class.inactive-row]="row['active'] === false"
-                [class.special-row]="row['_isSpecial'] === true"
-                (click)="rowSelected.emit(row[idField])">
-              <td class="action-col frozen-col" [style.left.px]="0">
-                <button class="btn-action btn-edit" title="Edit"
-                        (click)="editRow.emit(row[idField]); $event.stopPropagation()">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                @if (canDeleteFn(row)) {
-                  <button class="btn-action btn-del" title="Delete"
-                          (click)="deleteRow.emit(row[idField]); $event.stopPropagation()">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                }
-                @if (!row['_isSpecial']) {
-                  <span class="nav-badges">
-                    @if (level === 2) {
-                      <span class="drill-badge drill-up" title="Navigate to parent agegroup"
-                            (click)="navigateTo.emit(row['_parentAgId']); $event.stopPropagation()">
-                        <i class="bi bi-arrow-up-short"></i>A
-                      </span>
-                    }
-                    @if (level === 3) {
-                      <span class="drill-badge drill-up" title="Navigate to parent division"
-                            (click)="navigateTo.emit(row['_parentDivId']); $event.stopPropagation()">
-                        <i class="bi bi-arrow-up-short"></i>D
-                      </span>
-                    }
-                    @if (level === 1 && (row['divisionCount'] ?? 0) > 0) {
-                      <span class="drill-badge" title="Show {{ row['divisionCount'] }} divisions"
-                            (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
-                        D<i class="bi bi-arrow-down-short"></i>{{ row['divisionCount'] }}
-                      </span>
-                    }
-                    @if (level === 2 && (row['teamCount'] ?? 0) > 0) {
-                      <span class="drill-badge" title="Show {{ row['teamCount'] }} teams"
-                            (click)="drillDown.emit(row[idField]); $event.stopPropagation()">
-                        T<i class="bi bi-arrow-down-short"></i>{{ row['teamCount'] }}
-                      </span>
-                    }
+            @if (!data['_isSpecial']) {
+              <span class="nav-badges">
+                @if (level === 2) {
+                  <span class="drill-badge drill-up" title="Navigate up to Age Group"
+                        (click)="navigateTo.emit(data['_parentAgId']); $event.stopPropagation()">
+                    <i class="bi bi-arrow-up-short"></i>A
                   </span>
                 }
-              </td>
-              @for (col of columns; track col.field) {
-                <td [class.frozen-col]="col.frozen"
-                    [style.left.px]="col.frozen ? frozenOffsets().get(col.field) : null"
-                    [class.cell-bool]="col.type === 'boolean'"
-                    [class.cell-num]="col.type === 'number' || col.type === 'currency'"
-                    [title]="getCellTitle(row[col.field], col)">
-                  @switch (col.type) {
-                    @case ('boolean') {
-                      @if (row[col.field] === true) {
-                        <i class="bi bi-check-lg text-success"></i>
-                      } @else if (row[col.field] === false) {
-                        <i class="bi bi-x-lg text-danger opacity-50"></i>
-                      }
-                    }
-                    @case ('currency') {
-                      @if (row[col.field] != null) {
-                        {{ row[col.field] | number:'1.2-2' }}
-                      }
-                    }
-                    @case ('date') {
-                      {{ formatDate(row[col.field]) }}
-                    }
-                    @case ('dateOnly') {
-                      {{ formatDateOnly(row[col.field]) }}
-                    }
-                    @case ('fees') {
-                      @if (row['_fees']?.length) {
-                        <div class="fee-pills">
-                          @for (fee of row['_fees']; track fee.roleId) {
-                            <div class="fee-pill" [class.fee-inherited]="fee.inherited">
-                              <span class="fee-role">{{ fee.roleLabel }}</span>
-                              @if (fee.deposit != null && fee.deposit > 0) {
-                                <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}</span>
-                                <span class="fee-sep">→</span>
-                                <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
-                              } @else if (fee.balanceDue != null && fee.balanceDue > 0) {
-                                <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
-                              } @else {
-                                <span class="fee-amount text-body-tertiary">—</span>
-                              }
-                              @if (fee.inherited) {
-                                <span class="fee-from-badge">from {{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : fee.source }}</span>
-                              } @else {
-                                <span class="fee-set-badge">{{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : 'team' }} set</span>
-                              }
-                              @if (fee.activeDiscount) {
-                                <span class="fee-modifier fee-discount" title="Active discount">
-                                  -\${{ fee.activeDiscount | number:'1.0-0' }}
-                                </span>
-                              }
-                              @if (fee.activeLateFee) {
-                                <span class="fee-modifier fee-latefee" title="Active late fee">
-                                  +\${{ fee.activeLateFee | number:'1.0-0' }}
-                                </span>
-                              }
-                            </div>
+                @if (level === 3) {
+                  <span class="drill-badge drill-up" title="Navigate up to Division"
+                        (click)="navigateTo.emit(data['_parentDivId']); $event.stopPropagation()">
+                    <i class="bi bi-arrow-up-short"></i>D
+                  </span>
+                }
+                @if (level === 1 && (data['divisionCount'] ?? 0) > 0) {
+                  <span class="drill-badge" title="Navigate down to {{ data['divisionCount'] }} Divisions"
+                        (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
+                    D<i class="bi bi-arrow-down-short"></i>{{ data['divisionCount'] }}
+                  </span>
+                }
+                @if (level === 2 && (data['teamCount'] ?? 0) > 0) {
+                  <span class="drill-badge" title="Navigate down to {{ data['teamCount'] }} Teams"
+                        (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
+                    T<i class="bi bi-arrow-down-short"></i>{{ data['teamCount'] }}
+                  </span>
+                }
+              </span>
+            }
+          </ng-template>
+        </e-column>
+
+        <!-- Data columns — dynamic via @for -->
+        @for (col of columns; track col.field) {
+          <e-column [field]="col.field" [headerText]="col.header"
+                    [width]="parseWidth(col.width)"
+                    [textAlign]="getTextAlign(col)"
+                    [allowSorting]="true">
+            <ng-template #template let-data>
+              @switch (col.type) {
+                @case ('boolean') {
+                  @if (data[col.field] === true) {
+                    <i class="bi bi-check-lg text-success"></i>
+                  } @else if (data[col.field] === false) {
+                    <i class="bi bi-x-lg text-danger opacity-50"></i>
+                  }
+                }
+                @case ('currency') {
+                  @if (data[col.field] != null) {
+                    {{ data[col.field] | number:'1.2-2' }}
+                  }
+                }
+                @case ('date') {
+                  {{ formatDate(data[col.field]) }}
+                }
+                @case ('dateOnly') {
+                  {{ formatDateOnly(data[col.field]) }}
+                }
+                @case ('fees') {
+                  @if (data['_fees']?.length) {
+                    <div class="fee-pills">
+                      @for (fee of data['_fees']; track fee.roleId) {
+                        <div class="fee-pill" [class.fee-inherited]="fee.inherited">
+                          <span class="fee-role">{{ fee.roleLabel }}</span>
+                          @if (fee.deposit != null && fee.deposit > 0) {
+                            <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}</span>
+                            <span class="fee-sep">→</span>
+                            <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                          } @else if (fee.balanceDue != null && fee.balanceDue > 0) {
+                            <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                          } @else {
+                            <span class="fee-amount text-body-tertiary">—</span>
+                          }
+                          @if (fee.inherited) {
+                            <span class="fee-from-badge">from {{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : fee.source }}</span>
+                          } @else {
+                            <span class="fee-set-badge">{{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : 'team' }} set</span>
+                          }
+                          @if (fee.activeDiscount) {
+                            <span class="fee-modifier fee-discount" title="Active discount">
+                              -\${{ fee.activeDiscount | number:'1.0-0' }}
+                            </span>
+                          }
+                          @if (fee.activeLateFee) {
+                            <span class="fee-modifier fee-latefee" title="Active late fee">
+                              +\${{ fee.activeLateFee | number:'1.0-0' }}
+                            </span>
                           }
                         </div>
-                      } @else {
-                        <span class="text-body-tertiary">—</span>
                       }
-                    }
-                    @default {
-                      @if (col.colorField) {
-                        <span class="frozen-cell-flex">
-                          <span class="color-dot"
-                                [class.color-dot--empty]="!row[col.colorField]"
-                                [style.background]="row[col.colorField] ?? 'var(--bs-secondary-bg)'"></span>
-                          <span class="frozen-cell-name">{{ row[col.field] ?? '' }}</span>
-                          @if (row['teamCount'] != null) {
-                            <span class="badge bg-primary-subtle text-primary-emphasis frozen-badge">{{ row['teamCount'] | number }}</span>
-                          }
-                          @if (row['playerCount'] != null) {
-                            <span class="badge bg-success-subtle text-success-emphasis frozen-badge">{{ row['playerCount'] | number }}</span>
-                          }
-                        </span>
-                      } @else {
-                        {{ row[col.field] ?? '' }}
-                      }
-                    }
+                    </div>
+                  } @else {
+                    <span class="text-body-tertiary">—</span>
                   }
-                </td>
+                }
+                @default {
+                  @if (col.colorField) {
+                    <span class="frozen-cell-flex">
+                      <span class="color-dot"
+                            [class.color-dot--empty]="!data[col.colorField]"
+                            [style.background]="data[col.colorField] ?? 'var(--bs-secondary-bg)'"></span>
+                      <span class="frozen-cell-name">{{ data[col.field] ?? '' }}</span>
+                      @if (data['teamCount'] != null) {
+                        <span class="badge bg-primary-subtle text-primary-emphasis frozen-badge">{{ data['teamCount'] | number }}</span>
+                      }
+                      @if (data['playerCount'] != null) {
+                        <span class="badge bg-success-subtle text-success-emphasis frozen-badge">{{ data['playerCount'] | number }}</span>
+                      }
+                    </span>
+                  } @else {
+                    {{ data[col.field] ?? '' }}
+                  }
+                }
               }
-            </tr>
-          } @empty {
-            <tr>
-              <td [attr.colspan]="columns.length + 2" class="text-center text-body-secondary py-4">
-                No items found.
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+            </ng-template>
+          </e-column>
+        }
+      </e-columns>
+    </ejs-grid>
   `,
   styles: [`
     :host {
@@ -205,6 +194,8 @@ export interface ParentBreadcrumb {
       flex-direction: column;
       height: 100%;
     }
+
+    /* ── Breadcrumb header (above the grid) ── */
 
     .sibling-grid-header {
       display: flex;
@@ -215,270 +206,75 @@ export interface ParentBreadcrumb {
       flex-shrink: 0;
     }
 
-    .sibling-grid-scroll {
+    .breadcrumb-link {
+      cursor: pointer;
+      text-decoration: underline;
+      transition: filter 0.15s;
+    }
+    .breadcrumb-link:hover {
+      filter: brightness(0.85);
+    }
+
+    /* ── Syncfusion grid overrides ── */
+
+    :host ::ng-deep .e-grid {
+      border: none;
       flex: 1;
       overflow: auto;
-      -webkit-overflow-scrolling: touch;
     }
 
-    .sibling-table {
-      width: max-content;
-      min-width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      font-size: 0.82rem;
-    }
-
-    thead {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
-
-    th {
-      background: var(--bs-tertiary-bg);
-      color: var(--bs-body-color);
+    :host ::ng-deep .e-grid .e-headercell {
+      font-size: var(--font-size-xs);
       font-weight: 600;
-      font-size: 0.78rem;
       text-transform: uppercase;
       letter-spacing: 0.02em;
+      white-space: normal;
+      line-height: var(--line-height-tight);
+    }
+
+    :host ::ng-deep .e-grid .e-rowcell {
+      font-size: 0.82rem;
       padding: var(--space-1) var(--space-2);
-      white-space: nowrap;
-      border-bottom: 2px solid var(--bs-border-color);
-      border-right: 1px solid var(--bs-border-color);
-      user-select: none;
-    }
-
-    th.sortable {
-      cursor: pointer;
-
-      &:hover {
-        background: var(--bs-secondary-bg);
-      }
-    }
-
-    .sort-icon {
-      font-size: 0.65rem;
-      margin-left: 0.25rem;
-      color: var(--bs-primary);
-    }
-
-    td {
-      padding: var(--space-1) var(--space-2);
-      white-space: nowrap;
-      border-bottom: 1px solid var(--bs-border-color);
-      border-right: 1px solid var(--bs-border-color-translucent);
-      color: var(--bs-body-color);
-      max-width: 200px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Row number column */
-    .row-num-col {
-      width: 40px;
-      min-width: 40px;
-      max-width: 40px;
-      text-align: center;
-      color: var(--bs-secondary-color);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Frozen columns - left offsets set dynamically via [style.left.px] */
-    .frozen-col {
-      position: sticky;
-      z-index: 1;
-      background: var(--bs-body-bg);
-      border-right: 2px solid var(--bs-border-color);
-    }
-
-    th.frozen-col {
-      z-index: 3; /* above both sticky header and sticky column */
-      background: var(--bs-tertiary-bg);
     }
 
     /* Row states */
-    tbody tr {
-      cursor: pointer;
-      transition: background-color 0.1s;
-    }
-
-    tbody tr:hover td {
-      background: var(--bs-tertiary-bg);
-    }
-
-    tbody tr:hover td.frozen-col {
-      background: var(--bs-tertiary-bg);
-    }
-
-    tbody tr.selected td {
-      background: var(--bs-primary-bg-subtle);
+    :host ::ng-deep .e-grid .e-row.row-selected .e-rowcell {
+      background: var(--bs-primary-bg-subtle) !important;
       font-weight: 500;
     }
-
-    tbody tr.selected td.frozen-col {
-      background: var(--bs-primary-bg-subtle);
+    :host ::ng-deep .e-grid .e-row.row-selected .e-freezeleftborder {
+      background: var(--bs-primary-bg-subtle) !important;
       font-weight: 600;
       color: var(--bs-primary);
     }
 
-    tbody tr.inactive-row {
+    :host ::ng-deep .e-grid .e-row.inactive-row {
       opacity: 0.55;
-
-      td.frozen-col {
-        text-decoration: line-through;
-        font-style: italic;
-      }
     }
-
-    tbody tr.special-row {
-      opacity: 0.6;
-
-      td {
-        font-style: italic;
-        color: var(--bs-secondary-color);
-      }
-    }
-
-    /* Color swatch dot for columns with colorField */
-    .color-dot {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      vertical-align: middle;
-      border: 1px solid var(--bs-border-color);
-      flex-shrink: 0;
-    }
-
-    .color-dot--empty {
-      border-style: dashed;
-    }
-
-    /* Frozen cell with color dot + name + badges */
-    .frozen-cell-flex {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      min-width: 0;
-    }
-
-    .frozen-cell-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .frozen-badge {
-      font-size: 0.65rem;
-      padding: 1px 5px;
-      flex-shrink: 0;
-    }
-
-    /* Cell type alignment */
-    .cell-bool {
-      text-align: center;
-    }
-
-    .cell-num {
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Fee pills in grid cells */
-    .fee-pills {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .fee-pill {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.75rem;
-      line-height: 1.2;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .fee-role {
-      font-weight: 600;
-      color: var(--bs-secondary-color);
-      min-width: 52px;
-    }
-
-    .fee-amount {
-      font-weight: 500;
-      color: var(--bs-body-color);
-    }
-
-    .fee-sep {
-      color: var(--bs-secondary-color);
-      font-size: 0.65rem;
-    }
-
-    .fee-inherited {
-      opacity: 0.55;
+    :host ::ng-deep .e-grid .e-row.inactive-row .e-freezeleftborder {
+      text-decoration: line-through;
       font-style: italic;
     }
 
-    .fee-from-badge,
-    .fee-set-badge {
-      font-size: 0.55rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      padding: 1px 4px;
-      border-radius: 3px;
-      margin-left: 3px;
+    :host ::ng-deep .e-grid .e-row.special-row {
+      opacity: 0.6;
+    }
+    :host ::ng-deep .e-grid .e-row.special-row .e-rowcell {
+      font-style: italic;
+      color: var(--bs-secondary-color);
     }
 
-    .fee-from-badge {
-      border: 1px solid var(--bs-border-color);
-      background: var(--bs-body-color);
-      color: var(--bs-body-bg);
+    /* Hover */
+    :host ::ng-deep .e-grid .e-row:hover .e-rowcell {
+      background: var(--bs-tertiary-bg) !important;
     }
 
-    .fee-set-badge {
-      border: 1px solid rgba(var(--bs-success-rgb), 0.4);
-      background: rgba(var(--bs-success-rgb), 0.1);
-      color: var(--bs-success);
+    /* Cursor on rows */
+    :host ::ng-deep .e-grid .e-row {
+      cursor: pointer;
     }
 
-    .fee-modifier {
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 0 3px;
-      border-radius: 3px;
-      margin-left: 2px;
-    }
-
-    .fee-discount {
-      color: var(--bs-success-text-emphasis);
-      background: var(--bs-success-bg-subtle);
-    }
-
-    .fee-latefee {
-      color: var(--bs-danger-text-emphasis);
-      background: var(--bs-danger-bg-subtle);
-    }
-
-    /* Action column (first column, frozen left) */
-    .action-col-header {
-      width: 90px;
-      min-width: 90px;
-      text-align: center;
-    }
-
-    .action-col {
-      width: 90px;
-      min-width: 90px;
-      text-align: center;
-      white-space: nowrap;
-      border-right: 2px solid var(--bs-border-color);
-    }
+    /* ── Action column elements ── */
 
     .btn-action {
       display: inline-flex;
@@ -492,14 +288,15 @@ export interface ParentBreadcrumb {
       background: transparent;
       color: var(--bs-secondary-color);
       cursor: pointer;
-      font-size: 0.75rem;
+      font-size: var(--font-size-xs);
       transition: all 0.15s;
     }
-
     .btn-action:hover {
       background: var(--bs-secondary-bg);
       color: var(--bs-body-color);
     }
+    .btn-edit:hover { color: var(--bs-info); }
+    .btn-del:hover { color: var(--bs-danger); }
 
     .drill-badge {
       display: inline-flex;
@@ -519,7 +316,6 @@ export interface ParentBreadcrumb {
     .drill-badge:hover {
       background: var(--bs-primary-bg-subtle);
     }
-
     .drill-up {
       border-color: var(--bs-secondary-color);
       color: var(--bs-secondary-color);
@@ -527,7 +323,6 @@ export interface ParentBreadcrumb {
     .drill-up:hover {
       background: var(--bs-secondary-bg);
     }
-
     .drill-badge i {
       font-size: 0.85rem;
     }
@@ -535,13 +330,8 @@ export interface ParentBreadcrumb {
     .nav-badges {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: var(--space-1);
     }
-
-
-    .btn-drill:hover { color: var(--bs-primary); }
-    .btn-edit:hover { color: var(--bs-info); }
-    .btn-del:hover { color: var(--bs-danger); }
 
     .add-badge {
       display: inline-block;
@@ -562,13 +352,106 @@ export interface ParentBreadcrumb {
       background: var(--bs-success-bg-subtle);
     }
 
-    .breadcrumb-link {
-      cursor: pointer;
-      text-decoration: underline;
-      transition: filter 0.15s;
+    /* ── Color swatch dot ── */
+
+    .color-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      vertical-align: middle;
+      border: 1px solid var(--bs-border-color);
+      flex-shrink: 0;
     }
-    .breadcrumb-link:hover {
-      filter: brightness(0.85);
+    .color-dot--empty {
+      border-style: dashed;
+    }
+
+    .frozen-cell-flex {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      width: 100%;
+    }
+    .frozen-cell-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1 1 auto;
+      min-width: 60px;
+    }
+    .frozen-badge {
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      flex-shrink: 0;
+    }
+
+    /* ── Fee pills ── */
+
+    .fee-pills {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .fee-pill {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: var(--font-size-xs);
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+    .fee-role {
+      font-weight: 600;
+      color: var(--bs-secondary-color);
+      min-width: 52px;
+    }
+    .fee-amount {
+      font-weight: 500;
+      color: var(--bs-body-color);
+    }
+    .fee-sep {
+      color: var(--bs-secondary-color);
+      font-size: 0.65rem;
+    }
+    .fee-inherited {
+      opacity: 0.55;
+      font-style: italic;
+    }
+    .fee-from-badge,
+    .fee-set-badge {
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-left: 3px;
+    }
+    .fee-from-badge {
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-body-color);
+      color: var(--bs-body-bg);
+    }
+    .fee-set-badge {
+      border: 1px solid rgba(var(--bs-success-rgb), 0.4);
+      background: rgba(var(--bs-success-rgb), 0.1);
+      color: var(--bs-success);
+    }
+    .fee-modifier {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 0 3px;
+      border-radius: 3px;
+      margin-left: 2px;
+    }
+    .fee-discount {
+      color: var(--bs-success-text-emphasis);
+      background: var(--bs-success-bg-subtle);
+    }
+    .fee-latefee {
+      color: var(--bs-danger-text-emphasis);
+      background: var(--bs-danger-bg-subtle);
     }
   `]
 })
@@ -589,16 +472,9 @@ export class LadtSiblingGridComponent implements OnChanges {
   @Output() editRow = new EventEmitter<string>();
   @Output() deleteRow = new EventEmitter<string>();
   @Output() addSibling = new EventEmitter<void>();
-  @Output() navigateTo = new EventEmitter<string>(); // navigate to a breadcrumb node
+  @Output() navigateTo = new EventEmitter<string>();
 
-  get drillLabel(): string {
-    switch (this.level) {
-      case 0: return 'agegroups';
-      case 1: return 'divisions';
-      case 2: return 'teams';
-      default: return '';
-    }
-  }
+  @ViewChild('grid') grid!: GridComponent;
 
   // Sort state
   sortField = signal<string | null>(null);
@@ -606,6 +482,12 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   // Internal signal for data (bridges @Input to computed)
   dataSignal = signal<any[]>([]);
+
+  // Frozen column count (action col + frozen data cols)
+  frozenCount = computed(() => countFrozenColumns(this.columns));
+
+  // Team level (3) has pencil + trash + drill-up badge; others need less
+  actionColWidth = computed(() => this.level >= 2 ? 110 : 90);
 
   sortedData = computed(() => {
     const rows = this.dataSignal();
@@ -634,19 +516,6 @@ export class LadtSiblingGridComponent implements OnChanges {
     });
   });
 
-  // Compute frozen column left offsets dynamically
-  frozenOffsets = computed(() => {
-    const offsets = new Map<string, number>();
-    let left = 90; // starts after the 90px action column
-    for (const col of this.columns) {
-      if (col.frozen) {
-        offsets.set(col.field, left);
-        left += parseInt(col.width ?? '120', 10);
-      }
-    }
-    return offsets;
-  });
-
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['data']) {
       this.dataSignal.set(this.data);
@@ -656,13 +525,51 @@ export class LadtSiblingGridComponent implements OnChanges {
     }
   }
 
-  toggleSort(field: string): void {
-    if (this.sortField() === field) {
-      this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      this.sortField.set(field);
-      this.sortDirection.set('asc');
+  // ── Syncfusion event handlers ──
+
+  onActionBegin(args: any): void {
+    if (args.requestType === 'sorting') {
+      args.cancel = true; // prevent SF default sort — we sort via computed signal
+      if (args.columnName) {
+        const newDir = args.direction === 'Ascending' ? 'asc' : 'desc';
+        this.sortField.set(args.columnName);
+        this.sortDirection.set(newDir as 'asc' | 'desc');
+      }
     }
+  }
+
+  onRowDataBound(args: any): void {
+    const row = args.data;
+    if (!row || !args.row) return;
+
+    if (row[this.idField] === this.selectedId) {
+      args.row.classList.add('row-selected');
+    }
+    if (row['active'] === false) {
+      args.row.classList.add('inactive-row');
+    }
+    if (row['_isSpecial'] === true) {
+      args.row.classList.add('special-row');
+    }
+  }
+
+  onRowSelect(args: any): void {
+    const id = args.data?.[this.idField];
+    if (id) {
+      this.rowSelected.emit(id);
+    }
+  }
+
+  // ── Helpers ──
+
+  parseWidth(width: string | undefined): number {
+    return parseInt(width ?? '120', 10);
+  }
+
+  getTextAlign(col: LadtColumnDef): string {
+    if (col.type === 'boolean') return 'Center';
+    if (col.type === 'number' || col.type === 'currency') return 'Right';
+    return 'Left';
   }
 
   getBadgeClass(level: number): string {
@@ -698,12 +605,5 @@ export class LadtSiblingGridComponent implements OnChanges {
     const parts = value.split('-');
     if (parts.length === 3) return `${parts[1]}/${parts[2]}/${parts[0]}`;
     return value;
-  }
-
-  getCellTitle(value: any, col: LadtColumnDef): string {
-    if (value == null) return '';
-    if (col.type === 'boolean') return value ? 'Yes' : 'No';
-    if (col.type === 'currency') return `$${Number(value).toFixed(2)}`;
-    return String(value);
   }
 }

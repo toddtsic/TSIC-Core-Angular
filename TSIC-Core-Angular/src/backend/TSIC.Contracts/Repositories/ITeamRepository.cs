@@ -1,4 +1,6 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Domain.Entities;
 
@@ -34,6 +36,9 @@ public record AvailableTeamQueryResult
     public required int MaxCount { get; init; }
     public bool? TeamAllowsSelfRostering { get; init; }
     public bool? AgegroupAllowsSelfRostering { get; init; }
+    public DateTime? StartDate { get; init; }
+    public DateTime? EndDate { get; init; }
+    public decimal? PerRegistrantFee { get; init; }
 }
 
 /// <summary>
@@ -402,6 +407,19 @@ public interface ITeamRepository
     /// </summary>
     Task<int> ClearNationalRankingDataForAgegroupAsync(
         Guid jobId, Guid agegroupId, CancellationToken ct = default);
+
+    // ── Public Roster methods ──
+
+    /// <summary>
+    /// Get CADT tree of active teams for public roster navigation.
+    /// Excludes WAITLIST/DROPPED agegroups. Includes player counts per team.
+    /// </summary>
+    Task<List<CadtClubNode>> GetPublicRosterTreeAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get public-safe roster for a team (waiver-signed players + staff only, no PII).
+    /// </summary>
+    Task<List<PublicRosterPlayerDto>> GetPublicTeamRosterAsync(Guid jobId, Guid teamId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

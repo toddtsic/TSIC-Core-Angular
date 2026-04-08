@@ -24,6 +24,7 @@ function toNumber(value: number | string | undefined | null): number {
 export interface LineItem {
     playerId: string;
     playerName: string;
+    teamId: string;
     teamName: string;
     amount: number;
     feeTotal: number;
@@ -61,36 +62,39 @@ export class PaymentV2Service {
             .map(p => ({ id: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
         const selTeams = this.playerState.selectedTeams();
         for (const p of players) {
-            const teamId = selTeams[p.id];
-            if (!teamId || typeof teamId !== 'string') continue;
-            const team = this.teams.getTeamById(teamId);
-            const registration = this.getExistingRegistration(p.id);
-            const financials = registration?.financials;
-            if (!team && !registration) continue;
-            const amount = financials ? this.getAmountFromFinancials(financials) : this.getAmount(team);
-            const feeTotal = financials ? toNumber(financials.feeTotal) : this.getAmount(team);
-            const paidTotal = financials ? toNumber(financials.paidTotal) : 0;
-            items.push({ playerId: p.id, playerName: p.name, teamName: team?.teamName || registration?.assignedTeamName || '', amount, feeTotal, paidTotal });
+            const sel = selTeams[p.id];
+            if (!sel) continue;
+            // Normalize to array for CAC (multi-camp) support
+            const teamIds = Array.isArray(sel) ? sel : [sel];
+            for (const tid of teamIds) {
+                if (typeof tid !== 'string' || !tid) continue;
+                const team = this.teams.getTeamById(tid);
+                const registration = this.getExistingRegistrationForTeam(p.id, tid);
+                const financials = registration?.financials;
+                if (!team && !registration) continue;
+                const amount = financials ? this.getAmountFromFinancials(financials) : this.getAmount(team);
+                const feeTotal = financials ? toNumber(financials.feeTotal) : this.getAmount(team);
+                const paidTotal = financials ? toNumber(financials.paidTotal) : 0;
+                items.push({ playerId: p.id, playerName: p.name, teamId: tid, teamName: team?.teamName || registration?.assignedTeamName || '', amount, feeTotal, paidTotal });
+            }
         }
         return items;
     });
 
     private readonly existingBalanceTotal = computed(() =>
-        this.lineItems().filter(li => !!this.getExistingRegistration(li.playerId)?.financials).reduce((sum, li) => sum + li.amount, 0),
+        this.lineItems().filter(li => !!this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
     );
     private readonly newSelectionTotal = computed(() =>
-        this.lineItems().filter(li => !this.getExistingRegistration(li.playerId)?.financials).reduce((sum, li) => sum + li.amount, 0),
+        this.lineItems().filter(li => !this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
     );
 
     totalAmount = computed(() => this.existingBalanceTotal() + this.newSelectionTotal());
 
     depositTotal = computed(() => {
-        const selTeams = this.playerState.selectedTeams();
         let sum = 0;
         for (const li of this.lineItems()) {
-            if (this.getExistingRegistration(li.playerId)?.financials) continue;
-            const teamId = selTeams[li.playerId];
-            const team = this.teams.getTeamById(teamId as string);
+            if (this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials) continue;
+            const team = this.teams.getTeamById(li.teamId);
             sum += Number(team?.deposit ?? 0) || 0;
         }
         return sum;
@@ -99,10 +103,10 @@ export class PaymentV2Service {
     isArbScenario = computed(() => !!this.jobCtx.adnArb());
     isDepositScenario = computed(() => {
         if (this.isArbScenario()) return false;
-        const payable = this.lineItems().filter(li => !this.getExistingRegistration(li.playerId)?.financials);
+        const payable = this.lineItems().filter(li => !this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials);
         if (payable.length === 0) return false;
         return payable.every(li => {
-            const team = this.teams.getTeamById(this.playerState.selectedTeams()[li.playerId] as string);
+            const team = this.teams.getTeamById(li.teamId);
             return (Number(team?.deposit) > 0 && Number(team?.fee) > 0);
         });
     });
@@ -141,7 +145,7 @@ export class PaymentV2Service {
     totalProcessingFees = computed(() => {
         let sum = 0;
         for (const li of this.lineItems()) {
-            const reg = this.getExistingRegistration(li.playerId);
+            const reg = this.getExistingRegistrationForTeam(li.playerId, li.teamId);
             if (reg?.financials) {
                 sum += toNumber(reg.financials.feeProcessing);
             }
@@ -225,6 +229,12 @@ export class PaymentV2Service {
         if (!p?.priorRegistrations?.length) return null;
         const active = p.priorRegistrations.find(r => r.active);
         return active ?? p.priorRegistrations.at(-1) ?? null;
+    }
+
+    private getExistingRegistrationForTeam(playerId: string, teamId: string) {
+        const p = this.fp.familyPlayers().find(fp => fp.playerId === playerId);
+        if (!p?.priorRegistrations?.length) return null;
+        return p.priorRegistrations.find(r => r.assignedTeamId === teamId) ?? null;
     }
 
     private mergeUpdatedFinancials(updatedFinancials: Record<string, RegistrationFinancialsDto>): void {

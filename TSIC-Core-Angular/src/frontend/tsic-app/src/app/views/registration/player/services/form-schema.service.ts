@@ -69,6 +69,7 @@ export class FormSchemaService {
                     case 'select': case 'dropdown': return 'select';
                     case 'multiselect': case 'multi-select': return 'multiselect';
                     case 'checkbox': case 'bool': case 'boolean': return 'checkbox';
+                    case 'textarea': return 'textarea';
                     default: return 'text';
                 }
             };
@@ -105,6 +106,10 @@ export class FormSchemaService {
                         const key = Object.keys(optionSets).find(k => k.toLowerCase() === name.toLowerCase());
                         const setVal = key ? optionSets[key] : null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));
+                    }
+                    // Sort numerically if all options are valid numbers (e.g., years of experience)
+                    if (mapped.length > 1 && mapped.every(v => v !== '' && !isNaN(Number(v)))) {
+                        mapped.sort((a, b) => Number(a) - Number(b));
                     }
                     return mapped;
                 })();

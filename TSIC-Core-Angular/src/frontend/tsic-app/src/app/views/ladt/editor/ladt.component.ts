@@ -101,6 +101,22 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return { waitlisted, nonWaitlisted, scheduled };
   });
 
+  // Show club column only when there are 2+ distinct clubs in the job
+  showClubColumn = computed(() => {
+    const clubs = new Set<string>();
+    for (const league of this.rawTree()) {
+      for (const ag of (league.children ?? []) as LadtTreeNodeDto[]) {
+        for (const div of (ag.children ?? []) as LadtTreeNodeDto[]) {
+          for (const team of (div.children ?? []) as LadtTreeNodeDto[]) {
+            if (team.clubName) clubs.add(team.clubName);
+            if (clubs.size > 1) return true;
+          }
+        }
+      }
+    }
+    return false;
+  });
+
   // Expansion state (reactive)
   expandedIds = signal(new Set<string>());
 
@@ -519,7 +535,12 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   private loadSiblings(node: LadtFlatNode): void {
     const level = node.level;
-    this.siblingColumns.set(COLUMNS_BY_LEVEL[level]);
+    let cols = COLUMNS_BY_LEVEL[level];
+    // Hide club column at team level when there's only 0-1 distinct clubs
+    if (level === 3 && !this.showClubColumn()) {
+      cols = cols.filter(c => c.field !== 'clubName');
+    }
+    this.siblingColumns.set(cols);
     this.siblingIdField.set(ID_FIELD_BY_LEVEL[level]);
     this.siblingLevelLabel.set(this.getLevelLabel(level));
     this.siblingLevelIcon.set(this.getLevelIcon(level));

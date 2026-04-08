@@ -436,6 +436,12 @@ export const routes: Routes = [
 				path: 'schedule',
 				data: { publicMode: true },
 				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
+			},
+			// Public rosters view (anonymous access)
+			{
+				path: 'rosters',
+				data: { publicMode: true },
+				loadComponent: () => import('./views/rosters/public-rosters/public-rosters.component').then(m => m.PublicRostersComponent)
 			}
 		]
 	},

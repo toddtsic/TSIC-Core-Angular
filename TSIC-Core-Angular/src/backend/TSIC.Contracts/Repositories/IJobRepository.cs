@@ -35,6 +35,7 @@ public record JobMetadataDto
     public string? JobBannerText2 { get; init; }
     public string? JobBannerBackgroundPath { get; init; }
     public bool? CoreRegformPlayer { get; init; }
+    public string? CoreRegformPlayerRaw { get; init; }
     public DateTime? USLaxNumberValidThroughDate { get; init; }
     public DateTime? ExpiryUsers { get; init; }
     public string? PlayerProfileMetadataJson { get; init; }
@@ -170,6 +171,11 @@ public interface IJobRepository
     /// Check if job uses waitlists.
     /// </summary>
     Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Check if public schedule/roster access is enabled for a job.
+    /// </summary>
+    Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get processing fee percent for a job.
