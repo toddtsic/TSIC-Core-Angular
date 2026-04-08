@@ -980,6 +980,10 @@ export class TeamTeamsStepComponent implements OnInit {
                 .subscribe({
                     next: (resp) => {
                         this.actionInProgress.set(false);
+                        if (!resp.success) {
+                            this.toast.show(resp.message || 'Registration failed.', 'danger', 6000);
+                            return;
+                        }
                         const msg = resp.isWaitlisted
                             ? `${team.clubTeamName} waitlisted for ${resp.waitlistAgegroupName ?? ''}`
                             : `${team.clubTeamName} entered!`;
