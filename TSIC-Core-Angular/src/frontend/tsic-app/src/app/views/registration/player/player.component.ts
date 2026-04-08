@@ -226,7 +226,29 @@ export class PlayerWizardV2Component implements OnInit {
         const idx = this._currentIndex();
         if (idx >= active.length - 1) return;
 
-        // Special handling: review -> payment requires preSubmit
+        // Phase 1: reserve team spots at team selection → forms transition
+        if (this.currentStepId() === 'teams') {
+            try {
+                const resp = await this.state.reserveTeams();
+                if (resp.hasFullTeams) {
+                    const fullTeams = resp.teamResults
+                        .filter(r => r.isFull)
+                        .map(r => r.teamName)
+                        .join(', ');
+                    this.toast.show(
+                        `Team(s) full: ${fullTeams}. Please choose different teams.`,
+                        'warning', 5000,
+                    );
+                    return; // stay on teams step
+                }
+            } catch (err: unknown) {
+                console.error('[PlayerWizard] reserveTeams failed', err);
+                this.toast.show('Could not reserve team spots. Please try again.', 'danger', 5000);
+                return;
+            }
+        }
+
+        // Phase 2: finalize at review -> payment (apply form values, validate, insurance)
         if (this.currentStepId() === 'review') {
             try {
                 await this.state.preSubmitRegistration();

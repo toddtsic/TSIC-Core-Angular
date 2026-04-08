@@ -10,6 +10,7 @@ import { EligibilityService } from './eligibility.service';
 import { PlayerFormsService } from './player-forms.service';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { InsuranceV2Service } from './insurance-v2.service';
+import type { ReserveTeamsResponseDto } from '@core/api';
 import type {
     FamilyPlayersResponseDto,
     FamilyPlayerDto,
@@ -155,7 +156,34 @@ export class PlayerWizardStateService {
         this.eligibility.pruneDeselectedTeams(selectedIds);
     }
 
-    // ── PreSubmit ─────────────────────────────────────────────────────
+    // ── Reserve Teams (Phase 1 — at team selection) ────────────────────
+    async reserveTeams(): Promise<ReserveTeamsResponseDto> {
+        const jobPath = this.jobCtx.jobPath();
+        if (!jobPath) throw new Error('Missing jobPath');
+
+        const teamSelections: { playerId: string; teamId: string }[] = [];
+        for (const pid of this.familyPlayers.selectedPlayerIds()) {
+            const teamId = this.eligibility.selectedTeams()[pid];
+            if (!teamId) continue;
+            if (Array.isArray(teamId)) {
+                for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid });
+            } else {
+                teamSelections.push({ playerId: pid, teamId });
+            }
+        }
+
+        const apiBase = this.jobCtx.resolveApiBase();
+        const resp = await firstValueFrom(
+            this.http.post<ReserveTeamsResponseDto>(
+                `${apiBase}/player-registration/reserveTeams`,
+                { jobPath, teamSelections },
+            ),
+        );
+        if (!resp) throw new Error('No response from reserveTeams API');
+        return resp;
+    }
+
+    // ── PreSubmit (Phase 2 — at review → payment) ────────────────────
     async preSubmitRegistration(): Promise<PreSubmitPlayerRegistrationResponseDto> {
         const jobPath = this.jobCtx.jobPath();
         const familyUserId = this.familyPlayers.familyUser()?.familyUserId;

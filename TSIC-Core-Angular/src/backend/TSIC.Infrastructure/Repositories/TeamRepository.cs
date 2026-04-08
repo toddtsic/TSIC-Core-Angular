@@ -97,6 +97,19 @@ public class TeamRepository : ITeamRepository
             .CountAsync(t => t.JobId == jobId && t.AgegroupId == agegroupId, cancellationToken);
     }
 
+    public async Task<int> GetRegisteredCountForClubRepAndAgegroupAsync(
+        Guid jobId,
+        Guid agegroupId,
+        Guid clubRepRegistrationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .CountAsync(t => t.JobId == jobId
+                && t.AgegroupId == agegroupId
+                && t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Active == true, cancellationToken);
+    }
+
     public async Task<Teams?> GetTeamFromTeamId(
         Guid teamId,
         CancellationToken cancellationToken = default)

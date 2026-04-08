@@ -59,6 +59,38 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _placement = placement;
     }
 
+    public async Task<ReserveTeamsResponseDto> ReserveTeamsAsync(Guid jobId, string familyUserId, ReserveTeamsRequestDto request, string callerUserId)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+
+        // Build lightweight selections (no form values)
+        var preSubmitSelections = request.TeamSelections
+            .Select(s => new PreSubmitTeamSelectionDto { PlayerId = s.PlayerId, TeamId = s.TeamId })
+            .ToList();
+
+        var fakeRequest = new PreSubmitPlayerRegistrationRequestDto
+        {
+            JobPath = request.JobPath,
+            TeamSelections = preSubmitSelections
+        };
+
+        var ctx = await BuildPreSubmitContextAsync(jobId, familyUserId, fakeRequest);
+
+        var selectionsByPlayer = preSubmitSelections
+            .GroupBy(s => s.PlayerId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var teamResults = new List<PreSubmitTeamResultDto>();
+        foreach (var (playerId, selections) in selectionsByPlayer)
+        {
+            await ProcessPlayerSelectionsAsync(ctx, playerId, selections, teamResults, applyFormValues: false);
+        }
+
+        await _registrations.SaveChangesAsync();
+
+        return new ReserveTeamsResponseDto { TeamResults = teamResults };
+    }
+
     public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
@@ -148,18 +180,18 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         };
     }
 
-    private async Task ProcessPlayerSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults)
+    private async Task ProcessPlayerSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         var desiredTeamIds = selections.Select(s => s.TeamId).Distinct().ToList();
         if (desiredTeamIds.Count == 0) return;
 
         if (desiredTeamIds.Count == 1)
         {
-            await ProcessSingleTeamSelectionAsync(ctx, playerId, selections, teamResults);
+            await ProcessSingleTeamSelectionAsync(ctx, playerId, selections, teamResults, applyFormValues);
         }
         else
         {
-            await ProcessMultiTeamSelectionsAsync(ctx, playerId, selections, teamResults);
+            await ProcessMultiTeamSelectionsAsync(ctx, playerId, selections, teamResults, applyFormValues);
         }
     }
 
@@ -176,7 +208,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         });
     }
 
-    private async Task ProcessSingleTeamSelectionAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults)
+    private async Task ProcessSingleTeamSelectionAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         var teamId = selections.Select(s => s.TeamId).First();
         var team = ctx.Teams.Find(t => t.TeamId == teamId);
@@ -226,15 +258,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var sel = selections[^1];
         if (regToUpdate != null)
         {
-            await UpdateExistingRegistrationAsync(ctx, regToUpdate, team, sel, playerId, teamResults);
+            await UpdateExistingRegistrationAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
         }
         else
         {
-            await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults);
+            await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
         }
     }
 
-    private async Task ProcessMultiTeamSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults)
+    private async Task ProcessMultiTeamSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         if (string.Equals(ctx.RegistrationMode, "PP", StringComparison.OrdinalIgnoreCase))
         {
@@ -282,37 +314,43 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 existing.Modified = DateTime.UtcNow;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
-                FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+                if (applyFormValues)
+                {
+                    FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+                }
                 await ApplyInitialFeesAsync(existing, team.JobId, team.AgegroupId, team.TeamId);
                 AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             }
             else
             {
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
-                await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults);
+                await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
             }
         }
     }
 
-    private async Task UpdateExistingRegistrationAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
+    private async Task UpdateExistingRegistrationAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         regToUpdate.Modified = DateTime.UtcNow;
         if (string.Equals(ctx.RegistrationMode, "PP", StringComparison.OrdinalIgnoreCase))
         {
-            await UpdateExistingPPModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults);
+            await UpdateExistingPPModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
             return;
         }
-        await UpdateExistingCACModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults);
+        await UpdateExistingCACModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
     }
 
-    private async Task UpdateExistingPPModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
+    private async Task UpdateExistingPPModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         var hasPayment = (regToUpdate.PaidTotal > 0) || (regToUpdate.OwedTotal > 0 && regToUpdate.PaidTotal > 0);
         if (!hasPayment)
         {
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            if (applyFormValues)
+            {
+                FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            }
             await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
@@ -329,7 +367,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
         var newTeamBase = resolvedNew?.EffectiveBalanceDue ?? 0m;
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
-        FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        if (applyFormValues)
+        {
+            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        }
         if (sameBase)
         {
             regToUpdate.AssignedTeamId = team.TeamId;
@@ -349,11 +390,14 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
     }
 
-    private async Task UpdateExistingCACModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
+    private async Task UpdateExistingCACModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         if (regToUpdate.AssignedTeamId == team.TeamId)
         {
-            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            if (applyFormValues)
+            {
+                FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            }
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
@@ -376,7 +420,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 RoleId = RoleConstants.Player,
                 Assignment = $"Player: {team.TeamName}"
             };
-            FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            if (applyFormValues)
+            {
+                FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            }
             await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
@@ -385,12 +432,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         regToUpdate.AssignedTeamId = team.TeamId;
         regToUpdate.Assignment = $"Player: {team.TeamName}";
-        FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        if (applyFormValues)
+        {
+            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        }
         await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
     }
 
-    private async Task CreateNewRegistrationAsync(PreSubmitContext ctx, string playerId, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, List<PreSubmitTeamResultDto> teamResults)
+    private async Task CreateNewRegistrationAsync(PreSubmitContext ctx, string playerId, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
         var reg = new Registrations
         {
@@ -405,7 +455,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             RoleId = RoleConstants.Player,
             Assignment = $"Player: {team.TeamName}"
         };
-        FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        if (applyFormValues)
+        {
+            FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        }
         await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);

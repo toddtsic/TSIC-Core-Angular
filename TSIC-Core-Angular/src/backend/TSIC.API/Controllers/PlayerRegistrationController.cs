@@ -97,8 +97,34 @@ public class PlayerRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Checks team roster capacity and creates pending registrations (BActive=false) for available teams before payment.
-    /// Returns per-team results and next tab to show.
+    /// Phase 1 — reserve team spots at team selection time.
+    /// Checks roster capacity and creates pending registrations (BActive=false).
+    /// Does NOT apply form values or validate fields — that happens in preSubmit.
+    /// </summary>
+    [HttpPost("reserveTeams")]
+    [Authorize]
+    [ProducesResponseType(typeof(TSIC.Contracts.Dtos.ReserveTeamsResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> ReserveTeams([FromBody] TSIC.Contracts.Dtos.ReserveTeamsRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.JobPath))
+            return BadRequest(new { message = "Invalid reserve request" });
+
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var response = await _registrationService.ReserveTeamsAsync(jobId.Value, familyUserId, request, familyUserId);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Phase 2 — finalize at review-to-payment time.
+    /// Applies form values, validates fields, and builds insurance offer on existing pending registrations.
     /// </summary>
     [HttpPost("preSubmit")]
     [Authorize]
