@@ -404,3 +404,147 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: Subscription setup and recurring payments are charged separately for each player in the family — need to confirm if this is intended or should be consolidated
 - **Severity**: Question
 - **Status**: Open
+
+### PL-046: Add "eye" icon to Password and Confirm Password fields to toggle visibility
+- **Area**: Family Account Creation
+- **What I did**: Looked at the Password and Confirm Password fields on the Create Family Account screen
+- **What I expected**: An eye icon at the end of each password field to let users see what they typed
+- **What happened**: No visibility toggle — should an eye icon be added? Could also be useful on other password fields across the site
+- **Severity**: Question
+- **Status**: Open
+
+### PL-063: Premier Lacrosse 2026 (CAC site) behaves like a single player option site
+- **Area**: Registration Process Review
+- **What I did**: Tested registration on Premier Lacrosse 2026, which is a CAC (Club/Affiliate/Camp) site
+- **What I expected**: Multi-team selection behavior appropriate for a CAC site
+- **What happened**: Site behaves like a single player option site, not a CAC site — needs to be updated to support CAC registration flow
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-062: Where is headshot uploaded when adding a player?
+- **Area**: Family Account Creation
+- **What I did**: Added a new player
+- **What I expected**: An option to upload a player headshot somewhere in the flow
+- **What happened**: No headshot upload visible — where should this happen?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-061: 404 error after signing in following new account creation
+- **Area**: Family Account Creation
+- **What I did**: Created a new family account, then signed in to proceed to registration, accepted Terms of Service
+- **What I expected**: To land on the registration flow after signing in
+- **What happened**: Got a 404 error screen after signing in. Note: Legacy went directly to registration without requiring a separate sign-in, but the sign-in step seems like a good idea. Terms of Service appearing here also makes sense. The 404 is the problem.
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-060: Add a review/summary screen after finishing player entry — like Legacy had
+- **Area**: Family Account Creation
+- **What I did**: Finished adding all players
+- **What I expected**: A review screen showing all the data entered (contacts, address, players) before proceeding
+- **What happened**: No review screen — Legacy provided one and it was helpful for parents to verify everything before continuing
+- **Severity**: UX
+- **Status**: Open
+
+### PL-059: "Add Child" button should read "Add Player"
+- **Area**: Family Account Creation
+- **What I did**: Looked at the button to add a player
+- **What I expected**: Button text to say "Add Player"
+- **What happened**: Button says "Add Child" — should say "Add Player"
+- **Severity**: UX
+- **Status**: Open
+
+### PL-058: Cell phone display should show hyphens (e.g., 555-123-4567)
+- **Area**: Family Account Creation
+- **What I did**: Entered a cell phone number — input accepts it with or without hyphens, which is fine
+- **What I expected**: Display to always show the number formatted with hyphens
+- **What happened**: Number displays without hyphens. See the player data output after adding a new player as an example of where this shows up.
+- **Severity**: UX
+- **Status**: Open
+
+### PL-057: Player date of birth format should be MM/DD/YYYY not YYYY-MM-DD
+- **Area**: Family Account Creation
+- **What I did**: Looked at the date format in the player fields
+- **What I expected**: US date format MM/DD/YYYY (e.g., 01/01/2015)
+- **What happened**: Shows as 2015-01-01 — should display as 01/01/2015
+- **Severity**: UX
+- **Status**: Open
+
+### PL-056: After adding a player, header should say "Player 1 added"
+- **Area**: Family Account Creation
+- **What I did**: Added a player in the Add Children section
+- **What I expected**: Header to confirm the player was added, e.g., "Player 1 added"
+- **What happened**: No confirmation header showing the player was successfully added
+- **Severity**: UX
+- **Status**: Open
+
+### PL-055: "Add Children" section — rename to "Add Player", update wording
+- **Area**: Family Account Creation
+- **What I did**: Looked at the Add Children section
+- **What I expected**: Player-focused wording
+- **What happened**: Multiple wording changes needed: (1) Change "Add Children" button to "Add Player", (2) Change step 4 at top to "Players", (3) Change instruction to "Add at least one player to continue", (4) Remove the line "Add each child who will be registered as a player"
+- **Severity**: UX
+- **Status**: Open
+
+### PL-054: Continue button doesn't activate until you click outside the last required field
+- **Area**: Family Account Creation
+- **What I did**: Filled in the last required field but stayed focused in it
+- **What I expected**: Continue button to activate as soon as the last required field has valid input
+- **What happened**: Button stays inactive until you click outside the field — requires an extra click. Can it activate immediately after entering the last item?
+- **Severity**: UX
+- **Status**: Open
+
+### PL-053: Change address instruction to "Enter your player's/family's mailing address"
+- **Area**: Family Account Creation
+- **What I did**: Read the address section instruction text
+- **What I expected**: Wording that covers both player and family
+- **What happened**: Says "Enter your family's mailing address" — should say "Enter your player's/family's mailing address"
+- **Severity**: UX
+- **Status**: Open
+
+### PL-052: Add "Select Cell Phone Provider" field for text messaging — all registration types
+- **Area**: Family Account Creation
+- **What I did**: Compared Parent Details to Legacy
+- **What I expected**: A "Select Cell Phone Provider" optional field for text messaging, like Legacy has
+- **What happened**: Field is missing. Legacy has it as "SELECT CELL PHONE PROVIDER (optional: for text messaging)." Should it be added here and anywhere else a cell phone is collected (Director, Club Rep, Staff, etc.)?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-051: Remove "Both parent/guardian contacts are required" line from Family Contacts
+- **Area**: Family Account Creation
+- **What I did**: Looked at the top of the Family Contacts section
+- **What I expected**: No unnecessary instructional text
+- **What happened**: Line says "Both parent/guardian contacts are required" — should be removed
+- **Severity**: UX
+- **Status**: Open
+
+### PL-050: Change Family Contacts headers to "Parent/Contact 1 Details" and "Parent/Contact 2 Details"
+- **Area**: Family Account Creation
+- **What I did**: Looked at the Family Contacts section headers
+- **What I expected**: Headers that clearly label each contact as "Parent/Contact 1 Details" and "Parent/Contact 2 Details"
+- **What happened**: Current headers don't use that wording — should be renamed for clarity
+- **Severity**: UX
+- **Status**: Open
+
+### PL-049: Terms of Service acceptance screen missing after entering username/password
+- **Area**: Family Account Creation
+- **What I did**: Entered a username and password and clicked Continue on the new account creation screen
+- **What I expected**: A Terms of Service acceptance screen to appear, like it does in Legacy
+- **What happened**: No Terms of Service screen — goes straight through. Should it be added here?
+- **Severity**: Question
+- **Status**: Open
+
+### PL-048: Legacy collected Email for Family Account in addition to contact emails — still needed?
+- **Area**: Family Account Creation
+- **What I did**: Compared the new Family Account creation form to the Legacy system
+- **What I expected**: Same fields collected, or a clear reason why some were dropped
+- **What happened**: Legacy collected an Email field for the Family Account itself, separate from contact emails — the new system doesn't. Need to confirm if this is still needed or intentionally removed.
+- **Severity**: Question
+- **Status**: Open
+
+### PL-047: Rewrite account creation text and add Back button for existing users
+- **Area**: Family Account Creation
+- **What I did**: Read the text on the account creation screen
+- **What I expected**: Clear instructions for new users, and a way for existing users to go back to login
+- **What happened**: Text says "New here? Choose a username and password. Already have an account? Enter your existing credentials." — this is confusing. Should say "Choose a username and password for your NEW account" and on a new line "Already have an account? Select 'Back' below to login." Also need to add a Back button on this screen.
+- **Severity**: UX
+- **Status**: Open
