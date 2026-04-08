@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, computed, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, computed, signal, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CurrencyPipe } from '@angular/common';
 import { DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService, type AvailableTeam } from '@views/registration/player/services/team.service';
@@ -13,18 +14,25 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
 @Component({
     selector: 'app-prw-team-selection-step',
     standalone: true,
-    imports: [FormsModule, DropDownListModule],
+    imports: [FormsModule, CurrencyPipe, DropDownListModule],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
-      <h4 class="welcome-title"><i class="bi bi-flag-fill welcome-icon" style="color: var(--bs-info)"></i> Assign Teams</h4>
-      <p class="welcome-desc">
-        <i class="bi bi-hand-index me-1"></i>Pick a team for each player
-        <span class="desc-dot"></span>
-        <i class="bi bi-bar-chart me-1"></i>Capacity shown in dropdown
-        <span class="desc-dot"></span>
-        <i class="bi bi-hourglass-split me-1"></i>Waitlist if full
-      </p>
+      @if (state.jobCtx.isCacMode()) {
+        <h4 class="welcome-title"><i class="bi bi-calendar-event welcome-icon" style="color: var(--bs-info)"></i> Select Event(s)</h4>
+        <p class="welcome-desc">
+          <i class="bi bi-check2-square me-1"></i>Check the camps or clinics for each player
+        </p>
+      } @else {
+        <h4 class="welcome-title"><i class="bi bi-flag-fill welcome-icon" style="color: var(--bs-info)"></i> Assign Teams</h4>
+        <p class="welcome-desc">
+          <i class="bi bi-hand-index me-1"></i>Pick a team for each player
+          <span class="desc-dot"></span>
+          <i class="bi bi-bar-chart me-1"></i>Capacity shown in dropdown
+          <span class="desc-dot"></span>
+          <i class="bi bi-hourglass-split me-1"></i>Waitlist if full
+        </p>
+      }
     </div>
 
     <div class="card shadow border-0 card-rounded">
@@ -38,8 +46,25 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
         } @else if (teamService.error()) {
           <div class="alert alert-danger">{{ teamService.error() }}</div>
         } @else {
+          <!-- CAC with 2+ players: tabbed layout -->
+          @if (state.jobCtx.isCacMode() && selectedPlayerIds().length > 1) {
+            <div class="player-tabs">
+              @for (pid of selectedPlayerIds(); track pid; let i = $index) {
+                <button type="button" class="player-tab"
+                        [class.is-active]="activePlayerTab() === i"
+                        (click)="activePlayerTab.set(i)">
+                  <span class="player-tab-name">{{ getPlayerName(pid) }}</span>
+                  <span class="player-tab-count"
+                        [class.has-selections]="getSelectedTeamIds(pid).length > 0">
+                    {{ getSelectedTeamIds(pid).length }}
+                  </span>
+                </button>
+              }
+            </div>
+          }
           <div class="player-list">
-            @for (pid of selectedPlayerIds(); track pid) {
+            @for (pid of selectedPlayerIds(); track pid; let i = $index) {
+              @if (!state.jobCtx.isCacMode() || selectedPlayerIds().length <= 1 || activePlayerTab() === i) {
               <div class="player-row" [class.is-set]="!!getSelectedTeamId(pid)"
                    [class.is-locked]="isPlayerLocked(pid)">
                 <i class="bi player-icon"
@@ -62,7 +87,100 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
                     @if (getSelectedTeamName(pid)) {
                       <span class="team-assigned">{{ getSelectedTeamName(pid) }}</span>
                     }
+                  } @else if (state.jobCtx.isCacMode()) {
+                    <!-- CAC: Keyword filter -->
+                    @if (getAvailableTeams(pid).length > 5) {
+                      <div class="camp-filter">
+                        <i class="bi bi-search camp-filter-icon"></i>
+                        <input type="text" class="camp-filter-input"
+                               placeholder="Filter events..."
+                               [value]="getCampFilter(pid)"
+                               (input)="setCampFilter(pid, $any($event.target).value)">
+                        @if (getCampFilter(pid)) {
+                          <button type="button" class="camp-filter-clear"
+                                  (click)="setCampFilter(pid, '')"
+                                  aria-label="Clear filter">×</button>
+                        }
+                      </div>
+                    }
+                    <!-- CAC: Selected camps (top section) -->
+                    @if (getSelectedCamps(pid).length) {
+                      <div class="camp-section-label camp-section-registered">
+                        <i class="bi bi-check-circle-fill me-1"></i>Your Events
+                      </div>
+                      <div class="camp-list">
+                        @for (team of filterCamps(getSelectedCamps(pid), getCampFilter(pid)); track team.teamId) {
+                          <label class="camp-card"
+                                 [class.is-checked]="true"
+                                 [class.is-registered]="isCampAlreadyRegistered(pid, team.teamId)">
+                            <input type="checkbox" checked
+                                   [disabled]="isCampAlreadyRegistered(pid, team.teamId)"
+                                   (change)="toggleCampSelection(pid, team.teamId)">
+                            <div class="camp-info">
+                              <span class="camp-name">{{ team.teamName }}</span>
+                              @if (team.divisionName) {
+                                <span class="camp-division">{{ team.divisionName }}</span>
+                              }
+                              <div class="camp-meta">
+                                @if (team.startDate || team.endDate) {
+                                  <span class="camp-dates">
+                                    <i class="bi bi-calendar3 me-1"></i>{{ formatCampDates(team) }}
+                                  </span>
+                                }
+                                @if (team.perRegistrantFee != null && team.perRegistrantFee > 0) {
+                                  <span class="camp-fee">{{ team.perRegistrantFee | currency }}</span>
+                                }
+                              </div>
+                              @if (isCampAlreadyRegistered(pid, team.teamId)) {
+                                <span class="camp-registered-badge">
+                                  <i class="bi bi-check-circle-fill me-1"></i>Registered
+                                </span>
+                              }
+                            </div>
+                          </label>
+                        }
+                      </div>
+                    }
+                    <!-- CAC: Available camps (unselected) -->
+                    @if (getUnselectedCamps(pid).length) {
+                      @if (getSelectedCamps(pid).length) {
+                        <div class="camp-section-label camp-section-available">
+                          <i class="bi bi-plus-circle me-1"></i>Add Events
+                        </div>
+                      }
+                      <div class="camp-list">
+                        @for (team of filterCamps(getUnselectedCamps(pid), getCampFilter(pid)); track team.teamId) {
+                          <label class="camp-card"
+                                 [class.is-full]="isTeamFull(team)">
+                            <input type="checkbox"
+                                   [checked]="false"
+                                   (change)="toggleCampSelection(pid, team.teamId)"
+                                   [disabled]="isTeamFull(team)">
+                            <div class="camp-info">
+                              <span class="camp-name">{{ team.teamName }}</span>
+                              @if (team.divisionName) {
+                                <span class="camp-division">{{ team.divisionName }}</span>
+                              }
+                              <div class="camp-meta">
+                                @if (team.startDate || team.endDate) {
+                                  <span class="camp-dates">
+                                    <i class="bi bi-calendar3 me-1"></i>{{ formatCampDates(team) }}
+                                  </span>
+                                }
+                                @if (team.perRegistrantFee != null && team.perRegistrantFee > 0) {
+                                  <span class="camp-fee">{{ team.perRegistrantFee | currency }}</span>
+                                }
+                              </div>
+                              @if (isTeamFull(team)) {
+                                <span class="camp-full-badge">Full</span>
+                              }
+                            </div>
+                          </label>
+                        }
+                      </div>
+                    }
                   } @else {
+                    <!-- PP: Team dropdown -->
                     <!-- Selected teams pills (multi-mode) -->
                     @if (getSelectedTeamIds(pid).length && isMultiTeamMode()) {
                       <div class="team-pills">
@@ -100,6 +218,7 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
                   }
                 </div>
               </div>
+              }
             }
           </div>
         }
@@ -107,6 +226,78 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
     </div>
   `,
     styles: [`
+      /* ── CAC player tabs (pill chips) ── */
+      .player-tabs {
+        display: flex;
+        gap: var(--space-2);
+        margin-bottom: var(--space-3);
+        overflow-x: auto;
+        padding-bottom: var(--space-1);
+      }
+
+      .player-tab {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        border: 1px solid var(--neutral-300);
+        border-radius: var(--radius-full);
+        background: var(--brand-surface);
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+
+        &:hover:not(.is-active) {
+          border-color: var(--bs-primary);
+          color: var(--brand-text);
+          background: rgba(var(--bs-primary-rgb), 0.04);
+        }
+
+        &.is-active {
+          background: var(--bs-primary);
+          border-color: var(--bs-primary);
+          color: var(--bs-light);
+          font-weight: var(--font-weight-semibold);
+          box-shadow: var(--shadow-sm);
+        }
+      }
+
+      .player-tab-name {
+        .is-active & { color: var(--bs-light); }
+      }
+
+      .player-tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        background: var(--neutral-200);
+        color: var(--neutral-500);
+
+        &.has-selections {
+          background: rgba(var(--bs-success-rgb), 0.2);
+          color: var(--bs-success);
+        }
+
+        .is-active & {
+          background: rgba(255, 255, 255, 0.25);
+          color: var(--bs-light);
+
+          &.has-selections {
+            background: rgba(255, 255, 255, 0.35);
+            color: var(--bs-light);
+          }
+        }
+      }
+
       .player-list {
         display: flex;
         flex-direction: column;
@@ -250,6 +441,173 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
 
       /* Syncfusion dropdown item template */
 
+      /* ── CAC camp filter ── */
+      .camp-filter {
+        position: relative;
+        margin-bottom: var(--space-2);
+      }
+
+      .camp-filter-icon {
+        position: absolute;
+        left: var(--space-3);
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--neutral-400);
+        font-size: var(--font-size-sm);
+        pointer-events: none;
+      }
+
+      .camp-filter-input {
+        width: 100%;
+        padding: var(--space-2) var(--space-3);
+        padding-left: var(--space-8);
+        font-size: var(--font-size-sm);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        color: var(--brand-text);
+
+        &:focus {
+          outline: none;
+          border-color: var(--bs-primary);
+          box-shadow: var(--shadow-focus);
+        }
+      }
+
+      .camp-filter-clear {
+        position: absolute;
+        right: var(--space-2);
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        padding: 0 var(--space-1);
+        font-size: var(--font-size-lg);
+        color: var(--neutral-400);
+        cursor: pointer;
+        line-height: 1;
+
+        &:hover { color: var(--brand-text); }
+      }
+
+      /* ── CAC section labels ── */
+      .camp-section-label {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: var(--space-2) 0 var(--space-1);
+      }
+
+      .camp-section-registered {
+        color: var(--bs-success);
+      }
+
+      .camp-section-available {
+        color: var(--bs-primary);
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px dashed var(--border-color);
+      }
+
+      /* ── CAC camp card styles ── */
+      .camp-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .camp-card {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border-color);
+        border-left: 3px solid var(--neutral-300);
+        background: var(--brand-surface);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+
+        &:hover:not(.is-full):not(.is-registered) {
+          border-left-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.03);
+        }
+
+        &.is-checked {
+          border-left-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.06);
+        }
+
+        &.is-registered {
+          border-left-color: var(--bs-success);
+          border-left-width: 4px;
+          background: rgba(var(--bs-success-rgb), 0.08);
+          cursor: default;
+          opacity: 0.85;
+        }
+
+        &.is-full:not(.is-checked) {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        input[type="checkbox"] {
+          margin-top: 3px;
+          flex-shrink: 0;
+          accent-color: var(--bs-primary);
+        }
+      }
+
+      .camp-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .camp-name {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+      }
+
+      .camp-division {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
+
+      .camp-meta {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+
+      .camp-dates {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+      }
+
+      .camp-fee {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-primary);
+      }
+
+      .camp-registered-badge {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-success);
+      }
+
+      .camp-full-badge {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-danger);
+      }
+
       .waitlist-alert {
         display: flex;
         align-items: flex-start;
@@ -277,6 +635,8 @@ export class TeamSelectionStepComponent {
     readonly advance = output<void>();
 
     readonly teamDdlFields = { text: 'text', value: 'value' };
+    private readonly _campFilters = signal<Record<string, string>>({});
+    readonly activePlayerTab = signal(0);
 
     getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
         return this.getAvailableTeams(playerId).map(team => {
@@ -322,6 +682,8 @@ export class TeamSelectionStepComponent {
     }
 
     isPlayerLocked(playerId: string): boolean {
+        // CAC: players are never fully locked — they can always add more camps
+        if (this.state.jobCtx.isCacMode()) return false;
         return this.state.familyPlayers.isPlayerLocked(playerId);
     }
 
@@ -335,6 +697,7 @@ export class TeamSelectionStepComponent {
     }
 
     isMultiTeamMode(): boolean {
+        if (this.state.jobCtx.isCacMode()) return true;
         const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
         return !ct || ct === 'BYCLUBNAME';
     }
@@ -346,8 +709,30 @@ export class TeamSelectionStepComponent {
 
         // Hide full teams whose waitlist replacement exists in the list
         const teamIdsInList = new Set(teams.map(t => t.teamId));
-        return teams.filter(t =>
+        let filtered = teams.filter(t =>
             !(t.rosterIsFull && t.waitlistTeamId && teamIdsInList.has(t.waitlistTeamId)),
+        );
+
+        // CAC: sort by start date (earliest first), then by name
+        if (this.state.jobCtx.isCacMode()) {
+            filtered = [...filtered].sort((a, b) => {
+                const da = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+                const db = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+                if (da !== db) return da - db;
+                return a.teamName.localeCompare(b.teamName);
+            });
+        }
+
+        return filtered;
+    }
+
+    filterCamps(teams: AvailableTeam[], query: string): AvailableTeam[] {
+        const q = (query || '').trim().toLowerCase();
+        if (!q) return teams;
+        return teams.filter(t =>
+            t.teamName.toLowerCase().includes(q)
+            || (t.divisionName || '').toLowerCase().includes(q)
+            || (t.agegroupName || '').toLowerCase().includes(q),
         );
     }
 
@@ -430,5 +815,47 @@ export class TeamSelectionStepComponent {
             delete current[playerId];
         }
         this.state.eligibility.setSelectedTeams(current);
+    }
+
+    // ── CAC helpers ──────────────────────────────────────────────────
+
+    getCampFilter(playerId: string): string {
+        return this._campFilters()[playerId] || '';
+    }
+
+    setCampFilter(playerId: string, value: string): void {
+        this._campFilters.set({ ...this._campFilters(), [playerId]: value });
+    }
+
+    toggleCampSelection(playerId: string, teamId: string): void {
+        if (this.isTeamAlreadySelected(playerId, teamId)) {
+            this.removeTeam(playerId, teamId);
+        } else {
+            this.onTeamChange(playerId, teamId);
+        }
+    }
+
+    formatCampDates(team: AvailableTeam): string {
+        const fmt = (iso: string) => new Date(iso).toLocaleDateString();
+        const start = team.startDate ? fmt(team.startDate) : '';
+        const end = team.endDate ? fmt(team.endDate) : '';
+        if (start && end) return `${start} \u2013 ${end}`;
+        return start || end;
+    }
+
+    isCampAlreadyRegistered(playerId: string, teamId: string): boolean {
+        const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
+        if (!player?.registered) return false;
+        return player.priorRegistrations?.some(r => r.assignedTeamId === teamId) ?? false;
+    }
+
+    getSelectedCamps(playerId: string): AvailableTeam[] {
+        const selected = new Set(this.getSelectedTeamIds(playerId));
+        return this.getAvailableTeams(playerId).filter(t => selected.has(t.teamId));
+    }
+
+    getUnselectedCamps(playerId: string): AvailableTeam[] {
+        const selected = new Set(this.getSelectedTeamIds(playerId));
+        return this.getAvailableTeams(playerId).filter(t => !selected.has(t.teamId));
     }
 }

@@ -79,7 +79,7 @@ export class PlayerWizardV2Component implements OnInit {
             id: 'eligibility', label: this.eligibilityStepLabel(),
             enabled: !!this.state.eligibility.teamConstraintType(),
         },
-        { id: 'teams', label: 'Teams', enabled: true },
+        { id: 'teams', label: this.state.jobCtx.isCacMode() ? 'Events' : 'Teams', enabled: true },
         { id: 'forms', label: 'Forms', enabled: true },
         {
             id: 'waivers', label: 'Waivers',

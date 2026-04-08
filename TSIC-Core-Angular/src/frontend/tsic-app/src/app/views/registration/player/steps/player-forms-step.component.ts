@@ -48,15 +48,38 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
             <div class="player-section" [class.is-locked]="isPlayerLocked(pid)">
               <!-- Player header -->
               <div class="player-header">
-                <i class="bi player-icon"
-                   [class.bi-person-fill]="!isRegistered(pid)"
-                   [class.bi-person-check-fill]="isRegistered(pid)"></i>
-                <span class="player-name">{{ getPlayerName(pid) }}</span>
-                @for (tid of getTeamIds(pid); track tid) {
-                  <span class="team-pill">{{ getTeamName(tid) }}</span>
-                }
-                @if (isRegistered(pid)) {
-                  <span class="reg-badge"><i class="bi bi-lock-fill me-1"></i>Registered</span>
+                <div class="player-header-top">
+                  <i class="bi player-icon"
+                     [class.bi-person-fill]="!isRegistered(pid)"
+                     [class.bi-person-check-fill]="isRegistered(pid)"></i>
+                  <span class="player-name">{{ getPlayerName(pid) }}</span>
+                  @if (isRegistered(pid)) {
+                    <span class="reg-badge"><i class="bi bi-lock-fill me-1"></i>Registered</span>
+                  }
+                </div>
+                @if (getTeamIds(pid).length) {
+                  @if (state.jobCtx.isCacMode() && getTeamIds(pid).length > 1) {
+                    <button type="button" class="events-summary"
+                            (click)="toggleEventsList(pid)">
+                      <i class="bi me-1"
+                         [class.bi-chevron-right]="!isEventsExpanded(pid)"
+                         [class.bi-chevron-down]="isEventsExpanded(pid)"></i>
+                      <i class="bi bi-calendar-event me-1"></i>{{ getTeamIds(pid).length }} events selected
+                    </button>
+                    @if (isEventsExpanded(pid)) {
+                      <ul class="events-list">
+                        @for (tid of getTeamIds(pid); track tid) {
+                          <li>{{ getTeamName(tid) }}</li>
+                        }
+                      </ul>
+                    }
+                  } @else {
+                    <div class="team-pill-row">
+                      @for (tid of getTeamIds(pid); track tid) {
+                        <span class="team-pill">{{ getTeamName(tid) }}</span>
+                      }
+                    </div>
+                  }
                 }
               </div>
 
@@ -230,12 +253,57 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 
       .player-header {
         display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-2) var(--space-3);
         background: rgba(var(--bs-body-color-rgb), 0.025);
         border-bottom: 1px solid var(--border-color);
+      }
+
+      .player-header-top {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+
+      .team-pill-row {
+        display: flex;
         flex-wrap: wrap;
+        gap: var(--space-1);
+        padding-left: calc(var(--font-size-base) + var(--space-2));
+      }
+
+      .events-summary {
+        display: inline-flex;
+        align-items: center;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--bs-primary);
+        padding-left: calc(var(--font-size-base) + var(--space-2));
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding-top: 0;
+        padding-bottom: 0;
+
+        &:hover { text-decoration: underline; }
+      }
+
+      .events-list {
+        list-style: none;
+        margin: var(--space-1) 0 0;
+        padding-left: calc(var(--font-size-base) + var(--space-2) + var(--space-4));
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+
+        li {
+          padding: 2px 0;
+          &::before {
+            content: '•';
+            color: var(--bs-primary);
+            margin-right: var(--space-2);
+          }
+        }
       }
 
       .player-icon {
@@ -506,6 +574,20 @@ export class PlayerFormsStepComponent implements OnDestroy {
     getTeamName(teamId: string): string {
         const team = this.teamService.getTeamById(teamId);
         return team?.teamName || teamId;
+    }
+
+    // ── CAC events expand/collapse ───────────────────────────────────
+    private readonly _expandedEvents = signal<Record<string, boolean>>({});
+
+    isEventsExpanded(playerId: string): boolean {
+        return !!this._expandedEvents()[playerId];
+    }
+
+    toggleEventsList(playerId: string): void {
+        this._expandedEvents.set({
+            ...this._expandedEvents(),
+            [playerId]: !this._expandedEvents()[playerId],
+        });
     }
 
     /** Returns visible profile fields for a given player. */

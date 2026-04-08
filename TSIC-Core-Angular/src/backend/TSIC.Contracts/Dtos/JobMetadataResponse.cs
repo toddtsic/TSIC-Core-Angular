@@ -37,6 +37,8 @@ public class JobMetadataResponse
     public bool BBannerIsCustom { get; set; }
     // Job type (e.g. "Players", "League", "Tournament")
     public string? JobTypeName { get; set; }
+    // Registration mode: "PP" (Player Profile, 1-to-1) or "CAC" (Camps & Clinics, 1-to-many)
+    public string RegistrationMode { get; set; } = "PP";
     // Payment method restrictions (1=CC only, 2=CC or Check, 3=Check only)
     public int PaymentMethodsAllowedCode { get; set; }
     public bool BAddProcessingFees { get; set; }

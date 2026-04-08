@@ -73,7 +73,10 @@ public class TeamLookupService : ITeamLookupService
                 Fee = fee,
                 Deposit = deposit,
                 JobUsesWaitlists = jobUsesWaitlists,
-                WaitlistTeamId = null
+                WaitlistTeamId = null,
+                StartDate = t.StartDate,
+                EndDate = t.EndDate,
+                PerRegistrantFee = t.PerRegistrantFee
             };
         }).ToList();
 

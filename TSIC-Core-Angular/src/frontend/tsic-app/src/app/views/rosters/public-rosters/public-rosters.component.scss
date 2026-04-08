@@ -258,12 +258,18 @@
 }
 
 .roster-table {
+	--bs-table-bg: transparent;
+	--bs-table-striped-bg: rgba(var(--bs-primary-rgb), 0.04);
+	--bs-table-border-color: rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.05);
+	margin-bottom: 0;
+
 	th {
 		font-size: var(--font-size-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 		color: var(--neutral-500);
-		border-bottom-width: 2px;
+		background: transparent;
+		border-bottom: 2px solid rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.08);
 
 		&.sortable {
 			cursor: pointer;

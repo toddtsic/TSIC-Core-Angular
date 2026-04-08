@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, DestroyRef } from '@angular/core';
+import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '@environments/environment';
@@ -35,6 +35,11 @@ export class JobContextService {
     private readonly _jobId = signal('');
     readonly jobPath = this._jobPath.asReadonly();
     readonly jobId = this._jobId.asReadonly();
+
+    // ── Registration mode (PP = Player Profile 1:1, CAC = Camps & Clinics 1:many) ──
+    private readonly _registrationMode = signal<'PP' | 'CAC'>('PP');
+    readonly registrationMode = this._registrationMode.asReadonly();
+    readonly isCacMode = computed(() => this._registrationMode() === 'CAC');
 
     // ── Raw metadata JSON ─────────────────────────────────────────────
     private readonly _jobProfileMetadataJson = signal<string | null>(null);
@@ -144,6 +149,10 @@ export class JobContextService {
 
                     // ARB payment schedule
                     const m = meta as Record<string, unknown>;
+
+                    // Registration mode (PP or CAC)
+                    const mode = getPropertyCI<string>(m, 'registrationMode');
+                    this._registrationMode.set(mode?.toUpperCase() === 'CAC' ? 'CAC' : 'PP');
                     const arb = getPropertyCI<boolean>(m, 'adnArb') ?? false;
                     const occ = getPropertyCI<number>(m, 'adnArbBillingOccurences') ?? null;
                     const intLen = getPropertyCI<number>(m, 'adnArbIntervalLength') ?? null;
@@ -288,6 +297,7 @@ export class JobContextService {
     reset(): void {
         this._jobPath.set('');
         this._jobId.set('');
+        this._registrationMode.set('PP');
         this._jobProfileMetadataJson.set(null);
         this._jobJsonOptions.set(null);
         this.parsedJobOptions = undefined;

@@ -107,6 +107,10 @@ export class FormSchemaService {
                         const setVal = key ? optionSets[key] : null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));
                     }
+                    // Sort numerically if all options are valid numbers (e.g., years of experience)
+                    if (mapped.length > 1 && mapped.every(v => v !== '' && !isNaN(Number(v)))) {
+                        mapped.sort((a, b) => Number(a) - Number(b));
+                    }
                     return mapped;
                 })();
                 const placeholder = typeof f.placeholder === 'string' && f.placeholder.trim() ? f.placeholder.trim() : null;

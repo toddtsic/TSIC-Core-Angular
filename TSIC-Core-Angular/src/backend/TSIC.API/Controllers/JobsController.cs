@@ -33,6 +33,7 @@ public class JobsController : ControllerBase
     private readonly IMenuRepository _menuRepository;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IJobRepository _jobRepository;
+    private readonly IPlayerRegistrationMetadataService _metadataService;
 
     public JobsController(
         ILogger<JobsController> logger,
@@ -40,7 +41,8 @@ public class JobsController : ControllerBase
         ITeamLookupService teamLookupService,
         IMenuRepository menuRepository,
         IHttpContextAccessor httpContextAccessor,
-        IJobRepository jobRepository)
+        IJobRepository jobRepository,
+        IPlayerRegistrationMetadataService metadataService)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
@@ -48,6 +50,7 @@ public class JobsController : ControllerBase
         _menuRepository = menuRepository;
         _httpContextAccessor = httpContextAccessor;
         _jobRepository = jobRepository;
+        _metadataService = metadataService;
     }
 
     [AllowAnonymous]
@@ -97,6 +100,8 @@ public class JobsController : ControllerBase
             BScheduleAllowPublicAccess = jobMetadata.BScheduleAllowPublicAccess,
             BBannerIsCustom = jobMetadata.BBannerIsCustom,
             JobTypeName = jobMetadata.JobTypeName,
+            RegistrationMode = _metadataService.GetRegistrationMode(
+                jobMetadata.CoreRegformPlayerRaw, jobMetadata.JsonOptions),
             PaymentMethodsAllowedCode = jobMetadata.PaymentMethodsAllowedCode,
             BAddProcessingFees = jobMetadata.BAddProcessingFees,
             PayTo = jobMetadata.PayTo,

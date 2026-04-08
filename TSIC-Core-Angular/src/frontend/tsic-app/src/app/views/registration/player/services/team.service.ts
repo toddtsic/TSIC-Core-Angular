@@ -22,6 +22,9 @@ export interface AvailableTeam {
     deposit?: number | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    perRegistrantFee?: number | null;
 }
 
 interface CacheEntry { data: AvailableTeam[]; ts: number; }
