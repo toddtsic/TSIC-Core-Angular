@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal, viewChild, ElementRef, afterNextRender } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { CadtClubNode, CadtTeamNode, PublicRosterPlayerDto, TeamResultDto } from '@core/api';
 import { PublicRosterService } from './public-roster.service';
 import { ViewScheduleService } from '../../scheduling/view-schedule/services/view-schedule.service';
@@ -18,7 +19,7 @@ interface FlatTeam {
 @Component({
 	selector: 'app-public-rosters',
 	standalone: true,
-	imports: [CommonModule, TeamResultsModalComponent],
+	imports: [CommonModule, GridAllModule, TeamResultsModalComponent],
 	templateUrl: './public-rosters.component.html',
 	styleUrls: ['./public-rosters.component.scss'],
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -35,8 +36,7 @@ export class PublicRostersComponent {
 
 	clubs = signal<CadtClubNode[]>([]);
 	rosterPlayers = signal<PublicRosterPlayerDto[]>([]);
-	sortColumn = signal<string>('displayName');
-	sortAsc = signal(true);
+	rosterSortSettings: SortSettingsModel = { columns: [{ field: 'displayName', direction: 'Ascending' }] };
 	selectedTeamId = signal<string | null>(null);
 	selectedTeamName = signal('');
 	selectedAgegroupName = signal('');
@@ -149,47 +149,6 @@ export class PublicRostersComponent {
 
 	clearSearch(): void {
 		this.searchText.set('');
-	}
-
-	toggleSort(column: string): void {
-		if (this.sortColumn() === column) {
-			this.sortAsc.set(!this.sortAsc());
-		} else {
-			this.sortColumn.set(column);
-			this.sortAsc.set(true);
-		}
-	}
-
-	sortedPlayers(): PublicRosterPlayerDto[] {
-		const players = [...this.rosterPlayers()];
-		const col = this.sortColumn();
-		const asc = this.sortAsc();
-		const dir = asc ? 1 : -1;
-
-		return players.sort((a, b) => {
-			let va: string | number = '';
-			let vb: string | number = '';
-
-			switch (col) {
-				case 'displayName':
-					va = a.displayName; vb = b.displayName; break;
-				case 'position':
-					va = a.position ?? ''; vb = b.position ?? ''; break;
-				case 'uniformNo':
-					va = parseInt(a.uniformNo ?? '999', 10);
-					vb = parseInt(b.uniformNo ?? '999', 10);
-					return (va - vb) * dir;
-				case 'clubName':
-					va = a.clubName ?? ''; vb = b.clubName ?? ''; break;
-			}
-
-			return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
-		});
-	}
-
-	sortIcon(column: string): string {
-		if (this.sortColumn() !== column) return 'bi-chevron-expand';
-		return this.sortAsc() ? 'bi-sort-up' : 'bi-sort-down';
 	}
 
 	viewTeamSchedule(teamId: string): void {

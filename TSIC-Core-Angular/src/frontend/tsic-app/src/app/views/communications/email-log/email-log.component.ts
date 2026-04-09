@@ -1,16 +1,14 @@
-import { Component, inject, signal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { Component, inject, signal, computed, effect, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { EmailLogService } from './services/email-log.service';
 import { JobService } from '@infrastructure/services/job.service';
 import type { EmailLogSummaryDto, EmailLogDetailDto } from '@core/api';
 
-type SortColumn = 'sendTs' | 'sendFrom' | 'count' | 'subject';
-type SortDirection = 'asc' | 'desc';
-
 @Component({
     selector: 'app-email-log',
     standalone: true,
-    imports: [DatePipe, DecimalPipe],
+    imports: [DecimalPipe, GridAllModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './email-log.component.html',
     styleUrl: './email-log.component.scss'
@@ -18,6 +16,8 @@ type SortDirection = 'asc' | 'desc';
 export class EmailLogComponent {
     private readonly emailLogService = inject(EmailLogService);
     private readonly jobService = inject(JobService);
+
+    @ViewChild('grid') grid!: GridComponent;
 
     // Data
     readonly emails = signal<EmailLogSummaryDto[]>([]);
@@ -30,46 +30,8 @@ export class EmailLogComponent {
     readonly isDetailLoading = signal(false);
     readonly copied = signal(false);
 
-    // Sorting (default: newest first)
-    readonly sortColumn = signal<SortColumn>('sendTs');
-    readonly sortDirection = signal<SortDirection>('desc');
-
-    readonly sortedEmails = computed(() => {
-        const list = [...this.emails()];
-        const col = this.sortColumn();
-        const dir = this.sortDirection() === 'asc' ? 1 : -1;
-
-        return list.sort((a, b) => {
-            let aVal: string | number;
-            let bVal: string | number;
-
-            switch (col) {
-                case 'sendTs':
-                    aVal = new Date(a.sendTs).getTime();
-                    bVal = new Date(b.sendTs).getTime();
-                    break;
-                case 'sendFrom':
-                    aVal = (a.sendFrom ?? '').toLowerCase();
-                    bVal = (b.sendFrom ?? '').toLowerCase();
-                    break;
-                case 'count':
-                    aVal = a.count ?? 0;
-                    bVal = b.count ?? 0;
-                    break;
-                case 'subject':
-                    aVal = (a.subject ?? '').toLowerCase();
-                    bVal = (b.subject ?? '').toLowerCase();
-                    break;
-                default:
-                    return 0;
-            }
-
-            if (typeof aVal === 'string') {
-                return dir * aVal.localeCompare(bVal as string);
-            }
-            return dir * ((aVal as number) - (bVal as number));
-        });
-    });
+    // Grid settings
+    sortSettings: SortSettingsModel = { columns: [{ field: 'sendTs', direction: 'Descending' }] };
 
     // Parsed recipients from detail
     readonly recipients = computed(() => {
@@ -108,12 +70,29 @@ export class EmailLogComponent {
         });
     }
 
-    sort(column: SortColumn) {
-        if (this.sortColumn() === column) {
-            this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
-        } else {
-            this.sortColumn.set(column);
-            this.sortDirection.set(column === 'sendTs' ? 'desc' : 'asc');
+    // Row click → show detail
+    onRowSelected(args: any): void {
+        if (args.data) {
+            this.selectEmail(args.data as EmailLogSummaryDto);
+        }
+    }
+
+    // Row numbers
+    refreshRowNumbers(): void {
+        if (!this.grid) return;
+        const rows = this.grid.getRows();
+        const page = this.grid.pageSettings?.currentPage ?? 1;
+        const size = this.grid.pageSettings?.pageSize ?? rows.length;
+        const offset = (page - 1) * size;
+        rows.forEach((row, i) => {
+            const cell = row.querySelector('td');
+            if (cell) cell.textContent = String(offset + i + 1);
+        });
+    }
+
+    onActionComplete(args: any): void {
+        if (args.requestType === 'sorting' || args.requestType === 'paging') {
+            this.refreshRowNumbers();
         }
     }
 

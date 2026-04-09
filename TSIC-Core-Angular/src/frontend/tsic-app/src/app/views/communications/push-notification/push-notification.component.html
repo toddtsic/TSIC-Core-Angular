@@ -57,7 +57,7 @@
     </div>
   </div>
 
-  <!-- History table -->
+  <!-- History grid -->
   <div class="card history-card">
     <div class="card-header">
       <h5 class="mb-0">Sent Push Notifications</h5>
@@ -68,42 +68,25 @@
           <span class="spinner-border text-primary"></span>
           <p class="text-muted mt-2">Loading history...</p>
         </div>
-      } @else if (sortedHistory().length === 0) {
+      } @else if (history().length === 0) {
         <div class="text-center py-4 text-muted">
           <i class="bi bi-bell-slash fs-3 d-block mb-2"></i>
           No push notifications have been sent yet.
         </div>
       } @else {
-        <div class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead>
-              <tr>
-                <th class="sortable" (click)="toggleSort('sentBy')">
-                  Sent By{{ sortIcon('sentBy') }}
-                </th>
-                <th class="sortable" (click)="toggleSort('sentWhen')">
-                  Sent When{{ sortIcon('sentWhen') }}
-                </th>
-                <th class="sortable text-center" (click)="toggleSort('deviceCount')">
-                  Devices{{ sortIcon('deviceCount') }}
-                </th>
-                <th class="sortable" (click)="toggleSort('pushText')">
-                  Push Text{{ sortIcon('pushText') }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of sortedHistory(); track item.id) {
-                <tr>
-                  <td>{{ item.sentBy }}</td>
-                  <td class="text-nowrap">{{ formatDate(item.sentWhen) }}</td>
-                  <td class="text-center">{{ item.deviceCount }}</td>
-                  <td class="push-text-cell">{{ item.pushText }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        <ejs-grid
+          [dataSource]="history()"
+          cssClass="tsic-grid-tight"
+          [allowSorting]="true"
+          [sortSettings]="sortSettings"
+        >
+          <e-columns>
+            <e-column field="sentBy" headerText="Sent By" width="150"></e-column>
+            <e-column field="sentWhen" headerText="Sent When" width="170" type="date" format="MM/dd/yyyy HH:mm"></e-column>
+            <e-column field="deviceCount" headerText="Devices" width="90" textAlign="Center"></e-column>
+            <e-column field="pushText" headerText="Push Text"></e-column>
+          </e-columns>
+        </ejs-grid>
       }
     </div>
   </div>

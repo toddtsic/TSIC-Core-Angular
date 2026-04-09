@@ -37,62 +37,40 @@
 <!-- Master / Detail Layout -->
 @if (!isLoading() && emails().length > 0) {
     <div class="email-layout">
-        <!-- Email Table -->
+        <!-- Email Grid -->
         <div class="email-table-panel">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th class="col-row-num">#</th>
-                            <th class="sortable" (click)="sort('sendTs')">
-                                Sent
-                                <i class="bi sort-icon"
-                                    [class.bi-caret-up-fill]="sortColumn() === 'sendTs' && sortDirection() === 'asc'"
-                                    [class.bi-caret-down-fill]="sortColumn() === 'sendTs' && sortDirection() === 'desc'"
-                                    [class.bi-chevron-expand]="sortColumn() !== 'sendTs'"></i>
-                            </th>
-                            <th class="sortable" (click)="sort('sendFrom')">
-                                Sender
-                                <i class="bi sort-icon"
-                                    [class.bi-caret-up-fill]="sortColumn() === 'sendFrom' && sortDirection() === 'asc'"
-                                    [class.bi-caret-down-fill]="sortColumn() === 'sendFrom' && sortDirection() === 'desc'"
-                                    [class.bi-chevron-expand]="sortColumn() !== 'sendFrom'"></i>
-                            </th>
-                            <th class="sortable col-count" (click)="sort('count')">
-                                Recipients
-                                <i class="bi sort-icon"
-                                    [class.bi-caret-up-fill]="sortColumn() === 'count' && sortDirection() === 'asc'"
-                                    [class.bi-caret-down-fill]="sortColumn() === 'count' && sortDirection() === 'desc'"
-                                    [class.bi-chevron-expand]="sortColumn() !== 'count'"></i>
-                            </th>
-                            <th class="sortable" (click)="sort('subject')">
-                                Subject
-                                <i class="bi sort-icon"
-                                    [class.bi-caret-up-fill]="sortColumn() === 'subject' && sortDirection() === 'asc'"
-                                    [class.bi-caret-down-fill]="sortColumn() === 'subject' && sortDirection() === 'desc'"
-                                    [class.bi-chevron-expand]="sortColumn() !== 'subject'"></i>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (email of sortedEmails(); track email.emailId; let i = $index) {
-                            <tr [class.row-selected]="selectedEmailId() === email.emailId"
-                                (click)="selectEmail(email)"
-                                role="button">
-                                <td class="text-body-secondary">{{ i + 1 }}</td>
-                                <td class="text-nowrap">{{ email.sendTs | date:'M/d/yy h:mm a' }}</td>
-                                <td class="text-truncate sender-col">{{ email.sendFrom }}</td>
-                                <td class="text-center">
-                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
-                                        {{ (email.count ?? 0) | number }}
-                                    </span>
-                                </td>
-                                <td class="text-truncate subject-col">{{ email.subject }}</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <ejs-grid
+                #grid
+                [dataSource]="emails()"
+                cssClass="tsic-grid-tight"
+                [allowSorting]="true"
+                [sortSettings]="sortSettings"
+                (rowSelected)="onRowSelected($event)"
+                (dataBound)="refreshRowNumbers()"
+                (actionComplete)="onActionComplete($event)"
+            >
+                <e-columns>
+                    <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+                    <e-column field="sendTs" headerText="Sent" width="145" type="date" format="M/d/yy h:mm a"></e-column>
+                    <e-column field="sendFrom" headerText="Sender" width="200">
+                        <ng-template #template let-data>
+                            <span class="text-truncate d-inline-block" style="max-width: 180px;">{{ data.sendFrom }}</span>
+                        </ng-template>
+                    </e-column>
+                    <e-column field="count" headerText="Recipients" width="100" textAlign="Center">
+                        <ng-template #template let-data>
+                            <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis">
+                                {{ data.count ?? 0 }}
+                            </span>
+                        </ng-template>
+                    </e-column>
+                    <e-column field="subject" headerText="Subject">
+                        <ng-template #template let-data>
+                            <span class="text-truncate d-inline-block" style="max-width: 300px;">{{ data.subject }}</span>
+                        </ng-template>
+                    </e-column>
+                </e-columns>
+            </ejs-grid>
         </div>
 
         <!-- Detail Panel -->

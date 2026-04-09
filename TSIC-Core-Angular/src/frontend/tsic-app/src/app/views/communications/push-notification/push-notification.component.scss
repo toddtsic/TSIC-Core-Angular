@@ -73,33 +73,4 @@
   }
 }
 
-.sortable {
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-
-  &:hover {
-    color: var(--bs-primary);
-  }
-}
-
-.push-text-cell {
-  max-width: 400px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.table {
-  th {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--brand-text-muted);
-    border-bottom: 2px solid var(--border-color);
-  }
-
-  td {
-    font-size: var(--font-size-sm);
-    vertical-align: middle;
-  }
-}
+// Grid styling: cssClass="tsic-grid-tight" on <ejs-grid>

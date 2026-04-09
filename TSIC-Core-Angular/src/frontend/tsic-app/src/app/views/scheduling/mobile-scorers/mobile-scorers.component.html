@@ -35,57 +35,44 @@
     </div>
 }
 
-<!-- Scorer table -->
+<!-- Scorer grid -->
 @if (!isLoading() && scorers().length > 0) {
-    <div class="table-card">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Active</th>
-                        <th>Username</th>
-                        <th>First Name</th>
-                        <th>Last Name</th>
-                        <th>Email</th>
-                        <th>Cellphone</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (scorer of scorers(); track scorer.registrationId) {
-                        <tr>
-                            <td>
-                                @if (scorer.bActive) {
-                                    <span class="badge bg-success-subtle text-success-emphasis">Yes</span>
-                                } @else {
-                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">No</span>
-                                }
-                            </td>
-                            <td class="fw-medium">{{ scorer.username }}</td>
-                            <td>{{ scorer.firstName }}</td>
-                            <td>{{ scorer.lastName }}</td>
-                            <td>{{ scorer.email }}</td>
-                            <td>{{ scorer.cellphone }}</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary btn-icon me-1"
-                                        (click)="openEdit(scorer)"
-                                        title="Edit scorer"
-                                        aria-label="Edit {{ scorer.firstName }} {{ scorer.lastName }}">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger btn-icon"
-                                        (click)="confirmDelete(scorer)"
-                                        title="Delete scorer"
-                                        aria-label="Delete {{ scorer.firstName }} {{ scorer.lastName }}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
+    <ejs-grid
+        [dataSource]="scorers()"
+        cssClass="tsic-grid-tight"
+        [allowSorting]="true"
+    >
+        <e-columns>
+            <e-column field="bActive" headerText="Active" width="80" textAlign="Center">
+                <ng-template #template let-data>
+                    @if (data.bActive) {
+                        <span class="active-badge active-yes">Yes</span>
+                    } @else {
+                        <span class="active-badge active-no">No</span>
                     }
-                </tbody>
-            </table>
-        </div>
-    </div>
+                </ng-template>
+            </e-column>
+            <e-column field="username" headerText="Username" width="140"></e-column>
+            <e-column field="firstName" headerText="First Name" width="130"></e-column>
+            <e-column field="lastName" headerText="Last Name" width="130"></e-column>
+            <e-column field="email" headerText="Email" width="200"></e-column>
+            <e-column field="cellphone" headerText="Cellphone" width="130"></e-column>
+            <e-column headerText="" width="90" [allowSorting]="false" textAlign="Center">
+                <ng-template #template let-data>
+                    <div class="row-actions">
+                        <button class="action-btn" (click)="openEdit(data); $event.stopPropagation()"
+                                title="Edit" aria-label="Edit scorer">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="action-btn action-btn-danger" (click)="confirmDelete(data); $event.stopPropagation()"
+                                title="Delete" aria-label="Delete scorer">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </ng-template>
+            </e-column>
+        </e-columns>
+    </ejs-grid>
 }
 
 <!-- Add/Edit dialog -->

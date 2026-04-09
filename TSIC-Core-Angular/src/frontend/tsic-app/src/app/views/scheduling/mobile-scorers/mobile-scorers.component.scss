@@ -37,45 +37,37 @@
     font-size: var(--font-size-sm);
 }
 
-// ── Table card ──────────────────────────────────
+// Grid styling: cssClass="tsic-grid-tight" on <ejs-grid>
+// Cell utilities (.active-badge, .row-actions): global _syncfusion-cell-utils.scss
 
-.table-card {
-    background: var(--bs-card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    overflow: hidden;
+// ── Row action buttons ──
+.row-actions {
+    display: flex;
+    gap: var(--space-1);
 }
 
-.table {
-    th {
-        font-size: var(--font-size-xs);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--bs-secondary-color);
-        border-bottom-width: 2px;
-        padding: var(--space-3) var(--space-4);
-    }
-
-    td {
-        padding: var(--space-3) var(--space-4);
-        color: var(--brand-text);
-        vertical-align: middle;
-    }
-
-    tbody tr:last-child td {
-        border-bottom: none;
-    }
-}
-
-.btn-icon {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    display: inline-flex;
+.action-btn {
+    display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+    }
+}
+
+.action-btn-danger:hover {
+    background: rgba(var(--bs-danger-rgb), 0.1);
+    color: var(--bs-danger);
 }
 
 // ── Empty state ─────────────────────────────────

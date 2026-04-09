@@ -1,5 +1,5 @@
 import { Component, inject, signal, ChangeDetectionStrategy, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { MobileScorersService } from './mobile-scorers.service';
@@ -9,7 +9,7 @@ import type { MobileScorerDto, CreateMobileScorerRequest, UpdateMobileScorerRequ
 @Component({
     selector: 'app-mobile-scorers',
     standalone: true,
-    imports: [CommonModule, ConfirmDialogComponent, ScorerDialogComponent],
+    imports: [GridAllModule, ConfirmDialogComponent, ScorerDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './mobile-scorers.component.html',
     styleUrl: './mobile-scorers.component.scss'
