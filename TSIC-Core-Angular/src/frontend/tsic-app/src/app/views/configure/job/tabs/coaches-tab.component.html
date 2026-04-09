@@ -1,29 +1,34 @@
 @if (svc.coaches()) {
   <div class="tab-panel">
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-whistle me-2"></i>Coach Settings</h6>
+      <h6 class="section-title"><i class="bi bi-clipboard-check me-2"></i>Coach Settings</h6>
       <div class="row g-2">
         <div class="col-md-6">
-          <label class="field-label">Coach Form Name</label>
-          <input type="text" class="field-input"
-            [ngModel]="regformNameCoach()"
-            (ngModelChange)="regformNameCoach.set($event); onFieldChange()" />
+          <fieldset class="config-fieldset">
+            <legend class="field-label">Form Name</legend>
+            <input type="text" class="field-input"
+              [ngModel]="regformNameCoach()"
+              (ngModelChange)="regformNameCoach.set($event); onFieldChange()" />
+          </fieldset>
         </div>
         <div class="col-md-6">
-          <div class="field-check-row">
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bAllowRosterViewAdult()"
-                (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
-              <span class="field-label">Allow Roster View (Adult)</span>
-            </label>
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bAllowRosterViewPlayer()"
-                (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
-              <span class="field-label">Allow Roster View (Player)</span>
-            </label>
-          </div>
+          <fieldset class="config-fieldset">
+            <legend class="field-label">Roster Visibility</legend>
+            <div class="field-check-row">
+              <label class="field-check">
+                <input type="checkbox"
+                  [ngModel]="bAllowRosterViewAdult()"
+                  (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
+                <span class="field-label mb-0">Adult</span>
+              </label>
+              <label class="field-check">
+                <input type="checkbox"
+                  [ngModel]="bAllowRosterViewPlayer()"
+                  (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
+                <span class="field-label mb-0">Player</span>
+              </label>
+            </div>
+          </fieldset>
         </div>
       </div>
     </div>

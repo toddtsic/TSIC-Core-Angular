@@ -20,18 +20,21 @@
           <input type="text" class="field-input"
             [ngModel]="regFormCcs()"
             (ngModelChange)="regFormCcs.set($event); onFieldChange()" />
+          <span class="field-help">semi-colon delimited, no spaces</span>
         </div>
         <div class="col-md-6">
           <label class="field-label">BCC Addresses</label>
           <input type="text" class="field-input"
             [ngModel]="regFormBccs()"
             (ngModelChange)="regFormBccs.set($event); onFieldChange()" />
+          <span class="field-help">semi-colon delimited, no spaces</span>
         </div>
         <div class="col-md-6">
           <label class="field-label">Reschedule Email List</label>
           <input type="text" class="field-input"
             [ngModel]="rescheduleemaillist()"
             (ngModelChange)="rescheduleemaillist.set($event); onFieldChange()" />
+          <span class="field-help">semi-colon delimited, no spaces</span>
         </div>
         <div class="col-md-6">
           <label class="field-label">Always Copy Email List</label>
