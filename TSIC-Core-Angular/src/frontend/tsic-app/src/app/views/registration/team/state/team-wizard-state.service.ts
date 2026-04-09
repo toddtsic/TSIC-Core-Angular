@@ -8,6 +8,7 @@ import { TeamInsuranceStateService } from '@views/registration/team/services/tea
 import { TeamInsuranceService } from '@views/registration/team/services/team-insurance.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
+import type { UserContactInfoDto } from '@core/api';
 
 /**
  * Team Wizard State Service — THIN ORCHESTRATOR.
@@ -35,8 +36,16 @@ export class TeamWizardStateService {
     private readonly _hasActiveDiscountCodes = signal(false);
     readonly hasActiveDiscountCodes = this._hasActiveDiscountCodes.asReadonly();
 
+    private readonly _fullPaymentRequired = signal(true);
+    readonly fullPaymentRequired = this._fullPaymentRequired.asReadonly();
+
+    private readonly _clubRepContact = signal<UserContactInfoDto | null>(null);
+    readonly clubRepContact = this._clubRepContact.asReadonly();
+
     setJobPath(v: string): void { this._jobPath.set(v); }
     setHasActiveDiscountCodes(v: boolean): void { this._hasActiveDiscountCodes.set(v); }
+    setFullPaymentRequired(v: boolean): void { this._fullPaymentRequired.set(v); }
+    setClubRepContact(v: UserContactInfoDto | null): void { this._clubRepContact.set(v); }
 
     // ── Initialize ─────────────────────────────────────────────────────
     initialize(jobPath: string): void {
@@ -76,6 +85,8 @@ export class TeamWizardStateService {
     reset(): void {
         this._jobPath.set('');
         this._hasActiveDiscountCodes.set(false);
+        this._fullPaymentRequired.set(true);
+        this._clubRepContact.set(null);
         this.clubRep.reset();
         this.teamPayment.reset();
         this.teamPaymentState.reset();

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -25,7 +26,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [CurrencyPipe, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent],
+    imports: [CurrencyPipe, GridAllModule, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -69,82 +70,117 @@ interface AgePickerTeam {
             <span class="registered-total">{{ totalFee() | currency }}</span>
           </div>
 
-          <div class="summary-table-wrap">
-            <table class="summary-table">
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  <th>Event Age Group</th>
-                  <th class="text-end">Fee</th>
-                  <th class="text-end">Paid</th>
-                  <th class="text-end">Owed</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (team of enteredTeams(); track team.teamId) {
-                  @let paid = team.paidTotal > 0;
-                  <tr [class.is-paid]="paid">
-                    <td>
-                      <span class="fw-semibold">{{ team.teamName }}</span>
-                      @if (team.levelOfPlay) {
-                        <span class="select-lop ms-1">LOP {{ team.levelOfPlay }}</span>
-                      }
-                    </td>
-                    <td>
-                      <span class="summary-age">{{ team.ageGroupName }}</span>
-                    </td>
-                    <td class="text-end">{{ team.feeTotal | currency }}</td>
-                    <td class="text-end">
-                      @if (paid) {
-                        <span class="text-success">{{ team.paidTotal | currency }}</span>
-                      } @else {
-                        <span class="text-muted">{{ team.paidTotal | currency }}</span>
-                      }
-                    </td>
-                    <td class="text-end fw-semibold" [class.text-danger]="team.owedTotal > 0">
-                      {{ team.owedTotal | currency }}
-                    </td>
-                    <td class="text-end">
-                      @if (!paid) {
-                        <button type="button" class="btn-inline-remove"
-                                [disabled]="actionInProgress()"
-                                (click)="onRemoveTeam(team)"
-                                title="Remove {{ team.teamName }}">
-                          <i class="bi bi-x-lg"></i>
-                        </button>
-                      } @else {
-                        <i class="bi bi-lock-fill text-muted" style="font-size: var(--font-size-xs)"></i>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-              <tfoot>
-                <tr class="totals-row">
-                  <td colspan="2">
-                    <strong>{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team' : 'teams' }}</strong>
-                  </td>
-                  <td class="text-end fw-bold">{{ totalFee() | currency }}</td>
-                  <td class="text-end fw-semibold">{{ totalPaid() | currency }}</td>
-                  <td class="text-end">
-                    @if (totalOwed() > 0) {
-                      <span class="total-owed">{{ totalOwed() | currency }}</span>
-                    } @else {
-                      <span class="total-paid"><i class="bi bi-check-circle-fill me-1"></i>$0.00</span>
+          <div style="padding: var(--space-2) var(--space-3)">
+          <ejs-grid [dataSource]="enteredTeams()" [allowSorting]="true"
+                    [frozenColumns]="1" [allowTextWrap]="true"
+                    [textWrapSettings]="{ wrapMode: 'Header' }"
+                    [rowHeight]="30"
+                    cssClass="reg-grid">
+            <e-columns>
+              <e-column field="teamName" headerText="Team" width="180" [isFrozen]="true">
+                <ng-template #template let-data>
+                  <span class="team-name-cell">
+                    @if (data.paidTotal === 0) {
+                      <button type="button" class="btn-inline-remove"
+                              [disabled]="actionInProgress()"
+                              (click)="onRemoveTeam(data)"
+                              title="Remove {{ data.teamName }}">
+                        <i class="bi bi-trash3"></i>
+                      </button>
                     }
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
+                    <span class="fw-semibold">{{ data.teamName }}</span>
+                    @if (data.levelOfPlay) {
+                      <span class="select-lop ms-1">LOP {{ data.levelOfPlay }}</span>
+                    }
+                  </span>
+                </ng-template>
+              </e-column>
+              <e-column field="ageGroupName" headerText="Age Group" width="95"></e-column>
+              <e-column field="feeTotal" headerText="Fee" width="90" textAlign="Right" format="C2"></e-column>
+              <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2">
+                <ng-template #template let-data>
+                  <span [class.text-success]="data.paidTotal > 0" [class.text-muted]="data.paidTotal === 0">
+                    {{ data.paidTotal | currency }}
+                  </span>
+                </ng-template>
+              </e-column>
+              <e-column field="depositDue" headerText="Deposit Due" width="110" textAlign="Right" format="C2"
+                        [visible]="showDepositColumns()"></e-column>
+              <e-column field="additionalDue" headerText="Additional Due" width="120" textAlign="Right" format="C2"
+                        [visible]="showDepositColumns()"></e-column>
+              <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
+                        [visible]="showProcessingColumn()"></e-column>
+              <e-column field="ccOwedTotal" headerText="CC Owed" width="90" textAlign="Right">
+                <ng-template #template let-data>
+                  <span [style.color]="data.ccOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ccOwedTotal > 0">
+                    {{ data.ccOwedTotal | currency }}
+                  </span>
+                </ng-template>
+              </e-column>
+              <e-column field="ckOwedTotal" headerText="Check Owed" width="110" textAlign="Right">
+                <ng-template #template let-data>
+                  <span [style.color]="data.ckOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ckOwedTotal > 0">
+                    {{ data.ckOwedTotal | currency }}
+                  </span>
+                </ng-template>
+              </e-column>
+            </e-columns>
+            <e-aggregates>
+              <e-aggregate>
+                <e-columns>
+                  <e-column field="teamName" type="Custom">
+                    <ng-template #footerTemplate>
+                      <strong>{{ enteredTeams().length }} {{ enteredTeams().length === 1 ? 'team registered' : 'teams registered' }}</strong>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="feeTotal" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value">{{ totalFee() | currency }}</div>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="paidTotal" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value">{{ totalPaid() | currency }}</div>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="depositDue" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value">{{ totalDepositDue() | currency }}</div>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="additionalDue" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value">{{ totalAdditionalDue() | currency }}</div>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="feeProcessing" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value">{{ totalProcessing() | currency }}</div>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="ccOwedTotal" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value" [style.color]="totalCcOwed() > 0 ? 'var(--bs-danger)' : 'var(--bs-success)'">
+                        {{ totalCcOwed() | currency }}
+                      </div>
+                    </ng-template>
+                  </e-column>
+                  <e-column field="ckOwedTotal" type="Custom">
+                    <ng-template #footerTemplate>
+                      <div class="aggregate-value" [style.color]="totalCkOwed() > 0 ? 'var(--bs-danger)' : 'var(--bs-success)'">
+                        {{ totalCkOwed() | currency }}
+                      </div>
+                    </ng-template>
+                  </e-column>
+                </e-columns>
+              </e-aggregate>
+            </e-aggregates>
+          </ejs-grid>
           </div>
 
           <div class="step-card-footer">
-            <span class="footer-hint">
-              <strong class="text-primary">{{ enteredTeams().length }}</strong> {{ enteredTeams().length === 1 ? 'team' : 'teams' }} registered
-            </span>
-            <button type="button" class="btn btn-sm btn-primary"
+            <span></span>
+            <button type="button" class="btn btn-sm btn-success fw-semibold"
                     (click)="proceedToPayment.emit()">
               Proceed to Payment <i class="bi bi-arrow-right ms-1"></i>
             </button>
@@ -169,7 +205,7 @@ interface AgePickerTeam {
             <span class="stat-number">{{ allLibraryTeams().length }}</span>
             <span class="stat-label">{{ allLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
           </div>
-          <button type="button" class="btn btn-primary btn-sm"
+          <button type="button" class="btn btn-outline-primary btn-sm"
                   (click)="showAddModal.set(true)">
             <i class="bi bi-plus-circle me-1"></i>Add Team
           </button>
@@ -245,7 +281,7 @@ interface AgePickerTeam {
 
   `,
     styles: [`
-      :host { display: flex; flex-direction: column; gap: var(--space-3); }
+      :host { display: flex; flex-direction: column; gap: var(--space-4); }
 
       /* ── Coach Card — detached contextual guidance ── */
       .coach-card {
@@ -731,6 +767,12 @@ interface AgePickerTeam {
         &:disabled { opacity: 0.4; cursor: default; }
       }
 
+      .team-name-cell {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+      }
+
       .paid-badge {
         font-size: 10px;
         font-weight: var(--font-weight-semibold);
@@ -742,71 +784,11 @@ interface AgePickerTeam {
         flex-shrink: 0;
       }
 
-      /* ── Step 3: Summary Table ───────────────────── */
-      .summary-table-wrap {
-        overflow-x: auto;
-      }
+      /* ── Registered grid: compact overrides via Syncfusion cssClass ── */
 
-      .summary-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-xs);
-
-        th {
-          padding: var(--space-1) var(--space-3);
-          font-weight: var(--font-weight-semibold);
-          color: var(--brand-text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-          font-size: 10px;
-          border-bottom: 2px solid var(--border-color);
-          white-space: nowrap;
-        }
-
-        td {
-          padding: var(--space-1) var(--space-3);
-          color: var(--brand-text);
-          border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
-          white-space: nowrap;
-        }
-
-        tbody tr.is-paid {
-          opacity: 0.7;
-        }
-
-        tfoot td {
-          border-top: 2px solid var(--border-color);
-          border-bottom: none;
-          padding-top: var(--space-2);
-        }
-      }
-
-      .summary-age {
-        font-size: 10px;
-        font-weight: var(--font-weight-semibold);
-        padding: 1px var(--space-1);
-        border-radius: var(--radius-full);
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        color: var(--bs-primary);
-      }
-
-      /* ── Step 3: Totals Row ──────────────────────── */
-      .totals-row td {
-        border-top: 2px solid var(--border-color);
-        border-bottom: none;
-        padding-top: var(--space-2);
-      }
-
-      .total-owed {
-        font-size: var(--font-size-sm);
+      .aggregate-value {
         font-weight: var(--font-weight-bold);
-        color: var(--bs-danger);
-      }
-
-      .total-paid {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--bs-success);
+        text-align: right;
       }
 
       /* ── Mobile ──────────────────────────────────── */
@@ -853,11 +835,6 @@ interface AgePickerTeam {
         .btn-register {
           min-height: 44px;
         }
-
-        .summary-table th,
-        .summary-table td {
-          padding: var(--space-1) var(--space-2);
-        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -884,6 +861,10 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly lopOptions = signal<string[]>([]);
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
+
+    /** Conditional column visibility based on job config. */
+    readonly showDepositColumns = signal(false);
+    readonly showProcessingColumn = signal(false);
 
     /** Which team's age picker modal is open (null = closed). */
     readonly agePickerTeam = signal<AgePickerTeam | null>(null);
@@ -924,6 +905,11 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly totalFee = computed(() => this._registeredTeams().reduce((s, t) => s + t.feeTotal, 0));
     readonly totalPaid = computed(() => this._registeredTeams().reduce((s, t) => s + t.paidTotal, 0));
     readonly totalOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
+    readonly totalDepositDue = computed(() => this._registeredTeams().reduce((s, t) => s + t.depositDue, 0));
+    readonly totalAdditionalDue = computed(() => this._registeredTeams().reduce((s, t) => s + t.additionalDue, 0));
+    readonly totalProcessing = computed(() => this._registeredTeams().reduce((s, t) => s + (t.feeProcessing ?? 0), 0));
+    readonly totalCcOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.ccOwedTotal, 0));
+    readonly totalCkOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.ckOwedTotal, 0));
 
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
@@ -1070,6 +1056,8 @@ export class TeamTeamsStepComponent implements OnInit {
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.lopOptions.set(meta.lopOptions || []);
+                    this.showDepositColumns.set(!(meta.bTeamsFullPaymentRequired ?? false));
+                    this.showProcessingColumn.set(meta.bAddProcessingFees ?? false);
                     this.state.teamPayment.setTeams(meta.registeredTeams || []);
                     this.state.teamPayment.setJobPath(this.state.jobPath());
                     this.state.teamPayment.setPaymentConfig(
@@ -1081,6 +1069,8 @@ export class TeamTeamsStepComponent implements OnInit {
                         meta.mailinPaymentWarning,
                     );
                     this.state.setHasActiveDiscountCodes(meta.hasActiveDiscountCodes);
+                    this.state.setFullPaymentRequired(meta.bTeamsFullPaymentRequired ?? true);
+                    this.state.setClubRepContact(meta.clubRepContactInfo ?? null);
                 },
                 error: () => {
                     this.loading.set(false);

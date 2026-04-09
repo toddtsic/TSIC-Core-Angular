@@ -12,6 +12,7 @@ import { CreditCardFormComponent } from '@views/registration/shared/components/c
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
+import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 
 /**
  * Team Payment step — CC form, check payment, discount codes.
@@ -21,7 +22,7 @@ import type { CreditCardFormValue } from '@views/registration/shared/types/wizar
 @Component({
     selector: 'app-trw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, FormsModule, CreditCardFormComponent],
+    imports: [CurrencyPipe, FormsModule, CreditCardFormComponent, RegisteredTeamsGridComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -47,39 +48,21 @@ import type { CreditCardFormValue } from '@views/registration/shared/types/wizar
         } @else {
           <!-- Balance banner -->
           <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3 bg-primary text-white">
-            <span class="fw-semibold">Balance Due</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge" [class]="paymentPhaseBadgeClass()">{{ paymentPhaseLabel() }}</span>
+              <span class="fw-semibold">Balance Due</span>
+            </div>
             <span class="fs-4 fw-bold">{{ balanceDue() | currency }}</span>
           </div>
 
           <!-- Line items -->
           <section class="mb-3">
             <h6 class="fw-semibold mb-2">Summary</h6>
-            <div class="table-responsive">
-              <table class="table table-sm align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>Team</th>
-                    <th>Age Group</th>
-                    <th class="text-end">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (li of lineItems(); track li.teamId) {
-                    <tr>
-                      <td>{{ li.teamName }}</td>
-                      <td>{{ li.ageGroup }}</td>
-                      <td class="text-end">{{ li.owedTotal | currency }}</td>
-                    </tr>
-                  }
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <th colspan="2" class="text-end">Total</th>
-                    <th class="text-end">{{ balanceDue() | currency }}</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <app-registered-teams-grid
+              [teams]="registeredTeams()"
+              [showProcessing]="showProcessing()"
+              [frozenTeamCol]="true"
+              [pageSize]="10" />
           </section>
 
           <!-- Discount code -->
@@ -133,6 +116,12 @@ import type { CreditCardFormValue } from '@views/registration/shared/types/wizar
                      style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
               <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
               <app-credit-card-form
+                [defaultFirstName]="clubRepContact()?.firstName ?? null"
+                [defaultLastName]="clubRepContact()?.lastName ?? null"
+                [defaultAddress]="clubRepContact()?.streetAddress ?? null"
+                [defaultZip]="clubRepContact()?.postalCode ?? null"
+                [defaultEmail]="clubRepContact()?.email ?? null"
+                [defaultPhone]="clubRepContact()?.cellphone ?? clubRepContact()?.phone ?? null"
                 (validChange)="onCcValidChange($event)"
                 (valueChange)="onCcValueChange($event)" />
             </section>
@@ -246,6 +235,7 @@ import type { CreditCardFormValue } from '@views/registration/shared/types/wizar
       .check-address {
         white-space: pre-line;
       }
+
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -266,9 +256,11 @@ export class TeamPaymentStepV2Component {
     readonly discountCode = signal('');
     private lastIdemKey: string | null = null;
 
+    readonly clubRepContact = computed(() => this.state.clubRepContact());
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
     readonly balanceDue = computed(() => this.state.teamPayment.balanceDue());
-    readonly lineItems = computed(() => this.state.teamPayment.lineItems());
+    readonly registeredTeams = computed(() => this.state.teamPayment.teams());
+    readonly showProcessing = computed(() => this.state.teamPayment.bAddProcessingFees());
     readonly showMethodSelector = computed(() => this.state.teamPayment.showPaymentMethodSelector());
     readonly isCc = computed(() => this.state.teamPayment.isCcPayment());
     readonly isCheck = computed(() => this.state.teamPayment.isCheckPayment());
@@ -277,6 +269,21 @@ export class TeamPaymentStepV2Component {
     readonly payTo = computed(() => this.state.teamPayment.payTo());
     readonly mailTo = computed(() => this.state.teamPayment.mailTo());
     readonly mailinPaymentWarning = computed(() => this.state.teamPayment.mailinPaymentWarning());
+
+    readonly paymentPhaseLabel = computed(() => {
+        const totalPaid = this.state.teamPayment.totalPaid();
+        const fullRequired = this.state.fullPaymentRequired();
+        if (totalPaid > 0) return 'Remaining Balance';
+        if (!fullRequired) return 'Deposit';
+        return 'Full Payment';
+    });
+
+    readonly paymentPhaseBadgeClass = computed(() => {
+        const label = this.paymentPhaseLabel();
+        if (label === 'Deposit') return 'bg-warning text-dark';
+        if (label === 'Remaining Balance') return 'bg-info text-dark';
+        return 'bg-light text-dark';
+    });
 
     readonly canSubmitCc = computed(() =>
         this.hasBalance() && this.ccValid() && !this.submitting(),
