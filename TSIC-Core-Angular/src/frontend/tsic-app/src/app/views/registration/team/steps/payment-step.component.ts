@@ -61,6 +61,8 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             <app-registered-teams-grid
               [teams]="registeredTeams()"
               [showProcessing]="showProcessing()"
+              [showCcOwed]="allowsCc()"
+              [showCkOwed]="allowsCheck()"
               [frozenTeamCol]="true"
               [pageSize]="10" />
           </section>
@@ -260,6 +262,9 @@ export class TeamPaymentStepV2Component {
     readonly balanceDue = computed(() => this.state.teamPayment.balanceDue());
     readonly registeredTeams = computed(() => this.state.teamPayment.teams());
     readonly showProcessing = computed(() => this.state.teamPayment.bAddProcessingFees());
+    // paymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only
+    readonly allowsCc = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() !== 3);
+    readonly allowsCheck = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() >= 2);
     readonly showMethodSelector = computed(() => this.state.teamPayment.showPaymentMethodSelector());
     readonly isCc = computed(() => this.state.teamPayment.isCcPayment());
     readonly isCheck = computed(() => this.state.teamPayment.isCheckPayment());
@@ -322,7 +327,10 @@ export class TeamPaymentStepV2Component {
         }
 
         const cc = this._creditCard();
+        const teamIds = this.state.teamPayment.teamIdsWithBalance();
         const request = {
+            teamIds,
+            totalAmount: this.balanceDue(),
             jobPath: this.state.jobPath(),
             creditCard: {
                 number: cc.number?.trim() || null,

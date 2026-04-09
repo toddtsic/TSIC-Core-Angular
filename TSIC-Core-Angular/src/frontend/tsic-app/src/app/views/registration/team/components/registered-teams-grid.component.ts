@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
@@ -7,13 +7,8 @@ import type { RegisteredTeamDto } from '@core/api';
  * Reusable registered-teams summary grid.
  * Used on the teams step (interactive, with delete), payment step (read-only), etc.
  *
- * Columns adapt based on input flags:
- *  - showDeposit: show Deposit Due / Additional Due columns
- *  - showProcessing: show Proc Fee column
- *  - showPaid: show Paid column
- *  - showActions: show delete button in Team column (parent handles the click via actionClick output)
- *  - frozenTeamCol: freeze the Team column (for wider grids with horizontal scroll)
- *  - pageSize: enable paging (0 = no paging)
+ * Columns adapt based on input flags. Delete button shown when showRemove=true
+ * and the team has paidTotal === 0. Parent handles removal via removeTeam output.
  */
 @Component({
     selector: 'app-registered-teams-grid',
@@ -31,14 +26,24 @@ import type { RegisteredTeamDto } from '@core/api';
           <e-column field="teamName" headerText="Team" [width]="teamColWidth()"
                     [isFrozen]="frozenTeamCol()">
             <ng-template #template let-data>
-              <span class="fw-semibold">{{ data.teamName }}</span>
-              @if (data.levelOfPlay) {
-                <span class="select-lop ms-1">LOP {{ data.levelOfPlay }}</span>
-              }
+              <span class="team-name-cell">
+                @if (showRemove() && data.paidTotal === 0) {
+                  <button type="button" class="btn-inline-remove"
+                          [disabled]="actionInProgress()"
+                          (click)="removeTeam.emit(data)"
+                          title="Remove {{ data.teamName }}">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                }
+                <span class="fw-semibold">{{ data.teamName }}</span>
+                @if (data.levelOfPlay) {
+                  <span class="select-lop ms-1">LOP {{ data.levelOfPlay }}</span>
+                }
+              </span>
             </ng-template>
           </e-column>
           <e-column field="ageGroupName" headerText="Age Group" width="95"></e-column>
-          <e-column field="feeTotal" headerText="Fee" width="90" textAlign="Right" format="C2"></e-column>
+          <e-column field="feeBase" headerText="Fee" width="90" textAlign="Right" format="C2"></e-column>
           <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
@@ -53,14 +58,16 @@ import type { RegisteredTeamDto } from '@core/api';
                     [visible]="showDeposit()"></e-column>
           <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
                     [visible]="showProcessing()"></e-column>
-          <e-column field="ccOwedTotal" headerText="CC Owed" width="90" textAlign="Right">
+          <e-column field="ccOwedTotal" headerText="CC Owed" width="90" textAlign="Right"
+                    [visible]="showCcOwed()">
             <ng-template #template let-data>
               <span [style.color]="data.ccOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ccOwedTotal > 0">
                 {{ data.ccOwedTotal | currency }}
               </span>
             </ng-template>
           </e-column>
-          <e-column field="ckOwedTotal" headerText="Check Owed" width="110" textAlign="Right">
+          <e-column field="ckOwedTotal" headerText="Check Owed" width="110" textAlign="Right"
+                    [visible]="showCkOwed()">
             <ng-template #template let-data>
               <span [style.color]="data.ckOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ckOwedTotal > 0">
                 {{ data.ckOwedTotal | currency }}
@@ -76,7 +83,7 @@ import type { RegisteredTeamDto } from '@core/api';
                   <strong>{{ teams().length }} {{ teams().length === 1 ? 'team' : 'teams' }}</strong>
                 </ng-template>
               </e-column>
-              <e-column field="feeTotal" type="Sum" format="C2">
+              <e-column field="feeBase" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value">{{ sumFee() | currency }}</div>
                 </ng-template>
@@ -125,6 +132,31 @@ import type { RegisteredTeamDto } from '@core/api';
         font-weight: var(--font-weight-bold);
         text-align: right;
       }
+
+      .team-name-cell {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+      }
+
+      .btn-inline-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--brand-text-muted);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: var(--font-size-xs);
+        flex-shrink: 0;
+        transition: color 0.1s ease, background-color 0.1s ease;
+
+        &:hover { color: var(--bs-danger); background: rgba(var(--bs-danger-rgb), 0.08); }
+        &:disabled { opacity: 0.4; cursor: default; }
+      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -137,12 +169,17 @@ export class RegisteredTeamsGridComponent {
     readonly showPaid = input(true);
     readonly showCcOwed = input(true);
     readonly showCkOwed = input(true);
+    readonly showRemove = input(false);
+    readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);
     readonly teamColWidth = input(160);
     readonly pageSize = input(0);
 
+    // Events
+    readonly removeTeam = output<RegisteredTeamDto>();
+
     // Aggregates
-    readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeTotal, 0));
+    readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeBase, 0));
     readonly sumPaid = computed(() => this.teams().reduce((s, t) => s + t.paidTotal, 0));
     readonly sumDepositDue = computed(() => this.teams().reduce((s, t) => s + t.depositDue, 0));
     readonly sumAdditionalDue = computed(() => this.teams().reduce((s, t) => s + t.additionalDue, 0));
