@@ -1,18 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { NgClass, DatePipe } from '@angular/common';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { DiscountCodeService } from './services/discount-code.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { CodeFormModalComponent } from './components/code-form-modal.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { DiscountCodeDto, BatchUpdateStatusRequest } from '../../../core/api';
 
-type SortColumn = 'codeName' | 'discountType' | 'amount' | 'usageCount' | 'startDate' | 'endDate' | 'isActive';
-type SortDirection = 'asc' | 'desc';
-
 @Component({
   selector: 'app-discount-codes',
   standalone: true,
-  imports: [CommonModule, CodeFormModalComponent, ConfirmDialogComponent],
+  imports: [NgClass, DatePipe, GridAllModule, CodeFormModalComponent, ConfirmDialogComponent],
   templateUrl: './discount-codes.component.html',
   styleUrl: './discount-codes.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -26,54 +24,12 @@ export class DiscountCodesComponent implements OnInit {
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
 
-  // Sort state
-  sortColumn = signal<SortColumn>('codeName');
-  sortDirection = signal<SortDirection>('asc');
-
   // Modal state
   showAddModal = signal(false);
   showEditModal = signal(false);
   showDeleteConfirm = signal(false);
   editTarget = signal<DiscountCodeDto | null>(null);
   deleteTarget = signal<DiscountCodeDto | null>(null);
-
-  // Sorted codes
-  sortedCodes = computed(() => {
-    const list = [...this.codes()];
-    const col = this.sortColumn();
-    const dir = this.sortDirection();
-    const mult = dir === 'asc' ? 1 : -1;
-
-    list.sort((a, b) => {
-      let cmp = 0;
-      switch (col) {
-        case 'codeName':
-          cmp = a.codeName.localeCompare(b.codeName);
-          break;
-        case 'discountType':
-          cmp = a.discountType.localeCompare(b.discountType);
-          break;
-        case 'amount':
-          cmp = a.amount - b.amount;
-          break;
-        case 'usageCount':
-          cmp = a.usageCount - b.usageCount;
-          break;
-        case 'startDate':
-          cmp = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-          break;
-        case 'endDate':
-          cmp = new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
-          break;
-        case 'isActive':
-          cmp = (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
-          break;
-      }
-      return cmp * mult;
-    });
-
-    return list;
-  });
 
   ngOnInit(): void {
     this.loadDiscountCodes();
@@ -93,21 +49,6 @@ export class DiscountCodesComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
-  }
-
-  // Sorting
-  toggleSort(column: SortColumn): void {
-    if (this.sortColumn() === column) {
-      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
-    } else {
-      this.sortColumn.set(column);
-      this.sortDirection.set('asc');
-    }
-  }
-
-  getSortIcon(column: SortColumn): string {
-    if (this.sortColumn() !== column) return 'bi-chevron-expand';
-    return this.sortDirection() === 'asc' ? 'bi-sort-up' : 'bi-sort-down';
   }
 
   // Modal actions

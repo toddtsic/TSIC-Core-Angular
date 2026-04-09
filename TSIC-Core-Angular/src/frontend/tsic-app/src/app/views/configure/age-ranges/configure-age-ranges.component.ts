@@ -1,18 +1,15 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { AgeRangeAdminService } from './services/age-range-admin.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { AgeRangeFormModalComponent } from './components/age-range-form-modal.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { AgeRangeDto } from '../../../core/api';
 
-type SortColumn = 'rangeName' | 'rangeLeft' | 'rangeRight' | 'modified';
-type SortDirection = 'asc' | 'desc';
-
 @Component({
   selector: 'app-configure-age-ranges',
   standalone: true,
-  imports: [CommonModule, AgeRangeFormModalComponent, ConfirmDialogComponent],
+  imports: [GridAllModule, AgeRangeFormModalComponent, ConfirmDialogComponent],
   templateUrl: './configure-age-ranges.component.html',
   styleUrl: './configure-age-ranges.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -26,45 +23,12 @@ export class ConfigureAgeRangesComponent implements OnInit {
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
 
-  // Sort state
-  sortColumn = signal<SortColumn>('rangeLeft');
-  sortDirection = signal<SortDirection>('asc');
-
   // Modal state
   showAddModal = signal(false);
   showEditModal = signal(false);
   showDeleteConfirm = signal(false);
   editTarget = signal<AgeRangeDto | null>(null);
   deleteTarget = signal<AgeRangeDto | null>(null);
-
-  // Sorted age ranges
-  sortedAgeRanges = computed(() => {
-    const list = [...this.ageRanges()];
-    const col = this.sortColumn();
-    const dir = this.sortDirection();
-    const mult = dir === 'asc' ? 1 : -1;
-
-    list.sort((a, b) => {
-      let cmp = 0;
-      switch (col) {
-        case 'rangeName':
-          cmp = (a.rangeName ?? '').localeCompare(b.rangeName ?? '');
-          break;
-        case 'rangeLeft':
-          cmp = new Date(a.rangeLeft).getTime() - new Date(b.rangeLeft).getTime();
-          break;
-        case 'rangeRight':
-          cmp = new Date(a.rangeRight).getTime() - new Date(b.rangeRight).getTime();
-          break;
-        case 'modified':
-          cmp = new Date(a.modified).getTime() - new Date(b.modified).getTime();
-          break;
-      }
-      return cmp * mult;
-    });
-
-    return list;
-  });
 
   ngOnInit(): void {
     this.loadAgeRanges();
@@ -84,21 +48,6 @@ export class ConfigureAgeRangesComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
-  }
-
-  // Sorting
-  toggleSort(column: SortColumn): void {
-    if (this.sortColumn() === column) {
-      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
-    } else {
-      this.sortColumn.set(column);
-      this.sortDirection.set('asc');
-    }
-  }
-
-  getSortIcon(column: SortColumn): string {
-    if (this.sortColumn() !== column) return 'bi-chevron-expand';
-    return this.sortDirection() === 'asc' ? 'bi-sort-up' : 'bi-sort-down';
   }
 
   // Modal actions
@@ -140,10 +89,10 @@ export class ConfigureAgeRangesComponent implements OnInit {
     this.loadAgeRanges();
   }
 
-  // UI helpers
-  formatDate(date: string | null | undefined): string {
-    if (!date) return '—';
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  onRowDoubleClick(args: any): void {
+    if (args.rowData) {
+      this.openEdit(args.rowData);
+    }
   }
 
   getRelativeTime(date: string): string {

@@ -1,5 +1,5 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
     <h2 class="mb-0">Customer Configure</h2>
     <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-secondary btn-sm" (click)="loadData()" [disabled]="isLoading()">
@@ -22,10 +22,9 @@
 <!-- Loading State -->
 @if (isLoading()) {
     <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
-        <p class="mt-2 text-body-secondary">Loading customers...</p>
     </div>
 }
 
@@ -40,58 +39,43 @@
     </div>
 }
 
-<!-- Data Table -->
+<!-- Data Grid -->
 @if (!isLoading() && customers().length > 0) {
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th class="col-row-num">#</th>
-                    <th class="sortable" (click)="toggleSort('customerAi')">
-                        ID <i class="bi" [ngClass]="getSortIcon('customerAi')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('customerName')">
-                        Name <i class="bi" [ngClass]="getSortIcon('customerName')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('timezoneName')">
-                        Timezone <i class="bi" [ngClass]="getSortIcon('timezoneName')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('jobCount')">
-                        Jobs <i class="bi" [ngClass]="getSortIcon('jobCount')"></i>
-                    </th>
-                    <th class="col-actions">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (customer of sortedCustomers(); track customer.customerId; let i = $index) {
-                    <tr>
-                        <td class="row-num text-body-secondary">{{ i + 1 }}</td>
-                        <td class="text-body-secondary">{{ customer.customerAi }}</td>
-                        <td class="fw-semibold">{{ customer.customerName }}</td>
-                        <td>{{ customer.timezoneName }}</td>
-                        <td>
-                            <span class="badge rounded-pill"
-                                  [ngClass]="customer.jobCount > 0 ? 'bg-primary-subtle text-primary-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'">
-                                {{ customer.jobCount }}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="icon-btn" (click)="openEdit(customer)" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                @if (customer.jobCount === 0) {
-                                    <button class="icon-btn icon-btn-danger" (click)="confirmDelete(customer)" title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                }
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+    <ejs-grid [dataSource]="customers()" [allowSorting]="true"
+              [sortSettings]="{ columns: [{ field: 'customerName', direction: 'Ascending' }] }"
+              cssClass="tsic-grid-tight">
+        <e-columns>
+            <e-column field="customerAi" headerText="ID" width="70" textAlign="Right"></e-column>
+            <e-column field="customerName" headerText="Name" minWidth="180">
+                <ng-template #template let-data>
+                    <span class="fw-semibold">{{ data.customerName }}</span>
+                </ng-template>
+            </e-column>
+            <e-column field="timezoneName" headerText="Timezone" width="200"></e-column>
+            <e-column field="jobCount" headerText="Jobs" width="80" textAlign="Center">
+                <ng-template #template let-data>
+                    <span class="badge rounded-pill"
+                          [ngClass]="data.jobCount > 0 ? 'bg-primary-subtle text-primary-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'">
+                        {{ data.jobCount }}
+                    </span>
+                </ng-template>
+            </e-column>
+            <e-column headerText="Actions" width="90" [allowSorting]="false" textAlign="Center">
+                <ng-template #template let-data>
+                    <div class="action-buttons">
+                        <button class="icon-btn" (click)="openEdit(data)" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        @if (data.jobCount === 0) {
+                            <button class="icon-btn icon-btn-danger" (click)="confirmDelete(data)" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        }
+                    </div>
+                </ng-template>
+            </e-column>
+        </e-columns>
+    </ejs-grid>
 }
 
 <!-- Add Modal -->

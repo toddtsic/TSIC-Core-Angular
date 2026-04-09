@@ -1,5 +1,5 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
     <h2 class="mb-0">Administrators</h2>
     <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading()">
@@ -28,10 +28,9 @@
 <!-- Loading State -->
 @if (isLoading()) {
     <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
-        <p class="mt-2 text-body-secondary">Loading administrators...</p>
     </div>
 }
 
@@ -46,94 +45,63 @@
     </div>
 }
 
-<!-- Data Table -->
+<!-- Data Grid -->
 @if (!isLoading() && administrators().length > 0) {
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th class="col-row-num">#</th>
-                    <th class="sortable" (click)="sort('name')">
-                        Name
-                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'name' && sortDirection() === 'asc'"
-                            [class.bi-caret-down-fill]="sortColumn() === 'name' && sortDirection() === 'desc'"
-                            [class.bi-chevron-expand]="sortColumn() !== 'name'"></i>
-                    </th>
-                    <th class="sortable" (click)="sort('role')">
-                        Role
-                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'role' && sortDirection() === 'asc'"
-                            [class.bi-caret-down-fill]="sortColumn() === 'role' && sortDirection() === 'desc'"
-                            [class.bi-chevron-expand]="sortColumn() !== 'role'"></i>
-                    </th>
-                    <th class="sortable" (click)="sort('username')">
-                        Username
-                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'username' && sortDirection() === 'asc'"
-                            [class.bi-caret-down-fill]="sortColumn() === 'username' && sortDirection() === 'desc'"
-                            [class.bi-chevron-expand]="sortColumn() !== 'username'"></i>
-                    </th>
-                    <th class="sortable" (click)="sort('status')">
-                        Status
-                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'status' && sortDirection() === 'asc'"
-                            [class.bi-caret-down-fill]="sortColumn() === 'status' && sortDirection() === 'desc'"
-                            [class.bi-chevron-expand]="sortColumn() !== 'status'"></i>
-                    </th>
-                    <th class="sortable" (click)="sort('registered')">
-                        Registered
-                        <i class="bi sort-icon" [class.bi-caret-up-fill]="sortColumn() === 'registered' && sortDirection() === 'asc'"
-                            [class.bi-caret-down-fill]="sortColumn() === 'registered' && sortDirection() === 'desc'"
-                            [class.bi-chevron-expand]="sortColumn() !== 'registered'"></i>
-                    </th>
-                    <th class="col-actions">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (admin of sortedAdministrators(); track admin.registrationId; let i = $index) {
-                    <tr [class.row-superuser]="admin.isSuperuser">
-                        <td class="text-body-secondary">{{ i + 1 }}</td>
-                        <td class="fw-semibold">{{ admin.administratorName }}</td>
-                        <td>
-                            <span class="badge rounded-pill" [ngClass]="getRoleBadgeClass(admin.roleName)">
-                                {{ admin.isSuperuser ? 'Superuser' : admin.roleName }}
-                            </span>
-                        </td>
-                        <td class="text-body-secondary">{{ admin.userName }}</td>
-                        <td>
-                            @if (admin.isActive) {
-                                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
-                            } @else {
-                                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
+    <ejs-grid [dataSource]="administrators()" [allowSorting]="true"
+              [sortSettings]="{ columns: [{ field: 'administratorName', direction: 'Ascending' }] }"
+              cssClass="tsic-grid-tight">
+        <e-columns>
+            <e-column field="administratorName" headerText="Name" minWidth="160">
+                <ng-template #template let-data>
+                    <span class="fw-semibold" [class.text-body-secondary]="data.isSuperuser">{{ data.administratorName }}</span>
+                </ng-template>
+            </e-column>
+            <e-column field="roleName" headerText="Role" width="130">
+                <ng-template #template let-data>
+                    <span class="badge rounded-pill" [ngClass]="getRoleBadgeClass(data.roleName)">
+                        {{ data.isSuperuser ? 'Superuser' : data.roleName }}
+                    </span>
+                </ng-template>
+            </e-column>
+            <e-column field="userName" headerText="Username" width="140"></e-column>
+            <e-column field="isActive" headerText="Status" width="90" textAlign="Center">
+                <ng-template #template let-data>
+                    @if (data.isActive) {
+                        <span class="active-badge active-yes">Active</span>
+                    } @else {
+                        <span class="active-badge active-no">Inactive</span>
+                    }
+                </ng-template>
+            </e-column>
+            <e-column field="registeredDate" headerText="Registered" width="120" type="date" format="yMMMd"></e-column>
+            <e-column headerText="Actions" width="150" [allowSorting]="false" textAlign="Center">
+                <ng-template #template let-data>
+                    @if (!data.isSuperuser) {
+                        <div class="action-buttons">
+                            <button class="icon-btn" (click)="openEdit(data)" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="icon-btn icon-btn-danger" (click)="confirmDelete(data)" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <button class="icon-btn" [class.icon-btn-active]="data.isActive"
+                                (click)="toggleStatus(data)"
+                                [title]="data.isActive ? 'Deactivate' : 'Activate'">
+                                <i class="bi" [class.bi-toggle-on]="data.isActive" [class.bi-toggle-off]="!data.isActive"></i>
+                            </button>
+                            @if (data.roleName === 'Director') {
+                                <button class="icon-btn" [class.icon-btn-star]="data.isPrimaryContact"
+                                    (click)="setPrimaryContact(data)"
+                                    [title]="data.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
+                                    <i class="bi" [class.bi-star-fill]="data.isPrimaryContact" [class.bi-star]="!data.isPrimaryContact"></i>
+                                </button>
                             }
-                        </td>
-                        <td class="text-body-secondary">{{ admin.registeredDate | date:'mediumDate' }}</td>
-                        <td>
-                            @if (!admin.isSuperuser) {
-                                <div class="action-buttons">
-                                    <button class="icon-btn" (click)="openEdit(admin)" title="Edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="icon-btn icon-btn-danger" (click)="confirmDelete(admin)" title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    <button class="icon-btn" [class.icon-btn-active]="admin.isActive"
-                                        (click)="toggleStatus(admin)"
-                                        [title]="admin.isActive ? 'Deactivate' : 'Activate'">
-                                        <i class="bi" [class.bi-toggle-on]="admin.isActive" [class.bi-toggle-off]="!admin.isActive"></i>
-                                    </button>
-                                    @if (admin.roleName === 'Director') {
-                                        <button class="icon-btn" [class.icon-btn-star]="admin.isPrimaryContact"
-                                            (click)="setPrimaryContact(admin)"
-                                            [title]="admin.isPrimaryContact ? 'Remove as primary contact' : 'Set as primary contact'">
-                                            <i class="bi" [class.bi-star-fill]="admin.isPrimaryContact" [class.bi-star]="!admin.isPrimaryContact"></i>
-                                        </button>
-                                    }
-                                </div>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                        </div>
+                    }
+                </ng-template>
+            </e-column>
+        </e-columns>
+    </ejs-grid>
 }
 
 <!-- Add Modal -->

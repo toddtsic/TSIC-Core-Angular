@@ -26,73 +26,75 @@ export interface AdminFormResult {
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    @if (mode === 'add') {
-                        <div class="mb-3">
-                            <label for="userSearch" class="form-label fw-semibold">Username</label>
-                            <input
-                                id="userSearch"
-                                type="text"
-                                class="form-control"
-                                placeholder="Search by name or username..."
-                                [value]="searchInput()"
-                                (input)="onSearchInput($event)"
-                                autocomplete="off" />
-                            @if (searchResults().length > 0 && !selectedUser()) {
-                                <ul class="list-group mt-1 shadow-sm typeahead-dropdown">
-                                    @for (user of searchResults(); track user.userId) {
-                                        <li class="list-group-item list-group-item-action"
-                                            role="button"
-                                            (click)="selectUser(user)">
-                                            <span class="fw-semibold">{{ user.displayName }}</span>
-                                            <small class="text-body-secondary ms-2">({{ user.userName }})</small>
-                                        </li>
-                                    }
-                                </ul>
-                            }
-                            @if (selectedUser()) {
-                                <div class="mt-2 d-flex align-items-center gap-2">
-                                    <span class="badge bg-primary-subtle text-primary-emphasis">
-                                        {{ selectedUser()!.displayName }} ({{ selectedUser()!.userName }})
-                                    </span>
-                                    <button type="button" class="btn-close btn-close-sm" (click)="clearUser()" aria-label="Clear"></button>
-                                </div>
-                            }
-                            @if (searchInput().length >= 2 && searchResults().length === 0 && !selectedUser() && !searching()) {
-                                <small class="text-body-secondary mt-1 d-block">No users found.</small>
-                            }
-                        </div>
-                    } @else {
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Administrator</label>
-                            <p class="form-control-plaintext">{{ editAdmin()?.administratorName }}</p>
-                        </div>
-                        <div class="mb-3">
-                            <label for="activeToggle" class="form-label fw-semibold">Active</label>
-                            <div class="form-check form-switch">
-                                <input id="activeToggle" type="checkbox" class="form-check-input" role="switch"
-                                    [checked]="isActive()"
-                                    (change)="isActive.set($any($event.target).checked)" />
-                                <label class="form-check-label" for="activeToggle">
-                                    {{ isActive() ? 'Active' : 'Inactive' }}
-                                </label>
+                    <div class="row g-2">
+                        @if (mode === 'add') {
+                            <div class="col-12">
+                                <label for="userSearch" class="field-label">Username</label>
+                                <input
+                                    id="userSearch"
+                                    type="text"
+                                    class="field-input"
+                                    placeholder="Search by name or username..."
+                                    [value]="searchInput()"
+                                    (input)="onSearchInput($event)"
+                                    autocomplete="off" />
+                                @if (searchResults().length > 0 && !selectedUser()) {
+                                    <ul class="list-group mt-1 shadow-sm typeahead-dropdown">
+                                        @for (user of searchResults(); track user.userId) {
+                                            <li class="list-group-item list-group-item-action"
+                                                role="button"
+                                                (click)="selectUser(user)">
+                                                <span class="fw-semibold">{{ user.displayName }}</span>
+                                                <small class="text-body-secondary ms-2">({{ user.userName }})</small>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                @if (selectedUser()) {
+                                    <div class="mt-1 d-flex align-items-center gap-2">
+                                        <span class="badge bg-primary-subtle text-primary-emphasis">
+                                            {{ selectedUser()!.displayName }} ({{ selectedUser()!.userName }})
+                                        </span>
+                                        <button type="button" class="btn-close btn-close-sm" (click)="clearUser()" aria-label="Clear"></button>
+                                    </div>
+                                }
+                                @if (searchInput().length >= 2 && searchResults().length === 0 && !selectedUser() && !searching()) {
+                                    <small class="text-body-secondary d-block">No users found.</small>
+                                }
                             </div>
-                        </div>
-                    }
+                        } @else {
+                            <div class="col-12">
+                                <label class="field-label">Administrator</label>
+                                <p class="mb-0" style="font-size: var(--font-size-sm)">{{ editAdmin()?.administratorName }}</p>
+                            </div>
+                            <div class="col-12">
+                                <div class="field-check">
+                                    <input id="activeToggle" type="checkbox" role="switch"
+                                        class="form-check-input"
+                                        [checked]="isActive()"
+                                        (change)="isActive.set($any($event.target).checked)" />
+                                    <label class="field-label" for="activeToggle" style="margin-bottom:0">
+                                        {{ isActive() ? 'Active' : 'Inactive' }}
+                                    </label>
+                                </div>
+                            </div>
+                        }
 
-                    <div class="mb-3">
-                        <label for="roleSelect" class="form-label fw-semibold">Role</label>
-                        <select id="roleSelect" class="form-select"
-                            [ngModel]="selectedRole()"
-                            (ngModelChange)="selectedRole.set($event)">
-                            <option value="" disabled>Select a role...</option>
-                            @for (role of availableRoles; track role) {
-                                <option [value]="role">{{ role }}</option>
-                            }
-                        </select>
+                        <div class="col-12">
+                            <label for="roleSelect" class="field-label">Role</label>
+                            <select id="roleSelect" class="field-input field-select"
+                                [ngModel]="selectedRole()"
+                                (ngModelChange)="selectedRole.set($event)">
+                                <option value="" disabled>Select a role...</option>
+                                @for (role of availableRoles; track role) {
+                                    <option [value]="role">{{ role }}</option>
+                                }
+                            </select>
+                        </div>
                     </div>
 
                     @if (errorMessage()) {
-                        <div class="alert alert-danger py-2 mb-0">{{ errorMessage() }}</div>
+                        <div class="alert alert-danger py-2 mt-2 mb-0">{{ errorMessage() }}</div>
                     }
                 </div>
                 <div class="modal-footer">

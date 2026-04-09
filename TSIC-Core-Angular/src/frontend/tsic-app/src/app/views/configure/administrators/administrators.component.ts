@@ -1,5 +1,6 @@
-import { Component, inject, signal, computed, effect, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Component, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
+import { NgClass } from '@angular/common';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { AdministratorService } from './services/administrator.service';
 import { AdminFormModalComponent, AdminFormResult } from './components/admin-form-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
@@ -7,13 +8,10 @@ import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import type { AdministratorDto } from '@core/api';
 
-type SortColumn = 'name' | 'role' | 'username' | 'status' | 'registered';
-type SortDirection = 'asc' | 'desc';
-
 @Component({
     selector: 'app-administrators',
     standalone: true,
-    imports: [CommonModule, DatePipe, AdminFormModalComponent, ConfirmDialogComponent],
+    imports: [NgClass, GridAllModule, AdminFormModalComponent, ConfirmDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './administrators.component.html',
     styleUrl: './administrators.component.scss'
@@ -27,51 +25,6 @@ export class AdministratorManagementComponent {
     readonly administrators = signal<AdministratorDto[]>([]);
     readonly isLoading = signal(false);
     readonly errorMessage = signal<string | null>(null);
-
-    // Sorting
-    readonly sortColumn = signal<SortColumn>('name');
-    readonly sortDirection = signal<SortDirection>('asc');
-
-    readonly sortedAdministrators = computed(() => {
-        const admins = [...this.administrators()];
-        const col = this.sortColumn();
-        const dir = this.sortDirection() === 'asc' ? 1 : -1;
-
-        return admins.sort((a, b) => {
-            let aVal: string | number;
-            let bVal: string | number;
-
-            switch (col) {
-                case 'name':
-                    aVal = a.administratorName.toLowerCase();
-                    bVal = b.administratorName.toLowerCase();
-                    break;
-                case 'role':
-                    aVal = (a.isSuperuser ? 'Superuser' : (a.roleName ?? '')).toLowerCase();
-                    bVal = (b.isSuperuser ? 'Superuser' : (b.roleName ?? '')).toLowerCase();
-                    break;
-                case 'username':
-                    aVal = a.userName.toLowerCase();
-                    bVal = b.userName.toLowerCase();
-                    break;
-                case 'status':
-                    aVal = a.isActive ? 1 : 0;
-                    bVal = b.isActive ? 1 : 0;
-                    break;
-                case 'registered':
-                    aVal = new Date(a.registeredDate).getTime();
-                    bVal = new Date(b.registeredDate).getTime();
-                    break;
-                default:
-                    return 0;
-            }
-
-            if (typeof aVal === 'string') {
-                return dir * aVal.localeCompare(bVal as string);
-            }
-            return dir * ((aVal as number) - (bVal as number));
-        });
-    });
 
     // Modal state
     readonly showAddModal = signal(false);
@@ -101,16 +54,6 @@ export class AdministratorManagementComponent {
                 this.isLoading.set(false);
             }
         });
-    }
-
-    // Sorting
-    sort(column: SortColumn) {
-        if (this.sortColumn() === column) {
-            this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
-        } else {
-            this.sortColumn.set(column);
-            this.sortDirection.set('asc');
-        }
     }
 
     // Bulk status

@@ -1,18 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { NgClass } from '@angular/common';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { CustomerConfigureService } from './customer-configure.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { CustomerDialogComponent } from './customer-dialog/customer-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { CustomerListDto, TimezoneDto } from '../../../core/api';
 
-type SortColumn = 'customerAi' | 'customerName' | 'timezoneName' | 'jobCount';
-type SortDirection = 'asc' | 'desc';
-
 @Component({
   selector: 'app-customer-configure',
   standalone: true,
-  imports: [CommonModule, CustomerDialogComponent, ConfirmDialogComponent],
+  imports: [NgClass, GridAllModule, CustomerDialogComponent, ConfirmDialogComponent],
   templateUrl: './customer-configure.component.html',
   styleUrl: './customer-configure.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -29,45 +27,12 @@ export class CustomerConfigureComponent implements OnInit {
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
 
-  // Sort state
-  sortColumn = signal<SortColumn>('customerName');
-  sortDirection = signal<SortDirection>('asc');
-
   // Modal state
   showAddModal = signal(false);
   showEditModal = signal(false);
   showDeleteConfirm = signal(false);
   editTarget = signal<CustomerListDto | null>(null);
   deleteTarget = signal<CustomerListDto | null>(null);
-
-  // Sorted customers
-  sortedCustomers = computed(() => {
-    const list = [...this.customers()];
-    const col = this.sortColumn();
-    const dir = this.sortDirection();
-    const mult = dir === 'asc' ? 1 : -1;
-
-    list.sort((a, b) => {
-      let cmp = 0;
-      switch (col) {
-        case 'customerAi':
-          cmp = a.customerAi - b.customerAi;
-          break;
-        case 'customerName':
-          cmp = (a.customerName ?? '').localeCompare(b.customerName ?? '');
-          break;
-        case 'timezoneName':
-          cmp = (a.timezoneName ?? '').localeCompare(b.timezoneName ?? '');
-          break;
-        case 'jobCount':
-          cmp = a.jobCount - b.jobCount;
-          break;
-      }
-      return cmp * mult;
-    });
-
-    return list;
-  });
 
   ngOnInit(): void {
     this.loadData();
@@ -88,25 +53,9 @@ export class CustomerConfigureComponent implements OnInit {
       }
     });
 
-    // Load timezones once for the dialog dropdowns
     this.svc.getTimezones().subscribe({
       next: (tz) => this.timezones.set(tz)
     });
-  }
-
-  // Sorting
-  toggleSort(column: SortColumn): void {
-    if (this.sortColumn() === column) {
-      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
-    } else {
-      this.sortColumn.set(column);
-      this.sortDirection.set('asc');
-    }
-  }
-
-  getSortIcon(column: SortColumn): string {
-    if (this.sortColumn() !== column) return 'bi-chevron-expand';
-    return this.sortDirection() === 'asc' ? 'bi-sort-up' : 'bi-sort-down';
   }
 
   // Modal actions

@@ -13,64 +13,47 @@ export type ModalMode = 'add' | 'edit';
     standalone: true,
     imports: [CommonModule, TsicDialogComponent, FormsModule],
     template: `
-        <tsic-dialog [open]="true" size="md" (requestClose)="close.emit()">
+        <tsic-dialog [open]="true" size="sm" (requestClose)="close.emit()">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">{{ mode === 'add' ? 'Add Age Range' : 'Edit Age Range' }}</h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Range Name -->
-                    <div class="mb-3">
-                        <label for="rangeName" class="form-label fw-semibold">Range Name</label>
-                        <input
-                            id="rangeName"
-                            type="text"
-                            class="form-control"
-                            placeholder="e.g. U12, U14, Open"
-                            [value]="rangeName()"
-                            (input)="rangeName.set($any($event.target).value)"
-                            maxlength="100" />
-                    </div>
-
-                    <!-- Date Range -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="rangeLeft" class="form-label fw-semibold">Start Date (DOB From)</label>
-                            <input
-                                id="rangeLeft"
-                                type="date"
-                                class="form-control"
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label for="rangeName" class="field-label">Range Name</label>
+                            <input id="rangeName" type="text" class="field-input"
+                                placeholder="e.g. U12, U14, Open"
+                                [value]="rangeName()"
+                                (input)="rangeName.set($any($event.target).value)"
+                                maxlength="100" />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="rangeLeft" class="field-label">DOB From</label>
+                            <input id="rangeLeft" type="date" class="field-input"
                                 [value]="rangeLeft()"
                                 (input)="rangeLeft.set($any($event.target).value)" />
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="rangeRight" class="form-label fw-semibold">End Date (DOB To)</label>
-                            <input
-                                id="rangeRight"
-                                type="date"
-                                class="form-control"
+                        <div class="col-md-6">
+                            <label for="rangeRight" class="field-label">DOB To</label>
+                            <input id="rangeRight" type="date" class="field-input"
                                 [value]="rangeRight()"
                                 (input)="rangeRight.set($any($event.target).value)"
                                 [class.is-invalid]="rangeRight().length > 0 && rangeLeft().length > 0 && rangeRight() < rangeLeft()" />
                             @if (rangeRight().length > 0 && rangeLeft().length > 0 && rangeRight() < rangeLeft()) {
-                                <div class="invalid-feedback">End date must be on or after start date.</div>
+                                <div class="field-error">End date must be on or after start date.</div>
                             }
                         </div>
                     </div>
-
-                    <!-- Help text -->
-                    <div class="alert alert-info d-flex align-items-start py-2 mb-0" role="note">
-                        <i class="bi bi-info-circle me-2 mt-1"></i>
-                        <small>
-                            Age ranges define DOB windows. Players whose date of birth falls
-                            within a range will be restricted to teams assigned to that range.
-                        </small>
-                    </div>
+                    <p class="field-help mt-2 mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Players whose DOB falls within this range will be restricted to teams assigned to it.
+                    </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" (click)="close.emit()">Cancel</button>
-                    <button type="button" class="btn btn-primary" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }

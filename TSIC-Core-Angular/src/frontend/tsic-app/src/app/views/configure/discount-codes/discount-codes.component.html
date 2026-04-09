@@ -1,5 +1,5 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
     <h2 class="mb-0">Discount Codes</h2>
     <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-success btn-sm" (click)="activateAll()" [disabled]="isLoading() || codes().length === 0">
@@ -12,7 +12,7 @@
         <button class="btn btn-outline-secondary btn-sm" (click)="loadDiscountCodes()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
         </button>
-<button class="btn btn-primary btn-sm" (click)="openAdd()">
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
             <i class="bi bi-plus-lg me-1"></i>Add Code
         </button>
     </div>
@@ -29,10 +29,9 @@
 <!-- Loading State -->
 @if (isLoading()) {
     <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
-        <p class="mt-2 text-body-secondary">Loading discount codes...</p>
     </div>
 }
 
@@ -47,81 +46,69 @@
     </div>
 }
 
-<!-- Data Table -->
+<!-- Data Grid -->
 @if (!isLoading() && codes().length > 0) {
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th class="col-row-num">#</th>
-                    <th class="sortable" (click)="toggleSort('codeName')">
-                        Code <i class="bi" [ngClass]="getSortIcon('codeName')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('discountType')">
-                        Type <i class="bi" [ngClass]="getSortIcon('discountType')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('amount')">
-                        Amount <i class="bi" [ngClass]="getSortIcon('amount')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('usageCount')">
-                        Usage <i class="bi" [ngClass]="getSortIcon('usageCount')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('startDate')">
-                        Dates <i class="bi" [ngClass]="getSortIcon('startDate')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('endDate')">
-                        Expiration <i class="bi" [ngClass]="getSortIcon('endDate')"></i>
-                    </th>
-                    <th class="sortable" (click)="toggleSort('isActive')">
-                        Status <i class="bi" [ngClass]="getSortIcon('isActive')"></i>
-                    </th>
-                    <th class="col-actions">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for (code of sortedCodes(); track code.ai; let i = $index) {
-                    <tr>
-                        <td class="row-num text-body-secondary">{{ i + 1 }}</td>
-                        <td class="fw-semibold">{{ code.codeName }}</td>
-                        <td>
-                            <span class="badge rounded-pill" [ngClass]="getDiscountTypeBadgeClass(code.discountType)">
-                                {{ getDiscountTypeSymbol(code.discountType) }}
-                            </span>
-                        </td>
-                        <td>{{ code.amount }}{{ getDiscountTypeSymbol(code.discountType) }}</td>
-                        <td>{{ code.usageCount }}</td>
-                        <td class="text-body-secondary small">
-                            {{ code.startDate | date:'shortDate' }} - {{ code.endDate | date:'shortDate' }}
-                        </td>
-                        <td>
-                            <span class="badge rounded-pill" [ngClass]="getExpirationChipClass(code)">
-                                {{ getExpirationText(code) }}
-                            </span>
-                        </td>
-                        <td>
-                            @if (code.isActive) {
-                                <span class="badge bg-success-subtle text-success-emphasis">Active</span>
-                            } @else {
-                                <span class="badge bg-secondary-subtle text-secondary-emphasis">Inactive</span>
-                            }
-                        </td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="icon-btn" (click)="openEdit(code)" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                @if (code.usageCount === 0) {
-                                    <button class="icon-btn icon-btn-danger" (click)="confirmDelete(code)" title="Delete">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                }
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+    <ejs-grid [dataSource]="codes()" [allowSorting]="true"
+              [sortSettings]="{ columns: [{ field: 'codeName', direction: 'Ascending' }] }"
+              cssClass="tsic-grid-tight">
+        <e-columns>
+            <e-column field="codeName" headerText="Code" minWidth="120">
+                <ng-template #template let-data>
+                    <span class="fw-semibold">{{ data.codeName }}</span>
+                </ng-template>
+            </e-column>
+            <e-column field="discountType" headerText="Type" width="80" textAlign="Center">
+                <ng-template #template let-data>
+                    <span class="badge rounded-pill" [ngClass]="getDiscountTypeBadgeClass(data.discountType)">
+                        {{ getDiscountTypeSymbol(data.discountType) }}
+                    </span>
+                </ng-template>
+            </e-column>
+            <e-column field="amount" headerText="Amount" width="90" textAlign="Right">
+                <ng-template #template let-data>
+                    {{ data.amount }}{{ getDiscountTypeSymbol(data.discountType) }}
+                </ng-template>
+            </e-column>
+            <e-column field="usageCount" headerText="Usage" width="75" textAlign="Center"></e-column>
+            <e-column field="startDate" headerText="Dates" width="160" type="date">
+                <ng-template #template let-data>
+                    <span class="text-body-secondary" style="font-size: var(--font-size-xs)">
+                        {{ data.startDate | date:'shortDate' }} – {{ data.endDate | date:'shortDate' }}
+                    </span>
+                </ng-template>
+            </e-column>
+            <e-column field="endDate" headerText="Expiry" width="85" textAlign="Center">
+                <ng-template #template let-data>
+                    <span class="badge rounded-pill" [ngClass]="getExpirationChipClass(data)">
+                        {{ getExpirationText(data) }}
+                    </span>
+                </ng-template>
+            </e-column>
+            <e-column field="isActive" headerText="Status" width="80" textAlign="Center">
+                <ng-template #template let-data>
+                    @if (data.isActive) {
+                        <span class="active-badge active-yes">Active</span>
+                    } @else {
+                        <span class="active-badge active-no">Inactive</span>
+                    }
+                </ng-template>
+            </e-column>
+            <e-column headerText="Actions" width="90" [allowSorting]="false" textAlign="Center">
+                <ng-template #template let-data>
+                    <div class="action-buttons">
+                        <button class="icon-btn" (click)="openEdit(data)" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        @if (data.usageCount === 0) {
+                            <button class="icon-btn icon-btn-danger" (click)="confirmDelete(data)" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        }
+                    </div>
+                </ng-template>
+            </e-column>
+        </e-columns>
+    </ejs-grid>
 }
 
 <!-- Add Modal -->

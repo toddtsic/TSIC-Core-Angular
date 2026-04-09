@@ -14,82 +14,74 @@
                     <p class="mt-2 text-body-secondary small">Loading customer details...</p>
                 </div>
             } @else {
-                <!-- Customer Name -->
-                <div class="mb-3">
-                    <label for="customerName" class="form-label fw-semibold">Customer Name</label>
-                    <input
-                        id="customerName"
-                        type="text"
-                        class="form-control"
-                        placeholder="Enter customer name"
-                        [value]="customerName()"
-                        (input)="onInput('customerName', $event)"
-                        [class.is-invalid]="customerName().trim().length === 0 && customerName().length > 0"
-                        maxlength="200" />
-                    @if (customerName().trim().length === 0 && customerName().length > 0) {
-                        <div class="invalid-feedback">Customer name is required.</div>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label for="customerName" class="field-label">Customer Name</label>
+                        <input
+                            id="customerName"
+                            type="text"
+                            class="field-input"
+                            placeholder="Enter customer name"
+                            [value]="customerName()"
+                            (input)="onInput('customerName', $event)"
+                            [class.is-invalid]="customerName().trim().length === 0 && customerName().length > 0"
+                            maxlength="200" />
+                        @if (customerName().trim().length === 0 && customerName().length > 0) {
+                            <div class="field-error">Customer name is required.</div>
+                        }
+                    </div>
+                    <div class="col-12">
+                        <label for="timezone" class="field-label">Timezone</label>
+                        <select
+                            id="timezone"
+                            class="field-input field-select"
+                            [value]="tzId() ?? ''"
+                            (change)="onTzChange($event)"
+                            [class.is-invalid]="tzId() === null">
+                            <option value="" disabled>Select a timezone</option>
+                            @for (tz of timezones; track tz.tzId) {
+                                <option [value]="tz.tzId">{{ tz.tzName }}</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <fieldset class="config-fieldset mt-3">
+                    <legend><i class="bi bi-credit-card me-1"></i>Authorize.Net Credentials</legend>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label for="adnLoginId" class="field-label">Login ID</label>
+                            <input
+                                id="adnLoginId"
+                                type="text"
+                                class="field-input"
+                                placeholder="Authorize.Net login ID"
+                                [value]="adnLoginId()"
+                                (input)="onInput('adnLoginId', $event)"
+                                maxlength="100" />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="adnTransactionKey" class="field-label">Transaction Key</label>
+                            <input
+                                id="adnTransactionKey"
+                                type="text"
+                                class="field-input"
+                                placeholder="Authorize.Net transaction key"
+                                [value]="adnTransactionKey()"
+                                (input)="onInput('adnTransactionKey', $event)"
+                                maxlength="100" />
+                        </div>
+                    </div>
+                    @if (mode === 'add') {
+                        <p class="field-help mt-1 mb-0">Leave blank to use platform defaults.</p>
                     }
-                </div>
-
-                <!-- Timezone -->
-                <div class="mb-3">
-                    <label for="timezone" class="form-label fw-semibold">Timezone</label>
-                    <select
-                        id="timezone"
-                        class="form-select"
-                        [value]="tzId() ?? ''"
-                        (change)="onTzChange($event)"
-                        [class.is-invalid]="tzId() === null">
-                        <option value="" disabled>Select a timezone</option>
-                        @for (tz of timezones; track tz.tzId) {
-                            <option [value]="tz.tzId">{{ tz.tzName }}</option>
-                        }
-                    </select>
-                </div>
-
-                <!-- ADN Credentials Section -->
-                <div class="credentials-section">
-                    <h6 class="text-body-secondary mb-3">
-                        <i class="bi bi-credit-card me-1"></i>Authorize.Net Credentials
-                    </h6>
-
-                    <!-- ADN Login ID -->
-                    <div class="mb-3">
-                        <label for="adnLoginId" class="form-label fw-semibold">ADN Login ID</label>
-                        <input
-                            id="adnLoginId"
-                            type="text"
-                            class="form-control"
-                            placeholder="Authorize.Net login ID"
-                            [value]="adnLoginId()"
-                            (input)="onInput('adnLoginId', $event)"
-                            maxlength="100" />
-                        @if (mode === 'add') {
-                            <small class="form-text text-body-secondary">
-                                Leave blank to use platform defaults.
-                            </small>
-                        }
-                    </div>
-
-                    <!-- ADN Transaction Key -->
-                    <div class="mb-3">
-                        <label for="adnTransactionKey" class="form-label fw-semibold">ADN Transaction Key</label>
-                        <input
-                            id="adnTransactionKey"
-                            type="text"
-                            class="form-control"
-                            placeholder="Authorize.Net transaction key"
-                            [value]="adnTransactionKey()"
-                            (input)="onInput('adnTransactionKey', $event)"
-                            maxlength="100" />
-                    </div>
-                </div>
+                </fieldset>
             }
         </div>
 
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="close.emit()">Cancel</button>
-            <button type="button" class="btn btn-primary"
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm"
                     (click)="onSubmit()"
                     [disabled]="!isValid() || isSaving() || isLoadingDetail()">
                 @if (isSaving()) {

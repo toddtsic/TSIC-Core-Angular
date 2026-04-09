@@ -20,128 +20,117 @@ export type ModalMode = 'add' | 'edit';
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Code Name -->
-                    <div class="mb-3">
-                        <label for="codeName" class="form-label fw-semibold">Code Name</label>
-                        <input
-                            id="codeName"
-                            type="text"
-                            class="form-control"
-                            placeholder="e.g., SUMMER2026"
-                            [value]="codeName()"
-                            (input)="onCodeNameInput($event)"
-                            [disabled]="mode === 'edit'"
-                            [class.is-invalid]="codeExists()"
-                            maxlength="50" />
-                        @if (codeExists()) {
-                            <div class="invalid-feedback">This code already exists.</div>
-                        }
-                    </div>
-
-                    <!-- Discount Type -->
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Discount Type</label>
-                        <div class="btn-group d-flex" role="group">
-                            <input type="radio" class="btn-check" id="typeDollar" value="DollarAmount" 
-                                   [checked]="discountType() === 'DollarAmount'"
-                                   (change)="discountType.set('DollarAmount')" />
-                            <label class="btn btn-outline-success" for="typeDollar">
-                                <i class="bi bi-currency-dollar me-1"></i>Dollar Amount
-                            </label>
-
-                            <input type="radio" class="btn-check" id="typePercent" value="Percentage"
-                                   [checked]="discountType() === 'Percentage'"
-                                   (change)="discountType.set('Percentage')" />
-                            <label class="btn btn-outline-info" for="typePercent">
-                                <i class="bi bi-percent me-1"></i>Percentage
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Amount -->
-                    <div class="mb-3">
-                        <label for="amount" class="form-label fw-semibold">
-                            Amount 
-                            @if (discountType() === 'Percentage') {
-                                <small class="text-body-secondary">(0-100%)</small>
-                            }
-                        </label>
-                        <div class="input-group">
-                            @if (discountType() === 'DollarAmount') {
-                                <span class="input-group-text">$</span>
-                            }
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label for="codeName" class="field-label">Code Name</label>
                             <input
-                                id="amount"
-                                type="number"
-                                class="form-control"
-                                [value]="amount()"
-                                (input)="amount.set(+($any($event.target).value))"
-                                step="0.01"
-                                min="0.01"
-                                [max]="discountType() === 'Percentage' ? 100 : 999999" />
-                            @if (discountType() === 'Percentage') {
-                                <span class="input-group-text">%</span>
+                                id="codeName"
+                                type="text"
+                                class="field-input"
+                                placeholder="e.g., SUMMER2026"
+                                [value]="codeName()"
+                                (input)="onCodeNameInput($event)"
+                                [disabled]="mode === 'edit'"
+                                [class.is-invalid]="codeExists()"
+                                maxlength="50" />
+                            @if (codeExists()) {
+                                <div class="field-error">This code already exists.</div>
                             }
                         </div>
-                    </div>
-
-                    <!-- Date Range -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="startDate" class="form-label fw-semibold">Start Date</label>
+                        <div class="col-md-6">
+                            <label class="field-label">Discount Type</label>
+                            <div class="btn-group d-flex" role="group">
+                                <input type="radio" class="btn-check" id="typeDollar" value="DollarAmount"
+                                       [checked]="discountType() === 'DollarAmount'"
+                                       (change)="discountType.set('DollarAmount')" />
+                                <label class="btn btn-outline-success btn-sm" for="typeDollar">
+                                    <i class="bi bi-currency-dollar me-1"></i>Dollar
+                                </label>
+                                <input type="radio" class="btn-check" id="typePercent" value="Percentage"
+                                       [checked]="discountType() === 'Percentage'"
+                                       (change)="discountType.set('Percentage')" />
+                                <label class="btn btn-outline-info btn-sm" for="typePercent">
+                                    <i class="bi bi-percent me-1"></i>Percent
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="amount" class="field-label">
+                                Amount
+                                @if (discountType() === 'Percentage') {
+                                    <span class="text-body-secondary">(0-100%)</span>
+                                }
+                            </label>
+                            <div class="input-group input-group-sm">
+                                @if (discountType() === 'DollarAmount') {
+                                    <span class="input-group-text">$</span>
+                                }
+                                <input
+                                    id="amount"
+                                    type="number"
+                                    class="field-input"
+                                    [value]="amount()"
+                                    (input)="amount.set(+($any($event.target).value))"
+                                    step="0.01"
+                                    min="0.01"
+                                    [max]="discountType() === 'Percentage' ? 100 : 999999" />
+                                @if (discountType() === 'Percentage') {
+                                    <span class="input-group-text">%</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="startDate" class="field-label">Start Date</label>
                             <input
                                 id="startDate"
                                 type="date"
-                                class="form-control"
+                                class="field-input"
                                 [value]="startDate()"
                                 (input)="startDate.set(($any($event.target).value))" />
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="endDate" class="form-label fw-semibold">End Date</label>
+                        <div class="col-md-4">
+                            <label for="endDate" class="field-label">End Date</label>
                             <input
                                 id="endDate"
                                 type="date"
-                                class="form-control"
+                                class="field-input"
                                 [value]="endDate()"
                                 (input)="endDate.set(($any($event.target).value))"
                                 [class.is-invalid]="endDate() <= startDate()" />
                             @if (endDate() <= startDate()) {
-                                <div class="invalid-feedback">End date must be after start date.</div>
+                                <div class="field-error">End date must be after start date.</div>
                             }
                         </div>
-                    </div>
 
-                    @if (mode === 'edit') {
-                        <!-- Active Toggle (edit only) -->
-                        <div class="mb-3">
-                            <label for="activeToggle" class="form-label fw-semibold">Active</label>
-                            <div class="form-check form-switch">
-                                <input id="activeToggle" type="checkbox" class="form-check-input" role="switch"
-                                    [checked]="isActive()"
-                                    (change)="isActive.set($any($event.target).checked)" />
-                                <label class="form-check-label" for="activeToggle">
-                                    {{ isActive() ? 'Active' : 'Inactive' }}
-                                </label>
+                        @if (mode === 'edit') {
+                            <div class="col-md-6">
+                                <div class="field-check">
+                                    <input id="activeToggle" type="checkbox" role="switch"
+                                        class="form-check-input"
+                                        [checked]="isActive()"
+                                        (change)="isActive.set($any($event.target).checked)" />
+                                    <label class="field-label" for="activeToggle" style="margin-bottom:0">
+                                        {{ isActive() ? 'Active' : 'Inactive' }}
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Usage Count (read-only) -->
-                        @if (code) {
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Usage Count</label>
-                                <p class="form-control-plaintext">
-                                    {{ code.usageCount }} 
-                                    @if (code.usageCount > 0) {
-                                        <span class="text-body-secondary">time(s)</span>
-                                    }
-                                </p>
-                            </div>
+                            @if (code) {
+                                <div class="col-md-6">
+                                    <label class="field-label">Usage Count</label>
+                                    <span style="font-size: var(--font-size-sm)">
+                                        {{ code.usageCount }}
+                                        @if (code.usageCount > 0) {
+                                            <span class="text-body-secondary">time(s)</span>
+                                        }
+                                    </span>
+                                </div>
+                            }
                         }
-                    }
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" (click)="close.emit()">Cancel</button>
-                    <button type="button" class="btn btn-primary" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }

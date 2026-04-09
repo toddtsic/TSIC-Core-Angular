@@ -11,181 +11,133 @@ import type { BulkAddDiscountCodeRequest } from '@core/api';
     standalone: true,
     imports: [CommonModule, TsicDialogComponent, FormsModule],
     template: `
-        <tsic-dialog [open]="true" size="lg" (requestClose)="close.emit()">
+        <tsic-dialog [open]="true" size="md" (requestClose)="close.emit()">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Bulk Generate Discount Codes</h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Pattern Section -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title fw-semibold mb-3">Code Pattern</h6>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="prefix" class="form-label">Prefix</label>
-                                    <input
-                                        id="prefix"
-                                        type="text"
-                                        class="form-control"
-                                        placeholder="e.g., SUMMER"
-                                        [value]="prefix()"
-                                        (input)="prefix.set(($any($event.target).value))"
-                                        maxlength="20" />
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="suffix" class="form-label">Suffix</label>
-                                    <input
-                                        id="suffix"
-                                        type="text"
-                                        class="form-control"
-                                        placeholder="e.g., 2026"
-                                        [value]="suffix()"
-                                        (input)="suffix.set(($any($event.target).value))"
-                                        maxlength="20" />
-                                </div>
+                    <fieldset class="config-fieldset">
+                        <legend>Code Pattern</legend>
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label for="prefix" class="field-label">Prefix</label>
+                                <input id="prefix" type="text" class="field-input"
+                                    placeholder="e.g., SUMMER"
+                                    [value]="prefix()"
+                                    (input)="prefix.set(($any($event.target).value))"
+                                    maxlength="20" />
                             </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="startNumber" class="form-label">Start Number</label>
-                                    <input
-                                        id="startNumber"
-                                        type="number"
-                                        class="form-control"
-                                        [value]="startNumber()"
-                                        (input)="startNumber.set(+($any($event.target).value))"
-                                        min="1"
-                                        max="9999" />
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="count" class="form-label">
-                                        Count 
-                                        <small class="text-body-secondary">(max 500)</small>
-                                    </label>
-                                    <input
-                                        id="count"
-                                        type="number"
-                                        class="form-control"
-                                        [value]="count()"
-                                        (input)="count.set(+($any($event.target).value))"
-                                        min="1"
-                                        max="500"
-                                        [class.is-invalid]="count() > 500" />
-                                    @if (count() > 500) {
-                                        <div class="invalid-feedback">Maximum 500 codes per bulk generation.</div>
-                                    }
-                                </div>
+                            <div class="col-md-3">
+                                <label for="suffix" class="field-label">Suffix</label>
+                                <input id="suffix" type="text" class="field-input"
+                                    placeholder="e.g., 2026"
+                                    [value]="suffix()"
+                                    (input)="suffix.set(($any($event.target).value))"
+                                    maxlength="20" />
                             </div>
-
-                            <!-- Preview -->
-                            <div class="alert alert-info mb-0">
-                                <strong>Preview:</strong>
-                                <div class="mt-2">
-                                    <code>{{ previewFirst() }}</code>
+                            <div class="col-md-3">
+                                <label for="startNumber" class="field-label">Start #</label>
+                                <input id="startNumber" type="number" class="field-input"
+                                    [value]="startNumber()"
+                                    (input)="startNumber.set(+($any($event.target).value))"
+                                    min="1" max="9999" />
+                            </div>
+                            <div class="col-md-3">
+                                <label for="count" class="field-label">Count <span class="text-body-secondary">(max 500)</span></label>
+                                <input id="count" type="number" class="field-input"
+                                    [value]="count()"
+                                    (input)="count.set(+($any($event.target).value))"
+                                    min="1" max="500"
+                                    [class.is-invalid]="count() > 500" />
+                                @if (count() > 500) {
+                                    <div class="field-error">Maximum 500 codes per bulk generation.</div>
+                                }
+                            </div>
+                            <div class="col-12">
+                                <p class="field-help mb-0">
+                                    Preview: <code>{{ previewFirst() }}</code>
                                     @if (count() > 1) {
-                                        <span class="mx-2">...</span>
+                                        <span class="mx-1">...</span>
                                         <code>{{ previewLast() }}</code>
                                     }
-                                </div>
-                                <small class="text-body-secondary d-block mt-2">
-                                    {{ count() }} code(s) will be created
-                                </small>
+                                    &mdash; {{ count() }} code(s)
+                                </p>
                             </div>
                         </div>
-                    </div>
+                    </fieldset>
 
-                    <!-- Discount Settings -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title fw-semibold mb-3">Discount Settings (Applied to All Codes)</h6>
-                            
-                            <!-- Discount Type -->
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Discount Type</label>
+                    <fieldset class="config-fieldset mt-3">
+                        <legend>Discount Settings</legend>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="field-label">Discount Type</label>
                                 <div class="btn-group d-flex" role="group">
-                                    <input type="radio" class="btn-check" id="bulkTypeDollar" value="DollarAmount" 
+                                    <input type="radio" class="btn-check" id="bulkTypeDollar" value="DollarAmount"
                                            [checked]="discountType() === 'DollarAmount'"
                                            (change)="discountType.set('DollarAmount')" />
-                                    <label class="btn btn-outline-success" for="bulkTypeDollar">
-                                        <i class="bi bi-currency-dollar me-1"></i>Dollar Amount
+                                    <label class="btn btn-outline-success btn-sm" for="bulkTypeDollar">
+                                        <i class="bi bi-currency-dollar me-1"></i>Dollar
                                     </label>
-
                                     <input type="radio" class="btn-check" id="bulkTypePercent" value="Percentage"
                                            [checked]="discountType() === 'Percentage'"
                                            (change)="discountType.set('Percentage')" />
-                                    <label class="btn btn-outline-info" for="bulkTypePercent">
-                                        <i class="bi bi-percent me-1"></i>Percentage
+                                    <label class="btn btn-outline-info btn-sm" for="bulkTypePercent">
+                                        <i class="bi bi-percent me-1"></i>Percent
                                     </label>
                                 </div>
                             </div>
-
-                            <!-- Amount -->
-                            <div class="mb-3">
-                                <label for="bulkAmount" class="form-label fw-semibold">
-                                    Amount 
+                            <div class="col-md-6">
+                                <label for="bulkAmount" class="field-label">
+                                    Amount
                                     @if (discountType() === 'Percentage') {
-                                        <small class="text-body-secondary">(0-100%)</small>
+                                        <span class="text-body-secondary">(0-100%)</span>
                                     }
                                 </label>
-                                <div class="input-group">
+                                <div class="input-group input-group-sm">
                                     @if (discountType() === 'DollarAmount') {
                                         <span class="input-group-text">$</span>
                                     }
-                                    <input
-                                        id="bulkAmount"
-                                        type="number"
-                                        class="form-control"
+                                    <input id="bulkAmount" type="number" class="field-input"
                                         [value]="amount()"
                                         (input)="amount.set(+($any($event.target).value))"
-                                        step="0.01"
-                                        min="0.01"
+                                        step="0.01" min="0.01"
                                         [max]="discountType() === 'Percentage' ? 100 : 999999" />
                                     @if (discountType() === 'Percentage') {
                                         <span class="input-group-text">%</span>
                                     }
                                 </div>
                             </div>
-
-                            <!-- Date Range -->
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="bulkStartDate" class="form-label fw-semibold">Start Date</label>
-                                    <input
-                                        id="bulkStartDate"
-                                        type="date"
-                                        class="form-control"
-                                        [value]="startDate()"
-                                        (input)="startDate.set(($any($event.target).value))" />
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="bulkEndDate" class="form-label fw-semibold">End Date</label>
-                                    <input
-                                        id="bulkEndDate"
-                                        type="date"
-                                        class="form-control"
-                                        [value]="endDate()"
-                                        (input)="endDate.set(($any($event.target).value))"
-                                        [class.is-invalid]="endDate() <= startDate()" />
-                                    @if (endDate() <= startDate()) {
-                                        <div class="invalid-feedback">End date must be after start date.</div>
-                                    }
-                                </div>
+                            <div class="col-md-6">
+                                <label for="bulkStartDate" class="field-label">Start Date</label>
+                                <input id="bulkStartDate" type="date" class="field-input"
+                                    [value]="startDate()"
+                                    (input)="startDate.set(($any($event.target).value))" />
+                            </div>
+                            <div class="col-md-6">
+                                <label for="bulkEndDate" class="field-label">End Date</label>
+                                <input id="bulkEndDate" type="date" class="field-input"
+                                    [value]="endDate()"
+                                    (input)="endDate.set(($any($event.target).value))"
+                                    [class.is-invalid]="endDate() <= startDate()" />
+                                @if (endDate() <= startDate()) {
+                                    <div class="field-error">End date must be after start date.</div>
+                                }
                             </div>
                         </div>
-                    </div>
+                    </fieldset>
 
-                    <!-- Warning -->
                     @if (count() > 50) {
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning mt-3 mb-0 py-2">
                             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <strong>Warning:</strong> You are about to create {{ count() }} discount codes. This operation cannot be undone.
+                            You are about to create {{ count() }} discount codes. This cannot be undone.
                         </div>
                     }
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" (click)="close.emit()">Cancel</button>
-                    <button type="button" class="btn btn-primary" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="onSubmit()" [disabled]="!isValid() || isSaving()">
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
