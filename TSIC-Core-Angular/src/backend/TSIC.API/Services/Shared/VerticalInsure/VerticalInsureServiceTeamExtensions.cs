@@ -206,7 +206,9 @@ public partial class VerticalInsureService
         {
             if (policy.policy_status == "ACTIVE" && !string.IsNullOrWhiteSpace(policy.policy_number))
             {
-                var team = teams.Find(t => t.TeamId == policy.metadata.tsic_teamid);
+                var team = policy.metadata != null
+                    ? teams.Find(t => t.TeamId == policy.metadata.tsic_teamid)
+                    : null;
                 if (team != null)
                 {
                     team.ViPolicyId = policy.policy_number;

@@ -323,7 +323,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 ClubTeamId = ct.ClubTeamId,
                 ClubTeamName = ct.ClubTeamName,
                 ClubTeamGradYear = ct.ClubTeamGradYear,
-                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay
+                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay ?? string.Empty
             })
             .OrderBy(ct => ct.ClubTeamName)
             .ToList();
@@ -627,7 +627,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             }
             clubTeamId = clubTeam.ClubTeamId;
             teamName = clubTeam.ClubTeamName;
-            levelOfPlay = request.LevelOfPlay ?? clubTeam.ClubTeamLevelOfPlay;
+            levelOfPlay = request.LevelOfPlay ?? clubTeam.ClubTeamLevelOfPlay ?? string.Empty;
         }
         else
         {

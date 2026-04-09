@@ -112,9 +112,8 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 
           <!-- ═══ CREDIT CARD FORM ═══ -->
           @if (isCc()) {
-            <section class="p-3 p-sm-4 mb-3 rounded-3" aria-labelledby="cc-title"
+            <section class="p-3 p-sm-4 mb-3 rounded-3"
                      style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
-              <h6 id="cc-title" class="fw-semibold mb-2">Credit Card Information</h6>
               <app-credit-card-form
                 [defaultFirstName]="clubRepContact()?.firstName ?? null"
                 [defaultLastName]="clubRepContact()?.lastName ?? null"

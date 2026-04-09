@@ -1284,8 +1284,8 @@ public class TeamRepository : ITeamRepository
             from clubReg in clubJoin.DefaultIfEmpty()
             where t.JobId == jobId
                   && t.Active == true
-                  && (ag.AgegroupName == null || !ag.AgegroupName.Contains("WAITLIST"))
-                  && (ag.AgegroupName == null || !ag.AgegroupName.Contains("DROPPED"))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains("WAITLIST"))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains("DROPPED"))
             select new
             {
                 ClubName = clubReg != null ? clubReg.ClubName : null,

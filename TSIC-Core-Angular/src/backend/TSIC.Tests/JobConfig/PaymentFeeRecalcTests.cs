@@ -558,7 +558,7 @@ public class PaymentFeeRecalcTests
         PrintScenario("Non-Fee Fields Only",
             "Director changes PayTo and MailTo. No fee fields touched — teams should be unchanged.");
 
-        var (svc, ctx, jobId, teams) = await CreateServiceAsync(teamFeeBase: Deposit);
+        var (svc, ctx, jobId, _) = await CreateServiceAsync(teamFeeBase: Deposit);
 
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("BEFORE", before);
@@ -590,7 +590,7 @@ public class PaymentFeeRecalcTests
         PrintScenario("Waitlist Teams Skipped",
             "1 normal team + 1 WAITLIST team. Only normal team should be recalculated.");
 
-        var (svc, ctx, jobId, teams) = await CreateServiceAsync(
+        var (svc, ctx, jobId, _) = await CreateServiceAsync(
             bTeamsFullPaymentRequired: false, teamFeeBase: Deposit,
             teamCount: 1, addWaitlistTeam: true);
 
@@ -623,7 +623,7 @@ public class PaymentFeeRecalcTests
             "Team has paid $300 of $500 deposit. Director enables full pay ($2,000). " +
             "Owed should be $2,000 - $300 = $1,700. PaidTotal stays at $300.");
 
-        var (svc, ctx, jobId, teams) = await CreateServiceAsync(
+        var (svc, ctx, jobId, _) = await CreateServiceAsync(
             bTeamsFullPaymentRequired: false,
             teamCount: 1, teamFeeBase: Deposit, teamPaidTotal: 300m);
 

@@ -135,6 +135,8 @@ export class RegisteredTeamsGridComponent {
     readonly showDeposit = input(false);
     readonly showProcessing = input(false);
     readonly showPaid = input(true);
+    readonly showCcOwed = input(true);
+    readonly showCkOwed = input(true);
     readonly frozenTeamCol = input(false);
     readonly teamColWidth = input(160);
     readonly pageSize = input(0);
