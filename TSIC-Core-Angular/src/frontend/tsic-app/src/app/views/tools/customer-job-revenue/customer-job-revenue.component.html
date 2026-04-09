@@ -115,6 +115,7 @@
 			</div>
 			<ejs-grid #countsGrid
 				[dataSource]="monthlyCounts()"
+				cssClass="tsic-grid"
 				[allowExcelExport]="true"
 				[toolbar]="countsToolbar()"
 				[editSettings]="countsEditSettings"
@@ -139,6 +140,7 @@
 		@if (activeTab() === 'adminFees') {
 			<ejs-grid #adminFeesGrid
 				[dataSource]="adminFees()"
+				cssClass="tsic-grid"
 				[allowExcelExport]="true"
 				[toolbar]="readOnlyToolbar"
 				(toolbarClick)="onAdminFeesToolbarClick($event)">
@@ -157,6 +159,7 @@
 		@if (activeTab() === 'ccRecords') {
 			<ejs-grid #ccGrid
 				[dataSource]="creditCardRecords()"
+				cssClass="tsic-grid"
 				[allowExcelExport]="true"
 				[toolbar]="readOnlyToolbar"
 				(toolbarClick)="onCcToolbarClick($event)">
@@ -176,6 +179,7 @@
 		@if (activeTab() === 'checkRecords') {
 			<ejs-grid #checkGrid
 				[dataSource]="checkRecords()"
+				cssClass="tsic-grid"
 				[allowExcelExport]="true"
 				[toolbar]="readOnlyToolbar"
 				(toolbarClick)="onCheckToolbarClick($event)">

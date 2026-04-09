@@ -1,0 +1,229 @@
+/* ============================================
+   Syncfusion Grid — Density Variants
+   Applied via cssClass="tsic-grid-tight" (or tsic-grid-compact).
+
+   Specificity: same (0,3,0) as base — wins by source order
+   (this file is imported AFTER _syncfusion-base.scss).
+   ============================================ */
+
+/* ── Tight — search/admin grids ─────────────────────────────── */
+.tsic-grid-tight.e-grid {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bs-card-bg);
+
+  .e-table {
+    background-color: var(--bs-card-bg);
+  }
+}
+
+.tsic-grid-tight.e-grid .e-gridheader {
+  background: var(--bs-secondary-bg);
+  border-bottom: none;
+
+  .e-headercell {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.04em;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 2px solid var(--bs-border-color);
+  }
+
+  .e-headercelldiv {
+    font-size: var(--font-size-xs);
+  }
+}
+
+.tsic-grid-tight.e-grid .e-gridcontent {
+  .e-row {
+    transition: background 0.12s ease;
+
+    &:hover {
+      background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
+    }
+
+    &.e-altrow {
+      background: var(--bs-secondary-bg);
+
+      &:hover {
+        background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+      }
+    }
+  }
+
+  .e-rowcell {
+    padding: 2px var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    vertical-align: middle;
+    background-color: inherit;
+  }
+}
+
+.tsic-grid-tight.e-grid .e-gridpager {
+  background: var(--bs-card-bg);
+  padding: var(--space-2) var(--space-3);
+
+  .e-numericitem, .e-nextpage, .e-prevpage, .e-firstpage, .e-lastpage {
+    border-radius: var(--radius-sm);
+  }
+
+  .e-currentitem {
+    border-radius: var(--radius-sm);
+  }
+}
+
+.tsic-grid-tight.e-grid .e-gridfooter {
+  .e-summarycell {
+    padding: var(--space-3);
+  }
+}
+
+/* Tight — toolbar overrides */
+.tsic-grid-tight.e-grid .e-toolbar,
+.tsic-grid-tight.e-grid .e-toolbar.e-control {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+}
+
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items,
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-left {
+  gap: var(--space-2);
+}
+
+.tsic-grid-tight.e-grid .e-toolbar .e-btn,
+.tsic-grid-tight.e-grid .e-toolbar .e-tbar-btn {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  min-height: 28px;
+  height: 28px;
+  line-height: 1.2;
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+  transition: all 0.2s ease;
+}
+
+.tsic-grid-tight.e-grid .e-toolbar .e-btn:hover,
+.tsic-grid-tight.e-grid .e-toolbar .e-tbar-btn:hover {
+  background-color: var(--bs-tertiary-bg);
+  border-color: var(--bs-primary);
+  color: var(--bs-primary);
+}
+
+/* Tight — mobile */
+@media (max-width: 767.98px) {
+  .tsic-grid-tight.e-grid {
+    .e-headercell {
+      font-size: var(--font-size-2xs);
+      padding: 2px var(--space-1);
+      line-height: 1.1;
+      white-space: normal;
+      word-wrap: break-word;
+    }
+
+    .e-headercelldiv {
+      font-size: var(--font-size-2xs);
+      line-height: 1.1;
+    }
+
+    .e-gridcontent .e-rowcell {
+      font-size: var(--font-size-xs);
+      padding: 2px var(--space-1);
+      line-height: 1.1;
+    }
+
+    colgroup col {
+      min-width: 45px;
+    }
+  }
+}
+
+/* ── Compact — embedded grids (team registration, etc.) ─────── */
+.tsic-grid-compact.e-grid {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  background: var(--brand-surface);
+
+  .e-content,
+  .e-gridcontent {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--bs-primary-rgb), 0.25) transparent;
+
+    &::-webkit-scrollbar { height: 6px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(var(--bs-primary-rgb), 0.25);
+      border-radius: var(--radius-full);
+
+      &:hover { background: rgba(var(--bs-primary-rgb), 0.4); }
+    }
+  }
+
+  .e-table { background-color: var(--brand-surface); }
+  .e-leftfreeze, .e-rightfreeze, .e-fixedfreeze { background-color: var(--brand-surface); }
+}
+
+.tsic-grid-compact.e-grid .e-gridheader {
+  background: rgba(var(--bs-primary-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.1);
+
+  .e-headercell {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    padding: var(--space-1) var(--space-2);
+    text-transform: none;
+    color: var(--bs-primary);
+    background-color: var(--brand-surface);
+    border-right: none;
+  }
+
+  .e-headercelldiv {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+  }
+}
+
+.tsic-grid-compact.e-grid .e-gridcontent {
+  background: var(--brand-surface);
+
+  .e-row {
+    background: var(--brand-surface);
+
+    &.e-altrow { background: var(--brand-surface); }
+  }
+
+  .e-rowcell {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+    border-right: none;
+    border-bottom: 1px solid rgba(var(--bs-border-color-rgb), 0.15);
+    background-color: inherit;
+  }
+
+  .e-row:hover .e-rowcell {
+    background: rgba(var(--bs-primary-rgb), 0.04);
+  }
+}
+
+.tsic-grid-compact.e-grid .e-gridfooter {
+  background: rgba(var(--bs-primary-rgb), 0.03);
+  border-top: 1px solid rgba(var(--bs-primary-rgb), 0.1);
+  margin-top: var(--space-1);
+
+  .e-summaryrow {
+    background: rgba(var(--bs-primary-rgb), 0.03);
+
+    .e-summarycell {
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      padding: var(--space-1) var(--space-2);
+      background-color: var(--brand-surface);
+      color: var(--bs-primary);
+      border-right: none;
+    }
+  }
+}

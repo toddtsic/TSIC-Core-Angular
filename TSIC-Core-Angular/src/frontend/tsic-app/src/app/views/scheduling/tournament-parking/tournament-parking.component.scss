@@ -321,14 +321,7 @@
 	box-shadow: var(--shadow-sm);
 }
 
-// Syncfusion grid font size override
-:host ::ng-deep .e-grid * {
-	font-size: var(--font-size-sm) !important;
-}
-
-:host ::ng-deep .e-grid .e-headercell {
-	font-weight: 600;
-}
+// Grid styling: cssClass="tsic-grid" on <ejs-grid>
 
 // ── Responsive ──
 @media (max-width: 768px) {

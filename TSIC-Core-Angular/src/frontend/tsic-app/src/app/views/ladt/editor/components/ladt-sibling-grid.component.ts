@@ -52,7 +52,7 @@ export interface ParentBreadcrumb {
       (actionBegin)="onActionBegin($event)"
       (rowDataBound)="onRowDataBound($event)"
       (rowSelected)="onRowSelect($event)"
-      class="ladt-grid">
+      cssClass="tsic-grid">
 
       <e-columns>
         <!-- Action column (always first, frozen) -->

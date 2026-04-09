@@ -528,6 +528,7 @@
         <ejs-grid
             #grid
             [dataSource]="searchResults()!.result"
+            cssClass="tsic-grid-tight"
             [allowPaging]="true"
             [allowSorting]="true"
             [allowExcelExport]="true"
@@ -540,7 +541,6 @@
             (rowDeselected)="onRowSelected()"
             (dataBound)="refreshRowNumbers()"
             (actionComplete)="onActionComplete($event)"
-            class="tight-table"
           >
           <e-columns>
             <!-- Row number (unbound — stamped via queryCellInfo/actionComplete) -->

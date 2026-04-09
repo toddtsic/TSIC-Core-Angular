@@ -20,7 +20,11 @@
 @use 'styles/tables';
 @use 'styles/list-groups';
 @use 'styles/accordion';
-@use 'styles/syncfusion';
+@use 'styles/syncfusion-base';
+@use 'styles/syncfusion-density';
+@use 'styles/syncfusion-dark';
+@use 'styles/syncfusion-popups';
+@use 'styles/syncfusion-cell-utils';
 
 /* External Dependencies */
 @import '../node_modules/bootstrap-icons/font/bootstrap-icons.css';

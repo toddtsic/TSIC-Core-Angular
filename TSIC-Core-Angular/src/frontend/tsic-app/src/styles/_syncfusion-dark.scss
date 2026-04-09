@@ -1,0 +1,20 @@
+/* ============================================
+   Syncfusion Grid — Dark Mode Overrides
+   Scoped under [data-bs-theme='dark'] .tsic-grid.e-grid
+   Specificity: (0,3,1) — beats both base (0,3,0) and density (0,3,0).
+   ============================================ */
+
+[data-bs-theme='dark'] .e-grid[class*="tsic-grid"] {
+  .e-gridheader .e-headercell {
+    background: var(--glass-white-5);
+    border-bottom-color: var(--glass-white-10);
+  }
+
+  .e-gridcontent .e-row.e-altrow {
+    background: var(--glass-white-5);
+  }
+
+  .e-gridfooter .aggregate-value {
+    color: var(--bs-body-color);
+  }
+}

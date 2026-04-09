@@ -21,7 +21,7 @@ import type { RegisteredTeamDto } from '@core/api';
                 [rowHeight]="30"
                 [allowPaging]="pageSize() > 0"
                 [pageSettings]="{ pageSize: pageSize() || 50 }"
-                cssClass="reg-grid">
+                cssClass="tsic-grid-compact">
         <e-columns>
           <e-column field="teamName" headerText="Team" [width]="teamColWidth()"
                     [isFrozen]="frozenTeamCol()">

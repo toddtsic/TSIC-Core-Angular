@@ -142,6 +142,7 @@
 			<div class="grid-section">
 				<ejs-grid #rollupGrid
 					[dataSource]="rollup()"
+					cssClass="tsic-grid"
 					[allowExcelExport]="true"
 					[toolbar]="['ExcelExport']"
 					(toolbarClick)="onGridToolbarClick($event, rollupGrid)"
@@ -269,6 +270,7 @@
 				</div>
 				<ejs-grid #complexGrid
 					[dataSource]="cd.timeslots"
+					cssClass="tsic-grid"
 					[allowExcelExport]="true"
 					[toolbar]="['ExcelExport']"
 					(toolbarClick)="onGridToolbarClick($event, complexGrid)"
