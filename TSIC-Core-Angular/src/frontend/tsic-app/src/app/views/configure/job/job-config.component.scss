@@ -107,6 +107,16 @@
       box-shadow: var(--shadow-sm);
     }
 
+    .form-section--super {
+      background: color-mix(in srgb, var(--bs-warning) 4%, var(--bs-card-bg));
+      border-color: color-mix(in srgb, var(--bs-warning) 25%, var(--bs-border-color));
+      border-left: 3px solid var(--bs-warning);
+
+      .section-title {
+        color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
+      }
+    }
+
     .section-title {
       font-size: var(--font-size-xs);
       font-weight: 600;

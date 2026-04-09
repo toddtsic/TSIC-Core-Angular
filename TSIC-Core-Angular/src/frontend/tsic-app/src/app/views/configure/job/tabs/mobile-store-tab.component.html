@@ -1,7 +1,7 @@
 @if (svc.mobileStore()) {
   <div class="tab-panel">
     <div class="form-section">
-      <h6 class="section-title">Mobile Features</h6>
+      <h6 class="section-title"><i class="bi bi-phone me-2"></i>Mobile Features</h6>
 
       <div class="d-flex align-items-center gap-3 p-3 rounded-2 mb-3"
            [style.background]="tsicEventsEnabled() ? 'rgba(var(--bs-success-rgb), 0.1)' : 'rgba(var(--bs-danger-rgb), 0.1)'"
@@ -68,9 +68,9 @@
     </div>
 
     @if (svc.isSuperUser()) {
-      <div class="form-section">
+      <div class="form-section form-section--super">
         <h6 class="section-title">
-          <i class="bi bi-shield-lock me-1"></i>
+          <i class="bi bi-shield-lock me-2"></i>
           Mobile Identity (SuperUser)
         </h6>
         <div class="row g-2">
@@ -83,9 +83,9 @@
         </div>
       </div>
 
-      <div class="form-section">
+      <div class="form-section form-section--super">
         <h6 class="section-title">
-          <i class="bi bi-shield-lock me-1"></i>
+          <i class="bi bi-shield-lock me-2"></i>
           Store Settings (SuperUser)
         </h6>
         <div class="field-check-row">

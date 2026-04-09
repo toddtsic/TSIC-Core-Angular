@@ -2,7 +2,7 @@
   <div class="tab-panel">
     <!-- Payment & Processing -->
     <div class="form-section">
-      <h6 class="section-title">Payment &amp; Processing</h6>
+      <h6 class="section-title"><i class="bi bi-credit-card me-2"></i>Payment &amp; Processing</h6>
       <div class="row g-2">
         <div class="col-12">
           <label class="field-label">Allowed Payment Methods</label>
@@ -57,7 +57,7 @@
 
     <!-- Per-Unit Charges -->
     <div class="form-section">
-      <h6 class="section-title">Per-Unit Charges</h6>
+      <h6 class="section-title"><i class="bi bi-calculator me-2"></i>Per-Unit Charges</h6>
       <div class="row g-2">
         <div class="col-md-4">
           <label class="field-label">Per Player</label>
@@ -82,7 +82,7 @@
 
     <!-- Check / Mail-in / Balance -->
     <div class="form-section">
-      <h6 class="section-title">Check / Mail-in / Balance</h6>
+      <h6 class="section-title"><i class="bi bi-envelope-paper me-2"></i>Check / Mail-in / Balance</h6>
       <div class="row g-2">
         <div class="col-md-6">
           <label class="field-label">Pay To</label>
@@ -135,9 +135,9 @@
 
     <!-- SuperUser: ARB Settings -->
     @if (svc.isSuperUser()) {
-      <div class="form-section">
+      <div class="form-section form-section--super">
         <h6 class="section-title">
-          <i class="bi bi-shield-lock me-1"></i>
+          <i class="bi bi-shield-lock me-2"></i>
           Automated Recurring Billing (SuperUser)
         </h6>
         <div class="row g-2">
@@ -179,9 +179,9 @@
 
     <!-- Admin Charges (SuperUser only) -->
     @if (svc.isSuperUser() && svc.payment()?.adminCharges) {
-      <div class="form-section">
+      <div class="form-section form-section--super">
         <h6 class="section-title">
-          <i class="bi bi-shield-lock me-1"></i>
+          <i class="bi bi-shield-lock me-2"></i>
           Admin Charges (SuperUser)
         </h6>
         <div class="table-responsive">

@@ -1,7 +1,7 @@
 @if (svc.teams()) {
   <div class="tab-panel">
     <div class="form-section">
-      <h6 class="section-title">Team Registration</h6>
+      <h6 class="section-title"><i class="bi bi-shield me-2"></i>Team Registration</h6>
       <div class="d-flex align-items-center gap-3 p-3 rounded-2 mb-3"
            [style.background]="bRegistrationAllowTeam() ? 'rgba(var(--bs-success-rgb), 0.1)' : 'rgba(var(--bs-danger-rgb), 0.1)'"
            [style.border]="'1px solid ' + (bRegistrationAllowTeam() ? 'rgba(var(--bs-success-rgb), 0.3)' : 'rgba(var(--bs-danger-rgb), 0.3)')">
@@ -50,7 +50,7 @@
     </div>
 
     <div class="form-section">
-      <h6 class="section-title">Club Rep Permissions</h6>
+      <h6 class="section-title"><i class="bi bi-key me-2"></i>Club Rep Permissions</h6>
       <div class="field-check-row">
         <label class="field-check">
           <input type="checkbox"
@@ -74,7 +74,7 @@
     </div>
 
     <div class="form-section">
-      <h6 class="section-title">Team Options</h6>
+      <h6 class="section-title"><i class="bi bi-gear me-2"></i>Team Options</h6>
       <div class="field-check-row">
         <label class="field-check">
           <input type="checkbox"
@@ -104,9 +104,9 @@
     </div>
 
     @if (svc.isSuperUser()) {
-      <div class="form-section">
+      <div class="form-section form-section--super">
         <h6 class="section-title">
-          <i class="bi bi-shield-lock me-1"></i>
+          <i class="bi bi-shield-lock me-2"></i>
           Team Insurance (SuperUser)
         </h6>
         <label class="field-check">

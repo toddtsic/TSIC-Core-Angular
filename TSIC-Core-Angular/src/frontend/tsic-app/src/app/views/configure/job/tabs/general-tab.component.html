@@ -1,17 +1,21 @@
 @if (svc.general(); as g) {
   <div class="tab-panel">
 
-    <!-- Identity + Name + Expiry (one card) -->
+    <!-- Job Properties -->
     <div class="form-section">
-      <h6 class="section-title">Identity</h6>
+      <h6 class="section-title"><i class="bi bi-briefcase me-2"></i>Job Properties</h6>
       <div class="row g-2">
         <div class="col-md-3">
-          <label class="field-label">Job ID</label>
-          <input type="text" class="field-input" [value]="g.jobId" disabled />
+          <label class="field-label">Event Name</label>
+          <input type="text" class="field-input"
+            [ngModel]="jobName()"
+            (ngModelChange)="jobName.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="field-label">Job Path</label>
-          <input type="text" class="field-input" [value]="g.jobPath" disabled />
+          <label class="field-label">Display Name</label>
+          <input type="text" class="field-input"
+            [ngModel]="displayName()"
+            (ngModelChange)="displayName.set($event); onFieldChange()" />
         </div>
         <div class="col-md-2">
           <label class="field-label">Season</label>
@@ -33,21 +37,15 @@
         </div>
       </div>
       <div class="row g-2 mt-1">
-        <div class="col-md-6">
-          <label class="field-label">Job Name</label>
-          <input type="text" class="field-input"
-            [ngModel]="jobName()"
-            (ngModelChange)="jobName.set($event); onFieldChange()" />
+        <div class="col-md-3">
+          <label class="field-label">Job ID</label>
+          <input type="text" class="field-input" [value]="g.jobId" disabled />
+        </div>
+        <div class="col-md-3">
+          <label class="field-label">Job Path</label>
+          <input type="text" class="field-input" [value]="g.jobPath" disabled />
         </div>
         <div class="col-md-6">
-          <label class="field-label">Display Name</label>
-          <input type="text" class="field-input"
-            [ngModel]="displayName()"
-            (ngModelChange)="displayName.set($event); onFieldChange()" />
-        </div>
-      </div>
-      <div class="row g-2 mt-1">
-        <div class="col-12">
           <label class="field-label">Description</label>
           <textarea class="field-input" rows="2"
             [ngModel]="jobDescription()"
@@ -56,12 +54,12 @@
       </div>
     </div>
 
-    <!-- SuperUser: Classification -->
+    <!-- 3. SuperUser Only -->
     @if (svc.isSuperUser()) {
-      <div class="form-section">
+      <div class="form-section form-section--super">
         <h6 class="section-title">
-          <i class="bi bi-shield-lock me-1"></i>
-          Classification
+          <i class="bi bi-shield-lock me-2"></i>
+          SuperUser Only
         </h6>
         <div class="row g-2">
           <div class="col-md-2">
@@ -83,17 +81,6 @@
               (ngModelChange)="jobNameQbp.set($event); onFieldChange()" />
           </div>
           <div class="col-md-2">
-            <label class="field-label">Job Type</label>
-            <select class="field-input field-select"
-              [ngModel]="jobTypeId()"
-              (ngModelChange)="jobTypeId.set($event); onFieldChange()">
-              <option [ngValue]="undefined">— Select —</option>
-              @for (jt of svc.referenceData()?.jobTypes ?? []; track jt.jobTypeId) {
-                <option [ngValue]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
-              }
-            </select>
-          </div>
-          <div class="col-md-2">
             <label class="field-label">Sport</label>
             <select class="field-input field-select"
               [ngModel]="sportId()"
@@ -101,6 +88,17 @@
               <option [ngValue]="null">— Select —</option>
               @for (s of svc.referenceData()?.sports ?? []; track s.sportId) {
                 <option [ngValue]="s.sportId">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="field-label">Job Type</label>
+            <select class="field-input field-select"
+              [ngModel]="jobTypeId()"
+              (ngModelChange)="jobTypeId.set($event); onFieldChange()">
+              <option [ngValue]="undefined">— Select —</option>
+              @for (jt of svc.referenceData()?.jobTypes ?? []; track jt.jobTypeId) {
+                <option [ngValue]="jt.jobTypeId">{{ jt.jobTypeName }}</option>
               }
             </select>
           </div>
@@ -115,8 +113,6 @@
               }
             </select>
           </div>
-        </div>
-        <div class="row g-2 mt-1">
           <div class="col-md-2">
             <label class="field-label">Billing Type</label>
             <select class="field-input field-select"
