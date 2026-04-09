@@ -4,53 +4,55 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-credit-card me-2"></i>Payment &amp; Processing</h6>
       <div class="row g-2">
-        <div class="col-12">
-          <label class="field-label">Allowed Payment Methods</label>
-          <div class="field-check-row">
-            <label class="field-check">
-              <input type="radio" name="payMethod"
-                [checked]="paymentMethodsAllowedCode() === 1"
-                (change)="paymentMethodsAllowedCode.set(1); onFieldChange()" />
-              <span class="field-label">Credit Card Only</span>
-            </label>
-            <label class="field-check">
-              <input type="radio" name="payMethod"
-                [checked]="paymentMethodsAllowedCode() === 2"
-                (change)="paymentMethodsAllowedCode.set(2); onFieldChange()" />
-              <span class="field-label">Credit Card or Check</span>
-            </label>
-            <label class="field-check">
-              <input type="radio" name="payMethod"
-                [checked]="paymentMethodsAllowedCode() === 3"
-                (change)="paymentMethodsAllowedCode.set(3); onFieldChange()" />
-              <span class="field-label">Check Only</span>
-            </label>
-          </div>
+        <div class="col-md-6">
+          <fieldset class="config-fieldset">
+            <legend class="field-label">Allowed Methods</legend>
+            <div class="field-check-row">
+              <label class="field-check">
+                <input type="radio" name="payMethod"
+                  [checked]="paymentMethodsAllowedCode() === 1"
+                  (change)="paymentMethodsAllowedCode.set(1); onFieldChange()" />
+                <span class="field-label mb-0">CC Only</span>
+              </label>
+              <label class="field-check">
+                <input type="radio" name="payMethod"
+                  [checked]="paymentMethodsAllowedCode() === 2"
+                  (change)="paymentMethodsAllowedCode.set(2); onFieldChange()" />
+                <span class="field-label mb-0">CC or Check</span>
+              </label>
+              <label class="field-check">
+                <input type="radio" name="payMethod"
+                  [checked]="paymentMethodsAllowedCode() === 3"
+                  (change)="paymentMethodsAllowedCode.set(3); onFieldChange()" />
+                <span class="field-label mb-0">Check Only</span>
+              </label>
+            </div>
+          </fieldset>
         </div>
-        <div class="col-12">
-          <div class="field-check-row">
-            <div class="field-toggle-combo">
-              <div class="form-check form-switch">
-                <input type="checkbox" class="form-check-input" id="bAddFees"
-                  [ngModel]="bAddProcessingFees()"
-                  (ngModelChange)="bAddProcessingFees.set($event); onFieldChange()" />
-                <label class="field-label" for="bAddFees">Add Processing Fees</label>
-              </div>
-              <div>
-                <label class="field-label">Fee %</label>
-                <input type="number" class="field-input" step="0.01" style="width: 6rem"
+        <div class="col-md-6">
+          <fieldset class="config-fieldset">
+            <legend class="field-label">Processing Fee</legend>
+            <div class="field-check-row">
+              <div class="d-flex align-items-center gap-2">
+                <div class="form-check form-switch mb-0">
+                  <input type="checkbox" class="form-check-input" id="bAddFees" role="switch"
+                    [ngModel]="bAddProcessingFees()"
+                    (ngModelChange)="bAddProcessingFees.set($event); onFieldChange()" />
+                </div>
+                <input type="number" class="field-input" step="0.01" placeholder="%"
+                  style="max-width: 70px"
                   [ngModel]="processingFeePercent()"
                   (ngModelChange)="processingFeePercent.set($event); onFieldChange()"
                   [disabled]="!bAddProcessingFees()" />
               </div>
+              <label class="field-check">
+                <input type="checkbox"
+                  [ngModel]="bApplyProcessingFeesToTeamDeposit()"
+                  (ngModelChange)="bApplyProcessingFeesToTeamDeposit.set($event); onFieldChange()" />
+                <span class="field-label mb-0">Apply to Team Deposit</span>
+              </label>
             </div>
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bApplyProcessingFeesToTeamDeposit()"
-                (ngModelChange)="bApplyProcessingFeesToTeamDeposit.set($event); onFieldChange()" />
-              <span class="field-label">Apply to Team Deposit</span>
-            </label>
-          </div>
+          </fieldset>
         </div>
       </div>
     </div>
@@ -84,52 +86,52 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-envelope-paper me-2"></i>Check / Mail-in / Balance</h6>
       <div class="row g-2">
-        <div class="col-md-6">
+        <div class="col-md-4">
           <label class="field-label">Pay To</label>
           <input type="text" class="field-input"
             [ngModel]="payTo()"
             (ngModelChange)="payTo.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
           <label class="field-label">Mail To</label>
           <input type="text" class="field-input"
             [ngModel]="mailTo()"
             (ngModelChange)="mailTo.set($event); onFieldChange()" />
         </div>
+        <div class="col-md-4">
+          <label class="field-label">Balance Due %</label>
+          <input type="text" class="field-input"
+            [ngModel]="balancedueaspercent()"
+            (ngModelChange)="balancedueaspercent.set($event); onFieldChange()" />
+        </div>
+      </div>
+      <div class="row g-2 mt-1">
         <div class="col-12">
           <label class="field-label">Mail-in Payment Warning</label>
           <textarea class="field-input" rows="2"
             [ngModel]="mailinPaymentWarning()"
             (ngModelChange)="mailinPaymentWarning.set($event); onFieldChange()"></textarea>
         </div>
-        <div class="col-md-4">
-          <label class="field-label">Balance Due As Percent</label>
-          <input type="text" class="field-input"
-            [ngModel]="balancedueaspercent()"
-            (ngModelChange)="balancedueaspercent.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-8">
-          <div class="field-check-row">
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bTeamsFullPaymentRequired()"
-                (ngModelChange)="bTeamsFullPaymentRequired.set($event); onFieldChange()" />
-              <span class="field-label">Teams Full Payment Required</span>
-            </label>
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bAllowRefundsInPriorMonths()"
-                (ngModelChange)="bAllowRefundsInPriorMonths.set($event); onFieldChange()" />
-              <span class="field-label">Allow Refunds in Prior Months</span>
-            </label>
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bAllowCreditAll()"
-                (ngModelChange)="bAllowCreditAll.set($event); onFieldChange()" />
-              <span class="field-label">Allow Credit All</span>
-            </label>
-          </div>
-        </div>
+      </div>
+      <div class="field-check-row mt-2">
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bTeamsFullPaymentRequired()"
+            (ngModelChange)="bTeamsFullPaymentRequired.set($event); onFieldChange()" />
+          <span class="field-label mb-0">Teams Full Payment Required</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bAllowRefundsInPriorMonths()"
+            (ngModelChange)="bAllowRefundsInPriorMonths.set($event); onFieldChange()" />
+          <span class="field-label mb-0">Refunds in Prior Months</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bAllowCreditAll()"
+            (ngModelChange)="bAllowCreditAll.set($event); onFieldChange()" />
+          <span class="field-label mb-0">Allow Credit All</span>
+        </label>
       </div>
     </div>
 
@@ -138,25 +140,25 @@
       <div class="form-section form-section--super">
         <h6 class="section-title">
           <i class="bi bi-shield-lock me-2"></i>
-          Automated Recurring Billing (SuperUser)
+          Recurring Billing
         </h6>
-        <div class="row g-2">
-          <div class="col-md-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2 pb-1">
             <label class="field-check">
               <input type="checkbox"
                 [ngModel]="adnArb()"
                 (ngModelChange)="adnArb.set($event); onFieldChange()" />
-              <span class="field-label">Enable ARB</span>
+              <span class="field-label mb-0">Enable ARB</span>
             </label>
           </div>
-          <div class="col-md-3">
-            <label class="field-label">Billing Occurrences</label>
+          <div class="col-md-2">
+            <label class="field-label">Occurrences</label>
             <input type="number" class="field-input"
               [ngModel]="adnArbBillingOccurrences()"
               (ngModelChange)="adnArbBillingOccurrences.set($event); onFieldChange()" />
           </div>
-          <div class="col-md-3">
-            <label class="field-label">Interval Length</label>
+          <div class="col-md-2">
+            <label class="field-label">Interval</label>
             <input type="number" class="field-input"
               [ngModel]="adnArbIntervalLength()"
               (ngModelChange)="adnArbIntervalLength.set($event); onFieldChange()" />
@@ -167,8 +169,8 @@
               [ngModel]="adnArbStartDate()"
               (ngModelChange)="adnArbStartDate.set($event); onFieldChange()" />
           </div>
-          <div class="col-md-4">
-            <label class="field-label">Minimum Total Charge</label>
+          <div class="col-md-3">
+            <label class="field-label">Min Total Charge</label>
             <input type="number" class="field-input" step="0.01"
               [ngModel]="adnArbMinimumTotalCharge()"
               (ngModelChange)="adnArbMinimumTotalCharge.set($event); onFieldChange()" />
@@ -182,10 +184,10 @@
       <div class="form-section form-section--super">
         <h6 class="section-title">
           <i class="bi bi-shield-lock me-2"></i>
-          Admin Charges (SuperUser)
+          Admin Charges
         </h6>
         <div class="table-responsive">
-          <table class="table table-sm">
+          <table class="config-table">
             <thead>
               <tr>
                 <th>Type</th>
@@ -208,7 +210,7 @@
                     <button class="btn btn-sm btn-outline-danger"
                       (click)="svc.deleteAdminCharge(charge.id)"
                       [disabled]="svc.isSaving()">
-                      <i class="bi bi-trash"></i>
+                      <i class="bi bi-trash3"></i>
                     </button>
                   </td>
                 </tr>

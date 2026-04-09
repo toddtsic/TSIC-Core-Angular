@@ -130,3 +130,51 @@ select::placeholder,
     color: var(--neutral-400);
     font-style: italic;
 }
+
+/* ── Config Fieldset — lightweight grouping within form sections ── */
+.config-fieldset {
+    border: 1px solid rgba(var(--bs-border-color-rgb), 0.5);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    margin: 0;
+
+    legend {
+        float: none;
+        width: auto;
+        padding: 0 var(--space-1);
+        margin-bottom: var(--space-1);
+        font-size: 10px;
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--brand-text-muted);
+        line-height: var(--line-height-tight);
+    }
+}
+
+/* ── Config Table — compact inline table for admin config forms ── */
+.config-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th {
+        font-size: 10px;
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--brand-text-muted);
+        padding: var(--space-1) var(--space-2);
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    td {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        padding: var(--space-1) var(--space-2);
+        border-bottom: 1px solid rgba(var(--bs-border-color-rgb), 0.4);
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+}
