@@ -418,6 +418,22 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Severity**: Question
 - **Status**: Open
 
+### PL-065: "Update My Family Account Data and/or Players" button goes to same place as "Create NEW Family Account"
+- **Area**: Family Account Creation
+- **What I did**: Clicked the "Update My Family Account Data and/or Players" button on the Player Registration card
+- **What I expected**: A different screen for updating an existing account
+- **What happened**: Goes to the same place as "Create NEW Family Account" — these should lead to different flows
+- **Severity**: Bug
+- **Status**: Open
+
+### PL-064: Add "Don't have a family account yet?" above the Create New Family Account button
+- **Area**: Family Account Creation
+- **What I did**: Looked at the Player Registration card login area
+- **What I expected**: Helpful prompt text for new parents above the create account button
+- **What happened**: No introductory text above the "Create New Family Account" button — add "Don't have a family account yet?" to guide first-time parents
+- **Severity**: UX
+- **Status**: Open
+
 ### PL-063: Premier Lacrosse 2026 (CAC site) behaves like a single player option site
 - **Area**: Registration Process Review
 - **What I did**: Tested registration on Premier Lacrosse 2026, which is a CAC (Club/Affiliate/Camp) site
