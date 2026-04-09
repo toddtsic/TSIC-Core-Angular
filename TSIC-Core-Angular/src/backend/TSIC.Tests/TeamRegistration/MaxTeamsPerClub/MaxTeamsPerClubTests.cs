@@ -249,4 +249,66 @@ public class MaxTeamsPerClubTests
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
             Times.Never, "should not query club team count when MaxTeamsPerClub = 0");
     }
+
+    // ── Agegroup MaxTeams tests (full service flow) ──────────────────
+
+    [Fact(DisplayName = "Register: agegroup full, no waitlists → returns Success = false with message")]
+    public async Task Register_AgegroupFull_NoWaitlists_ReturnsFailure()
+    {
+        // Arrange — bypass per-club check, placement throws (agegroup full, no waitlists)
+        var (svc, teamRepo, placement, _) = CreateService(maxTeamsPerClub: 0, currentClubTeamCount: 0);
+
+        placement.Reset();
+        placement
+            .Setup(p => p.ResolvePlacementAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("This age group is full"));
+
+        // Act
+        var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);
+
+        // Assert — club rep gets a clear message, no team created
+        result.Success.Should().BeFalse("agegroup is at capacity with no waitlists");
+        result.Message.Should().Contain("age group is full");
+        result.TeamId.Should().Be(Guid.Empty);
+
+        // Verify no team was persisted
+        teamRepo.Verify(t => t.Add(It.IsAny<Teams>()), Times.Never,
+            "should not create a team when the agegroup is full");
+    }
+
+    [Fact(DisplayName = "Register: agegroup full, waitlisted → Success = true, IsWaitlisted = true")]
+    public async Task Register_AgegroupFull_Waitlisted_ReturnsSuccessWithWaitlist()
+    {
+        // Arrange — bypass per-club check, placement redirects to waitlist agegroup
+        var waitlistAgegroupId = Guid.NewGuid();
+        var (svc, teamRepo, placement, _) = CreateService(maxTeamsPerClub: 0, currentClubTeamCount: 0);
+
+        placement.Reset();
+        placement
+            .Setup(p => p.ResolvePlacementAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TeamPlacementResult
+            {
+                AgegroupId = waitlistAgegroupId,
+                LeagueId = TestLeagueId,
+                IsWaitlisted = true,
+                WaitlistAgegroupName = "WAITLIST - Boys U14",
+            });
+
+        // Act
+        var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);
+
+        // Assert — club rep is told they're waitlisted, team IS created
+        result.Success.Should().BeTrue("registration should succeed on the waitlist");
+        result.IsWaitlisted.Should().BeTrue("team was redirected to waitlist agegroup");
+        result.WaitlistAgegroupName.Should().Be("WAITLIST - Boys U14");
+
+        // Verify team was created on the waitlist agegroup
+        teamRepo.Verify(t => t.Add(It.Is<Teams>(team =>
+            team.AgegroupId == waitlistAgegroupId)),
+            Times.Once, "team should be created on the waitlist agegroup");
+    }
 }
