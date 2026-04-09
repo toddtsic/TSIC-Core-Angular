@@ -96,9 +96,11 @@
 							<span class="placement-label">Pool:</span>
 							<span class="placement-badge" [style.background]="selectedColor() || 'var(--neutral-400)'"
 								[style.color]="contrastText(selectedColor())">{{ selectedDivName() }}</span>
-							<span class="schedule-link" (click)="viewTeamSchedule(selectedTeamId()!)">
-								<i class="bi bi-calendar3"></i> View Schedule
-							</span>
+							@if (schedulePublic()) {
+								<span class="schedule-link" (click)="viewTeamSchedule(selectedTeamId()!)">
+									<i class="bi bi-calendar3"></i> View Schedule
+								</span>
+							}
 						</div>
 					</div>
 					<div class="table-responsive">

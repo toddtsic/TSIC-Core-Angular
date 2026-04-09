@@ -536,9 +536,9 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                     _ = await _discountEvaluator.EvaluateAsync(r.DiscountCodeAi.Value, r.Payamt.Value);
                 }
                 var owes = (r.Dueamt ?? 0m) - (r.Payamt ?? 0m);
-                var activeChecked = (r.Active ?? false) ? "checked" : string.Empty;
+                var activeLabel = (r.Active ?? false) ? "&#x2705;" : "&#x274C;";
                 HtmlTableBuilder.AddRow(sb,
-                    $"<input type='checkbox' disabled {activeChecked}>",
+                    activeLabel,
                     r.AId.ToString(),
                     WebUtility.HtmlEncode(t.TeamName),
                     r.PaymentMethod ?? string.Empty,

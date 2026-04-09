@@ -197,7 +197,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // Generate Phase 2 token with regId
         var jobLogo = job?.LogoHeader;
-        var token = _tokenService.GenerateEnrichedJwtToken(user, registration.RegistrationId.ToString(), jobPath, jobLogo, "ClubRep");
+        var token = _tokenService.GenerateEnrichedJwtToken(user, registration.RegistrationId.ToString(), jobPath, jobLogo, RoleConstants.Names.ClubRepName);
 
         _logger.LogInformation("Generated Phase 2 token for user {UserId}, regId {RegistrationId}", userId, registration.RegistrationId);
 
@@ -323,7 +323,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 ClubTeamId = ct.ClubTeamId,
                 ClubTeamName = ct.ClubTeamName,
                 ClubTeamGradYear = ct.ClubTeamGradYear,
-                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay
+                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay ?? string.Empty
             })
             .OrderBy(ct => ct.ClubTeamName)
             .ToList();
@@ -557,6 +557,26 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Invalid age group selected");
         }
 
+        // Enforce MaxTeamsPerClub
+        if (ageGroup.MaxTeamsPerClub > 0)
+        {
+            var clubTeamCount = await _teams.GetRegisteredCountForClubRepAndAgegroupAsync(
+                jobId, request.AgeGroupId, clubRepRegistration.RegistrationId);
+            if (clubTeamCount >= ageGroup.MaxTeamsPerClub)
+            {
+                _logger.LogWarning(
+                    "MaxTeamsPerClub exceeded: club {ClubName} has {Count}/{Max} teams in agegroup {AgeGroupName}",
+                    clubName, clubTeamCount, ageGroup.MaxTeamsPerClub, ageGroup.AgegroupName);
+                return new RegisterTeamResponse
+                {
+                    Success = false,
+                    TeamId = Guid.Empty,
+                    Message = $"Your club has reached the maximum of {ageGroup.MaxTeamsPerClub} team(s) allowed in {ageGroup.AgegroupName}.",
+                    IsWaitlisted = false
+                };
+            }
+        }
+
         // Resolve fees from new fee schema
         var resolved = await _feeService.ResolveFeeForAgegroupAsync(
             jobId, RoleConstants.ClubRep, request.AgeGroupId);
@@ -607,7 +627,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             }
             clubTeamId = clubTeam.ClubTeamId;
             teamName = clubTeam.ClubTeamName;
-            levelOfPlay = request.LevelOfPlay ?? clubTeam.ClubTeamLevelOfPlay;
+            levelOfPlay = request.LevelOfPlay ?? clubTeam.ClubTeamLevelOfPlay ?? string.Empty;
         }
         else
         {
@@ -638,8 +658,23 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Resolve placement (may redirect to waitlist if agegroup is full)
-        var placement = await _placement.ResolvePlacementAsync(
-            jobId, request.AgeGroupId, teamName, userId: userId);
+        TeamPlacementResult placement;
+        try
+        {
+            placement = await _placement.ResolvePlacementAsync(
+                jobId, request.AgeGroupId, teamName, userId: userId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Agegroup placement failed for team {TeamName} in agegroup {AgeGroupId}", teamName, request.AgeGroupId);
+            return new RegisterTeamResponse
+            {
+                Success = false,
+                TeamId = Guid.Empty,
+                Message = ex.Message,
+                IsWaitlisted = false
+            };
+        }
 
         // Create team registration
         var team = new Domain.Entities.Teams

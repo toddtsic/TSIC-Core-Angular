@@ -38,6 +38,8 @@ namespace TSIC.Contracts.Dtos
         public required string TeamName { get; init; } = string.Empty;
         public required string Message { get; init; } = string.Empty;
         public required bool RegistrationCreated { get; init; }
+        public bool IsWaitlisted { get; init; }
+        public string? WaitlistTeamName { get; init; }
     }
 
     public record PreSubmitInsuranceDto
@@ -54,5 +56,25 @@ namespace TSIC.Contracts.Dtos
         public required string PlayerId { get; init; } = string.Empty;
         public required string Field { get; init; } = string.Empty;
         public required string Message { get; init; } = string.Empty;
+    }
+
+    // ── Reserve Teams (Phase 1 — capacity check + pending registration at team selection) ──
+
+    public record ReserveTeamsRequestDto
+    {
+        public required string JobPath { get; init; } = string.Empty;
+        public required List<ReserveTeamSelectionDto> TeamSelections { get; init; } = new();
+    }
+
+    public record ReserveTeamSelectionDto
+    {
+        public required string PlayerId { get; init; } = string.Empty;
+        public required Guid TeamId { get; init; }
+    }
+
+    public record ReserveTeamsResponseDto
+    {
+        public required List<PreSubmitTeamResultDto> TeamResults { get; init; } = new();
+        public bool HasFullTeams => TeamResults.Exists(r => r.IsFull);
     }
 }

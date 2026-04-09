@@ -545,6 +545,114 @@
   }
 }
 
+/* ── Compact grid variant (cssClass="reg-grid") ──────────────────
+   Used by team registration registered-teams grid.
+   Smaller font, tighter padding, lighter chrome.
+   Selectors follow Syncfusion published patterns. */
+.reg-grid.e-grid {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: var(--brand-surface) !important;
+
+  /* Slim scrollbar for frozen-column horizontal scroll */
+  .e-content,
+  .e-gridcontent {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--bs-primary-rgb), 0.25) transparent;
+
+    &::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(var(--bs-primary-rgb), 0.25);
+      border-radius: var(--radius-full);
+
+      &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.4);
+      }
+    }
+  }
+
+  .e-table {
+    background-color: var(--brand-surface) !important;
+  }
+
+  .e-leftfreeze,
+  .e-rightfreeze,
+  .e-fixedfreeze {
+    background-color: var(--brand-surface) !important;
+  }
+}
+
+.reg-grid.e-grid .e-gridheader {
+  background: rgba(var(--bs-primary-rgb), 0.03) !important;
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.1) !important;
+
+  .e-headercell {
+    font-size: var(--font-size-xs) !important;
+    font-weight: var(--font-weight-bold) !important;
+    padding: var(--space-1) var(--space-2) !important;
+    text-transform: none !important;
+    color: var(--bs-primary) !important;
+    background-color: var(--brand-surface) !important;
+    border-right: none !important;
+  }
+
+  .e-headercelldiv {
+    font-size: var(--font-size-xs) !important;
+    font-weight: var(--font-weight-bold) !important;
+  }
+}
+
+.reg-grid.e-grid .e-gridcontent {
+  background: var(--brand-surface) !important;
+
+  .e-row {
+    background: var(--brand-surface) !important;
+  }
+
+  .e-rowcell {
+    font-size: var(--font-size-xs) !important;
+    padding: var(--space-1) var(--space-2) !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(var(--bs-border-color-rgb), 0.15) !important;
+    background-color: inherit !important;
+  }
+
+  .e-row:hover .e-rowcell {
+    background: rgba(var(--bs-primary-rgb), 0.04) !important;
+  }
+
+  .e-row.e-altrow {
+    background: var(--brand-surface) !important;
+  }
+}
+
+.reg-grid.e-grid .e-gridfooter {
+  background: rgba(var(--bs-primary-rgb), 0.03) !important;
+  border-top: 1px solid rgba(var(--bs-primary-rgb), 0.1) !important;
+  margin-top: var(--space-1) !important;
+
+  .e-summaryrow {
+    background: rgba(var(--bs-primary-rgb), 0.03) !important;
+
+    .e-summarycell {
+      font-size: var(--font-size-xs) !important;
+      font-weight: var(--font-weight-bold) !important;
+      padding: var(--space-1) var(--space-2) !important;
+      background-color: var(--brand-surface) !important;
+      color: var(--bs-primary) !important;
+      border-right: none !important;
+    }
+  }
+}
+
 /* Mobile: cap dropdown popup height so it doesn't fill the screen */
 @media (max-width: 575.98px) {
   .e-popup.e-ddl,

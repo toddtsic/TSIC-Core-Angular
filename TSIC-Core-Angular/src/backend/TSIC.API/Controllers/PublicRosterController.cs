@@ -9,7 +9,7 @@ namespace TSIC.API.Controllers;
 
 /// <summary>
 /// Anonymous-accessible roster view for public tournament rosters.
-/// Gated behind Job.BScheduleAllowPublicAccess.
+/// Rosters are always public; the "View Schedule" link is gated behind BScheduleAllowPublicAccess.
 /// </summary>
 [ApiController]
 [Route("api/public-rosters")]
@@ -67,12 +67,9 @@ public class PublicRosterController : ControllerBase
         var (jobId, error) = await ResolveContext(jobPath);
         if (error != null) return error;
 
-        var isPublic = await _jobRepository.IsPublicAccessEnabledAsync(jobId!.Value, ct);
-        if (!isPublic)
-            return StatusCode(403, new { message = "Public rosters are not available for this event." });
-
-        var tree = await _teamRepository.GetPublicRosterTreeAsync(jobId.Value, ct);
-        return Ok(new PublicRosterTreeDto { Clubs = tree });
+        var tree = await _teamRepository.GetPublicRosterTreeAsync(jobId!.Value, ct);
+        var schedulePublic = await _jobRepository.IsPublicAccessEnabledAsync(jobId.Value, ct);
+        return Ok(new PublicRosterTreeDto { Clubs = tree, SchedulePublic = schedulePublic });
     }
 
     /// <summary>GET /api/public-rosters/team/{teamId}?jobPath= — Public roster for a specific team.</summary>
@@ -83,12 +80,8 @@ public class PublicRosterController : ControllerBase
         var (jobId, error) = await ResolveContext(jobPath);
         if (error != null) return error;
 
-        var isPublic = await _jobRepository.IsPublicAccessEnabledAsync(jobId!.Value, ct);
-        if (!isPublic)
-            return StatusCode(403, new { message = "Public rosters are not available for this event." });
-
         // Verify team belongs to this job
-        var belongsToJob = await _teamRepository.BelongsToJobAsync(teamId, jobId.Value, ct);
+        var belongsToJob = await _teamRepository.BelongsToJobAsync(teamId, jobId!.Value, ct);
         if (!belongsToJob)
             return NotFound(new { message = "Team not found." });
 

@@ -97,6 +97,19 @@ public class TeamRepository : ITeamRepository
             .CountAsync(t => t.JobId == jobId && t.AgegroupId == agegroupId, cancellationToken);
     }
 
+    public async Task<int> GetRegisteredCountForClubRepAndAgegroupAsync(
+        Guid jobId,
+        Guid agegroupId,
+        Guid clubRepRegistrationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .CountAsync(t => t.JobId == jobId
+                && t.AgegroupId == agegroupId
+                && t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Active == true, cancellationToken);
+    }
+
     public async Task<Teams?> GetTeamFromTeamId(
         Guid teamId,
         CancellationToken cancellationToken = default)
@@ -1271,8 +1284,8 @@ public class TeamRepository : ITeamRepository
             from clubReg in clubJoin.DefaultIfEmpty()
             where t.JobId == jobId
                   && t.Active == true
-                  && (ag.AgegroupName == null || !ag.AgegroupName.Contains("WAITLIST"))
-                  && (ag.AgegroupName == null || !ag.AgegroupName.Contains("DROPPED"))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains("WAITLIST"))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains("DROPPED"))
             select new
             {
                 ClubName = clubReg != null ? clubReg.ClubName : null,

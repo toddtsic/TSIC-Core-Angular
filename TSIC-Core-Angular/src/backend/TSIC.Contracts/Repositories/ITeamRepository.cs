@@ -132,6 +132,16 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get count of active teams registered by a specific club rep in an agegroup.
+    /// Used for MaxTeamsPerClub enforcement during team registration.
+    /// </summary>
+    Task<int> GetRegisteredCountForClubRepAndAgegroupAsync(
+        Guid jobId,
+        Guid agegroupId,
+        Guid clubRepRegistrationId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get team by ID using FindAsync (loads from identity map).
     /// </summary>
     Task<Teams?> GetTeamFromTeamId(

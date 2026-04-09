@@ -112,7 +112,9 @@ export class TeamWizardV2Component implements OnInit {
 
     readonly showContinue = computed(() => {
         const id = this.currentStepId();
-        return id !== 'login';
+        // Teams step manages its own internal navigation (micro-steps + proceedToPayment output).
+        // Showing the outer shell button during teams causes a confusing duplicate "Proceed to Payment".
+        return id !== 'login' && id !== 'teams';
     });
 
     readonly continueLabel = computed(() => {
