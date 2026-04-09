@@ -30,6 +30,37 @@ export type ModalMode = 'add' | 'edit';
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Draft with AI -->
+                    <div class="ai-compose-section">
+                        <label>Draft with AI</label>
+                        <div class="ai-compose-col">
+                            <textarea class="form-control"
+                                   rows="4"
+                                   placeholder="Describe the bulletin you want to create..."
+                                   [value]="aiPrompt()"
+                                   (input)="aiPrompt.set($any($event.target).value)"
+                                   [disabled]="isDrafting()"></textarea>
+                            <div class="d-flex align-items-start gap-2">
+                                <p class="wizard-tip mb-0 flex-grow-1">
+                                    e.g. "registration closes Friday" or "schedule is now posted"
+                                </p>
+                                <button type="button" class="btn-ai"
+                                        (click)="draftWithAi()"
+                                        [disabled]="isDrafting() || !aiPrompt().trim()">
+                                    @if (isDrafting()) {
+                                        <span class="spinner"></span> Drafting...
+                                    } @else {
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                                        </svg>
+                                        Draft
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Title -->
                     <div class="mb-3">
                         <label for="bulletinTitle" class="form-label">Title</label>
@@ -212,6 +243,10 @@ export class BulletinFormModalComponent implements OnInit {
     endDate = signal('');
     active = signal(true);
 
+    // AI drafting
+    aiPrompt = signal('');
+    isDrafting = signal(false);
+
     // Validation
     isSaving = signal(false);
 
@@ -235,6 +270,27 @@ export class BulletinFormModalComponent implements OnInit {
     insertToken(token: string): void {
         this.rteEditor.focusIn();
         this.rteEditor.executeCommand('insertText', token);
+    }
+
+    draftWithAi(): void {
+        const prompt = this.aiPrompt().trim();
+        if (!prompt) { this.toastService.show('Describe the bulletin you want to create', 'danger', 4000); return; }
+
+        this.isDrafting.set(true);
+        this.bulletinService.aiComposeBulletin(prompt).subscribe({
+            next: (response) => {
+                this.title.set(response.subject);
+                this.text.set(response.body);
+                if (this.rteEditor) {
+                    this.rteEditor.value = response.body;
+                }
+                this.isDrafting.set(false);
+            },
+            error: (err) => {
+                this.isDrafting.set(false);
+                this.toastService.show(`AI draft failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000);
+            }
+        });
     }
 
     isValid(): boolean {

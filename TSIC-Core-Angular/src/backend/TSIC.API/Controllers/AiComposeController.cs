@@ -38,4 +38,20 @@ public class AiComposeController : ControllerBase
         var result = await _aiComposeService.ComposeEmailAsync(jobId.Value, request.Prompt, ct);
         return Ok(result);
     }
+
+    [HttpPost("bulletin")]
+    public async Task<ActionResult<AiComposeResponse>> ComposeBulletin(
+        [FromBody] AiComposeRequest request,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId is null)
+            return BadRequest(new { message = "Registration context required" });
+
+        if (string.IsNullOrWhiteSpace(request.Prompt))
+            return BadRequest(new { message = "Prompt is required" });
+
+        var result = await _aiComposeService.ComposeBulletinAsync(jobId.Value, request.Prompt, ct);
+        return Ok(result);
+    }
 }

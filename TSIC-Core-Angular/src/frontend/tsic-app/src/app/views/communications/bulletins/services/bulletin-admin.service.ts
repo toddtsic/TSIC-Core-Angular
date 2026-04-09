@@ -35,4 +35,8 @@ export class BulletinAdminService {
   batchUpdateStatus(request: BatchUpdateBulletinStatusRequest): Observable<{ updatedCount: number }> {
     return this.http.post<{ updatedCount: number }>(`${this.apiUrl}/batch-status`, request);
   }
+
+  aiComposeBulletin(prompt: string): Observable<{ subject: string; body: string }> {
+    return this.http.post<{ subject: string; body: string }>(`${environment.apiUrl}/ai-compose/bulletin`, { prompt });
+  }
 }

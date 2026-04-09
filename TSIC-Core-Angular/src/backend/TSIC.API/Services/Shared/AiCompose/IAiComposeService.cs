@@ -8,4 +8,9 @@ public interface IAiComposeService
         Guid jobId,
         string prompt,
         CancellationToken ct = default);
+
+    Task<AiComposeResponse> ComposeBulletinAsync(
+        Guid jobId,
+        string prompt,
+        CancellationToken ct = default);
 }

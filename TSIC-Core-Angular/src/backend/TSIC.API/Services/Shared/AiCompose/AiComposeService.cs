@@ -36,9 +36,26 @@ public class AiComposeService : IAiComposeService
     {
         var jobName = await _jobRepo.GetJobNameAsync(jobId, ct) ?? "the organization";
         var season = await _jobRepo.GetJobSeasonAsync(jobId, ct) ?? "";
+        var systemPrompt = BuildEmailSystemPrompt(jobName, season);
+        return await CallAnthropicAsync(systemPrompt, prompt, ct);
+    }
 
-        var systemPrompt = BuildSystemPrompt(jobName, season);
+    public async Task<AiComposeResponse> ComposeBulletinAsync(
+        Guid jobId,
+        string prompt,
+        CancellationToken ct = default)
+    {
+        var jobName = await _jobRepo.GetJobNameAsync(jobId, ct) ?? "the organization";
+        var season = await _jobRepo.GetJobSeasonAsync(jobId, ct) ?? "";
+        var systemPrompt = BuildBulletinSystemPrompt(jobName, season);
+        return await CallAnthropicAsync(systemPrompt, prompt, ct);
+    }
 
+    private async Task<AiComposeResponse> CallAnthropicAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken ct)
+    {
         var requestBody = new
         {
             model = _settings.Model,
@@ -46,7 +63,7 @@ public class AiComposeService : IAiComposeService
             system = systemPrompt,
             messages = new[]
             {
-                new { role = "user", content = prompt }
+                new { role = "user", content = userPrompt }
             }
         };
 
@@ -68,7 +85,7 @@ public class AiComposeService : IAiComposeService
         return ParseResponse(responseJson);
     }
 
-    private static string BuildSystemPrompt(string jobName, string season)
+    private static string BuildEmailSystemPrompt(string jobName, string season)
     {
         var seasonClause = string.IsNullOrWhiteSpace(season) ? "" : $" for the {season} season";
 
@@ -95,6 +112,30 @@ public class AiComposeService : IAiComposeService
             "  !JOBLINK — a link to the organization's website\n" +
             "- Only use tokens that are relevant to the message. Do not force tokens into every email.\n" +
             "- Use !PERSON at the start of the email as a greeting (e.g., \"Dear !PERSON,\") when appropriate.\n" +
+            "- Return ONLY the JSON object. No markdown, no code fences, no explanation.";
+    }
+
+    private static string BuildBulletinSystemPrompt(string jobName, string season)
+    {
+        var seasonClause = string.IsNullOrWhiteSpace(season) ? "" : $" for the {season} season";
+
+        return
+            "You are a bulletin/announcement writer for \"" + jobName + "\"" + seasonClause + ".\n" +
+            "The user will describe what they want to announce. You will draft a clear, engaging " +
+            "bulletin appropriate for a youth/amateur sports organization website.\n\n" +
+            "You MUST return valid JSON with exactly two fields:\n" +
+            "{\"subject\": \"...\", \"body\": \"...\"}\n\n" +
+            "Where \"subject\" is the bulletin TITLE and \"body\" is the bulletin CONTENT.\n\n" +
+            "Rules:\n" +
+            "- The body MUST be simple HTML suitable for a rich text editor (use <p>, <strong>, <em>, <ul>/<li>, <br> tags).\n" +
+            "- Do NOT use <h1>-<h6> tags — the title is displayed separately.\n" +
+            "- Keep the tone enthusiastic but professional — these announcements appear on the organization's public website.\n" +
+            "- Keep bulletins concise. Most should be 2-5 short paragraphs.\n" +
+            "- The title should be short and attention-grabbing (under 80 characters).\n" +
+            "- You may use these tokens in the body (replaced with real values at display time):\n" +
+            "  !JOBNAME — the league/organization name (\"" + jobName + "\")\n" +
+            "  !USLAXVALIDTHROUGHDATE — US Lacrosse membership valid-through date\n" +
+            "- Only use tokens that are relevant to the message.\n" +
             "- Return ONLY the JSON object. No markdown, no code fences, no explanation.";
     }
 
