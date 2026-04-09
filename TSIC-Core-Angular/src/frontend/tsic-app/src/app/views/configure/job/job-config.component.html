@@ -20,7 +20,6 @@
             [attr.aria-selected]="svc.activeTab() === tab.key"
             [attr.aria-controls]="'panel-' + tab.key"
             [attr.tabindex]="svc.activeTab() === tab.key ? 0 : -1">
-            <i class="bi" [ngClass]="tab.icon"></i>
             <span class="tab-label">{{ tab.label }}</span>
             @if (isDirty(tab.key)) {
               <span class="dirty-dot" title="Unsaved changes"></span>

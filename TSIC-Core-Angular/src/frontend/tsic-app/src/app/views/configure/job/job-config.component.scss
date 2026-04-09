@@ -24,13 +24,15 @@
   margin: 0;
 }
 
-// ── Tab bar (underline strip, wraps gracefully) ──
+// ── Tab bar (pill strip, visually distinct from nav) ──
 .tab-bar-wrapper {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bs-card-bg);
-  border-bottom: 1px solid var(--bs-border-color);
+  background: color-mix(in srgb, var(--bs-primary) 6%, var(--bs-body-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 12%, var(--bs-border-color));
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
   box-shadow: var(--shadow-sm);
 }
 
@@ -38,44 +40,40 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0;
-  padding: 0 var(--space-3);
+  gap: var(--space-1);
+  padding: 0;
 }
 
 .tab-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--brand-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: all 0.15s ease;
 
   &:hover {
     color: var(--brand-text);
-    background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
+    background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
   }
 
   &.active {
-    color: var(--bs-primary);
-    border-bottom-color: var(--bs-primary);
+    color: var(--neutral-0);
+    background: var(--bs-primary);
     font-weight: var(--font-weight-semibold);
+    box-shadow: var(--shadow-sm);
   }
 
   &:focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
-  }
-
-  .bi {
-    font-size: 1rem;
   }
 }
 
@@ -85,6 +83,10 @@
   border-radius: var(--radius-full);
   background-color: var(--bs-warning);
   flex-shrink: 0;
+
+  .active & {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
 }
 
 // ── Tab content ──
@@ -215,31 +217,18 @@
 }
 
 // ── Responsive ──
-@media (max-width: 1024px) {
-  .tab-btn {
-    font-size: var(--font-size-xs);
-  }
-}
-
 @media (max-width: 768px) {
   .job-config-shell {
     padding: var(--space-3) var(--space-3) var(--space-8);
   }
 
-  .tab-label {
-    display: none;
-  }
-
-  .tab-bar {
-    padding: 0 var(--space-1);
+  .tab-bar-wrapper {
+    padding: var(--space-1);
   }
 
   .tab-btn {
-    padding: var(--space-2);
-
-    .bi {
-      font-size: 1rem;
-    }
+    padding: var(--space-1) var(--space-2);
+    font-size: 10px;
   }
 
   .tab-content ::ng-deep {

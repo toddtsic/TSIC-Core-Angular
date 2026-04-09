@@ -46,16 +46,16 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
   protected readonly svc = inject(JobConfigService);
 
   readonly tabs: TabDef[] = [
-    { key: 'general', label: 'General', icon: 'bi-gear' },
-    { key: 'branding', label: 'Branding', icon: 'bi-palette' },
-    { key: 'payment', label: 'Payment & Billing', icon: 'bi-credit-card' },
-    { key: 'communications', label: 'Communications', icon: 'bi-envelope' },
-    { key: 'player', label: 'Player Registration', icon: 'bi-person' },
-    { key: 'teams', label: 'Teams & Club Reps', icon: 'bi-shield' },
-    { key: 'coaches', label: 'Coaches & Staff', icon: 'bi-people' },
-    { key: 'scheduling', label: 'Scheduling', icon: 'bi-calendar-event' },
-    { key: 'mobileStore', label: 'Mobile & Store', icon: 'bi-phone' },
-    { key: 'ddlOptions', label: 'Dropdown Options', icon: 'bi-list-ul' },
+    { key: 'general', label: 'General', icon: '' },
+    { key: 'branding', label: 'Branding', icon: '' },
+    { key: 'payment', label: 'Payment', icon: '' },
+    { key: 'communications', label: 'Comms', icon: '' },
+    { key: 'player', label: 'Players', icon: '' },
+    { key: 'teams', label: 'Teams', icon: '' },
+    { key: 'coaches', label: 'Coaches', icon: '' },
+    { key: 'scheduling', label: 'Scheduling', icon: '' },
+    { key: 'mobileStore', label: 'Mobile', icon: '' },
+    { key: 'ddlOptions', label: 'Dropdowns', icon: '' },
   ];
 
   // ── Unsaved-changes dialog state ────────────────────
