@@ -10,7 +10,7 @@
           <input type="checkbox" class="form-check-input" id="bAllowPlayer" role="switch"
             [ngModel]="bRegistrationAllowPlayer()"
             (ngModelChange)="bRegistrationAllowPlayer.set($event); onFieldChange()" />
-          <label class="form-check-label fw-semibold" for="bAllowPlayer">
+          <label class="field-label" for="bAllowPlayer">
             <i class="bi me-1" [ngClass]="bRegistrationAllowPlayer() ? 'bi-person-check' : 'bi-person-x'"></i>
             Allow Player Registration
           </label>
@@ -33,7 +33,7 @@
             [ngModel]="bPlayerRegRequiresToken()"
             (ngModelChange)="bPlayerRegRequiresToken.set($event); onFieldChange()"
             [disabled]="!bRegistrationAllowPlayer()" />
-          <label class="form-check-label fw-semibold" for="bPlayerRegRequiresToken">
+          <label class="field-label" for="bPlayerRegRequiresToken">
             <i class="bi me-1" [ngClass]="bPlayerRegRequiresToken() ? 'bi-lock' : 'bi-unlock'"></i>
             Require Invitation Token
           </label>
@@ -49,34 +49,28 @@
         </small>
       </div>
 
-      <div class="row g-3">
+      <div class="row g-2">
         <div class="col-md-4">
-          <label class="form-label">Registration Form Name</label>
-          <input type="text" class="form-control"
+          <label class="field-label">Registration Form Name</label>
+          <input type="text" class="field-input"
             [ngModel]="regformNamePlayer()"
             (ngModelChange)="regformNamePlayer.set($event); onFieldChange()" />
         </div>
         <div class="col-md-4">
-          <label class="form-label">Core Registration Form</label>
-          <input type="text" class="form-control"
+          <label class="field-label">Core Registration Form</label>
+          <input type="text" class="field-input"
             [ngModel]="coreRegformPlayer()"
             (ngModelChange)="coreRegformPlayer.set($event); onFieldChange()" />
         </div>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <h6 class="section-title">Multi-Player Discount</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label">Minimum Players</label>
-          <input type="number" class="form-control"
+        <div class="col-md-2">
+          <label class="field-label">Multi-Player Min</label>
+          <input type="number" class="field-input"
             [ngModel]="playerRegMultiPlayerDiscountMin()"
             (ngModelChange)="playerRegMultiPlayerDiscountMin.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Discount Percent (%)</label>
-          <input type="number" class="form-control" step="0.01"
+        <div class="col-md-2">
+          <label class="field-label">Discount %</label>
+          <input type="number" class="field-input" step="0.01"
             [ngModel]="playerRegMultiPlayerDiscountPercent()"
             (ngModelChange)="playerRegMultiPlayerDiscountPercent.set($event); onFieldChange()" />
         </div>
@@ -85,9 +79,9 @@
 
     <div class="form-section">
       <h6 class="section-title">Confirmation &amp; Policy Text</h6>
-      <div class="row g-3">
+      <div class="row g-2">
         <div class="col-12">
-          <label class="form-label">Confirmation Email</label>
+          <label class="field-label">Confirmation Email</label>
           <ejs-richtexteditor
             [value]="playerRegConfirmationEmail()"
             [toolbarSettings]="rteTools"
@@ -97,7 +91,7 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="form-label">Confirmation On-Screen</label>
+          <label class="field-label">Confirmation On-Screen</label>
           <ejs-richtexteditor
             [value]="playerRegConfirmationOnScreen()"
             [toolbarSettings]="rteTools"
@@ -107,7 +101,7 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="form-label">Refund Policy</label>
+          <label class="field-label">Refund Policy</label>
           <ejs-richtexteditor
             [value]="playerRegRefundPolicy()"
             [toolbarSettings]="rteTools"
@@ -117,7 +111,7 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="form-label">Release of Liability</label>
+          <label class="field-label">Release of Liability</label>
           <ejs-richtexteditor
             [value]="playerRegReleaseOfLiability()"
             [toolbarSettings]="rteTools"
@@ -127,7 +121,7 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="form-label">Code of Conduct</label>
+          <label class="field-label">Code of Conduct</label>
           <ejs-richtexteditor
             [value]="playerRegCodeOfConduct()"
             [toolbarSettings]="rteTools"
@@ -137,7 +131,7 @@
           </ejs-richtexteditor>
         </div>
         <div class="col-12">
-          <label class="form-label">COVID-19 Waiver</label>
+          <label class="field-label">COVID-19 Waiver</label>
           <ejs-richtexteditor
             [value]="playerRegCovid19Waiver()"
             [toolbarSettings]="rteTools"
@@ -155,24 +149,24 @@
           <i class="bi bi-shield-lock me-1"></i>
           Player Settings (SuperUser)
         </h6>
-        <div class="row g-3">
+        <div class="row g-2">
           <div class="col-md-4">
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="bInsurancePlayer"
+            <label class="field-check">
+              <input type="checkbox"
                 [ngModel]="bOfferPlayerRegsaverInsurance()"
                 (ngModelChange)="bOfferPlayerRegsaverInsurance.set($event); onFieldChange()" />
-              <label class="form-check-label" for="bInsurancePlayer">Offer RegSaver Insurance</label>
-            </div>
+              <span class="field-label">Offer RegSaver Insurance</span>
+            </label>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Mom Label</label>
-            <input type="text" class="form-control"
+            <label class="field-label">Mom Label</label>
+            <input type="text" class="field-input"
               [ngModel]="momLabel()"
               (ngModelChange)="momLabel.set($event); onFieldChange()" />
           </div>
           <div class="col-md-4">
-            <label class="form-label">Dad Label</label>
-            <input type="text" class="form-control"
+            <label class="field-label">Dad Label</label>
+            <input type="text" class="field-input"
               [ngModel]="dadLabel()"
               (ngModelChange)="dadLabel.set($event); onFieldChange()" />
           </div>

@@ -82,6 +82,43 @@ select::placeholder,
     background-size: 12px 8px;
 }
 
+/* Checkbox/radio/switch with field-label sizing */
+.field-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    input[type="checkbox"],
+    input[type="radio"] {
+        flex-shrink: 0;
+        margin: 0;
+    }
+
+    .field-label {
+        margin-bottom: 0;
+    }
+}
+
+/* Horizontal row of field-checks */
+.field-check-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+    align-items: center;
+}
+
+/* Inline toggle + input combo (switch next to a small input) */
+.field-toggle-combo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    .form-check-input {
+        flex-shrink: 0;
+        margin: 0;
+    }
+}
+
 .field-error {
     font-size: 10px;
     color: var(--bs-danger);

@@ -26,7 +26,7 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
               id="bBannerIsCustom"
               [ngModel]="bBannerIsCustom()"
               (ngModelChange)="bBannerIsCustom.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bBannerIsCustom">
+            <label class="field-label" for="bBannerIsCustom">
               Use custom banner images
             </label>
           </div>
@@ -64,19 +64,19 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
 
           <div class="row g-3 mt-3">
             <div class="col-md-6">
-              <label class="form-label">Overlay Headline</label>
+              <label class="field-label">Overlay Headline</label>
               <textarea
                 rows="2"
-                class="form-control"
+                class="field-input"
                 placeholder="Banner headline text"
                 [ngModel]="overlayText1()"
                 (ngModelChange)="overlayText1.set($event); onFieldChange()"></textarea>
             </div>
             <div class="col-md-6">
-              <label class="form-label">Overlay Subheadline</label>
+              <label class="field-label">Overlay Subheadline</label>
               <textarea
                 rows="2"
-                class="form-control"
+                class="field-input"
                 placeholder="Banner subheadline text"
                 [ngModel]="overlayText2()"
                 (ngModelChange)="overlayText2.set($event); onFieldChange()"></textarea>

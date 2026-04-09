@@ -9,7 +9,7 @@
           <input type="checkbox" class="form-check-input" id="bPublicSchedule" role="switch"
             [ngModel]="bScheduleAllowPublicAccess()"
             (ngModelChange)="bScheduleAllowPublicAccess.set($event); onFieldChange()" />
-          <label class="form-check-label fw-semibold" for="bPublicSchedule">
+          <label class="field-label" for="bPublicSchedule">
             <i class="bi me-1" [ngClass]="bScheduleAllowPublicAccess() ? 'bi-globe' : 'bi-lock'"></i>
             Allow Public Schedule Access
           </label>
@@ -25,77 +25,71 @@
     </div>
 
     <div class="form-section">
-      <h6 class="section-title">Event Dates</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label">Event Start Date</label>
-          <input type="date" class="form-control"
+      <h6 class="section-title">Event Dates &amp; Game Clock Parameters</h6>
+      <div class="row g-2">
+        <div class="col-md-3">
+          <label class="field-label">Event Start Date</label>
+          <input type="date" class="field-input"
             [ngModel]="eventStartDate()"
             (ngModelChange)="eventStartDate.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Event End Date</label>
-          <input type="date" class="form-control"
+        <div class="col-md-3">
+          <label class="field-label">Event End Date</label>
+          <input type="date" class="field-input"
             [ngModel]="eventEndDate()"
             (ngModelChange)="eventEndDate.set($event); onFieldChange()" />
         </div>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <h6 class="section-title">Game Clock Parameters</h6>
-      <div class="row g-3">
         <div class="col-md-3">
-          <label class="form-label">Half Minutes</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Half Minutes</label>
+          <input type="number" class="field-input"
             [ngModel]="halfMinutes()"
             (ngModelChange)="halfMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Half Time Minutes</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Half Time Minutes</label>
+          <input type="number" class="field-input"
             [ngModel]="halfTimeMinutes()"
             (ngModelChange)="halfTimeMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Transition Minutes</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Transition Minutes</label>
+          <input type="number" class="field-input"
             [ngModel]="transitionMinutes()"
             (ngModelChange)="transitionMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Playoff Minutes</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Playoff Minutes</label>
+          <input type="number" class="field-input"
             [ngModel]="playoffMinutes()"
             (ngModelChange)="playoffMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Playoff Half Minutes</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Playoff Half Minutes</label>
+          <input type="number" class="field-input"
             [ngModel]="playoffHalfMinutes()"
             (ngModelChange)="playoffHalfMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Playoff Half Time</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Playoff Half Time</label>
+          <input type="number" class="field-input"
             [ngModel]="playoffHalfTimeMinutes()"
             (ngModelChange)="playoffHalfTimeMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Quarter Minutes</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Quarter Minutes</label>
+          <input type="number" class="field-input"
             [ngModel]="quarterMinutes()"
             (ngModelChange)="quarterMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">Quarter Time</label>
-          <input type="number" class="form-control"
+          <label class="field-label">Quarter Time</label>
+          <input type="number" class="field-input"
             [ngModel]="quarterTimeMinutes()"
             (ngModelChange)="quarterTimeMinutes.set($event); onFieldChange()" />
         </div>
         <div class="col-md-3">
-          <label class="form-label">UTC Offset Hours</label>
-          <input type="number" class="form-control"
+          <label class="field-label">UTC Offset Hours</label>
+          <input type="number" class="field-input"
             [ngModel]="utcOffsetHours()"
             (ngModelChange)="utcOffsetHours.set($event); onFieldChange()" />
         </div>

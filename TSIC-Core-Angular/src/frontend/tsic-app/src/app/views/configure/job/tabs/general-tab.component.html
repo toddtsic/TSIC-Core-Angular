@@ -1,130 +1,90 @@
 @if (svc.general(); as g) {
   <div class="tab-panel">
-    <!-- Read-only identity -->
-    <div class="form-section">
-      <h6 class="section-title">Job Identity</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label">Job ID</label>
-          <input type="text" class="form-control" [value]="g.jobId" disabled />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Job Path</label>
-          <input type="text" class="form-control" [value]="g.jobPath" disabled />
-        </div>
-        @if (svc.isSuperUser()) {
-          <div class="col-md-4">
-            <label class="form-label">Job Code</label>
-            <input
-              type="text"
-              class="form-control"
-              [ngModel]="jobCode()"
-              (ngModelChange)="jobCode.set($event); onFieldChange()" />
-          </div>
-        }
-      </div>
-    </div>
 
-    <!-- Name & Description -->
+    <!-- Identity + Name + Expiry (one card) -->
     <div class="form-section">
-      <h6 class="section-title">Name &amp; Description</h6>
-      <div class="row g-3">
+      <h6 class="section-title">Identity</h6>
+      <div class="row g-2">
+        <div class="col-md-3">
+          <label class="field-label">Job ID</label>
+          <input type="text" class="field-input" [value]="g.jobId" disabled />
+        </div>
+        <div class="col-md-3">
+          <label class="field-label">Job Path</label>
+          <input type="text" class="field-input" [value]="g.jobPath" disabled />
+        </div>
+        <div class="col-md-2">
+          <label class="field-label">Season</label>
+          <input type="text" class="field-input"
+            [ngModel]="season()"
+            (ngModelChange)="season.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-2">
+          <label class="field-label">Year</label>
+          <input type="text" class="field-input"
+            [ngModel]="year()"
+            (ngModelChange)="year.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-2">
+          <label class="field-label">User Expiry</label>
+          <input type="date" class="field-input"
+            [ngModel]="expiryUsers()"
+            (ngModelChange)="expiryUsers.set($event); onFieldChange()" />
+        </div>
+      </div>
+      <div class="row g-2 mt-1">
         <div class="col-md-6">
-          <label class="form-label">Job Name</label>
-          <input
-            type="text"
-            class="form-control"
+          <label class="field-label">Job Name</label>
+          <input type="text" class="field-input"
             [ngModel]="jobName()"
             (ngModelChange)="jobName.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="form-label">Display Name</label>
-          <input
-            type="text"
-            class="form-control"
+          <label class="field-label">Display Name</label>
+          <input type="text" class="field-input"
             [ngModel]="displayName()"
             (ngModelChange)="displayName.set($event); onFieldChange()" />
         </div>
+      </div>
+      <div class="row g-2 mt-1">
         <div class="col-12">
-          <label class="form-label">Description</label>
-          <textarea class="form-control" rows="3"
+          <label class="field-label">Description</label>
+          <textarea class="field-input" rows="2"
             [ngModel]="jobDescription()"
             (ngModelChange)="jobDescription.set($event); onFieldChange()"></textarea>
         </div>
-        @if (svc.isSuperUser()) {
-          <div class="col-md-6">
-            <label class="form-label">QBP Name</label>
-            <input
-              type="text"
-              class="form-control"
-              [ngModel]="jobNameQbp()"
-              (ngModelChange)="jobNameQbp.set($event); onFieldChange()" />
-          </div>
-        }
       </div>
     </div>
-
-    <!-- Season & Year -->
-    <div class="form-section">
-      <h6 class="section-title">Season &amp; Year</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label">Season</label>
-          <input
-            type="text"
-            class="form-control"
-            [ngModel]="season()"
-            (ngModelChange)="season.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Year</label>
-          <input
-            type="text"
-            class="form-control"
-            [ngModel]="year()"
-            (ngModelChange)="year.set($event); onFieldChange()" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Expiry -->
-    <div class="form-section">
-      <h6 class="section-title">Expiry Dates</h6>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label">User Expiry</label>
-          <input
-            type="date"
-            class="form-control"
-            [ngModel]="expiryUsers()"
-            (ngModelChange)="expiryUsers.set($event); onFieldChange()" />
-        </div>
-        @if (svc.isSuperUser()) {
-          <div class="col-md-4">
-            <label class="form-label">Admin Expiry</label>
-            <input
-              type="date"
-              class="form-control"
-              [ngModel]="expiryAdmin()"
-              (ngModelChange)="expiryAdmin.set($event); onFieldChange()" />
-          </div>
-        }
-      </div>
-    </div>
-
 
     <!-- SuperUser: Classification -->
     @if (svc.isSuperUser()) {
       <div class="form-section">
         <h6 class="section-title">
           <i class="bi bi-shield-lock me-1"></i>
-          Classification (SuperUser)
+          Classification
         </h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Job Type</label>
-            <select
-              class="form-select"
+        <div class="row g-2">
+          <div class="col-md-2">
+            <label class="field-label">Admin Expiry</label>
+            <input type="date" class="field-input"
+              [ngModel]="expiryAdmin()"
+              (ngModelChange)="expiryAdmin.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-2">
+            <label class="field-label">Job Code</label>
+            <input type="text" class="field-input"
+              [ngModel]="jobCode()"
+              (ngModelChange)="jobCode.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-2">
+            <label class="field-label">QBP Name</label>
+            <input type="text" class="field-input"
+              [ngModel]="jobNameQbp()"
+              (ngModelChange)="jobNameQbp.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-2">
+            <label class="field-label">Job Type</label>
+            <select class="field-input field-select"
               [ngModel]="jobTypeId()"
               (ngModelChange)="jobTypeId.set($event); onFieldChange()">
               <option [ngValue]="undefined">— Select —</option>
@@ -133,10 +93,9 @@
               }
             </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Sport</label>
-            <select
-              class="form-select"
+          <div class="col-md-2">
+            <label class="field-label">Sport</label>
+            <select class="field-input field-select"
               [ngModel]="sportId()"
               (ngModelChange)="sportId.set($event); onFieldChange()">
               <option [ngValue]="null">— Select —</option>
@@ -145,10 +104,9 @@
               }
             </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Customer</label>
-            <select
-              class="form-select"
+          <div class="col-md-2">
+            <label class="field-label">Customer</label>
+            <select class="field-input field-select"
               [ngModel]="customerId()"
               (ngModelChange)="customerId.set($event); onFieldChange()">
               <option [ngValue]="null">— Select —</option>
@@ -157,10 +115,11 @@
               }
             </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label">Billing Type</label>
-            <select
-              class="form-select"
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col-md-2">
+            <label class="field-label">Billing Type</label>
+            <select class="field-input field-select"
               [ngModel]="billingTypeId()"
               (ngModelChange)="billingTypeId.set($event); onFieldChange()">
               <option [ngValue]="undefined">— Select —</option>
@@ -170,7 +129,6 @@
             </select>
           </div>
         </div>
-
       </div>
     }
 

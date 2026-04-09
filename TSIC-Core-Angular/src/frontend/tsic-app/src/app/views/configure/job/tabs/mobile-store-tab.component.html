@@ -10,7 +10,7 @@
           <input type="checkbox" class="form-check-input" id="bTsicEventsEnabled" role="switch"
             [ngModel]="tsicEventsEnabled()"
             (ngModelChange)="tsicEventsEnabled.set($event); onFieldChange()" />
-          <label class="form-check-label fw-semibold" for="bTsicEventsEnabled">
+          <label class="field-label" for="bTsicEventsEnabled">
             <i class="bi me-1" [ngClass]="tsicEventsEnabled() ? 'bi-phone' : 'bi-phone-x'"></i>
             TSIC-Events Enabled
           </label>
@@ -23,50 +23,44 @@
           }
         </small>
       </div>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bTsicteams"
-              [ngModel]="bEnableTsicteams()"
-              (ngModelChange)="bEnableTsicteams.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bTsicteams">Enable TSIC Teams</label>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bMobileRsvp"
-              [ngModel]="bEnableMobileRsvp()"
-              (ngModelChange)="bEnableMobileRsvp.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bMobileRsvp">Enable Mobile RSVP</label>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bMobileChat"
-              [ngModel]="bEnableMobileTeamChat()"
-              (ngModelChange)="bEnableMobileTeamChat.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bMobileChat">Enable Mobile Team Chat</label>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bMobileLogin"
-              [ngModel]="bAllowMobileLogin()"
-              (ngModelChange)="bAllowMobileLogin.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bMobileLogin">Allow Mobile Login</label>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="bMobileRegn"
-              [ngModel]="bAllowMobileRegn()"
-              (ngModelChange)="bAllowMobileRegn.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bMobileRegn">Allow Mobile Registration</label>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Score Hours Past Game Eligible</label>
-          <input type="number" class="form-control"
+
+      <div class="field-check-row">
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bEnableTsicteams()"
+            (ngModelChange)="bEnableTsicteams.set($event); onFieldChange()" />
+          <span class="field-label">Enable TSIC Teams</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bEnableMobileRsvp()"
+            (ngModelChange)="bEnableMobileRsvp.set($event); onFieldChange()" />
+          <span class="field-label">Enable Mobile RSVP</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bEnableMobileTeamChat()"
+            (ngModelChange)="bEnableMobileTeamChat.set($event); onFieldChange()" />
+          <span class="field-label">Enable Mobile Team Chat</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bAllowMobileLogin()"
+            (ngModelChange)="bAllowMobileLogin.set($event); onFieldChange()" />
+          <span class="field-label">Allow Mobile Login</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bAllowMobileRegn()"
+            (ngModelChange)="bAllowMobileRegn.set($event); onFieldChange()" />
+          <span class="field-label">Allow Mobile Registration</span>
+        </label>
+      </div>
+
+      <div class="row g-2 mt-2">
+        <div class="col-md-3">
+          <label class="field-label">Score Hours Past Game Eligible</label>
+          <input type="number" class="field-input"
             [ngModel]="mobileScoreHoursPastGameEligible()"
             (ngModelChange)="mobileScoreHoursPastGameEligible.set($event); onFieldChange()" />
         </div>
@@ -79,10 +73,10 @@
           <i class="bi bi-shield-lock me-1"></i>
           Mobile Identity (SuperUser)
         </h6>
-        <div class="row g-3">
+        <div class="row g-2">
           <div class="col-md-6">
-            <label class="form-label">Mobile Job Name</label>
-            <input type="text" class="form-control"
+            <label class="field-label">Mobile Job Name</label>
+            <input type="text" class="field-input"
               [ngModel]="mobileJobName()"
               (ngModelChange)="mobileJobName.set($event); onFieldChange()" />
           </div>
@@ -94,58 +88,54 @@
           <i class="bi bi-shield-lock me-1"></i>
           Store Settings (SuperUser)
         </h6>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="bEnableStore"
-                [ngModel]="bEnableStore()"
-                (ngModelChange)="bEnableStore.set($event); onFieldChange()" />
-              <label class="form-check-label" for="bEnableStore">Enable Store</label>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="bAllowStoreWalkup"
-                [ngModel]="bAllowStoreWalkup()"
-                (ngModelChange)="bAllowStoreWalkup.set($event); onFieldChange()" />
-              <label class="form-check-label" for="bAllowStoreWalkup">Allow Store Walk-up</label>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="bStp"
-                [ngModel]="benableStp()"
-                (ngModelChange)="benableStp.set($event); onFieldChange()" />
-              <label class="form-check-label" for="bStp">Enable STP</label>
-            </div>
-          </div>
+        <div class="field-check-row">
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="bEnableStore()"
+              (ngModelChange)="bEnableStore.set($event); onFieldChange()" />
+            <span class="field-label">Enable Store</span>
+          </label>
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="bAllowStoreWalkup()"
+              (ngModelChange)="bAllowStoreWalkup.set($event); onFieldChange()" />
+            <span class="field-label">Allow Store Walk-up</span>
+          </label>
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="benableStp()"
+              (ngModelChange)="benableStp.set($event); onFieldChange()" />
+            <span class="field-label">Enable STP</span>
+          </label>
+        </div>
+        <div class="row g-2 mt-2">
           <div class="col-md-6">
-            <label class="form-label">Store Contact Email</label>
-            <input type="email" class="form-control"
+            <label class="field-label">Store Contact Email</label>
+            <input type="email" class="field-input"
               [ngModel]="storeContactEmail()"
               (ngModelChange)="storeContactEmail.set($event); onFieldChange()" />
           </div>
           <div class="col-12">
-            <label class="form-label">Store Refund Policy</label>
-            <textarea class="form-control" rows="4"
+            <label class="field-label">Store Refund Policy</label>
+            <textarea class="field-input" rows="2"
               [ngModel]="storeRefundPolicy()"
               (ngModelChange)="storeRefundPolicy.set($event); onFieldChange()"></textarea>
           </div>
           <div class="col-12">
-            <label class="form-label">Store Pickup Details</label>
-            <textarea class="form-control" rows="3"
+            <label class="field-label">Store Pickup Details</label>
+            <textarea class="field-input" rows="2"
               [ngModel]="storePickupDetails()"
               (ngModelChange)="storePickupDetails.set($event); onFieldChange()"></textarea>
           </div>
           <div class="col-md-4">
-            <label class="form-label">Sales Tax (%)</label>
-            <input type="number" class="form-control" step="0.01"
+            <label class="field-label">Sales Tax (%)</label>
+            <input type="number" class="field-input" step="0.01"
               [ngModel]="storeSalesTax()"
               (ngModelChange)="storeSalesTax.set($event); onFieldChange()" />
           </div>
           <div class="col-md-4">
-            <label class="form-label">TSIC Rate (%)</label>
-            <input type="number" class="form-control" step="0.01"
+            <label class="field-label">TSIC Rate (%)</label>
+            <input type="number" class="field-input" step="0.01"
               [ngModel]="storeTsicrate()"
               (ngModelChange)="storeTsicrate.set($event); onFieldChange()" />
           </div>

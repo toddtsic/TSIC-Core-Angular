@@ -2,59 +2,52 @@
   <div class="tab-panel">
     <div class="form-section">
       <h6 class="section-title">Email Settings</h6>
-      <div class="row g-3">
+      <div class="row g-2">
         <div class="col-md-6">
-          <label class="form-label">From Display Name</label>
-          <input type="text" class="form-control"
+          <label class="field-label">From Display Name</label>
+          <input type="text" class="field-input"
             [ngModel]="displayName()"
             (ngModelChange)="displayName.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="form-label">Registration Form From Address</label>
-          <input type="email" class="form-control"
+          <label class="field-label">Registration Form From Address</label>
+          <input type="email" class="field-input"
             [ngModel]="regFormFrom()"
             (ngModelChange)="regFormFrom.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="form-label">CC Addresses</label>
-          <input type="text" class="form-control"
+          <label class="field-label">CC Addresses</label>
+          <input type="text" class="field-input"
             [ngModel]="regFormCcs()"
             (ngModelChange)="regFormCcs.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="form-label">BCC Addresses</label>
-          <input type="text" class="form-control"
+          <label class="field-label">BCC Addresses</label>
+          <input type="text" class="field-input"
             [ngModel]="regFormBccs()"
             (ngModelChange)="regFormBccs.set($event); onFieldChange()" />
         </div>
-      </div>
-    </div>
-
-    <div class="form-section">
-      <h6 class="section-title">Notification Lists</h6>
-      <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Reschedule Email List</label>
-          <input type="text" class="form-control"
+          <label class="field-label">Reschedule Email List</label>
+          <input type="text" class="field-input"
             [ngModel]="rescheduleemaillist()"
             (ngModelChange)="rescheduleemaillist.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="form-label">Always Copy Email List</label>
-          <input type="text" class="form-control"
+          <label class="field-label">Always Copy Email List</label>
+          <input type="text" class="field-input"
             [ngModel]="alwayscopyemaillist()"
             (ngModelChange)="alwayscopyemaillist.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-6">
-          <div class="form-check mt-2">
-            <input type="checkbox" class="form-check-input" id="bDisallowCc"
+        <div class="col-12">
+          <label class="field-check">
+            <input type="checkbox"
               [ngModel]="bDisallowCcplayerConfirmations()"
               (ngModelChange)="bDisallowCcplayerConfirmations.set($event); onFieldChange()" />
-            <label class="form-check-label" for="bDisallowCc">Disallow CC Player Confirmations</label>
-          </div>
+            <span class="field-label">Disallow CC Player Confirmations</span>
+          </label>
         </div>
       </div>
     </div>
-
   </div>
 }
