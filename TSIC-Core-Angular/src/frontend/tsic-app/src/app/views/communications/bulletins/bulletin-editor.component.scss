@@ -61,84 +61,7 @@
     margin-bottom: var(--space-3);
 }
 
-// ── Table wrapper ──
-.bulletin-card {
-    overflow: hidden;
-}
-
-// ── Table ──
-.table {
-    --bs-table-bg: transparent;
-
-    th {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--text-secondary);
-        border-bottom: 2px solid var(--border-color);
-        padding: var(--space-2) var(--space-3);
-        white-space: nowrap;
-
-        &.sortable {
-            cursor: pointer;
-            user-select: none;
-            transition: color 0.15s ease;
-
-            &:hover {
-                color: var(--bs-primary);
-            }
-
-            i {
-                font-size: 0.65em;
-                margin-left: 2px;
-                opacity: 0.4;
-            }
-
-            i.bi-sort-up,
-            i.bi-sort-down {
-                opacity: 1;
-                color: var(--bs-primary);
-            }
-        }
-    }
-
-    td {
-        padding: var(--space-2) var(--space-3);
-        border-bottom: 1px solid var(--border-color);
-    }
-}
-
-// Column widths
-.col-num { width: 36px; text-align: center; }
-.col-status { width: 80px; }
-.col-date { width: 120px; }
-.col-modified { width: 180px; }
-.col-actions { width: 72px; }
-
-// Cell styles
-.cell-num {
-    text-align: center;
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-    font-variant-numeric: tabular-nums;
-}
-
-.cell-title {
-    font-weight: var(--font-weight-medium);
-}
-
-.cell-date {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    font-variant-numeric: tabular-nums;
-}
-
-.cell-modified {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
+// ── Modified-by (hide on small screens) ──
 .modified-by {
     display: none;
 
@@ -147,37 +70,7 @@
     }
 }
 
-// Status badges
-.status-badge {
-    display: inline-block;
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    padding: 2px var(--space-2);
-    border-radius: var(--radius-full);
-    line-height: 1.4;
-}
-
-.status-active {
-    background: rgba(var(--bs-success-rgb), 0.12);
-    color: var(--bs-success);
-}
-
-.status-inactive {
-    background: rgba(var(--bs-secondary-rgb), 0.12);
-    color: var(--text-secondary);
-}
-
-// Row interaction
-.bulletin-row {
-    cursor: pointer;
-    transition: background-color 0.1s ease;
-
-    &:hover .row-actions {
-        opacity: 1;
-    }
-}
-
-// Action buttons
+// ── Row action buttons ──
 .row-actions {
     display: flex;
     gap: var(--space-1);

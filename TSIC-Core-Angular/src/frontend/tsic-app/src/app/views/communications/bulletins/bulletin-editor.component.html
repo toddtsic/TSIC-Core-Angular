@@ -59,70 +59,60 @@
     </div>
 }
 
-<!-- ═══════ TABLE ═══════ -->
+<!-- ═══════ GRID ═══════ -->
 @if (!isLoading() && bulletins().length > 0) {
-    <div class="bulletin-card">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th class="col-num">#</th>
-                        <th class="sortable" (click)="toggleSort('title')">
-                            Title <i class="bi" [ngClass]="getSortIcon('title')"></i>
-                        </th>
-                        <th class="sortable col-status" (click)="toggleSort('active')">
-                            Status <i class="bi" [ngClass]="getSortIcon('active')"></i>
-                        </th>
-                        <th class="sortable col-date" (click)="toggleSort('startDate')">
-                            Start <i class="bi" [ngClass]="getSortIcon('startDate')"></i>
-                        </th>
-                        <th class="sortable col-date" (click)="toggleSort('endDate')">
-                            End <i class="bi" [ngClass]="getSortIcon('endDate')"></i>
-                        </th>
-                        <th class="sortable col-modified" (click)="toggleSort('modified')">
-                            Modified <i class="bi" [ngClass]="getSortIcon('modified')"></i>
-                        </th>
-                        <th class="col-actions"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (bulletin of sortedBulletins(); track bulletin.bulletinId; let i = $index) {
-                        <tr class="bulletin-row" (dblclick)="openEdit(bulletin)">
-                            <td class="cell-num">{{ i + 1 }}</td>
-                            <td class="cell-title">{{ truncateTitle(bulletin.title) }}</td>
-                            <td>
-                                @if (bulletin.active) {
-                                    <span class="status-badge status-active">Active</span>
-                                } @else {
-                                    <span class="status-badge status-inactive">Inactive</span>
-                                }
-                            </td>
-                            <td class="cell-date">{{ formatDate(bulletin.startDate) }}</td>
-                            <td class="cell-date">{{ formatDate(bulletin.endDate) }}</td>
-                            <td class="cell-modified">
-                                {{ getRelativeTime(bulletin.modified) }}
-                                @if (bulletin.modifiedByUsername) {
-                                    <span class="modified-by">&mdash; {{ bulletin.modifiedByUsername }}</span>
-                                }
-                            </td>
-                            <td>
-                                <div class="row-actions">
-                                    <button class="action-btn" (click)="openEdit(bulletin)"
-                                            title="Edit" aria-label="Edit bulletin">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="action-btn action-btn-danger" (click)="confirmDelete(bulletin)"
-                                            title="Delete" aria-label="Delete bulletin">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
+    <ejs-grid
+        #grid
+        [dataSource]="bulletins()"
+        cssClass="tsic-grid-tight"
+        [allowSorting]="true"
+        [sortSettings]="sortSettings"
+        (rowSelected)="onRowSelected($event)"
+        (dataBound)="refreshRowNumbers()"
+        (actionComplete)="onActionComplete($event)"
+    >
+        <e-columns>
+            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
+            <e-column field="title" headerText="Title" width="400">
+                <ng-template #template let-data>
+                    {{ data.title || '(untitled)' }}
+                </ng-template>
+            </e-column>
+            <e-column field="active" headerText="Status" width="90" textAlign="Center">
+                <ng-template #template let-data>
+                    @if (data.active) {
+                        <span class="active-badge active-yes">Active</span>
+                    } @else {
+                        <span class="active-badge active-no">Inactive</span>
                     }
-                </tbody>
-            </table>
-        </div>
-    </div>
+                </ng-template>
+            </e-column>
+            <e-column field="startDate" headerText="Start" width="130" type="date" format="MMM d, yyyy"></e-column>
+            <e-column field="endDate" headerText="End" width="130" type="date" format="MMM d, yyyy"></e-column>
+            <e-column field="modified" headerText="Modified" width="180">
+                <ng-template #template let-data>
+                    {{ getRelativeTime(data.modified) }}
+                    @if (data.modifiedByUsername) {
+                        <span class="modified-by">&mdash; {{ data.modifiedByUsername }}</span>
+                    }
+                </ng-template>
+            </e-column>
+            <e-column headerText="" width="80" [allowSorting]="false" textAlign="Center">
+                <ng-template #template let-data>
+                    <div class="row-actions">
+                        <button class="action-btn" (click)="openEdit(data); $event.stopPropagation()"
+                                title="Edit" aria-label="Edit bulletin">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="action-btn action-btn-danger" (click)="confirmDelete(data); $event.stopPropagation()"
+                                title="Delete" aria-label="Delete bulletin">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </ng-template>
+            </e-column>
+        </e-columns>
+    </ejs-grid>
 }
 
 <!-- ═══════ MODALS ═══════ -->
