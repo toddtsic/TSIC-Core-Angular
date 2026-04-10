@@ -1,5 +1,5 @@
-import { Component, ChangeDetectionStrategy, input, output, ViewEncapsulation } from '@angular/core';
-import { DropDownListModule, ChangeEventArgs } from '@syncfusion/ej2-angular-dropdowns';
+import { Component, ChangeDetectionStrategy, input, output, ViewEncapsulation, ElementRef, inject } from '@angular/core';
+import { DropDownListModule, ChangeEventArgs, PopupEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
 
 @Component({
@@ -14,17 +14,16 @@ import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
             [fields]="{ text: 'teamName', value: 'teamId' }"
             [value]="value()"
             (change)="onDdlChange($event)"
+            (open)="onOpen($event)"
             [allowFiltering]="true"
             [filterBarPlaceholder]="'Type to search...'"
             [placeholder]="placeholder()"
             [popupWidth]="'100%'"
             [itemTemplate]="itemTpl"
-            [zIndex]="200000"
             cssClass="team-ddl">
         </ejs-dropdownlist>
     `,
     styles: [`
-        /* Item row layout */
         .team-ddl-item {
             display: flex;
             align-items: center;
@@ -55,6 +54,8 @@ import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
     `]
 })
 export class TeamDropdownComponent {
+    private readonly el = inject(ElementRef);
+
     readonly teams = input.required<ClubRosterTeamDto[]>();
     readonly value = input<string | null>(null);
     readonly placeholder = input('Select a team');
@@ -69,5 +70,18 @@ export class TeamDropdownComponent {
 
     onDdlChange(event: ChangeEventArgs): void {
         if (event.value) this.valueChange.emit(event.value as string);
+    }
+
+    /**
+     * When this DDL lives inside a native <dialog> (top-layer), the SF popup
+     * appends to <body> which sits below the top-layer — no z-index can fix this.
+     * Solution: move the popup element inside the closest <dialog> ancestor so it
+     * participates in the same top-layer stacking context.
+     */
+    onOpen(event: PopupEventArgs): void {
+        const dialog = this.el.nativeElement.closest('dialog');
+        if (dialog && event.popup) {
+            dialog.appendChild(event.popup);
+        }
     }
 }
