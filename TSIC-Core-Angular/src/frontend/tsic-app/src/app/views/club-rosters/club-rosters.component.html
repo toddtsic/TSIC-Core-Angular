@@ -1,3 +1,14 @@
+<!-- Item template for team DDLs — agegroup badge + team name -->
+<ng-template #teamItemTemplate let-data>
+    <span class="team-ddl-item">
+        <span class="team-ddl-badge">{{ data.agegroupName }}</span>
+        <span>{{ data.teamName }}</span>
+        @if (data.playerCount !== undefined) {
+            <span class="team-ddl-count">({{ data.playerCount }})</span>
+        }
+    </span>
+</ng-template>
+
 <!-- Page Header -->
 <div class="page-header">
     <h2>Club Rosters</h2>
@@ -37,16 +48,17 @@
     <!-- Team Selector -->
     <div class="team-selector">
         <div class="team-selector__inner">
-            <label class="field-label" for="teamSelect">Team</label>
-            <select id="teamSelect" class="field-select"
-                    [value]="selectedTeamId()"
-                    (change)="onTeamChange($event)">
-                @for (team of teams(); track team.teamId) {
-                    <option [value]="team.teamId">
-                        {{ team.agegroupName }} — {{ team.teamName }} ({{ team.playerCount }})
-                    </option>
-                }
-            </select>
+            <label class="field-label">Team</label>
+            <ejs-dropdownlist
+                [dataSource]="teamDdlData()"
+                [fields]="ddlFields"
+                [value]="selectedTeamId()"
+                (change)="onTeamDdlChange($event)"
+                [itemTemplate]="teamItemTemplate"
+                [allowFiltering]="false"
+                placeholder="Select a team"
+                cssClass="field-ddl">
+            </ejs-dropdownlist>
         </div>
     </div>
 
@@ -119,15 +131,17 @@
             </div>
             <div class="modal-body">
                 <p>Move <strong>{{ moveTarget()!.playerName }}</strong> to a different team.</p>
-                <label class="field-label" for="moveTeamSelect">Destination Team</label>
-                <select id="moveTeamSelect" class="field-select"
-                        [value]="moveTargetTeamId() ?? ''"
-                        (change)="onMoveTargetChange($event)">
-                    <option value="" disabled selected>— select team —</option>
-                    @for (team of otherTeams(); track team.teamId) {
-                        <option [value]="team.teamId">{{ team.agegroupName }} — {{ team.teamName }}</option>
-                    }
-                </select>
+                <label class="field-label">Destination Team</label>
+                <ejs-dropdownlist
+                    [dataSource]="otherTeamsDdlData()"
+                    [fields]="ddlFields"
+                    [value]="moveTargetTeamId()"
+                    (change)="onMoveDdlChange($event)"
+                    [itemTemplate]="teamItemTemplate"
+                    [allowFiltering]="false"
+                    placeholder="Select a team"
+                    cssClass="field-ddl">
+                </ejs-dropdownlist>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
