@@ -39,6 +39,11 @@ export class ClubRostersComponent implements OnInit {
     readonly deleteTarget = signal<ClubRosterPlayerDto | null>(null);
 
     // Computed
+    readonly selectedTeam = computed(() => {
+        const id = this.selectedTeamId();
+        return id ? this.teams().find(t => t.teamId === id) ?? null : null;
+    });
+
     readonly otherTeams = computed(() => {
         const id = this.selectedTeamId();
         return this.teams().filter(t => t.teamId !== id);

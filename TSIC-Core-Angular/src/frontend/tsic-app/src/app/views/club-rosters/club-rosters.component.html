@@ -114,14 +114,31 @@
                 <button type="button" class="btn-close" (click)="cancelMove()" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Move <strong>{{ moveTarget()!.playerName }}</strong> to a different team.</p>
-                <label class="field-label">Destination Team</label>
-                <app-team-dropdown
-                    [teams]="otherTeams()"
-                    [value]="moveTargetTeamId()"
-                    placeholder="Select destination"
-                    (valueChange)="onMoveTeamSelected($event)">
-                </app-team-dropdown>
+                <!-- Player -->
+                <div class="move-field">
+                    <label class="field-label">Player</label>
+                    <div class="move-field__value">{{ moveTarget()!.playerName }}</div>
+                </div>
+
+                <!-- From -->
+                <div class="move-field">
+                    <label class="field-label">From</label>
+                    <div class="move-field__value">
+                        <span class="move-field__badge">{{ selectedTeam()?.agegroupName }}</span>
+                        {{ selectedTeam()?.teamName }}
+                    </div>
+                </div>
+
+                <!-- To -->
+                <div class="move-field">
+                    <label class="field-label">To</label>
+                    <app-team-dropdown
+                        [teams]="otherTeams()"
+                        [value]="moveTargetTeamId()"
+                        placeholder="Select destination team..."
+                        (valueChange)="onMoveTeamSelected($event)">
+                    </app-team-dropdown>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
@@ -131,7 +148,7 @@
                     @if (isMutating()) {
                         <span class="spinner-border spinner-border-sm me-1"></span>
                     }
-                    Move
+                    <i class="bi bi-arrow-right-circle me-1"></i>Move
                 </button>
             </div>
         </div>
