@@ -344,6 +344,14 @@ export const routes: Routes = [
 				data: { requireAdmin: true },
 				loadComponent: () => import('./views/store/admin/store-admin.component').then(m => m.StoreAdminComponent)
 			},
+			// Club Rep — roster management
+			{
+				path: 'club-rosters',
+				canActivate: [authGuard],
+				data: { requireClubRep: true },
+				loadComponent: () => import('./views/club-rosters/club-rosters.component').then(m => m.ClubRostersComponent),
+				title: 'Club Rosters'
+			},
 			// Reporting
 			{
 				path: 'reporting/:action',

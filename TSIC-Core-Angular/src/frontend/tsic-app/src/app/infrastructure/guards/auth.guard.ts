@@ -15,6 +15,7 @@ import { Roles } from '../constants/roles.constants';
  *   requirePhase2          – full JWT with regId + jobPath required
  *   requireAdmin           – SuperUser, Director, or SuperDirector
  *   requireSuperUser       – SuperUser only
+ *   requireClubRep         – ClubRep (or any admin role)
  *   (default)              – Phase 1 minimum (username in token)
  *
  * Cold start (browser refresh / direct URL):
@@ -37,6 +38,7 @@ export const authGuard: CanActivateFn = (route, state) => {
         requirePhase2: route.data['requirePhase2'] === true,
         requireAdmin: route.data['requireAdmin'] === true,
         requireSuperUser: route.data['requireSuperUser'] === true,
+        requireClubRep: route.data['requireClubRep'] === true,
     };
 
     // ── Helpers ──────────────────────────────────────────────────────
@@ -150,7 +152,12 @@ export const authGuard: CanActivateFn = (route, state) => {
         return user.jobPath ? router.createUrlTree([`/${user.jobPath}`, 'home']) : toRoleSelection();
     }
 
-    if ((flags.requireAdmin || flags.requireSuperUser) && !user.jobPath) {
+    if (flags.requireClubRep && user.role !== Roles.ClubRep && !auth.isAdmin()) {
+        toast.show('Access denied. Club Rep privileges required.', 'danger');
+        return user.jobPath ? router.createUrlTree([`/${user.jobPath}`, 'home']) : toRoleSelection();
+    }
+
+    if ((flags.requireAdmin || flags.requireSuperUser || flags.requireClubRep) && !user.jobPath) {
         return toRoleSelection();
     }
 

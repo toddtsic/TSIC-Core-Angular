@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.ClubRoster;
 using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
@@ -530,6 +531,32 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.Teams
             .Where(t => t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId)
+            .ToListAsync(ct);
+    }
+
+    // ── Club Roster methods ──
+
+    public async Task<List<ClubRosterTeamDto>> GetClubRosterTeamsAsync(Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                && t.ClubrepRegistrationid == clubRepRegistrationId
+                && t.Agegroup != null
+                && t.Agegroup.AgegroupName != "Dropped Teams")
+            .Select(t => new ClubRosterTeamDto
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName ?? "",
+                AgegroupName = t.Agegroup != null ? t.Agegroup.AgegroupName ?? "" : "",
+                PlayerCount = _context.Registrations
+                    .Count(r => r.AssignedTeamId == t.TeamId
+                        && r.JobId == jobId
+                        && r.BActive == true
+                        && r.RoleId == RoleConstants.Player)
+            })
+            .OrderBy(t => t.AgegroupName)
+            .ThenBy(t => t.TeamName)
             .ToListAsync(ct);
     }
 

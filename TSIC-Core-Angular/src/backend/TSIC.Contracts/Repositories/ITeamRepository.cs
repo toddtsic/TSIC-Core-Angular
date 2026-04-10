@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.ClubRoster;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
@@ -288,6 +289,14 @@ public interface ITeamRepository
     /// Returns tracked entities for in-place updates.
     /// </summary>
     Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
+
+    // ── Club Roster methods ──
+
+    /// <summary>
+    /// Get club rep's teams with player counts for the roster management dropdown.
+    /// Excludes "Dropped Teams" agegroup. AsNoTracking.
+    /// </summary>
+    Task<List<ClubRosterTeamDto>> GetClubRosterTeamsAsync(Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
 
     // ── Store Walk-Up methods ──
 

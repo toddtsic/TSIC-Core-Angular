@@ -3,11 +3,12 @@
 --
 -- Menu structure derived from app.routes.ts Controller/Action pattern.
 -- Guard data determines which roles see each item:
---   requireAdmin  → Director, SuperDirector, SuperUser, Staff, RefAssignor, StoreAdmin
+--   requireAdmin  → Director, SuperDirector, SuperUser, RefAssignor, StoreAdmin
 --   requireSuperUser → SuperUser only
 --
--- Non-admin roles (Family, Player, ClubRep, UnassignedAdult) get Nav records
--- but no items — dashboard-only experience.
+-- Non-admin roles (Family, Player, ClubRep, Staff, UnassignedAdult) get
+-- role-appropriate items (registration entry, schedule, rosters, store).
+-- Staff is intentionally non-admin — permissions scoped to assigned team.
 --
 -- Reporting items are NOT auto-generated. Add via nav editor (SuperUser).
 --
@@ -76,7 +77,7 @@ DECLARE @StoreAdmin     NVARCHAR(450) = '5B9B7055-4530-4E46-B403-1019FD8B8418';
 DECLARE @Family         NVARCHAR(450) = 'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0';
 DECLARE @Player         NVARCHAR(450) = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
 DECLARE @ClubRep        NVARCHAR(450) = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
-DECLARE @UnassignedAdult NVARCHAR(450) = 'CE2CB370-5880-4624-A43E-048379C64331';
+DECLARE @UnassignedAdult NVARCHAR(450) = 'C92D71A9-464D-40C5-BA35-DFD9111CC7EA';
 
 -- ── 3. Preserve existing reporting items ──
 
@@ -198,7 +199,7 @@ DECLARE role_cursor CURSOR LOCAL FAST_FORWARD FOR
            CASE WHEN RoleId = @SuperUser THEN 'superuser' ELSE 'admin' END AS GuardLevel
     FROM nav.Nav
     WHERE JobId IS NULL
-      AND RoleId IN (@Director, @SuperDirector, @SuperUser, @Staff, @RefAssignor, @StoreAdmin);
+      AND RoleId IN (@Director, @SuperDirector, @SuperUser, @RefAssignor, @StoreAdmin);
 
 OPEN role_cursor;
 FETCH NEXT FROM role_cursor INTO @roleId, @guardLevel;
@@ -255,8 +256,98 @@ END
 CLOSE role_cursor;
 DEALLOCATE role_cursor;
 
--- Non-admin roles: Nav records exist but no items (dashboard-only)
-PRINT 'Non-admin roles (Family, Player, ClubRep, UnassignedAdult): no menu items';
+-- ── 7b. Non-admin role menus ──
+-- These roles get limited, role-appropriate items (not the admin manifest).
+-- Staff is intentionally here — permissions are scoped to their assigned team.
+
+-- ── Family ──
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Family AND JobId IS NULL;
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'Register Player', N'person-plus', N'registration/entry', GETDATE());
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 2, N'Event', N'calendar-event', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'View Schedule', N'eye', N'schedule', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters', GETDATE());
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 3, N'Store', N'cart', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'Event Store', N'shop', N'store', GETDATE());
+
+PRINT 'Family: Registration + Event + Store';
+
+-- ── Player ──
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Player AND JobId IS NULL;
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 1, N'Event', N'calendar-event', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'View Schedule', N'eye', N'schedule', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters', GETDATE());
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 2, N'Store', N'cart', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'Event Store', N'shop', N'store', GETDATE());
+
+PRINT 'Player: Event + Store';
+
+-- ── ClubRep ──
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @ClubRep AND JobId IS NULL;
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'Register Teams', N'shield-plus', N'registration/entry', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 2, N'Club Rosters', N'people', N'club-rosters', GETDATE());
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 2, N'Event', N'calendar-event', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'View Schedule', N'eye', N'schedule', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters', GETDATE());
+
+PRINT 'ClubRep: Registration (+ Club Rosters) + Event';
+
+-- ── Staff (team-scoped — NO admin items) ──
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Staff AND JobId IS NULL;
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 1, N'Event', N'calendar-event', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'View Schedule', N'eye', N'schedule', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters', GETDATE());
+
+PRINT 'Staff: Event only (team-scoped)';
+
+-- ── UnassignedAdult ──
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @UnassignedAdult AND JobId IS NULL;
+
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+VALUES (@navId, NULL, 1, 1, N'Event', N'calendar-event', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+VALUES (@navId, @parentId, 1, 1, N'View Schedule', N'eye', N'schedule', GETDATE());
+
+PRINT 'UnassignedAdult: Event only';
 
 -- ── 8. Restore preserved reporting items ──
 
