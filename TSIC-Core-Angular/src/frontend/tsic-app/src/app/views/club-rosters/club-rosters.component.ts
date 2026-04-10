@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } 
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { ClubRosterService } from './club-rosters.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
 import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
@@ -9,7 +10,7 @@ import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
 @Component({
     selector: 'app-club-rosters',
     standalone: true,
-    imports: [GridAllModule, ConfirmDialogComponent],
+    imports: [GridAllModule, ConfirmDialogComponent, TsicDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './club-rosters.component.html',
     styleUrl: './club-rosters.component.scss'
@@ -29,11 +30,11 @@ export class ClubRostersComponent implements OnInit {
     readonly isMutating = signal(false);
     readonly errorMessage = signal<string | null>(null);
 
-    // Per-row move state
-    readonly movePlayerId = signal<string | null>(null);
+    // Move modal state
+    readonly moveTarget = signal<ClubRosterPlayerDto | null>(null);
     readonly moveTargetTeamId = signal<string | null>(null);
 
-    // Per-row delete state
+    // Delete modal state
     readonly deleteTarget = signal<ClubRosterPlayerDto | null>(null);
 
     // Computed
@@ -45,12 +46,6 @@ export class ClubRostersComponent implements OnInit {
     readonly otherTeams = computed(() => {
         const id = this.selectedTeamId();
         return this.teams().filter(t => t.teamId !== id);
-    });
-
-    readonly movePlayerName = computed(() => {
-        const id = this.movePlayerId();
-        if (!id) return '';
-        return this.roster().find(r => r.registrationId === id)?.playerName ?? '';
     });
 
     ngOnInit(): void {
@@ -104,17 +99,13 @@ export class ClubRostersComponent implements OnInit {
     // ── Move ──
 
     startMove(player: ClubRosterPlayerDto): void {
-        this.movePlayerId.set(player.registrationId);
+        this.moveTarget.set(player);
         this.moveTargetTeamId.set(null);
     }
 
     cancelMove(): void {
-        this.movePlayerId.set(null);
+        this.moveTarget.set(null);
         this.moveTargetTeamId.set(null);
-    }
-
-    isMoving(regId: string): boolean {
-        return this.movePlayerId() === regId;
     }
 
     onMoveTargetChange(event: Event): void {
@@ -122,13 +113,13 @@ export class ClubRostersComponent implements OnInit {
     }
 
     confirmMove(): void {
-        const playerId = this.movePlayerId();
+        const player = this.moveTarget();
         const target = this.moveTargetTeamId();
-        if (!playerId || !target) return;
+        if (!player || !target) return;
 
         this.isMutating.set(true);
         this.rosterService.movePlayers({
-            registrationIds: [playerId],
+            registrationIds: [player.registrationId],
             targetTeamId: target
         }).subscribe({
             next: (result) => {

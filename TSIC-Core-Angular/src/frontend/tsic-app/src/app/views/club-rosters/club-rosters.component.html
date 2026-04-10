@@ -32,6 +32,7 @@
 
 <!-- Main Content -->
 @if (!isLoading() && teams().length > 0) {
+  <div class="roster-content">
 
     <!-- Team Selector -->
     <div class="team-selector">
@@ -63,7 +64,7 @@
                   [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
                   cssClass="tsic-grid-tight">
             <e-columns>
-                <e-column field="playerName" headerText="Player" minWidth="200">
+                <e-column field="playerName" headerText="Player" width="280">
                     <ng-template #template let-data>
                         <a class="player-link" (click)="startMove(data)">{{ data.playerName }}</a>
                     </ng-template>
@@ -95,32 +96,6 @@
                 </e-column>
             </e-columns>
         </ejs-grid>
-
-        <!-- Inline move bar (appears under grid when moving a player) -->
-        @if (movePlayerId()) {
-            <div class="move-bar">
-                <span class="move-bar__label">
-                    Moving <strong>{{ movePlayerName() }}</strong> to:
-                </span>
-                <select class="field-select field-select-inline"
-                        [value]="moveTargetTeamId() ?? ''"
-                        (change)="onMoveTargetChange($event)">
-                    <option value="">— select team —</option>
-                    @for (team of otherTeams(); track team.teamId) {
-                        <option [value]="team.teamId">{{ team.agegroupName }} — {{ team.teamName }}</option>
-                    }
-                </select>
-                <button class="btn btn-primary btn-sm"
-                        [disabled]="!moveTargetTeamId() || isMutating()"
-                        (click)="confirmMove()">
-                    @if (isMutating()) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                    }
-                    Move
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
-            </div>
-        }
     }
 
     <!-- Empty roster -->
@@ -130,9 +105,46 @@
             <p>No players on this team.</p>
         </div>
     }
+
+  </div>
 }
 
-<!-- Delete Confirmation -->
+<!-- Move Modal -->
+@if (moveTarget()) {
+    <tsic-dialog [open]="true" size="sm" (requestClose)="cancelMove()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Move Player</h5>
+                <button type="button" class="btn-close" (click)="cancelMove()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Move <strong>{{ moveTarget()!.playerName }}</strong> to a different team.</p>
+                <label class="field-label" for="moveTeamSelect">Destination Team</label>
+                <select id="moveTeamSelect" class="field-select"
+                        [value]="moveTargetTeamId() ?? ''"
+                        (change)="onMoveTargetChange($event)">
+                    <option value="" disabled selected>— select team —</option>
+                    @for (team of otherTeams(); track team.teamId) {
+                        <option [value]="team.teamId">{{ team.agegroupName }} — {{ team.teamName }}</option>
+                    }
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm"
+                        [disabled]="!moveTargetTeamId() || isMutating()"
+                        (click)="confirmMove()">
+                    @if (isMutating()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Move
+                </button>
+            </div>
+        </div>
+    </tsic-dialog>
+}
+
+<!-- Delete Confirmation Modal -->
 @if (deleteTarget()) {
     <confirm-dialog
         title="Delete Registration"
