@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
-import { DropDownListModule, ChangeEventArgs, FieldSettingsModel } from '@syncfusion/ej2-angular-dropdowns';
 import { ClubRosterService } from './club-rosters.service';
+import { TeamDropdownComponent } from './team-dropdown.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -11,7 +11,7 @@ import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
 @Component({
     selector: 'app-club-rosters',
     standalone: true,
-    imports: [GridAllModule, DropDownListModule, ConfirmDialogComponent, TsicDialogComponent],
+    imports: [GridAllModule, TeamDropdownComponent, ConfirmDialogComponent, TsicDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './club-rosters.component.html',
     styleUrl: './club-rosters.component.scss'
@@ -38,30 +38,10 @@ export class ClubRostersComponent implements OnInit {
     // Delete modal state
     readonly deleteTarget = signal<ClubRosterPlayerDto | null>(null);
 
-    // SF DropDownList config
-    readonly ddlFields: FieldSettingsModel = { text: 'displayText', value: 'teamId' };
-
-    // Computed — DDL data source with display text
-    readonly teamDdlData = computed(() =>
-        this.teams().map(t => ({
-            ...t,
-            displayText: `${t.teamName} (${t.playerCount})`
-        }))
-    );
-
-    readonly selectedTeam = computed(() => {
+    // Computed
+    readonly otherTeams = computed(() => {
         const id = this.selectedTeamId();
-        return id ? this.teams().find(t => t.teamId === id) ?? null : null;
-    });
-
-    readonly otherTeamsDdlData = computed(() => {
-        const id = this.selectedTeamId();
-        return this.teams()
-            .filter(t => t.teamId !== id)
-            .map(t => ({
-                ...t,
-                displayText: `${t.teamName}`
-            }));
+        return this.teams().filter(t => t.teamId !== id);
     });
 
     ngOnInit(): void {
@@ -93,14 +73,6 @@ export class ClubRostersComponent implements OnInit {
         this.loadRoster(teamId);
     }
 
-    onTeamDdlChange(event: ChangeEventArgs): void {
-        if (event.value) this.selectTeam(event.value as string);
-    }
-
-    onMoveDdlChange(event: ChangeEventArgs): void {
-        this.moveTargetTeamId.set((event.value as string) || null);
-    }
-
     private loadRoster(teamId: string): void {
         this.isLoadingRoster.set(true);
         this.rosterService.getRoster(teamId).subscribe({
@@ -125,6 +97,10 @@ export class ClubRostersComponent implements OnInit {
     cancelMove(): void {
         this.moveTarget.set(null);
         this.moveTargetTeamId.set(null);
+    }
+
+    onMoveTeamSelected(teamId: string): void {
+        this.moveTargetTeamId.set(teamId);
     }
 
     confirmMove(): void {

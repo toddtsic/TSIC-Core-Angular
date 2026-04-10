@@ -1,14 +1,3 @@
-<!-- Item template for team DDLs — agegroup badge + team name -->
-<ng-template #teamItemTemplate let-data>
-    <span class="team-ddl-item">
-        <span class="team-ddl-badge">{{ data.agegroupName }}</span>
-        <span>{{ data.teamName }}</span>
-        @if (data.playerCount !== undefined) {
-            <span class="team-ddl-count">({{ data.playerCount }})</span>
-        }
-    </span>
-</ng-template>
-
 <!-- Page Header -->
 <div class="page-header">
     <h2>Club Rosters</h2>
@@ -49,16 +38,11 @@
     <div class="team-selector">
         <div class="team-selector__inner">
             <label class="field-label">Team</label>
-            <ejs-dropdownlist
-                [dataSource]="teamDdlData()"
-                [fields]="ddlFields"
+            <app-team-dropdown
+                [teams]="teams()"
                 [value]="selectedTeamId()"
-                (change)="onTeamDdlChange($event)"
-                [itemTemplate]="teamItemTemplate"
-                [allowFiltering]="false"
-                placeholder="Select a team"
-                cssClass="field-ddl">
-            </ejs-dropdownlist>
+                (valueChange)="selectTeam($event)">
+            </app-team-dropdown>
         </div>
     </div>
 
@@ -132,16 +116,12 @@
             <div class="modal-body">
                 <p>Move <strong>{{ moveTarget()!.playerName }}</strong> to a different team.</p>
                 <label class="field-label">Destination Team</label>
-                <ejs-dropdownlist
-                    [dataSource]="otherTeamsDdlData()"
-                    [fields]="ddlFields"
+                <app-team-dropdown
+                    [teams]="otherTeams()"
                     [value]="moveTargetTeamId()"
-                    (change)="onMoveDdlChange($event)"
-                    [itemTemplate]="teamItemTemplate"
-                    [allowFiltering]="false"
-                    placeholder="Select a team"
-                    cssClass="field-ddl">
-                </ejs-dropdownlist>
+                    placeholder="Select destination"
+                    (valueChange)="onMoveTeamSelected($event)">
+                </app-team-dropdown>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
