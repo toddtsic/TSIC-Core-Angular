@@ -42,10 +42,21 @@ export class TeamWizardStateService {
     private readonly _clubRepContact = signal<UserContactInfoDto | null>(null);
     readonly clubRepContact = this._clubRepContact.asReadonly();
 
+    private readonly _refundPolicyHtml = signal<string | null>(null);
+    readonly refundPolicyHtml = this._refundPolicyHtml.asReadonly();
+
+    private readonly _waiverAccepted = signal(false);
+    readonly waiverAccepted = this._waiverAccepted.asReadonly();
+
+    /** True when the job has a refund policy configured */
+    hasRefundPolicy(): boolean { return !!this._refundPolicyHtml()?.trim(); }
+
     setJobPath(v: string): void { this._jobPath.set(v); }
     setHasActiveDiscountCodes(v: boolean): void { this._hasActiveDiscountCodes.set(v); }
     setFullPaymentRequired(v: boolean): void { this._fullPaymentRequired.set(v); }
     setClubRepContact(v: UserContactInfoDto | null): void { this._clubRepContact.set(v); }
+    setRefundPolicyHtml(v: string | null): void { this._refundPolicyHtml.set(v); }
+    setWaiverAccepted(v: boolean): void { this._waiverAccepted.set(v); }
 
     // ── Initialize ─────────────────────────────────────────────────────
     initialize(jobPath: string): void {
@@ -65,6 +76,7 @@ export class TeamWizardStateService {
             .subscribe({
                 next: job => {
                     this.fieldData.setJobOptions(job.jsonOptions);
+                    this._refundPolicyHtml.set(job.playerRegRefundPolicy ?? null);
                 },
                 error: () => {
                     // Interceptor safety net shows toast; also set inline error for the component.
@@ -87,6 +99,8 @@ export class TeamWizardStateService {
         this._hasActiveDiscountCodes.set(false);
         this._fullPaymentRequired.set(true);
         this._clubRepContact.set(null);
+        this._refundPolicyHtml.set(null);
+        this._waiverAccepted.set(false);
         this.clubRep.reset();
         this.teamPayment.reset();
         this.teamPaymentState.reset();

@@ -47,17 +47,17 @@ interface AgePickerTeam {
       <!-- Coach card — conditional based on library state -->
       @if (allLibraryTeams().length === 0) {
         <div class="coach-card coach-primary">
-          <p class="coach-intro">Welcome! Start by building your team library — you only do this once. Every team you add is saved permanently and can be registered in any event.</p>
+          <p class="coach-intro">Welcome! Your club's team library carries across all TeamSportsInfo events — enter your teams once, then register from the list at every future tournament.</p>
           <ul class="coach-list">
             <li>
               <i class="bi bi-plus-circle text-primary"></i>
-              <span>Click <strong>Add Team</strong> to add your first team</span>
+              <span>Click <strong>Add Team</strong> to get started</span>
             </li>
           </ul>
         </div>
       } @else {
         <div class="coach-card coach-primary">
-          <p class="coach-intro">Tap <strong>Register</strong> next to a team to enter it. Missing a team? <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add it now</button> — takes 10 seconds.</p>
+          <p class="coach-intro">Your library carries across all TeamSportsInfo events. Tap <strong>Register</strong> to enter a team, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add Team</button> if one's missing.</p>
         </div>
       }
 
@@ -932,6 +932,7 @@ export class TeamTeamsStepComponent implements OnInit {
                     this.state.setHasActiveDiscountCodes(meta.hasActiveDiscountCodes);
                     this.state.setFullPaymentRequired(meta.bTeamsFullPaymentRequired ?? true);
                     this.state.setClubRepContact(meta.clubRepContactInfo ?? null);
+                    this.state.setRefundPolicyHtml(meta.playerRegRefundPolicy ?? null);
                 },
                 error: () => {
                     this.loading.set(false);

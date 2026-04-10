@@ -14,6 +14,7 @@ import { TeamLoginStepComponent } from './steps/login-step.component';
 import { TeamTeamsStepComponent } from './steps/teams-step.component';
 import { TeamPaymentStepV2Component } from './steps/payment-step.component';
 import { TeamReviewStepComponent } from './steps/review-step.component';
+import { TeamWaiversStepComponent } from './steps/waivers-step.component';
 import { formatCurrency } from '@views/registration/shared/utils/format.util';
 import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-shell.types';
 
@@ -24,6 +25,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
         WizardShellComponent,
         TeamLoginStepComponent,
         TeamTeamsStepComponent,
+        TeamWaiversStepComponent,
         TeamPaymentStepV2Component,
         TeamReviewStepComponent,
     ],
@@ -45,6 +47,9 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
           <app-trw-login-step
             (loginSuccess)="onLoginSuccess($event)"
             (registrationSuccess)="onRegistrationSuccess($event)" />
+        }
+        @case ('waivers') {
+          <app-trw-waivers-step />
         }
         @case ('teams') {
           <app-trw-teams-step
@@ -80,6 +85,7 @@ export class TeamWizardV2Component implements OnInit {
     // ── Step definitions ──────────────────────────────────────────────
     readonly steps = computed<WizardStepDef[]>(() => [
         { id: 'login', label: 'Login', enabled: true },
+        { id: 'waivers', label: 'Waivers', enabled: this.state.hasRefundPolicy() },
         { id: 'teams', label: 'Teams', enabled: true },
         { id: 'payment', label: 'Payment', enabled: true },
         { id: 'review', label: 'Review', enabled: true },
@@ -104,6 +110,7 @@ export class TeamWizardV2Component implements OnInit {
         switch (this.currentStepId()) {
             case 'login': return false; // login step has own CTAs
             case 'teams': return true; // validation in proceedToPayment()
+            case 'waivers': return this.state.waiverAccepted();
             case 'payment': return !this.state.teamPayment.hasBalance();
             case 'review': return true;
             default: return false;
@@ -120,6 +127,7 @@ export class TeamWizardV2Component implements OnInit {
     readonly continueLabel = computed(() => {
         switch (this.currentStepId()) {
             case 'teams': return 'Proceed to Payment';
+            case 'waivers': return 'Continue';
             case 'payment': return 'Proceed to Review';
             case 'review': return 'Return Home';
             default: return 'Continue';

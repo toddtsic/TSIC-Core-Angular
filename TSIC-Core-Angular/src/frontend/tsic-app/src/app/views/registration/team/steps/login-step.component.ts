@@ -80,7 +80,10 @@ export interface LoginStepResult {
             <div class="alert alert-danger mb-3">{{ error() }}</div>
           }
 
-          <p class="wizard-tip">Sign in with your Club Rep credentials to register teams for this event.</p>
+          <div class="welcome-hero">
+            <h5 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> Let's Register Your Teams!</h5>
+            <p class="wizard-tip">Sign in with your Club Rep credentials to register teams for this event.</p>
+          </div>
 
           <app-login
             [theme]="''"
@@ -97,7 +100,7 @@ export interface LoginStepResult {
             <button type="button"
                     class="btn btn-outline-primary fw-semibold w-100"
                     (click)="showRegisterModal.set(true)">
-              <i class="bi bi-shield-plus me-2"></i>Create Club Rep Account
+              <i class="bi bi-shield-plus me-2"></i>Create NEW Club Rep Account
             </button>
           </div>
         }

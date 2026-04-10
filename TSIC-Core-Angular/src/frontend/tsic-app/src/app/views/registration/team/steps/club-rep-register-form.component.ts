@@ -221,7 +221,7 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
                        [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
                 <div class="value-prop mt-1">
                   <i class="bi bi-lightning-charge me-1"></i>
-                  Your club keeps a team library — enter team details once, then select from the list at every future event.
+                  Your club keeps a team library across all tournaments administered with TeamSportsInfo — enter team details once, then select from the list at every future event.
                 </div>
               </div>
 
@@ -353,6 +353,34 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 
               <hr class="form-divider my-2">
 
+              <!-- ═══ CREDENTIALS ═══ -->
+              <div class="row g-2 mb-2">
+                <div class="col-12">
+                  <input class="form-control form-control-sm" formControlName="username"
+                         placeholder="Username" autocomplete="username"
+                         [class.is-required]="!form.controls.username.value?.trim()"
+                         [class.is-invalid]="submitted() && form.controls.username.invalid" />
+                </div>
+                <div class="col-6">
+                  <input type="password" class="form-control form-control-sm" formControlName="password"
+                         placeholder="Password" autocomplete="new-password"
+                         [class.is-required]="!form.controls.password.value"
+                         [class.is-invalid]="submitted() && form.controls.password.invalid" />
+                </div>
+                <div class="col-6">
+                  <input type="password" class="form-control form-control-sm" formControlName="confirmPassword"
+                         placeholder="Confirm Password" autocomplete="new-password"
+                         [class.is-invalid]="submitted() && passwordMismatch()" />
+                </div>
+                @if (submitted() && passwordMismatch()) {
+                  <div class="col-12">
+                    <div class="field-error">Passwords do not match.</div>
+                  </div>
+                }
+              </div>
+
+              <hr class="form-divider my-2">
+
               <!-- ═══ PERSONAL INFO ═══ -->
               <div class="row g-2 mb-2">
                 <div class="col-6">
@@ -412,23 +440,6 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
                          placeholder="Zip"
                          [class.is-required]="!form.controls.postalCode.value?.trim()"
                          [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
-                </div>
-              </div>
-              <hr class="form-divider my-2">
-
-              <!-- ═══ CREDENTIALS ═══ -->
-              <div class="row g-2 mb-2">
-                <div class="col-6">
-                  <input class="form-control form-control-sm" formControlName="username"
-                         placeholder="Username" autocomplete="username"
-                         [class.is-required]="!form.controls.username.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.username.invalid" />
-                </div>
-                <div class="col-6">
-                  <input type="password" class="form-control form-control-sm" formControlName="password"
-                         placeholder="Password" autocomplete="new-password"
-                         [class.is-required]="!form.controls.password.value"
-                         [class.is-invalid]="submitted() && form.controls.password.invalid" />
                 </div>
               </div>
 
@@ -500,6 +511,14 @@ export class ClubRepRegisterFormComponent {
         postalCode: ['', [Validators.required, Validators.pattern(/^\d{5}(-\d{4})?$/)]],
         username: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
         password: ['', [Validators.required, Validators.minLength(6)]],
+        confirmPassword: ['', Validators.required],
+    });
+
+    /** Cross-field: confirmPassword must match password */
+    readonly passwordMismatch = computed(() => {
+        const pw = this.form.controls.password.value;
+        const cpw = this.form.controls.confirmPassword.value;
+        return !!pw && !!cpw && pw !== cpw;
     });
 
     constructor() {
@@ -574,15 +593,15 @@ export class ClubRepRegisterFormComponent {
         this.clubDecision.set('pending');
     }
 
-    /** Submit is allowed when: clear (no matches), or new (confirmed in warning band) */
+    /** Submit is allowed when: clear (no matches), or new (confirmed in warning band), and passwords match */
     canSubmit(): boolean {
         const decision = this.clubDecision();
-        return decision === 'clear' || decision === 'new';
+        return (decision === 'clear' || decision === 'new') && !this.passwordMismatch();
     }
 
     onSubmit(): void {
         this.submitted.set(true);
-        if (this.form.invalid || !this.canSubmit()) return;
+        if (this.form.invalid || !this.canSubmit() || this.passwordMismatch()) return;
 
         this.saving.set(true);
         this.errorMsg.set(null);

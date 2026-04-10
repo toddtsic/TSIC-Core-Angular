@@ -74,6 +74,7 @@ import type { RegisteredTeamDto } from '@core/api';
               </span>
             </ng-template>
           </e-column>
+          <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"></e-column>
         </e-columns>
         <e-aggregates>
           <e-aggregate>

@@ -126,13 +126,13 @@ import { LoginComponent } from '../../../auth/login/login.component';
 
           <div class="welcome-hero">
             <h5 class="welcome-title"><i class="bi bi-people-fill welcome-icon"></i> Let's Register Your Players!</h5>
-            <p class="welcome-desc">Sign in with your family account to get started.</p>
+            <p class="wizard-tip">Sign in with your family account to get started.</p>
           </div>
 
           <app-login
             [theme]="'player'"
             [embedded]="true"
-            [headerText]="'Family Account'"
+            [headerText]="'Family Account Sign In'"
             [subHeaderText]="'Enter your username and password'"
             [returnUrl]="returnUrl()"
             (loginSuccess)="onContinue()" />

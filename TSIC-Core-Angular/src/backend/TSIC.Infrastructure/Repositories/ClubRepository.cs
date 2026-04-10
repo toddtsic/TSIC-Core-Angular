@@ -47,13 +47,17 @@ public class ClubRepository : IClubRepository
             {
                 ClubId = c.ClubId,
                 ClubName = c.ClubName!,
-                State = c.LebUser!.State,
+                State = c.ClubReps.OrderBy(cr => cr.Aid).Select(cr => cr.ClubRepUser.State).FirstOrDefault(),
                 TeamCount = _context.ClubTeams
                     .Count(ct => ct.ClubId == c.ClubId),
-                RepName = c.LebUser!.FirstName != null && c.LebUser!.LastName != null
-                    ? c.LebUser!.FirstName + " " + c.LebUser!.LastName
-                    : null,
-                RepEmail = c.LebUser!.Email
+                RepName = c.ClubReps.OrderBy(cr => cr.Aid)
+                    .Select(cr => cr.ClubRepUser.FirstName != null && cr.ClubRepUser.LastName != null
+                        ? cr.ClubRepUser.FirstName + " " + cr.ClubRepUser.LastName
+                        : null)
+                    .FirstOrDefault(),
+                RepEmail = c.ClubReps.OrderBy(cr => cr.Aid)
+                    .Select(cr => cr.ClubRepUser.Email)
+                    .FirstOrDefault()
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -70,7 +74,7 @@ public class ClubRepository : IClubRepository
 
         if (!string.IsNullOrWhiteSpace(state))
         {
-            query = query.Where(c => c.LebUser!.State == state);
+            query = query.Where(c => c.ClubReps.Any(cr => cr.ClubRepUser.State == state));
         }
 
         return await query
@@ -78,13 +82,17 @@ public class ClubRepository : IClubRepository
             {
                 ClubId = c.ClubId,
                 ClubName = c.ClubName!,
-                State = c.LebUser!.State,
+                State = c.ClubReps.OrderBy(cr => cr.Aid).Select(cr => cr.ClubRepUser.State).FirstOrDefault(),
                 TeamCount = _context.ClubTeams
                     .Count(ct => ct.ClubId == c.ClubId),
-                RepName = c.LebUser!.FirstName != null && c.LebUser!.LastName != null
-                    ? c.LebUser!.FirstName + " " + c.LebUser!.LastName
-                    : null,
-                RepEmail = c.LebUser!.Email
+                RepName = c.ClubReps.OrderBy(cr => cr.Aid)
+                    .Select(cr => cr.ClubRepUser.FirstName != null && cr.ClubRepUser.LastName != null
+                        ? cr.ClubRepUser.FirstName + " " + cr.ClubRepUser.LastName
+                        : null)
+                    .FirstOrDefault(),
+                RepEmail = c.ClubReps.OrderBy(cr => cr.Aid)
+                    .Select(cr => cr.ClubRepUser.Email)
+                    .FirstOrDefault()
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
