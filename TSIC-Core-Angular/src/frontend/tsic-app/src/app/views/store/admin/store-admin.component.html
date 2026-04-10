@@ -55,7 +55,7 @@
 
 	@if (items().length === 0) {
 		<div class="text-center py-5 text-body-secondary">
-			<i class="bi bi-box-seam" style="font-size: 2rem;"></i>
+			<i class="bi bi-box-seam fs-1 d-block mb-2"></i>
 			<p class="mt-2">No items yet. Create your first store item.</p>
 		</div>
 	} @else {
@@ -106,8 +106,8 @@
 								</span>
 							</td>
 							<td class="text-end">
-								<button class="btn btn-sm btn-outline-primary me-1" (click)="editItem(item)"
-										aria-label="Edit item">
+								<button class="action-btn me-1" (click)="editItem(item)"
+										title="Edit item" aria-label="Edit item">
 									<i class="bi bi-pencil"></i>
 								</button>
 								<button class="btn btn-sm" (click)="toggleItemActive(item)"

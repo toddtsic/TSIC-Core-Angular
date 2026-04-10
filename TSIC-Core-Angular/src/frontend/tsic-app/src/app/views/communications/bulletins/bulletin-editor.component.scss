@@ -57,39 +57,9 @@
     }
 }
 
-// ── Row action buttons ──
+// Row action buttons: .row-actions, .action-btn, .action-btn-danger from global _syncfusion-cell-utils.scss
+// Component override: fade actions until row hover
 .row-actions {
-    display: flex;
-    gap: var(--space-1);
     opacity: 0.4;
     transition: opacity 0.15s ease;
-}
-
-.action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover {
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        color: var(--bs-primary);
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
-    }
-}
-
-.action-btn-danger:hover {
-    background: rgba(var(--bs-danger-rgb), 0.1);
-    color: var(--bs-danger);
 }

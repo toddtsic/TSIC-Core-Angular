@@ -65,12 +65,12 @@
     <div class="card-body p-0">
       @if (isLoading()) {
         <div class="text-center py-4">
-          <span class="spinner-border text-primary"></span>
-          <p class="text-muted mt-2">Loading history...</p>
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-body-secondary">Loading history...</p>
         </div>
       } @else if (history().length === 0) {
-        <div class="text-center py-4 text-muted">
-          <i class="bi bi-bell-slash fs-3 d-block mb-2"></i>
+        <div class="text-center py-5 text-body-secondary">
+          <i class="bi bi-bell-slash fs-1 d-block mb-2"></i>
           No push notifications have been sent yet.
         </div>
       } @else {
