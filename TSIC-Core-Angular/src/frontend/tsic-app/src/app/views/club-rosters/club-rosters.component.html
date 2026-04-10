@@ -1,12 +1,12 @@
 <!-- Page Header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
-    <h2 class="mb-0">Club Rosters</h2>
-    <button class="btn btn-outline-secondary btn-sm" (click)="loadTeams()" [disabled]="isLoading()">
-        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+<div class="page-header">
+    <h2>Club Rosters</h2>
+    <button class="icon-btn" (click)="loadTeams()" [disabled]="isLoading()" title="Refresh">
+        <i class="bi bi-arrow-clockwise"></i>
     </button>
 </div>
 
-<!-- Error Alert -->
+<!-- Error -->
 @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -14,27 +14,27 @@
     </div>
 }
 
-<!-- Loading State -->
+<!-- Loading -->
 @if (isLoading()) {
     <div class="text-center py-5">
-        <div class="spinner-border spinner-border-sm text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-body-secondary">Loading teams...</p>
     </div>
 }
 
-<!-- Empty State — no teams -->
+<!-- Empty — no teams -->
 @if (!isLoading() && !errorMessage() && teams().length === 0) {
-    <div class="text-center py-5">
-        <i class="bi bi-shield-x fs-1 text-body-secondary"></i>
-        <p class="mt-2 text-body-secondary">No teams found for your club.</p>
+    <div class="text-center py-5 text-body-secondary">
+        <i class="bi bi-shield-x fs-1 d-block mb-2"></i>
+        <p>No teams found for your club.</p>
     </div>
 }
 
 <!-- Main Content -->
 @if (!isLoading() && teams().length > 0) {
+
     <!-- Team Selector -->
-    <div class="mb-3" style="max-width: 400px;">
+    <div class="team-selector">
         <label class="field-label" for="teamSelect">Select Team</label>
         <select id="teamSelect" class="field-select" [value]="selectedTeamId()" (change)="onTeamChange($event)">
             @for (team of teams(); track team.teamId) {
@@ -45,38 +45,38 @@
         </select>
     </div>
 
-    <!-- Action Toolbar (appears when rows selected) -->
+    <!-- Action Toolbar -->
     @if (hasSelection()) {
-        <div class="card mb-3 border-primary">
-            <div class="card-body py-2 d-flex flex-wrap align-items-center gap-3">
-                <span class="fw-semibold text-primary">{{ selectedCount() }} selected</span>
+        <div class="action-toolbar">
+            <span class="selection-count">{{ selectedCount() }} selected</span>
 
-                <!-- Move action -->
-                <div class="d-flex align-items-center gap-2">
-                    <label class="field-label mb-0" for="moveTarget">Move to:</label>
-                    <select id="moveTarget" class="field-select field-select-sm"
-                            style="min-width: 200px;"
-                            [value]="moveTargetTeamId() ?? ''"
-                            (change)="onMoveTargetChange($event)">
-                        <option value="">— select team —</option>
-                        @for (team of otherTeams(); track team.teamId) {
-                            <option [value]="team.teamId">
-                                {{ team.agegroupName }} — {{ team.teamName }}
-                            </option>
-                        }
-                    </select>
-                    <button class="btn btn-primary btn-sm"
-                            [disabled]="!moveTargetTeamId() || isMutating()"
-                            (click)="movePlayers()">
-                        <i class="bi bi-arrow-right-circle me-1"></i>Move
-                    </button>
-                </div>
+            <div class="toolbar-actions">
+                <!-- Move -->
+                <label class="field-label mb-0" for="moveTarget">Move to:</label>
+                <select id="moveTarget" class="field-select field-select-inline"
+                        [value]="moveTargetTeamId() ?? ''"
+                        (change)="onMoveTargetChange($event)">
+                    <option value="">— select team —</option>
+                    @for (team of otherTeams(); track team.teamId) {
+                        <option [value]="team.teamId">
+                            {{ team.agegroupName }} — {{ team.teamName }}
+                        </option>
+                    }
+                </select>
+                <button class="btn btn-primary btn-sm"
+                        [disabled]="!moveTargetTeamId() || isMutating()"
+                        (click)="movePlayers()">
+                    @if (isMutating()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    <i class="bi bi-arrow-right-circle me-1"></i>Move
+                </button>
 
-                <div class="vr d-none d-md-block"></div>
+                <span class="toolbar-divider"></span>
 
-                <!-- Delete action -->
+                <!-- Delete -->
                 <button class="btn btn-outline-danger btn-sm" [disabled]="isMutating()" (click)="confirmDelete()">
-                    <i class="bi bi-trash me-1"></i>Delete Selected
+                    <i class="bi bi-trash me-1"></i>Delete
                 </button>
             </div>
         </div>
@@ -85,62 +85,50 @@
     <!-- Roster Loading -->
     @if (isLoadingRoster()) {
         <div class="text-center py-4">
-            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                <span class="visually-hidden">Loading roster...</span>
-            </div>
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
         </div>
     }
 
     <!-- Roster Grid -->
     @if (!isLoadingRoster() && roster().length > 0) {
-        <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;">
-                            <input type="checkbox" class="form-check-input"
-                                   [checked]="allSelected"
-                                   (change)="toggleAll()"
-                                   aria-label="Select all players">
-                        </th>
-                        <th>Player</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (player of roster(); track player.registrationId) {
-                        <tr [class.table-active]="isSelected(player.registrationId)">
-                            <td>
-                                <input type="checkbox" class="form-check-input"
-                                       [checked]="isSelected(player.registrationId)"
-                                       (change)="togglePlayer(player.registrationId)"
-                                       [attr.aria-label]="'Select ' + player.playerName">
-                            </td>
-                            <td class="fw-semibold">{{ player.playerName }}</td>
-                            <td>
-                                @if (player.isActive) {
-                                    <span class="badge bg-success-subtle text-success">Active</span>
-                                } @else {
-                                    <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
-                                }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+        <ejs-grid #rosterGrid
+                  [dataSource]="roster()"
+                  [allowSorting]="true"
+                  [selectionSettings]="selectionSettings"
+                  [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
+                  cssClass="tsic-grid-tight"
+                  (rowSelected)="onRowSelected()"
+                  (rowDeselected)="onRowDeselected()">
+            <e-columns>
+                <e-column type="checkbox" width="50"></e-column>
+                <e-column field="playerName" headerText="Player" minWidth="180">
+                    <ng-template #template let-data>
+                        <span class="fw-semibold">{{ data.playerName }}</span>
+                    </ng-template>
+                </e-column>
+                <e-column field="isActive" headerText="Status" width="100" [allowSorting]="false">
+                    <ng-template #template let-data>
+                        @if (data.isActive) {
+                            <span class="active-badge active-yes">Active</span>
+                        } @else {
+                            <span class="active-badge active-no">Inactive</span>
+                        }
+                    </ng-template>
+                </e-column>
+            </e-columns>
+        </ejs-grid>
     }
 
     <!-- Empty roster -->
     @if (!isLoadingRoster() && selectedTeamId() && roster().length === 0) {
-        <div class="text-center py-4 text-body-secondary">
-            <i class="bi bi-person-x fs-3"></i>
-            <p class="mt-2 mb-0">No players on this team.</p>
+        <div class="text-center py-5 text-body-secondary">
+            <i class="bi bi-person-x fs-1 d-block mb-2"></i>
+            <p>No players on this team.</p>
         </div>
     }
 }
 
-<!-- Delete Confirmation Dialog -->
+<!-- Delete Confirmation -->
 @if (showDeleteConfirm()) {
     <confirm-dialog
         title="Delete Registrations"

@@ -1,5 +1,5 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { GridAllModule } from '@syncfusion/ej2-angular-grids';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, ViewChild } from '@angular/core';
+import { GridAllModule, GridComponent, SelectionSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { ClubRosterService } from './club-rosters.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -18,6 +18,8 @@ export class ClubRostersComponent implements OnInit {
     private readonly rosterService = inject(ClubRosterService);
     private readonly toast = inject(ToastService);
 
+    @ViewChild('rosterGrid') grid!: GridComponent;
+
     // Data
     readonly teams = signal<ClubRosterTeamDto[]>([]);
     readonly selectedTeamId = signal<string | null>(null);
@@ -35,6 +37,9 @@ export class ClubRostersComponent implements OnInit {
 
     // Confirm dialog
     readonly showDeleteConfirm = signal(false);
+
+    // Grid config
+    readonly selectionSettings: SelectionSettingsModel = { type: 'Multiple', checkboxOnly: true };
 
     // Computed
     readonly selectedTeam = computed(() => {
@@ -62,8 +67,6 @@ export class ClubRostersComponent implements OnInit {
             next: (teams) => {
                 this.teams.set(teams);
                 this.isLoading.set(false);
-
-                // Auto-select first team if none selected
                 if (!this.selectedTeamId() && teams.length > 0) {
                     this.selectTeam(teams[0].teamId);
                 }
@@ -103,30 +106,18 @@ export class ClubRostersComponent implements OnInit {
         });
     }
 
-    togglePlayer(regId: string): void {
-        const ids = new Set(this.selectedRegIds());
-        if (ids.has(regId)) {
-            ids.delete(regId);
-        } else {
-            ids.add(regId);
-        }
-        this.selectedRegIds.set(ids);
+    onRowSelected(): void {
+        this.syncSelection();
     }
 
-    toggleAll(): void {
-        if (this.selectedRegIds().size === this.roster().length) {
-            this.selectedRegIds.set(new Set());
-        } else {
-            this.selectedRegIds.set(new Set(this.roster().map(r => r.registrationId)));
-        }
+    onRowDeselected(): void {
+        this.syncSelection();
     }
 
-    isSelected(regId: string): boolean {
-        return this.selectedRegIds().has(regId);
-    }
-
-    get allSelected(): boolean {
-        return this.roster().length > 0 && this.selectedRegIds().size === this.roster().length;
+    private syncSelection(): void {
+        if (!this.grid) return;
+        const selected = this.grid.getSelectedRecords() as ClubRosterPlayerDto[];
+        this.selectedRegIds.set(new Set(selected.map(r => r.registrationId)));
     }
 
     onMoveTargetChange(event: Event): void {
@@ -148,8 +139,7 @@ export class ClubRostersComponent implements OnInit {
                 this.toast.show(result.message, 'success');
                 this.selectedRegIds.set(new Set());
                 this.moveTargetTeamId.set(null);
-                this.loadTeams();
-                this.loadRoster(this.selectedTeamId()!);
+                this.refreshAfterMutation();
             },
             error: (err) => {
                 this.isMutating.set(false);
@@ -174,8 +164,7 @@ export class ClubRostersComponent implements OnInit {
                 this.isMutating.set(false);
                 this.toast.show(result.message, 'success');
                 this.selectedRegIds.set(new Set());
-                this.loadTeams();
-                this.loadRoster(this.selectedTeamId()!);
+                this.refreshAfterMutation();
             },
             error: (err) => {
                 this.isMutating.set(false);
@@ -186,5 +175,11 @@ export class ClubRostersComponent implements OnInit {
 
     onDeleteCancelled(): void {
         this.showDeleteConfirm.set(false);
+    }
+
+    private refreshAfterMutation(): void {
+        this.loadTeams();
+        const teamId = this.selectedTeamId();
+        if (teamId) this.loadRoster(teamId);
     }
 }
