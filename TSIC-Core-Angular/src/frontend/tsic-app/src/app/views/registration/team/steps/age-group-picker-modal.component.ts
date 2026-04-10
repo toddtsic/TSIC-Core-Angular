@@ -24,9 +24,9 @@ export interface AgeGroupSelection {
         <!-- Hero banner -->
         <div class="picker-hero">
           <div class="picker-hero-inner">
-            <h5 class="picker-team-name">Register <span class="team-badge"><i class="bi bi-people-fill"></i> {{ teamName }}</span></h5>
+            <h5 class="picker-team-name">Register <span class="picker-team-highlight"><i class="bi bi-people-fill"></i> {{ teamName }}</span></h5>
             @if (eventName) {
-              <p class="picker-event-name">{{ eventName }}</p>
+              <p class="picker-event-name"><span class="picker-for">for</span> {{ eventName }}</p>
             }
           </div>
         </div>
@@ -133,21 +133,19 @@ export interface AgeGroupSelection {
         color: var(--brand-text);
       }
 
-      .team-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-1);
-        padding: var(--space-1) var(--space-3);
-        background: rgba(var(--bs-primary-rgb), 0.15);
+      .picker-team-highlight {
         color: var(--bs-primary);
         font-weight: var(--font-weight-bold);
-        border-radius: var(--radius-full);
-        font-size: var(--font-size-base);
-        border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
+      }
+
+      .picker-for {
+        font-weight: var(--font-weight-normal);
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
       }
 
       .picker-event-name {
-        margin: var(--space-1) 0 0;
+        margin: 0;
         font-size: var(--font-size-base);
         font-weight: var(--font-weight-bold);
         color: var(--brand-text);
