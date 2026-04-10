@@ -17,13 +17,22 @@ export class ToastService {
 
     toasts = this._toasts.asReadonly();
 
-    show(message: string, type: ToastType = 'success', timeout = 2000, title?: string) {
+    /** Default auto-dismiss by severity: success/info auto-close; warning/danger stick until user closes. */
+    private readonly DEFAULT_TIMEOUTS: Record<ToastType, number> = {
+        success: 5000,
+        info: 5000,
+        warning: 0,
+        danger: 0,
+    };
+
+    show(message: string, type: ToastType = 'success', timeout?: number, title?: string) {
         const id = this._nextId++;
-        const toast: Toast = { id, message, type, title, timeout };
+        const resolvedTimeout = timeout ?? this.DEFAULT_TIMEOUTS[type];
+        const toast: Toast = { id, message, type, title, timeout: resolvedTimeout };
         this._toasts.update(list => [...list, toast]);
 
-        if (timeout && timeout > 0) {
-            setTimeout(() => this.dismiss(id), timeout);
+        if (resolvedTimeout > 0) {
+            setTimeout(() => this.dismiss(id), resolvedTimeout);
         }
     }
 
