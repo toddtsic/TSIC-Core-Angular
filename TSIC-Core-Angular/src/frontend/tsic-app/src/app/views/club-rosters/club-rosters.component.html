@@ -34,15 +34,19 @@
 @if (!isLoading() && teams().length > 0) {
 
     <!-- Team Selector -->
-    <div class="team-selector-card">
-        <label class="field-label" for="teamSelect">Select Team</label>
-        <select id="teamSelect" class="field-select" [value]="selectedTeamId()" (change)="onTeamChange($event)">
-            @for (team of teams(); track team.teamId) {
-                <option [value]="team.teamId">
-                    {{ team.agegroupName }} — {{ team.teamName }} ({{ team.playerCount }})
-                </option>
-            }
-        </select>
+    <div class="team-selector">
+        <div class="team-selector__inner">
+            <label class="field-label" for="teamSelect">Team</label>
+            <select id="teamSelect" class="field-select"
+                    [value]="selectedTeamId()"
+                    (change)="onTeamChange($event)">
+                @for (team of teams(); track team.teamId) {
+                    <option [value]="team.teamId">
+                        {{ team.agegroupName }} — {{ team.teamName }} ({{ team.playerCount }})
+                    </option>
+                }
+            </select>
+        </div>
     </div>
 
     <!-- Roster Loading -->
@@ -61,7 +65,7 @@
             <e-columns>
                 <e-column field="playerName" headerText="Player" minWidth="200">
                     <ng-template #template let-data>
-                        <a class="player-link" href="javascript:void(0)">{{ data.playerName }}</a>
+                        <a class="player-link" (click)="startMove(data)">{{ data.playerName }}</a>
                     </ng-template>
                 </e-column>
                 <e-column field="isActive" headerText="Status" width="90" [allowSorting]="false">
