@@ -8,15 +8,19 @@ import { Injectable } from '@angular/core';
 export class LegacyUrlTranslationService {
     /**
      * Translates a URL containing legacy StartARegistration patterns to Angular routes.
-     * 
+     *
      * @param url - The URL to translate (can be full URL or relative path)
      * @param jobPath - The current job path context (e.g., "aim-cac-2026")
      * @returns The translated Angular route or original URL if no pattern matches
-     * 
+     *
      * Translation patterns:
      * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
      * - StartARegistration + bStaff=true → /{jobPath}/registration/adult
      * - StartARegistration + bPlayer=true → /{jobPath}/registration/player
+     *
+     * Note: Combined URLs (bPlayer=true&bStaff=true) are handled at the HTML level
+     * by TranslateLegacyUrlsPipe, which splits them into two separate links.
+     * This method returns the player route for combined URLs as a fallback.
      */
     public static translateUrl(url: string, jobPath: string): string {
         if (!url || !jobPath) {
@@ -26,11 +30,11 @@ export class LegacyUrlTranslationService {
         const lower = url.toLowerCase();
 
         if (lower.includes('startaregistration')) {
-            // More specific patterns first
             if (lower.includes('bclubrep=true')) {
                 return `/${jobPath}/registration/team`;
             }
-            if (lower.includes('bstaff=true')) {
+            // Staff-only (no player flag) → adult/coach
+            if (lower.includes('bstaff=true') && !lower.includes('bplayer=true')) {
                 return `/${jobPath}/registration/adult`;
             }
             if (lower.includes('bplayer=true')) {

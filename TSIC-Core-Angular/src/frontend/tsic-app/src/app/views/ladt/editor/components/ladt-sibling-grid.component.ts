@@ -52,7 +52,7 @@ export interface ParentBreadcrumb {
       (actionBegin)="onActionBegin($event)"
       (rowDataBound)="onRowDataBound($event)"
       (rowSelected)="onRowSelect($event)"
-      cssClass="tsic-grid">
+      cssClass="tsic-grid-tight">
 
       <e-columns>
         <!-- Action column (always first, frozen) -->

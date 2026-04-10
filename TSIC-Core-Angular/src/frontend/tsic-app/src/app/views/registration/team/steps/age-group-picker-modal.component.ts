@@ -400,8 +400,11 @@ export class AgeGroupPickerModalComponent implements OnInit {
     readonly closed = output<void>();
     readonly flashingId = signal<string | null>(null);
     readonly selectedLop = signal('');
+
     /** True when LOP options exist but none selected — blocks age group pills */
-    readonly lopRequired = computed(() => this.lopOptions.length > 0 && !this.selectedLop());
+    lopRequired(): boolean {
+        return this.lopOptions.length > 0 && !this.selectedLop();
+    }
 
     readonly pills = computed(() => {
         const recommended = this.bestMatch();

@@ -17,8 +17,10 @@ Bulletins returned from the API contain HTML with legacy ASP.NET MVC URLs (e.g.,
 **Responsibility**: Transform legacy URLs to Angular routes before rendering
 
 **Translations**:
-- `StartARegistration?...&bPlayer=True` → `/{jobPath}/register-player`
-- `StartARegistration?...&bClubRep=True` → `/{jobPath}/register-team`
+- `StartARegistration?...&bPlayer=True&bStaff=True` → **split into two links** (player + coach)
+- `StartARegistration?...&bPlayer=True` → `/{jobPath}/registration/player`
+- `StartARegistration?...&bClubRep=True` → `/{jobPath}/registration/team`
+- `StartARegistration?...&bStaff=True` → `/{jobPath}/registration/adult`
 
 **Security**: The pipe only modifies `href` attributes. The following layer (sanitizer) still applies.
 
