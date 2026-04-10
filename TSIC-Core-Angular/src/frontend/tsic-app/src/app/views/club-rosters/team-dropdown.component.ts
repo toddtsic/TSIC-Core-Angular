@@ -19,28 +19,23 @@ import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
             [placeholder]="placeholder()"
             [popupWidth]="'100%'"
             [itemTemplate]="itemTpl"
+            [zIndex]="200000"
             cssClass="team-ddl">
         </ejs-dropdownlist>
     `,
     styles: [`
-        /* Popup z-index above dialog top-layer */
-        .e-popup.team-ddl,
-        .team-ddl.e-popup {
-            z-index: 100001 !important;
-        }
-
         /* Item row layout */
         .team-ddl-item {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
             font-size: 12px;
             line-height: 1.4;
         }
 
         .team-ddl-item__badge {
             display: inline-block;
-            padding: 0 4px;
+            padding: 1px 6px;
             border-radius: 9999px;
             background: rgba(var(--bs-primary-rgb), 0.12);
             color: var(--bs-primary);
@@ -66,7 +61,6 @@ export class TeamDropdownComponent {
 
     readonly valueChange = output<string>();
 
-    // SF string-based item template — renders in popup outside Angular view
     readonly itemTpl = '<div class="team-ddl-item">'
         + '<span class="team-ddl-item__badge">${agegroupName}</span>'
         + '<span class="team-ddl-item__name">${teamName}</span>'
