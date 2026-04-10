@@ -2,16 +2,7 @@
     padding: var(--space-4);
 }
 
-.page-header {
-    margin-bottom: var(--space-6);
-
-    h2 {
-        font-size: var(--font-size-2xl);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        margin-bottom: var(--space-1);
-    }
-}
+// Page header from global _utilities.scss
 
 .check-col {
     width: 40px;

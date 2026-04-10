@@ -4,16 +4,7 @@
   padding: var(--space-6) var(--space-4);
 }
 
-.page-title {
-  font-weight: var(--font-weight-semibold);
-  color: var(--brand-text);
-  margin-bottom: var(--space-1);
-}
-
-.page-subtitle {
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--space-6);
-}
+// Page header: .page-title, .page-subtitle from global _utilities.scss
 
 .cards-row {
   display: grid;

@@ -12,22 +12,7 @@
 	margin: 0 auto;
 }
 
-// ── Header ──
-.page-header {
-	margin-bottom: var(--space-6);
-}
-
-.page-title {
-	font-weight: 600;
-	color: var(--brand-text);
-	margin-bottom: var(--space-1);
-}
-
-.page-subtitle {
-	font-size: var(--font-size-sm);
-	color: var(--brand-text-muted);
-	margin: 0;
-}
+// Page header: .page-header, .page-title, .page-subtitle from global _utilities.scss
 
 // ── KPI Cards ──
 .kpi-grid {

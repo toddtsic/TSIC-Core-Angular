@@ -578,6 +578,7 @@ mark {
     color: var(--brand-text-muted);
     margin-bottom: 0;
     line-height: var(--line-height-normal);
+    font-style: italic;
 }
 
 .auth-hero-status-icon {
@@ -1528,6 +1529,38 @@ mark {
 .page-title-icon {
     color: var(--page-accent, var(--bs-primary));
     flex-shrink: 0;
+}
+
+/* ============================================
+   Page Header
+   Usage: <div class="page-header">
+            <div>
+              <h2 class="page-title">Title</h2>
+              <p class="page-subtitle">Description</p>
+            </div>
+            <div class="page-header-actions"><!-- buttons --></div>
+          </div>
+   ============================================ */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.page-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--bs-secondary-color);
+    margin: var(--space-1) 0 0;
 }
 
 /* ============================================

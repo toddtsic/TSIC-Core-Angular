@@ -1,9 +1,11 @@
 <!-- Page header -->
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-4 gap-2">
-	<h2 class="mb-0"><i class="bi bi-shop me-2"></i>Store Manager</h2>
-	<button class="btn btn-outline-secondary btn-sm" (click)="refresh()" [disabled]="isLoading()">
-		<i class="bi bi-arrow-clockwise me-1"></i>Refresh
-	</button>
+<div class="page-header">
+	<h2 class="page-title"><i class="bi bi-shop me-2"></i>Store Manager</h2>
+	<div class="page-header-actions">
+		<button class="btn btn-outline-secondary btn-sm" (click)="refresh()" [disabled]="isLoading()">
+			<i class="bi bi-arrow-clockwise me-1"></i>Refresh
+		</button>
+	</div>
 </div>
 
 <!-- Tab navigation -->
@@ -99,10 +101,7 @@
 								</span>
 							</td>
 							<td class="text-center">
-								<span class="badge" [class.bg-success-subtle]="item.active"
-									  [class.text-success-emphasis]="item.active"
-									  [class.bg-secondary-subtle]="!item.active"
-									  [class.text-secondary-emphasis]="!item.active">
+								<span class="active-badge" [class.active-yes]="item.active" [class.active-no]="!item.active">
 									{{ item.active ? 'Active' : 'Inactive' }}
 								</span>
 							</td>

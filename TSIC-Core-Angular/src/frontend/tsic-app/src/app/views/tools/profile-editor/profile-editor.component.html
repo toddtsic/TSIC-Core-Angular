@@ -3,10 +3,9 @@
     <tsic-dialog [open]="false"></tsic-dialog>
     <div class="row mb-4">
         <div class="col-12">
-            <!-- Title + actions on one line for md+; stacked/centered on mobile -->
-            <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 mb-2">
-                <h2 class="mb-0 text-center text-md-start">Profile Metadata Editor</h2>
-                <div class="d-flex justify-content-center justify-content-md-end">
+            <div class="page-header">
+                <h2 class="page-title">Profile Metadata Editor</h2>
+                <div class="page-header-actions">
                     <div class="btn-group btn-group-sm" aria-label="Page actions">
                         <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary"
                             title="Go to job home" aria-label="Go to job home">

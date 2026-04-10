@@ -1,16 +1,16 @@
 <!-- Page Header -->
 <div class="page-header">
 	<div>
-		<h4 class="mb-1">Master Schedule</h4>
+		<h2 class="page-title">Master Schedule</h2>
 		@if (masterData()) {
-			<span class="text-muted">
+			<p class="page-subtitle">
 				{{ totalGames() }} games · {{ fieldCount() }} fields
-			</span>
+			</p>
 		}
 	</div>
 
 	@if (masterData() && masterData()!.days.length > 0) {
-		<div class="header-actions">
+		<div class="page-header-actions">
 			<button class="btn btn-outline-primary btn-sm"
 				[disabled]="isExporting()"
 				(click)="exportDay()">

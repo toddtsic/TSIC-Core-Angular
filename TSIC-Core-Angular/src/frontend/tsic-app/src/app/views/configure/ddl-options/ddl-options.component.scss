@@ -3,18 +3,7 @@
 	padding: var(--space-4);
 }
 
-.page-title {
-	font-size: 1.5rem;
-	font-weight: 700;
-	color: var(--brand-text);
-	margin-bottom: var(--space-1);
-}
-
-.page-subtitle {
-	font-size: var(--font-size-sm);
-	color: var(--bs-secondary-color);
-	margin-bottom: var(--space-4);
-}
+// Page header: .page-title, .page-subtitle from global _utilities.scss
 
 // ── Group sections ──
 

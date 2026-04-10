@@ -132,7 +132,7 @@
                 }
                 <span class="node-badges ms-auto">
                   @if (!node.active) {
-                    <span class="badge bg-danger-subtle text-danger-emphasis">Inactive</span>
+                    <span class="active-badge active-no">Inactive</span>
                   }
                   @if (node.level < 3) {
                     <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount | number }}</span>
@@ -187,7 +187,7 @@
               }
               <span class="node-badges ms-auto">
                 @if (!node.active) {
-                  <span class="badge bg-danger-subtle text-danger-emphasis">Inactive</span>
+                  <span class="active-badge active-no">Inactive</span>
                 }
                 @if (node.level < 3) {
                   <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount | number }}</span>
