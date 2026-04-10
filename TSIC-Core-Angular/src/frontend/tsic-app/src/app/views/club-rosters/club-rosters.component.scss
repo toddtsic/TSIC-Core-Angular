@@ -12,48 +12,52 @@
     h2 { margin: 0; }
 }
 
-.team-selector {
-    max-width: 400px;
-    margin-bottom: var(--space-4);
+// ── Team Selector ──
+
+.team-selector-card {
+    max-width: 420px;
+    margin-bottom: var(--space-6);
+
+    .field-label {
+        margin-bottom: var(--space-2);
+    }
 }
 
-.action-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    margin-bottom: var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
-    background: rgba(var(--bs-primary-rgb), 0.04);
-}
+// ── Player name link ──
 
-.selection-count {
-    font-weight: var(--font-weight-semibold);
+.player-link {
     color: var(--bs-primary);
-    font-size: var(--font-size-sm);
+    text-decoration: none;
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+
+    &:hover {
+        text-decoration: underline;
+        color: color-mix(in srgb, var(--bs-primary) 80%, black);
+    }
 }
 
-.toolbar-actions {
+// ── Move bar ──
+
+.move-bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
-}
+    padding: var(--space-3);
+    margin-top: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+    background: rgba(var(--bs-primary-rgb), 0.04);
 
-.toolbar-divider {
-    width: 1px;
-    height: 1.5rem;
-    background: var(--border-color);
-
-    @media (max-width: 575.98px) {
-        display: none;
+    &__label {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
     }
 }
 
 .field-select-inline {
-    min-width: 200px;
+    min-width: 220px;
     padding: var(--space-1) var(--space-2);
     font-size: var(--font-size-sm);
 }

@@ -124,7 +124,15 @@ export class ClientMenuComponent {
         const url = this.currentUrl();
         return item.children.some(child => {
             const link = child.routerLink?.split('?')[0].replace(/^\/+/, '').toLowerCase();
-            return !!link && url.includes(link);
+            if (!link) return false;
+            // Match against URL segments to avoid substring collisions
+            // e.g. "rosters" should not match "club-rosters"
+            const segments = url.split('/').filter(Boolean);
+            const linkSegments = link.split('/').filter(Boolean);
+            // Check if the URL ends with the link segments (path-suffix match)
+            if (linkSegments.length > segments.length) return false;
+            const tail = segments.slice(segments.length - linkSegments.length);
+            return tail.every((seg, i) => seg === linkSegments[i]);
         });
     }
 

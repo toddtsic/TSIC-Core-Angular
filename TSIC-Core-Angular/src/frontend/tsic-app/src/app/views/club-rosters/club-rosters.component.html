@@ -34,7 +34,7 @@
 @if (!isLoading() && teams().length > 0) {
 
     <!-- Team Selector -->
-    <div class="team-selector">
+    <div class="team-selector-card">
         <label class="field-label" for="teamSelect">Select Team</label>
         <select id="teamSelect" class="field-select" [value]="selectedTeamId()" (change)="onTeamChange($event)">
             @for (team of teams(); track team.teamId) {
@@ -45,43 +45,6 @@
         </select>
     </div>
 
-    <!-- Action Toolbar -->
-    @if (hasSelection()) {
-        <div class="action-toolbar">
-            <span class="selection-count">{{ selectedCount() }} selected</span>
-
-            <div class="toolbar-actions">
-                <!-- Move -->
-                <label class="field-label mb-0" for="moveTarget">Move to:</label>
-                <select id="moveTarget" class="field-select field-select-inline"
-                        [value]="moveTargetTeamId() ?? ''"
-                        (change)="onMoveTargetChange($event)">
-                    <option value="">— select team —</option>
-                    @for (team of otherTeams(); track team.teamId) {
-                        <option [value]="team.teamId">
-                            {{ team.agegroupName }} — {{ team.teamName }}
-                        </option>
-                    }
-                </select>
-                <button class="btn btn-primary btn-sm"
-                        [disabled]="!moveTargetTeamId() || isMutating()"
-                        (click)="movePlayers()">
-                    @if (isMutating()) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                    }
-                    <i class="bi bi-arrow-right-circle me-1"></i>Move
-                </button>
-
-                <span class="toolbar-divider"></span>
-
-                <!-- Delete -->
-                <button class="btn btn-outline-danger btn-sm" [disabled]="isMutating()" (click)="confirmDelete()">
-                    <i class="bi bi-trash me-1"></i>Delete
-                </button>
-            </div>
-        </div>
-    }
-
     <!-- Roster Loading -->
     @if (isLoadingRoster()) {
         <div class="text-center py-4">
@@ -91,22 +54,17 @@
 
     <!-- Roster Grid -->
     @if (!isLoadingRoster() && roster().length > 0) {
-        <ejs-grid #rosterGrid
-                  [dataSource]="roster()"
+        <ejs-grid [dataSource]="roster()"
                   [allowSorting]="true"
-                  [selectionSettings]="selectionSettings"
                   [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
-                  cssClass="tsic-grid-tight"
-                  (rowSelected)="onRowSelected()"
-                  (rowDeselected)="onRowDeselected()">
+                  cssClass="tsic-grid-tight">
             <e-columns>
-                <e-column type="checkbox" width="50"></e-column>
-                <e-column field="playerName" headerText="Player" minWidth="180">
+                <e-column field="playerName" headerText="Player" minWidth="200">
                     <ng-template #template let-data>
-                        <span class="fw-semibold">{{ data.playerName }}</span>
+                        <a class="player-link" href="javascript:void(0)">{{ data.playerName }}</a>
                     </ng-template>
                 </e-column>
-                <e-column field="isActive" headerText="Status" width="100" [allowSorting]="false">
+                <e-column field="isActive" headerText="Status" width="90" [allowSorting]="false">
                     <ng-template #template let-data>
                         @if (data.isActive) {
                             <span class="active-badge active-yes">Active</span>
@@ -115,8 +73,50 @@
                         }
                     </ng-template>
                 </e-column>
+                <e-column headerText="" width="80" [allowSorting]="false">
+                    <ng-template #template let-data>
+                        <div class="row-actions">
+                            <button class="action-btn" title="Move to another team"
+                                    [disabled]="isMutating()"
+                                    (click)="startMove(data)">
+                                <i class="bi bi-arrow-right-circle"></i>
+                            </button>
+                            <button class="action-btn action-btn-danger" title="Delete registration"
+                                    [disabled]="isMutating()"
+                                    (click)="startDelete(data)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </ng-template>
+                </e-column>
             </e-columns>
         </ejs-grid>
+
+        <!-- Inline move bar (appears under grid when moving a player) -->
+        @if (movePlayerId()) {
+            <div class="move-bar">
+                <span class="move-bar__label">
+                    Moving <strong>{{ movePlayerName() }}</strong> to:
+                </span>
+                <select class="field-select field-select-inline"
+                        [value]="moveTargetTeamId() ?? ''"
+                        (change)="onMoveTargetChange($event)">
+                    <option value="">— select team —</option>
+                    @for (team of otherTeams(); track team.teamId) {
+                        <option [value]="team.teamId">{{ team.agegroupName }} — {{ team.teamName }}</option>
+                    }
+                </select>
+                <button class="btn btn-primary btn-sm"
+                        [disabled]="!moveTargetTeamId() || isMutating()"
+                        (click)="confirmMove()">
+                    @if (isMutating()) {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Move
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
+            </div>
+        }
     }
 
     <!-- Empty roster -->
@@ -129,10 +129,10 @@
 }
 
 <!-- Delete Confirmation -->
-@if (showDeleteConfirm()) {
+@if (deleteTarget()) {
     <confirm-dialog
-        title="Delete Registrations"
-        [message]="'Are you sure you want to delete ' + selectedCount() + ' registration(s)? This cannot be undone.'"
+        title="Delete Registration"
+        [message]="'Delete <strong>' + deleteTarget()!.playerName + '</strong> from this team? This cannot be undone.'"
         confirmLabel="Delete"
         confirmVariant="danger"
         (confirmed)="onDeleteConfirmed()"

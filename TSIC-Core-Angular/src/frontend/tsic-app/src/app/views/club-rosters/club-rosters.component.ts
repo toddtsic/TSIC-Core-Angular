@@ -1,5 +1,5 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, ViewChild } from '@angular/core';
-import { GridAllModule, GridComponent, SelectionSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { ClubRosterService } from './club-rosters.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -18,13 +18,10 @@ export class ClubRostersComponent implements OnInit {
     private readonly rosterService = inject(ClubRosterService);
     private readonly toast = inject(ToastService);
 
-    @ViewChild('rosterGrid') grid!: GridComponent;
-
     // Data
     readonly teams = signal<ClubRosterTeamDto[]>([]);
     readonly selectedTeamId = signal<string | null>(null);
     readonly roster = signal<ClubRosterPlayerDto[]>([]);
-    readonly selectedRegIds = signal<Set<string>>(new Set());
 
     // UI state
     readonly isLoading = signal(false);
@@ -32,14 +29,12 @@ export class ClubRostersComponent implements OnInit {
     readonly isMutating = signal(false);
     readonly errorMessage = signal<string | null>(null);
 
-    // Move target
+    // Per-row move state
+    readonly movePlayerId = signal<string | null>(null);
     readonly moveTargetTeamId = signal<string | null>(null);
 
-    // Confirm dialog
-    readonly showDeleteConfirm = signal(false);
-
-    // Grid config
-    readonly selectionSettings: SelectionSettingsModel = { type: 'Multiple', checkboxOnly: true };
+    // Per-row delete state
+    readonly deleteTarget = signal<ClubRosterPlayerDto | null>(null);
 
     // Computed
     readonly selectedTeam = computed(() => {
@@ -52,8 +47,11 @@ export class ClubRostersComponent implements OnInit {
         return this.teams().filter(t => t.teamId !== id);
     });
 
-    readonly hasSelection = computed(() => this.selectedRegIds().size > 0);
-    readonly selectedCount = computed(() => this.selectedRegIds().size);
+    readonly movePlayerName = computed(() => {
+        const id = this.movePlayerId();
+        if (!id) return '';
+        return this.roster().find(r => r.registrationId === id)?.playerName ?? '';
+    });
 
     ngOnInit(): void {
         this.loadTeams();
@@ -80,16 +78,13 @@ export class ClubRostersComponent implements OnInit {
 
     selectTeam(teamId: string): void {
         this.selectedTeamId.set(teamId);
-        this.selectedRegIds.set(new Set());
-        this.moveTargetTeamId.set(null);
+        this.cancelMove();
         this.loadRoster(teamId);
     }
 
     onTeamChange(event: Event): void {
         const select = event.target as HTMLSelectElement;
-        if (select.value) {
-            this.selectTeam(select.value);
-        }
+        if (select.value) this.selectTeam(select.value);
     }
 
     private loadRoster(teamId: string): void {
@@ -106,39 +101,40 @@ export class ClubRostersComponent implements OnInit {
         });
     }
 
-    onRowSelected(): void {
-        this.syncSelection();
+    // ── Move ──
+
+    startMove(player: ClubRosterPlayerDto): void {
+        this.movePlayerId.set(player.registrationId);
+        this.moveTargetTeamId.set(null);
     }
 
-    onRowDeselected(): void {
-        this.syncSelection();
+    cancelMove(): void {
+        this.movePlayerId.set(null);
+        this.moveTargetTeamId.set(null);
     }
 
-    private syncSelection(): void {
-        if (!this.grid) return;
-        const selected = this.grid.getSelectedRecords() as ClubRosterPlayerDto[];
-        this.selectedRegIds.set(new Set(selected.map(r => r.registrationId)));
+    isMoving(regId: string): boolean {
+        return this.movePlayerId() === regId;
     }
 
     onMoveTargetChange(event: Event): void {
-        const select = event.target as HTMLSelectElement;
-        this.moveTargetTeamId.set(select.value || null);
+        this.moveTargetTeamId.set((event.target as HTMLSelectElement).value || null);
     }
 
-    movePlayers(): void {
+    confirmMove(): void {
+        const playerId = this.movePlayerId();
         const target = this.moveTargetTeamId();
-        if (!target || this.selectedRegIds().size === 0) return;
+        if (!playerId || !target) return;
 
         this.isMutating.set(true);
         this.rosterService.movePlayers({
-            registrationIds: Array.from(this.selectedRegIds()),
+            registrationIds: [playerId],
             targetTeamId: target
         }).subscribe({
             next: (result) => {
                 this.isMutating.set(false);
                 this.toast.show(result.message, 'success');
-                this.selectedRegIds.set(new Set());
-                this.moveTargetTeamId.set(null);
+                this.cancelMove();
                 this.refreshAfterMutation();
             },
             error: (err) => {
@@ -148,22 +144,25 @@ export class ClubRostersComponent implements OnInit {
         });
     }
 
-    confirmDelete(): void {
-        if (this.selectedRegIds().size === 0) return;
-        this.showDeleteConfirm.set(true);
+    // ── Delete ──
+
+    startDelete(player: ClubRosterPlayerDto): void {
+        this.deleteTarget.set(player);
     }
 
     onDeleteConfirmed(): void {
-        this.showDeleteConfirm.set(false);
+        const player = this.deleteTarget();
+        if (!player) return;
+
+        this.deleteTarget.set(null);
         this.isMutating.set(true);
 
         this.rosterService.deletePlayers({
-            registrationIds: Array.from(this.selectedRegIds())
+            registrationIds: [player.registrationId]
         }).subscribe({
             next: (result) => {
                 this.isMutating.set(false);
                 this.toast.show(result.message, 'success');
-                this.selectedRegIds.set(new Set());
                 this.refreshAfterMutation();
             },
             error: (err) => {
@@ -174,7 +173,7 @@ export class ClubRostersComponent implements OnInit {
     }
 
     onDeleteCancelled(): void {
-        this.showDeleteConfirm.set(false);
+        this.deleteTarget.set(null);
     }
 
     private refreshAfterMutation(): void {
