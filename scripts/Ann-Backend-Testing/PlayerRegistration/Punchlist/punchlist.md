@@ -74,7 +74,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Header to say "Create Family Account" to match the action
 - **What happened**: Header just says "Family Account" — should be clearer for new parents that they're creating one
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — credentials step heading changed to "Create Family Account"
 
 ### PL-005: Family Account card is a DEAD END — no Previous or Next button
 - **Area**: Family Account Setup
@@ -91,7 +91,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Family Account info to be prominent since it's key context for the registration
 - **What happened**: Family Account not highlighted enough — consider making it more visible
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Re-review — significant updates since this was logged (header now says "Family Account Sign In", wizard-tip styling, etc.). May already be addressed.
 
 ### PL-007: "Choose Your Players" screen — add Previous/Next buttons at bottom
 - **Area**: Registration Process Review
@@ -99,7 +99,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Previous and Next buttons at the bottom to navigate between wizard screens
 - **What happened**: No navigation buttons at the bottom of the screen
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — WizardShellComponent provides Back/Continue on all steps
 
 ### PL-008: "Already registered? Locked in" — can this be removed?
 - **Area**: Registration Process Review
@@ -107,7 +107,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Cleaner screen without unnecessary messaging
 - **What happened**: Not clear if this message is needed — consider removing it
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — "Already registered? Locked in" removed from hint row
 
 ### PL-009: Change "Edit details anytime" to "Edit player details"
 - **Area**: Registration Process Review
@@ -115,7 +115,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clearer label specifying what details
 - **What happened**: Label is vague — should say "Edit player details" to be specific
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — changed to "Edit player details"
 
 ### PL-010: No Next button after selecting two players
 - **Area**: Registration Process Review
@@ -132,7 +132,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear spacing or divider between the card content and the bottom button
 - **What happened**: Continue button sits too close to the card above — needs separation
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — already addressed
 
 ### PL-012: Remove arrow icon from Continue buttons
 - **Area**: Registration Process Review
@@ -140,7 +140,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clean button with just the text "Continue"
 - **What happened**: Both Continue buttons have an arrow that isn't needed
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — bottom action bar now uses Bootstrap chevron icons matching the top bar
 
 ### PL-013: Standardize "Next" vs "Continue" wording across all registration processes
 - **Area**: Registration Process Review
@@ -148,7 +148,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent wording throughout all registration flows
 - **What happened**: Need to confirm whether we're using "Next" or "Continue" everywhere and standardize
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — "Continue" is the standard. WizardShellComponent defaults to "Continue" across all wizards.
 
 ### PL-014: Add Back/Previous button on Choose Your Players screen
 - **Area**: Registration Process Review
@@ -156,7 +156,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Back or Previous button to return to the prior step
 - **What happened**: No way to go back — only a Continue button forward
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — WizardShellComponent provides Back on all steps
 
 ### PL-015: Add trash can icon next to pencil icon to delete players on Choose Your Players card
 - **Area**: Registration Process Review
@@ -164,7 +164,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A delete (trash can) icon next to the edit (pencil) icon for each player
 - **What happened**: Only a pencil icon is available — no way to delete a player from the list
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — trash icon already present next to pencil on each player row
 
 ### PL-016: Set Player Graduation Year — Back and Continue buttons need stronger hover/selected contrast
 - **Area**: Registration Process Review
@@ -172,7 +172,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear visual feedback with strong color contrast on hover and selected states
 - **What happened**: Buttons don't change enough visually when hovered or selected — hard to tell they're interactive
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — already addressed
 
 ### PL-017: Assign Teams — remove "Capacity shown in dropdown" text
 - **Area**: Registration Process Review
@@ -180,7 +180,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clean screen without unnecessary instructional text
 - **What happened**: Text says "Capacity shown in dropdown" — this is obvious from the dropdown itself and should be removed
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix — capacity info is important for parents choosing teams
 
 ### PL-018: Assign Teams — use same white background card style as Graduation Year screen
 - **Area**: Registration Process Review

@@ -483,6 +483,7 @@ public record RegistrationBasicInfo
 {
     public string? ClubName { get; init; }
     public required Guid JobId { get; init; }
+    public bool BWaiverSigned3 { get; init; }
 }
 
 public record ClubRepFinancialTotals

@@ -15,7 +15,7 @@ import { FamilyStateService } from '../state/family-state.service';
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
-        <h5 class="mb-1 fw-semibold">Family Account</h5>
+        <h5 class="mb-1 fw-semibold">Create Family Account</h5>
         <p class="wizard-tip">New here? Choose a username and password. Already have an account? Enter your existing credentials.</p>
 
         @if (validationError()) {

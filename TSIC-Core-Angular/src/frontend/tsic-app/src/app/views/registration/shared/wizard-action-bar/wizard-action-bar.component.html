@@ -3,7 +3,7 @@
         <!-- Back Button (left) -->
         @if (canBack()) {
         <button type="button" class="btn btn-back" (click)="back.emit()" aria-label="Go back to previous step">
-            <span class="back-icon" aria-hidden="true">←</span>
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
             <span class="back-label">Back</span>
         </button>
         }
@@ -23,7 +23,7 @@
             <span class="continue-label-full d-none d-sm-inline">{{ continueLabel() }}</span>
             <!-- Mobile label (short version without "Proceed to ") -->
             <span class="continue-label-short d-sm-none">{{ continueLabelShort() }}</span>
-            <span class="forward-icon" aria-hidden="true">→</span>
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
         </button>
         }
     </div>

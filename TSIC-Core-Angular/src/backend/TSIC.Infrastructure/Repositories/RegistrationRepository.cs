@@ -655,7 +655,8 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(r => new RegistrationBasicInfo
             {
                 ClubName = r.ClubName,
-                JobId = r.JobId
+                JobId = r.JobId,
+                BWaiverSigned3 = r.BWaiverSigned3
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

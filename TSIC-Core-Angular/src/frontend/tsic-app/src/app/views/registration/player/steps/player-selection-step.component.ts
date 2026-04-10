@@ -24,9 +24,7 @@ import { environment } from '@environments/environment';
       <p class="welcome-desc">
         <i class="bi bi-check-square me-1"></i>Check players to register
         <span class="desc-dot"></span>
-        <i class="bi bi-pencil me-1"></i>Edit details anytime
-        <span class="desc-dot"></span>
-        <i class="bi bi-lock me-1"></i>Already registered? Locked in
+        <i class="bi bi-pencil me-1"></i>Edit player details
       </p>
     </div>
 

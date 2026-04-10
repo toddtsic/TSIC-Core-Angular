@@ -262,7 +262,20 @@ export class TeamWizardV2Component implements OnInit {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    this._currentIndex.set(1); // advance to teams step
+                    // Pre-fetch metadata to seed waiver state before step navigation.
+                    // If the club rep already signed, waivers step will be skipped.
+                    this.teamReg.getTeamsMetadata().pipe(takeUntilDestroyed(this.destroyRef))
+                        .subscribe({
+                            next: (meta) => {
+                                if (meta.bWaiverSigned3) {
+                                    this.state.setWaiverAccepted(true);
+                                }
+                                this._currentIndex.set(1); // advance past login
+                            },
+                            error: () => {
+                                this._currentIndex.set(1); // advance anyway, teams step will load metadata
+                            },
+                        });
                 },
                 error: () => {
                     // Interceptor safety net handles the toast.

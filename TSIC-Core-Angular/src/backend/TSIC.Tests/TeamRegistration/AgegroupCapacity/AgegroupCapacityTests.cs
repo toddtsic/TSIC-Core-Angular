@@ -88,19 +88,26 @@ public class AgegroupCapacityTests
         result.IsWaitlisted.Should().BeFalse();
     }
 
-    [Fact(DisplayName = "Placement: at capacity (16/16), no waitlists → throws")]
-    public async Task Placement_AtCapacity_NoWaitlists_Throws()
+    [Fact(DisplayName = "Placement: at capacity (16/16), BUseWaitlists OFF → still creates waitlist (teams always waitlist)")]
+    public async Task Placement_AtCapacity_NoWaitlistFlag_StillCreatesWaitlist()
     {
-        // Arrange — 16 teams registered, max is 16, waitlists OFF
-        var (svc, _, _, _, teamRepo, jobId, ag) = await CreateServiceAsync(maxTeams: 16, usesWaitlists: false);
+        // Arrange — 16 teams registered, max is 16, BUseWaitlists OFF
+        // Team registration always auto-creates waitlists regardless of BUseWaitlists
+        // (that flag is player-registration-only)
+        var (svc, _, ctx, _, teamRepo, jobId, ag) = await CreateServiceAsync(maxTeams: 16, usesWaitlists: false);
         teamRepo
             .Setup(t => t.GetRegisteredCountForAgegroupAsync(jobId, ag.AgegroupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(16);
 
-        // Act & Assert — should throw with a clear message
-        var act = () => svc.ResolvePlacementAsync(jobId, ag.AgegroupId, "Test Team");
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*age group is full*");
+        // Act
+        var result = await svc.ResolvePlacementAsync(jobId, ag.AgegroupId, "Test Team");
+
+        // Assert — redirected to waitlist, NOT rejected
+        result.IsWaitlisted.Should().BeTrue();
+        result.AgegroupId.Should().NotBe(ag.AgegroupId, "should be a new WAITLIST agegroup");
+
+        var allAgegroups = await ctx.Agegroups.ToListAsync();
+        allAgegroups.Should().HaveCount(2, "original + WAITLIST mirror");
     }
 
     [Fact(DisplayName = "Placement: at capacity (16/16), waitlists ON → creates WAITLIST agegroup")]

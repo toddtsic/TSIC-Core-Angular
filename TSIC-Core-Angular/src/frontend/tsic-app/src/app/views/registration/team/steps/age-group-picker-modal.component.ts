@@ -66,6 +66,7 @@ export interface AgeGroupSelection {
                         [class.is-full]="ag.isFull"
                         [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
                         [class.is-flashing]="flashingId() === ag.ageGroupId"
+                        [disabled]="lopRequired()"
                         [attr.aria-checked]="ag.ageGroupId === currentAgeGroupId"
                         [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
                         (click)="onPillClick(ag.ageGroupId)">
@@ -237,7 +238,7 @@ export interface AgeGroupSelection {
         transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
         transform-style: preserve-3d;
 
-        &:hover:not(:disabled):not(.is-full) {
+        &:hover:not(:disabled) {
           border-color: var(--bs-primary);
           background: rgba(var(--bs-primary-rgb), 0.06);
           box-shadow: var(--shadow-sm);
@@ -249,7 +250,7 @@ export interface AgeGroupSelection {
           box-shadow: var(--shadow-focus);
         }
 
-        &:active:not(:disabled):not(.is-full) {
+        &:active:not(:disabled) {
           transform: scale(0.97);
         }
 
@@ -264,8 +265,13 @@ export interface AgeGroupSelection {
         }
 
         &.is-full {
-          opacity: 0.4;
-          cursor: default;
+          border-color: rgba(var(--bs-warning-rgb), 0.4);
+          background: rgba(var(--bs-warning-rgb), 0.04);
+        }
+
+        &:hover:not(:disabled).is-full {
+          border-color: var(--bs-warning);
+          background: rgba(var(--bs-warning-rgb), 0.1);
         }
 
         &.is-almost-full .pill-spots {
@@ -394,6 +400,8 @@ export class AgeGroupPickerModalComponent implements OnInit {
     readonly closed = output<void>();
     readonly flashingId = signal<string | null>(null);
     readonly selectedLop = signal('');
+    /** True when LOP options exist but none selected — blocks age group pills */
+    readonly lopRequired = computed(() => this.lopOptions.length > 0 && !this.selectedLop());
 
     readonly pills = computed(() => {
         const recommended = this.bestMatch();
@@ -414,13 +422,17 @@ export class AgeGroupPickerModalComponent implements OnInit {
     readonly hasRecommended = computed(() => this.pills().some(p => p.isRecommended));
 
     ngOnInit(): void {
-        // Default LOP to current team's LOP, or first option, or empty
-        this.selectedLop.set(
-            this.levelOfPlay || this.lopOptions[0] || ''
-        );
+        // Default LOP to current team's existing LOP only — do NOT auto-select first option.
+        // If no LOP set, user must explicitly choose before selecting an age group.
+        this.selectedLop.set(this.levelOfPlay || '');
     }
 
     onPillClick(ageGroupId: string): void {
+        // Block if LOP options exist but none selected
+        if (this.lopOptions.length > 0 && !this.selectedLop()) {
+            return;
+        }
+
         // Same age group and same LOP — just close
         if (ageGroupId === this.currentAgeGroupId && this.selectedLop() === this.levelOfPlay) {
             this.closed.emit();

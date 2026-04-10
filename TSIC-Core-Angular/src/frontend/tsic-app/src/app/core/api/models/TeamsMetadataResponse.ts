@@ -26,5 +26,6 @@ export type TeamsMetadataResponse = {
     mailTo?: string | null;
     mailinPaymentWarning?: string | null;
     lopOptions: Array<string>;
+    bWaiverSigned3: boolean;
 };
 

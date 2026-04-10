@@ -394,6 +394,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             MailTo = job.MailTo,
             MailinPaymentWarning = job.MailinPaymentWarning,
             LopOptions = lopOptions,
+            BWaiverSigned3 = registration.BWaiverSigned3,
         };
     }
 
@@ -674,6 +675,14 @@ public class TeamRegistrationService : ITeamRegistrationService
                 Message = ex.Message,
                 IsWaitlisted = false
             };
+        }
+
+        // Waitlisted teams have zero fees — fees apply when promoted to the real agegroup
+        if (placement.IsWaitlisted)
+        {
+            feeBase = 0;
+            feeProcessing = 0;
+            modifiers = new ResolvedModifiers(); // zero discount/late fee
         }
 
         // Create team registration

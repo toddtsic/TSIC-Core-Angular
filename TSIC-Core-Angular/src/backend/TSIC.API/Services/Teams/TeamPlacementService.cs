@@ -66,12 +66,9 @@ public class TeamPlacementService : ITeamPlacementService
             };
         }
 
-        // Agegroup is full — check if job uses waitlists
-        var usesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId, cancellationToken);
-        if (!usesWaitlists)
-        {
-            throw new InvalidOperationException("This age group is full");
-        }
+        // Agegroup is full — auto-create waitlist mirror.
+        // Team registration always supports waitlists (driven by MaxTeams per agegroup).
+        // BUseWaitlists is a player-registration-only flag and is NOT checked here.
 
         // Find-or-create WAITLIST mirror agegroup
         var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";

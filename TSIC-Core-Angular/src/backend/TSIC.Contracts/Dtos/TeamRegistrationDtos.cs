@@ -95,6 +95,7 @@ public sealed record TeamsMetadataResponse
     public string? MailTo { get; init; }
     public string? MailinPaymentWarning { get; init; }
     public required List<string> LopOptions { get; init; }
+    public required bool BWaiverSigned3 { get; init; }
 }
 
 public sealed record ClubTeamDto
