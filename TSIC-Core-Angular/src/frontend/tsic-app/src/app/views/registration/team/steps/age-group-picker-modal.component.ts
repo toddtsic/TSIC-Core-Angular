@@ -24,19 +24,11 @@ export interface AgeGroupSelection {
         <!-- Hero banner -->
         <div class="picker-hero">
           <div class="picker-hero-inner">
-            <i class="bi bi-people-fill picker-hero-icon"></i>
-            <h5 class="picker-team-name">{{ teamName }}</h5>
+            <h5 class="picker-team-name">Register <span class="team-badge"><i class="bi bi-people-fill"></i> {{ teamName }}</span></h5>
+            @if (eventName) {
+              <p class="picker-event-name">{{ eventName }}</p>
+            }
           </div>
-          <p class="picker-tip">
-            @if (currentAgeGroupId) {
-              Tap to change age group
-            } @else {
-              Pick an age group below
-            }
-            @if (hasRecommended()) {
-              <span class="picker-legend-inline"><i class="bi bi-star-fill"></i> = best match</span>
-            }
-          </p>
         </div>
 
         <!-- LOP selector (only when event defines LOP options) -->
@@ -52,11 +44,26 @@ export interface AgeGroupSelection {
                 </button>
               }
             </div>
+            @if (lopRequired()) {
+              <p class="wizard-tip" style="text-align: center; margin-top: var(--space-3)">Select your team's level of play to see available age groups.</p>
+            }
           </div>
         }
 
-        <!-- Age group pills -->
+        <!-- Age group pills — hidden until LOP selected -->
         <div class="picker-body">
+          @if (!lopRequired()) {
+          <label class="lop-label" style="text-align: center">Age Group</label>
+          <p class="wizard-tip" style="text-align: center; margin-bottom: var(--space-3)">
+            @if (currentAgeGroupId) {
+              Tap a card to change age group.
+            } @else {
+              Tap a card to register for that age group.
+            }
+            @if (hasRecommended()) {
+              <span class="picker-legend-inline"><i class="bi bi-star-fill"></i> = best match for this team</span>
+            }
+          </p>
           <div class="picker-pill-grid" role="radiogroup" [attr.aria-label]="'Age groups for ' + teamName">
             @for (ag of pills(); track ag.ageGroupId; let i = $index) {
               <div class="pill-flip-wrapper" [style.animation-delay]="(200 + (i * 60)) + 'ms'">
@@ -66,7 +73,6 @@ export interface AgeGroupSelection {
                         [class.is-full]="ag.isFull"
                         [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
                         [class.is-flashing]="flashingId() === ag.ageGroupId"
-                        [disabled]="lopRequired()"
                         [attr.aria-checked]="ag.ageGroupId === currentAgeGroupId"
                         [attr.aria-label]="ag.ageGroupName + ' — ' + (ag.fee | currency) + ' — ' + (ag.isFull ? 'Waitlist' : ag.spotsLeft + ' spots left')"
                         (click)="onPillClick(ag.ageGroupId)">
@@ -91,6 +97,7 @@ export interface AgeGroupSelection {
               </div>
             }
           </div>
+          }
         </div>
 
       </div>
@@ -108,10 +115,10 @@ export interface AgeGroupSelection {
 
       .picker-hero-inner {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: var(--space-2);
-        flex-wrap: wrap;
+        gap: var(--space-1);
       }
 
       .picker-hero-icon {
@@ -121,7 +128,27 @@ export interface AgeGroupSelection {
 
       .picker-team-name {
         margin: 0;
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+      }
+
+      .team-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: var(--space-1) var(--space-3);
+        background: rgba(var(--bs-primary-rgb), 0.15);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-bold);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-base);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
+      }
+
+      .picker-event-name {
+        margin: var(--space-1) 0 0;
+        font-size: var(--font-size-base);
         font-weight: var(--font-weight-bold);
         color: var(--brand-text);
       }
@@ -158,8 +185,9 @@ export interface AgeGroupSelection {
 
       /* ── LOP Selector ── */
       .lop-selector {
-        padding: var(--space-3) var(--space-4) 0;
+        padding: var(--space-3) var(--space-4) var(--space-2);
         background: var(--bs-body-bg);
+        text-align: center;
       }
 
       .lop-label {
@@ -176,6 +204,7 @@ export interface AgeGroupSelection {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-1);
+        justify-content: center;
       }
 
       .lop-pill {
@@ -390,6 +419,7 @@ export interface AgeGroupSelection {
 })
 export class AgeGroupPickerModalComponent implements OnInit {
     @Input() teamName = '';
+    @Input() eventName = '';
     @Input() gradYear = '';
     @Input() levelOfPlay = '';
     @Input() currentAgeGroupId = '';
@@ -425,9 +455,9 @@ export class AgeGroupPickerModalComponent implements OnInit {
     readonly hasRecommended = computed(() => this.pills().some(p => p.isRecommended));
 
     ngOnInit(): void {
-        // Default LOP to current team's existing LOP only — do NOT auto-select first option.
-        // If no LOP set, user must explicitly choose before selecting an age group.
-        this.selectedLop.set(this.levelOfPlay || '');
+        // LOP always starts empty — library LOP is irrelevant for event registration.
+        // Club rep must explicitly choose LOP for each event.
+        this.selectedLop.set('');
     }
 
     onPillClick(ageGroupId: string): void {

@@ -164,6 +164,7 @@ interface AgePickerTeam {
     @if (agePickerTeam(); as pickerTeam) {
       <app-age-group-picker-modal
         [teamName]="pickerTeam.clubTeamName"
+        [eventName]="jobName()"
         [gradYear]="pickerTeam.gradYear"
         [levelOfPlay]="pickerTeam.levelOfPlay"
         [currentAgeGroupId]="pickerTeam.currentAgeGroupId ?? ''"
