@@ -2,6 +2,7 @@ import { Injectable, inject, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom, Observable, tap } from 'rxjs';
+import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { getPropertyCI, pickStringCI } from '@views/registration/shared/utils/property-utils';
 import type {
@@ -130,6 +131,7 @@ export class FamilyPlayersService {
         return this.http.post<AuthTokenResponse>(
             `${apiBase}/player-registration/set-wizard-context`,
             { jobPath },
+            { context: skipErrorToast() },
         ).pipe(
             tap(response => {
                 if (response.accessToken) this.auth.applyNewToken(response.accessToken);

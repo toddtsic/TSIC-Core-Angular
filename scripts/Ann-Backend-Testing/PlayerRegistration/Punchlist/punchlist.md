@@ -50,7 +50,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clear "Login" button (not a people icon dropdown), no Palette option visible, and an option to create a new family account for first-time parents
 - **What happened**: Shows a people icon with dropdown and Palette option — not intuitive for new parents who don't have an account yet
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Future — header bar chrome, not player registration specific
 
 ### PL-002: Customer/job icon at top should navigate to job home screen
 - **Area**: Family Account Setup
@@ -58,7 +58,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Navigate to the home screen for that job
 - **What happened**: Doesn't bring me to the job home screen
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Future — header bar chrome, not player registration specific
 
 ### PL-003: Navigation for new families — bulletins/text need work
 - **Area**: Family Account Setup
@@ -66,7 +66,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear, helpful bulletins and text guiding new families
 - **What happened**: Bulletins and text content need work — more details to follow
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Future — bulletin content/nav, not player registration specific
 
 ### PL-004: "Family Account" header should say "Create Family Account" for new registrations
 - **Area**: Family Account Setup
