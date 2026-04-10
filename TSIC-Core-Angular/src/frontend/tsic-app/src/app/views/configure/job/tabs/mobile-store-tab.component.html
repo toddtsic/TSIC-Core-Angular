@@ -3,25 +3,20 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-phone me-2"></i>Mobile Features</h6>
 
-      <div class="d-flex align-items-center gap-3 p-3 rounded-2 mb-3"
-           [style.background]="tsicEventsEnabled() ? 'rgba(var(--bs-success-rgb), 0.1)' : 'rgba(var(--bs-danger-rgb), 0.1)'"
-           [style.border]="'1px solid ' + (tsicEventsEnabled() ? 'rgba(var(--bs-success-rgb), 0.3)' : 'rgba(var(--bs-danger-rgb), 0.3)')">
-        <div class="form-check form-switch mb-0">
-          <input type="checkbox" class="form-check-input" id="bTsicEventsEnabled" role="switch"
+      <div class="toggle-row" [class.is-on]="tsicEventsEnabled()" [class.is-off]="!tsicEventsEnabled()">
+        <label class="toggle-control">
+          <input type="checkbox"
             [ngModel]="tsicEventsEnabled()"
             (ngModelChange)="tsicEventsEnabled.set($event); onFieldChange()" />
-          <label class="field-label" for="bTsicEventsEnabled">
-            <i class="bi me-1" [ngClass]="tsicEventsEnabled() ? 'bi-phone' : 'bi-phone-x'"></i>
-            TSIC-Events Enabled
-          </label>
-        </div>
-        <small class="text-secondary">
+          <span class="field-label">TSIC-Events Enabled</span>
+        </label>
+        <span class="toggle-tip">
           @if (tsicEventsEnabled()) {
             This event is visible in the TSIC-Events mobile app.
           } @else {
             This event is hidden from the TSIC-Events mobile app.
           }
-        </small>
+        </span>
       </div>
 
       <div class="field-check-row">

@@ -34,11 +34,12 @@
             <legend class="field-label">Processing Fee</legend>
             <div class="field-check-row">
               <div class="d-flex align-items-center gap-2">
-                <div class="form-check form-switch mb-0">
-                  <input type="checkbox" class="form-check-input" id="bAddFees" role="switch"
+                <label class="field-check">
+                  <input type="checkbox"
                     [ngModel]="bAddProcessingFees()"
                     (ngModelChange)="bAddProcessingFees.set($event); onFieldChange()" />
-                </div>
+                  <span class="field-label mb-0">Add Fee</span>
+                </label>
                 <input type="number" class="field-input" step="0.01" placeholder="%"
                   style="max-width: 70px"
                   [ngModel]="processingFeePercent()"

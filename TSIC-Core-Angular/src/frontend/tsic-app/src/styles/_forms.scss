@@ -145,6 +145,75 @@ select::placeholder,
     }
 }
 
+/* ── Toggle Row — toggle switch with contextual tip in a tinted banner ── */
+.toggle-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-2);
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+
+    /* Variant: enabled / success */
+    &.is-on {
+        background: rgba(var(--bs-success-rgb), 0.08);
+        border-color: rgba(var(--bs-success-rgb), 0.25);
+    }
+
+    /* Variant: disabled / danger */
+    &.is-off {
+        background: rgba(var(--bs-danger-rgb), 0.08);
+        border-color: rgba(var(--bs-danger-rgb), 0.25);
+    }
+
+    /* Variant: caution / warning (dependent toggles) */
+    &.is-warn {
+        background: rgba(var(--bs-warning-rgb), 0.08);
+        border-color: rgba(var(--bs-warning-rgb), 0.3);
+    }
+
+    /* Variant: neutral / muted (dependent toggle in off state) */
+    &.is-muted {
+        background: rgba(var(--bs-secondary-rgb), 0.06);
+        border-color: rgba(var(--bs-secondary-rgb), 0.15);
+    }
+
+    /* Modifier: parent toggle is off — dim the whole row */
+    &.is-disabled {
+        opacity: 0.5;
+    }
+}
+
+/* Checkbox + label line inside a toggle-row — flex-aligned like field-check */
+.toggle-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: 0;
+    cursor: pointer;
+
+    input[type="checkbox"] {
+        flex-shrink: 0;
+        margin: 0;
+    }
+
+    .field-label {
+        display: inline;
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+}
+
+/* Tip line inside a toggle-row — indented to align with label text past the checkbox */
+.toggle-tip {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    line-height: var(--line-height-normal);
+    padding-left: calc(13px + var(--space-2) + 2px); /* checkbox width + gap + optical nudge */
+}
+
 .field-error {
     font-size: 10px;
     color: var(--bs-danger);
