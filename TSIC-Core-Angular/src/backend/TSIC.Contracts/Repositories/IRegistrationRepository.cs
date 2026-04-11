@@ -179,6 +179,15 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get registrations for a family for specific players within a job (change-tracked for writes).
+    /// </summary>
+    Task<List<Registrations>> GetFamilyRegistrationsForPlayersTrackedAsync(
+        Guid jobId,
+        string familyUserId,
+        IReadOnlyCollection<string> playerIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registrations by job and family with User navigation included.
     /// </summary>
     Task<List<Registrations>> GetByJobAndFamilyWithUsersAsync(

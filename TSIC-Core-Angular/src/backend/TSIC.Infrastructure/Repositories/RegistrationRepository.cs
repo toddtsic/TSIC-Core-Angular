@@ -402,6 +402,18 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Registrations>> GetFamilyRegistrationsForPlayersTrackedAsync(
+        Guid jobId,
+        string familyUserId,
+        IReadOnlyCollection<string> playerIds,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId && r.FamilyUserId == familyUserId && r.UserId != null && playerIds.Contains(r.UserId))
+            .OrderByDescending(r => r.Modified)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<Registrations>> GetByJobAndFamilyWithUsersAsync(
         Guid jobId,
         string familyUserId,

@@ -292,7 +292,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Possibly a fee summary or accounting breakdown before the parent commits
 - **What happened**: No accounting or fee information shown — should parents see what they owe before continuing?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-032: Complete Payment — what is "Pay in Full" button for before Add Refund Protection?
 - **Area**: Registration Process Review
@@ -300,7 +300,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear understanding of what "Pay in Full" does at that point in the flow
 - **What happened**: Not clear why "Pay in Full" appears before the refund protection option — shouldn't the parent decide on refund protection first?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Removed badge-styled "Pay In Full" (looked like a clickable button). Now renders as plain muted text flush-right on the "Credit Card Information" heading line — clearly a status label, not an action.
 
 ### PL-033: Complete Payment — can't change Refund Protection choice after declining
 - **Area**: Registration Process Review
@@ -392,7 +393,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A page showing the currently rostered players
 - **What happened**: Screen shows a 404 error
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-044: Assign Teams dropdown on Players ARB site no longer shows cost per option
 - **Area**: Registration Process Review
@@ -424,7 +425,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A different screen for updating an existing account
 - **What happened**: Goes to the same place as "Create NEW Family Account" — these should lead to different flows
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — both paths use the same wizard flow, which detects existing accounts automatically.
 
 ### PL-064: Add "Don't have a family account yet?" above the Create New Family Account button
 - **Area**: Family Account Creation
@@ -440,7 +442,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Multi-team selection behavior appropriate for a CAC site
 - **What happened**: Site behaves like a single player option site, not a CAC site — needs to be updated to support CAC registration flow
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-062: Where is headshot uploaded when adding a player?
 - **Area**: Family Account Creation

@@ -29,11 +29,14 @@ export class TeamInsuranceService {
     private readonly _error = signal<string | null>(null);
     private readonly _widgetInitialized = signal(false);
     private readonly purchasing = signal(false);
+    private readonly _widgetEmpty = signal(false);
 
     readonly quotes = this._quotes.asReadonly();
     readonly hasUserResponse = this._hasUserResponse.asReadonly();
     readonly error = this._error.asReadonly();
     readonly widgetInitialized = this._widgetInitialized.asReadonly();
+    /** True when the widget initialized but VI had no offers (API error or no coverage). */
+    readonly widgetEmpty = this._widgetEmpty.asReadonly();
 
     offerEnabled = computed(() => this.insuranceState.offerTeamRegSaver());
     consented = computed(() => this.insuranceState.verticalInsureConfirmed());
@@ -58,41 +61,29 @@ export class TeamInsuranceService {
             const instance: VIWidgetInstance = new viWindow.VerticalInsure!(
                 hostSelector,
                 offerData,
+                // onStateChange — fires on user interaction (accept/decline quotes).
+                // Decision (confirm/decline) is determined at submit time from quotes array.
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this._hasUserResponse.set(valid);
-                        const quotes = st?.quotes || [];
-                        this._quotes.set(quotes);
-                        this._error.set(null);
-                        this._widgetInitialized.set(true);
-                        // Apply dark-mode styling after widget renders
+                        this._quotes.set(st?.quotes || []);
                         this.viDarkMode.applyViDarkMode(hostSelector);
-                        // Map widget state to decision signals
-                        if (valid) {
-                            if (quotes.length > 0) {
-                                this.insuranceState.confirmVerticalInsurePurchase(quotes);
-                            } else {
-                                this.insuranceState.declineVerticalInsurePurchase();
-                            }
-                        }
                     });
                 },
+                // onReady — fires once when the offer loads.
+                // offersAvailable = false means VI API error (bad data, no coverage, etc.)
                 (st: VIWidgetState) => {
-                    instance.validate().then((valid: boolean) => {
-                        this._hasUserResponse.set(valid);
-                        const quotes = st?.quotes || [];
-                        this._quotes.set(quotes);
-                        // Re-apply dark-mode on state changes (user interaction)
-                        this.viDarkMode.applyViDarkMode(hostSelector);
-                        // Update decision on subsequent changes
-                        if (valid) {
-                            if (quotes.length > 0) {
-                                this.insuranceState.confirmVerticalInsurePurchase(quotes);
-                            } else {
-                                this.insuranceState.declineVerticalInsurePurchase();
-                            }
-                        }
-                    });
+                    this._widgetInitialized.set(true);
+                    const offersAvailable = (st as Record<string, unknown>)?.['offersAvailable'];
+                    if (offersAvailable === false) {
+                        this._widgetEmpty.set(true);
+                        this._hasUserResponse.set(true);
+                        this._error.set('Team registration insurance is temporarily unavailable.');
+                    } else {
+                        this._widgetEmpty.set(false);
+                        this._error.set(null);
+                    }
+                    this.viDarkMode.applyViDarkMode(hostSelector);
                 }
             );
         } catch (e: unknown) {
@@ -192,6 +183,12 @@ export class TeamInsuranceService {
         this._error.set(null);
         this._widgetInitialized.set(false);
         this.purchasing.set(false);
+        this._widgetEmpty.set(false);
         this.viDarkMode.disconnect();
+    }
+
+    /** Allow the widget to be re-created (e.g. navigating back then forward). */
+    resetWidgetInit(): void {
+        this._widgetInitialized.set(false);
     }
 }

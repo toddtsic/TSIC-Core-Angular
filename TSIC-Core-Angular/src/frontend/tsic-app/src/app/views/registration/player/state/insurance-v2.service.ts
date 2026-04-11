@@ -40,11 +40,14 @@ export class InsuranceV2Service {
     private readonly _error = signal<string | null>(null);
     private readonly _widgetInitialized = signal(false);
     private readonly purchasing = signal(false);
+    private readonly _widgetEmpty = signal(false);
 
     readonly quotes = this._quotes.asReadonly();
     readonly hasUserResponse = this._hasUserResponse.asReadonly();
     readonly error = this._error.asReadonly();
     readonly widgetInitialized = this._widgetInitialized.asReadonly();
+    /** True when the widget initialized but rendered no visible content (VI API error). */
+    readonly widgetEmpty = this._widgetEmpty.asReadonly();
 
     offerEnabled = computed(() => this.insuranceState.offerPlayerRegSaver());
     consented = computed(() => this.insuranceState.verticalInsureConfirmed());
@@ -62,37 +65,45 @@ export class InsuranceV2Service {
             const instance = new viWindow.VerticalInsure(
                 hostSelector,
                 offerData,
+                // onStateChange — fires on user interaction (accept/decline quotes).
+                // Decision (confirm/decline) is determined at submit time from quotes array.
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this._hasUserResponse.set(valid);
-                        const quotes = st?.quotes || [];
-                        this._quotes.set(quotes);
-                        this._error.set(null);
-                        this._widgetInitialized.set(true);
+                        this._quotes.set(st?.quotes || []);
                         this.viDarkMode.applyViDarkMode(hostSelector);
-                        if (valid) {
-                            if (quotes.length > 0) {
-                                this.insuranceState.confirmVerticalInsurePurchase(null, null, quotes);
-                            } else {
-                                this.insuranceState.declineVerticalInsurePurchase();
-                            }
-                        }
                     });
                 },
+                // onReady — fires once when the offer loads.
+                // offersAvailable !== true means VI API error (bad zip, no coverage, etc.)
                 (st: VIWidgetState) => {
-                    instance.validate().then((valid: boolean) => {
-                        this._hasUserResponse.set(valid);
-                        const quotes = st?.quotes || [];
-                        this._quotes.set(quotes);
-                        this.viDarkMode.applyViDarkMode(hostSelector);
-                        if (valid) {
-                            if (quotes.length > 0) {
-                                this.insuranceState.confirmVerticalInsurePurchase(null, null, quotes);
-                            } else {
-                                this.insuranceState.declineVerticalInsurePurchase();
-                            }
+                    this._widgetInitialized.set(true);
+                    const stAny = st as Record<string, unknown> | undefined;
+                    const offersAvailable = stAny?.['offersAvailable'];
+
+                    // Log full state for debugging VI issues
+                    console.log('[VerticalInsure] onReady state:', JSON.stringify(st, null, 2));
+
+                    if (offersAvailable !== true) {
+                        this._widgetEmpty.set(true);
+                        this._hasUserResponse.set(true);
+
+                        // Extract error details from VI state if available
+                        const embedded = stAny?.['_embedded'] as Record<string, unknown> | undefined;
+                        const errors = embedded?.['errors'] ?? stAny?.['errors'];
+                        const errorMsg = stAny?.['message'] ?? stAny?.['error'];
+                        let detail = '';
+                        if (Array.isArray(errors)) {
+                            detail = errors.map((e: Record<string, unknown>) => String(e?.['message'] ?? '')).filter(Boolean).join('; ');
+                        } else if (errorMsg) {
+                            detail = String(errorMsg);
                         }
-                    });
+                        this._error.set(detail || 'Registration insurance is temporarily unavailable.');
+                    } else {
+                        this._widgetEmpty.set(false);
+                        this._error.set(null);
+                    }
+                    this.viDarkMode.applyViDarkMode(hostSelector);
                 },
             );
         } catch (e: unknown) {
@@ -175,12 +186,19 @@ export class InsuranceV2Service {
             });
     }
 
+    /** Full reset — clears all state including widget init flag. */
     reset(): void {
         this._quotes.set([]);
         this._hasUserResponse.set(false);
         this._error.set(null);
         this._widgetInitialized.set(false);
         this.purchasing.set(false);
+        this._widgetEmpty.set(false);
+    }
+
+    /** Allow the widget to be re-created (e.g. navigating back then forward). */
+    resetWidgetInit(): void {
+        this._widgetInitialized.set(false);
     }
 
     private extractRegistrationId(q: VerticalInsureQuote): string {

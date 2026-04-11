@@ -3,7 +3,7 @@ import {
     AfterViewInit, OnInit, OnDestroy, inject, signal, computed, output,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NgClass, CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
@@ -27,7 +27,7 @@ import type { LineItem } from '../state/payment-v2.service';
 @Component({
     selector: 'app-prw-payment-step',
     standalone: true,
-    imports: [NgClass, CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, ViChargeConfirmModalComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, ViChargeConfirmModalComponent],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -89,7 +89,12 @@ import type { LineItem } from '../state/payment-v2.service';
                     </tr>
                   }
                   <tr class="table-primary due-now-row">
-                    <th colspan="4" class="text-end">Due Now</th>
+                    @if (!paySvc.isArbScenario() && !paySvc.isDepositScenario()) {
+                      <th class="text-start fw-bold">To Pay in Full</th>
+                      <th colspan="3" class="text-end">Due Now</th>
+                    } @else {
+                      <th colspan="4" class="text-end">Due Now</th>
+                    }
                     <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                   </tr>
                 </tfoot>
@@ -137,10 +142,6 @@ import type { LineItem } from '../state/payment-v2.service';
                          (change)="chooseOption('PIF')">
                   <label class="form-check-label" for="optPif2">Pay In Full ({{ paySvc.totalAmount() | currency }})</label>
                 </div>
-              } @else {
-                <div class="mb-2">
-                  <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">Pay In Full</span>
-                </div>
               }
 
             </section>
@@ -151,25 +152,27 @@ import type { LineItem } from '../state/payment-v2.service';
         @if (insuranceState.offerPlayerRegSaver() && insuranceState.verticalInsureOffer().data) {
           <div class="mb-3">
             <div #viOffer id="dVIOffer" class="text-center"></div>
-            @if (!insuranceState.hasVerticalInsureDecision()) {
-              <div class="alert alert-secondary border-0 py-2 small" role="alert">
-                Insurance is optional. Choose <strong>Confirm Purchase</strong> or <strong>Decline Insurance</strong> to continue.
+            @if (insuranceSvc.widgetEmpty()) {
+              <div class="alert alert-warning border-0 py-2 small" role="status">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-exclamation-triangle"></i>
+                  <span class="badge bg-secondary">RegSaver</span>
+                  <div class="text-muted">{{ insuranceSvc.error() || 'Registration insurance is temporarily unavailable.' }}</div>
+                </div>
               </div>
-            }
-            @if (insuranceState.hasVerticalInsureDecision()) {
+            } @else if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
+              <div class="alert alert-secondary border-0 py-2 small" role="alert">
+                Insurance is optional. Please indicate your interest in registration insurance for each player listed.
+              </div>
+            } @else if (insuranceSvc.hasUserResponse() && insuranceSvc.quotes().length > 0) {
               <div class="mt-2">
-                <div class="alert" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'alert-success' : 'alert-secondary'" role="status">
+                <div class="alert alert-success" role="status">
                   <div class="d-flex align-items-center gap-2">
-                    <span class="badge" [ngClass]="insuranceState.verticalInsureConfirmed() ? 'bg-success' : 'bg-secondary'">RegSaver</span>
+                    <span class="badge bg-success">RegSaver</span>
                     <div>
-                      @if (insuranceState.verticalInsureConfirmed()) {
-                        <div class="fw-semibold mb-0">Insurance Selected</div>
-                        @if (insuranceState.viConsent()?.policyNumber) {
-                          <div class="small text-muted">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
-                        }
-                      } @else {
-                        <div class="fw-semibold mb-0">Insurance Declined</div>
-                        <div class="small text-muted">You chose not to purchase coverage.</div>
+                      <div class="fw-semibold mb-0">Insurance Selected</div>
+                      @if (insuranceState.viConsent()?.policyNumber) {
+                        <div class="small text-muted">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
                       }
                     </div>
                   </div>
@@ -350,6 +353,7 @@ import type { LineItem } from '../state/payment-v2.service';
             </button>
           }
           @if (showPayNowButton()) {
+            <div class="text-center">
             <button type="button" class="btn btn-primary"
                     (click)="submit()"
                     [disabled]="!canSubmit() || submitting()">
@@ -359,6 +363,7 @@ import type { LineItem } from '../state/payment-v2.service';
                 <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
               }
             </button>
+            </div>
           }
           @if (showCheckSection()) {
             <button type="button" class="btn btn-primary"
@@ -563,6 +568,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         clearTimeout(this.viInitTimeout);
+        this.insuranceSvc.resetWidgetInit();
     }
 
     // ── CC form callbacks ────────────────────────────────────────────────
@@ -653,16 +659,24 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         if (this.submitting()) return;
         this.submitting.set(true);
 
-        // Gate: insurance decision required
-        const needInsuranceDecision = this.insuranceState.offerPlayerRegSaver()
-            && !this.insuranceState.verticalInsureConfirmed()
-            && !this.insuranceState.verticalInsureDeclined()
+        // Gate: insurance — block if widget is visible but user hasn't responded yet (matches legacy)
+        if (this.insuranceState.offerPlayerRegSaver()
+            && !this.insuranceSvc.hasUserResponse()
+            && this.isViOfferVisible()
             && !!this.insuranceState.verticalInsureOffer().data
-            && this.tsicChargeDueNow();
-        if (needInsuranceDecision && this.isViOfferVisible()) {
+            && this.tsicChargeDueNow()) {
             this.submitting.set(false);
-            this.toast.show('Insurance is optional. Please Confirm Purchase or Decline to continue.', 'danger', 4000);
+            this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
             return;
+        }
+
+        // Set insurance decision from widget state (quotes determine confirm vs decline)
+        if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.hasUserResponse()) {
+            if (this.insuranceSvc.quotes().length > 0) {
+                this.insuranceState.confirmVerticalInsurePurchase(null, null, this.insuranceSvc.quotes() as unknown as Record<string, unknown>[]);
+            } else {
+                this.insuranceState.declineVerticalInsurePurchase();
+            }
         }
 
         if (this.showCcSection() && !this.ccValid()) {
@@ -701,15 +715,15 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!this.arbHideAllOptions()) return;
         if (this.isViCcOnlyFlow()) { this.submit(); return; }
         if (this.insuranceState.offerPlayerRegSaver()) {
-            if (!this.insuranceState.hasVerticalInsureDecision()) {
-                this.insuranceState.openVerticalInsureModal();
+            if (!this.insuranceSvc.hasUserResponse() && this.isViOfferVisible()) {
+                this.toast.show('Please indicate your interest in registration insurance for each player listed.', 'danger', 4000);
                 return;
             }
-            if (!this.insuranceState.verticalInsureConfirmed()) {
-                this.advance.emit();
+            if (this.insuranceSvc.quotes().length > 0) {
+                this.submit();
                 return;
             }
-            this.submit();
+            this.advance.emit();
             return;
         }
         this.advance.emit();

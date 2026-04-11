@@ -157,7 +157,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var writableProps = FormValueMapper.BuildWritablePropertyMap();
 
         var playerIds = request.TeamSelections.Select(ts => ts.PlayerId).Distinct().ToList();
-        var existingRegs = await _registrations.GetFamilyRegistrationsForPlayersAsync(jobId, familyUserId, playerIds);
+        var existingRegs = await _registrations.GetFamilyRegistrationsForPlayersTrackedAsync(jobId, familyUserId, playerIds);
 
         var existingByPlayer = existingRegs.GroupBy(r => r.UserId!).ToDictionary(g => g.Key, g => g.ToList());
         var existingByPlayerTeam = existingRegs
