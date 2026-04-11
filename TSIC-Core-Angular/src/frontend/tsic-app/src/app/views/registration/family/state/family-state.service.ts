@@ -263,7 +263,7 @@ export class FamilyStateService {
     }
 
     // ── API: Submit (create or update) ──────────────────────────────
-    submit(onSuccess?: () => void): void {
+    submit(): void {
         this._submitting.set(true);
         this._submitError.set(null);
         this._submitSuccess.set(false);
@@ -309,7 +309,6 @@ export class FamilyStateService {
                         this._submitting.set(false);
                         if (res?.success) {
                             this._submitSuccess.set(true);
-                            onSuccess?.();
                         } else {
                             this._submitError.set(res?.message ?? 'Unable to update Family Account');
                         }
@@ -332,7 +331,6 @@ export class FamilyStateService {
                         this._submitting.set(false);
                         if (res?.success) {
                             this._submitSuccess.set(true);
-                            onSuccess?.();
                         } else {
                             this._submitError.set(res?.message ?? 'Unable to create Family Account');
                         }

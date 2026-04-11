@@ -22,11 +22,7 @@
       <app-fam-children-step />
     }
     @case ('review') {
-      <app-fam-review-step
-        [autoLoginLoading]="autoLoginLoading()"
-        [autoLoginError]="autoLoginError()"
-        (completed)="finish($event)"
-        (autoLogin)="autoLoginAndCheckTos()" />
+      <app-fam-review-step (completed)="finish($event)" />
     }
     @case ('tos') {
       <app-tos-acceptance-step

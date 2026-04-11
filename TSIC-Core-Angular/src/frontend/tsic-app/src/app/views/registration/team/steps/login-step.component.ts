@@ -114,16 +114,7 @@ export interface LoginStepResult {
         (closed)="showRegisterModal.set(false)" />
     }
 
-    @if (autoLoginLoading()) {
-      <div class="card shadow border-0 card-rounded mt-3">
-        <div class="card-body text-center py-4">
-          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          <span class="text-muted">Signing you in...</span>
-        </div>
-      </div>
-    }
-
-    @if (tosRequired()) {
+    @if (showTos()) {
       <div class="mt-3">
         <app-tos-acceptance-step
           [submitting]="tosSubmitting()"
@@ -147,10 +138,10 @@ export class TeamLoginStepComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
     readonly error = signal<string | null>(null);
     readonly showRegisterModal = signal(false);
-    readonly tosRequired = signal(false);
+    readonly showTos = signal(false);
     readonly tosSubmitting = signal(false);
     readonly tosError = signal<string | null>(null);
-    readonly autoLoginLoading = signal(false);
+    private pendingCredentials: { username: string; password: string } | null = null;
 
     ngOnInit(): void {
         if (this.auth.isAuthenticated()) {
@@ -168,45 +159,40 @@ export class TeamLoginStepComponent implements OnInit {
 
     onRegistered(credentials: { username: string; password: string }): void {
         this.showRegisterModal.set(false);
-        this.autoLoginLoading.set(true);
-        this.error.set(null);
-
-        this.auth.login({
-            username: credentials.username,
-            password: credentials.password,
-        }).pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: (response) => {
-                    this.autoLoginLoading.set(false);
-                    if ((response as any).requiresTosSignature) {
-                        this.tosRequired.set(true);
-                    } else {
-                        this.continueWithLogin();
-                    }
-                },
-                error: () => {
-                    this.autoLoginLoading.set(false);
-                    this.error.set('Account created but auto-login failed. Please sign in manually above.');
-                },
-            });
+        this.pendingCredentials = credentials;
+        this.showTos.set(true);
     }
 
+    /** Called by inline ToS step — auto-login, accept ToS, then continue to teams. */
     onTosAccepted(): void {
+        if (!this.pendingCredentials) return;
         this.tosSubmitting.set(true);
         this.tosError.set(null);
 
-        this.auth.acceptTos()
-            .pipe(takeUntilDestroyed(this.destroyRef))
+        this.auth.login({
+            username: this.pendingCredentials.username,
+            password: this.pendingCredentials.password,
+        }).pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    this.tosSubmitting.set(false);
-                    this.tosRequired.set(false);
-                    this.continueWithLogin();
+                    this.auth.acceptTos()
+                        .pipe(takeUntilDestroyed(this.destroyRef))
+                        .subscribe({
+                            next: () => {
+                                this.tosSubmitting.set(false);
+                                this.showTos.set(false);
+                                this.continueWithLogin();
+                            },
+                            error: (err: unknown) => {
+                                this.tosSubmitting.set(false);
+                                const httpErr = err as { error?: { message?: string } };
+                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                            },
+                        });
                 },
-                error: (err: unknown) => {
+                error: () => {
                     this.tosSubmitting.set(false);
-                    const httpErr = err as { error?: { message?: string } };
-                    this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                    this.tosError.set('Unable to sign in. Please try again.');
                 },
             });
     }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, output, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, output } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { FamilyStateService } from '../state/family-state.service';
@@ -117,27 +117,6 @@ import { FamilyStateService } from '../state/family-state.service';
           </div>
         }
 
-        <!-- Auto-login + ToS check after successful save -->
-        @if (state.submitSuccess()) {
-          <hr class="my-4" />
-          @if (autoLoginLoading()) {
-            <div class="text-center py-3">
-              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              <span class="text-muted">Signing you in...</span>
-            </div>
-          } @else if (autoLoginError()) {
-            <div class="alert alert-warning d-flex align-items-start" role="alert">
-              <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
-              <div>
-                <span>{{ autoLoginError() }}</span>
-                <div class="d-flex gap-2 mt-2">
-                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="autoLogin.emit()">Retry</button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
-                </div>
-              </div>
-            </div>
-          }
-        }
       </div>
     </div>
   `,
@@ -145,17 +124,12 @@ import { FamilyStateService } from '../state/family-state.service';
 })
 export class ReviewStepComponent implements OnInit {
     readonly completed = output<'home' | 'register'>();
-    readonly autoLogin = output<void>();
-
-    readonly autoLoginLoading = input(false);
-    readonly autoLoginError = input<string | null>(null);
 
     private readonly jobService = inject(JobService);
     private readonly route = inject(ActivatedRoute);
     readonly state = inject(FamilyStateService);
 
     private autoSaveAttempted = false;
-    private autoLoginTriggered = false;
 
     get showReturnToRegistration(): boolean {
         return this.route.snapshot.queryParamMap.get('next') === 'register-player';
@@ -175,13 +149,7 @@ export class ReviewStepComponent implements OnInit {
         // Auto-save on entering the review step (require at least one child to avoid 400)
         if (!this.autoSaveAttempted && this.state.children().length > 0) {
             this.autoSaveAttempted = true;
-            this.state.submit(() => {
-                // After successful save, trigger auto-login + ToS check
-                if (!this.autoLoginTriggered) {
-                    this.autoLoginTriggered = true;
-                    this.autoLogin.emit();
-                }
-            });
+            this.state.submit();
         }
     }
 }

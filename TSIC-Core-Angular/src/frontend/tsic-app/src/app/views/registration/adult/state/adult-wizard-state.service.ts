@@ -192,7 +192,7 @@ export class AdultWizardStateService {
     }
 
     // ── API: Submit registration ──────────────────────────────────
-    submit(jobPath: string, onSuccess?: () => void): void {
+    submit(jobPath: string): void {
         this._submitting.set(true);
         this._submitError.set(null);
         this._submitSuccess.set(false);
@@ -225,7 +225,6 @@ export class AdultWizardStateService {
                         this._submitSuccess.set(true);
                         this._registrationId.set(res.registrationId);
                         this.loadConfirmation(res.registrationId);
-                        onSuccess?.();
                     } else {
                         this._submitError.set(res?.message ?? 'Registration failed.');
                     }

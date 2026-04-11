@@ -42,8 +42,7 @@ export class AdultWizardV2Component implements OnInit {
     // ── Step management ─────────────────────────────────────────────
     readonly currentIndex = signal(0);
 
-    // ── ToS / auto-login state ─────────────────────────────────────
-    readonly tosRequired = signal(false);
+    // ── ToS state (create mode only) ─────────────────────────────
     readonly tosSubmitting = signal(false);
     readonly tosError = signal<string | null>(null);
 
@@ -53,7 +52,7 @@ export class AdultWizardV2Component implements OnInit {
         { id: 'profile', label: 'Profile', enabled: this.state.formSchema() !== null },
         { id: 'waivers', label: 'Waivers', enabled: (this.state.waivers().length > 0) },
         { id: 'review', label: 'Review', enabled: true },
-        { id: 'tos', label: 'Terms', enabled: this.tosRequired(), showInIndicator: false },
+        { id: 'tos', label: 'Terms of Service', enabled: this.state.mode() === 'create' },
     ]);
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
@@ -74,16 +73,13 @@ export class AdultWizardV2Component implements OnInit {
             case 'role': return this.state.hasSelectedRole() && !this.state.schemaLoading();
             case 'profile': return this.state.hasValidProfile();
             case 'waivers': return this.state.hasAcceptedAllWaivers();
-            case 'review': return false; // review has its own submit button
+            case 'review': return this.state.submitSuccess();
             case 'tos': return false; // tos has its own accept button
             default: return false;
         }
     });
 
-    readonly showContinue = computed(() => {
-        const id = this.currentStepId();
-        return id !== 'review' && id !== 'tos';
-    });
+    readonly showContinue = computed(() => this.currentStepId() !== 'tos');
 
     // ── Lifecycle ───────────────────────────────────────────────────
     ngOnInit(): void {
@@ -115,57 +111,43 @@ export class AdultWizardV2Component implements OnInit {
         this.currentIndex.update(i => Math.max(0, i - 1));
     }
 
-    /** Called by review step — submit and auto-login on success. */
+    /** Called by review step — submit registration. */
     onSubmitOrFinish(): void {
         if (this.state.submitSuccess()) {
             this.router.navigateByUrl(`/${this.jobPath}`);
             return;
         }
-
-        this.state.submit(this.jobPath, () => {
-            // After successful registration in create mode, auto-login + check ToS
-            if (this.state.mode() === 'create') {
-                this.autoLoginAndCheckTos();
-            }
-        });
+        this.state.submit(this.jobPath);
     }
 
-    private autoLoginAndCheckTos(): void {
+    /** Called by inline ToS step — auto-login, accept ToS, then navigate home. */
+    onTosAccepted(): void {
+        this.tosSubmitting.set(true);
+        this.tosError.set(null);
+
         this.auth.login({
             username: this.state.username(),
             password: this.state.password(),
         }).pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
-                next: (response) => {
-                    if ((response as any).requiresTosSignature) {
-                        this.tosRequired.set(true);
-                        const tosIdx = this.activeSteps().findIndex(s => s.id === 'tos');
-                        if (tosIdx >= 0) this.currentIndex.set(tosIdx);
-                    } else {
-                        this.router.navigateByUrl(`/${this.jobPath}`);
-                    }
+                next: () => {
+                    this.auth.acceptTos()
+                        .pipe(takeUntilDestroyed(this.destroyRef))
+                        .subscribe({
+                            next: () => {
+                                this.tosSubmitting.set(false);
+                                this.router.navigateByUrl(`/${this.jobPath}`);
+                            },
+                            error: (err: unknown) => {
+                                this.tosSubmitting.set(false);
+                                const httpErr = err as { error?: { message?: string } };
+                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                            },
+                        });
                 },
                 error: () => {
-                    // Auto-login failed — still on confirmation page, user can navigate manually
-                },
-            });
-    }
-
-    onTosAccepted(): void {
-        this.tosSubmitting.set(true);
-        this.tosError.set(null);
-
-        this.auth.acceptTos()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: () => {
                     this.tosSubmitting.set(false);
-                    this.router.navigateByUrl(`/${this.jobPath}`);
-                },
-                error: (err: unknown) => {
-                    this.tosSubmitting.set(false);
-                    const httpErr = err as { error?: { message?: string } };
-                    this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                    this.tosError.set('Unable to sign in. Please try again.');
                 },
             });
     }

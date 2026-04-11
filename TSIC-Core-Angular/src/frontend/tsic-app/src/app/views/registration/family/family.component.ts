@@ -47,12 +47,9 @@ export class FamilyWizardV2Component implements OnInit {
     readonly currentIndex = signal(0);
     readonly validating = signal(false);
 
-    // ── ToS / auto-login state ─────────────────────────────────────
-    readonly tosRequired = signal(false);
+    // ── ToS state (create mode only) ─────────────────────────────
     readonly tosSubmitting = signal(false);
     readonly tosError = signal<string | null>(null);
-    readonly autoLoginLoading = signal(false);
-    readonly autoLoginError = signal<string | null>(null);
 
     readonly steps = computed<WizardStepDef[]>(() => [
         { id: 'credentials', label: 'Account', enabled: true },
@@ -60,7 +57,7 @@ export class FamilyWizardV2Component implements OnInit {
         { id: 'address', label: 'Address', enabled: true },
         { id: 'children', label: 'Children', enabled: true },
         { id: 'review', label: 'Review', enabled: true },
-        { id: 'tos', label: 'Terms', enabled: this.tosRequired(), showInIndicator: false },
+        { id: 'tos', label: 'Terms of Service', enabled: this.state.mode() === 'create' },
     ]);
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
@@ -80,16 +77,13 @@ export class FamilyWizardV2Component implements OnInit {
             case 'contacts': return this.state.hasValidParent1() && this.state.hasValidParent2();
             case 'address': return this.state.hasValidAddress();
             case 'children': return this.state.hasChildren();
-            case 'review': return false;
+            case 'review': return this.state.submitSuccess();
             case 'tos': return false;
             default: return false;
         }
     });
 
-    readonly showContinue = computed(() => {
-        const id = this.currentStepId();
-        return id !== 'review' && id !== 'tos';
-    });
+    readonly showContinue = computed(() => this.currentStepId() !== 'tos');
 
     // ── Query params ────────────────────────────────────────────────
     private returnUrl: string | null = null;
@@ -176,51 +170,36 @@ export class FamilyWizardV2Component implements OnInit {
             });
     }
 
-    /** Called by review step after successful save — login + check ToS for both create and edit mode. */
-    autoLoginAndCheckTos(): void {
-        this.autoLoginLoading.set(true);
-        this.autoLoginError.set(null);
+    /** Called by inline ToS step — auto-login, accept ToS, then navigate to player registration. */
+    onTosAccepted(): void {
+        this.tosSubmitting.set(true);
+        this.tosError.set(null);
 
+        // Auto-login with the credentials from step 1, then accept ToS
         this.auth.login({
             username: this.state.username(),
             password: this.state.password(),
         }).pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
-                next: (response) => {
-                    this.autoLoginLoading.set(false);
-                    if ((response as any).requiresTosSignature) {
-                        this.tosRequired.set(true);
-                        // Advance to the ToS step
-                        const tosIdx = this.activeSteps().findIndex(s => s.id === 'tos');
-                        if (tosIdx >= 0) this.currentIndex.set(tosIdx);
-                    } else {
-                        // No ToS needed — go straight to destination
-                        this.finish(this.state.mode() === 'create' ? 'register' : 'home');
-                    }
+                next: () => {
+                    // Now authenticated — accept ToS
+                    this.auth.acceptTos()
+                        .pipe(takeUntilDestroyed(this.destroyRef))
+                        .subscribe({
+                            next: () => {
+                                this.tosSubmitting.set(false);
+                                this.finish('register');
+                            },
+                            error: (err: unknown) => {
+                                this.tosSubmitting.set(false);
+                                const httpErr = err as { error?: { message?: string } };
+                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                            },
+                        });
                 },
                 error: () => {
-                    this.autoLoginLoading.set(false);
-                    this.autoLoginError.set('Auto-login failed. Please sign in manually after returning home.');
-                },
-            });
-    }
-
-    /** Called by ToS step when user accepts. */
-    onTosAccepted(): void {
-        this.tosSubmitting.set(true);
-        this.tosError.set(null);
-
-        this.auth.acceptTos()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: () => {
                     this.tosSubmitting.set(false);
-                    this.finish(this.state.mode() === 'create' ? 'register' : 'home');
-                },
-                error: (err: unknown) => {
-                    this.tosSubmitting.set(false);
-                    const httpErr = err as { error?: { message?: string } };
-                    this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                    this.tosError.set('Unable to sign in. Please try again.');
                 },
             });
     }
