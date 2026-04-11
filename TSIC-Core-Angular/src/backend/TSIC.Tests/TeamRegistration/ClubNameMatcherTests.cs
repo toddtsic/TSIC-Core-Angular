@@ -31,45 +31,47 @@ public class ClubNameMatcherTests
     /// EXPECTED: Expansion is whole-token only -- "LC" becomes "lacrosse club"
     ///           but "falcon" is NOT mangled (old bug: substring "lc" in "falcon")
     /// </summary>
-    [Fact(DisplayName = "Normalize: 'Charlotte LC' expands to 'charlotte lacrosse club'")]
+    [Fact(DisplayName = "Normalize: 'Charlotte LC' expands abbreviation then strips sport/org filler")]
     public void Normalize_ExpandsLcAbbreviation()
     {
+        // "LC" expands to "lacrosse club", then both are stripped as filler
         ClubNameMatcher.NormalizeClubName("Charlotte LC")
-            .Should().Be("charlotte lacrosse club");
+            .Should().Be("charlotte");
     }
 
     /// <summary>
     /// SCENARIO: Club name contains "falcon" which has "lc" as a substring
     /// EXPECTED: "falcon" is preserved -- abbreviation expansion is whole-token only
     /// </summary>
-    [Fact(DisplayName = "Normalize: 'Falcons LC' does NOT mangle 'falcons'")]
+    [Fact(DisplayName = "Normalize: 'Falcons LC' preserves 'falcons', strips expanded sport filler")]
     public void Normalize_DoesNotMangleFalcons()
     {
         var result = ClubNameMatcher.NormalizeClubName("Falcons LC");
         result.Should().Contain("falcons", "word 'falcons' must not be mangled by 'lc' expansion");
-        result.Should().Contain("lacrosse club", "'LC' token should expand");
+        result.Should().Be("falcons", "expanded 'lacrosse club' stripped as filler");
     }
 
     /// <summary>
     /// SCENARIO: Club name uses multiple abbreviations
     /// EXPECTED: Each is expanded independently at word boundaries
     /// </summary>
-    [Fact(DisplayName = "Normalize: 'N Co Lax' becomes 'north county lacrosse'")]
+    [Fact(DisplayName = "Normalize: 'N Co Lax' becomes 'north county' (sport stripped)")]
     public void Normalize_MultipleAbbreviations()
     {
         ClubNameMatcher.NormalizeClubName("N Co Lax")
-            .Should().Be("north county lacrosse");
+            .Should().Be("north county");
     }
 
     /// <summary>
     /// SCENARIO: Club name has common misspelling of "lacrosse"
     /// EXPECTED: Corrected before matching so typos don't cause false negatives
     /// </summary>
-    [Fact(DisplayName = "Normalize: misspelling 'Lacrose' corrected to 'lacrosse'")]
+    [Fact(DisplayName = "Normalize: misspelling 'Lacrose' corrected then stripped as sport filler")]
     public void Normalize_FixesMisspelling()
     {
+        // "Lacrose" corrected to "lacrosse", then stripped as sport filler
         ClubNameMatcher.NormalizeClubName("Charlotte Lacrose")
-            .Should().Be("charlotte lacrosse");
+            .Should().Be("charlotte");
     }
 
     /// <summary>
@@ -87,11 +89,12 @@ public class ClubNameMatcherTests
     /// SCENARIO: Club name has punctuation and extra whitespace
     /// EXPECTED: Cleaned to letters/digits/single-spaces only
     /// </summary>
-    [Fact(DisplayName = "Normalize: strips punctuation and collapses whitespace")]
+    [Fact(DisplayName = "Normalize: strips punctuation, collapses whitespace, strips sport/org filler")]
     public void Normalize_StripsPunctuation()
     {
+        // "F.C." → "fc" → "football club" → both stripped; "Youth" → stripped
         ClubNameMatcher.NormalizeClubName("Charlotte  F.C.  (Youth)")
-            .Should().Be("charlotte football club youth");
+            .Should().Be("charlotte");
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -142,7 +145,8 @@ public class ClubNameMatcherTests
     [Fact(DisplayName = "Token: reordered words score 100%")]
     public void Token_ReorderedWords()
     {
-        ClubNameMatcher.CalculateTokenSimilarity("baltimore lacrosse", "lacrosse baltimore")
+        // These are pre-normalized inputs passed directly to token similarity
+        ClubNameMatcher.CalculateTokenSimilarity("baltimore fury", "fury baltimore")
             .Should().Be(100);
     }
 
@@ -312,5 +316,20 @@ public class ClubNameMatcherTests
     {
         ClubNameMatcher.CalculateCompositeScore("Charlotte Fury", "Charlotte Thunder")
             .Should().BeLessThan(85, "sharing a city name alone should not block registration");
+    }
+
+    /// <summary>
+    /// SCENARIO: New club "Aacme Lax" should NOT match "Arc Lacrosse" just because
+    ///           both contain the word "Lacrosse" (or its abbreviation "Lax").
+    /// EXPECTED: Below 65% — sport names are stripped as filler, leaving only the
+    ///           distinctive names ("aacme" vs "arc") which are clearly different.
+    /// WHY IT MATTERS: Without sport-word stripping, every lacrosse club matched
+    ///           every other lacrosse club at 50%+ via Jaccard token overlap.
+    /// </summary>
+    [Fact(DisplayName = "Sport filler: 'Aacme Lax' does NOT match 'Arc Lacrosse'")]
+    public void SportFiller_DifferentClubsSharingSportName_NoMatch()
+    {
+        ClubNameMatcher.CalculateCompositeScore("Aacme Lax", "Arc Lacrosse")
+            .Should().BeLessThan(65, "sport name alone should not cause a match");
     }
 }

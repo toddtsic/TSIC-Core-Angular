@@ -83,7 +83,17 @@ public static partial class ClubNameMatcher
 
     private static readonly HashSet<string> FillerWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        "the", "of", "and", "a", "an"
+        // Articles & connectors
+        "the", "of", "and", "a", "an",
+        // Sport names — every club in a sport shares these; matching on them
+        // produces false positives (e.g. "Aacme Lax" matching every lacrosse club)
+        "lacrosse", "soccer", "football", "hockey", "baseball", "softball",
+        "basketball", "volleyball", "rugby", "cricket", "tennis",
+        "field", "ice",
+        // Common org suffixes — too generic to be distinctive
+        "club", "team", "teams", "sports", "athletics", "athletic",
+        "youth", "juniors", "seniors", "association", "organization",
+        "academy", "recreation", "center", "league",
     };
 
     // ── US state codes (used for mega-club root extraction) ─────────────
