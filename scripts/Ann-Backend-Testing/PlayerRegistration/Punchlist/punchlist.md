@@ -384,8 +384,9 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I did**: Clicked "Click Here to Begin a Player or Coach registration and waiver" on the Player Self-Rostering page
 - **What I expected**: Option to choose between Player registration and Coach registration
 - **What happened**: Only brings me to Adult Registration — no way to go to Player registration. Does it make sense to split the bulletin into separate links for Player and Coach paths?
-- **Severity**: Question
-- **Status**: Open
+- **Severity**: Bug
+- **Status**: Fixed
+- **Note**: Backend regex patterns were matching combined player+staff URLs and replacing with a single route before the frontend pipe could split them. Added negative lookahead to skip combined URLs — frontend pipe now correctly splits into two links (Player + Coach).
 
 ### PL-043: Public Rosters "Click Here to view currently rostered players" leads to 404 error
 - **Area**: Registration Process Review

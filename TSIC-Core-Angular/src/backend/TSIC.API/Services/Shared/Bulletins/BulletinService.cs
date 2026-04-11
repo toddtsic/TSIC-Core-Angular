@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Bulletin;
 using TSIC.Contracts.Repositories;
@@ -8,37 +7,14 @@ using BulletinEntity = TSIC.Domain.Entities.Bulletins;
 namespace TSIC.API.Services.Shared.Bulletins;
 
 /// <summary>
-/// Service for managing bulletin business logic including URL translation and token substitution.
+/// Service for managing bulletin business logic: token substitution only.
+/// Legacy URL translation is handled entirely by the frontend TranslateLegacyUrlsPipe.
 /// </summary>
-public partial class BulletinService : IBulletinService
+public class BulletinService : IBulletinService
 {
     // Token constants for text substitution
     private const string JobNameToken = "!JOBNAME";
     private const string UslaxDateToken = "!USLAXVALIDTHROUGHDATE";
-
-    // Legacy URL patterns for registration wizards
-    // Matches: /JSEG/StartARegistration/Index?bPlayer=true... or full domain URLs
-    [GeneratedRegex(
-        @"(?:https?://[^/""']*)?/[^/""']+/StartARegistration/Index\?bPlayer=true[^""']*",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex PlayerRegistrationUrlPattern();
-
-    [GeneratedRegex(
-        @"(?:https?://[^/""']*)?/[^/""']+/StartARegistration/Index\?bPlayer=false&bClubRep=true[^""']*",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex TeamRegistrationUrlPattern();
-
-    // Matches: /JSEG/StartARegistration/Index?...bStaff=true... (coach/staff registration)
-    [GeneratedRegex(
-        @"(?:https?://[^/""']*)?/[^/""']+/StartARegistration/Index\?[^""']*bStaff=true[^""']*",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex StaffRegistrationUrlPattern();
-
-    // Matches: /JSEG/Rosters/RostersPublicLookupTourny (public tournament rosters)
-    [GeneratedRegex(
-        @"(?:https?://[^/""']*)?/[^/""']+/Rosters/RostersPublicLookupTourny[^""']*",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex PublicRosterUrlPattern();
 
     private readonly IJobLookupService _jobLookupService;
     private readonly IBulletinRepository _bulletinRepository;
@@ -67,26 +43,16 @@ public partial class BulletinService : IBulletinService
 
         var bulletins = await _bulletinRepository.GetActiveBulletinsForJobAsync(jobMetadata.JobId, cancellationToken);
 
-        // Process bulletin title and text with token replacement + legacy URL translation
+        // Process bulletin title and text with token replacement only.
+        // Legacy URL translation is handled by the frontend TranslateLegacyUrlsPipe.
         var jobName = jobMetadata.JobName;
         var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
-        var playerRegUrl = $"/{jobPath}/registration/player";
-        var teamRegUrl = $"/{jobPath}/registration/team";
-        var staffRegUrl = $"/{jobPath}/registration/adult";
-        var publicRosterUrl = $"/{jobPath}/rosters";
 
         var processedBulletins = new List<BulletinDto>();
         foreach (var bulletin in bulletins)
         {
             var processedTitle = ReplaceTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
             var processedText = ReplaceTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
-
-            // Translate legacy URLs to Angular routes
-            // More specific patterns first: team (bClubRep=true), staff (bStaff=true), then player (bPlayer=true)
-            processedText = TeamRegistrationUrlPattern().Replace(processedText, teamRegUrl);
-            processedText = StaffRegistrationUrlPattern().Replace(processedText, staffRegUrl);
-            processedText = PlayerRegistrationUrlPattern().Replace(processedText, playerRegUrl);
-            processedText = PublicRosterUrlPattern().Replace(processedText, publicRosterUrl);
 
             processedBulletins.Add(new BulletinDto
             {

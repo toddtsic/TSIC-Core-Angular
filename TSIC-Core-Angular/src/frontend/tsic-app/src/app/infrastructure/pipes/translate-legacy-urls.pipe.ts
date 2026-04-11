@@ -27,7 +27,25 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             return html || '';
         }
 
-        // Match full <a> tags so we can replace combined links with multiple elements.
+        // First pass: replace entire <li> elements containing combined player+staff links.
+        // This removes the orphaned surrounding text (e.g. "to BEGIN / EDIT a PLAYER or COACH...").
+        const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+        html = html.replace(liPattern, (liMatch: string, liContent: string) => {
+            const anchorInLi = /<a\s[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i.exec(liContent);
+            if (!anchorInLi) return liMatch;
+            const url = anchorInLi[1].toLowerCase();
+            if (url.includes('startaregistration') && url.includes('bplayer=true') && url.includes('bstaff=true')) {
+                const playerUrl = `/${jobPath}/registration/player`;
+                const adultUrl = `/${jobPath}/registration/adult`;
+                return `</ul><p style="margin-bottom:0.25em;"><strong>SELF-ROSTERING:</strong></p><ul style="margin-top:0;">` +
+                    `<li><a href="${playerUrl}">CLICK HERE</a> to self-roster a <strong>PLAYER</strong></li>` +
+                    `<li><a href="${adultUrl}">CLICK HERE</a> to self-roster a <strong>COACH</strong></li>` +
+                    `<li style="list-style:none; margin-top:0.25em;">All players and coaches must be Self-Rostered in order to participate.</li>`;
+            }
+            return liMatch;
+        });
+
+        // Second pass: translate remaining individual anchor tags.
         const anchorPattern = /<a\s[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
         return html.replace(anchorPattern, (fullMatch: string, url: string, linkText: string) => {
@@ -49,23 +67,13 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             const hasStaff = lower.includes('bstaff=true');
             const hasClubRep = lower.includes('bclubrep=true');
 
-            // Combined player + staff/coach link → split into two separate links
-            if (hasPlayer && hasStaff) {
-                const playerUrl = `/${jobPath}/registration/player`;
-                const adultUrl = `/${jobPath}/registration/adult`;
-                return `<ul style="list-style:disc; padding-left:1.5em; margin:0.25em 0;">` +
-                    `<li><a href="${playerUrl}">${linkText}</a> to register a <strong>PLAYER</strong></li>` +
-                    `<li><a href="${adultUrl}">${linkText}</a> to register a <strong>COACH</strong></li>` +
-                    `</ul>`;
-            }
-
             if (hasClubRep) {
                 return `<a href="/${jobPath}/registration/team">${linkText}</a>`;
             }
-            if (hasStaff) {
+            if (hasStaff && !hasPlayer) {
                 return `<a href="/${jobPath}/registration/adult">${linkText}</a>`;
             }
-            if (hasPlayer) {
+            if (hasPlayer && !hasStaff) {
                 return `<a href="/${jobPath}/registration/player">${linkText}</a>`;
             }
         }
@@ -74,9 +82,10 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             return `<a href="/${jobPath}/configure/administrators">${linkText}</a>`;
         }
 
-        if (lower.includes('rosters/rosterspubliclookuptourny')) {
-            return `<a href="/${jobPath}/rosters">${linkText}</a>`;
+        if (lower.includes('rosters/rosterspubliclookuptourny') || lower.includes('rosters/rosterpubliclookup')) {
+            return `<a href="/${jobPath}/rosters">CLICK HERE</a>`;
         }
+
 
         return null;
     }
