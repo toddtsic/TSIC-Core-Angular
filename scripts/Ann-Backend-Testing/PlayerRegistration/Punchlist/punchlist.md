@@ -456,7 +456,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: To land on the registration flow after signing in
 - **What happened**: Got a 404 error screen after signing in. Note: Legacy went directly to registration without requiring a separate sign-in, but the sign-in step seems like a good idea. Terms of Service appearing here also makes sense. The 404 is the problem.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause: navigation used old route paths (`register-player`, `register-team`) but actual routes are `registration/player` and `registration/team`. Fixed in family.component.ts, review-step.component.ts, and job-home.component.ts.
 
 ### PL-060: Add a review/summary screen after finishing player entry — like Legacy had
 - **Area**: Family Account Creation
@@ -512,7 +513,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Continue button to activate as soon as the last required field has valid input
 - **What happened**: Button stays inactive until you click outside the field — requires an extra click. Can it activate immediately after entering the last item?
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Added `(input)="syncToState()"` alongside `(blur)` on all form fields in contacts-step and address-step (credentials-step already had it). State now updates in real-time so Continue activates instantly.
 
 ### PL-053: Change address instruction to "Enter your player's/family's mailing address"
 - **Area**: Family Account Creation

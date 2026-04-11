@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal, effect } from '@angular/core';
+import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { JobService } from '@infrastructure/services/job.service';
 import { FamilyStateService } from '../state/family-state.service';
@@ -11,7 +12,7 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-contacts-step',
     standalone: true,
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, AutofocusDirective],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
@@ -25,16 +26,16 @@ import { FamilyStateService } from '../state/family-state.service';
             <div class="row g-3">
               <div class="col-12">
                 <label class="field-label" for="v2-p1First">First name</label>
-                <input id="v2-p1First" type="text" formControlName="p1First" class="field-input"
+                <input id="v2-p1First" type="text" formControlName="p1First" class="field-input" appAutofocus
                        [class.is-required]="!form.controls.p1First.value?.trim()"
-                       [class.is-invalid]="touched() && form.controls.p1First.invalid" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && form.controls.p1First.invalid" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p1First.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12">
                 <label class="field-label" for="v2-p1Last">Last name</label>
                 <input id="v2-p1Last" type="text" formControlName="p1Last" class="field-input"
                        [class.is-required]="!form.controls.p1Last.value?.trim()"
-                       [class.is-invalid]="touched() && form.controls.p1Last.invalid" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && form.controls.p1Last.invalid" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p1Last.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12">
@@ -43,14 +44,14 @@ import { FamilyStateService } from '../state/family-state.service';
                        [class.is-required]="!form.controls.p1Phone.value?.trim()"
                        [class.is-invalid]="touched() && form.controls.p1Phone.invalid"
                        autocomplete="off" placeholder="Numbers only"
-                       (input)="onDigitsOnly('p1Phone', $event)" (blur)="syncToState()" />
+                       (input)="onDigitsOnly('p1Phone', $event); syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p1Phone.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12">
                 <label class="field-label" for="v2-p1Email">Email</label>
                 <input id="v2-p1Email" type="email" formControlName="p1Email" class="field-input"
                        [class.is-required]="!form.controls.p1Email.value?.trim()"
-                       [class.is-invalid]="touched() && form.controls.p1Email.invalid" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && form.controls.p1Email.invalid" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p1Email.errors) {
                   <div class="field-error">
                     @if (form.controls.p1Email.errors['required']) { <span>Required</span> }
@@ -62,7 +63,7 @@ import { FamilyStateService } from '../state/family-state.service';
                 <label class="field-label" for="v2-p1Email2">Confirm email</label>
                 <input id="v2-p1Email2" type="email" formControlName="p1EmailConfirm" class="field-input"
                        [class.is-required]="!form.controls.p1EmailConfirm.value?.trim()"
-                       [class.is-invalid]="touched() && (form.controls.p1EmailConfirm.invalid || form.errors?.['p1EmailMismatch'])" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && (form.controls.p1EmailConfirm.invalid || form.errors?.['p1EmailMismatch'])" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && (form.controls.p1EmailConfirm.errors || form.errors?.['p1EmailMismatch'])) {
                   <div class="field-error">
                     @if (form.controls.p1EmailConfirm.errors?.['required']) { <span>Required</span> }
@@ -81,14 +82,14 @@ import { FamilyStateService } from '../state/family-state.service';
                 <label class="field-label" for="v2-p2First">First name</label>
                 <input id="v2-p2First" type="text" formControlName="p2First" class="field-input"
                        [class.is-required]="!form.controls.p2First.value?.trim()"
-                       [class.is-invalid]="touched() && form.controls.p2First.invalid" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && form.controls.p2First.invalid" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p2First.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12">
                 <label class="field-label" for="v2-p2Last">Last name</label>
                 <input id="v2-p2Last" type="text" formControlName="p2Last" class="field-input"
                        [class.is-required]="!form.controls.p2Last.value?.trim()"
-                       [class.is-invalid]="touched() && form.controls.p2Last.invalid" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && form.controls.p2Last.invalid" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p2Last.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12">
@@ -97,14 +98,14 @@ import { FamilyStateService } from '../state/family-state.service';
                        [class.is-required]="!form.controls.p2Phone.value?.trim()"
                        [class.is-invalid]="touched() && form.controls.p2Phone.invalid"
                        autocomplete="off" placeholder="Numbers only"
-                       (input)="onDigitsOnly('p2Phone', $event)" (blur)="syncToState()" />
+                       (input)="onDigitsOnly('p2Phone', $event); syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p2Phone.errors?.['required']) { <div class="field-error">Required</div> }
               </div>
               <div class="col-12">
                 <label class="field-label" for="v2-p2Email">Email</label>
                 <input id="v2-p2Email" type="email" formControlName="p2Email" class="field-input"
                        [class.is-required]="!form.controls.p2Email.value?.trim()"
-                       [class.is-invalid]="touched() && form.controls.p2Email.invalid" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && form.controls.p2Email.invalid" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && form.controls.p2Email.errors) {
                   <div class="field-error">
                     @if (form.controls.p2Email.errors['required']) { <span>Required</span> }
@@ -116,7 +117,7 @@ import { FamilyStateService } from '../state/family-state.service';
                 <label class="field-label" for="v2-p2Email2">Confirm email</label>
                 <input id="v2-p2Email2" type="email" formControlName="p2EmailConfirm" class="field-input"
                        [class.is-required]="!form.controls.p2EmailConfirm.value?.trim()"
-                       [class.is-invalid]="touched() && (form.controls.p2EmailConfirm.invalid || form.errors?.['p2EmailMismatch'])" (blur)="syncToState()" />
+                       [class.is-invalid]="touched() && (form.controls.p2EmailConfirm.invalid || form.errors?.['p2EmailMismatch'])" (input)="syncToState()" (blur)="syncToState()" />
                 @if (touched() && (form.controls.p2EmailConfirm.errors || form.errors?.['p2EmailMismatch'])) {
                   <div class="field-error">
                     @if (form.controls.p2EmailConfirm.errors?.['required']) { <span>Required</span> }

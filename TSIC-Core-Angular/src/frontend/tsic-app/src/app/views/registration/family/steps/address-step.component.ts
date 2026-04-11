@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal, effect } from '@angular/core';
+import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { FamilyStateService } from '../state/family-state.service';
@@ -10,7 +11,7 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-address-step',
     standalone: true,
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, AutofocusDirective],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
@@ -20,16 +21,16 @@ import { FamilyStateService } from '../state/family-state.service';
         <div [formGroup]="form" class="row g-3">
           <div class="col-12">
             <label class="field-label" for="v2-addr1">Street Address</label>
-            <input id="v2-addr1" type="text" formControlName="address1" class="field-input"
+            <input id="v2-addr1" type="text" formControlName="address1" class="field-input" appAutofocus
                    [class.is-required]="!form.controls.address1.value?.trim()"
-                   [class.is-invalid]="touched() && form.controls.address1.invalid" (blur)="syncToState()" />
+                   [class.is-invalid]="touched() && form.controls.address1.invalid" (input)="syncToState()" (blur)="syncToState()" />
             @if (touched() && form.controls.address1.errors?.['required']) { <div class="field-error">Required</div> }
           </div>
           <div class="col-12 col-md-6">
             <label class="field-label" for="v2-city">City</label>
             <input id="v2-city" type="text" formControlName="city" class="field-input"
                    [class.is-required]="!form.controls.city.value?.trim()"
-                   [class.is-invalid]="touched() && form.controls.city.invalid" (blur)="syncToState()" />
+                   [class.is-invalid]="touched() && form.controls.city.invalid" (input)="syncToState()" (blur)="syncToState()" />
             @if (touched() && form.controls.city.errors?.['required']) { <div class="field-error">Required</div> }
           </div>
           <div class="col-6 col-md-3">
@@ -48,8 +49,9 @@ import { FamilyStateService } from '../state/family-state.service';
             <label class="field-label" for="v2-postal">Postal code</label>
             <input id="v2-postal" type="text" formControlName="postalCode" class="field-input"
                    [class.is-required]="!form.controls.postalCode.value?.trim()"
-                   [class.is-invalid]="touched() && form.controls.postalCode.invalid" (blur)="syncToState()" />
+                   [class.is-invalid]="touched() && form.controls.postalCode.invalid" (input)="syncToState()" (blur)="syncToState()" />
             @if (touched() && form.controls.postalCode.errors?.['required']) { <div class="field-error">Required</div> }
+            @if (touched() && form.controls.postalCode.errors?.['minlength']) { <div class="field-error">Must be at least 5 characters</div> }
           </div>
         </div>
       </div>
@@ -69,7 +71,7 @@ export class AddressStepComponent {
         address1: ['', [Validators.required]],
         city: ['', [Validators.required]],
         state: ['', [Validators.required]],
-        postalCode: ['', [Validators.required]],
+        postalCode: ['', [Validators.required, Validators.minLength(5)]],
     });
 
     constructor() {

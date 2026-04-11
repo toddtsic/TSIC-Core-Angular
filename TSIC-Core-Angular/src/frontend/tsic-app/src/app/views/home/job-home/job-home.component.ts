@@ -66,18 +66,18 @@ export class JobHomeComponent implements OnInit {
     try { this.authService.logoutLocal(); } catch { /* no-op */ }
     const jp = this.jobPath();
     const returnUrl = `/${jp}/registration/player?step=players`;
-    this.router.navigate([`/${jp}/registration/family`], { queryParams: { next: 'registration/player', returnUrl } });
+    this.router.navigate([`/${jp}/registration/family`], { queryParams: { next: 'register-player', returnUrl } });
   }
 
   // Start Player Registration flow - preserves existing authentication
   startPlayerRegistration(): void {
     const jp = this.jobPath();
-    this.router.navigate(['/', jp, 'register-player']);
+    this.router.navigate(['/', jp, 'registration', 'player']);
   }
 
   // Start Team Registration flow - preserves existing authentication
   startTeamRegistration(): void {
     const jp = this.jobPath();
-    this.router.navigate(['/', jp, 'register-team']);
+    this.router.navigate(['/', jp, 'registration', 'team']);
   }
 }

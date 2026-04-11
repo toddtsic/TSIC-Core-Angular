@@ -23,6 +23,12 @@
     @case ('review') {
       <app-adult-review-step (completed)="onSubmitOrFinish()" />
     }
+    @case ('tos') {
+      <app-tos-acceptance-step
+        [submitting]="tosSubmitting()"
+        [error]="tosError()"
+        (accepted)="onTosAccepted()" />
+    }
     @default {
       <div class="alert alert-warning" role="note">
         Unknown step "{{ currentStepId() }}". Please go back and try again.

@@ -22,7 +22,17 @@
       <app-fam-children-step />
     }
     @case ('review') {
-      <app-fam-review-step (completed)="finish($event)" />
+      <app-fam-review-step
+        [autoLoginLoading]="autoLoginLoading()"
+        [autoLoginError]="autoLoginError()"
+        (completed)="finish($event)"
+        (autoLogin)="autoLoginAndCheckTos()" />
+    }
+    @case ('tos') {
+      <app-tos-acceptance-step
+        [submitting]="tosSubmitting()"
+        [error]="tosError()"
+        (accepted)="onTosAccepted()" />
     }
     @default {
       <div class="alert alert-warning" role="note">

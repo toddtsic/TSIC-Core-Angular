@@ -7,6 +7,7 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { LoginComponent } from '@views/auth/login/login.component';
 import { ClubRepRegisterFormComponent } from './club-rep-register-form.component';
+import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptance-step.component';
 import type { ClubRepClubDto } from '@core/api';
 
 export interface LoginStepResult {
@@ -21,7 +22,7 @@ export interface LoginStepResult {
 @Component({
     selector: 'app-trw-login-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent],
+    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent, TosAcceptanceStepComponent],
     styles: [`
       :host { display: block; }
 
@@ -112,6 +113,24 @@ export interface LoginStepResult {
         (registered)="onRegistered($event)"
         (closed)="showRegisterModal.set(false)" />
     }
+
+    @if (autoLoginLoading()) {
+      <div class="card shadow border-0 card-rounded mt-3">
+        <div class="card-body text-center py-4">
+          <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+          <span class="text-muted">Signing you in...</span>
+        </div>
+      </div>
+    }
+
+    @if (tosRequired()) {
+      <div class="mt-3">
+        <app-tos-acceptance-step
+          [submitting]="tosSubmitting()"
+          [error]="tosError()"
+          (accepted)="onTosAccepted()" />
+      </div>
+    }
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -128,6 +147,10 @@ export class TeamLoginStepComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
     readonly error = signal<string | null>(null);
     readonly showRegisterModal = signal(false);
+    readonly tosRequired = signal(false);
+    readonly tosSubmitting = signal(false);
+    readonly tosError = signal<string | null>(null);
+    readonly autoLoginLoading = signal(false);
 
     ngOnInit(): void {
         if (this.auth.isAuthenticated()) {
@@ -143,10 +166,49 @@ export class TeamLoginStepComponent implements OnInit {
         return jobPath ? `/${jobPath}/registration/team` : '/tsic/role-selection';
     }
 
-    onRegistered(_credentials: { username: string; password: string }): void {
-        // Registration complete — user sees success state on the form
-        // and can now sign in with the login form on the left.
-        // No auto-login needed; the login component is right there.
+    onRegistered(credentials: { username: string; password: string }): void {
+        this.showRegisterModal.set(false);
+        this.autoLoginLoading.set(true);
+        this.error.set(null);
+
+        this.auth.login({
+            username: credentials.username,
+            password: credentials.password,
+        }).pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (response) => {
+                    this.autoLoginLoading.set(false);
+                    if ((response as any).requiresTosSignature) {
+                        this.tosRequired.set(true);
+                    } else {
+                        this.continueWithLogin();
+                    }
+                },
+                error: () => {
+                    this.autoLoginLoading.set(false);
+                    this.error.set('Account created but auto-login failed. Please sign in manually above.');
+                },
+            });
+    }
+
+    onTosAccepted(): void {
+        this.tosSubmitting.set(true);
+        this.tosError.set(null);
+
+        this.auth.acceptTos()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.tosSubmitting.set(false);
+                    this.tosRequired.set(false);
+                    this.continueWithLogin();
+                },
+                error: (err: unknown) => {
+                    this.tosSubmitting.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                },
+            });
     }
 
     continueWithLogin(): void {

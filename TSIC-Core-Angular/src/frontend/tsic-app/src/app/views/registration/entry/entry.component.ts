@@ -88,6 +88,6 @@ export class RegistrationEntryComponent implements OnInit {
     if (!this.jobPath) return;
     // Route to Family Account wizard with both next and a concrete returnUrl back to player wizard
     const returnUrl = `/${this.jobPath}/registration/player?step=players`;
-    this.router.navigate([`/${this.jobPath}/registration/family`], { queryParams: { next: 'registration/player', returnUrl } });
+    this.router.navigate([`/${this.jobPath}/registration/family`], { queryParams: { next: 'register-player', returnUrl } });
   }
 }

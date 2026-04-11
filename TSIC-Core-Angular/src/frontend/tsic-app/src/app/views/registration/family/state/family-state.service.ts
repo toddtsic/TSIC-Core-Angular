@@ -124,7 +124,7 @@ export class FamilyStateService {
         return a.address1.trim().length > 0
             && a.city.trim().length > 0
             && a.state.trim().length > 0
-            && a.postalCode.trim().length > 0;
+            && a.postalCode.trim().length >= 5;
     });
 
     readonly hasChildren = computed(() => {
@@ -263,7 +263,7 @@ export class FamilyStateService {
     }
 
     // ── API: Submit (create or update) ──────────────────────────────
-    submit(): void {
+    submit(onSuccess?: () => void): void {
         this._submitting.set(true);
         this._submitError.set(null);
         this._submitSuccess.set(false);
@@ -309,6 +309,7 @@ export class FamilyStateService {
                         this._submitting.set(false);
                         if (res?.success) {
                             this._submitSuccess.set(true);
+                            onSuccess?.();
                         } else {
                             this._submitError.set(res?.message ?? 'Unable to update Family Account');
                         }
@@ -331,6 +332,7 @@ export class FamilyStateService {
                         this._submitting.set(false);
                         if (res?.success) {
                             this._submitSuccess.set(true);
+                            onSuccess?.();
                         } else {
                             this._submitError.set(res?.message ?? 'Unable to create Family Account');
                         }

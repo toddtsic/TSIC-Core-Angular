@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { FamilyStateService } from '../state/family-state.service';
@@ -11,7 +12,7 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-credentials-step',
     standalone: true,
-    imports: [ReactiveFormsModule],
+    imports: [ReactiveFormsModule, AutofocusDirective],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
@@ -28,7 +29,7 @@ import { FamilyStateService } from '../state/family-state.service';
         <div [formGroup]="form" class="row g-3">
           <div class="col-12 col-md-6">
             <label class="field-label" for="v2-cred-username">Username</label>
-            <input id="v2-cred-username" type="text" formControlName="username" class="field-input"
+            <input id="v2-cred-username" type="text" formControlName="username" class="field-input" appAutofocus
                    [class.is-required]="!form.controls.username.value?.trim()"
                    [class.is-invalid]="touched() && form.controls.username.invalid"
                    (input)="syncToState()" (blur)="syncToState()" />

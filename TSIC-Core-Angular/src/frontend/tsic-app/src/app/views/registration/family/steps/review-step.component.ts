@@ -1,8 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, output, input } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
-import { LoginComponent } from '../../../auth/login/login.component';
 import { FamilyStateService } from '../state/family-state.service';
 
 /**
@@ -14,7 +12,7 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-review-step',
     standalone: true,
-    imports: [LoginComponent],
+    imports: [],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
@@ -119,21 +117,26 @@ import { FamilyStateService } from '../state/family-state.service';
           </div>
         }
 
-        <!-- Create mode: login panel for new accounts -->
-        @if (showLoginPanel()) {
+        <!-- Create mode: auto-login after successful save -->
+        @if (state.mode() === 'create' && state.submitSuccess()) {
           <hr class="my-4" />
-          <div class="card border rounded bg-body-tertiary">
-            <div class="card-body">
-              <app-login
-                [theme]="'family'"
-                [headerText]="'Sign in now (optional)'"
-                [subHeaderText]="'Already created your Family Account? Sign in to head straight back to Player Registration.'"
-                [returnUrl]="loginReturnUrl()" />
-              <div class="d-flex gap-2 mt-3">
-                <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
+          @if (autoLoginLoading()) {
+            <div class="text-center py-3">
+              <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              <span class="text-muted">Signing you in...</span>
+            </div>
+          } @else if (autoLoginError()) {
+            <div class="alert alert-warning d-flex align-items-start" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+              <div>
+                <span>{{ autoLoginError() }}</span>
+                <div class="d-flex gap-2 mt-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="autoLogin.emit()">Retry</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
+                </div>
               </div>
             </div>
-          </div>
+          }
         }
       </div>
     </div>
@@ -142,21 +145,20 @@ import { FamilyStateService } from '../state/family-state.service';
 })
 export class ReviewStepComponent implements OnInit {
     readonly completed = output<'home' | 'register'>();
+    readonly autoLogin = output<void>();
 
-    private readonly auth = inject(AuthService);
+    readonly autoLoginLoading = input(false);
+    readonly autoLoginError = input<string | null>(null);
+
     private readonly jobService = inject(JobService);
     private readonly route = inject(ActivatedRoute);
     readonly state = inject(FamilyStateService);
 
     private autoSaveAttempted = false;
+    private autoLoginTriggered = false;
 
     get showReturnToRegistration(): boolean {
         return this.route.snapshot.queryParamMap.get('next') === 'register-player';
-    }
-
-    showLoginPanel(): boolean {
-        if (this.state.mode() === 'edit') return false;
-        return !this.auth.isAuthenticated();
     }
 
     label1(): string {
@@ -169,17 +171,17 @@ export class ReviewStepComponent implements OnInit {
         return l && l.length > 0 ? l : 'Parent 2';
     }
 
-    loginReturnUrl(): string {
-        const jobPath = this.jobService.getCurrentJob()?.jobPath;
-        if (jobPath) return `/${jobPath}/register-player`;
-        return '/tsic/role-selection';
-    }
-
     ngOnInit(): void {
         // Auto-save on entering the review step (require at least one child to avoid 400)
         if (!this.autoSaveAttempted && this.state.children().length > 0) {
             this.autoSaveAttempted = true;
-            this.state.submit();
+            this.state.submit(() => {
+                // After successful save, trigger auto-login for new accounts
+                if (this.state.mode() === 'create' && !this.autoLoginTriggered) {
+                    this.autoLoginTriggered = true;
+                    this.autoLogin.emit();
+                }
+            });
         }
     }
 }

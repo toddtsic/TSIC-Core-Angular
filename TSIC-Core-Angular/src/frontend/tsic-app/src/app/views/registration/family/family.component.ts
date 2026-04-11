@@ -11,9 +11,10 @@ import { ContactsStepComponent } from './steps/contacts-step.component';
 import { AddressStepComponent } from './steps/address-step.component';
 import { ChildrenStepComponent } from './steps/children-step.component';
 import { ReviewStepComponent } from './steps/review-step.component';
+import { TosAcceptanceStepComponent } from '../shared/components/tos-acceptance-step.component';
 import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-shell.types';
 
-type FamilyStepId = 'credentials' | 'contacts' | 'address' | 'children' | 'review';
+type FamilyStepId = 'credentials' | 'contacts' | 'address' | 'children' | 'review' | 'tos';
 
 @Component({
     selector: 'app-registration-family',
@@ -25,6 +26,7 @@ type FamilyStepId = 'credentials' | 'contacts' | 'address' | 'children' | 'revie
         AddressStepComponent,
         ChildrenStepComponent,
         ReviewStepComponent,
+        TosAcceptanceStepComponent,
     ],
     templateUrl: './family.component.html',
     styleUrls: ['./family.component.scss'],
@@ -45,12 +47,20 @@ export class FamilyWizardV2Component implements OnInit {
     readonly currentIndex = signal(0);
     readonly validating = signal(false);
 
+    // ── ToS / auto-login state ─────────────────────────────────────
+    readonly tosRequired = signal(false);
+    readonly tosSubmitting = signal(false);
+    readonly tosError = signal<string | null>(null);
+    readonly autoLoginLoading = signal(false);
+    readonly autoLoginError = signal<string | null>(null);
+
     readonly steps = computed<WizardStepDef[]>(() => [
         { id: 'credentials', label: 'Account', enabled: true },
         { id: 'contacts', label: 'Contacts', enabled: true },
         { id: 'address', label: 'Address', enabled: true },
         { id: 'children', label: 'Children', enabled: true },
         { id: 'review', label: 'Review', enabled: true },
+        { id: 'tos', label: 'Terms', enabled: this.tosRequired(), showInIndicator: false },
     ]);
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
@@ -71,11 +81,15 @@ export class FamilyWizardV2Component implements OnInit {
             case 'address': return this.state.hasValidAddress();
             case 'children': return this.state.hasChildren();
             case 'review': return false;
+            case 'tos': return false;
             default: return false;
         }
     });
 
-    readonly showContinue = computed(() => this.currentStepId() !== 'review');
+    readonly showContinue = computed(() => {
+        const id = this.currentStepId();
+        return id !== 'review' && id !== 'tos';
+    });
 
     // ── Query params ────────────────────────────────────────────────
     private returnUrl: string | null = null;
@@ -162,6 +176,57 @@ export class FamilyWizardV2Component implements OnInit {
             });
     }
 
+    /** Called by review step after successful account creation (create mode only). */
+    autoLoginAndCheckTos(): void {
+        if (this.state.mode() !== 'create') return;
+
+        this.autoLoginLoading.set(true);
+        this.autoLoginError.set(null);
+
+        this.auth.login({
+            username: this.state.username(),
+            password: this.state.password(),
+        }).pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (response) => {
+                    this.autoLoginLoading.set(false);
+                    if ((response as any).requiresTosSignature) {
+                        this.tosRequired.set(true);
+                        // Advance to the ToS step
+                        const tosIdx = this.activeSteps().findIndex(s => s.id === 'tos');
+                        if (tosIdx >= 0) this.currentIndex.set(tosIdx);
+                    } else {
+                        // No ToS needed — go straight to destination
+                        this.finish('register');
+                    }
+                },
+                error: () => {
+                    this.autoLoginLoading.set(false);
+                    this.autoLoginError.set('Auto-login failed. Please sign in manually after returning home.');
+                },
+            });
+    }
+
+    /** Called by ToS step when user accepts. */
+    onTosAccepted(): void {
+        this.tosSubmitting.set(true);
+        this.tosError.set(null);
+
+        this.auth.acceptTos()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.tosSubmitting.set(false);
+                    this.finish('register');
+                },
+                error: (err: unknown) => {
+                    this.tosSubmitting.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                },
+            });
+    }
+
     /** Called by review step on completion. */
     finish(action?: 'home' | 'register'): void {
         const ru = this.returnUrl;
@@ -182,9 +247,9 @@ export class FamilyWizardV2Component implements OnInit {
         }
 
         if (this.nextAction === 'register-player' && action !== 'home') {
-            this.router.navigateByUrl(`/${jobPath}/register-player`);
+            this.router.navigateByUrl(`/${jobPath}/registration/player`);
         } else if (action === 'register') {
-            this.router.navigateByUrl(`/${jobPath}/register-player`);
+            this.router.navigateByUrl(`/${jobPath}/registration/player`);
         } else {
             this.router.navigateByUrl(`/${jobPath}`);
         }

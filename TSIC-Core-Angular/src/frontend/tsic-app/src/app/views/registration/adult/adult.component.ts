@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { AdultWizardStateService } from './state/adult-wizard-state.service';
 import { AccountStepComponent } from './steps/account-step.component';
@@ -7,9 +9,10 @@ import { RoleStepComponent } from './steps/role-step.component';
 import { ProfileStepComponent } from './steps/profile-step.component';
 import { WaiversStepComponent } from './steps/waivers-step.component';
 import { ReviewStepComponent } from './steps/review-step.component';
+import { TosAcceptanceStepComponent } from '../shared/components/tos-acceptance-step.component';
 import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-shell.types';
 
-type AdultStepId = 'account' | 'role' | 'profile' | 'waivers' | 'review';
+type AdultStepId = 'account' | 'role' | 'profile' | 'waivers' | 'review' | 'tos';
 
 @Component({
     selector: 'app-registration-adult',
@@ -21,6 +24,7 @@ type AdultStepId = 'account' | 'role' | 'profile' | 'waivers' | 'review';
         ProfileStepComponent,
         WaiversStepComponent,
         ReviewStepComponent,
+        TosAcceptanceStepComponent,
     ],
     templateUrl: './adult.component.html',
     styleUrls: ['./adult.component.scss'],
@@ -29,6 +33,8 @@ type AdultStepId = 'account' | 'role' | 'profile' | 'waivers' | 'review';
 export class AdultWizardV2Component implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly auth = inject(AuthService);
+    private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(AdultWizardStateService);
 
     jobPath = '';
@@ -36,12 +42,18 @@ export class AdultWizardV2Component implements OnInit {
     // ── Step management ─────────────────────────────────────────────
     readonly currentIndex = signal(0);
 
+    // ── ToS / auto-login state ─────────────────────────────────────
+    readonly tosRequired = signal(false);
+    readonly tosSubmitting = signal(false);
+    readonly tosError = signal<string | null>(null);
+
     readonly steps = computed<WizardStepDef[]>(() => [
         { id: 'account', label: 'Account', enabled: this.state.mode() === 'create' },
         { id: 'role', label: 'Role', enabled: true },
         { id: 'profile', label: 'Profile', enabled: this.state.formSchema() !== null },
         { id: 'waivers', label: 'Waivers', enabled: (this.state.waivers().length > 0) },
         { id: 'review', label: 'Review', enabled: true },
+        { id: 'tos', label: 'Terms', enabled: this.tosRequired(), showInIndicator: false },
     ]);
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
@@ -63,11 +75,15 @@ export class AdultWizardV2Component implements OnInit {
             case 'profile': return this.state.hasValidProfile();
             case 'waivers': return this.state.hasAcceptedAllWaivers();
             case 'review': return false; // review has its own submit button
+            case 'tos': return false; // tos has its own accept button
             default: return false;
         }
     });
 
-    readonly showContinue = computed(() => this.currentStepId() !== 'review');
+    readonly showContinue = computed(() => {
+        const id = this.currentStepId();
+        return id !== 'review' && id !== 'tos';
+    });
 
     // ── Lifecycle ───────────────────────────────────────────────────
     ngOnInit(): void {
@@ -99,14 +115,58 @@ export class AdultWizardV2Component implements OnInit {
         this.currentIndex.update(i => Math.max(0, i - 1));
     }
 
-    /** Called by review step — either submit or navigate away on success. */
+    /** Called by review step — submit and auto-login on success. */
     onSubmitOrFinish(): void {
         if (this.state.submitSuccess()) {
-            // Registration done — navigate to job home
             this.router.navigateByUrl(`/${this.jobPath}`);
-        } else {
-            // Trigger submission
-            this.state.submit(this.jobPath);
+            return;
         }
+
+        this.state.submit(this.jobPath, () => {
+            // After successful registration in create mode, auto-login + check ToS
+            if (this.state.mode() === 'create') {
+                this.autoLoginAndCheckTos();
+            }
+        });
+    }
+
+    private autoLoginAndCheckTos(): void {
+        this.auth.login({
+            username: this.state.username(),
+            password: this.state.password(),
+        }).pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (response) => {
+                    if ((response as any).requiresTosSignature) {
+                        this.tosRequired.set(true);
+                        const tosIdx = this.activeSteps().findIndex(s => s.id === 'tos');
+                        if (tosIdx >= 0) this.currentIndex.set(tosIdx);
+                    } else {
+                        this.router.navigateByUrl(`/${this.jobPath}`);
+                    }
+                },
+                error: () => {
+                    // Auto-login failed — still on confirmation page, user can navigate manually
+                },
+            });
+    }
+
+    onTosAccepted(): void {
+        this.tosSubmitting.set(true);
+        this.tosError.set(null);
+
+        this.auth.acceptTos()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.tosSubmitting.set(false);
+                    this.router.navigateByUrl(`/${this.jobPath}`);
+                },
+                error: (err: unknown) => {
+                    this.tosSubmitting.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                },
+            });
     }
 }
