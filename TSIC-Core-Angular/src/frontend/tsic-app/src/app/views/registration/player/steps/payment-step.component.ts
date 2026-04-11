@@ -148,35 +148,13 @@ import type { LineItem } from '../state/payment-v2.service';
           }
         }
 
-        <!-- VerticalInsure / RegSaver region -->
+        <!-- VerticalInsure / RegSaver region — matches legacy: widget + prompt only -->
         @if (insuranceState.offerPlayerRegSaver() && insuranceState.verticalInsureOffer().data) {
           <div class="mb-3">
             <div #viOffer id="dVIOffer" class="text-center"></div>
-            @if (insuranceSvc.widgetEmpty()) {
-              <div class="alert alert-warning border-0 py-2 small" role="status">
-                <div class="d-flex align-items-center gap-2">
-                  <i class="bi bi-exclamation-triangle"></i>
-                  <span class="badge bg-secondary">RegSaver</span>
-                  <div class="text-muted">{{ insuranceSvc.error() || 'Registration insurance is temporarily unavailable.' }}</div>
-                </div>
-              </div>
-            } @else if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
+            @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
               <div class="alert alert-secondary border-0 py-2 small" role="alert">
                 Insurance is optional. Please indicate your interest in registration insurance for each player listed.
-              </div>
-            } @else if (insuranceSvc.hasUserResponse() && insuranceSvc.quotes().length > 0) {
-              <div class="mt-2">
-                <div class="alert alert-success" role="status">
-                  <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-success">RegSaver</span>
-                    <div>
-                      <div class="fw-semibold mb-0">Insurance Selected</div>
-                      @if (insuranceState.viConsent()?.policyNumber) {
-                        <div class="small text-muted">Policy #: {{ insuranceState.viConsent()?.policyNumber }}</div>
-                      }
-                    </div>
-                  </div>
-                </div>
               </div>
             }
           </div>

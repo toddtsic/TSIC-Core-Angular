@@ -73,8 +73,9 @@ export interface VIWindowExtension {
     VerticalInsure?: new (
         hostSelector: string,
         offerData: VIOfferData,
+        onStateChange?: (state: VIWidgetState) => void,
         onReady?: (state: VIWidgetState) => void,
-        onChange?: (state: VIWidgetState) => void
+        onError?: (...args: unknown[]) => void
     ) => VIWidgetInstance;
 }
 

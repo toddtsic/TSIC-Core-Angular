@@ -12,8 +12,8 @@ import type { VIOfferData, VIWidgetState, VIWindowExtension, VIWidgetInstance, V
 import { formatHttpError } from '../../shared/utils/error-utils';
 
 /**
- * Team insurance service - manages Vertical Insure widget integration for teams.
- * Parallel to player insurance service but uses team-specific endpoints.
+ * Team insurance service — matches legacy TSIC-Unify-2024 behavior exactly.
+ * Callbacks store state only. Confirm/decline is determined at submit time from quotes array.
  */
 @Injectable({ providedIn: 'root' })
 export class TeamInsuranceService {
@@ -29,14 +29,11 @@ export class TeamInsuranceService {
     private readonly _error = signal<string | null>(null);
     private readonly _widgetInitialized = signal(false);
     private readonly purchasing = signal(false);
-    private readonly _widgetEmpty = signal(false);
 
     readonly quotes = this._quotes.asReadonly();
     readonly hasUserResponse = this._hasUserResponse.asReadonly();
     readonly error = this._error.asReadonly();
     readonly widgetInitialized = this._widgetInitialized.asReadonly();
-    /** True when the widget initialized but VI had no offers (API error or no coverage). */
-    readonly widgetEmpty = this._widgetEmpty.asReadonly();
 
     offerEnabled = computed(() => this.insuranceState.offerTeamRegSaver());
     consented = computed(() => this.insuranceState.verticalInsureConfirmed());
@@ -55,14 +52,12 @@ export class TeamInsuranceService {
             return;
         }
         try {
-            // Inject computed dark-mode colors into VI's theme (for iframe compatibility)
             this.viDarkMode.injectDarkModeColors(offerData);
 
             const instance: VIWidgetInstance = new viWindow.VerticalInsure!(
                 hostSelector,
                 offerData,
-                // onStateChange — fires on user interaction (accept/decline quotes).
-                // Decision (confirm/decline) is determined at submit time from quotes array.
+                // onStateChange — fires on user interaction. Store state only.
                 (st: VIWidgetState) => {
                     instance.validate().then((valid: boolean) => {
                         this._hasUserResponse.set(valid);
@@ -70,19 +65,12 @@ export class TeamInsuranceService {
                         this.viDarkMode.applyViDarkMode(hostSelector);
                     });
                 },
-                // onReady — fires once when the offer loads.
-                // offersAvailable = false means VI API error (bad data, no coverage, etc.)
-                (st: VIWidgetState) => {
+                // onReady — fires once when offer loads. Store validity only.
+                () => {
                     this._widgetInitialized.set(true);
-                    const offersAvailable = (st as Record<string, unknown>)?.['offersAvailable'];
-                    if (offersAvailable === false) {
-                        this._widgetEmpty.set(true);
-                        this._hasUserResponse.set(true);
-                        this._error.set('Team registration insurance is temporarily unavailable.');
-                    } else {
-                        this._widgetEmpty.set(false);
-                        this._error.set(null);
-                    }
+                    instance.validate().then((valid: boolean) => {
+                        this._hasUserResponse.set(valid);
+                    });
                     this.viDarkMode.applyViDarkMode(hostSelector);
                 }
             );
@@ -183,7 +171,6 @@ export class TeamInsuranceService {
         this._error.set(null);
         this._widgetInitialized.set(false);
         this.purchasing.set(false);
-        this._widgetEmpty.set(false);
         this.viDarkMode.disconnect();
     }
 
