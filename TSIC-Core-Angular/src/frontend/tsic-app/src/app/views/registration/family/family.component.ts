@@ -176,10 +176,8 @@ export class FamilyWizardV2Component implements OnInit {
             });
     }
 
-    /** Called by review step after successful account creation (create mode only). */
+    /** Called by review step after successful save — login + check ToS for both create and edit mode. */
     autoLoginAndCheckTos(): void {
-        if (this.state.mode() !== 'create') return;
-
         this.autoLoginLoading.set(true);
         this.autoLoginError.set(null);
 
@@ -197,7 +195,7 @@ export class FamilyWizardV2Component implements OnInit {
                         if (tosIdx >= 0) this.currentIndex.set(tosIdx);
                     } else {
                         // No ToS needed — go straight to destination
-                        this.finish('register');
+                        this.finish(this.state.mode() === 'create' ? 'register' : 'home');
                     }
                 },
                 error: () => {
@@ -217,7 +215,7 @@ export class FamilyWizardV2Component implements OnInit {
             .subscribe({
                 next: () => {
                     this.tosSubmitting.set(false);
-                    this.finish('register');
+                    this.finish(this.state.mode() === 'create' ? 'register' : 'home');
                 },
                 error: (err: unknown) => {
                     this.tosSubmitting.set(false);

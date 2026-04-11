@@ -117,8 +117,8 @@ import { FamilyStateService } from '../state/family-state.service';
           </div>
         }
 
-        <!-- Create mode: auto-login after successful save -->
-        @if (state.mode() === 'create' && state.submitSuccess()) {
+        <!-- Auto-login + ToS check after successful save -->
+        @if (state.submitSuccess()) {
           <hr class="my-4" />
           @if (autoLoginLoading()) {
             <div class="text-center py-3">
@@ -176,8 +176,8 @@ export class ReviewStepComponent implements OnInit {
         if (!this.autoSaveAttempted && this.state.children().length > 0) {
             this.autoSaveAttempted = true;
             this.state.submit(() => {
-                // After successful save, trigger auto-login for new accounts
-                if (this.state.mode() === 'create' && !this.autoLoginTriggered) {
+                // After successful save, trigger auto-login + ToS check
+                if (!this.autoLoginTriggered) {
                     this.autoLoginTriggered = true;
                     this.autoLogin.emit();
                 }
