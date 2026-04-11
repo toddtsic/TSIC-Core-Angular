@@ -4,6 +4,8 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { ClubService } from '@infrastructure/services/club.service';
+import { AuthService } from '@infrastructure/services/auth.service';
+import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptance-step.component';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -33,7 +35,7 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 @Component({
     selector: 'app-club-rep-register-form',
     standalone: true,
-    imports: [ReactiveFormsModule, TsicDialogComponent],
+    imports: [ReactiveFormsModule, TsicDialogComponent, TosAcceptanceStepComponent],
     styles: [`
       /* ── Blocked panel (Tier 1: 85%+) ────────────────────── */
       .club-blocked-panel {
@@ -199,16 +201,18 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
         </div>
         <div class="modal-body">
           @if (registrationComplete()) {
-            <!-- ── SUCCESS ── -->
-            <div class="text-center py-4">
+            <!-- ── SUCCESS + ToS ── -->
+            <div class="text-center py-3">
               <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
               <h6 class="fw-bold mt-3 mb-2">Account Created!</h6>
-              <p class="small text-muted mb-2">
-                Your club is set up. When you register for events, you'll select
-                teams from your club library instead of re-entering them each time.
+              <p class="small text-muted mb-0">
+                Please review and accept the Terms of Service to continue.
               </p>
-              <p class="small text-muted mb-0">Close this dialog and sign in with your new credentials.</p>
             </div>
+            <app-tos-acceptance-step
+              [submitting]="tosSubmitting()"
+              [error]="tosError()"
+              (accepted)="onTosAccepted()" />
           } @else {
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
@@ -469,6 +473,7 @@ export class ClubRepRegisterFormComponent {
 
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
+    private readonly auth = inject(AuthService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
@@ -480,6 +485,9 @@ export class ClubRepRegisterFormComponent {
     readonly saving = signal(false);
     readonly errorMsg = signal<string | null>(null);
     readonly registrationComplete = signal(false);
+    readonly tosSubmitting = signal(false);
+    readonly tosError = signal<string | null>(null);
+    private savedCredentials: { username: string; password: string } | null = null;
 
     // Club search state
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
@@ -629,8 +637,8 @@ export class ClubRepRegisterFormComponent {
                     this.saving.set(false);
                     if (resp.success) {
                         this.registrationComplete.set(true);
-                        this.toast.show('Account created! Please sign in.', 'success', 3000);
-                        this.registered.emit({ username: request.username, password: request.password });
+                        this.savedCredentials = { username: request.username, password: request.password };
+                        this.toast.show('Account created! Please accept the Terms of Service.', 'success', 3000);
                     } else if (resp.similarClubs?.length) {
                         // Backend gate caught something the frontend missed
                         this.clubSearchResults.set(resp.similarClubs as ClubSearchResult[]);
@@ -645,6 +653,39 @@ export class ClubRepRegisterFormComponent {
                     this.saving.set(false);
                     const httpErr = err as { error?: { message?: string } };
                     this.errorMsg.set(httpErr?.error?.message || 'Request failed.');
+                },
+            });
+    }
+
+    /** Called by inline ToS after user accepts — auto-login, accept ToS, emit registered. */
+    onTosAccepted(): void {
+        if (!this.savedCredentials) return;
+        this.tosSubmitting.set(true);
+        this.tosError.set(null);
+
+        this.auth.login({
+            username: this.savedCredentials.username,
+            password: this.savedCredentials.password,
+        }).pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.auth.acceptTos()
+                        .pipe(takeUntilDestroyed(this.destroyRef))
+                        .subscribe({
+                            next: () => {
+                                this.tosSubmitting.set(false);
+                                this.registered.emit(this.savedCredentials!);
+                            },
+                            error: (err: unknown) => {
+                                this.tosSubmitting.set(false);
+                                const httpErr = err as { error?: { message?: string } };
+                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
+                            },
+                        });
+                },
+                error: () => {
+                    this.tosSubmitting.set(false);
+                    this.tosError.set('Unable to sign in. Please try again.');
                 },
             });
     }

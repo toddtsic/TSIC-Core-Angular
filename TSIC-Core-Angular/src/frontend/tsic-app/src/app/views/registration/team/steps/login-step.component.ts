@@ -7,7 +7,6 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { LoginComponent } from '@views/auth/login/login.component';
 import { ClubRepRegisterFormComponent } from './club-rep-register-form.component';
-import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptance-step.component';
 import type { ClubRepClubDto } from '@core/api';
 
 export interface LoginStepResult {
@@ -22,7 +21,7 @@ export interface LoginStepResult {
 @Component({
     selector: 'app-trw-login-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent, TosAcceptanceStepComponent],
+    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent],
     styles: [`
       :host { display: block; }
 
@@ -114,14 +113,6 @@ export interface LoginStepResult {
         (closed)="showRegisterModal.set(false)" />
     }
 
-    @if (showTos()) {
-      <div class="mt-3">
-        <app-tos-acceptance-step
-          [submitting]="tosSubmitting()"
-          [error]="tosError()"
-          (accepted)="onTosAccepted()" />
-      </div>
-    }
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -138,10 +129,6 @@ export class TeamLoginStepComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
     readonly error = signal<string | null>(null);
     readonly showRegisterModal = signal(false);
-    readonly showTos = signal(false);
-    readonly tosSubmitting = signal(false);
-    readonly tosError = signal<string | null>(null);
-    private pendingCredentials: { username: string; password: string } | null = null;
 
     ngOnInit(): void {
         if (this.auth.isAuthenticated()) {
@@ -157,44 +144,10 @@ export class TeamLoginStepComponent implements OnInit {
         return jobPath ? `/${jobPath}/registration/team` : '/tsic/role-selection';
     }
 
-    onRegistered(credentials: { username: string; password: string }): void {
+    /** Called by modal after ToS accepted — user is already authenticated. */
+    onRegistered(_credentials: { username: string; password: string }): void {
         this.showRegisterModal.set(false);
-        this.pendingCredentials = credentials;
-        this.showTos.set(true);
-    }
-
-    /** Called by inline ToS step — auto-login, accept ToS, then continue to teams. */
-    onTosAccepted(): void {
-        if (!this.pendingCredentials) return;
-        this.tosSubmitting.set(true);
-        this.tosError.set(null);
-
-        this.auth.login({
-            username: this.pendingCredentials.username,
-            password: this.pendingCredentials.password,
-        }).pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: () => {
-                    this.auth.acceptTos()
-                        .pipe(takeUntilDestroyed(this.destroyRef))
-                        .subscribe({
-                            next: () => {
-                                this.tosSubmitting.set(false);
-                                this.showTos.set(false);
-                                this.continueWithLogin();
-                            },
-                            error: (err: unknown) => {
-                                this.tosSubmitting.set(false);
-                                const httpErr = err as { error?: { message?: string } };
-                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
-                            },
-                        });
-                },
-                error: () => {
-                    this.tosSubmitting.set(false);
-                    this.tosError.set('Unable to sign in. Please try again.');
-                },
-            });
+        this.continueWithLogin();
     }
 
     continueWithLogin(): void {
