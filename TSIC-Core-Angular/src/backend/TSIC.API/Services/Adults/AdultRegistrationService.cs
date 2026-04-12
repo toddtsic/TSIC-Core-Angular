@@ -481,6 +481,16 @@ public class AdultRegistrationService : IAdultRegistrationService
         if (string.IsNullOrWhiteSpace(template)) return template;
         try
         {
+            // Adult Staff registrations are not club-rep rows, so the shared
+            // !F-TEAMS resolver (which joins Teams by ClubrepRegistrationid)
+            // returns empty. Pre-render the teams list for Staff and inline it
+            // before handing off to the shared substitution service.
+            if (reg.RoleId == RoleConstants.Staff && template.Contains("!F-TEAMS", StringComparison.Ordinal))
+            {
+                var staffTeamsHtml = await BuildStaffTeamsHtmlAsync(reg, CancellationToken.None);
+                template = template.Replace("!F-TEAMS", staffTeamsHtml, StringComparison.Ordinal);
+            }
+
             return await _textSub.SubstituteAsync(
                 jobSegment: reg.Job?.JobPath ?? string.Empty,
                 jobId: reg.JobId,
@@ -494,6 +504,45 @@ public class AdultRegistrationService : IAdultRegistrationService
             // Never fail the wizard if substitution errors; return the raw template.
             return template;
         }
+    }
+
+    /// <summary>
+    /// Render the teams list for an adult Staff registration (all active Staff
+    /// rows for this user+job, one per team). Replaces !F-TEAMS in confirmation
+    /// templates since the shared resolver only handles club-rep rows.
+    /// </summary>
+    private async Task<string> BuildStaffTeamsHtmlAsync(Registrations reg, CancellationToken cancellationToken)
+    {
+        var staffRegs = await _repo.GetTrackedActiveByRoleAsync(reg.UserId!, reg.JobId, RoleConstants.Staff, cancellationToken);
+        var teamIds = staffRegs
+            .Where(r => r.AssignedTeamId.HasValue)
+            .Select(r => r.AssignedTeamId!.Value)
+            .ToHashSet();
+        if (teamIds.Count == 0) return string.Empty;
+
+        var options = await _repo.GetAvailableTeamsAsync(reg.JobId, cancellationToken);
+        var selected = options.Where(o => teamIds.Contains(o.TeamId)).ToList();
+        if (selected.Count == 0) return string.Empty;
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<table style='border-collapse:collapse;margin:8px 0;'>");
+        sb.Append("<thead><tr>")
+          .Append("<th style='text-align:left;padding:4px 12px 4px 0;border-bottom:1px solid #ccc;'>Club</th>")
+          .Append("<th style='text-align:left;padding:4px 12px 4px 0;border-bottom:1px solid #ccc;'>Age Group</th>")
+          .Append("<th style='text-align:left;padding:4px 12px 4px 0;border-bottom:1px solid #ccc;'>Division</th>")
+          .Append("<th style='text-align:left;padding:4px 0;border-bottom:1px solid #ccc;'>Team</th>")
+          .Append("</tr></thead><tbody>");
+        foreach (var t in selected)
+        {
+            sb.Append("<tr>")
+              .Append($"<td style='padding:4px 12px 4px 0;'>{System.Net.WebUtility.HtmlEncode(t.ClubName)}</td>")
+              .Append($"<td style='padding:4px 12px 4px 0;'>{System.Net.WebUtility.HtmlEncode(t.AgegroupName)}</td>")
+              .Append($"<td style='padding:4px 12px 4px 0;'>{System.Net.WebUtility.HtmlEncode(t.DivName)}</td>")
+              .Append($"<td style='padding:4px 0;'>{System.Net.WebUtility.HtmlEncode(t.TeamName)}</td>")
+              .Append("</tr>");
+        }
+        sb.Append("</tbody></table>");
+        return sb.ToString();
     }
 
     // ============ PreSubmit + Payment ============
