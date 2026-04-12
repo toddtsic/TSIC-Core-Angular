@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using TSIC.API.Services.Metadata;
+using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.AdultRegistration;
@@ -17,17 +18,26 @@ public class AdultRegistrationService : IAdultRegistrationService
     private readonly IProfileMetadataService _metadataService;
     private readonly IEmailService _emailService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IFeeResolutionService _feeService;
+    private readonly IAdnApiService _adnApiService;
+    private readonly IRegistrationAccountingRepository _acctRepo;
 
     public AdultRegistrationService(
         IAdultRegistrationRepository repo,
         IProfileMetadataService metadataService,
         IEmailService emailService,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IFeeResolutionService feeService,
+        IAdnApiService adnApiService,
+        IRegistrationAccountingRepository acctRepo)
     {
         _repo = repo;
         _metadataService = metadataService;
         _emailService = emailService;
         _userManager = userManager;
+        _feeService = feeService;
+        _adnApiService = adnApiService;
+        _acctRepo = acctRepo;
     }
 
     public async Task<AdultRegJobInfoResponse> GetJobInfoByPathAsync(string jobPath, CancellationToken cancellationToken = default)
@@ -70,22 +80,37 @@ public class AdultRegistrationService : IAdultRegistrationService
         var jobData = await _repo.GetJobAdultRegDataByPathAsync(jobPath, cancellationToken)
             ?? throw new KeyNotFoundException($"Job not found for path '{jobPath}'.");
 
-        var roleKey = GetRoleKey(roleType);
-        var parsed = _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, roleKey, jobData.JsonOptions);
+        List<JobRegFieldDto> fields;
 
-        var fields = parsed.TypedFields.Select(tf => new JobRegFieldDto
+        if (!string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson))
         {
-            Name = tf.Name,
-            DbColumn = tf.DbColumn,
-            DisplayName = string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
-            InputType = string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
-            DataSource = tf.DataSource,
-            Options = tf.Options,
-            Validation = tf.Validation,
-            Order = tf.Order,
-            Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
-            ConditionalOn = tf.ConditionalOn
-        }).ToList();
+            var roleKey = GetRoleKey(roleType);
+            var parsed = _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, roleKey, jobData.JsonOptions);
+
+            fields = parsed.TypedFields.Select(tf => new JobRegFieldDto
+            {
+                Name = tf.Name,
+                DbColumn = tf.DbColumn,
+                DisplayName = string.IsNullOrWhiteSpace(tf.DisplayName) ? tf.Name : tf.DisplayName,
+                InputType = string.IsNullOrWhiteSpace(tf.InputType) ? "TEXT" : tf.InputType,
+                DataSource = tf.DataSource,
+                Options = tf.Options,
+                Validation = tf.Validation,
+                Order = tf.Order,
+                Visibility = string.IsNullOrWhiteSpace(tf.Visibility) ? "public" : tf.Visibility,
+                ConditionalOn = tf.ConditionalOn
+            }).ToList();
+        }
+        else
+        {
+            fields = [];
+        }
+
+        // Fallback: if no metadata fields configured, provide SpecialRequests per role
+        if (fields.Count == 0)
+        {
+            fields = BuildFallbackFields(roleType);
+        }
 
         var waivers = BuildWaivers(jobData);
 
@@ -125,6 +150,48 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         var roleId = ResolveRoleId(request.RoleType);
         var registrationId = await CreateRegistrationAsync(jobData, user.Id, roleId, request.RoleType, request.FormValues, request.WaiverAcceptance, user.Id, cancellationToken);
+
+        // Stamp fees if applicable
+        var feeCtx = new FeeApplicationContext { AddProcessingFees = jobData.BAddProcessingFees };
+        var resolved = await _feeService.ResolveJobLevelFeeAsync(jobData.JobId, roleId, cancellationToken);
+        if (resolved != null && resolved.EffectiveBalanceDue > 0m)
+        {
+            var reg = await _repo.GetTrackedRegistrationAsync(registrationId, cancellationToken);
+            if (reg != null)
+            {
+                await _feeService.ApplyNewAdultRegistrationFeesAsync(reg, jobData.JobId, roleId, feeCtx, cancellationToken);
+                await _repo.SaveChangesAsync(cancellationToken);
+
+                // Process payment if CC provided
+                if (request.CreditCard != null && request.PaymentMethod == "CC" && reg.OwedTotal > 0m)
+                {
+                    var paymentResult = await ProcessPaymentAsync(
+                        registrationId, user.Id,
+                        new AdultPaymentRequestDto
+                        {
+                            RegistrationId = registrationId,
+                            CreditCard = request.CreditCard,
+                            PaymentMethod = "CC"
+                        },
+                        cancellationToken);
+
+                    if (!paymentResult.Success)
+                    {
+                        return new AdultRegistrationResponse
+                        {
+                            Success = true,
+                            RegistrationId = registrationId,
+                            Message = $"Registration created but payment failed: {paymentResult.Message}"
+                        };
+                    }
+                }
+                else if (request.PaymentMethod == "Check" && reg.OwedTotal > 0m)
+                {
+                    reg.PaymentMethodChosen = 3; // 3 = Check
+                    await _repo.SaveChangesAsync(cancellationToken);
+                }
+            }
+        }
 
         return new AdultRegistrationResponse
         {
@@ -194,6 +261,221 @@ public class AdultRegistrationService : IAdultRegistrationService
         };
 
         await _emailService.SendAsync(message, cancellationToken: cancellationToken);
+    }
+
+    // ============ PreSubmit + Payment ============
+
+    public async Task<PreSubmitAdultRegResponseDto> PreSubmitAsync(Guid jobId, string? userId, PreSubmitAdultRegRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var jobData = await _repo.GetJobAdultRegDataAsync(jobId, cancellationToken)
+            ?? throw new KeyNotFoundException("Job not found.");
+
+        var roleId = ResolveRoleId(request.RoleType);
+
+        // Validate form fields against schema
+        var validationErrors = ValidateFormFields(jobData, request);
+        if (validationErrors.Count > 0)
+        {
+            return new PreSubmitAdultRegResponseDto
+            {
+                Valid = false,
+                ValidationErrors = validationErrors,
+                RegistrationId = null,
+                Fees = new AdultFeeBreakdownDto
+                {
+                    FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m,
+                    FeeLateFee = 0m, FeeTotal = 0m, OwedTotal = 0m
+                }
+            };
+        }
+
+        // Resolve fees
+        var feeCtx = new FeeApplicationContext { AddProcessingFees = jobData.BAddProcessingFees };
+        var resolved = await _feeService.ResolveJobLevelFeeAsync(jobId, roleId, cancellationToken);
+        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+
+        // Build fee breakdown preview
+        var rate = baseFee > 0m && feeCtx.AddProcessingFees
+            ? await _feeService.GetEffectiveProcessingRateAsync(jobId, cancellationToken)
+            : 0m;
+        var feeProcessing = baseFee > 0m && feeCtx.AddProcessingFees
+            ? Math.Round(baseFee * rate, 2)
+            : 0m;
+        var feeTotal = baseFee + feeProcessing;
+
+        var fees = new AdultFeeBreakdownDto
+        {
+            FeeBase = baseFee,
+            FeeProcessing = feeProcessing,
+            FeeDiscount = 0m,
+            FeeLateFee = 0m,
+            FeeTotal = feeTotal,
+            OwedTotal = feeTotal
+        };
+
+        Guid? registrationId = null;
+
+        // Login-mode: create the registration now (user exists)
+        if (userId != null)
+        {
+            var exists = await _repo.HasExistingRegistrationAsync(userId, jobId, roleId, cancellationToken);
+            if (exists)
+                throw new InvalidOperationException("You already have an active registration with this role for this event.");
+
+            var regId = await CreateRegistrationAsync(
+                jobData, userId, roleId, request.RoleType,
+                request.FormValues, request.WaiverAcceptance,
+                userId, cancellationToken);
+
+            // Stamp fees on the registration
+            if (baseFee > 0m)
+            {
+                var reg = await _repo.GetTrackedRegistrationAsync(regId, cancellationToken);
+                if (reg != null)
+                {
+                    await _feeService.ApplyNewAdultRegistrationFeesAsync(reg, jobId, roleId, feeCtx, cancellationToken);
+                    await _repo.SaveChangesAsync(cancellationToken);
+                }
+            }
+
+            registrationId = regId;
+        }
+
+        return new PreSubmitAdultRegResponseDto
+        {
+            Valid = true,
+            ValidationErrors = null,
+            RegistrationId = registrationId,
+            Fees = fees
+        };
+    }
+
+    public async Task<AdultPaymentResponseDto> ProcessPaymentAsync(Guid registrationId, string userId, AdultPaymentRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var reg = await _repo.GetTrackedRegistrationAsync(registrationId, cancellationToken)
+            ?? throw new KeyNotFoundException("Registration not found.");
+
+        if (reg.UserId != userId)
+            throw new UnauthorizedAccessException("Registration does not belong to this user.");
+
+        if (reg.OwedTotal <= 0m)
+        {
+            return new AdultPaymentResponseDto
+            {
+                Success = true,
+                Message = "No payment required."
+            };
+        }
+
+        if (request.PaymentMethod == "Check")
+        {
+            reg.PaymentMethodChosen = 3; // 3 = Check
+            await _repo.SaveChangesAsync(cancellationToken);
+
+            return new AdultPaymentResponseDto
+            {
+                Success = true,
+                Message = "Registration recorded. Payment by check selected."
+            };
+        }
+
+        // CC payment via Authorize.Net
+        if (request.CreditCard == null)
+            throw new InvalidOperationException("Credit card information is required for CC payment.");
+
+        var jobId = reg.JobId;
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
+        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+        {
+            return new AdultPaymentResponseDto
+            {
+                Success = false,
+                Message = "Payment gateway credentials not configured.",
+                ErrorCode = "NO_CREDENTIALS"
+            };
+        }
+
+        var env = _adnApiService.GetADNEnvironment();
+        var amount = reg.OwedTotal;
+        var invoiceNumber = $"{reg.Job.JobAi}_{reg.RegistrationId.ToString("N")[..8]}";
+        if (invoiceNumber.Length > 20) invoiceNumber = invoiceNumber[..20];
+
+        var ccExpiryDate = FormatExpiry(request.CreditCard.Expiry ?? "");
+        var roleType = ResolveRoleTypeFromId(reg.RoleId);
+        var description = $"Adult Registration: {GetRoleDisplayName(roleType)}";
+
+        var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
+        {
+            Env = env,
+            LoginId = credentials.AdnLoginId!,
+            TransactionKey = credentials.AdnTransactionKey!,
+            CardNumber = request.CreditCard.Number!,
+            CardCode = request.CreditCard.Code!,
+            Expiry = ccExpiryDate,
+            FirstName = request.CreditCard.FirstName!,
+            LastName = request.CreditCard.LastName!,
+            Address = request.CreditCard.Address!,
+            Zip = request.CreditCard.Zip!,
+            Email = request.CreditCard.Email!,
+            Phone = request.CreditCard.Phone!,
+            Amount = amount,
+            InvoiceNumber = invoiceNumber,
+            Description = description
+        });
+
+        if (adnResponse?.messages?.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok
+            && adnResponse.transactionResponse?.messages != null
+            && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId))
+        {
+            var transId = adnResponse.transactionResponse.transId;
+
+            // Create accounting entry
+            _acctRepo.Add(new RegistrationAccounting
+            {
+                RegistrationId = registrationId,
+                Payamt = amount,
+                Dueamt = amount,
+                Paymeth = $"paid by cc: {amount:C} on {DateTime.Now:G} txID: {transId}",
+                PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // CC payment method
+                Active = true,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
+                LebUserId = userId,
+                AdnTransactionId = transId,
+                AdnInvoiceNo = invoiceNumber,
+                AdnCc4 = request.CreditCard.Number!.Length >= 4
+                    ? request.CreditCard.Number[^4..]
+                    : request.CreditCard.Number,
+                AdnCcexpDate = ccExpiryDate,
+                Comment = description
+            });
+
+            reg.PaidTotal += amount;
+            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            reg.PaymentMethodChosen = 1; // 1 = CC
+
+            await _repo.SaveChangesAsync(cancellationToken);
+            await _acctRepo.SaveChangesAsync(cancellationToken);
+
+            return new AdultPaymentResponseDto
+            {
+                Success = true,
+                TransactionId = transId,
+                Message = "Payment processed successfully."
+            };
+        }
+
+        // Payment failed
+        var errorText = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+            ?? "Payment processing failed. Please check your card details and try again.";
+        var errorCode = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorCode;
+
+        return new AdultPaymentResponseDto
+        {
+            Success = false,
+            Message = errorText,
+            ErrorCode = errorCode
+        };
     }
 
     // ============ Private Helpers ============
@@ -280,6 +562,90 @@ public class AdultRegistrationService : IAdultRegistrationService
         AdultRoleType.Recruiter => "College Recruiter",
         _ => "Adult"
     };
+
+    private List<AdultValidationErrorDto> ValidateFormFields(AdultRegJobData jobData, PreSubmitAdultRegRequestDto request)
+    {
+        var errors = new List<AdultValidationErrorDto>();
+
+        var roleKey = GetRoleKey(request.RoleType);
+        var parsed = _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, roleKey, jobData.JsonOptions);
+
+        var formValues = request.FormValues ?? new();
+
+        foreach (var field in parsed.TypedFields)
+        {
+            if (field.Visibility == "hidden" || field.Visibility == "adminOnly") continue;
+            if (field.Validation?.Required != true) continue;
+
+            var hasValue = formValues.TryGetValue(field.Name, out var val)
+                && val.ValueKind != System.Text.Json.JsonValueKind.Null
+                && val.ValueKind != System.Text.Json.JsonValueKind.Undefined
+                && val.ToString()?.Trim().Length > 0;
+
+            if (!hasValue)
+            {
+                var displayName = string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : field.DisplayName;
+                errors.Add(new AdultValidationErrorDto
+                {
+                    Field = field.Name,
+                    Message = $"{displayName} is required."
+                });
+            }
+        }
+
+        return errors;
+    }
+
+    private static string FormatExpiry(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return raw;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (digits.Length == 4)
+        {
+            var mm = digits[..2];
+            var yy = digits[2..];
+            var year = 2000 + int.Parse(yy);
+            return $"{year}-{mm}";
+        }
+        if (digits.Length == 6)
+        {
+            var year = digits[..4];
+            var mm = digits[4..];
+            return $"{year}-{mm}";
+        }
+        return raw;
+    }
+
+    private static List<JobRegFieldDto> BuildFallbackFields(AdultRoleType roleType)
+    {
+        var (label, placeholder) = roleType switch
+        {
+            AdultRoleType.UnassignedAdult => (
+                "Coaching Requests",
+                "Please indicate the age group or team you wish to coach"),
+            AdultRoleType.Referee => (
+                "Special Requests",
+                "Enter any special requests, or 'none' if you don't have any"),
+            AdultRoleType.Recruiter => (
+                "College / University",
+                "What college or university do you represent?"),
+            _ => ("Special Requests", "")
+        };
+
+        return
+        [
+            new JobRegFieldDto
+            {
+                Name = "SpecialRequests",
+                DbColumn = "SpecialRequests",
+                DisplayName = label,
+                InputType = roleType == AdultRoleType.Recruiter ? "TEXT" : "TEXTAREA",
+                Order = 1,
+                Visibility = "public",
+                Validation = new FieldValidation { Required = true, Message = placeholder }
+            }
+        ];
+    }
 
     private static List<AdultWaiverDto> BuildWaivers(AdultRegJobData jobData)
     {

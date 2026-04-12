@@ -124,6 +124,40 @@ public class FeeRepository : IFeeRepository
             .ToListAsync(ct);
     }
 
+    public async Task<ResolvedFee?> GetJobLevelFeeAsync(
+        Guid jobId, string roleId,
+        CancellationToken ct = default)
+    {
+        var row = await _context.JobFees
+            .AsNoTracking()
+            .Where(jf => jf.JobId == jobId
+                && jf.RoleId == roleId
+                && jf.AgegroupId == null
+                && jf.TeamId == null)
+            .Select(jf => new { jf.Deposit, jf.BalanceDue })
+            .SingleOrDefaultAsync(ct);
+
+        if (row == null) return null;
+
+        return new ResolvedFee { Deposit = row.Deposit, BalanceDue = row.BalanceDue };
+    }
+
+    public async Task<List<FeeModifiers>> GetActiveModifiersForJobLevelAsync(
+        Guid jobId, string roleId, DateTime asOfDate,
+        CancellationToken ct = default)
+    {
+        return await _context.FeeModifiers
+            .AsNoTracking()
+            .Where(m =>
+                m.JobFee.JobId == jobId
+                && m.JobFee.RoleId == roleId
+                && m.JobFee.AgegroupId == null
+                && m.JobFee.TeamId == null
+                && (m.StartDate == null || m.StartDate <= asOfDate)
+                && (m.EndDate == null || m.EndDate >= asOfDate))
+            .ToListAsync(ct);
+    }
+
     public async Task<List<JobFees>> GetJobFeesByJobAsync(
         Guid jobId, CancellationToken ct = default)
     {

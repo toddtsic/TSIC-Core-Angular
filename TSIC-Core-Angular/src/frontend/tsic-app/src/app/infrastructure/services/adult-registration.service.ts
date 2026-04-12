@@ -69,6 +69,62 @@ export interface AdultConfirmationResponse {
     roleDisplayName: string;
 }
 
+// ── PreSubmit types ──────────────────────────────────────────────
+
+export interface PreSubmitAdultRequest {
+    roleType: number;
+    formValues: Record<string, unknown>;
+    waiverAcceptance: Record<string, boolean>;
+}
+
+export interface PreSubmitAdultResponse {
+    valid: boolean;
+    validationErrors?: AdultValidationError[] | null;
+    registrationId: string | null;
+    fees: AdultFeeBreakdown;
+}
+
+export interface AdultFeeBreakdown {
+    feeBase: number;
+    feeProcessing: number;
+    feeDiscount: number;
+    feeLateFee: number;
+    feeTotal: number;
+    owedTotal: number;
+}
+
+export interface AdultValidationError {
+    field: string;
+    message: string;
+}
+
+// ── Payment types ────────────────────────────────────────────────
+
+export interface AdultPaymentRequest {
+    registrationId: string;
+    creditCard?: CreditCardValues | null;
+    paymentMethod: 'CC' | 'Check';
+}
+
+export interface CreditCardValues {
+    number: string;
+    expiry: string;
+    code: string;
+    firstName: string;
+    lastName: string;
+    address: string;
+    zip: string;
+    email: string;
+    phone: string;
+}
+
+export interface AdultPaymentResponse {
+    success: boolean;
+    message?: string | null;
+    transactionId?: string | null;
+    errorCode?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdultRegistrationService {
     private readonly http = inject(HttpClient);
@@ -99,5 +155,13 @@ export class AdultRegistrationService {
 
     resendConfirmationEmail(registrationId: string) {
         return this.http.post<{ message: string }>(`${this.apiUrl}/confirmation/${registrationId}/resend`, {});
+    }
+
+    preSubmit(jobPath: string, request: PreSubmitAdultRequest) {
+        return this.http.post<PreSubmitAdultResponse>(`${this.apiUrl}/${jobPath}/pre-submit`, request);
+    }
+
+    submitPayment(request: AdultPaymentRequest) {
+        return this.http.post<AdultPaymentResponse>(`${this.apiUrl}/submit-payment`, request);
     }
 }

@@ -62,6 +62,28 @@ public interface IFeeResolutionService
         DateTime asOfDate,
         CancellationToken ct = default);
 
+    // ── Resolution (Job-level, no agegroup/team) ─────────────────
+
+    /// <summary>
+    /// Resolves the job-level fee for adult roles (no agegroup/team context).
+    /// Returns null if no fee configured.
+    /// </summary>
+    Task<ResolvedFee?> ResolveJobLevelFeeAsync(
+        Guid jobId, string roleId,
+        CancellationToken ct = default);
+
+    // ── Application (Adult registrations) ───────────────────────
+
+    /// <summary>
+    /// Apply fees to an adult registration (job-level only, no agegroup/team).
+    /// Resolves base fee + evaluates job-level modifiers at DateTime.UtcNow.
+    /// Sets FeeBase, FeeDiscount, FeeLatefee, FeeProcessing, FeeTotal, OwedTotal.
+    /// </summary>
+    Task ApplyNewAdultRegistrationFeesAsync(
+        Registrations reg, Guid jobId, string roleId,
+        FeeApplicationContext ctx,
+        CancellationToken ct = default);
+
     // ── Application (Player registrations) ──────────────────────
 
     /// <summary>

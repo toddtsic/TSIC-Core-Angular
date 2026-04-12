@@ -25,7 +25,7 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                     @for (field of visibleFields(); track field.name) {
                         @if (shouldShowField(field)) {
                             <div [class]="getFieldColClass(field)">
-                                <label class="form-label fw-medium">
+                                <label class="field-label">
                                     {{ field.displayName }}
                                     @if (field.validation?.required) {
                                         <span class="text-danger">*</span>
@@ -34,10 +34,11 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
 
                                 @switch (normalizeInputType(field.inputType)) {
                                     @case ('textarea') {
-                                        <textarea class="form-control"
+                                        <textarea class="field-input"
                                             rows="3"
                                             [ngModel]="getFieldValue(field.name)"
                                             (ngModelChange)="onFieldChange(field.name, $event)"
+                                            [placeholder]="field.validation?.message ?? ''"
                                             [maxlength]="field.validation?.maxLength ?? null"></textarea>
                                     }
                                     @case ('checkbox') {
@@ -52,12 +53,12 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                                         </div>
                                     }
                                     @case ('date') {
-                                        <input type="date" class="form-control"
+                                        <input type="date" class="field-input"
                                             [ngModel]="getFieldValue(field.name)"
                                             (ngModelChange)="onFieldChange(field.name, $event)" />
                                     }
                                     @case ('select') {
-                                        <select class="form-select"
+                                        <select class="field-select"
                                             [ngModel]="getFieldValue(field.name)"
                                             (ngModelChange)="onFieldChange(field.name, $event)">
                                             <option value="">-- Select --</option>
@@ -67,9 +68,10 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                                         </select>
                                     }
                                     @default {
-                                        <input type="text" class="form-control"
+                                        <input type="text" class="field-input"
                                             [ngModel]="getFieldValue(field.name)"
                                             (ngModelChange)="onFieldChange(field.name, $event)"
+                                            [placeholder]="field.validation?.message ?? ''"
                                             [maxlength]="field.validation?.maxLength ?? null" />
                                     }
                                 }

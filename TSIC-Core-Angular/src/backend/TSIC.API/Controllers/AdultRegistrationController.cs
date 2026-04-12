@@ -112,6 +112,70 @@ public class AdultRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// PreSubmit: validates form fields, resolves fees, optionally creates registration (login-mode).
+    /// Accepts both anonymous (create-mode) and authenticated (login-mode) callers.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{jobPath}/pre-submit")]
+    public async Task<IActionResult> PreSubmit(string jobPath, [FromBody] PreSubmitAdultRegRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+            if (jobId == null)
+                return NotFound(new { message = $"Job not found for path '{jobPath}'." });
+
+            // Determine userId: present if authenticated (login-mode), null if anonymous (create-mode)
+            string? userId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            }
+
+            var result = await _service.PreSubmitAsync(jobId.Value, userId, request, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Process payment for an adult registration (authenticated, login-mode).
+    /// </summary>
+    [Authorize]
+    [HttpPost("submit-payment")]
+    public async Task<IActionResult> SubmitPayment([FromBody] AdultPaymentRequestDto request, CancellationToken ct)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { message = "User identity not found." });
+
+            var result = await _service.ProcessPaymentAsync(request.RegistrationId, userId, request, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get confirmation content after registration (authenticated).
     /// </summary>
     [Authorize]

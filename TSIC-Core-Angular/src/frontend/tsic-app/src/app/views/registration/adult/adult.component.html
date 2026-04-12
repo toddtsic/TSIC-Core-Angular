@@ -4,12 +4,14 @@
   [config]="shellConfig()"
   [canContinue]="canContinue()"
   [showContinue]="showContinue()"
+  [continueLabel]="continueLabel()"
   (back)="back()"
-  (continue)="next()">
+  (continue)="next()"
+  (goToStep)="goToStep($event)">
 
   @switch (currentStepId()) {
     @case ('account') {
-      <app-adult-account-step />
+      <app-adult-account-step (autoAdvance)="onAccountAutoAdvance()" />
     }
     @case ('role') {
       <app-adult-role-step [jobPath]="jobPath" />
@@ -21,7 +23,13 @@
       <app-adult-waivers-step />
     }
     @case ('review') {
-      <app-adult-review-step (completed)="onSubmitOrFinish()" />
+      <app-adult-review-step />
+    }
+    @case ('payment') {
+      <app-adult-payment-step />
+    }
+    @case ('confirmation') {
+      <app-adult-confirmation-step (finished)="onFinishConfirmation()" />
     }
     @case ('tos') {
       <app-tos-acceptance-step

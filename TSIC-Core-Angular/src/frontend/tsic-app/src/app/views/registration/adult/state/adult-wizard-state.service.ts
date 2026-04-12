@@ -1,6 +1,8 @@
 import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { firstValueFrom } from 'rxjs';
 import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
+import { AuthService } from '@infrastructure/services/auth.service';
 import {
     AdultRegistrationService,
     type AdultRegJobInfoResponse,
@@ -8,6 +10,10 @@ import {
     type AdultRoleOption,
     type AdultRegField,
     type AdultWaiverDto,
+    type PreSubmitAdultResponse,
+    type AdultFeeBreakdown,
+    type AdultValidationError,
+    type CreditCardValues,
 } from '@infrastructure/services/adult-registration.service';
 import { formatHttpError } from '../../shared/utils/error-utils';
 
@@ -17,14 +23,15 @@ export type FormFieldValue = string | number | boolean | null;
 /**
  * Adult wizard v2 state service.
  *
- * Follows FamilyStateService gold-standard pattern:
+ * Follows signal-based pattern:
  * - Private signals + public readonly + controlled mutators.
  * - API calls encapsulated with error signals.
- * - Fully independent.
+ * - PreSubmit + conditional payment flow.
  */
 @Injectable({ providedIn: 'root' })
 export class AdultWizardStateService {
     private readonly api = inject(AdultRegistrationService);
+    private readonly auth = inject(AuthService);
     private readonly destroyRef = inject(DestroyRef);
 
     // ── Mode ──────────────────────────────────────────────────────
@@ -73,17 +80,42 @@ export class AdultWizardStateService {
     private readonly _waiverAcceptance = signal<Record<string, boolean>>({});
     readonly waiverAcceptance = this._waiverAcceptance.asReadonly();
 
+    // ── PreSubmit state ───────────────────────────────────────────
+    private readonly _preSubmitResponse = signal<PreSubmitAdultResponse | null>(null);
+    private readonly _preSubmitting = signal(false);
+    private readonly _preSubmitError = signal<string | null>(null);
+    readonly preSubmitResponse = this._preSubmitResponse.asReadonly();
+    readonly preSubmitting = this._preSubmitting.asReadonly();
+    readonly preSubmitError = this._preSubmitError.asReadonly();
+
+    // ── Fee derived signals ───────────────────────────────────────
+    readonly fees = computed<AdultFeeBreakdown | null>(() => this._preSubmitResponse()?.fees ?? null);
+    readonly hasFees = computed(() => (this.fees()?.owedTotal ?? 0) > 0);
+    readonly validationErrors = computed<AdultValidationError[]>(() => this._preSubmitResponse()?.validationErrors ?? []);
+
+    // ── Payment state ─────────────────────────────────────────────
+    private readonly _paymentMethod = signal<'CC' | 'Check'>('CC');
+    private readonly _paymentSubmitting = signal(false);
+    private readonly _paymentError = signal<string | null>(null);
+    private readonly _paymentSuccess = signal(false);
+    readonly paymentMethod = this._paymentMethod.asReadonly();
+    readonly paymentSubmitting = this._paymentSubmitting.asReadonly();
+    readonly paymentError = this._paymentError.asReadonly();
+    readonly paymentSuccess = this._paymentSuccess.asReadonly();
+
     // ── Submission state ──────────────────────────────────────────
     private readonly _submitting = signal(false);
     private readonly _submitError = signal<string | null>(null);
     private readonly _submitSuccess = signal(false);
     private readonly _registrationId = signal<string | null>(null);
     private readonly _confirmationHtml = signal<string | null>(null);
+    private readonly _confirmationLoading = signal(false);
     readonly submitting = this._submitting.asReadonly();
     readonly submitError = this._submitError.asReadonly();
     readonly submitSuccess = this._submitSuccess.asReadonly();
     readonly registrationId = this._registrationId.asReadonly();
     readonly confirmationHtml = this._confirmationHtml.asReadonly();
+    readonly confirmationLoading = this._confirmationLoading.asReadonly();
 
     // ── Derived ───────────────────────────────────────────────────
     readonly availableRoles = computed(() => this._jobInfo()?.availableRoles ?? []);
@@ -121,6 +153,12 @@ export class AdultWizardStateService {
         return waiverList.every(w => acceptance[w.key] === true);
     });
 
+    /** True when registration is fully complete (submitted or paid). */
+    readonly isComplete = computed(() => {
+        if (this.hasFees()) return this._paymentSuccess();
+        return this._submitSuccess();
+    });
+
     // ── Controlled mutators ───────────────────────────────────────
     setMode(v: 'create' | 'login'): void { this._mode.set(v); }
 
@@ -141,6 +179,8 @@ export class AdultWizardStateService {
         this._selectedRole.set(role);
         this._formValues.set({});
         this._waiverAcceptance.set({});
+        this._preSubmitResponse.set(null);
+        this._preSubmitError.set(null);
         this.loadFormSchema(jobPath, role.roleType);
     }
 
@@ -150,6 +190,18 @@ export class AdultWizardStateService {
 
     setWaiverAccepted(key: string, accepted: boolean): void {
         this._waiverAcceptance.set({ ...this._waiverAcceptance(), [key]: accepted });
+    }
+
+    setPaymentMethod(method: 'CC' | 'Check'): void {
+        this._paymentMethod.set(method);
+    }
+
+    /** Populate username from authenticated user's token (login-mode). */
+    populateFromAuth(): void {
+        const user = this.auth.currentUser();
+        if (user) {
+            this._username.set(user.username ?? '');
+        }
     }
 
     // ── API: Load job info ────────────────────────────────────────
@@ -191,8 +243,52 @@ export class AdultWizardStateService {
             });
     }
 
+    // ── API: PreSubmit ────────────────────────────────────────────
+    async preSubmit(jobPath: string): Promise<boolean> {
+        this._preSubmitting.set(true);
+        this._preSubmitError.set(null);
+        this._preSubmitResponse.set(null);
+
+        const role = this._selectedRole();
+        if (!role) {
+            this._preSubmitting.set(false);
+            this._preSubmitError.set('Please select a role.');
+            return false;
+        }
+
+        try {
+            const resp = await firstValueFrom(
+                this.api.preSubmit(jobPath, {
+                    roleType: role.roleType,
+                    formValues: this._formValues() as Record<string, unknown>,
+                    waiverAcceptance: this._waiverAcceptance(),
+                }),
+            );
+
+            this._preSubmitting.set(false);
+            this._preSubmitResponse.set(resp);
+
+            if (!resp.valid) {
+                this._preSubmitError.set('Please fix the validation errors above.');
+                return false;
+            }
+
+            // For login-mode, preSubmit created the registration
+            if (resp.registrationId) {
+                this._registrationId.set(resp.registrationId);
+            }
+
+            return true;
+        } catch (err: unknown) {
+            this._preSubmitting.set(false);
+            this._preSubmitError.set(formatHttpError(err));
+            return false;
+        }
+    }
+
     // ── API: Submit registration ──────────────────────────────────
-    submit(jobPath: string): void {
+    /** Submit registration for create-mode (no fees or fees included). */
+    async submit(jobPath: string): Promise<boolean> {
         this._submitting.set(true);
         this._submitError.set(null);
         this._submitSuccess.set(false);
@@ -201,54 +297,154 @@ export class AdultWizardStateService {
         if (!role) {
             this._submitting.set(false);
             this._submitError.set('Please select a role.');
-            return;
+            return false;
         }
 
-        const request = {
-            username: this._username(),
-            password: this._password(),
-            firstName: this._firstName(),
-            lastName: this._lastName(),
-            email: this._email(),
-            phone: this._phone(),
-            roleType: role.roleType,
-            formValues: this._formValues(),
-            waiverAcceptance: this._waiverAcceptance(),
-        };
+        try {
+            if (this._mode() === 'login') {
+                // Login-mode: registration was already created by preSubmit
+                // Just mark as success and load confirmation
+                this._submitting.set(false);
+                this._submitSuccess.set(true);
+                const regId = this._registrationId();
+                if (regId) this.loadConfirmation(regId);
+                return true;
+            }
 
-        this.api.registerNewUser(jobPath, request)
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: (res) => {
-                    this._submitting.set(false);
-                    if (res?.success) {
-                        this._submitSuccess.set(true);
-                        this._registrationId.set(res.registrationId);
-                        this.loadConfirmation(res.registrationId);
-                    } else {
-                        this._submitError.set(res?.message ?? 'Registration failed.');
-                    }
-                },
-                error: (err: unknown) => {
-                    this._submitting.set(false);
-                    this._submitError.set(formatHttpError(err));
-                },
-            });
+            // Create-mode: register new user
+            const request = {
+                username: this._username(),
+                password: this._password(),
+                firstName: this._firstName(),
+                lastName: this._lastName(),
+                email: this._email(),
+                phone: this._phone(),
+                roleType: role.roleType,
+                formValues: this._formValues(),
+                waiverAcceptance: this._waiverAcceptance(),
+            } as Record<string, unknown>;
+
+            const res = await firstValueFrom(
+                this.api.registerNewUser(jobPath, request as never),
+            );
+
+            this._submitting.set(false);
+
+            if (res?.success) {
+                this._submitSuccess.set(true);
+                this._registrationId.set(res.registrationId);
+                this.loadConfirmation(res.registrationId);
+                return true;
+            }
+
+            this._submitError.set(res?.message ?? 'Registration failed.');
+            return false;
+        } catch (err: unknown) {
+            this._submitting.set(false);
+            this._submitError.set(formatHttpError(err));
+            return false;
+        }
+    }
+
+    // ── API: Submit payment ───────────────────────────────────────
+    async submitPayment(creditCard?: CreditCardValues): Promise<boolean> {
+        const regId = this._registrationId();
+        if (!regId) {
+            this._paymentError.set('No registration found for payment.');
+            return false;
+        }
+
+        this._paymentSubmitting.set(true);
+        this._paymentError.set(null);
+
+        try {
+            if (this._mode() === 'login') {
+                // Login-mode: call payment endpoint directly
+                const resp = await firstValueFrom(
+                    this.api.submitPayment({
+                        registrationId: regId,
+                        creditCard: this._paymentMethod() === 'CC' ? creditCard : null,
+                        paymentMethod: this._paymentMethod(),
+                    }),
+                );
+
+                this._paymentSubmitting.set(false);
+                if (resp.success) {
+                    this._paymentSuccess.set(true);
+                    this.loadConfirmation(regId);
+                    return true;
+                }
+
+                this._paymentError.set(resp.message ?? 'Payment failed.');
+                return false;
+            }
+
+            // Create-mode: register + pay atomically
+            const role = this._selectedRole();
+            if (!role) {
+                this._paymentSubmitting.set(false);
+                this._paymentError.set('Please select a role.');
+                return false;
+            }
+
+            const request = {
+                username: this._username(),
+                password: this._password(),
+                firstName: this._firstName(),
+                lastName: this._lastName(),
+                email: this._email(),
+                phone: this._phone(),
+                roleType: role.roleType,
+                formValues: this._formValues(),
+                waiverAcceptance: this._waiverAcceptance(),
+                creditCard: this._paymentMethod() === 'CC' ? creditCard : null,
+                paymentMethod: this._paymentMethod(),
+            } as Record<string, unknown>;
+
+            const res = await firstValueFrom(
+                this.api.registerNewUser(this._jobPath(), request as never),
+            );
+
+            this._paymentSubmitting.set(false);
+
+            if (res?.success) {
+                this._paymentSuccess.set(true);
+                this._submitSuccess.set(true);
+                this._registrationId.set(res.registrationId);
+                this.loadConfirmation(res.registrationId);
+                return true;
+            }
+
+            this._paymentError.set(res?.message ?? 'Registration failed.');
+            return false;
+        } catch (err: unknown) {
+            this._paymentSubmitting.set(false);
+            this._paymentError.set(formatHttpError(err));
+            return false;
+        }
     }
 
     // ── API: Load confirmation HTML ───────────────────────────────
     private loadConfirmation(registrationId: string): void {
+        this._confirmationLoading.set(true);
+
         this.api.getConfirmation(registrationId, skipErrorToast())
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (data) => {
+                    this._confirmationLoading.set(false);
                     this._confirmationHtml.set(data.confirmationHtml);
                 },
                 error: () => {
+                    this._confirmationLoading.set(false);
                     // Non-critical — user still sees success state; no toast.
                 },
             });
     }
+
+    // ── Job path (stored for create-mode payment) ─────────────────
+    private readonly _jobPath = signal('');
+    setJobPath(path: string): void { this._jobPath.set(path); }
 
     // ── Reset ─────────────────────────────────────────────────────
     reset(): void {
@@ -268,10 +464,19 @@ export class AdultWizardStateService {
         this._schemaError.set(null);
         this._formValues.set({});
         this._waiverAcceptance.set({});
+        this._preSubmitResponse.set(null);
+        this._preSubmitting.set(false);
+        this._preSubmitError.set(null);
+        this._paymentMethod.set('CC');
+        this._paymentSubmitting.set(false);
+        this._paymentError.set(null);
+        this._paymentSuccess.set(false);
         this._submitting.set(false);
         this._submitError.set(null);
         this._submitSuccess.set(false);
         this._registrationId.set(null);
         this._confirmationHtml.set(null);
+        this._confirmationLoading.set(false);
+        this._jobPath.set('');
     }
 }

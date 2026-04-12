@@ -90,6 +90,10 @@ export const routes: Routes = [
 					{
 						path: 'family',
 						loadComponent: () => import('./views/registration/family/family.component').then(m => m.FamilyWizardV2Component)
+					},
+					{
+						path: 'self-roster-update',
+						loadComponent: () => import('./views/registration/self-roster-update/self-roster-update.component').then(m => m.SelfRosterUpdateComponent)
 					}
 				]
 			},

@@ -78,6 +78,44 @@ public sealed class FeeResolutionService : IFeeResolutionService
         };
     }
 
+    // ── Resolution (Job-level) ────────────────────────────────
+
+    public async Task<ResolvedFee?> ResolveJobLevelFeeAsync(
+        Guid jobId, string roleId,
+        CancellationToken ct = default)
+    {
+        return await _feeRepo.GetJobLevelFeeAsync(jobId, roleId, ct);
+    }
+
+    // ── Adult Registration: New ─────────────────────────────────
+
+    public async Task ApplyNewAdultRegistrationFeesAsync(
+        Registrations reg, Guid jobId, string roleId,
+        FeeApplicationContext ctx,
+        CancellationToken ct = default)
+    {
+        var resolved = await ResolveJobLevelFeeAsync(jobId, roleId, ct);
+        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+
+        // Evaluate job-level modifiers only (no agegroup/team)
+        var modifiers = await _feeRepo.GetActiveModifiersForJobLevelAsync(
+            jobId, roleId, DateTime.UtcNow, ct);
+
+        var totalDiscount = modifiers
+            .Where(m => m.ModifierType == FeeConstants.ModifierDiscount || m.ModifierType == FeeConstants.ModifierEarlyBird)
+            .Sum(m => m.Amount);
+        var totalLateFee = modifiers
+            .Where(m => m.ModifierType == FeeConstants.ModifierLateFee)
+            .Sum(m => m.Amount);
+
+        reg.FeeBase = baseFee;
+        reg.FeeDiscount = totalDiscount;
+        reg.FeeLatefee = totalLateFee;
+
+        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate);
+    }
+
     // ── Player Registration: New ────────────────────────────────
 
     public async Task ApplyNewRegistrationFeesAsync(

@@ -42,6 +42,23 @@ public interface IFeeRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Resolves the job-level fee row (AgegroupId IS NULL, TeamId IS NULL).
+    /// Used by adult registration where there is no agegroup/team context.
+    /// Returns null if no fee configured at job level for the role.
+    /// </summary>
+    Task<ResolvedFee?> GetJobLevelFeeAsync(
+        Guid jobId, string roleId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets active modifiers for the job-level fee row only.
+    /// Used by adult registration where there is no agegroup/team context.
+    /// </summary>
+    Task<List<FeeModifiers>> GetActiveModifiersForJobLevelAsync(
+        Guid jobId, string roleId, DateTime asOfDate,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Gets all JobFees rows for a job (all roles, all scopes).
     /// Used by LADT fee display.
     /// </summary>

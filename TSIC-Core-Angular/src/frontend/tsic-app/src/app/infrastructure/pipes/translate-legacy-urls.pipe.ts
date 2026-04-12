@@ -10,7 +10,7 @@ import { Pipe, PipeTransform } from '@angular/core';
  * - StartARegistration + bPlayer + bStaff → split into TWO links (player + coach)
  * - StartARegistration + bPlayer=true → /{jobPath}/registration/player
  * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
- * - StartARegistration + bStaff=true → /{jobPath}/registration/adult
+ * - StartARegistration + bStaff=true → /{jobPath}/registration/adult?role=0 (Coach/Staff)
  * - Rosters/RostersPublicLookupTourny → /{jobPath}/rosters
  *
  * Combined links (bPlayer=true&bStaff=true) were used in the legacy system to show
@@ -36,7 +36,7 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             const url = anchorInLi[1].toLowerCase();
             if (url.includes('startaregistration') && url.includes('bplayer=true') && url.includes('bstaff=true')) {
                 const playerUrl = `/${jobPath}/registration/player`;
-                const adultUrl = `/${jobPath}/registration/adult`;
+                const adultUrl = `/${jobPath}/registration/adult?role=0`;
                 return `</ul><p style="margin-bottom:0.25em;"><strong>SELF-ROSTERING:</strong></p><ul style="margin-top:0;">` +
                     `<li><a href="${playerUrl}">CLICK HERE</a> to self-roster a <strong>PLAYER</strong></li>` +
                     `<li><a href="${adultUrl}">CLICK HERE</a> to self-roster a <strong>COACH</strong></li>` +
@@ -71,7 +71,7 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
                 return `<a href="/${jobPath}/registration/team">${linkText}</a>`;
             }
             if (hasStaff && !hasPlayer) {
-                return `<a href="/${jobPath}/registration/adult">${linkText}</a>`;
+                return `<a href="/${jobPath}/registration/adult?role=0">${linkText}</a>`;
             }
             if (hasPlayer && !hasStaff) {
                 return `<a href="/${jobPath}/registration/player">${linkText}</a>`;
@@ -86,6 +86,9 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
             return `<a href="/${jobPath}/rosters">CLICK HERE</a>`;
         }
 
+        if (lower.includes('playerwaiverupdate')) {
+            return `<a href="/${jobPath}/registration/self-roster-update">${linkText}</a>`;
+        }
 
         return null;
     }

@@ -24,9 +24,14 @@ public interface IAdultRegistrationRepository
     Task<bool> HasExistingRegistrationAsync(string userId, Guid jobId, string roleId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a registration with its job for confirmation display.
+    /// Get a registration with its job for confirmation display (read-only).
     /// </summary>
     Task<Registrations?> GetRegistrationWithJobAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get a tracked registration with its job for payment stamping (writable).
+    /// </summary>
+    Task<Registrations?> GetTrackedRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add a new registration entity.

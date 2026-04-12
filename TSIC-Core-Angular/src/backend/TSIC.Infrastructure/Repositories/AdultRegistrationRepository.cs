@@ -25,6 +25,8 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
             {
                 JobId = j.JobId,
                 JobName = j.JobName ?? string.Empty,
+                JobAi = j.JobAi,
+                BAddProcessingFees = j.BAddProcessingFees,
                 AdultProfileMetadataJson = j.AdultProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
                 AdultRegConfirmationEmail = j.AdultRegConfirmationEmail,
@@ -49,6 +51,8 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
             {
                 JobId = j.JobId,
                 JobName = j.JobName ?? string.Empty,
+                JobAi = j.JobAi,
+                BAddProcessingFees = j.BAddProcessingFees,
                 AdultProfileMetadataJson = j.AdultProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
                 AdultRegConfirmationEmail = j.AdultRegConfirmationEmail,
@@ -78,6 +82,14 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
             .Include(r => r.Job)
             .Include(r => r.Role)
             .Include(r => r.User)
+            .Where(r => r.RegistrationId == registrationId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Registrations?> GetTrackedRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Include(r => r.Job)
             .Where(r => r.RegistrationId == registrationId)
             .SingleOrDefaultAsync(cancellationToken);
     }

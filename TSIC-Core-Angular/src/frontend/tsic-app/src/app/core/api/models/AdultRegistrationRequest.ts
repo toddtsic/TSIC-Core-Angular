@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AdultRoleType } from './AdultRoleType';
+import type { CreditCardInfo } from './CreditCardInfo';
 export type AdultRegistrationRequest = {
     username: string;
     password: string;
@@ -13,5 +14,7 @@ export type AdultRegistrationRequest = {
     roleType: AdultRoleType;
     formValues?: any | null;
     waiverAcceptance?: any | null;
+    creditCard?: (null | CreditCardInfo);
+    paymentMethod?: string | null;
 };
 

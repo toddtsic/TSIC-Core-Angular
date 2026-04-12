@@ -55,6 +55,7 @@ public record AdultWaiverDto
 
 /// <summary>
 /// Request to register a new adult (creates new user + registration).
+/// Payment fields are optional — included when job has fees for the role.
 /// </summary>
 public record AdultRegistrationRequest
 {
@@ -67,6 +68,8 @@ public record AdultRegistrationRequest
     public required AdultRoleType RoleType { get; init; }
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+    public CreditCardInfo? CreditCard { get; init; }
+    public string? PaymentMethod { get; init; }
 }
 
 /// <summary>
@@ -106,6 +109,8 @@ public record AdultRegJobData
 {
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
+    public required int JobAi { get; init; }
+    public required bool BAddProcessingFees { get; init; }
     public string? AdultProfileMetadataJson { get; init; }
     public string? JsonOptions { get; init; }
     public string? AdultRegConfirmationEmail { get; init; }
@@ -117,4 +122,73 @@ public record AdultRegJobData
     public string? RefereeRegConfirmationOnScreen { get; init; }
     public string? RecruiterRegConfirmationEmail { get; init; }
     public string? RecruiterRegConfirmationOnScreen { get; init; }
+}
+
+// ── PreSubmit DTOs ────────────────────────────────────────────────
+
+/// <summary>
+/// PreSubmit request — validates form fields and resolves fees before payment.
+/// </summary>
+public record PreSubmitAdultRegRequestDto
+{
+    public required AdultRoleType RoleType { get; init; }
+    public Dictionary<string, JsonElement>? FormValues { get; init; }
+    public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+}
+
+/// <summary>
+/// PreSubmit response — validation result + fee breakdown.
+/// RegistrationId is null in create-mode (user doesn't exist yet).
+/// </summary>
+public record PreSubmitAdultRegResponseDto
+{
+    public required bool Valid { get; init; }
+    public List<AdultValidationErrorDto>? ValidationErrors { get; init; }
+    public Guid? RegistrationId { get; init; }
+    public required AdultFeeBreakdownDto Fees { get; init; }
+}
+
+/// <summary>
+/// Fee breakdown returned by preSubmit for the payment step.
+/// </summary>
+public record AdultFeeBreakdownDto
+{
+    public required decimal FeeBase { get; init; }
+    public required decimal FeeProcessing { get; init; }
+    public required decimal FeeDiscount { get; init; }
+    public required decimal FeeLateFee { get; init; }
+    public required decimal FeeTotal { get; init; }
+    public required decimal OwedTotal { get; init; }
+}
+
+/// <summary>
+/// A field-level validation error from preSubmit.
+/// </summary>
+public record AdultValidationErrorDto
+{
+    public required string Field { get; init; }
+    public required string Message { get; init; }
+}
+
+// ── Payment DTOs ──────────────────────────────────────────────────
+
+/// <summary>
+/// Payment request for an existing adult registration (login-mode).
+/// </summary>
+public record AdultPaymentRequestDto
+{
+    public required Guid RegistrationId { get; init; }
+    public CreditCardInfo? CreditCard { get; init; }
+    public required string PaymentMethod { get; init; }
+}
+
+/// <summary>
+/// Payment response after processing adult registration payment.
+/// </summary>
+public record AdultPaymentResponseDto
+{
+    public required bool Success { get; init; }
+    public string? Message { get; init; }
+    public string? TransactionId { get; init; }
+    public string? ErrorCode { get; init; }
 }
