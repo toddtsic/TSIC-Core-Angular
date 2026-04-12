@@ -42,6 +42,8 @@ export type { AgegroupWithDivisionsDto } from './models/AgegroupWithDivisionsDto
 export type { AgeRangeDto } from './models/AgeRangeDto';
 export type { AiComposeRequest } from './models/AiComposeRequest';
 export type { AiComposeResponse } from './models/AiComposeResponse';
+export type { AiFormatBulletinRequest } from './models/AiFormatBulletinRequest';
+export type { AiFormatResponse } from './models/AiFormatResponse';
 export type { AlignedTeamDto } from './models/AlignedTeamDto';
 export type { AlignmentResultDto } from './models/AlignmentResultDto';
 export type { AllowedFieldDomainItem } from './models/AllowedFieldDomainItem';
@@ -94,6 +96,9 @@ export type { BulkDateAssignResponse } from './models/BulkDateAssignResponse';
 export type { BulkDateAssignResult } from './models/BulkDateAssignResult';
 export type { BulletinAdminDto } from './models/BulletinAdminDto';
 export type { BulletinDto } from './models/BulletinDto';
+export type { BulletinPreviewRequest } from './models/BulletinPreviewRequest';
+export type { BulletinPreviewResponse } from './models/BulletinPreviewResponse';
+export type { BulletinTokenCatalogEntryDto } from './models/BulletinTokenCatalogEntryDto';
 export type { CadtAgegroupNode } from './models/CadtAgegroupNode';
 export type { CadtClubNode } from './models/CadtClubNode';
 export type { CadtDivisionNode } from './models/CadtDivisionNode';

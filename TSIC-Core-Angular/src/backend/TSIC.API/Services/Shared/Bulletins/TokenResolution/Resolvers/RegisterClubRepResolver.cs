@@ -3,6 +3,8 @@ namespace TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 public sealed class RegisterClubRepResolver : IBulletinTokenResolver
 {
     public string TokenName => "REGISTER_CLUBREP";
+    public string Description => "Call-to-action button for club/team representative registration. Hides when closed; label indicates invite-required when token-gated.";
+    public string[] GatingConditions => ["TeamRegistrationOpen", "TeamRegRequiresToken"];
 
     public string Resolve(TokenContext ctx)
     {

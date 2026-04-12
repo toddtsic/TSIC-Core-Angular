@@ -5,6 +5,8 @@ namespace TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 public sealed class EventInfoResolver : IBulletinTokenResolver
 {
     public string TokenName => "EVENT_INFO";
+    public string Description => "Rich card displaying event name and key dates. Always visible.";
+    public string[] GatingConditions => [];
 
     public string Resolve(TokenContext ctx)
     {

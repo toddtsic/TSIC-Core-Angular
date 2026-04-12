@@ -62,7 +62,11 @@ public class BulletinService : IBulletinService
             tokenCtx = new TokenContext
             {
                 JobPath = jobPath,
-                Job = jobMetadata,
+                Job = new TokenJobInfo
+                {
+                    JobName = jobMetadata.JobName,
+                    USLaxNumberValidThroughDate = jobMetadata.USLaxNumberValidThroughDate
+                },
                 Pulse = pulse
             };
         }

@@ -54,4 +54,30 @@ public class AiComposeController : ControllerBase
         var result = await _aiComposeService.ComposeBulletinAsync(jobId.Value, request.Prompt, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Reformat existing bulletin HTML for better UX + styling. Unlike /bulletin
+    /// (which takes a prompt and returns a new draft), this takes the current HTML
+    /// and returns a restructured version with token markers where appropriate.
+    /// </summary>
+    [HttpPost("bulletin/format")]
+    public async Task<ActionResult<AiFormatResponse>> FormatBulletin(
+        [FromBody] AiFormatBulletinRequest request,
+        CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId is null)
+            return BadRequest(new { message = "Registration context required" });
+
+        if (string.IsNullOrWhiteSpace(request.Html))
+            return BadRequest(new { message = "Html is required" });
+
+        var result = await _aiComposeService.FormatBulletinAsync(jobId.Value, request.Html, ct);
+        return Ok(result);
+    }
+}
+
+public sealed record AiFormatBulletinRequest
+{
+    public required string Html { get; init; }
 }

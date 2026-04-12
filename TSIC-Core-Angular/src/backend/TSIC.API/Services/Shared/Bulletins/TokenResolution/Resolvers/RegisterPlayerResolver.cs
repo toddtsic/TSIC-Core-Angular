@@ -3,6 +3,8 @@ namespace TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 public sealed class RegisterPlayerResolver : IBulletinTokenResolver
 {
     public string TokenName => "REGISTER_PLAYER";
+    public string Description => "Call-to-action button for player registration. Hides when registration is closed; label indicates invite-required when token-gated.";
+    public string[] GatingConditions => ["PlayerRegistrationOpen", "PlayerRegRequiresToken"];
 
     public string Resolve(TokenContext ctx)
     {

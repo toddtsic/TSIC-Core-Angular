@@ -3,6 +3,8 @@ namespace TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 public sealed class RegisterStaffResolver : IBulletinTokenResolver
 {
     public string TokenName => "REGISTER_STAFF";
+    public string Description => "Call-to-action button for adult registration with Coach role preselected (role=0).";
+    public string[] GatingConditions => ["AdultRegistrationPlanned"];
 
     public string Resolve(TokenContext ctx)
     {

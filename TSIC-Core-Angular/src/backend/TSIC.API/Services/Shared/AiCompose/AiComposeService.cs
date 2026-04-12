@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
+using TSIC.API.Services.Shared.Bulletins.TokenResolution;
 using TSIC.Contracts.Dtos.Email;
 using TSIC.Contracts.Repositories;
 
@@ -12,6 +13,7 @@ public class AiComposeService : IAiComposeService
     private readonly HttpClient _httpClient;
     private readonly AnthropicSettings _settings;
     private readonly IJobRepository _jobRepo;
+    private readonly BulletinTokenRegistry _tokenRegistry;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -22,11 +24,13 @@ public class AiComposeService : IAiComposeService
     public AiComposeService(
         HttpClient httpClient,
         IOptions<AnthropicSettings> settings,
-        IJobRepository jobRepo)
+        IJobRepository jobRepo,
+        BulletinTokenRegistry tokenRegistry)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
         _jobRepo = jobRepo;
+        _tokenRegistry = tokenRegistry;
     }
 
     public async Task<AiComposeResponse> ComposeEmailAsync(
@@ -49,6 +53,82 @@ public class AiComposeService : IAiComposeService
         var season = await _jobRepo.GetJobSeasonAsync(jobId, ct) ?? "";
         var systemPrompt = BuildBulletinSystemPrompt(jobName, season);
         return await CallAnthropicAsync(systemPrompt, prompt, ct);
+    }
+
+    public async Task<AiFormatResponse> FormatBulletinAsync(
+        Guid jobId,
+        string existingHtml,
+        CancellationToken ct = default)
+    {
+        var jobName = await _jobRepo.GetJobNameAsync(jobId, ct) ?? "the organization";
+        var systemPrompt = BuildFormatBulletinSystemPrompt(jobName, _tokenRegistry.All);
+
+        var requestBody = new
+        {
+            model = _settings.Model,
+            max_tokens = 2048,
+            system = systemPrompt,
+            messages = new[]
+            {
+                new { role = "user", content = existingHtml }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(requestBody, JsonOptions);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+        request.Headers.Add("x-api-key", _settings.ApiKey);
+        request.Headers.Add("anthropic-version", "2023-06-01");
+        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, ct);
+        var responseJson = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Anthropic API returned {(int)response.StatusCode}: {responseJson}");
+        }
+
+        // Model returns raw HTML (no JSON wrapper per format prompt). Strip code fences if present.
+        using var doc = JsonDocument.Parse(responseJson);
+        var textBlock = doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString()
+            ?? throw new InvalidOperationException("Empty response from AI");
+
+        var cleaned = textBlock.Trim();
+        if (cleaned.StartsWith("```"))
+        {
+            var firstNewline = cleaned.IndexOf('\n');
+            if (firstNewline > 0) cleaned = cleaned[(firstNewline + 1)..];
+            if (cleaned.EndsWith("```")) cleaned = cleaned[..^3];
+            cleaned = cleaned.Trim();
+        }
+
+        return new AiFormatResponse { Html = cleaned };
+    }
+
+    private static string BuildFormatBulletinSystemPrompt(
+        string jobName,
+        IReadOnlyCollection<IBulletinTokenResolver> tokens)
+    {
+        var tokenLines = string.Join("\n", tokens.Select(t =>
+            $"  {{{{{t.TokenName}}}}} — {t.Description}" +
+            (t.GatingConditions.Length > 0
+                ? $" (visible when: {string.Join(", ", t.GatingConditions)})"
+                : " (always visible)")));
+
+        return
+            "You are a bulletin HTML reformatter for \"" + jobName + "\".\n" +
+            "The user message is the CURRENT HTML of a bulletin. Reformat it for better UX and clarity.\n\n" +
+            "Rules:\n" +
+            "- Preserve the author's intent and information. Do not invent new facts.\n" +
+            "- Use simple, semantic HTML: <p>, <strong>, <em>, <ul>/<li>, <br>. Avoid <h1>-<h6>.\n" +
+            "- You MAY use these design-system CSS classes for visual emphasis: alert, alert-info, alert-warning, card, card-body, text-muted.\n" +
+            "- Where the existing HTML contains a call-to-action (e.g. 'click here to register', 'view schedule'), REPLACE the anchor/sentence with the appropriate token below. Tokens render as styled buttons or cards at display time and stay in sync with backend state.\n" +
+            "- Available bulletin tokens (use ONLY these names exactly, including the double braces):\n" +
+            tokenLines + "\n" +
+            "- Also supported for text substitution: !JOBNAME (replaced with org name), !USLAXVALIDTHROUGHDATE (USLax membership date).\n" +
+            "- Do NOT wrap the output in JSON or markdown fences. Return raw HTML only.\n" +
+            "- Do NOT add explanations or comments. Return only the reformatted HTML.";
     }
 
     private async Task<AiComposeResponse> CallAnthropicAsync(

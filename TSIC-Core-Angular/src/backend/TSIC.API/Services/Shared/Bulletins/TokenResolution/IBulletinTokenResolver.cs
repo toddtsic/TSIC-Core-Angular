@@ -13,6 +13,19 @@ public interface IBulletinTokenResolver
     string TokenName { get; }
 
     /// <summary>
+    /// Short human-readable description shown in the author-facing catalog
+    /// (e.g. "Player registration CTA").
+    /// </summary>
+    string Description { get; }
+
+    /// <summary>
+    /// Names of JobPulseDto properties this resolver reads to decide visibility
+    /// (e.g. ["PlayerRegistrationOpen"]). Empty array = always visible.
+    /// Viewer identity is NOT a valid gate — bulletins are public-facing.
+    /// </summary>
+    string[] GatingConditions { get; }
+
+    /// <summary>
     /// Emit final HTML for this token under the given context.
     /// Return empty string to hide the token (e.g. when gating pulse flags are false).
     /// </summary>

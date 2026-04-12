@@ -18,6 +18,9 @@ public sealed partial class BulletinTokenRegistry
         _resolvers = resolvers.ToDictionary(r => r.TokenName, StringComparer.Ordinal);
     }
 
+    /// <summary>All registered resolvers, in registration order.</summary>
+    public IReadOnlyCollection<IBulletinTokenResolver> All => _resolvers.Values;
+
     public string ResolveTokens(string html, TokenContext ctx)
     {
         if (string.IsNullOrEmpty(html))

@@ -1,5 +1,4 @@
 using TSIC.Contracts.Dtos;
-using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Services.Shared.Bulletins.TokenResolution;
 
@@ -12,6 +11,16 @@ namespace TSIC.API.Services.Shared.Bulletins.TokenResolution;
 public sealed record TokenContext
 {
     public required string JobPath { get; init; }
-    public required JobMetadataDto Job { get; init; }
+    public required TokenJobInfo Job { get; init; }
     public required JobPulseDto Pulse { get; init; }
+}
+
+/// <summary>
+/// Minimal job data resolvers actually need. Narrower than JobMetadataDto by design —
+/// adding a field requires considering public-safety implications.
+/// </summary>
+public sealed record TokenJobInfo
+{
+    public required string JobName { get; init; }
+    public DateTime? USLaxNumberValidThroughDate { get; init; }
 }
