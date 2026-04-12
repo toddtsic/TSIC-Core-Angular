@@ -40,6 +40,7 @@ public record AvailableTeamQueryResult
     public DateTime? StartDate { get; init; }
     public DateTime? EndDate { get; init; }
     public decimal? PerRegistrantFee { get; init; }
+    public string? ClubName { get; init; }
 }
 
 /// <summary>

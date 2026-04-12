@@ -168,7 +168,9 @@ public class UniformUploadService : IUniformUploadService
 
             reg.UniformNo = string.IsNullOrEmpty(uniformNo) ? null : uniformNo;
             reg.DayGroup = string.IsNullOrEmpty(dayGroup) ? null : dayGroup;
-            _registrationRepo.Update(reg);
+            // reg is already tracked (loaded via GetByIdsAsync without AsNoTracking);
+            // do NOT call Update() — it marks ALL columns as modified including the
+            // RegistrationAI identity column, which SQL Server rejects.
             updatedCount++;
         }
 

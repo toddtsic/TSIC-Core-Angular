@@ -18,6 +18,7 @@ public record SelfRosterPlayerDto
 
 /// <summary>
 /// A team option shown in the team dropdown on the self-roster update screen.
+/// Grouped by ClubName (as optgroup) on the frontend.
 /// </summary>
 public record SelfRosterTeamOptionDto
 {
@@ -25,6 +26,9 @@ public record SelfRosterTeamOptionDto
     public required string TeamName { get; init; }
     public required int CurrentCount { get; init; }
     public required int MaxCount { get; init; }
+    public string? ClubName { get; init; }
+    public string? AgegroupName { get; init; }
+    public string? DivisionName { get; init; }
 }
 
 /// <summary>

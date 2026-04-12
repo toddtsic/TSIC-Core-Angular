@@ -1,5 +1,6 @@
 import { Directive, HostListener, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
+import { SelfRosterUpdateModalService } from '@views/registration/self-roster-update/self-roster-update-modal.service';
 
 /**
  * Directive to intercept clicks on app-internal links within dynamically rendered HTML.
@@ -15,6 +16,7 @@ import { Router } from '@angular/router';
 })
 export class InternalLinkDirective {
     private readonly router = inject(Router);
+    private readonly sruModal = inject(SelfRosterUpdateModalService);
     jobPath = input<string>('');
 
     @HostListener('click', ['$event'])
@@ -46,10 +48,17 @@ export class InternalLinkDirective {
             return;
         }
 
-        // Prevent default and navigate via Angular Router
+        // Prevent default
         event.preventDefault();
         event.stopPropagation();
 
+        // Special case: self-roster-update opens a modal, not a route
+        if (href.includes('/registration/self-roster-update')) {
+            this.sruModal.open(currentJobPath);
+            return;
+        }
+
+        // Default: navigate via Angular Router
         this.router.navigateByUrl(href).then(() => {
         }).catch(err => {
             // Fallback to direct navigation if router fails

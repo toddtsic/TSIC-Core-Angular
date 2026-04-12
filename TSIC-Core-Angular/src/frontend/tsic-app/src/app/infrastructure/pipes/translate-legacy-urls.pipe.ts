@@ -87,7 +87,7 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
         }
 
         if (lower.includes('playerwaiverupdate')) {
-            return `<a href="/${jobPath}/registration/self-roster-update">${linkText}</a>`;
+            return `<a href="/${jobPath}/registration/self-roster-update">CLICK HERE</a>`;
         }
 
         return null;

@@ -7,5 +7,8 @@ export type SelfRosterTeamOptionDto = {
     teamName: string;
     currentCount: number;
     maxCount: number;
+    clubName?: string | null;
+    agegroupName?: string | null;
+    divisionName?: string | null;
 };
 

@@ -159,7 +159,8 @@ public class TeamRepository : ITeamRepository
                 AgegroupAllowsSelfRostering = t.Agegroup.BAllowSelfRostering,
                 StartDate = t.Startdate,
                 EndDate = t.Enddate,
-                PerRegistrantFee = t.PerRegistrantFee
+                PerRegistrantFee = t.PerRegistrantFee,
+                ClubName = t.ClubTeam != null ? t.ClubTeam.Club.ClubName : null
             })
             .ToListAsync(cancellationToken);
     }
