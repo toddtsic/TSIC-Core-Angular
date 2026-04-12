@@ -1,16 +1,34 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ViewChild, inject, signal, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ViewChild, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
+import { Subject, debounceTime, switchMap } from 'rxjs';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { BulletinAdminService } from '../services/bulletin-admin.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
+import { AuthService } from '../../../../infrastructure/services/auth.service';
 import { JOB_CONFIG_RTE_TOOLS } from '../../../configure/job/shared/rte-config';
-import type { BulletinAdminDto, CreateBulletinRequest, UpdateBulletinRequest } from '@core/api';
+import type {
+    BulletinAdminDto,
+    CreateBulletinRequest,
+    UpdateBulletinRequest,
+    BulletinTokenCatalogEntryDto,
+    JobPulseDto
+} from '@core/api';
 
-const BULLETIN_TOKENS = [
+// Plain-text tokens that live in bulletin content — these are processed by
+// BulletinService.ReplaceTextTokens (separate from {{TOKEN}} resolution).
+const TEXT_TOKENS = [
     { token: '!JOBNAME', description: 'Event/league name' },
     { token: '!USLAXVALIDTHROUGHDATE', description: 'US Lacrosse valid-through date' },
+];
+
+// Subset of pulse flags relevant to bulletin tokens — shown as simulate toggles.
+const SIMULATE_FLAGS: Array<{ key: keyof JobPulseDto; label: string }> = [
+    { key: 'playerRegistrationOpen', label: 'Player reg open' },
+    { key: 'teamRegistrationOpen', label: 'Team reg open' },
+    { key: 'adultRegistrationPlanned', label: 'Adult reg planned' },
+    { key: 'schedulePublished', label: 'Schedule published' },
 ];
 
 export type ModalMode = 'add' | 'edit';
@@ -74,22 +92,93 @@ export type ModalMode = 'add' | 'edit';
                             maxlength="200" />
                     </div>
 
-                    <!-- Text (RTE) -->
+                    <!-- Text (RTE) with optional side-by-side preview for SuperUser -->
                     <div class="mb-3">
-                        <label class="form-label">Content</label>
-                        <ejs-richtexteditor #rteEditor
-                            [value]="text()"
-                            [toolbarSettings]="rteTools"
-                            [height]="rteHeight"
-                            [enableHtmlSanitizer]="false"
-                            (change)="onRteChange($event)">
-                        </ejs-richtexteditor>
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label mb-0">Content</label>
+                            <div class="d-flex gap-2">
+                                @if (canFormat()) {
+                                    <button type="button" class="btn-ai btn-sm"
+                                            (click)="formatWithAi()"
+                                            [disabled]="isFormatting() || !text().trim()"
+                                            title="Reformat with AI using design-system styling + token vocabulary">
+                                        @if (isFormatting()) {
+                                            <span class="spinner"></span> Formatting...
+                                        } @else {
+                                            <i class="bi bi-magic"></i> AI Format
+                                        }
+                                    </button>
+                                    @if (preFormatHtml() !== null) {
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                (click)="revertFormat()"
+                                                title="Restore content from before AI formatting">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Revert
+                                        </button>
+                                    }
+                                }
+                                @if (isSuperUser()) {
+                                    <button type="button"
+                                            class="btn btn-sm"
+                                            [class.btn-outline-secondary]="!previewOpen()"
+                                            [class.btn-secondary]="previewOpen()"
+                                            (click)="togglePreview()">
+                                        <i class="bi bi-eye"></i> {{ previewOpen() ? 'Hide' : 'Show' }} Preview
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="editor-preview-grid" [class.split]="previewOpen()">
+                            <ejs-richtexteditor #rteEditor
+                                [value]="text()"
+                                [toolbarSettings]="rteTools"
+                                [height]="rteHeight"
+                                [enableHtmlSanitizer]="false"
+                                (change)="onRteChange($event)">
+                            </ejs-richtexteditor>
+
+                            @if (previewOpen()) {
+                                <div class="preview-pane">
+                                    <div class="preview-pane-header">
+                                        <span>Resolved Preview</span>
+                                        @if (isPreviewing()) { <span class="spinner-border spinner-border-sm"></span> }
+                                    </div>
+                                    <div class="preview-sim">
+                                        <span class="sim-label">Simulate:</span>
+                                        @for (flag of simulateFlags; track flag.key) {
+                                            <label class="sim-check">
+                                                <input type="checkbox"
+                                                       [checked]="pulseOverride()[flag.key] === true"
+                                                       (change)="togglePulseFlag(flag.key, $any($event.target).checked)" />
+                                                <span>{{ flag.label }}</span>
+                                            </label>
+                                        }
+                                        @if (pulseHasOverrides()) {
+                                            <button type="button" class="btn btn-link btn-sm p-0" (click)="resetPulseOverrides()">Reset</button>
+                                        }
+                                    </div>
+                                    <div class="preview-body" [innerHTML]="previewHtml()"></div>
+                                </div>
+                            }
+                        </div>
                     </div>
 
-                    <!-- Token chips -->
+                    <!-- Token chips: bulletin token catalog + text tokens -->
+                    @if (isSuperUser() && tokenCatalog().length > 0) {
+                        <div class="token-bar">
+                            <span class="token-label">Bulletin tokens:</span>
+                            @for (entry of tokenCatalog(); track entry.tokenName) {
+                                <button type="button" class="token-chip token-chip-rich"
+                                        (click)="insertToken('{{' + entry.tokenName + '}}')"
+                                        [title]="entry.description + (entry.gatingConditions.length ? ' — gates: ' + entry.gatingConditions.join(', ') : '')">
+                                    {{ '{{' + entry.tokenName + '}}' }}
+                                </button>
+                            }
+                        </div>
+                    }
                     <div class="token-bar">
-                        <span class="token-label">Insert token:</span>
-                        @for (t of tokens; track t.token) {
+                        <span class="token-label">Text tokens:</span>
+                        @for (t of textTokens; track t.token) {
                             <button type="button" class="token-chip"
                                     (click)="insertToken(t.token)"
                                     [title]="t.description">{{ t.token }}</button>
@@ -167,9 +256,10 @@ export type ModalMode = 'add' | 'edit';
 
         .token-bar {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: var(--space-2);
-            margin-bottom: var(--space-4);
+            margin-bottom: var(--space-3);
         }
 
         .token-label {
@@ -193,6 +283,81 @@ export type ModalMode = 'add' | 'edit';
                 background: rgba(var(--bs-primary-rgb), 0.18);
                 border-color: var(--bs-primary);
             }
+        }
+
+        .token-chip-rich {
+            border-color: rgba(var(--bs-success-rgb), 0.35);
+            background: rgba(var(--bs-success-rgb), 0.10);
+            color: var(--bs-success);
+
+            &:hover {
+                background: rgba(var(--bs-success-rgb), 0.22);
+                border-color: var(--bs-success);
+            }
+        }
+
+        .editor-preview-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--space-3);
+
+            &.split {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .preview-pane {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            min-height: 300px;
+            background: var(--neutral-0);
+        }
+
+        .preview-pane-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-2) var(--space-3);
+            background: var(--neutral-100);
+            border-bottom: 1px solid var(--border-color);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-secondary);
+        }
+
+        .preview-sim {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            background: var(--neutral-50);
+            border-bottom: 1px solid var(--border-color);
+            font-size: var(--font-size-xs);
+        }
+
+        .sim-label {
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .sim-check {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .preview-body {
+            flex: 1;
+            padding: var(--space-3);
+            overflow-y: auto;
+            font-size: var(--font-size-sm);
         }
 
         .meta-row {
@@ -230,11 +395,12 @@ export class BulletinFormModalComponent implements OnInit {
 
     private readonly bulletinService = inject(BulletinAdminService);
     private readonly toastService = inject(ToastService);
+    private readonly authService = inject(AuthService);
 
-    // RTE config
     rteTools = JOB_CONFIG_RTE_TOOLS;
     rteHeight = 300;
-    tokens = BULLETIN_TOKENS;
+    textTokens = TEXT_TOKENS;
+    simulateFlags = SIMULATE_FLAGS;
 
     // Form fields
     title = signal('');
@@ -243,12 +409,31 @@ export class BulletinFormModalComponent implements OnInit {
     endDate = signal('');
     active = signal(true);
 
-    // AI drafting
+    // AI drafting (existing) + AI formatting (new)
     aiPrompt = signal('');
     isDrafting = signal(false);
+    isFormatting = signal(false);
+    preFormatHtml = signal<string | null>(null);
 
     // Validation
     isSaving = signal(false);
+
+    // Token catalog (SuperUser only)
+    tokenCatalog = signal<BulletinTokenCatalogEntryDto[]>([]);
+
+    // Preview pane (SuperUser only)
+    previewOpen = signal(false);
+    previewHtml = signal('');
+    isPreviewing = signal(false);
+    pulseOverride = signal<Partial<JobPulseDto>>({});
+
+    // Role gates
+    readonly isSuperUser = computed(() => this.authService.isSuperuser());
+    readonly canFormat = computed(() => this.authService.isAdmin());
+
+    readonly pulseHasOverrides = computed(() => Object.keys(this.pulseOverride()).length > 0);
+
+    private readonly previewTrigger$ = new Subject<void>();
 
     ngOnInit(): void {
         if (this.mode === 'edit' && this.bulletin) {
@@ -258,13 +443,49 @@ export class BulletinFormModalComponent implements OnInit {
             this.endDate.set(this.formatDateForInput(this.bulletin.endDate));
             this.active.set(this.bulletin.active);
         } else {
-            // Default start date to today
             this.startDate.set(this.formatDateForInput(new Date().toISOString()));
         }
+
+        // Fetch catalog for SuperUser so the token sidebar can render.
+        if (this.isSuperUser()) {
+            this.bulletinService.getTokenCatalog().subscribe({
+                next: (entries) => this.tokenCatalog.set(entries),
+                error: () => { /* silent — catalog is optional UX */ }
+            });
+        }
+
+        // Debounced preview pipeline: any trigger → POST /preview → update previewHtml.
+        this.previewTrigger$.pipe(
+            debounceTime(400),
+            switchMap(() => {
+                this.isPreviewing.set(true);
+                const jobPath = this.authService.getJobPath() ?? '';
+                return this.bulletinService.previewBulletin({
+                    html: this.text(),
+                    jobPath,
+                    pulseOverride: this.buildPulseOverrideForRequest()
+                });
+            })
+        ).subscribe({
+            next: (res) => {
+                this.previewHtml.set(res.html);
+                this.isPreviewing.set(false);
+            },
+            error: () => {
+                this.isPreviewing.set(false);
+            }
+        });
     }
 
     onRteChange(event: any): void {
         this.text.set(event.value ?? '');
+        // Any edit invalidates the "revert" affordance — user has moved on from AI output.
+        if (this.preFormatHtml() !== null) {
+            this.preFormatHtml.set(null);
+        }
+        if (this.previewOpen()) {
+            this.previewTrigger$.next();
+        }
     }
 
     insertToken(token: string): void {
@@ -291,6 +512,58 @@ export class BulletinFormModalComponent implements OnInit {
                 this.toastService.show(`AI draft failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000);
             }
         });
+    }
+
+    formatWithAi(): void {
+        const current = this.text();
+        if (!current.trim()) { return; }
+
+        this.isFormatting.set(true);
+        this.preFormatHtml.set(current);
+
+        this.bulletinService.aiFormatBulletin(current).subscribe({
+            next: (response) => {
+                this.text.set(response.html);
+                if (this.rteEditor) { this.rteEditor.value = response.html; }
+                this.isFormatting.set(false);
+                if (this.previewOpen()) { this.previewTrigger$.next(); }
+            },
+            error: (err) => {
+                this.isFormatting.set(false);
+                this.preFormatHtml.set(null);
+                this.toastService.show(`AI format failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000);
+            }
+        });
+    }
+
+    revertFormat(): void {
+        const previous = this.preFormatHtml();
+        if (previous === null) { return; }
+        this.text.set(previous);
+        if (this.rteEditor) { this.rteEditor.value = previous; }
+        this.preFormatHtml.set(null);
+        if (this.previewOpen()) { this.previewTrigger$.next(); }
+    }
+
+    togglePreview(): void {
+        this.previewOpen.set(!this.previewOpen());
+        if (this.previewOpen()) {
+            this.previewTrigger$.next();
+        }
+    }
+
+    togglePulseFlag(key: keyof JobPulseDto, checked: boolean): void {
+        const next = { ...this.pulseOverride() };
+        // Checkbox checked = override to true (flag ON). Unchecked = override to false (flag OFF).
+        // To "use real value", user clicks Reset.
+        next[key] = checked as any;
+        this.pulseOverride.set(next);
+        this.previewTrigger$.next();
+    }
+
+    resetPulseOverrides(): void {
+        this.pulseOverride.set({});
+        this.previewTrigger$.next();
     }
 
     isValid(): boolean {
@@ -350,5 +623,36 @@ export class BulletinFormModalComponent implements OnInit {
         if (!isoDate) return '';
         const date = new Date(isoDate);
         return date.toISOString().split('T')[0];
+    }
+
+    /**
+     * Backend /preview accepts a full JobPulseDto. Build one from our partial overrides,
+     * leaving unmapped fields null — backend uses null as "fetch real pulse then apply
+     * overrides on top". Since we always send a complete JobPulseDto here, any field not
+     * overridden falls back to a neutral "true" (demo-like) default for simplicity; the
+     * user can always click Reset to use the real pulse.
+     *
+     * In practice: if the user has toggled nothing, we send PulseOverride=undefined so
+     * the backend uses the real pulse verbatim.
+     */
+    private buildPulseOverrideForRequest(): JobPulseDto | undefined {
+        const partial = this.pulseOverride();
+        if (Object.keys(partial).length === 0) {
+            return undefined;
+        }
+        return {
+            playerRegistrationOpen: partial.playerRegistrationOpen ?? true,
+            playerRegRequiresToken: partial.playerRegRequiresToken ?? false,
+            teamRegistrationOpen: partial.teamRegistrationOpen ?? true,
+            teamRegRequiresToken: partial.teamRegRequiresToken ?? false,
+            storeEnabled: partial.storeEnabled ?? true,
+            storeHasActiveItems: partial.storeHasActiveItems ?? true,
+            allowStoreWalkup: partial.allowStoreWalkup ?? true,
+            schedulePublished: partial.schedulePublished ?? true,
+            playerRegistrationPlanned: partial.playerRegistrationPlanned ?? true,
+            adultRegistrationPlanned: partial.adultRegistrationPlanned ?? true,
+            publicSuspended: partial.publicSuspended ?? false,
+            registrationExpiry: partial.registrationExpiry
+        };
     }
 }
