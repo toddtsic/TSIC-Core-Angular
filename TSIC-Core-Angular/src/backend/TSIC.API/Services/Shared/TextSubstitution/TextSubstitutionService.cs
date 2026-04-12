@@ -485,9 +485,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     private async Task<string> BuildAccountingAHtmlAsync(Guid registrationId, Guid paymentMethodCreditCardId, string jobName, bool emailMode)
     {
         var rows = await _repo.GetAccountingTransactionsAsync(registrationId);
+        if (rows.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(jobName)}:Most Recent Transaction(s)", emailMode);
+        var captionA = string.IsNullOrWhiteSpace(jobName)
+            ? "Most Recent Transaction(s)"
+            : $"{WebUtility.HtmlEncode(jobName)}: Most Recent Transaction(s)";
+        HtmlTableBuilder.AddCaption(sb, captionA, emailMode);
         HtmlTableBuilder.StartHead(sb);
         HtmlTableBuilder.AddHeaderRow(sb, "ID", "Player", "Method", "Fees$", "Discount$", PaidColumnHeader, "Owes$");
         HtmlTableBuilder.EndHeadStartBody(sb);
@@ -520,15 +524,34 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         var clubName = await _repo.GetClubNameAsync(registrationId) ?? string.Empty;
         var teams = await _repo.GetClubTeamsAsync(registrationId);
-        var sb = new StringBuilder();
-        HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(clubName)}:Most Recent Transaction(s)", emailMode);
-        HtmlTableBuilder.StartHead(sb);
-        HtmlTableBuilder.AddHeaderRow(sb, "Active", "ID", "Team", "Method", "Fees$", PaidColumnHeader, "Date", "Owes$", "Comment");
-        HtmlTableBuilder.EndHeadStartBody(sb);
+
+        // Prefetch per-team rows so we can early-return when there are zero
+        // transactions (prevents emitting an empty table shell for e.g. adult
+        // coach registration with no fees / no accounting rows).
+        var perTeamRows = new List<(string TeamName, List<TeamAccountingRow> Rows)>();
+        var totalRows = 0;
         foreach (var t in teams)
         {
             var rows = await _repo.GetTeamAccountingTransactionsAsync(t.TeamId);
+            perTeamRows.Add((t.TeamName, rows));
+            totalRows += rows.Count;
+        }
+        if (totalRows == 0) return string.Empty;
+
+        // Build caption — include the club-name prefix only when we have one,
+        // otherwise use the bare title (no stray leading colon).
+        var caption = string.IsNullOrWhiteSpace(clubName)
+            ? "Most Recent Transaction(s)"
+            : $"{WebUtility.HtmlEncode(clubName)}: Most Recent Transaction(s)";
+
+        var sb = new StringBuilder();
+        HtmlTableBuilder.StartTable(sb, emailMode);
+        HtmlTableBuilder.AddCaption(sb, caption, emailMode);
+        HtmlTableBuilder.StartHead(sb);
+        HtmlTableBuilder.AddHeaderRow(sb, "Active", "ID", "Team", "Method", "Fees$", PaidColumnHeader, "Date", "Owes$", "Comment");
+        HtmlTableBuilder.EndHeadStartBody(sb);
+        foreach (var (teamName, rows) in perTeamRows)
+        {
             foreach (var r in rows)
             {
                 if (r.Payamt.HasValue && r.Payamt > 0 && r.PaymentMethodId == paymentMethodCreditCardId && r.DiscountCodeAi.HasValue)
@@ -540,7 +563,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                 HtmlTableBuilder.AddRow(sb,
                     activeLabel,
                     r.AId.ToString(),
-                    WebUtility.HtmlEncode(t.TeamName),
+                    WebUtility.HtmlEncode(teamName),
                     r.PaymentMethod ?? string.Empty,
                     HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
@@ -560,7 +583,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty)}:Registered Teams SUMMARY", emailMode);
+        HtmlTableBuilder.AddCaption(sb,
+            string.IsNullOrWhiteSpace(teams[0].ClubName)
+                ? "Registered Teams SUMMARY"
+                : $"{WebUtility.HtmlEncode(teams[0].ClubName!)}: Registered Teams SUMMARY",
+            emailMode);
         HtmlTableBuilder.StartHead(sb);
         HtmlTableBuilder.AddHeaderRow(sb, string.Empty, "Team", "Deposit Fee", "Additional Fees", "Processing Fee", PaidColumnHeader, "Owes$");
         HtmlTableBuilder.EndHeadStartBody(sb);
@@ -595,7 +622,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (teams.Count == 0) return string.Empty;
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
-        HtmlTableBuilder.AddCaption(sb, $"{WebUtility.HtmlEncode(teams[0].ClubName ?? string.Empty)}:Registered Teams SUMMARY", emailMode);
+        HtmlTableBuilder.AddCaption(sb,
+            string.IsNullOrWhiteSpace(teams[0].ClubName)
+                ? "Registered Teams SUMMARY"
+                : $"{WebUtility.HtmlEncode(teams[0].ClubName!)}: Registered Teams SUMMARY",
+            emailMode);
         HtmlTableBuilder.StartHead(sb);
         HtmlTableBuilder.AddHeaderRow(sb, string.Empty, "Club Team");
         HtmlTableBuilder.EndHeadStartBody(sb);
