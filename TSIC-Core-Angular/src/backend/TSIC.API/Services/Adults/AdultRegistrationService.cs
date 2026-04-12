@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using TSIC.API.Services.Metadata;
+using TSIC.Application.Services.Shared.Html;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
@@ -435,7 +436,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         // Run the template through the shared token substitution service so
         // tokens like !JOBNAME, !F-TEAMS, !F-ACCOUNTING, !J-CONTACTBLOCK, etc.
         // are resolved to real content (same pattern as team + player wizards).
-        var confirmationHtml = await SubstituteConfirmationAsync(reg, template);
+        var confirmationHtml = await SubstituteConfirmationAsync(reg, template, emailMode: false);
 
         return new AdultConfirmationResponse
         {
@@ -458,7 +459,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         if (string.IsNullOrWhiteSpace(userEmail)) return;
 
         // Resolve tokens before sending.
-        var emailHtml = await SubstituteConfirmationAsync(reg, template);
+        var emailHtml = await SubstituteConfirmationAsync(reg, template, emailMode: true);
         if (string.IsNullOrWhiteSpace(emailHtml)) return;
 
         var roleDisplayName = GetRoleDisplayName(roleType);
@@ -476,7 +477,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// Run an adult-registration confirmation template through the shared
     /// text-substitution service so tokens resolve to real content.
     /// </summary>
-    private async Task<string?> SubstituteConfirmationAsync(Registrations reg, string? template)
+    private async Task<string?> SubstituteConfirmationAsync(Registrations reg, string? template, bool emailMode)
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
         try
@@ -487,7 +488,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             // before handing off to the shared substitution service.
             if (reg.RoleId == RoleConstants.Staff && template.Contains("!F-TEAMS", StringComparison.Ordinal))
             {
-                var staffTeamsHtml = await BuildStaffTeamsHtmlAsync(reg, CancellationToken.None);
+                var staffTeamsHtml = await BuildStaffTeamsHtmlAsync(reg, emailMode, CancellationToken.None);
                 template = template.Replace("!F-TEAMS", staffTeamsHtml, StringComparison.Ordinal);
             }
 
@@ -511,7 +512,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// rows for this user+job, one per team). Replaces !F-TEAMS in confirmation
     /// templates since the shared resolver only handles club-rep rows.
     /// </summary>
-    private async Task<string> BuildStaffTeamsHtmlAsync(Registrations reg, CancellationToken cancellationToken)
+    private async Task<string> BuildStaffTeamsHtmlAsync(Registrations reg, bool emailMode, CancellationToken cancellationToken)
     {
         var staffRegs = await _repo.GetTrackedActiveByRoleAsync(reg.UserId!, reg.JobId, RoleConstants.Staff, cancellationToken);
         var teamIds = staffRegs
@@ -525,23 +526,20 @@ public class AdultRegistrationService : IAdultRegistrationService
         if (selected.Count == 0) return string.Empty;
 
         var sb = new System.Text.StringBuilder();
-        sb.Append("<table style='border-collapse:collapse;margin:8px 0;'>");
-        sb.Append("<thead><tr>")
-          .Append("<th style='text-align:left;padding:4px 12px 4px 0;border-bottom:1px solid #ccc;'>Club</th>")
-          .Append("<th style='text-align:left;padding:4px 12px 4px 0;border-bottom:1px solid #ccc;'>Age Group</th>")
-          .Append("<th style='text-align:left;padding:4px 12px 4px 0;border-bottom:1px solid #ccc;'>Division</th>")
-          .Append("<th style='text-align:left;padding:4px 0;border-bottom:1px solid #ccc;'>Team</th>")
-          .Append("</tr></thead><tbody>");
+        HtmlTableBuilder.StartTable(sb, emailMode);
+        HtmlTableBuilder.StartHead(sb);
+        HtmlTableBuilder.AddHeaderRow(sb, "Club", "Age Group", "Division", "Team");
+        HtmlTableBuilder.EndHeadStartBody(sb);
         foreach (var t in selected)
         {
-            sb.Append("<tr>")
-              .Append($"<td style='padding:4px 12px 4px 0;'>{System.Net.WebUtility.HtmlEncode(t.ClubName)}</td>")
-              .Append($"<td style='padding:4px 12px 4px 0;'>{System.Net.WebUtility.HtmlEncode(t.AgegroupName)}</td>")
-              .Append($"<td style='padding:4px 12px 4px 0;'>{System.Net.WebUtility.HtmlEncode(t.DivName)}</td>")
-              .Append($"<td style='padding:4px 0;'>{System.Net.WebUtility.HtmlEncode(t.TeamName)}</td>")
-              .Append("</tr>");
+            HtmlTableBuilder.AddRow(sb,
+                System.Net.WebUtility.HtmlEncode(t.ClubName),
+                System.Net.WebUtility.HtmlEncode(t.AgegroupName),
+                System.Net.WebUtility.HtmlEncode(t.DivName),
+                System.Net.WebUtility.HtmlEncode(t.TeamName));
         }
-        sb.Append("</tbody></table>");
+        HtmlTableBuilder.EndBodyOnly(sb);
+        HtmlTableBuilder.EndTableOnly(sb);
         return sb.ToString();
     }
 
