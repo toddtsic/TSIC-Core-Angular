@@ -1,36 +1,44 @@
+using System.Security.Claims;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Bulletin;
 using TSIC.Contracts.Repositories;
+using TSIC.API.Services.Shared.Bulletins.TokenResolution;
 using TSIC.API.Services.Shared.Jobs;
 using BulletinEntity = TSIC.Domain.Entities.Bulletins;
 
 namespace TSIC.API.Services.Shared.Bulletins;
 
 /// <summary>
-/// Service for managing bulletin business logic: token substitution only.
-/// Legacy URL translation is handled entirely by the frontend TranslateLegacyUrlsPipe.
+/// Service for managing bulletin business logic.
+/// Public fetch path: text-token substitution (!JOBNAME etc.) + {{TOKEN}} resolution via BulletinTokenRegistry.
+/// Legacy URL translation is still handled by the frontend TranslateLegacyUrlsPipe.
 /// </summary>
 public class BulletinService : IBulletinService
 {
-    // Token constants for text substitution
     private const string JobNameToken = "!JOBNAME";
     private const string UslaxDateToken = "!USLAXVALIDTHROUGHDATE";
 
     private readonly IJobLookupService _jobLookupService;
+    private readonly IJobRepository _jobRepository;
     private readonly IBulletinRepository _bulletinRepository;
+    private readonly BulletinTokenRegistry _tokenRegistry;
     private readonly ILogger<BulletinService> _logger;
 
     public BulletinService(
         IJobLookupService jobLookupService,
+        IJobRepository jobRepository,
         IBulletinRepository bulletinRepository,
+        BulletinTokenRegistry tokenRegistry,
         ILogger<BulletinService> logger)
     {
         _jobLookupService = jobLookupService;
+        _jobRepository = jobRepository;
         _bulletinRepository = bulletinRepository;
+        _tokenRegistry = tokenRegistry;
         _logger = logger;
     }
 
-    public async Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, CancellationToken cancellationToken = default)
+    public async Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, ClaimsPrincipal? user, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Processing bulletins for job: {JobPath}", jobPath);
 
@@ -43,22 +51,41 @@ public class BulletinService : IBulletinService
 
         var bulletins = await _bulletinRepository.GetActiveBulletinsForJobAsync(jobMetadata.JobId, cancellationToken);
 
-        // Process bulletin title and text with token replacement only.
-        // Legacy URL translation is handled by the frontend TranslateLegacyUrlsPipe.
         var jobName = jobMetadata.JobName;
         var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
+
+        // Build token context (pulse + auth state) once; reused across all bulletins in this response.
+        var pulse = await _jobRepository.GetJobPulseAsync(jobPath, cancellationToken);
+        TokenContext? tokenCtx = null;
+        if (pulse != null)
+        {
+            tokenCtx = new TokenContext
+            {
+                JobPath = jobPath,
+                Job = jobMetadata,
+                Pulse = pulse,
+                IsAuthenticated = user?.Identity?.IsAuthenticated ?? false,
+                Role = user?.FindFirst(ClaimTypes.Role)?.Value
+            };
+        }
 
         var processedBulletins = new List<BulletinDto>();
         foreach (var bulletin in bulletins)
         {
-            var processedTitle = ReplaceTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
-            var processedText = ReplaceTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
+            var title = ReplaceTextTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
+            var text = ReplaceTextTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
+
+            if (tokenCtx != null)
+            {
+                title = _tokenRegistry.ResolveTokens(title, tokenCtx);
+                text = _tokenRegistry.ResolveTokens(text, tokenCtx);
+            }
 
             processedBulletins.Add(new BulletinDto
             {
                 BulletinId = bulletin.BulletinId,
-                Title = processedTitle,
-                Text = processedText,
+                Title = title,
+                Text = text,
                 StartDate = bulletin.StartDate,
                 EndDate = bulletin.EndDate,
                 CreateDate = bulletin.CreateDate
@@ -176,7 +203,7 @@ public class BulletinService : IBulletinService
         return await _bulletinRepository.BatchUpdateActiveStatusAsync(jobId, active, cancellationToken);
     }
 
-    private static string ReplaceTokens(string text, string jobName, string uslaxDate)
+    private static string ReplaceTextTokens(string text, string jobName, string uslaxDate)
     {
         return text
             .Replace(JobNameToken, jobName, StringComparison.OrdinalIgnoreCase)

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Bulletin;
 
@@ -12,7 +13,7 @@ public interface IBulletinService
     /// Get active bulletins for a job with processed text (token replacement).
     /// Used by public-facing widget.
     /// </summary>
-    Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, CancellationToken cancellationToken = default);
+    Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, ClaimsPrincipal? user, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get ALL bulletins for a job (admin view — no token substitution, no date filter).

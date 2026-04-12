@@ -39,6 +39,8 @@ using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.AiCompose;
 using TSIC.API.Services.Shared.Bulletins;
+using TSIC.API.Services.Shared.Bulletins.TokenResolution;
+using TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 using TSIC.API.Services.Shared.Devices;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
@@ -175,6 +177,18 @@ builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
 builder.Services.AddScoped<IBulletinService, BulletinService>();
+
+// Bulletin {{TOKEN}} resolvers — each registered as IBulletinTokenResolver; BulletinTokenRegistry collects them.
+builder.Services.AddScoped<IBulletinTokenResolver, RegisterPlayerResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, RegisterClubRepResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, RegisterUnassignedAdultResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, RegisterStaffResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, RegisterSelfRosterPlayersAndCoachResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, PlayerSelfRosterUpdateResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, PublicRostersResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, ScheduleResolver>();
+builder.Services.AddScoped<IBulletinTokenResolver, EventInfoResolver>();
+builder.Services.AddScoped<BulletinTokenRegistry>();
 builder.Services.AddScoped<IAgeRangeService, AgeRangeService>();
 builder.Services.AddScoped<IPlayerRegConfirmationService, PlayerRegConfirmationService>();
 // VerticalInsure named HttpClient registration (base address only; secrets via env vars VI_DEV_SECRET/VI_PROD_SECRET)
