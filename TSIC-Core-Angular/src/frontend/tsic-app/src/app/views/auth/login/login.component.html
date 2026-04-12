@@ -11,13 +11,15 @@
           <p class="auth-hero-subtitle" [innerHTML]="subHeaderText"></p>
         </div>
 
-        <form [formGroup]="form" (ngSubmit)="onSubmit($event)" autocomplete="on" name="login" id="login-form"
+        <form [formGroup]="form" (ngSubmit)="onSubmit($event)"
+          [attr.autocomplete]="autofillDisabled ? 'off' : 'on'" name="login" id="login-form"
           method="post" action="/" novalidate>
 
           <div class="login-field">
             <label for="username" class="form-label">Username</label>
             <input #usernameInput id="username" name="username" type="text" class="form-control"
-              formControlName="username" placeholder="Enter your username" autocomplete="username" aria-label="Username"
+              formControlName="username" placeholder="Enter your username"
+              [attr.autocomplete]="autofillDisabled ? 'off' : 'username'" aria-label="Username"
               [class.is-invalid]="submitted() && form.get('username')?.invalid">
             @if (submitted() && form.get('username')?.invalid) {
             <div class="invalid-feedback">
@@ -31,7 +33,8 @@
             <div class="position-relative">
               <input #passwordInput id="password" name="password" [type]="showPassword() ? 'text' : 'password'"
                 class="form-control pe-5" formControlName="password"
-                placeholder="Enter your password" [attr.autocomplete]="'current-password'" autocapitalize="none"
+                placeholder="Enter your password"
+                [attr.autocomplete]="autofillDisabled ? 'new-password' : 'current-password'" autocapitalize="none"
                 spellcheck="false" aria-label="Password"
                 [class.is-invalid]="submitted() && form.get('password')?.invalid">
               <button type="button" class="btn btn-link password-toggle"

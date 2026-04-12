@@ -4,8 +4,10 @@
 /* eslint-disable */
 import type { AdultRoleType } from './AdultRoleType';
 export type PreSubmitAdultRegRequestDto = {
-    roleType: AdultRoleType;
+    roleKey: string;
+    roleType?: (null | AdultRoleType);
     formValues?: any | null;
     waiverAcceptance?: any | null;
+    teamIdsCoaching?: any[] | null;
 };
 

@@ -361,7 +361,7 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
               <div class="row g-2 mb-2">
                 <div class="col-12">
                   <input class="form-control form-control-sm" formControlName="username"
-                         placeholder="Username" autocomplete="username"
+                         placeholder="Username" autocomplete="off"
                          [class.is-required]="!form.controls.username.value?.trim()"
                          [class.is-invalid]="submitted() && form.controls.username.invalid" />
                 </div>

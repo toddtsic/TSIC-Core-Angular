@@ -84,6 +84,17 @@ public interface IFeeResolutionService
         FeeApplicationContext ctx,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Apply fees to an adult registration that's assigned to a specific team
+    /// (e.g. tournament Staff coaching a specific team). Uses the full
+    /// Team → Agegroup → Job cascade for base fee + modifiers, so per-team
+    /// pricing is respected. One call per (registration, team).
+    /// </summary>
+    Task ApplyNewStaffRegistrationFeesAsync(
+        Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
+        FeeApplicationContext ctx,
+        CancellationToken ct = default);
+
     // ── Application (Player registrations) ──────────────────────
 
     /// <summary>

@@ -112,6 +112,75 @@ public class AdultRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Get available teams for Coach registration (legacy ListAvailableTeams).
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("{jobPath}/available-teams")]
+    public async Task<IActionResult> GetAvailableTeams(string jobPath, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _service.GetAvailableTeamsAsync(jobPath, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Returns the authenticated user's existing active registrations for
+    /// (jobPath, roleKey). Used to prefill the Profile step on return visits.
+    /// </summary>
+    [Authorize]
+    [HttpGet("{jobPath}/my-registration/{roleKey}")]
+    public async Task<IActionResult> GetMyExistingRegistration(string jobPath, string roleKey, CancellationToken ct)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { message = "User identity not found." });
+
+            var result = await _service.GetMyExistingRegistrationAsync(jobPath, roleKey, userId, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Unified role configuration endpoint — returns display metadata, team-selection
+    /// requirement, profile fields, and waivers for a given (jobPath, roleKey).
+    /// Security invariant (tournament coach + BAllowRosterViewAdult=false) is enforced here.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("{jobPath}/role-config/{roleKey}")]
+    public async Task<IActionResult> GetRoleConfig(string jobPath, string roleKey, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _service.GetRoleConfigAsync(jobPath, roleKey, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// PreSubmit: validates form fields, resolves fees, optionally creates registration (login-mode).
     /// Accepts both anonymous (create-mode) and authenticated (login-mode) callers.
     /// </summary>

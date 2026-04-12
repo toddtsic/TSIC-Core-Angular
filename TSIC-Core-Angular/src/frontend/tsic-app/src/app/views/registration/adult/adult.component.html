@@ -1,47 +1,58 @@
-<app-wizard-shell
-  [steps]="steps()"
-  [currentIndex]="currentIndex()"
-  [config]="shellConfig()"
-  [canContinue]="canContinue()"
-  [showContinue]="showContinue()"
-  [continueLabel]="continueLabel()"
-  (back)="back()"
-  (continue)="next()"
-  (goToStep)="goToStep($event)">
-
-  @switch (currentStepId()) {
-    @case ('account') {
-      <app-adult-account-step (autoAdvance)="onAccountAutoAdvance()" />
-    }
-    @case ('role') {
-      <app-adult-role-step [jobPath]="jobPath" />
-    }
-    @case ('profile') {
-      <app-adult-profile-step />
-    }
-    @case ('waivers') {
-      <app-adult-waivers-step />
-    }
-    @case ('review') {
-      <app-adult-review-step />
-    }
-    @case ('payment') {
-      <app-adult-payment-step />
-    }
-    @case ('confirmation') {
-      <app-adult-confirmation-step (finished)="onFinishConfirmation()" />
-    }
-    @case ('tos') {
-      <app-tos-acceptance-step
-        [submitting]="tosSubmitting()"
-        [error]="tosError()"
-        (accepted)="onTosAccepted()" />
-    }
-    @default {
-      <div class="alert alert-warning" role="note">
-        Unknown step "{{ currentStepId() }}". Please go back and try again.
+@if (configError(); as err) {
+  <!-- Error card — shown when ?role= is missing, invalid, or rejected by backend -->
+  <div class="container py-5">
+    <div class="card shadow-sm border-0 mx-auto" style="max-width: 520px; border-radius: var(--radius-md);">
+      <div class="card-body text-center p-4">
+        <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 3rem;"></i>
+        <h4 class="mt-3">Registration Unavailable</h4>
+        <p class="text-muted">{{ err }}</p>
       </div>
-    }
-  }
+    </div>
+  </div>
+} @else if (state.roleConfigLoading()) {
+  <!-- Loading the role config — brief shimmer, then either stepper or error -->
+  <div class="d-flex justify-content-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+} @else {
+  <app-wizard-shell
+    [steps]="steps()"
+    [currentIndex]="currentIndex()"
+    [config]="shellConfig()"
+    [canContinue]="canContinue()"
+    [showContinue]="showContinue()"
+    [continueLabel]="continueLabel()"
+    (back)="back()"
+    (continue)="next()"
+    (goToStep)="goToStep($event)">
 
-</app-wizard-shell>
+    @switch (currentStepId()) {
+      @case ('account') {
+        <app-adult-account-step (autoAdvance)="onAccountAdvance()" />
+      }
+      @case ('profile') {
+        <app-adult-profile-step />
+      }
+      @case ('waivers') {
+        <app-adult-waivers-step (advance)="next()" />
+      }
+      @case ('review') {
+        <app-adult-review-step />
+      }
+      @case ('payment') {
+        <app-adult-payment-step />
+      }
+      @case ('confirmation') {
+        <app-adult-confirmation-step (finished)="onFinishConfirmation()" />
+      }
+      @default {
+        <div class="alert alert-warning" role="note">
+          Unknown step "{{ currentStepId() }}".
+        </div>
+      }
+    }
+
+  </app-wizard-shell>
+}

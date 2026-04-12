@@ -87,7 +87,28 @@ public sealed class FeeResolutionService : IFeeResolutionService
         return await _feeRepo.GetJobLevelFeeAsync(jobId, roleId, ct);
     }
 
-    // ── Adult Registration: New ─────────────────────────────────
+    // ── Adult Registration: Staff with team assignment ─────────
+
+    public async Task ApplyNewStaffRegistrationFeesAsync(
+        Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
+        FeeApplicationContext ctx,
+        CancellationToken ct = default)
+    {
+        var resolved = await ResolveFeeAsync(jobId, RoleConstants.Staff, agegroupId, teamId, ct);
+        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+
+        var modifiers = await EvaluateModifiersAsync(
+            jobId, RoleConstants.Staff, agegroupId, teamId, DateTime.UtcNow, ct);
+
+        reg.FeeBase = baseFee;
+        reg.FeeDiscount = modifiers.TotalDiscount;
+        reg.FeeLatefee = modifiers.TotalLateFee;
+
+        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate);
+    }
+
+    // ── Adult Registration: New (UA, Referee, Recruiter — no team) ──
 
     public async Task ApplyNewAdultRegistrationFeesAsync(
         Registrations reg, Guid jobId, string roleId,

@@ -1,35 +1,41 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { filter, take } from 'rxjs';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { isValidAdultRegRoleKey } from '@infrastructure/services/adult-registration.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { AdultWizardStateService } from './state/adult-wizard-state.service';
 import { AccountStepComponent } from './steps/account-step.component';
-import { RoleStepComponent } from './steps/role-step.component';
 import { ProfileStepComponent } from './steps/profile-step.component';
 import { WaiversStepComponent } from './steps/waivers-step.component';
 import { ReviewStepComponent } from './steps/review-step.component';
 import { PaymentStepComponent } from './steps/payment-step.component';
 import { ConfirmationStepComponent } from './steps/confirmation-step.component';
-import { TosAcceptanceStepComponent } from '../shared/components/tos-acceptance-step.component';
 import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-shell.types';
 
-type AdultStepId = 'account' | 'role' | 'profile' | 'waivers' | 'review' | 'payment' | 'confirmation' | 'tos';
+type AdultStepId = 'account' | 'profile' | 'waivers' | 'review' | 'payment' | 'confirmation';
 
+/**
+ * Adult Registration Wizard — unified, role-config-driven.
+ *
+ * Flow (7 steps, config-driven):
+ *   Account → ToS (create-mode only) → Profile → Waivers → Review → Payment (if fees) → Confirmation
+ *
+ * Entry requires <c>?role=&lt;roleKey&gt;</c> where roleKey is one of coach/referee/recruiter.
+ * Backend resolves the actual assigned role (UnassignedAdult / Staff / Referee / Recruiter)
+ * based on the job type. If role is missing or rejected (security invariant violation,
+ * unsupported job type), the wizard shows an error card and does not render the stepper.
+ */
 @Component({
     selector: 'app-registration-adult',
     standalone: true,
     imports: [
         WizardShellComponent,
         AccountStepComponent,
-        RoleStepComponent,
         ProfileStepComponent,
         WaiversStepComponent,
         ReviewStepComponent,
         PaymentStepComponent,
         ConfirmationStepComponent,
-        TosAcceptanceStepComponent,
     ],
     templateUrl: './adult.component.html',
     styleUrls: ['./adult.component.scss'],
@@ -39,30 +45,24 @@ export class AdultWizardV2Component implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly auth = inject(AuthService);
-    private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(AdultWizardStateService);
 
     jobPath = '';
 
+    // ── Error-card state (shown when role config can't load) ───────
+    readonly configError = signal<string | null>(null);
+
     // ── Step management ─────────────────────────────────────────────
     readonly currentIndex = signal(0);
 
-    /** When ?role= param is provided, the role step is skipped. */
-    readonly rolePreselected = signal(false);
-
-    // ── ToS state (create mode only) ─────────────────────────────
-    readonly tosSubmitting = signal(false);
-    readonly tosError = signal<string | null>(null);
-
     readonly steps = computed<WizardStepDef[]>(() => [
+        // Account step collects credentials + ToS inline (create-mode) or embedded login (existing user).
         { id: 'account', label: 'Account', enabled: true },
-        { id: 'role', label: 'Role', enabled: !this.rolePreselected() },
-        { id: 'profile', label: 'Profile', enabled: this.state.formSchema() !== null },
-        { id: 'waivers', label: 'Waivers', enabled: (this.state.waivers().length > 0) },
+        { id: 'profile', label: 'Profile', enabled: this.state.roleConfig() !== null },
+        { id: 'waivers', label: 'Waivers', enabled: this.state.waivers().length > 0 },
         { id: 'review', label: 'Review', enabled: true },
         { id: 'payment', label: 'Payment', enabled: this.state.hasFees() },
-        { id: 'confirmation', label: 'Confirmation', enabled: this.state.isComplete() },
-        { id: 'tos', label: 'Terms of Service', enabled: this.state.mode() === 'create' && this.state.isComplete() },
+        { id: 'confirmation', label: 'Done', enabled: this.state.isComplete() },
     ]);
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
@@ -70,43 +70,30 @@ export class AdultWizardV2Component implements OnInit {
         () => (this.activeSteps()[this.currentIndex()]?.id ?? 'account') as AdultStepId,
     );
 
-    // ── Shell config ────────────────────────────────────────────────
     readonly shellConfig = computed<WizardShellConfig>(() => ({
-        title: 'Adult Registration',
+        title: this.state.roleDisplayName()
+            ? `${this.state.roleDisplayName()} Registration`
+            : 'Adult Registration',
         theme: 'adult',
-        badge: this.state.selectedRole()?.displayName ?? null,
+        badge: null,
     }));
 
     readonly canContinue = computed(() => {
         switch (this.currentStepId()) {
-            case 'account':
-                // Login mode: always can continue (already authenticated)
-                // Create mode: need valid credentials
-                return this.state.mode() === 'login'
-                    ? true
-                    : this.state.hasValidCredentials();
-            case 'role':
-                return this.state.hasSelectedRole() && !this.state.schemaLoading();
-            case 'profile':
-                return this.state.hasValidProfile();
-            case 'waivers':
-                return this.state.hasAcceptedAllWaivers();
-            case 'review':
-                return !this.state.preSubmitting();
-            case 'payment':
-                return this.state.paymentSuccess();
-            case 'confirmation':
-                return true;
-            case 'tos':
-                return false; // tos has its own accept button
-            default:
-                return false;
+            case 'account':      return this.state.accountStepReady();
+            case 'profile':      return this.state.hasValidProfile();
+            case 'waivers':      return this.state.hasAcceptedAllWaivers();
+            case 'review':       return !this.state.preSubmitting();
+            case 'payment':      return this.state.paymentSuccess();
+            case 'confirmation': return false; // Own Finish button
+            default:             return false;
         }
     });
 
     readonly showContinue = computed(() => {
         const step = this.currentStepId();
-        return step !== 'tos' && step !== 'payment' && step !== 'confirmation';
+        // Account, Payment, Confirmation all have their own CTAs.
+        return step !== 'account' && step !== 'payment' && step !== 'confirmation';
     });
 
     readonly continueLabel = computed(() => {
@@ -120,23 +107,40 @@ export class AdultWizardV2Component implements OnInit {
     ngOnInit(): void {
         this.state.reset();
 
-        // Extract jobPath from parent route
-        this.jobPath = this.route.parent?.snapshot.paramMap.get('jobPath') ?? '';
+        // Always start with a clean session. The user re-authenticates (via embedded
+        // login) or creates a new account for this specific adult role — we don't
+        // inherit whoever happened to be logged in previously.
+        this.auth.logoutLocal();
+
+        // Walk up the route tree to find the jobPath param (lives on a grandparent
+        // route — same pattern as the player wizard's resolveJobPath).
+        this.jobPath = this.resolveJobPath();
         this.state.setJobPath(this.jobPath);
 
-        // Read ?role= query param (0=Coach, 1=Referee, 2=Recruiter)
-        const roleParam = this.route.snapshot.queryParamMap.get('role');
-        const preselectedRoleType = roleParam !== null ? parseInt(roleParam, 10) : null;
+        const roleParam = this.route.snapshot.queryParamMap.get('role')?.trim().toLowerCase() ?? '';
 
-        if (this.jobPath) {
-            this.state.loadJobInfo(this.jobPath);
+        if (!roleParam) {
+            this.configError.set(
+                'This registration link is incomplete. Please contact the tournament director ' +
+                'for the correct registration link.');
+            return;
         }
 
-        // When job info loads and a role was preselected, auto-select it
-        if (preselectedRoleType !== null && !isNaN(preselectedRoleType)) {
-            this.rolePreselected.set(true);
-            this.waitForJobInfoAndSelectRole(preselectedRoleType);
+        if (!isValidAdultRegRoleKey(roleParam)) {
+            this.configError.set(`The registration role "${roleParam}" is not available.`);
+            return;
         }
+
+        this.state.setRoleKey(roleParam);
+
+        // Load role config — backend enforces security invariants here.
+        this.state.loadRoleConfig(this.jobPath, roleParam).then(success => {
+            if (!success) {
+                // State service already captured the error message.
+                const err = this.state.roleConfigError();
+                this.configError.set(err ?? 'Unable to load registration configuration.');
+            }
+        });
 
         // Deep-link: ?step=<id>
         const stepParam = this.route.snapshot.queryParamMap.get('step');
@@ -146,33 +150,15 @@ export class AdultWizardV2Component implements OnInit {
         }
     }
 
-    /** Wait for jobInfo to load, then auto-select the preselected role. */
-    private waitForJobInfoAndSelectRole(roleType: number): void {
-        toObservable(this.state.jobInfo).pipe(
-            filter(info => info !== null),
-            take(1),
-            takeUntilDestroyed(this.destroyRef),
-        ).subscribe(info => {
-            const role = info.availableRoles.find(r => r.roleType === roleType);
-            if (role) {
-                this.state.selectRole(role, this.jobPath);
-            } else {
-                // Invalid role param — fall back to showing role step
-                this.rolePreselected.set(false);
-            }
-        });
-    }
-
     // ── Navigation ──────────────────────────────────────────────────
     async next(): Promise<void> {
-        // PreSubmit when leaving review step
+        // PreSubmit runs when leaving Review.
         if (this.currentStepId() === 'review') {
-            const valid = await this.state.preSubmit(this.jobPath);
+            const valid = await this.state.preSubmit();
             if (!valid) return;
 
-            // If no fees: submit registration now (create-mode) or mark complete (login-mode)
             if (!this.state.hasFees()) {
-                const submitted = await this.state.submit(this.jobPath);
+                const submitted = await this.state.submit();
                 if (!submitted) return;
             }
         }
@@ -192,50 +178,31 @@ export class AdultWizardV2Component implements OnInit {
         }
     }
 
-    /** Called when account step login succeeds → auto-advance to role. */
-    onAccountAutoAdvance(): void {
+    /**
+     * Account step emits this on successful login OR on "Accept and Continue" in
+     * create-mode (inline ToS). In both cases the next step is Profile.
+     */
+    onAccountAdvance(): void {
         this.next();
     }
 
-    /** Called by confirmation step "Finish" button. */
+    /** Confirmation step "Finish" button. */
     onFinishConfirmation(): void {
-        // If create mode, advance to ToS; otherwise navigate home
-        if (this.state.mode() === 'create') {
-            this.next();
-        } else {
-            this.router.navigateByUrl(`/${this.jobPath}`);
-        }
+        this.router.navigateByUrl(`/${this.jobPath}`);
     }
 
-    /** Called by inline ToS step — auto-login, accept ToS, then navigate home. */
-    onTosAccepted(): void {
-        this.tosSubmitting.set(true);
-        this.tosError.set(null);
-
-        this.auth.login({
-            username: this.state.username(),
-            password: this.state.password(),
-        }).pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: () => {
-                    this.auth.acceptTos()
-                        .pipe(takeUntilDestroyed(this.destroyRef))
-                        .subscribe({
-                            next: () => {
-                                this.tosSubmitting.set(false);
-                                this.router.navigateByUrl(`/${this.jobPath}`);
-                            },
-                            error: (err: unknown) => {
-                                this.tosSubmitting.set(false);
-                                const httpErr = err as { error?: { message?: string } };
-                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
-                            },
-                        });
-                },
-                error: () => {
-                    this.tosSubmitting.set(false);
-                    this.tosError.set('Unable to sign in. Please try again.');
-                },
-            });
+    /**
+     * Walk up the route tree to find the <c>jobPath</c> param. The wizard lives
+     * at <c>:jobPath/registration/adult</c>, so the param is on a grandparent
+     * route, not the direct parent. Matches the player wizard's pattern.
+     */
+    private resolveJobPath(): string {
+        let snap: import('@angular/router').ActivatedRouteSnapshot | null = this.route.snapshot;
+        while (snap) {
+            const jp = snap.paramMap.get('jobPath');
+            if (jp) return jp;
+            snap = snap.parent;
+        }
+        return '';
     }
 }

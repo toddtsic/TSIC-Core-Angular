@@ -4,13 +4,19 @@ using TSIC.Contracts.Dtos;
 namespace TSIC.Contracts.Dtos.AdultRegistration;
 
 /// <summary>
-/// Adult role types available for registration.
+/// Adult role types — legacy numeric enum.
 /// </summary>
+/// <remarks>
+/// DEPRECATED for role assignment. The authoritative role is resolved server-side from
+/// <c>(RoleKey, Jobs.JobTypeId)</c> per the security model in <c>IAdultRegistrationService</c>.
+/// Kept for backward compatibility with existing confirmation templates and admin queries.
+/// </remarks>
 public enum AdultRoleType
 {
     UnassignedAdult = 0,
     Referee = 1,
-    Recruiter = 2
+    Recruiter = 2,
+    Staff = 3
 }
 
 /// <summary>
@@ -55,21 +61,62 @@ public record AdultWaiverDto
 
 /// <summary>
 /// Request to register a new adult (creates new user + registration).
+/// All identity/contact/address fields match legacy StaffRegister/RefRegister view models.
 /// Payment fields are optional — included when job has fees for the role.
 /// </summary>
 public record AdultRegistrationRequest
 {
+    // Credentials
     public required string Username { get; init; }
     public required string Password { get; init; }
+
+    // Identity
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
+    public required string Gender { get; init; }
+
+    // Contact
     public required string Email { get; init; }
     public required string Phone { get; init; }
-    public required AdultRoleType RoleType { get; init; }
+    public string? CellphoneProvider { get; init; }
+
+    // Address
+    public required string StreetAddress { get; init; }
+    public required string City { get; init; }
+    public required string State { get; init; }
+    public required string PostalCode { get; init; }
+
+    // Role intent from URL — authoritative. Backend resolves this + JobTypeId → actual RoleId.
+    // Allowed values: "coach" | "referee" | "recruiter" (see AdultRegRoleKeys).
+    public required string RoleKey { get; init; }
+
+    // Deprecated: kept for backward compat only. Role is NOT driven by this field.
+    public AdultRoleType? RoleType { get; init; }
+
+    public required bool AcceptedTos { get; init; }
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+
+    // Coach-only: teams they want to coach (first is primary → AssignedTeamId)
+    public List<Guid>? TeamIdsCoaching { get; init; }
+
+    // Payment (optional — only if job has fees)
     public CreditCardInfo? CreditCard { get; init; }
     public string? PaymentMethod { get; init; }
+}
+
+/// <summary>
+/// Available team option for Coach registration (legacy ListAvailableTeams equivalent).
+/// </summary>
+public record AdultTeamOptionDto
+{
+    public required Guid TeamId { get; init; }
+    public required string ClubName { get; init; }
+    public required string AgegroupName { get; init; }
+    public required string DivName { get; init; }
+    public required string TeamName { get; init; }
+    /// <summary>Full display text: "Club:Agegroup:Div:TeamName" (matches legacy format).</summary>
+    public required string DisplayText { get; init; }
 }
 
 /// <summary>
@@ -77,9 +124,11 @@ public record AdultRegistrationRequest
 /// </summary>
 public record AdultRegistrationExistingRequest
 {
-    public required AdultRoleType RoleType { get; init; }
+    public required string RoleKey { get; init; }
+    public AdultRoleType? RoleType { get; init; } // deprecated — see AdultRegistrationRequest
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+    public List<Guid>? TeamIdsCoaching { get; init; }
 }
 
 /// <summary>
@@ -110,6 +159,8 @@ public record AdultRegJobData
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
     public required int JobAi { get; init; }
+    public required int JobTypeId { get; init; }
+    public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAddProcessingFees { get; init; }
     public string? AdultProfileMetadataJson { get; init; }
     public string? JsonOptions { get; init; }
@@ -131,9 +182,11 @@ public record AdultRegJobData
 /// </summary>
 public record PreSubmitAdultRegRequestDto
 {
-    public required AdultRoleType RoleType { get; init; }
+    public required string RoleKey { get; init; }
+    public AdultRoleType? RoleType { get; init; } // deprecated
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+    public List<Guid>? TeamIdsCoaching { get; init; }
 }
 
 /// <summary>
@@ -191,4 +244,68 @@ public record AdultPaymentResponseDto
     public string? Message { get; init; }
     public string? TransactionId { get; init; }
     public string? ErrorCode { get; init; }
+}
+
+// ── Existing registration (for returning users — prefill + edit) ──
+
+/// <summary>
+/// Returned by <c>GET /adult-registration/{jobPath}/my-registration/{roleKey}</c>.
+/// Surfaces a returning authenticated user's existing active registrations so the
+/// wizard can prefill the Profile step (team selections, form values, waivers).
+/// </summary>
+public record AdultExistingRegistrationDto
+{
+    /// <summary>True when one or more active registrations exist for (user, job, role).</summary>
+    public required bool HasExisting { get; init; }
+
+    /// <summary>All registration IDs in the set — used later for delete-all + recreate update.</summary>
+    public required List<Guid> RegistrationIds { get; init; }
+
+    /// <summary>Assigned team IDs across all rows (empty for non-team roles).</summary>
+    public required List<Guid> TeamIds { get; init; }
+
+    /// <summary>Dynamic form values (from first row; adult registrations share them).</summary>
+    public Dictionary<string, JsonElement>? FormValues { get; init; }
+
+    /// <summary>Waiver acceptance state (from first row).</summary>
+    public Dictionary<string, bool>? WaiverAcceptance { get; init; }
+}
+
+// ── Role config (new unified contract) ────────────────────────────
+
+/// <summary>
+/// Complete role configuration for the adult wizard — everything the frontend
+/// needs to render the Profile/Waivers steps for a given (job, roleKey) pair.
+/// Returned by <c>GET /adult-registration/{jobPath}/role-config/{roleKey}</c>.
+///
+/// The <see cref="NeedsTeamSelection"/> flag is derived from job type:
+/// only true for coach in Tournament context. Club/League coaches register
+/// as UnassignedAdult and don't self-roster.
+/// </summary>
+public record AdultRoleConfigDto
+{
+    /// <summary>URL role key — "coach" | "referee" | "recruiter".</summary>
+    public required string RoleKey { get; init; }
+
+    /// <summary>User-facing title: "Coach / Volunteer", "Referee", "College Recruiter".</summary>
+    public required string DisplayName { get; init; }
+
+    /// <summary>Short description for step headers or confirmation.</summary>
+    public required string Description { get; init; }
+
+    /// <summary>Bootstrap icon class — e.g. "bi-person-badge".</summary>
+    public required string Icon { get; init; }
+
+    /// <summary>
+    /// True when the Profile step must present the team multi-select.
+    /// Only true for coach + Tournament job. Club/League coaches get UA status,
+    /// no self-rostering.
+    /// </summary>
+    public required bool NeedsTeamSelection { get; init; }
+
+    /// <summary>Dynamic form fields for the Profile step (from job metadata + fallback).</summary>
+    public required List<JobRegFieldDto> ProfileFields { get; init; }
+
+    /// <summary>Job-configured waivers that must be accepted.</summary>
+    public required List<AdultWaiverDto> Waivers { get; init; }
 }

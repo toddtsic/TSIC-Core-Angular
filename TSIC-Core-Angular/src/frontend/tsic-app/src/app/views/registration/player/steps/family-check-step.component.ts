@@ -132,6 +132,7 @@ import { LoginComponent } from '../../../auth/login/login.component';
           <app-login
             [theme]="'player'"
             [embedded]="true"
+            [autofillDisabled]="true"
             [headerText]="'Family Account Sign In'"
             [subHeaderText]="'Enter your username and password'"
             [returnUrl]="returnUrl()"

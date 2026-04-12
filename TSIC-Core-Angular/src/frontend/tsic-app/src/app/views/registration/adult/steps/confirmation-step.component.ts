@@ -7,45 +7,60 @@ import { AdultRegistrationService } from '@infrastructure/services/adult-registr
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div class="step-content text-center py-4">
-            <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
-            <h3 class="mt-3">Registration Complete!</h3>
-            <p class="text-muted">
-                You have been registered as <strong>{{ state.selectedRole()?.displayName }}</strong>.
+        <!-- Centered hero -->
+        <div class="welcome-hero">
+            <h4 class="welcome-title">
+                <i class="bi bi-check-circle-fill welcome-icon" style="color: var(--bs-success)"></i>
+                Registration Complete!
+            </h4>
+            <p class="welcome-desc">
+                <i class="bi bi-person-check me-1"></i>You're registered as <strong>{{ state.roleDisplayName() }}</strong>
+                <span class="desc-dot"></span>
+                <i class="bi bi-envelope me-1"></i>A confirmation email is on its way
             </p>
+        </div>
 
-            @if (state.confirmationLoading()) {
-                <div class="d-flex justify-content-center my-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading confirmation...</span>
+        <div class="card shadow border-0 card-rounded">
+            <div class="card-body">
+                @if (state.confirmationLoading()) {
+                    <div class="d-flex justify-content-center my-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading confirmation...</span>
+                        </div>
                     </div>
+                } @else if (state.confirmationHtml()) {
+                    <div class="confirmation-html" [innerHTML]="state.confirmationHtml()"></div>
+                } @else {
+                    <div class="alert alert-info" role="status">
+                        Your registration has been recorded.
+                    </div>
+                }
+
+                @if (emailMessage()) {
+                    <div class="alert mt-3 mb-0"
+                        [class.alert-success]="!emailError()"
+                        [class.alert-danger]="emailError()" role="status">
+                        {{ emailMessage() }}
+                    </div>
+                }
+
+                <div class="d-flex justify-content-center gap-3 mt-4">
+                    <button class="btn btn-outline-secondary"
+                        [disabled]="emailSending()"
+                        (click)="onResendEmail()">
+                        @if (emailSending()) {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        } @else {
+                            <i class="bi bi-envelope me-1"></i>
+                        }
+                        Resend Confirmation Email
+                    </button>
+
+                    <button class="btn btn-primary" (click)="finished.emit()">
+                        Finish <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
                 </div>
-            } @else if (state.confirmationHtml()) {
-                <div class="confirmation-html mt-4 text-start" [innerHTML]="state.confirmationHtml()"></div>
-            }
-
-            <div class="d-flex justify-content-center gap-3 mt-4">
-                <button class="btn btn-outline-secondary"
-                    [disabled]="emailSending()"
-                    (click)="onResendEmail()">
-                    @if (emailSending()) {
-                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                    } @else {
-                        <i class="bi bi-envelope me-1"></i>
-                    }
-                    Resend Confirmation Email
-                </button>
-
-                <button class="btn btn-primary" (click)="finished.emit()">
-                    Finish
-                </button>
             </div>
-
-            @if (emailMessage()) {
-                <div class="alert mt-3" [class.alert-success]="!emailError()" [class.alert-danger]="emailError()" role="status">
-                    {{ emailMessage() }}
-                </div>
-            }
         </div>
     `,
     styles: [`

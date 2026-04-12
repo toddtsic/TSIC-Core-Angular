@@ -36,6 +36,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() returnUrl: string | null | undefined = undefined;
   // When true, strips wrapper padding and card max-width for side-by-side layouts
   @Input() embedded = false;
+  // When true, disables browser autofill/saved-credential prefill. Use in wizards
+  // where the user is deliberately signing in as a specific persona for this flow
+  // and prefilled credentials from prior sessions would be misleading.
+  @Input() autofillDisabled = false;
 
   /** Emitted when login succeeds in embedded mode (parent handles navigation). */
   readonly loginSuccess = output<void>();
@@ -50,7 +54,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @HostBinding('class.login-embedded') get isEmbedded() { return this.embedded; }
 
   constructor() {
-    // Pre-fill username from JWT token if available
+    // Pre-fill username from JWT token if available.
+    // Wizards that pass [autofillDisabled]="true" override this in ngOnInit (below).
     const savedUsername = this.authService.currentUser()?.username || '';
     this.form = this.fb.group({
       username: [savedUsername, [Validators.required]],
@@ -65,6 +70,12 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     // Defensive reset: clear stale loading/error state from any previous login attempt
     this.authService.loginLoading.set(false);
     this.authService.loginError.set(null);
+
+    // When autofill is disabled (wizard embedded usage), force the form empty —
+    // the constructor's prior-session username prefill is undesirable here.
+    if (this.autofillDisabled) {
+      this.form.reset({ username: '', password: '' });
+    }
 
     // Allow theme and headers to be configured via query params when used as a reusable screen
     const qp = this.route.snapshot.queryParamMap;

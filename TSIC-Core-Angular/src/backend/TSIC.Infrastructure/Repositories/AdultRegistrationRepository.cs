@@ -26,6 +26,8 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
                 JobId = j.JobId,
                 JobName = j.JobName ?? string.Empty,
                 JobAi = j.JobAi,
+                JobTypeId = j.JobTypeId,
+                BAllowRosterViewAdult = j.BAllowRosterViewAdult,
                 BAddProcessingFees = j.BAddProcessingFees,
                 AdultProfileMetadataJson = j.AdultProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
@@ -52,6 +54,8 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
                 JobId = j.JobId,
                 JobName = j.JobName ?? string.Empty,
                 JobAi = j.JobAi,
+                JobTypeId = j.JobTypeId,
+                BAllowRosterViewAdult = j.BAllowRosterViewAdult,
                 BAddProcessingFees = j.BAddProcessingFees,
                 AdultProfileMetadataJson = j.AdultProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
@@ -92,6 +96,64 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
             .Include(r => r.Job)
             .Where(r => r.RegistrationId == registrationId)
             .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<List<Registrations>> GetTrackedActiveByRoleAsync(string userId, Guid jobId, string roleId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Include(r => r.Job)
+            .Where(r => r.UserId == userId
+                && r.JobId == jobId
+                && r.RoleId == roleId
+                && r.BActive == true)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> DeactivateActiveByRoleAsync(string userId, Guid jobId, string roleId, CancellationToken cancellationToken = default)
+    {
+        var existing = await _context.Registrations
+            .Where(r => r.UserId == userId
+                && r.JobId == jobId
+                && r.RoleId == roleId
+                && r.BActive == true)
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.UtcNow;
+        foreach (var r in existing)
+        {
+            r.BActive = false;
+            r.Modified = now;
+        }
+        return existing.Count;
+    }
+
+    public async Task<List<AdultTeamOptionDto>> GetAvailableTeamsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t =>
+                t.JobId == jobId
+                && t.Active == true
+                && !(t.Agegroup.AgegroupName ?? "").Contains("Waitlist")
+                && !(t.Agegroup.AgegroupName ?? "").Contains("Dropped"))
+            .OrderBy(t => t.ClubrepRegistration!.ClubName)
+            .ThenBy(t => t.Agegroup.AgegroupName)
+            .ThenBy(t => t.Div!.DivName)
+            .ThenBy(t => t.TeamName)
+            .Select(t => new AdultTeamOptionDto
+            {
+                TeamId = t.TeamId,
+                ClubName = t.ClubrepRegistration!.ClubName ?? string.Empty,
+                AgegroupName = t.Agegroup.AgegroupName ?? string.Empty,
+                DivName = t.Div == null ? string.Empty : (t.Div.DivName ?? string.Empty),
+                TeamName = t.TeamName ?? string.Empty,
+                DisplayText =
+                    (t.ClubrepRegistration!.ClubName ?? string.Empty) + ":" +
+                    (t.Agegroup.AgegroupName ?? string.Empty) + ":" +
+                    (t.Div == null ? string.Empty : (t.Div.DivName ?? string.Empty)) + ":" +
+                    (t.TeamName ?? string.Empty)
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public void Add(Registrations registration)
