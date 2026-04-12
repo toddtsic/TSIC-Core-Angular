@@ -41,7 +41,7 @@ public class BulletinsController : ControllerBase
         string jobPath,
         CancellationToken cancellationToken = default)
     {
-        var bulletins = await _bulletinService.GetActiveBulletinsForJobAsync(jobPath, User, cancellationToken);
+        var bulletins = await _bulletinService.GetActiveBulletinsForJobAsync(jobPath, cancellationToken);
         return Ok(bulletins ?? new List<BulletinDto>());
     }
 

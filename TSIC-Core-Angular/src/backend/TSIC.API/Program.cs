@@ -184,7 +184,6 @@ builder.Services.AddScoped<IBulletinTokenResolver, RegisterClubRepResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterUnassignedAdultResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterStaffResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterSelfRosterPlayersAndCoachResolver>();
-builder.Services.AddScoped<IBulletinTokenResolver, PlayerSelfRosterUpdateResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, PublicRostersResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, ScheduleResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, EventInfoResolver>();

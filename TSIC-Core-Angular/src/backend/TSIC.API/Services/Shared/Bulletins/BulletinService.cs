@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Bulletin;
 using TSIC.Contracts.Repositories;
@@ -38,7 +37,7 @@ public class BulletinService : IBulletinService
         _logger = logger;
     }
 
-    public async Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, ClaimsPrincipal? user, CancellationToken cancellationToken = default)
+    public async Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(string jobPath, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Processing bulletins for job: {JobPath}", jobPath);
 
@@ -54,7 +53,8 @@ public class BulletinService : IBulletinService
         var jobName = jobMetadata.JobName;
         var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
 
-        // Build token context (pulse + auth state) once; reused across all bulletins in this response.
+        // Build token context once; reused across all bulletins in this response.
+        // Bulletins are public-facing, so NO viewer identity is part of the context.
         var pulse = await _jobRepository.GetJobPulseAsync(jobPath, cancellationToken);
         TokenContext? tokenCtx = null;
         if (pulse != null)
@@ -63,9 +63,7 @@ public class BulletinService : IBulletinService
             {
                 JobPath = jobPath,
                 Job = jobMetadata,
-                Pulse = pulse,
-                IsAuthenticated = user?.Identity?.IsAuthenticated ?? false,
-                Role = user?.FindFirst(ClaimTypes.Role)?.Value
+                Pulse = pulse
             };
         }
 
