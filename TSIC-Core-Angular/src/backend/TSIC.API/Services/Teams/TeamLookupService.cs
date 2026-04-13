@@ -43,8 +43,7 @@ public class TeamLookupService : ITeamLookupService
         var rosterCounts = await _registrationRepo.GetRosterCountsByTeamAsync(teamIds);
 
         // Batch-resolve player fees for all teams in one query
-        var resolvedFees = await _feeService.ResolveFeesByTeamIdsAsync(
-            jobId, RoleConstants.Player, teamIds);
+        var resolvedFees = await _feeService.ResolvePlayerFeesByTeamIdsAsync(jobId, teamIds);
 
         // Evaluate active modifiers per team so the dropdown can show an accurate
         // right-now price (base + late fee − discount), not just the base fee.
@@ -53,8 +52,8 @@ public class TeamLookupService : ITeamLookupService
         var modifiersByTeam = new Dictionary<Guid, ResolvedModifiers>();
         foreach (var t in teamsRaw)
         {
-            modifiersByTeam[t.TeamId] = await _feeService.EvaluateModifiersAsync(
-                jobId, RoleConstants.Player, t.AgegroupId, t.TeamId, asOf);
+            modifiersByTeam[t.TeamId] = await _feeService.EvaluatePlayerModifiersAsync(
+                jobId, t.AgegroupId, t.TeamId, asOf);
         }
 
         var dtos = teamsRaw.Select(t =>
@@ -138,8 +137,8 @@ public class TeamLookupService : ITeamLookupService
         }
 
         var (team, _) = teamContext.Value;
-        var resolved = await _feeService.ResolveFeeAsync(
-            team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+        var resolved = await _feeService.ResolvePlayerFeeAsync(
+            team.JobId, team.AgegroupId, team.TeamId);
 
         if (resolved == null) return (0m, 0m);
 

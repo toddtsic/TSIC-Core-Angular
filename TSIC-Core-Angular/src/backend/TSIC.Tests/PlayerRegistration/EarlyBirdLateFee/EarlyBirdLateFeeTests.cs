@@ -93,8 +93,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
 
         modifiers.TotalDiscount.Should().Be(25m);
         modifiers.TotalLateFee.Should().Be(0m);
@@ -108,8 +108,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInNormal);
 
         modifiers.TotalDiscount.Should().Be(0m);
         modifiers.TotalLateFee.Should().Be(0m);
@@ -123,8 +123,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, EarlyBirdStart);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, EarlyBirdStart);
 
         modifiers.TotalDiscount.Should().Be(25m);
     }
@@ -137,8 +137,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, EarlyBirdEnd);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, EarlyBirdEnd);
 
         modifiers.TotalDiscount.Should().Be(25m);
     }
@@ -151,8 +151,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, EarlyBirdEnd.AddDays(1));
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, EarlyBirdEnd.AddDays(1));
 
         modifiers.TotalDiscount.Should().Be(0m);
     }
@@ -169,8 +169,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInLateFee);
 
         modifiers.TotalLateFee.Should().Be(30m);
         modifiers.TotalDiscount.Should().Be(0m);
@@ -184,8 +184,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInNormal);
 
         modifiers.TotalLateFee.Should().Be(0m);
     }
@@ -198,8 +198,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, LateFeeStart);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, LateFeeStart);
 
         modifiers.TotalLateFee.Should().Be(30m);
     }
@@ -217,8 +217,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInNormal);
 
         modifiers.TotalDiscount.Should().Be(0m);
         modifiers.TotalLateFee.Should().Be(0m);
@@ -233,8 +233,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
 
         modifiers.TotalDiscount.Should().Be(25m);
         modifiers.TotalLateFee.Should().Be(0m);
@@ -249,8 +249,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInLateFee);
 
         modifiers.TotalDiscount.Should().Be(0m);
         modifiers.TotalLateFee.Should().Be(30m);
@@ -274,8 +274,8 @@ public class EarlyBirdLateFeeTests
 
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
 
         modifiers.TotalDiscount.Should().Be(25m, "job $10 + agegroup $15 = $25 total");
     }
@@ -298,8 +298,8 @@ public class EarlyBirdLateFeeTests
 
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
 
         modifiers.TotalDiscount.Should().Be(18m, "job $10 + agegroup $5 + team $3 = $18 total");
     }
@@ -318,8 +318,8 @@ public class EarlyBirdLateFeeTests
 
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInLateFee);
 
         modifiers.TotalLateFee.Should().Be(30m, "job $20 + agegroup $10 = $30 total");
     }
@@ -340,14 +340,14 @@ public class EarlyBirdLateFeeTests
         await builder.SaveAsync();
 
         // During early bird window: job $10 + agegroup $5 discount, no late fee
-        var earlyMods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var earlyMods = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
         earlyMods.TotalDiscount.Should().Be(15m);
         earlyMods.TotalLateFee.Should().Be(0m);
 
         // During late fee window: no discount, job $20 late fee only
-        var lateMods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
+        var lateMods = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInLateFee);
         lateMods.TotalDiscount.Should().Be(0m);
         lateMods.TotalLateFee.Should().Be(20m);
     }
@@ -370,13 +370,13 @@ public class EarlyBirdLateFeeTests
         await builder.SaveAsync();
 
         // During early bird: both apply
-        var earlyMods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var earlyMods = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
         earlyMods.TotalDiscount.Should().Be(35m, "Discount $10 + EarlyBird $25 = $35");
 
         // After early bird: only flat discount
-        var normalMods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
+        var normalMods = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInNormal);
         normalMods.TotalDiscount.Should().Be(10m, "only always-active Discount $10");
     }
 
@@ -393,13 +393,13 @@ public class EarlyBirdLateFeeTests
         await builder.SaveAsync();
 
         // Any date before end should work
-        var veryEarly = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2020, 1, 1));
+        var veryEarly = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2020, 1, 1));
         veryEarly.TotalDiscount.Should().Be(25m);
 
         // After end date: no discount
-        var after = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, EarlyBirdEnd.AddDays(1));
+        var after = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, EarlyBirdEnd.AddDays(1));
         after.TotalDiscount.Should().Be(0m);
     }
 
@@ -412,13 +412,13 @@ public class EarlyBirdLateFeeTests
         await builder.SaveAsync();
 
         // Before start: no fee
-        var before = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
+        var before = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInNormal);
         before.TotalLateFee.Should().Be(0m);
 
         // Way after: still active
-        var farFuture = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2030, 12, 31));
+        var farFuture = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2030, 12, 31));
         farFuture.TotalLateFee.Should().Be(30m);
     }
 
@@ -430,8 +430,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 15m, null, null);
         await builder.SaveAsync();
 
-        var mods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2099, 6, 15));
+        var mods = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2099, 6, 15));
         mods.TotalDiscount.Should().Be(15m);
     }
 
@@ -454,18 +454,18 @@ public class EarlyBirdLateFeeTests
         await builder.SaveAsync();
 
         // During overlap (Jan 20): both apply
-        var overlap = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2026, 1, 20));
+        var overlap = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2026, 1, 20));
         overlap.TotalDiscount.Should().Be(30m, "both early birds active during overlap");
 
         // After A expires, B still active (Feb 20): only B
-        var afterA = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2026, 2, 20));
+        var afterA = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2026, 2, 20));
         afterA.TotalDiscount.Should().Be(10m, "only early bird B still active");
 
         // After both expire (Mar 5): nothing
-        var afterBoth = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2026, 3, 5));
+        var afterBoth = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2026, 3, 5));
         afterBoth.TotalDiscount.Should().Be(0m);
     }
 
@@ -486,12 +486,12 @@ public class EarlyBirdLateFeeTests
         await builder.SaveAsync();
 
         // Simulate what ApplyNewRegistrationFeesAsync does, but with controlled date
-        var resolved = await svc.ResolveFeeAsync(jobId, RoleConstants.Player, agId, teamId);
+        var resolved = await svc.ResolvePlayerFeeAsync(jobId, agId, teamId);
         var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
         baseFee.Should().Be(200m);
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
 
         var reg = new Registrations
         {
@@ -529,11 +529,11 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var resolved = await svc.ResolveFeeAsync(jobId, RoleConstants.Player, agId, teamId);
+        var resolved = await svc.ResolvePlayerFeeAsync(jobId, agId, teamId);
         var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInLateFee);
 
         var reg = new Registrations
         {
@@ -569,8 +569,8 @@ public class EarlyBirdLateFeeTests
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
         await builder.SaveAsync();
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInNormal);
 
         modifiers.TotalDiscount.Should().Be(0m);
         modifiers.TotalLateFee.Should().Be(0m);
@@ -715,8 +715,8 @@ public class EarlyBirdLateFeeTests
     {
         var (svc, _, _, jobId, agId, teamId, _) = await CreateServiceAsync(baseFee: 200m);
 
-        var modifiers = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+        var modifiers = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, DateInEarlyBird);
 
         modifiers.TotalDiscount.Should().Be(0m);
         modifiers.TotalLateFee.Should().Be(0m);
@@ -741,7 +741,7 @@ public class EarlyBirdLateFeeTests
         var feeCalc = new PlayerFeeCalculator();
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
 
-        var resolved = await svc.ResolveFeeAsync(job.JobId, RoleConstants.Player, ag.AgegroupId, team.TeamId);
+        var resolved = await svc.ResolvePlayerFeeAsync(job.JobId, ag.AgegroupId, team.TeamId);
         resolved.Should().BeNull();
     }
 
@@ -760,8 +760,8 @@ public class EarlyBirdLateFeeTests
 
         await builder.SaveAsync();
 
-        var mods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, new DateTime(2026, 3, 15));
+        var mods = await svc.EvaluatePlayerModifiersAsync(
+            jobId, agId, teamId, new DateTime(2026, 3, 15));
 
         mods.TotalDiscount.Should().Be(25m, "Discount $10 + EarlyBird $15 both go to TotalDiscount");
         mods.TotalLateFee.Should().Be(20m, "LateFee $20 goes to TotalLateFee separately");
@@ -795,8 +795,8 @@ public class EarlyBirdLateFeeTests
         var feeCalc = new PlayerFeeCalculator();
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
 
-        var mods = await svc.EvaluateModifiersAsync(
-            job.JobId, RoleConstants.Player, ag.AgegroupId, team.TeamId, DateInEarlyBird);
+        var mods = await svc.EvaluatePlayerModifiersAsync(
+            job.JobId, ag.AgegroupId, team.TeamId, DateInEarlyBird);
 
         mods.TotalDiscount.Should().Be(15m, "agegroup-level early bird applies even without job-level modifier");
     }

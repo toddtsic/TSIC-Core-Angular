@@ -458,8 +458,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         var result = new List<AgeGroupDto>();
         foreach (var ag in ageGroupEntities)
         {
-            var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-                jobId, RoleConstants.ClubRep, ag.AgegroupId);
+            var resolved = await _feeService.ResolveClubRepFeeAsync(jobId, ag.AgegroupId);
             result.Add(new AgeGroupDto
             {
                 AgeGroupId = ag.AgegroupId,
@@ -579,15 +578,14 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
 
         // Resolve fees from new fee schema
-        var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-            jobId, RoleConstants.ClubRep, request.AgeGroupId);
+        var resolved = await _feeService.ResolveClubRepFeeAsync(jobId, request.AgeGroupId);
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
         var feeBase = (jobSettings.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
 
         // Evaluate modifiers for new registration
-        var modifiers = await _feeService.EvaluateModifiersAsync(
-            jobId, RoleConstants.ClubRep, request.AgeGroupId, Guid.Empty, DateTime.UtcNow);
+        var modifiers = await _feeService.EvaluateClubRepModifiersAsync(
+            jobId, request.AgeGroupId, DateTime.UtcNow);
 
         // Calculate processing fee
         decimal feeProcessing = 0m;

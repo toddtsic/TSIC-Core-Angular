@@ -389,12 +389,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var existingBase = regToUpdate.FeeBase;
         if (existingBase <= 0 && regToUpdate.AssignedTeamId.HasValue)
         {
-            var resolvedExisting = await _feeService.ResolveFeeAsync(
-                team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+            var resolvedExisting = await _feeService.ResolvePlayerFeeAsync(
+                team.JobId, team.AgegroupId, team.TeamId);
             existingBase = resolvedExisting?.EffectiveBalanceDue ?? 0m;
         }
-        var resolvedNew = await _feeService.ResolveFeeAsync(
-            team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+        var resolvedNew = await _feeService.ResolvePlayerFeeAsync(
+            team.JobId, team.AgegroupId, team.TeamId);
         var newTeamBase = resolvedNew?.EffectiveBalanceDue ?? 0m;
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
         if (applyFormValues)

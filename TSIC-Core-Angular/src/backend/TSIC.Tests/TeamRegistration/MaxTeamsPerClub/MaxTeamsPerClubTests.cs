@@ -143,13 +143,12 @@ public class MaxTeamsPerClubTests
 
         // Fee resolution (needed if we reach placement)
         feeService
-            .Setup(f => f.ResolveFeeForAgegroupAsync(
-                TestJobId, RoleConstants.ClubRep, TestAgegroupId, It.IsAny<CancellationToken>()))
+            .Setup(f => f.ResolveClubRepFeeAsync(
+                TestJobId, TestAgegroupId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((ResolvedFee?)null);
         feeService
-            .Setup(f => f.EvaluateModifiersAsync(
-                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
-                It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Setup(f => f.EvaluateClubRepModifiersAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ResolvedModifiers());
 
         // Team save (needed if we reach team creation)

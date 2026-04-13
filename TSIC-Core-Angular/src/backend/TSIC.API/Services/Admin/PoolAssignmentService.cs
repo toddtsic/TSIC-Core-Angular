@@ -111,8 +111,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && targetAgegroup != null && job != null)
             {
-                var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-                    job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, ct);
+                var resolved = await _feeService.ResolveClubRepFeeAsync(
+                    job.JobId, targetAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
                 newFeeBase = (job.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
@@ -155,8 +155,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
 
             if (agegroupChanges && sourceAgegroup != null && job != null)
             {
-                var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-                    job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, ct);
+                var resolved = await _feeService.ResolveClubRepFeeAsync(
+                    job.JobId, sourceAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
                 newFeeBase = (job.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
