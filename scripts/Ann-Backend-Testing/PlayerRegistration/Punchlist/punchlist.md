@@ -410,7 +410,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Unclear — should subscription setup and recurring payments be combined for the family or separate per player?
 - **What happened**: Subscription setup and recurring payments are charged separately for each player in the family — need to confirm if this is intended or should be consolidated
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — matches legacy behavior by design. Legacy `PlayerBaseController.cs` iterates family players and calls `ADN_ARB_CreateMonthlySubscription` per player; each Registrations row carries its own `AdnSubscriptionId`. Consolidation is not in scope — new system MUST match legacy.
 
 ### PL-046: Add "eye" icon to Password and Confirm Password fields to toggle visibility
 - **Area**: Family Account Creation
@@ -451,7 +451,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: An option to upload a player headshot somewhere in the flow
 - **What happened**: No headshot upload visible — where should this happen?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — headshots are no longer collected. No active job uses them.
 
 ### PL-061: 404 error after signing in following new account creation
 - **Area**: Family Account Creation
@@ -468,7 +468,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A review screen showing all the data entered (contacts, address, players) before proceeding
 - **What happened**: No review screen — Legacy provided one and it was helpful for parents to verify everything before continuing
 - **Severity**: UX
-- **Status**: Re-review — wizard already has a Review & Save step (after Players, before ToS) that summarizes Parent 1, Parent 2, Address, and Players. May already satisfy the request.
+- **Status**: Fixed — wizard has a Review & Save step (after Players, before ToS) that summarizes Parent 1, Parent 2, Address, and the players table. Confirmed covers the Legacy review-screen intent.
 
 ### PL-059: "Add Child" button should read "Add Player"
 - **Area**: Family Account Creation
@@ -533,7 +533,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A "Select Cell Phone Provider" optional field for text messaging, like Legacy has
 - **What happened**: Field is missing. Legacy has it as "SELECT CELL PHONE PROVIDER (optional: for text messaging)." Should it be added here and anywhere else a cell phone is collected (Director, Club Rep, Staff, etc.)?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — carrier email-to-SMS gateways (`@vtext.com`, etc.) are no longer reliable. US carriers have progressively deprecated or blackholed those gateways. The field is obsolete; real SMS would need a proper provider (Twilio, etc.) keyed on phone number alone.
 
 ### PL-051: Remove "Both parent/guardian contacts are required" line from Family Contacts
 - **Area**: Family Account Creation
@@ -565,7 +565,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Same fields collected, or a clear reason why some were dropped
 - **What happened**: Legacy collected an Email field for the Family Account itself, separate from contact emails — the new system doesn't. Need to confirm if this is still needed or intentionally removed.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — intentionally simplified. `AspNetUsers.Email` is now derived from Contact 1's email in `FamilyService.RegisterAsync`, so password reset still works. Functional match with legacy; one fewer redundant input for parents.
 
 ### PL-047: Rewrite account creation text and add Back button for existing users
 - **Area**: Family Account Creation
