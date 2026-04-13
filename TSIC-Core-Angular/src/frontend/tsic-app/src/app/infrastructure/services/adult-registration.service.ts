@@ -79,7 +79,7 @@ export interface AdultTeamOption {
 }
 
 /** Mirrors AdultRegRoleKeys (backend). Allowed URL role keys. */
-export const ADULT_REG_ROLE_KEYS = ['coach', 'referee', 'recruiter'] as const;
+export const ADULT_REG_ROLE_KEYS = ['coach', 'referee', 'recruiter', 'unassigned'] as const;
 export type AdultRegRoleKey = typeof ADULT_REG_ROLE_KEYS[number];
 export function isValidAdultRegRoleKey(v: string | null | undefined): v is AdultRegRoleKey {
     return v != null && (ADULT_REG_ROLE_KEYS as readonly string[]).includes(v.trim().toLowerCase());

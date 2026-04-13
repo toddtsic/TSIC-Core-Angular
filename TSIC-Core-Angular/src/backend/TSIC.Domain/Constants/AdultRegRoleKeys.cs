@@ -19,12 +19,22 @@ public static class AdultRegRoleKeys
     public const string Referee = "referee";
     public const string Recruiter = "recruiter";
 
+    /// <summary>
+    /// Player-site self-roster — unconditionally creates an UnassignedAdult awaiting
+    /// director approval. Decoupled from <see cref="Coach"/> so the URL itself is the
+    /// security contract; cannot resolve to Staff regardless of job-type configuration.
+    /// Use for new bulletins on Club/League sites. Legacy <see cref="Coach"/> URLs on
+    /// Club/League jobs continue to resolve to UnassignedAdult via backend branching.
+    /// </summary>
+    public const string Unassigned = "unassigned";
+
     /// <summary>Case-insensitive allowlist of recognized role keys.</summary>
     public static readonly HashSet<string> All = new(StringComparer.OrdinalIgnoreCase)
     {
         Coach,
         Referee,
         Recruiter,
+        Unassigned,
     };
 
     /// <summary>Returns true if the given key is a recognized adult registration role.</summary>

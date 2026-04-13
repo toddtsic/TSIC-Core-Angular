@@ -1,3 +1,6 @@
 [submodule "reference/TSIC-Unify-2024"]
 	path = reference/TSIC-Unify-2024
 	url = https://github.com/toddtsic/TSIC-Unify-2024.git
+[submodule "reference/TSIC-Events-2025"]
+	path = reference/TSIC-Events-2025
+	url = https://github.com/toddtsic/TSIC-Events-2025.git

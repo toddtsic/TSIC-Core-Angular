@@ -1040,6 +1040,24 @@ public class AdultRegistrationService : IAdultRegistrationService
             case AdultRegRoleKeys.Coach:
                 return ResolveCoach(job);
 
+            case AdultRegRoleKeys.Unassigned:
+                // Player-site self-roster — UNCONDITIONALLY UnassignedAdult, regardless of
+                // any flag. Director must approve before promotion. URL itself is the
+                // security contract: this key cannot resolve to Staff or any role with
+                // team access. Only valid on Club/League jobs.
+                if (job.JobTypeId != JobConstants.JobTypeClub && job.JobTypeId != JobConstants.JobTypeLeague)
+                {
+                    throw new InvalidOperationException(
+                        "Unassigned-adult self-registration is only available on Club/League sites.");
+                }
+                return new AdultRoleResolution(
+                    RoleId: RoleConstants.UnassignedAdult,
+                    NeedsTeamSelection: false,
+                    DisplayName: "Coach / Volunteer",
+                    Description: "Register as an unassigned adult. A director will review " +
+                                 "your request and assign you to a team.",
+                    Icon: "bi-person-badge");
+
             case AdultRegRoleKeys.Referee:
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.Referee,

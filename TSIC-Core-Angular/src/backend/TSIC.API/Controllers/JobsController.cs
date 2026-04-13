@@ -100,6 +100,7 @@ public class JobsController : ControllerBase
             BScheduleAllowPublicAccess = jobMetadata.BScheduleAllowPublicAccess,
             BBannerIsCustom = jobMetadata.BBannerIsCustom,
             JobTypeName = jobMetadata.JobTypeName,
+            JobTypeId = jobMetadata.JobTypeId,
             RegistrationMode = _metadataService.GetRegistrationMode(
                 jobMetadata.CoreRegformPlayerRaw, jobMetadata.JsonOptions),
             PaymentMethodsAllowedCode = jobMetadata.PaymentMethodsAllowedCode,
