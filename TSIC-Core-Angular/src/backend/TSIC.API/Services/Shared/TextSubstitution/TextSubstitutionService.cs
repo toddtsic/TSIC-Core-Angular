@@ -296,7 +296,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         }
 
         if (template.Contains("!F-DISPLAYINACTIVEPLAYERS", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-DISPLAYINACTIVEPLAYERS"] = PlayerHtmlGenerator.BuildInactivePlayersHtml(MapToRegistrationData(list));
+            tokens["!F-DISPLAYINACTIVEPLAYERS"] = PlayerHtmlGenerator.BuildInactivePlayersHtml(MapToRegistrationData(list), emailMode);
 
         if (template.Contains("!F-PLAYERS", StringComparison.OrdinalIgnoreCase))
             tokens["!F-PLAYERS"] = PlayerHtmlGenerator.BuildPlayersTableHtml(MapToRegistrationData(list), emailMode);
@@ -354,22 +354,22 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!F-NO-MONEY-TEAMS"] = await BuildNoMoneyTeamsHtmlAsync(registrationId.Value, emailMode);
 
         if (template.Contains("!F-REFUND-PLAYER-WAIVER", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-REFUND-PLAYER-WAIVER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegRefundPolicy, "Refund Policy:");
+            tokens["!F-REFUND-PLAYER-WAIVER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegRefundPolicy, "Refund Policy:", emailMode);
 
         if (template.Contains("!F-WAIVER-PLAYER", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegReleaseOfLiability, "Waiver:");
+            tokens["!F-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegReleaseOfLiability, "Waiver:", emailMode);
 
         if (template.Contains("!F-WAIVER-ADULT", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-WAIVER-ADULT"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.AdultRegReleaseOfLiability, "Waiver:");
+            tokens["!F-WAIVER-ADULT"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.AdultRegReleaseOfLiability, "Waiver:", emailMode);
 
         if (template.Contains("!F-COC-WAIVER-PLAYER", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-COC-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegCodeOfConduct, "Code of Conduct:");
+            tokens["!F-COC-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegCodeOfConduct, "Code of Conduct:", emailMode);
 
         if (template.Contains("!F-COVID-WAIVER-PLAYER", StringComparison.OrdinalIgnoreCase))
-            tokens["!F-COVID-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegCovid19Waiver, "COVID-19 Waiver:");
+            tokens["!F-COVID-WAIVER-PLAYER"] = await BuildWaiverHtmlAsync(first.JobId, first.JobName, first.CustomerName, j => j.PlayerRegCovid19Waiver, "COVID-19 Waiver:", emailMode);
 
         if (template.Contains("!F-STAFFCHOICES", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-STAFFCHOICES"] = await BuildStaffChoicesAsync(registrationId.Value);
+            tokens["!F-STAFFCHOICES"] = await BuildStaffChoicesAsync(registrationId.Value, emailMode);
 
         if (template.Contains("!F-COACHFULLTEAMNAMECHOICES", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
             tokens["!F-COACHFULLTEAMNAMECHOICES"] = await BuildCoachFullTeamNameChoicesAsync(registrationId.Value, emailMode);
@@ -640,7 +640,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return sb.ToString();
     }
 
-    private async Task<string> BuildWaiverHtmlAsync(Guid jobId, string jobName, string? customerName, Func<dynamic, string?> selector, string label)
+    private async Task<string> BuildWaiverHtmlAsync(Guid jobId, string jobName, string? customerName, Func<dynamic, string?> selector, string label, bool emailMode)
     {
         var rec = await _repo.GetJobWaiversAsync(jobId);
         if (rec == null) return string.Empty;
@@ -651,17 +651,15 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         var html = WebUtility.HtmlDecode(raw) ?? string.Empty;
         html = html.Replace("!JOBNAME", jobName ?? string.Empty).Replace("!CUSTOMERNAME", customerName ?? string.Empty);
         var safeLabel = string.IsNullOrWhiteSpace(label) ? "Waiver:" : label;
-        return $"<div><strong>{WebUtility.HtmlEncode(safeLabel)}</strong> {html}</div>";
+        return HtmlTableBuilder.RenderWaiverBlock(safeLabel, html, emailMode);
     }
 
-    private async Task<string> BuildStaffChoicesAsync(Guid registrationId)
+    private async Task<string> BuildStaffChoicesAsync(Guid registrationId, bool emailMode)
     {
         var keys = await _repo.GetStaffInfoAsync(registrationId);
         if (keys == null) return string.Empty;
-        var sb = new StringBuilder("<ul>");
-        sb.AppendFormat("<li>Coaching Requests: {0}</li>", WebUtility.HtmlEncode(keys.SpecialRequests ?? string.Empty));
-        sb.Append("</ul>");
-        return sb.ToString();
+        var li = $"<li>Coaching Requests: {WebUtility.HtmlEncode(keys.SpecialRequests ?? string.Empty)}</li>";
+        return HtmlTableBuilder.RenderChoicesList(li, emailMode);
     }
 
     private async Task<string> BuildCoachFullTeamNameChoicesAsync(Guid registrationId, bool emailMode)

@@ -35,22 +35,19 @@ public static class PlayerHtmlGenerator
     /// </summary>
     /// <param name="registrations">List of player registration data.</param>
     /// <returns>HTML string with warning message, or empty string if no inactive players.</returns>
-    public static string BuildInactivePlayersHtml(List<PlayerRegistrationData> registrations)
+    public static string BuildInactivePlayersHtml(List<PlayerRegistrationData> registrations, bool emailMode)
     {
         var inactive = registrations.Where(q => q.Active != true && string.IsNullOrEmpty(q.AdnSubscriptionId)).ToList();
         if (inactive.Count == 0) return string.Empty;
 
-        var html = new StringBuilder()
-            .Append("<div style='padding:4px;border:1px solid black;background-color:yellow;font-weight:bold;font-size:large'>")
-            .Append("<p>The following players are INACTIVE and are considered NOT REGISTERED</p><ul>");
-
+        var inner = new StringBuilder();
+        inner.Append("<p>The following players are INACTIVE and are considered NOT REGISTERED</p><ul>");
         foreach (var i in inactive)
-            html.Append($"<li>{WebUtility.HtmlEncode(i.Person)} ({WebUtility.HtmlEncode(i.Assignment)})</li>");
+            inner.Append($"<li>{WebUtility.HtmlEncode(i.Person)} ({WebUtility.HtmlEncode(i.Assignment)})</li>");
+        inner.Append("</ul><p>The player(s) above will be considered registered ONLY after they are PAID IN FULL.</p>")
+             .Append("<p>Unpaid players are subject to being dropped by the program director.</p>");
 
-        html.Append("</ul><p>The player(s) above will be considered registered ONLY after they are PAID IN FULL.</p>")
-            .Append("<p>Unpaid players are subject to being dropped by the program director.</p></div>");
-
-        return html.ToString();
+        return HtmlTableBuilder.RenderWarningBlock(inner.ToString(), emailMode);
     }
 
     /// <summary>

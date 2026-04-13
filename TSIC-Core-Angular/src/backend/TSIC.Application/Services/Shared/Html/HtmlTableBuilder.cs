@@ -108,5 +108,37 @@ public static class HtmlTableBuilder
     /// Formats a decimal value as currency.
     /// </summary>
     public static string FormatCurrency(decimal value) => value.ToString("C");
+
+    /// <summary>
+    /// Wraps content in a yellow warning callout (e.g. inactive player notice).
+    /// Dual-mode: CSS class for web, inline styles for email.
+    /// </summary>
+    public static string RenderWarningBlock(string innerHtml, bool emailMode)
+    {
+        if (emailMode)
+            return $"<div style='padding:4px;border:1px solid #000;background-color:#ffff00;font-weight:bold;font-size:large;'>{innerHtml}</div>";
+        return $"<div class='tsic-warning-block'>{innerHtml}</div>";
+    }
+
+    /// <summary>
+    /// Wraps labelled waiver content. Label is encoded; body is pre-rendered HTML.
+    /// </summary>
+    public static string RenderWaiverBlock(string label, string bodyHtml, bool emailMode)
+    {
+        var safeLabel = WebUtility.HtmlEncode(label);
+        if (emailMode)
+            return $"<div style='margin:8px 0;'><strong style='display:block;margin-bottom:4px;'>{safeLabel}</strong>{bodyHtml}</div>";
+        return $"<div class='tsic-waiver-block'><strong class='tsic-waiver-label'>{safeLabel}</strong>{bodyHtml}</div>";
+    }
+
+    /// <summary>
+    /// Wraps a &lt;ul&gt; choices list with consistent class.
+    /// </summary>
+    public static string RenderChoicesList(string innerLiHtml, bool emailMode)
+    {
+        if (emailMode)
+            return $"<ul style='margin:4px 0;padding-left:20px;font-family:Arial,Helvetica,sans-serif;font-size:12px;'>{innerLiHtml}</ul>";
+        return $"<ul class='tsic-choices-list'>{innerLiHtml}</ul>";
+    }
 }
 
