@@ -97,7 +97,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clean, relevant list of sports
 - **What happened**: Dropdown list needs cleanup (stale/irrelevant entries)
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `LadtService.GetSportsAsync` now filters to a whitelist of 12 team sports TSIC supports (Lacrosse, Soccer, Football, Hockey, Field Hockey, Basketball, Baseball, Softball, Volleyball, Wrestling, Rugby, Cheerleading) and title-cases the display name. Sports table itself left intact so historical references still resolve.
 
 ### PL-008: League edit — do Hide Contacts and Hide Standings belong here?
 - **Area**: League Settings
@@ -183,7 +183,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear separation of actions; no redundant data
 - **What happened**: Navigate up/down buttons next to edit buttons is confusing — maybe move them under the Age Group column. Also consider removing team and player number columns since they already appear in the tree on the left
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — removed the team/player count muted badges from the Age Group pill cell. Counts already appear on every node in the tree on the left, so the grid badges were noise. Pencil + drill badge in the action column are now the only row-level affordances; earlier polish (uniform 110px width, left-aligned pencil, outlined vs solid visual distinction) keeps them readable.
 
 ### PL-018: AG SET button redundant — same as Edit icon
 - **Area**: Age Group Settings

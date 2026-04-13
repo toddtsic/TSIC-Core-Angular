@@ -3,7 +3,6 @@ import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
 import { countFrozenColumns } from '../configs/ladt-grid-columns';
-import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 
 export interface ParentBreadcrumb {
   name: string;
@@ -172,15 +171,9 @@ export interface ParentBreadcrumb {
                 }
                 @default {
                   @if (col.colorField) {
-                    <span class="agegroup-color-badge"
-                          [style.background]="data[col.colorField] || 'var(--bs-secondary-bg)'"
-                          [style.color]="contrastText(data[col.colorField])">{{ data[col.field] ?? '' }}</span>
-                    @if (data['teamCount'] != null) {
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis frozen-badge" title="Teams">{{ data['teamCount'] | number }}</span>
-                    }
-                    @if (data['playerCount'] != null) {
-                      <span class="badge bg-secondary-subtle text-secondary-emphasis frozen-badge" title="Players">{{ data['playerCount'] | number }}</span>
-                    }
+                    <span class="ag-color-dot"
+                          [class.ag-color-dot--empty]="!data[col.colorField]"
+                          [style.background]="data[col.colorField] || 'var(--bs-secondary-bg)'"></span><span class="ag-name">{{ data[col.field] ?? '' }}</span>
                   } @else {
                     {{ data[col.field] ?? '' }}
                   }
@@ -356,27 +349,21 @@ export interface ParentBreadcrumb {
       background: var(--bs-success-bg-subtle);
     }
 
-    .agegroup-color-badge {
+    .ag-color-dot {
       display: inline-block;
-      padding: 1px var(--space-2);
-      border-radius: var(--radius-pill, 9999px);
-      font-size: var(--font-size-xs);
-      font-weight: 600;
-      line-height: 1.3;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
       border: 1px solid var(--bs-border-color);
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
       vertical-align: middle;
-      margin-right: var(--space-1);
     }
-    .frozen-badge {
-      font-size: 0.65rem;
-      padding: 1px 5px;
-      flex-shrink: 0;
+    .ag-color-dot--empty {
+      border-style: dashed;
     }
-
+    .ag-name {
+      margin-left: var(--space-2);
+      vertical-align: middle;
+    }
     /* ── Fee pills ── */
 
     .fee-pills {
@@ -466,9 +453,6 @@ export class LadtSiblingGridComponent implements OnChanges {
   @Output() navigateTo = new EventEmitter<string>();
 
   @ViewChild('grid') grid!: GridComponent;
-
-  // Template helper
-  readonly contrastText = contrastText;
 
   // Sort state
   sortField = signal<string | null>(null);

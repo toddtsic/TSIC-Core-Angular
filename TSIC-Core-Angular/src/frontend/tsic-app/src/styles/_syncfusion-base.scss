@@ -110,20 +110,6 @@
     color: var(--bs-body-color);
     background-color: inherit;
     font-size: var(--font-size-sm);
-    border-right: 1px solid var(--bs-border-color-translucent);
-
-    &:last-child {
-      border-right: none;
-    }
-  }
-}
-
-/* Header column separators (matches body) */
-.e-grid[class*="tsic-grid"] .e-gridheader .e-headercell {
-  border-right: 1px solid var(--bs-border-color-translucent);
-
-  &:last-child {
-    border-right: none;
   }
 }
 
