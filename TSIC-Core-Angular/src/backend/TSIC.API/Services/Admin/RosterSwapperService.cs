@@ -159,8 +159,8 @@ public sealed class RosterSwapperService : IRosterSwapperService
             else
             {
                 // FLOW 1: Player → Team (fee recalc via unified service)
-                var resolved = await _feeService.ResolvePlayerFeeAsync(
-                    targetTeam.JobId, targetTeam.AgegroupId, targetTeam.TeamId, ct);
+                var resolved = await _feeService.ResolveFeeAsync(
+                    targetTeam.JobId, RoleConstants.Player, targetTeam.AgegroupId, targetTeam.TeamId, ct);
                 var newFeeBase = resolved?.EffectiveBalanceDue ?? 0m;
                 // Preview estimate: modifiers preserved from original registration
                 var previewDiscount = newFeeBase > 0m ? reg.FeeDiscount : 0m;

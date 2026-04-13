@@ -1183,8 +1183,8 @@ public sealed class LadtService : ILadtService
         if (registrations.Count == 0) return 0;
 
         // Batch-resolve player fees from new fee schema
-        var feeByTeam = await _feeService.ResolvePlayerFeesByTeamIdsAsync(
-            jobId, teamIds, cancellationToken);
+        var feeByTeam = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, Domain.Constants.RoleConstants.Player, teamIds, cancellationToken);
 
         var regIds = registrations.Select(r => r.RegistrationId).ToList();
         var payments = await _regAcctRepo.GetPaymentSummariesAsync(regIds, cancellationToken);

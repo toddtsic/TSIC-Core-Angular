@@ -412,8 +412,9 @@ public class PaymentService : IPaymentService
         foreach (var reg in registrations)
         {
             if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
-            var resolved = await _feeService.ResolvePlayerFeeAsync(
-                jobId, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value);
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobId, Domain.Constants.RoleConstants.Player,
+                reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value);
             var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
             if (baseFee <= 0) continue;
             if (reg.FeeBase != baseFee) reg.FeeBase = baseFee;

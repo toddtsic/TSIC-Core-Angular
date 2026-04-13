@@ -641,13 +641,13 @@ public class AdultRegistrationService : IAdultRegistrationService
             var teams = await _teamRepo.GetTeamsForJobAsync(jobId, teamIdsCoaching.Distinct().ToList(), cancellationToken);
             foreach (var team in teams)
             {
-                var resolved = await _feeService.ResolveStaffFeeAsync(jobId, team.AgegroupId, team.TeamId, cancellationToken);
+                var resolved = await _feeService.ResolveFeeAsync(jobId, RoleConstants.Staff, team.AgegroupId, team.TeamId, cancellationToken);
                 baseTotal += resolved?.EffectiveBalanceDue ?? 0m;
             }
         }
         else
         {
-            var resolved = await _feeService.ResolveAdultJobFeeAsync(jobId, roleId, cancellationToken);
+            var resolved = await _feeService.ResolveJobLevelFeeAsync(jobId, roleId, cancellationToken);
             baseTotal = resolved?.EffectiveBalanceDue ?? 0m;
         }
 
