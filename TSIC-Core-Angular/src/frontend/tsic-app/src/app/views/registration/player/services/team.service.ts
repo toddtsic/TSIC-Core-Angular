@@ -20,6 +20,7 @@ export interface AvailableTeam {
     agegroupAllowsSelfRostering?: boolean | null;
     fee?: number | null;
     deposit?: number | null;
+    effectiveFee?: number | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
     startDate?: string | null;

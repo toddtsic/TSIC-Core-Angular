@@ -19,6 +19,8 @@ public record AvailableTeamDto
     public bool? AgegroupAllowsSelfRostering { get; init; }
     public decimal? Fee { get; init; }
     public decimal? Deposit { get; init; }
+    /// <summary>Fee + active late fees − active discounts (early-bird, discount), evaluated at list time. Excludes codes / insurance / processing — those are opt-ins applied on the Payment step.</summary>
+    public decimal? EffectiveFee { get; init; }
     public required bool JobUsesWaitlists { get; init; }
     public Guid? WaitlistTeamId { get; set; }
     public DateTime? StartDate { get; init; }

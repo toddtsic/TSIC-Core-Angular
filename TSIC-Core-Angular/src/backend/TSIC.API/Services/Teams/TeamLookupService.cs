@@ -46,6 +46,17 @@ public class TeamLookupService : ITeamLookupService
         var resolvedFees = await _feeService.ResolveFeesByTeamIdsAsync(
             jobId, RoleConstants.Player, teamIds);
 
+        // Evaluate active modifiers per team so the dropdown can show an accurate
+        // right-now price (base + late fee − discount), not just the base fee.
+        // Sequential awaits — scoped DbContext forbids Task.WhenAll on repo calls.
+        var asOf = DateTime.UtcNow;
+        var modifiersByTeam = new Dictionary<Guid, ResolvedModifiers>();
+        foreach (var t in teamsRaw)
+        {
+            modifiersByTeam[t.TeamId] = await _feeService.EvaluateModifiersAsync(
+                jobId, RoleConstants.Player, t.AgegroupId, t.TeamId, asOf);
+        }
+
         var dtos = teamsRaw.Select(t =>
         {
             var current = rosterCounts.TryGetValue(t.TeamId, out var c) ? c : 0;
@@ -56,6 +67,10 @@ public class TeamLookupService : ITeamLookupService
             var deposit = resolved?.EffectiveDeposit ?? 0m;
             // If deposit equals balance due, there's no separate deposit concept
             if (deposit == fee) deposit = 0m;
+
+            var mods = modifiersByTeam.TryGetValue(t.TeamId, out var m) ? m : null;
+            var effectiveFee = fee + (mods?.TotalLateFee ?? 0m) - (mods?.TotalDiscount ?? 0m);
+            if (effectiveFee < 0m) effectiveFee = 0m;
 
             return new AvailableTeamDto
             {
@@ -72,6 +87,7 @@ public class TeamLookupService : ITeamLookupService
                 AgegroupAllowsSelfRostering = t.AgegroupAllowsSelfRostering,
                 Fee = fee,
                 Deposit = deposit,
+                EffectiveFee = effectiveFee,
                 JobUsesWaitlists = jobUsesWaitlists,
                 WaitlistTeamId = null,
                 StartDate = t.StartDate,

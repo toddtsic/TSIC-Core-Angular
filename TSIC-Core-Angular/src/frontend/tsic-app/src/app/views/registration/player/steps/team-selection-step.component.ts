@@ -677,6 +677,9 @@ export class TeamSelectionStepComponent {
         return this.getAvailableTeams(playerId).map(team => {
             let label = team.teamName;
             if (team.divisionName) label += ` · ${team.divisionName}`;
+            if (team.effectiveFee != null && team.effectiveFee > 0) {
+                label += ` (${this.formatCurrency(team.effectiveFee)})`;
+            }
 
             let status = '';
             if (team.rosterIsFull && team.jobUsesWaitlists) {
@@ -691,6 +694,10 @@ export class TeamSelectionStepComponent {
 
             return { text: label, value: team.teamId, status };
         });
+    }
+
+    private formatCurrency(amount: number): string {
+        return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
     onTeamDdlChange(playerId: string, event: any): void {

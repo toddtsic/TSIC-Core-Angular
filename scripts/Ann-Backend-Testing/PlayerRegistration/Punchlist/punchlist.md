@@ -402,7 +402,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Cost of each team option shown in parentheses next to the name, like it was in Legacy
 - **What happened**: Cost is no longer displayed in the dropdown — should we add it back?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — `AvailableTeamDto.EffectiveFee` now layers active modifiers (early-bird, late fee) on top of the base fee at list time. Dropdown label becomes `Team · Division ($120)` when fee > 0. Payment screen still recomputes final totals fresh.
 
 ### PL-045: ARB site Complete Payment — subscription and recurring payments charged separately per player in family
 - **Area**: Registration Process Review
