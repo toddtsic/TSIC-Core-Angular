@@ -317,7 +317,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear, accurate labels for each override
 - **What happened**: "Club Rep Fee Override" may be mislabeled — should it be "Team Fee Override"? Need to review all override cards for clarity
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — the Club Rep Fee Override card on team-detail was dead UI. `ApplyNewTeamFeesAsync` resolves ClubRep fees at the agegroup level only (`ResolveFeeForAgegroupAsync`), so team-scoped ClubRep rows written by that card were saved but never read. The new `fees.JobFees`/`fees.FeeModifiers` schema already expresses every scenario correctly at the agegroup level. Removed the card + `clubRep*` state + load/save plumbing from team-detail. Player Fee Override card remains (team-level Player overrides ARE read via Team → Agegroup → Job cascade). Agegroup-level Club Rep Fee Override card in agegroup-detail remains (that IS the source of truth).
 
 ### PL-034: Eligibility section — Level of Play isn't set here, is it?
 - **Area**: Team Settings
