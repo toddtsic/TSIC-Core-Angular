@@ -96,13 +96,19 @@ export class FormSchemaService {
                 const dsKey = String(pickCI(f, 'dataSource', 'optionsSource', 'optionSet') || '').trim();
                 const options = (() => {
                     let mapped: string[] = [];
-                    const direct = Array.isArray(f.options) ? f.options : [];
-                    mapped = direct.map((o: RawOptionItem) => String(o?.value ?? o?.Value ?? o?.label ?? o?.Text ?? o));
-                    if ((!mapped || mapped.length === 0) && optionSets && dsKey) {
+                    // When dataSource is set, the shared option set is authoritative — inline
+                    // options on the field are a stale export artifact and must not override it.
+                    if (optionSets && dsKey) {
                         const setVal = optionSets[dsKey] ?? getOptionSetInsensitive(dsKey) ?? null;
-                        if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v?.id ?? v?.Id ?? v?.code ?? v?.Code ?? v?.year ?? v?.Year ?? v));
+                        if (Array.isArray(setVal) && setVal.length > 0) {
+                            mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v?.id ?? v?.Id ?? v?.code ?? v?.Code ?? v?.year ?? v?.Year ?? v));
+                        }
                     }
-                    if ((!mapped || mapped.length === 0) && optionSets && name) {
+                    if (mapped.length === 0) {
+                        const direct = Array.isArray(f.options) ? f.options : [];
+                        mapped = direct.map((o: RawOptionItem) => String(o?.value ?? o?.Value ?? o?.label ?? o?.Text ?? o));
+                    }
+                    if (mapped.length === 0 && optionSets && name) {
                         const key = Object.keys(optionSets).find(k => k.toLowerCase() === name.toLowerCase());
                         const setVal = key ? optionSets[key] : null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));

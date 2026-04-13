@@ -206,15 +206,30 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
                       </div>
                     }
 
-                    <ejs-dropdownlist
-                      [dataSource]="getTeamDropdownItems(pid)"
-                      [fields]="teamDdlFields"
-                      [value]="isMultiTeamMode() ? null : (getSelectedTeamId(pid) || null)"
-                      (change)="onTeamDdlChange(pid, $event)"
-                      [placeholder]="'— Select Team —'"
-                      [allowFiltering]="false"
-                      cssClass="team-ddl">
-                    </ejs-dropdownlist>
+                    @if (!getAvailableTeams(pid).length) {
+                      <div class="no-teams-alert" role="alert">
+                        <i class="bi bi-exclamation-octagon-fill"></i>
+                        <div>
+                          <strong>No teams available</strong> —
+                          There are no teams in this event for {{ constraintLabel() }}
+                          @if (getPlayerEligibility(pid)) {
+                            <strong>{{ getPlayerEligibility(pid) }}</strong>
+                          }
+                          . Please go back and verify the {{ constraintLabel() }},
+                          or contact the event director.
+                        </div>
+                      </div>
+                    } @else {
+                      <ejs-dropdownlist
+                        [dataSource]="getTeamDropdownItems(pid)"
+                        [fields]="teamDdlFields"
+                        [value]="isMultiTeamMode() ? null : (getSelectedTeamId(pid) || null)"
+                        (change)="onTeamDdlChange(pid, $event)"
+                        [placeholder]="'— Select Team —'"
+                        [allowFiltering]="false"
+                        cssClass="team-ddl">
+                      </ejs-dropdownlist>
+                    }
                   }
                 </div>
               </div>
@@ -624,6 +639,26 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
           font-size: var(--font-size-lg);
           flex-shrink: 0;
           margin-top: 1px;
+        }
+      }
+
+      .no-teams-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-radius: var(--radius-sm);
+        background: rgba(var(--bs-danger-rgb), 0.10);
+        border: 1px solid rgba(var(--bs-danger-rgb), 0.4);
+        color: var(--bs-danger-text-emphasis);
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
+
+        i {
+          font-size: var(--font-size-lg);
+          flex-shrink: 0;
+          margin-top: 1px;
+          color: var(--bs-danger);
         }
       }
     `],

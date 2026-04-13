@@ -195,6 +195,43 @@ describe('FormSchemaService', () => {
             expect(service.profileFieldSchemas()[0].options).toEqual(['2026', '2027', '2028']);
         });
 
+        it('should prefer dataSource shared set over stale inline options', () => {
+            const rawFields = JSON.stringify([
+                {
+                    name: 'gradYear',
+                    label: 'Grad Year',
+                    type: 'select',
+                    dataSource: 'List_GradYears',
+                    options: [{ value: '2024' }, { value: '2025' }],
+                },
+            ]);
+            const rawOptions = JSON.stringify({
+                List_GradYears: [{ Value: '2027' }, { Value: '2028' }, { Value: '2029' }],
+            });
+
+            service.parse(rawFields, rawOptions);
+
+            expect(service.profileFieldSchemas()[0].options).toEqual(['2027', '2028', '2029']);
+        });
+
+        it('should fall back to inline options when dataSource set is missing', () => {
+            const rawFields = JSON.stringify([
+                {
+                    name: 'gradYear',
+                    label: 'Grad Year',
+                    type: 'select',
+                    dataSource: 'List_GradYears',
+                    options: [{ value: '2024' }, { value: '2025' }],
+                },
+            ]);
+            // No List_GradYears in options — should fall back to inline
+            const rawOptions = JSON.stringify({});
+
+            service.parse(rawFields, rawOptions);
+
+            expect(service.profileFieldSchemas()[0].options).toEqual(['2024', '2025']);
+        });
+
         it('should perform case-insensitive optionSets lookup', () => {
             const rawFields = JSON.stringify([
                 { name: 'size', label: 'Shirt Size', type: 'select', dataSource: 'shirtSizes' },
