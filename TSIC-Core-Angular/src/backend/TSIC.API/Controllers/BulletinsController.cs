@@ -62,7 +62,7 @@ public class BulletinsController : ControllerBase
     }
 
     /// <summary>
-    /// Resolve {{TOKEN}} markers in the posted HTML using either the real job
+    /// Resolve !TOKEN markers in the posted HTML using either the real job
     /// pulse or a SuperUser-supplied override. Used by the editor live-preview.
     /// SuperUser-only.
     /// </summary>

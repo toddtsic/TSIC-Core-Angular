@@ -52,6 +52,9 @@
       <None Update="FirebaseAuth_TSICTeams.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <None Update="Services\Shared\AiCompose\BulletinExemplars.md">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

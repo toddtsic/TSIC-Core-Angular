@@ -50,7 +50,7 @@ export class BulletinAdminService {
     return this.http.get<BulletinTokenCatalogEntryDto[]>(`${this.apiUrl}/token-catalog`);
   }
 
-  // SuperUser-only: resolve {{TOKEN}} markers in arbitrary HTML, with optional pulse override.
+  // SuperUser-only: resolve !TOKEN markers in arbitrary HTML, with optional pulse override.
   previewBulletin(request: BulletinPreviewRequest): Observable<BulletinPreviewResponse> {
     return this.http.post<BulletinPreviewResponse>(`${this.apiUrl}/preview`, request);
   }

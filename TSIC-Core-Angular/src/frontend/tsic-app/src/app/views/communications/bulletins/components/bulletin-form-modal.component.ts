@@ -17,7 +17,7 @@ import type {
 } from '@core/api';
 
 // Plain-text tokens that live in bulletin content — these are processed by
-// BulletinService.ReplaceTextTokens (separate from {{TOKEN}} resolution).
+// BulletinService.ReplaceTextTokens (separate from bulletin resolver !TOKEN resolution).
 const TEXT_TOKENS = [
     { token: '!JOBNAME', description: 'Event/league name' },
     { token: '!USLAXVALIDTHROUGHDATE', description: 'US Lacrosse valid-through date' },
@@ -169,9 +169,9 @@ export type ModalMode = 'add' | 'edit';
                             <span class="token-label">Bulletin tokens:</span>
                             @for (entry of tokenCatalog(); track entry.tokenName) {
                                 <button type="button" class="token-chip token-chip-rich"
-                                        (click)="insertToken('{{' + entry.tokenName + '}}')"
+                                        (click)="insertToken('!' + entry.tokenName)"
                                         [title]="entry.description + (entry.gatingConditions.length ? ' — gates: ' + entry.gatingConditions.join(', ') : '')">
-                                    {{ '{{' + entry.tokenName + '}}' }}
+                                    {{ '!' + entry.tokenName }}
                                 </button>
                             }
                         </div>

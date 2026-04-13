@@ -7,7 +7,7 @@ namespace TSIC.API.Services.Shared.Bulletins.TokenResolution;
 public interface IBulletinTokenResolver
 {
     /// <summary>
-    /// Token name without braces (e.g. "REGISTER_PLAYER" for {{REGISTER_PLAYER}}).
+    /// Token name without the leading '!' (e.g. "REGISTER_PLAYER" for !REGISTER_PLAYER).
     /// Must be unique across all registered resolvers.
     /// </summary>
     string TokenName { get; }

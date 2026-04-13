@@ -1,12 +1,12 @@
 namespace TSIC.Contracts.Dtos.Bulletin;
 
 /// <summary>
-/// Author-facing metadata for one {{TOKEN}} in the bulletin vocabulary.
+/// Author-facing metadata for one !TOKEN in the bulletin vocabulary.
 /// Returned by GET /api/Bulletins/token-catalog.
 /// </summary>
 public sealed record BulletinTokenCatalogEntryDto
 {
-    /// <summary>Token name without braces (e.g. "REGISTER_PLAYER").</summary>
+    /// <summary>Token name without the leading '!' (e.g. "REGISTER_PLAYER").</summary>
     public required string TokenName { get; init; }
 
     /// <summary>Human-readable description for the editor sidebar.</summary>

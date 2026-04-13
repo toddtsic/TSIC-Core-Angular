@@ -16,7 +16,7 @@ public interface IAiComposeService
 
     /// <summary>
     /// Reformat existing bulletin HTML for better UX using design-system classes
-    /// and, where semantically appropriate, insert {{TOKEN}} markers from the
+    /// and, where semantically appropriate, insert !TOKEN markers from the
     /// bulletin vocabulary. Returns raw HTML (no subject/body split).
     /// </summary>
     Task<AiFormatResponse> FormatBulletinAsync(

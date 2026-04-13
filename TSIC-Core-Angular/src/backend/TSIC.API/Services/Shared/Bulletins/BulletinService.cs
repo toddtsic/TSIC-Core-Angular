@@ -9,7 +9,7 @@ namespace TSIC.API.Services.Shared.Bulletins;
 
 /// <summary>
 /// Service for managing bulletin business logic.
-/// Public fetch path: text-token substitution (!JOBNAME etc.) + {{TOKEN}} resolution via BulletinTokenRegistry.
+/// Public fetch path: text-token substitution (!JOBNAME etc.) + !TOKEN resolution via BulletinTokenRegistry.
 /// Legacy URL translation is still handled by the frontend TranslateLegacyUrlsPipe.
 /// </summary>
 public class BulletinService : IBulletinService

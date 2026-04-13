@@ -178,7 +178,7 @@ builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();
 builder.Services.AddScoped<IBulletinService, BulletinService>();
 
-// Bulletin {{TOKEN}} resolvers — each registered as IBulletinTokenResolver; BulletinTokenRegistry collects them.
+// Bulletin !TOKEN resolvers — each registered as IBulletinTokenResolver; BulletinTokenRegistry collects them.
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterPlayerResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterClubRepResolver>();
 builder.Services.AddScoped<IBulletinTokenResolver, RegisterUnassignedAdultResolver>();

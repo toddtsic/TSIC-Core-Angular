@@ -1,7 +1,7 @@
 namespace TSIC.Contracts.Dtos.Bulletin;
 
 /// <summary>
-/// Request body for POST /api/Bulletins/preview. Resolves {{TOKEN}} markers
+/// Request body for POST /api/Bulletins/preview. Resolves !TOKEN markers
 /// in arbitrary HTML using either the real job pulse or a SuperUser-supplied
 /// override (to simulate future states like "after registration closes").
 /// </summary>

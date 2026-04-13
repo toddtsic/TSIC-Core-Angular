@@ -21,6 +21,16 @@ public class AiComposeService : IAiComposeService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    // Canonical visual vocabulary for bulletin drafting + formatting. Edit the
+    // markdown file, restart the API, and the next AI call picks it up.
+    private static readonly Lazy<string> BulletinExemplars = new(() =>
+    {
+        var path = Path.Combine(
+            AppContext.BaseDirectory,
+            "Services", "Shared", "AiCompose", "BulletinExemplars.md");
+        return File.Exists(path) ? File.ReadAllText(path) : string.Empty;
+    });
+
     public AiComposeService(
         HttpClient httpClient,
         IOptions<AnthropicSettings> settings,
@@ -111,7 +121,7 @@ public class AiComposeService : IAiComposeService
         IReadOnlyCollection<IBulletinTokenResolver> tokens)
     {
         var tokenLines = string.Join("\n", tokens.Select(t =>
-            $"  {{{{{t.TokenName}}}}} — {t.Description}" +
+            $"  !{t.TokenName} — {t.Description}" +
             (t.GatingConditions.Length > 0
                 ? $" (visible when: {string.Join(", ", t.GatingConditions)})"
                 : " (always visible)")));
@@ -121,14 +131,15 @@ public class AiComposeService : IAiComposeService
             "The user message is the CURRENT HTML of a bulletin. Reformat it for better UX and clarity.\n\n" +
             "Rules:\n" +
             "- Preserve the author's intent and information. Do not invent new facts.\n" +
-            "- Use simple, semantic HTML: <p>, <strong>, <em>, <ul>/<li>, <br>. Avoid <h1>-<h6>.\n" +
-            "- You MAY use these design-system CSS classes for visual emphasis: alert, alert-info, alert-warning, card, card-body, text-muted.\n" +
+            "- Match the shapes shown in the STYLE GUIDE below. Pick the shape whose 'when to use' best fits the content. Do not invent new shapes or use CSS classes outside the style guide.\n" +
             "- Where the existing HTML contains a call-to-action (e.g. 'click here to register', 'view schedule'), REPLACE the anchor/sentence with the appropriate token below. Tokens render as styled buttons or cards at display time and stay in sync with backend state.\n" +
-            "- Available bulletin tokens (use ONLY these names exactly, including the double braces):\n" +
+            "- Available bulletin tokens (use ONLY these names exactly, including the leading '!'):\n" +
             tokenLines + "\n" +
             "- Also supported for text substitution: !JOBNAME (replaced with org name), !USLAXVALIDTHROUGHDATE (USLax membership date).\n" +
             "- Do NOT wrap the output in JSON or markdown fences. Return raw HTML only.\n" +
-            "- Do NOT add explanations or comments. Return only the reformatted HTML.";
+            "- Do NOT add explanations or comments. Return only the reformatted HTML.\n\n" +
+            "===== STYLE GUIDE =====\n" +
+            BulletinExemplars.Value;
     }
 
     private async Task<AiComposeResponse> CallAnthropicAsync(
@@ -216,7 +227,10 @@ public class AiComposeService : IAiComposeService
             "  !JOBNAME — the league/organization name (\"" + jobName + "\")\n" +
             "  !USLAXVALIDTHROUGHDATE — US Lacrosse membership valid-through date\n" +
             "- Only use tokens that are relevant to the message.\n" +
-            "- Return ONLY the JSON object. No markdown, no code fences, no explanation.";
+            "- Match the shapes shown in the STYLE GUIDE below when choosing HTML structure. Do not use CSS classes outside the style guide.\n" +
+            "- Return ONLY the JSON object. No markdown, no code fences, no explanation.\n\n" +
+            "===== STYLE GUIDE =====\n" +
+            BulletinExemplars.Value;
     }
 
     private static AiComposeResponse ParseResponse(string responseJson)
