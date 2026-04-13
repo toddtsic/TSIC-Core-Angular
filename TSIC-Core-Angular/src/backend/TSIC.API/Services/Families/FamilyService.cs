@@ -80,7 +80,7 @@ public sealed class FamilyService : IFamilyService
 
         // Load registrations for this job
         var regsRaw = await LoadRegistrationsForJobAsync(jobId, familyUserId, linkedChildIds);
-        var regSet = regsRaw.Select(x => x.UserId!).Distinct().ToHashSet(StringComparer.Ordinal);
+        var regSet = regsRaw.Where(x => x.BActive == true).Select(x => x.UserId!).Distinct().ToHashSet(StringComparer.Ordinal);
 
         // Fetch metadata and options
         var (metadataJson, rawJsonOptions) = await GetJobMetadataAndOptionsAsync(jobId);
