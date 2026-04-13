@@ -18,6 +18,9 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Shared.UsLax;
+using Microsoft.AspNetCore.Identity;
+using TSIC.Infrastructure.Data.Identity;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -46,6 +49,8 @@ public class TeamRegistrationController : ControllerBase
     private readonly IRegistrationRepository _registrationRepository;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
+    private readonly ITokenService _tokenService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
@@ -57,7 +62,9 @@ public class TeamRegistrationController : ControllerBase
         ITeamRepository teamRepository,
         IRegistrationRepository registrationRepository,
         IRegistrationAccountingRepository accountingRepo,
-        IRegistrationFeeAdjustmentService feeAdjustment)
+        IRegistrationFeeAdjustmentService feeAdjustment,
+        ITokenService tokenService,
+        UserManager<ApplicationUser> userManager)
     {
         _teamRegistrationService = teamRegistrationService;
         _logger = logger;
@@ -67,6 +74,8 @@ public class TeamRegistrationController : ControllerBase
         _registrationRepository = registrationRepository;
         _accountingRepo = accountingRepo;
         _feeAdjustment = feeAdjustment;
+        _tokenService = tokenService;
+        _userManager = userManager;
     }
 
     /// <summary>
@@ -124,6 +133,50 @@ public class TeamRegistrationController : ControllerBase
                 userId, request.ClubName, request.JobPath);
             return StatusCode(500, new { Message = "An error occurred while initializing registration" });
         }
+    }
+
+    /// <summary>
+    /// Find-only context upgrade for the ClubRepVIUpdate (team-insurance second-chance) flow.
+    /// Looks up an existing ClubRep registration for (userId, jobPath) and mints an enriched
+    /// JWT carrying its regId. Returns 400 if no such registration exists — the existing
+    /// in-wizard `initialize-registration` endpoint creates one; this one never does.
+    /// </summary>
+    [HttpPost("set-clubrep-context")]
+    [ProducesResponseType(typeof(AuthTokenResponse), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SetClubRepContext([FromBody] SetWizardContextRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(new { message = UserNotAuthenticatedMessage });
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return BadRequest(new { message = $"Event not found: {request.JobPath}" });
+
+        var registration = await _registrationRepository.GetClubRepRegistrationAsync(userId, jobId.Value);
+        if (registration is null)
+            return BadRequest(new { message = "No team registration found for this event." });
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+            return Unauthorized(new { message = UserNotAuthenticatedMessage });
+
+        var jobMetadata = await _jobLookupService.GetJobMetadataAsync(request.JobPath);
+        var token = _tokenService.GenerateEnrichedJwtToken(
+            user,
+            registration.RegistrationId.ToString(),
+            request.JobPath,
+            jobMetadata?.JobLogoPath,
+            RoleConstants.Names.ClubRepName);
+
+        return Ok(new AuthTokenResponse
+        {
+            AccessToken = token,
+            RefreshToken = null,
+            ExpiresIn = 3600
+        });
     }
 
     /// <summary>

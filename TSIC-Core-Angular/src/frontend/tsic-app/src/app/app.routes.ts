@@ -461,6 +461,16 @@ export const routes: Routes = [
 				path: 'playerviupdate',
 				redirectTo: 'PlayerVIUpdate',
 				pathMatch: 'full'
+			},
+			// Team-side equivalent for club reps. Exact-case preserved per legacy.
+			{
+				path: 'ClubRepVIUpdate',
+				loadComponent: () => import('./views/clubrep-vi-update/clubrep-vi-update.component').then(m => m.ClubRepVIUpdateComponent)
+			},
+			{
+				path: 'clubrepviupdate',
+				redirectTo: 'ClubRepVIUpdate',
+				pathMatch: 'full'
 			}
 		]
 	},
