@@ -35,6 +35,33 @@ public class InsuranceController : ControllerBase
         _jobLookupService = jobLookupService;
     }
 
+    /// <summary>
+    /// Post-registration insurance offer (for PlayerVIUpdate re-entry flow).
+    /// Caller must present a Family-role, jobPath-scoped JWT (issued by /player-registration/set-wizard-context).
+    /// Returns the offer snapshot — Available=false means no eligible registrations remain (all covered or none active).
+    /// </summary>
+    [HttpGet("post-registration-offer")]
+    [Authorize]
+    [ProducesResponseType(typeof(PreSubmitInsuranceDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetPostRegistrationOffer()
+    {
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(familyUserId)) return Unauthorized();
+
+        var jobPath = User.FindFirst("jobPath")?.Value;
+        if (string.IsNullOrWhiteSpace(jobPath))
+            return Unauthorized(new { message = "Token missing jobPath claim — call set-wizard-context first." });
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {jobPath}" });
+
+        var offer = await _viService.BuildOfferAsync(jobId.Value, familyUserId);
+        return Ok(offer);
+    }
+
     [HttpPost("purchase")]
     [Authorize]
     [ProducesResponseType(typeof(InsurancePurchaseResponseDto), 200)]

@@ -450,6 +450,17 @@ export const routes: Routes = [
 				path: 'rosters',
 				data: { publicMode: true },
 				loadComponent: () => import('./views/rosters/public-rosters/public-rosters.component').then(m => m.PublicRostersComponent)
+			},
+			// Post-registration insurance re-entry — URL baked into confirmation email template.
+			// Exact-case path preserved so existing DB-stored email/confirmation links resolve.
+			{
+				path: 'PlayerVIUpdate',
+				loadComponent: () => import('./views/player-vi-update/player-vi-update.component').then(m => m.PlayerVIUpdateComponent)
+			},
+			{
+				path: 'playerviupdate',
+				redirectTo: 'PlayerVIUpdate',
+				pathMatch: 'full'
 			}
 		]
 	},
