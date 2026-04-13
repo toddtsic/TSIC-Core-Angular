@@ -418,7 +418,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: An eye icon at the end of each password field to let users see what they typed
 - **What happened**: No visibility toggle — should an eye icon be added? Could also be useful on other password fields across the site
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — swept across all password inputs in registration/auth flows. Login and reset-password already had it; added to family credentials (2 fields), adult account (2 fields), team club-rep (2 fields), and self-roster update modal (1 field). Shared `.password-toggle` styling lives in `_forms.scss`.
 
 ### PL-065: "Update My Family Account Data and/or Players" button goes to same place as "Create NEW Family Account"
 - **Area**: Family Account Creation

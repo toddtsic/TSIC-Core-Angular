@@ -50,8 +50,15 @@ interface PlayerEditState {
               </div>
               <div class="field-row mb-3">
                 <label class="field-label" for="sru-pass">Password</label>
-                <input id="sru-pass" class="field-input" type="password" name="password"
-                       [(ngModel)]="password" required autocomplete="current-password">
+                <div class="position-relative">
+                  <input id="sru-pass" class="field-input pe-5" [type]="showPassword() ? 'text' : 'password'" name="password"
+                         [(ngModel)]="password" required autocomplete="current-password">
+                  <button type="button" class="password-toggle"
+                          (click)="showPassword.set(!showPassword())"
+                          [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
+                    <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+                  </button>
+                </div>
               </div>
               @if (loginError()) {
                 <div class="field-error mb-2">{{ loginError() }}</div>
@@ -253,6 +260,7 @@ export class SelfRosterUpdateModalComponent {
 
     username = '';
     password = '';
+    readonly showPassword = signal(false);
 
     constructor() {
         // Always start fresh: logout any prior session

@@ -273,3 +273,27 @@ select::placeholder,
         border-bottom: none;
     }
 }
+
+// Password-visibility toggle overlaid on password inputs. The input must sit
+// inside a .position-relative wrapper and leave right padding for the icon.
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: var(--space-3);
+    transform: translateY(-50%);
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-lg);
+    line-height: 1;
+
+    &:hover {
+        color: var(--brand-text);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}

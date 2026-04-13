@@ -242,22 +242,36 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 </div>
                                 <div class="col-md-4">
                                     <label class="field-label">Password <span class="req">*</span></label>
-                                    <input type="password" class="field-input"
-                                        name="adult-new-password"
-                                        [class.is-required]="state.password().length < 6"
-                                        [ngModel]="state.password()"
-                                        (ngModelChange)="state.setPassword($event)"
-                                        placeholder="6+ characters" />
+                                    <div class="position-relative">
+                                        <input [type]="showPassword() ? 'text' : 'password'" class="field-input pe-5"
+                                            name="adult-new-password"
+                                            [class.is-required]="state.password().length < 6"
+                                            [ngModel]="state.password()"
+                                            (ngModelChange)="state.setPassword($event)"
+                                            placeholder="6+ characters" />
+                                        <button type="button" class="password-toggle"
+                                                (click)="showPassword.set(!showPassword())"
+                                                [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
+                                            <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+                                        </button>
+                                    </div>
                                     <small class="wizard-tip">Minimum 6 characters</small>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="field-label">Confirm Password <span class="req">*</span></label>
-                                    <input type="password" class="field-input"
-                                        name="adult-confirm-password"
-                                        [class.is-required]="!state.passwordsMatch()"
-                                        [ngModel]="state.confirmPassword()"
-                                        (ngModelChange)="state.setConfirmPassword($event)"
-                                        placeholder="Re-enter password" />
+                                    <div class="position-relative">
+                                        <input [type]="showConfirm() ? 'text' : 'password'" class="field-input pe-5"
+                                            name="adult-confirm-password"
+                                            [class.is-required]="!state.passwordsMatch()"
+                                            [ngModel]="state.confirmPassword()"
+                                            (ngModelChange)="state.setConfirmPassword($event)"
+                                            placeholder="Re-enter password" />
+                                        <button type="button" class="password-toggle"
+                                                (click)="showConfirm.set(!showConfirm())"
+                                                [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'" tabindex="-1">
+                                            <i class="bi" [class.bi-eye]="!showConfirm()" [class.bi-eye-slash]="showConfirm()"></i>
+                                        </button>
+                                    </div>
                                     @if (state.confirmPassword() && !state.passwordsMatch()) {
                                         <small class="wizard-tip text-danger">Passwords do not match</small>
                                     }
@@ -355,6 +369,8 @@ export class AccountStepComponent implements OnInit {
     readonly showCreateForm = signal(false);
     readonly tosError = signal<string | null>(null);
     readonly states = US_STATES;
+    readonly showPassword = signal(false);
+    readonly showConfirm = signal(false);
 
     ngOnInit(): void {
         // Wizard called auth.logoutLocal() on init; we always start fresh.

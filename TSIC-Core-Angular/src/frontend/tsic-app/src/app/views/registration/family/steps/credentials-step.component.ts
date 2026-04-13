@@ -45,11 +45,18 @@ import { FamilyStateService } from '../state/family-state.service';
 
           <div class="col-12 col-md-6">
             <label class="field-label" for="v2-cred-password">Password</label>
-            <input id="v2-cred-password" type="password" formControlName="password" class="field-input"
-                   autocomplete="new-password"
-                   [class.is-required]="!form.controls.password.value"
-                   [class.is-invalid]="touched() && form.controls.password.invalid"
-                   (input)="syncToState()" (blur)="syncToState()" />
+            <div class="position-relative">
+              <input id="v2-cred-password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" class="field-input pe-5"
+                     autocomplete="new-password"
+                     [class.is-required]="!form.controls.password.value"
+                     [class.is-invalid]="touched() && form.controls.password.invalid"
+                     (input)="syncToState()" (blur)="syncToState()" />
+              <button type="button" class="password-toggle"
+                      (click)="showPassword.set(!showPassword())"
+                      [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
+                <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+              </button>
+            </div>
             @if (touched() && form.controls.password.errors) {
               <div class="field-error">
                 @if (form.controls.password.errors['required']) { <span>Required</span> }
@@ -61,11 +68,18 @@ import { FamilyStateService } from '../state/family-state.service';
           @if (!state.accountExists()) {
           <div class="col-12 col-md-6">
             <label class="field-label" for="v2-cred-confirm">Confirm password</label>
-            <input id="v2-cred-confirm" type="password" formControlName="confirmPassword" class="field-input"
-                   autocomplete="new-password"
-                   [class.is-required]="!form.controls.confirmPassword.value"
-                   [class.is-invalid]="touched() && (form.controls.confirmPassword.invalid || form.errors?.['passwordMismatch'])"
-                   (input)="syncToState()" (blur)="syncToState()" />
+            <div class="position-relative">
+              <input id="v2-cred-confirm" [type]="showConfirm() ? 'text' : 'password'" formControlName="confirmPassword" class="field-input pe-5"
+                     autocomplete="new-password"
+                     [class.is-required]="!form.controls.confirmPassword.value"
+                     [class.is-invalid]="touched() && (form.controls.confirmPassword.invalid || form.errors?.['passwordMismatch'])"
+                     (input)="syncToState()" (blur)="syncToState()" />
+              <button type="button" class="password-toggle"
+                      (click)="showConfirm.set(!showConfirm())"
+                      [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'" tabindex="-1">
+                <i class="bi" [class.bi-eye]="!showConfirm()" [class.bi-eye-slash]="showConfirm()"></i>
+              </button>
+            </div>
             @if (touched() && (form.controls.confirmPassword.errors || form.errors?.['passwordMismatch'])) {
               <div class="field-error">
                 @if (form.controls.confirmPassword.errors?.['required']) { <span>Required</span> }
@@ -87,6 +101,8 @@ export class CredentialsStepComponent {
 
     readonly touched = signal(false);
     readonly validationError = signal<string | null>(null);
+    readonly showPassword = signal(false);
+    readonly showConfirm = signal(false);
 
     readonly form = this.fb.group({
         username: [this.state.username(), [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],

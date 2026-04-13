@@ -366,15 +366,29 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
                          [class.is-invalid]="submitted() && form.controls.username.invalid" />
                 </div>
                 <div class="col-6">
-                  <input type="password" class="form-control form-control-sm" formControlName="password"
-                         placeholder="Password" autocomplete="new-password"
-                         [class.is-required]="!form.controls.password.value"
-                         [class.is-invalid]="submitted() && form.controls.password.invalid" />
+                  <div class="position-relative">
+                    <input [type]="showPassword() ? 'text' : 'password'" class="form-control form-control-sm pe-5" formControlName="password"
+                           placeholder="Password" autocomplete="new-password"
+                           [class.is-required]="!form.controls.password.value"
+                           [class.is-invalid]="submitted() && form.controls.password.invalid" />
+                    <button type="button" class="password-toggle"
+                            (click)="showPassword.set(!showPassword())"
+                            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
+                      <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+                    </button>
+                  </div>
                 </div>
                 <div class="col-6">
-                  <input type="password" class="form-control form-control-sm" formControlName="confirmPassword"
-                         placeholder="Confirm Password" autocomplete="new-password"
-                         [class.is-invalid]="submitted() && passwordMismatch()" />
+                  <div class="position-relative">
+                    <input [type]="showConfirm() ? 'text' : 'password'" class="form-control form-control-sm pe-5" formControlName="confirmPassword"
+                           placeholder="Confirm Password" autocomplete="new-password"
+                           [class.is-invalid]="submitted() && passwordMismatch()" />
+                    <button type="button" class="password-toggle"
+                            (click)="showConfirm.set(!showConfirm())"
+                            [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'" tabindex="-1">
+                      <i class="bi" [class.bi-eye]="!showConfirm()" [class.bi-eye-slash]="showConfirm()"></i>
+                    </button>
+                  </div>
                 </div>
                 @if (submitted() && passwordMismatch()) {
                   <div class="col-12">
@@ -487,6 +501,8 @@ export class ClubRepRegisterFormComponent {
     readonly registrationComplete = signal(false);
     readonly tosSubmitting = signal(false);
     readonly tosError = signal<string | null>(null);
+    readonly showPassword = signal(false);
+    readonly showConfirm = signal(false);
     private savedCredentials: { username: string; password: string } | null = null;
 
     // Club search state
