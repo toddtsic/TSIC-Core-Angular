@@ -30,7 +30,6 @@ import { FamilyStateService } from '../state/family-state.service';
           <div class="col-12 col-md-6">
             <label class="field-label" for="v2-cred-username">Username</label>
             <input id="v2-cred-username" type="text" formControlName="username" class="field-input" appAutofocus
-                   autocomplete="off"
                    [class.is-required]="!form.controls.username.value?.trim()"
                    [class.is-invalid]="touched() && form.controls.username.invalid"
                    (input)="syncToState()" (blur)="syncToState()" />

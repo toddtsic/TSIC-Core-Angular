@@ -80,7 +80,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                     <app-login
                         [theme]="''"
                         [embedded]="true"
-                        [autofillDisabled]="true"
                         [headerText]="'Sign In'"
                         [subHeaderText]="'Enter your username and password'"
                         [returnUrl]="returnUrl()"
@@ -153,7 +152,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     </label>
                                     <input type="tel" class="field-input"
                                         inputmode="numeric" pattern="[0-9]*"
-                                        autocomplete="off"
                                         [class.is-required]="!state.isPhoneValid()"
                                         [ngModel]="state.phone()"
                                         (ngModelChange)="state.setPhone($event)"
@@ -169,7 +167,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 <div class="col-md-6">
                                     <label class="field-label">Email <span class="req">*</span></label>
                                     <input type="email" class="field-input"
-                                        autocomplete="off"
                                         [class.is-required]="!state.isEmailValid()"
                                         [ngModel]="state.email()"
                                         (ngModelChange)="state.setEmail($event)"
@@ -181,7 +178,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 <div class="col-md-6">
                                     <label class="field-label">Confirm Email <span class="req">*</span></label>
                                     <input type="email" class="field-input"
-                                        autocomplete="off"
                                         [class.is-required]="!state.emailsMatch()"
                                         [ngModel]="state.confirmEmail()"
                                         (ngModelChange)="state.setConfirmEmail($event)"
@@ -237,7 +233,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 <div class="col-md-4">
                                     <label class="field-label">Username <span class="req">*</span></label>
                                     <input type="text" class="field-input"
-                                        autocomplete="off"
                                         name="adult-new-username"
                                         [class.is-required]="state.username().trim().length < 6"
                                         [ngModel]="state.username()"
@@ -248,7 +243,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 <div class="col-md-4">
                                     <label class="field-label">Password <span class="req">*</span></label>
                                     <input type="password" class="field-input"
-                                        autocomplete="new-password"
                                         name="adult-new-password"
                                         [class.is-required]="state.password().length < 6"
                                         [ngModel]="state.password()"
@@ -259,7 +253,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 <div class="col-md-4">
                                     <label class="field-label">Confirm Password <span class="req">*</span></label>
                                     <input type="password" class="field-input"
-                                        autocomplete="new-password"
                                         name="adult-confirm-password"
                                         [class.is-required]="!state.passwordsMatch()"
                                         [ngModel]="state.confirmPassword()"

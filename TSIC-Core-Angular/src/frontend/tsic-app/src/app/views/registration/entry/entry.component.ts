@@ -29,7 +29,6 @@ import { LoginComponent } from '../../auth/login/login.component';
         @if (!isAuthenticated()) {
           <app-login
             [theme]="'player'"
-            [autofillDisabled]="true"
             [headerText]="'Registration'"
             [subHeaderText]="subHeaderReg">
           </app-login>

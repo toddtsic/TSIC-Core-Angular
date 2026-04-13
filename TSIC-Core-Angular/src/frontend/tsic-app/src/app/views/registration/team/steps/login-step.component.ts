@@ -88,7 +88,6 @@ export interface LoginStepResult {
           <app-login
             [theme]="''"
             [embedded]="true"
-            [autofillDisabled]="true"
             [headerText]="'Club Rep Sign In'"
             [subHeaderText]="'Enter your username and password'"
             [returnUrl]="returnUrl()"
