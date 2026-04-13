@@ -235,6 +235,7 @@ public interface IJobRepository
 
     Task<List<Dtos.EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default);
     Task<Dtos.GameClockConfigDto?> GetGameClockConfigAsync(Guid jobId, CancellationToken ct = default);
+    Task<Dtos.GameClockAvailableGameTimesDto> GetActiveGamesAsync(Guid jobId, DateTime? preferredGameDate, CancellationToken ct = default);
     Task<List<Dtos.EventDocDto>> GetJobDocsAsync(Guid jobId, CancellationToken ct = default);
 }
 

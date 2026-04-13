@@ -53,3 +53,22 @@ public record GameClockConfigDto
     public decimal? PlayoffHalfMinutes { get; init; }
     public decimal? PlayoffHalfTimeMinutes { get; init; }
 }
+
+/// <summary>
+/// A single game start time available for countdown-clock tracking.
+/// </summary>
+public record GameClockStartDataDto
+{
+    public required DateTime GameStart { get; init; }
+    public required bool IsRoundRobin { get; init; }
+    public required decimal DurationMinutes { get; init; }
+}
+
+/// <summary>
+/// Currently-live or next-upcoming games for an event, split by round-robin vs playoff.
+/// </summary>
+public record GameClockAvailableGameTimesDto
+{
+    public required IReadOnlyList<GameClockStartDataDto> AvailableRRGameData { get; init; }
+    public required IReadOnlyList<GameClockStartDataDto> AvailablePOGameData { get; init; }
+}

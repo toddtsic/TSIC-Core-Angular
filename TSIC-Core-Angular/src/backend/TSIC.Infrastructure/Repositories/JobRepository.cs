@@ -508,6 +508,110 @@ public class JobRepository : IJobRepository
             }).FirstOrDefaultAsync(ct);
     }
 
+    public async Task<GameClockAvailableGameTimesDto> GetActiveGamesAsync(
+        Guid jobId, DateTime? preferredGameDate, CancellationToken ct = default)
+    {
+        // Port of legacy TSIC-Unify-2024 ScheduleService.GetActiveGame — preserve semantics.
+        var empty = new GameClockAvailableGameTimesDto
+        {
+            AvailableRRGameData = Array.Empty<GameClockStartDataDto>(),
+            AvailablePOGameData = Array.Empty<GameClockStartDataDto>()
+        };
+
+        var gcParams = await _context.GameClockParams.AsNoTracking()
+            .Where(gc => gc.JobId == jobId).FirstOrDefaultAsync(ct);
+        if (gcParams is null) return empty;
+
+        // RR duration: if quarters configured, 4Q + 2QT + HT + Trans; else 2H + HT + Trans
+        decimal rrDuration = (gcParams.QuarterMinutes ?? 0m) > 0m
+            ? (4m * (gcParams.QuarterMinutes ?? 0m))
+                + (2m * (gcParams.QuarterTimeMinutes ?? 0m))
+                + gcParams.HalfTimeMinutes
+                + gcParams.TransitionMinutes
+            : (2m * gcParams.HalfMinutes) + gcParams.HalfTimeMinutes + gcParams.TransitionMinutes;
+
+        // PO duration: if playoff halves configured, 2PH + PHT + Trans; else PlayoffMinutes + Trans
+        decimal poDuration = (gcParams.PlayoffHalfMinutes ?? 0m) > 0m
+            ? (2m * (gcParams.PlayoffHalfMinutes ?? 0m))
+                + (gcParams.PlayoffHalfTimeMinutes ?? 0m)
+                + gcParams.TransitionMinutes
+            : gcParams.PlayoffMinutes + gcParams.TransitionMinutes;
+
+        // Event-local "now" computed from UTC and the event offset (positive hours west of UTC).
+        // Mirrors the mobile client's getNow() but without assuming the server is in Arizona.
+        int eventOffset = gcParams.UtcoffsetHours ?? 0;
+        var now = DateTime.UtcNow.AddHours(-eventOffset);
+
+        var rr = await GetBucketAsync(jobId, now, rrDuration, isRoundRobin: true, ct);
+        var po = poDuration > 0m
+            ? await GetBucketAsync(jobId, now, poDuration, isRoundRobin: false, ct)
+            : (IReadOnlyList<GameClockStartDataDto>)Array.Empty<GameClockStartDataDto>();
+
+        if (preferredGameDate.HasValue)
+        {
+            rr = rr.Where(g => g.GameStart == preferredGameDate.Value).ToArray();
+            po = po.Where(g => g.GameStart == preferredGameDate.Value).ToArray();
+        }
+
+        return new GameClockAvailableGameTimesDto
+        {
+            AvailableRRGameData = rr,
+            AvailablePOGameData = po
+        };
+    }
+
+    private async Task<IReadOnlyList<GameClockStartDataDto>> GetBucketAsync(
+        Guid jobId, DateTime now, decimal durationMinutes, bool isRoundRobin, CancellationToken ct)
+    {
+        var endOffsetMinutes = (double)durationMinutes;
+
+        // Base filter: job + has date + RR vs PO split on T1Type/T2Type
+        var baseQuery = _context.Schedule.AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate != null);
+
+        baseQuery = isRoundRobin
+            ? baseQuery.Where(s => s.T1Type == "T" && s.T2Type == "T")
+            : baseQuery.Where(s => s.T1Type != "T" && s.T2Type != "T");
+
+        // Active window: now >= GDate AND now < GDate + duration
+        var activeDates = await baseQuery
+            .Where(s => s.GDate <= now && now < s.GDate!.Value.AddMinutes(endOffsetMinutes))
+            .Select(s => s.GDate!.Value)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToListAsync(ct);
+
+        if (activeDates.Count > 0)
+        {
+            return activeDates.Select(d => new GameClockStartDataDto
+            {
+                GameStart = d,
+                IsRoundRobin = isRoundRobin,
+                DurationMinutes = durationMinutes
+            }).ToArray();
+        }
+
+        // No active — return next single upcoming GDate
+        var nextDate = await baseQuery
+            .Where(s => s.GDate > now)
+            .OrderBy(s => s.GDate)
+            .Select(s => s.GDate!.Value)
+            .FirstOrDefaultAsync(ct);
+
+        if (nextDate == default)
+            return Array.Empty<GameClockStartDataDto>();
+
+        return new[]
+        {
+            new GameClockStartDataDto
+            {
+                GameStart = nextDate,
+                IsRoundRobin = isRoundRobin,
+                DurationMinutes = durationMinutes
+            }
+        };
+    }
+
     public async Task<List<EventDocDto>> GetJobDocsAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _context.TeamDocs.AsNoTracking().Where(td => td.JobId == jobId).OrderBy(td => td.Label)

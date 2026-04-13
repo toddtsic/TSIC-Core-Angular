@@ -11,4 +11,5 @@ public interface IEventBrowseService
     Task<List<EventAlertDto>> GetAlertsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<EventDocDto>> GetDocsAsync(Guid jobId, CancellationToken ct = default);
     Task<GameClockConfigDto?> GetGameClockConfigAsync(Guid jobId, CancellationToken ct = default);
+    Task<GameClockAvailableGameTimesDto> GetActiveGamesAsync(Guid jobId, DateTime? preferredGameDate, CancellationToken ct = default);
 }

@@ -13,7 +13,9 @@ import type {
     ContactDto,
     FieldDisplayDto,
     EditScoreRequest,
-    EditGameRequest
+    EditGameRequest,
+    GameClockConfigDto,
+    GameClockAvailableGameTimesDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -116,5 +118,23 @@ export class ViewScheduleService {
 
     editGame(request: EditGameRequest): Observable<void> {
         return this.http.post<void>(`${this.apiUrl}/edit-game`, request);
+    }
+
+    // ── Game Clock (countdown FAB on view-schedule) ──
+
+    getGameClockConfig(jobId: string): Observable<GameClockConfigDto> {
+        return this.http.get<GameClockConfigDto>(`${environment.apiUrl}/events/${jobId}/game-clock`);
+    }
+
+    getActiveGames(jobId: string, preferredGameDate?: Date): Observable<GameClockAvailableGameTimesDto> {
+        const url = `${environment.apiUrl}/events/${jobId}/active-games`;
+        if (!preferredGameDate) {
+            return this.http.get<GameClockAvailableGameTimesDto>(url);
+        }
+        // Match legacy: send local ISO with no Z / no offset so server doesn't shift the time.
+        const d = preferredGameDate;
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        return this.http.get<GameClockAvailableGameTimesDto>(url, { params: { preferredGameDate: local } });
     }
 }

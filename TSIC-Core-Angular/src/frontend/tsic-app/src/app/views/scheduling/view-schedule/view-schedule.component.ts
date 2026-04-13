@@ -29,6 +29,7 @@ import { BracketsTabComponent } from './components/brackets-tab.component';
 import { ContactsTabComponent } from './components/contacts-tab.component';
 import { TeamResultsModalComponent } from './components/team-results-modal.component';
 import { EditGameModalComponent } from './components/edit-game-modal.component';
+import { GameClockModalComponent } from './components/game-clock-modal.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
@@ -53,6 +54,7 @@ interface FilterChip {
         ContactsTabComponent,
         TeamResultsModalComponent,
         EditGameModalComponent,
+        GameClockModalComponent,
         TsicDialogComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -379,6 +381,20 @@ interface FilterChip {
             (close)="editGameVisible.set(false)"
             (save)="onEditGameSave($event)" />
 
+        <!-- Game Clock FAB + Modal — only shown when current/upcoming RR or PO games exist -->
+        @if (currentJobId() && hasGameClockGames()) {
+            <button type="button" class="game-clock-fab"
+                    (click)="gameClockVisible.set(true)"
+                    aria-label="Open game clock">
+                <i class="bi bi-stopwatch"></i>
+            </button>
+        }
+        @if (gameClockVisible() && currentJobId()) {
+            <app-game-clock-modal
+                [jobId]="currentJobId()"
+                (close)="gameClockVisible.set(false)" />
+        }
+
         <!-- Field Info Modal (used by brackets tab) -->
         @if (fieldInfoVisible()) {
             <tsic-dialog size="sm" (requestClose)="fieldInfoVisible.set(false)">
@@ -420,6 +436,36 @@ interface FilterChip {
             padding: var(--space-3);
             max-width: 1400px;
             margin: 0 auto;
+        }
+
+        /* ── Game Clock FAB ── */
+        .game-clock-fab {
+            position: fixed;
+            bottom: var(--space-6);
+            right: var(--space-6);
+            z-index: 1040;
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-full, 999px);
+            background: var(--bs-primary);
+            color: #fff;
+            border: none;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .game-clock-fab:hover {
+            filter: brightness(1.05);
+        }
+        .game-clock-fab:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus, 0 0 0 0.25rem rgba(13,110,253,.25));
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .game-clock-fab { transition: none !important; }
         }
 
         /* ── Header ── */
@@ -905,6 +951,10 @@ export class ViewScheduleComponent implements OnInit {
     readonly fieldInfo = signal<FieldDisplayDto | null>(null);
     readonly fieldInfoVisible = signal(false);
 
+    readonly gameClockVisible = signal(false);
+    readonly currentJobId = computed(() => this.jobService.currentJob()?.jobId ?? '');
+    readonly hasGameClockGames = signal(false);
+
     // ══════════════════════════════════════════════════════════════════
     // Computed helpers
     // ══════════════════════════════════════════════════════════════════
@@ -1032,6 +1082,24 @@ export class ViewScheduleComponent implements OnInit {
         });
 
         this.loadTabData('games');
+        this.probeGameClock();
+    }
+
+    /**
+     * One-shot gate: only show the game-clock FAB if there's at least one current-live
+     * or upcoming RR or PO game for this job. PO support is provisional pending review.
+     */
+    private probeGameClock(): void {
+        const jobId = this.currentJobId();
+        if (!jobId) return;
+        this.svc.getActiveGames(jobId).subscribe({
+            next: (data) => {
+                const has = (data.availableRRGameData?.length ?? 0) > 0
+                    || (data.availablePOGameData?.length ?? 0) > 0;
+                this.hasGameClockGames.set(has);
+            },
+            error: () => this.hasGameClockGames.set(false)
+        });
     }
 
     // ══════════════════════════════════════════════════════════════════

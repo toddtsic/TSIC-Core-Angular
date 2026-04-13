@@ -65,4 +65,18 @@ public class EventBrowseController : ControllerBase
             return NotFound(new { Error = "No game clock configuration found for this event" });
         return Ok(config);
     }
+
+    /// <summary>
+    /// Get currently-live or next-upcoming games for an event (drives countdown-clock UI).
+    /// </summary>
+    [HttpGet("{jobId:guid}/active-games")]
+    [ProducesResponseType(typeof(GameClockAvailableGameTimesDto), 200)]
+    public async Task<IActionResult> GetActiveGames(
+        Guid jobId,
+        [FromQuery] DateTime? preferredGameDate,
+        CancellationToken ct)
+    {
+        var result = await _eventBrowseService.GetActiveGamesAsync(jobId, preferredGameDate, ct);
+        return Ok(result);
+    }
 }

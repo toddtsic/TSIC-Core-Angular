@@ -37,4 +37,10 @@ public sealed class EventBrowseService : IEventBrowseService
     {
         return await _jobRepo.GetGameClockConfigAsync(jobId, ct);
     }
+
+    public async Task<GameClockAvailableGameTimesDto> GetActiveGamesAsync(
+        Guid jobId, DateTime? preferredGameDate, CancellationToken ct = default)
+    {
+        return await _jobRepo.GetActiveGamesAsync(jobId, preferredGameDate, ct);
+    }
 }
