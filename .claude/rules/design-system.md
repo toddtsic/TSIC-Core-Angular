@@ -23,6 +23,25 @@ padding: 16px;
 - WCAG AA compliance (4.5:1 contrast minimum)
 - Review `styles.scss` for brand variables before any UI work
 
+## Accessibility Requirements (WCAG AA)
+
+- **Focus states required** on all interactive elements:
+  ```scss
+  .my-element:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+  }
+  ```
+- **Reduced-motion support required** for any animation/transition:
+  ```scss
+  @media (prefers-reduced-motion: reduce) {
+      .animated { animation: none !important; transition: none !important; }
+  }
+  ```
+- Never rely on color alone to convey information (pair with icons/text).
+
+See `docs/DesignSystem/DESIGN-SYSTEM.md` for CSS variable reference, semantic class names (`.bg-surface`, `.bg-primary-subtle`, etc.), and component patterns.
+
 ## BANNED: `backdrop-filter` (NEVER USE)
 
 `backdrop-filter` is **permanently banned** from this codebase. Do not add it under any circumstances.

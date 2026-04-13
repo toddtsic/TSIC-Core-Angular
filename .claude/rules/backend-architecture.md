@@ -56,6 +56,27 @@ var role = User.FindFirst(ClaimTypes.Role)?.Value;
 | `role` | `ClaimTypes.Role` |
 | Custom claims (`username`, `regId`, `jobPath`) | No remapping — use raw string |
 
+## Complex Queries Return DTOs, Not Entities
+
+For queries spanning 3+ entities (joins, includes across multiple tables), the repository method MUST return a purpose-built DTO, not a full entity with navigation properties.
+
+Why: avoids circular references, over-fetching, and leaks EF complexity into the service layer. One optimized query, one shape, one purpose.
+
+```csharp
+// CORRECT — repository owns the join, returns DTO
+public async Task<RegistrantWithClubRepDto?> GetRegistrantWithClubRepAsync(
+    Guid registrationId, CancellationToken ct = default)
+{
+    return await (from r in _context.Registrations
+                  join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+                  // ... more joins
+                  select new RegistrantWithClubRepDto { ... })
+        .AsNoTracking().FirstOrDefaultAsync(ct);
+}
+```
+
+See `docs/Standards/REPOSITORY-PATTERN-STANDARDS.md` for full patterns, naming conventions (`Get<Entity><Criteria>Async`), and decision matrix.
+
 ## Clean Architecture Layers
 
 ```
