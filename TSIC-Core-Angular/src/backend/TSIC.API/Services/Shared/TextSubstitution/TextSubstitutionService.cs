@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TSIC.Domain.Constants;
 using TSIC.Contracts.Repositories;
@@ -650,6 +651,11 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
         var html = WebUtility.HtmlDecode(raw) ?? string.Empty;
         html = html.Replace("!JOBNAME", jobName ?? string.Empty).Replace("!CUSTOMERNAME", customerName ?? string.Empty);
+        // Legacy waiver text authored for a pre-confirmation flow often trails with
+        // "BY CLICKING NEXT BELOW, I AGREE...". The confirmation page has no Next
+        // button, so strip these sentences and any paragraph wrappers they leave empty.
+        html = Regex.Replace(html, @"BY\s+CLICKING[^.!?<]*[.!?]?", string.Empty, RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"<p[^>]*>\s*</p>", string.Empty, RegexOptions.IgnoreCase);
         var safeLabel = string.IsNullOrWhiteSpace(label) ? "Waiver:" : label;
         return HtmlTableBuilder.RenderWaiverBlock(safeLabel, html, emailMode);
     }

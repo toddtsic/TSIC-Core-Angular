@@ -220,7 +220,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Related fields grouped together — Height/Weight side by side, Shorts Size/T-shirt Size side by side; Height should be optional
 - **What happened**: Weight is not next to Height, Shorts Size is not next to T-shirt Size, and Height is required when it shouldn't be
 - **Severity**: UX
-- **Status**: Open — fix is in the **profile metadata** (field order + Height required flag), not wizard code. Must be applied per affected profile.
+- **Status**: Fixed — field order is profile-driven. Todd edited the profile and the field moves appropriately. Height-required and adjacency concerns are handled per-profile going forward.
 
 ### PL-023: Player Details form — increase font size of Team Selected next to Player Name
 - **Area**: Registration Process Review
@@ -244,7 +244,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Player names displayed prominently in a list with a checkbox next to each name for the parent to actively confirm
 - **What happened**: Player names are too small and not listed clearly — consider having the parent check a box next to each player's name to acknowledge the waiver for each child individually
 - **Severity**: UX
-- **Status**: Open — needs design decision. Current model: one checkbox per waiver applied to all selected players. Moving to per-player-per-waiver acceptance is a significant change (state shape, persistence, UI) with legal consent implications. Not an autonomous fix.
+- **Status**: Won't Fix — current blanket model (one checkbox per waiver applies to all selected players) is correct by design. Acceptance text already states the waiver applies to selected players; forcing a per-player tick doesn't change the consent.
 
 ### PL-026: Review and Accept Waivers — make "ALL" capitalized and increase font size of intro text
 - **Area**: Registration Process Review
@@ -343,7 +343,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Crisp, well-organized layout — 3 tables should stand out clearly, organization info in its own card, waiver info in its own card
 - **What happened**: Page feels cluttered — tables don't stand out, organization information and waiver content are not separated into their own distinct card areas
 - **Severity**: UX
-- **Status**: Open — confirmation HTML is server-rendered via token substitution; layout fix lives in backend template, not the wizard step.
+- **Status**: Won't Fix — table styling refactor (dual-mode CSS classes, tsic-grid, warning/waiver/choices blocks) landed on 2026-04-12 (commits `897e17b2`, `67bebfd1`). Tables, waiver/insurance block, and contacts section now read as visually distinct on-screen. Card-wrapping every section would add chrome for marginal gain.
 
 ### PL-038: Waiver area on confirmation shows "BY CLICKING NEXT BELOW, I AGREE..." — confuses parents
 - **Area**: Registration Process Review
@@ -351,7 +351,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear indication that the waiver was already accepted during registration — no action needed
 - **What happened**: Text says "BY CLICKING NEXT BELOW, I AGREE WITH THE ABOVE RELEASE OF LIABILITY" which makes parents think they need to do something else. Either remove this text or add a clarifying note outside the waiver card (e.g., "Waiver accepted during registration")
 - **Severity**: UX
-- **Status**: Open — text lives in the per-job waiver content stored server-side. Either edit the waiver source (per job) or strip/replace the trailing line in the confirmation token renderer. Backend work, not wizard.
+- **Status**: Fixed — `BuildWaiverHtmlAsync` in `TextSubstitutionService` now strips `BY CLICKING...` sentences (and any empty `<p>` wrappers they leave behind) before rendering. Applies to every job's confirmation and email waiver tokens, no per-job data edit needed.
 
 ### PL-039: After finishing registration and logging back in — no menus or info to review/edit
 - **Area**: Registration Process Review
@@ -557,7 +557,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Terms of Service acceptance screen to appear, like it does in Legacy
 - **What happened**: No Terms of Service screen — goes straight through. Should it be added here?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — ToS step added to family wizard (create mode) after Review. Auto-logs in and persists acceptance to AspNetUsers on accept. Commits `b26b896a` (2026-04-08) and `aa709b7a` (2026-04-10).
 
 ### PL-048: Legacy collected Email for Family Account in addition to contact emails — still needed?
 - **Area**: Family Account Creation
