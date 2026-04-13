@@ -73,11 +73,11 @@ import { FamilyStateService } from '../state/family-state.service';
           }
         </div>
 
-        <!-- Children table -->
+        <!-- Players table -->
         <div class="mt-3">
-          <h6 class="fw-semibold mb-2">Children</h6>
+          <h6 class="fw-semibold mb-2">Players</h6>
           @if (state.children().length === 0) {
-            <div class="text-muted">No children added.</div>
+            <div class="text-muted">No players added.</div>
           }
           @if (state.children().length > 0) {
             <div class="table-responsive">
