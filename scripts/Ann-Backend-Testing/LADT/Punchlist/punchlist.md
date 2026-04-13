@@ -224,7 +224,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A down-arrow button to navigate to the Age Groups level, consistent with other table navigation
 - **What happened**: No down-arrow navigation button at the League table level
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `A↓N` drill-down badge now renders on League rows (when N > 0), mirroring the `D↓` / `T↓` badges on Agegroup/Division rows. Child count computed frontend-side from `flatNodes()` by matching `parentId === leagueId`. Click drills into the first age group.
 
 ### PL-023: Divisions table — move up/down buttons under Division column and remove Fees column
 - **Area**: Division Settings
@@ -249,7 +249,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear column headers labeling what the numbers represent
 - **What happened**: Team and player counts show in the tree but no headers — add "Teams" and "Players" headers with numbers centered below them
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — added a right-aligned `tree-column-headers` row above the tree scroll area with "Teams" (primary color) and "Players" (success color) uppercase labels. Only renders when tree has data. Per-row badges now have labeled columns above them.
 
 ### PL-026: Teams table — change "in" to "under" and improve L/A/D hover text
 - **Area**: Team Settings
@@ -292,7 +292,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A dropdown with additional options
 - **What happened**: No options appear — button seems unnecessary if nothing is under it
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — `⋮` button and its dropdown are now wrapped in `@if (team()?.clubRepRegistrationId)`, so the whole affordance only renders for teams that actually have a club to change. No empty popup on teams without a club association.
 
 ### PL-031: Review Self Rostering and Hide Roster radio buttons — which job types do they apply to?
 - **Area**: Team Settings
@@ -333,7 +333,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A brief explanation or tooltip describing what Keyword Pairs are used for
 - **What happened**: No context — not clear what this feature does or when to use it
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — feature is obsolete. Keyword-chip filtering was superseded by the CAC player-registration typeahead search, which accomplishes the same team-filter goal without a curated Category:Value list. Keyword Pairs input removed from LADT team-detail editor and from the LADT grid's Advanced column group. DB column left in place (no migration needed; legacy data harmless).
 
 ### PL-036: "LADT Hierarchy" — consider renaming to "LADT Tree" and spell out the acronym somewhere
 - **Area**: Tree Navigation

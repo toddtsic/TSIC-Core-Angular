@@ -47,7 +47,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Registration Date column showing when each team was registered
 - **What happened**: No Reg Date column — add it to any Review or Payment tables
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — shared `registered-teams-grid` (used on both Teams and Payment steps) has the Reg Date column sourced from `RegisteredTeamDto.registrationTs`.
 
 ### PL-025: Payment Status table missing columns — needs Paid, Base Fee, Processing Fee, CC Owed Total, Ck Owed Total
 - **Area**: Review Summary

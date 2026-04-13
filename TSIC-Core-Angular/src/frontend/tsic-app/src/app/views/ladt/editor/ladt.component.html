@@ -32,8 +32,8 @@
     <div class="tree-header">
       <h6 class="mb-0" title="Leagues, Age Groups, Divisions, Teams">LADT Tree</h6>
       <div class="tree-stats">
-        <span class="badge bg-primary-subtle text-primary-emphasis">{{ totalTeams() | number }} teams</span>
-        <span class="badge bg-success-subtle text-success-emphasis">{{ totalPlayers() | number }} players</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ totalTeams() | number }} teams</span>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ totalPlayers() | number }} players</span>
       </div>
       <ul class="list-unstyled mt-2 mb-0 small text-secondary">
         <li class="d-flex align-items-center justify-content-between mb-1">
@@ -88,6 +88,10 @@
         No leagues found for this job.
       </div>
     } @else {
+      <div class="tree-column-headers" aria-hidden="true">
+        <span class="tree-col-head teams">Teams</span>
+        <span class="tree-col-head players">Players</span>
+      </div>
       <div class="tree-scroll">
         <cdk-tree [dataSource]="visibleNodes()" [levelAccessor]="levelAccessor" [trackBy]="trackById">
           <cdk-tree-node *cdkTreeNodeDef="let node" class="tree-node"
@@ -135,9 +139,9 @@
                     <span class="active-badge active-no">Inactive</span>
                   }
                   @if (node.level < 3) {
-                    <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount | number }}</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ node.teamCount | number }}</span>
                   }
-                  <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount | number }}</span>
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ node.playerCount | number }}</span>
                 </span>
               </button>
               <!-- Delete button for leaf nodes (levels 1+, except Unassigned divisions) -->
@@ -190,9 +194,9 @@
                   <span class="active-badge active-no">Inactive</span>
                 }
                 @if (node.level < 3) {
-                  <span class="badge bg-primary-subtle text-primary-emphasis">{{ node.teamCount | number }}</span>
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ node.teamCount | number }}</span>
                 }
-                <span class="badge bg-success-subtle text-success-emphasis">{{ node.playerCount | number }}</span>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ node.playerCount | number }}</span>
               </span>
             </button>
             <!-- Delete button (levels 1+, except Unassigned divisions) -->

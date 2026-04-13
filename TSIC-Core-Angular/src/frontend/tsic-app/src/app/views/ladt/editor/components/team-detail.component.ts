@@ -30,20 +30,20 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
         <button class="btn btn-sm btn-outline-danger" (click)="confirmDrop()" [disabled]="isSaving()">
           <i class="bi bi-box-arrow-down me-1"></i>Drop
         </button>
-        <div style="position: relative;">
-          <button class="btn btn-sm btn-outline-secondary" (click)="moreOpen.set(!moreOpen())" title="More actions">
-            <i class="bi bi-three-dots-vertical"></i>
-          </button>
-          @if (moreOpen()) {
-            <ul class="dropdown-menu dropdown-menu-end show" style="position: absolute; right: 0; top: 100%;">
-              @if (team()?.clubRepRegistrationId) {
+        @if (team()?.clubRepRegistrationId) {
+          <div style="position: relative;">
+            <button class="btn btn-sm btn-outline-secondary" (click)="moreOpen.set(!moreOpen())" title="More actions">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            @if (moreOpen()) {
+              <ul class="dropdown-menu dropdown-menu-end show" style="position: absolute; right: 0; top: 100%;">
                 <li><button class="dropdown-item" (click)="confirmChangeClub(); moreOpen.set(false)">
                   <i class="bi bi-arrow-left-right me-2"></i>Change Club
                 </button></li>
-              }
-            </ul>
-          }
-        </div>
+              </ul>
+            }
+          </div>
+        }
       </div>
     </div>
 
@@ -236,10 +236,6 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
               <label class="fee-label">Team Comments</label>
               <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.teamComments" name="teamComments"></textarea>
             </div>
-            <div class="col-12">
-              <label class="fee-label">Keyword Pairs</label>
-              <input class="form-control form-control-sm" [(ngModel)]="form.keywordPairs" name="keywordPairs">
-            </div>
           </div>
         </div>
 
@@ -417,7 +413,6 @@ export class TeamDetailComponent implements OnChanges {
       fieldId3: this.form.fieldId3,
       levelOfPlay: this.form.levelOfPlay,
       requests: this.form.requests,
-      keywordPairs: this.form.keywordPairs,
       teamComments: this.form.teamComments
     };
 

@@ -569,6 +569,14 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           this.jobFees.set(result.fees);
         }
 
+        // Enrich leagues with child agegroup count for drill-down badge
+        if (level === 0) {
+          const treeNodes = this.flatNodes();
+          for (const row of data) {
+            row.agegroupCount = treeNodes.filter(n => n.parentId === row.leagueId).length;
+          }
+        }
+
         // Enrich agegroups with tree counts + special flag
         if (level === 1) {
           const treeNodes = this.flatNodes();

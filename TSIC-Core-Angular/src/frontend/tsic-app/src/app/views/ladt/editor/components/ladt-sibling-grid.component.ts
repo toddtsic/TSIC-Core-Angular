@@ -3,6 +3,7 @@ import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
 import { countFrozenColumns } from '../configs/ladt-grid-columns';
+import { contrastText } from '../../../scheduling/shared/utils/scheduling-helpers';
 
 export interface ParentBreadcrumb {
   name: string;
@@ -56,7 +57,7 @@ export interface ParentBreadcrumb {
 
       <e-columns>
         <!-- Action column (always first, frozen) -->
-        <e-column headerText="" [width]="actionColWidth()" textAlign="Center"
+        <e-column headerText="" [width]="actionColWidth()" textAlign="Left"
                   [allowSorting]="false" [allowResizing]="false">
           <ng-template #template let-data>
             <button class="btn-action btn-edit" title="Edit"
@@ -81,6 +82,12 @@ export interface ParentBreadcrumb {
                   <span class="drill-badge drill-up" title="Navigate up to Division"
                         (click)="navigateTo.emit(data['_parentDivId']); $event.stopPropagation()">
                     <i class="bi bi-arrow-up-short"></i>D
+                  </span>
+                }
+                @if (level === 0 && (data['agegroupCount'] ?? 0) > 0) {
+                  <span class="drill-badge" title="Navigate down to {{ data['agegroupCount'] }} Age Groups"
+                        (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
+                    A<i class="bi bi-arrow-down-short"></i>{{ data['agegroupCount'] }}
                   </span>
                 }
                 @if (level === 1 && (data['divisionCount'] ?? 0) > 0) {
@@ -165,18 +172,15 @@ export interface ParentBreadcrumb {
                 }
                 @default {
                   @if (col.colorField) {
-                    <span class="frozen-cell-flex">
-                      <span class="color-dot"
-                            [class.color-dot--empty]="!data[col.colorField]"
-                            [style.background]="data[col.colorField] ?? 'var(--bs-secondary-bg)'"></span>
-                      <span class="frozen-cell-name">{{ data[col.field] ?? '' }}</span>
-                      @if (data['teamCount'] != null) {
-                        <span class="badge bg-primary-subtle text-primary-emphasis frozen-badge">{{ data['teamCount'] | number }}</span>
-                      }
-                      @if (data['playerCount'] != null) {
-                        <span class="badge bg-success-subtle text-success-emphasis frozen-badge">{{ data['playerCount'] | number }}</span>
-                      }
-                    </span>
+                    <span class="agegroup-color-badge"
+                          [style.background]="data[col.colorField] || 'var(--bs-secondary-bg)'"
+                          [style.color]="contrastText(data[col.colorField])">{{ data[col.field] ?? '' }}</span>
+                    @if (data['teamCount'] != null) {
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis frozen-badge" title="Teams">{{ data['teamCount'] | number }}</span>
+                    }
+                    @if (data['playerCount'] != null) {
+                      <span class="badge bg-secondary-subtle text-secondary-emphasis frozen-badge" title="Players">{{ data['playerCount'] | number }}</span>
+                    }
                   } @else {
                     {{ data[col.field] ?? '' }}
                   }
@@ -352,33 +356,20 @@ export interface ParentBreadcrumb {
       background: var(--bs-success-bg-subtle);
     }
 
-    /* ── Color swatch dot ── */
-
-    .color-dot {
+    .agegroup-color-badge {
       display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      vertical-align: middle;
+      padding: 1px var(--space-2);
+      border-radius: var(--radius-pill, 9999px);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      line-height: 1.3;
       border: 1px solid var(--bs-border-color);
-      flex-shrink: 0;
-    }
-    .color-dot--empty {
-      border-style: dashed;
-    }
-
-    .frozen-cell-flex {
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-      width: 100%;
-    }
-    .frozen-cell-name {
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      flex: 1 1 auto;
-      min-width: 60px;
+      vertical-align: middle;
+      margin-right: var(--space-1);
     }
     .frozen-badge {
       font-size: 0.65rem;
@@ -476,6 +467,9 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   @ViewChild('grid') grid!: GridComponent;
 
+  // Template helper
+  readonly contrastText = contrastText;
+
   // Sort state
   sortField = signal<string | null>(null);
   sortDirection = signal<'asc' | 'desc'>('asc');
@@ -486,8 +480,8 @@ export class LadtSiblingGridComponent implements OnChanges {
   // Frozen column count (action col + frozen data cols)
   frozenCount = computed(() => countFrozenColumns(this.columns));
 
-  // Team level (3) has pencil + trash + drill-up badge; others need less
-  actionColWidth = computed(() => this.level >= 2 ? 110 : 90);
+  // Uniform action column width — fits pencil + drill badge for up to 3-digit counts
+  actionColWidth = computed(() => 110);
 
   sortedData = computed(() => {
     const rows = this.dataSignal();

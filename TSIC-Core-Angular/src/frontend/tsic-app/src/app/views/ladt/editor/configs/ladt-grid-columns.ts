@@ -73,7 +73,6 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility' },
   // Advanced
   { field: 'requests', header: 'Requests', type: 'string', group: 'Advanced' },
-  { field: 'keywordPairs', header: 'Keywords', type: 'string', group: 'Advanced' },
   { field: 'teamComments', header: 'Comments', type: 'string', group: 'Advanced' },
 ];
 
