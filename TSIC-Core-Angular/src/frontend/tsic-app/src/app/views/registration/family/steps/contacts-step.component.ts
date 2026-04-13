@@ -17,12 +17,11 @@ import { FamilyStateService } from '../state/family-state.service';
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
         <h5 class="mb-1 fw-semibold">Family Contacts</h5>
-        <p class="wizard-tip">Both parent/guardian contacts are required.</p>
 
         <div [formGroup]="form" class="row g-4">
           <!-- Parent 1 -->
           <div class="col-12 col-xl-6">
-            <h6 class="fw-semibold mb-2">{{ label1() }}'s Details (primary contact)</h6>
+            <h6 class="fw-semibold mb-2">Parent/Contact 1 Details</h6>
             <div class="row g-3">
               <div class="col-12">
                 <label class="field-label" for="v2-p1First">First name</label>
@@ -76,7 +75,7 @@ import { FamilyStateService } from '../state/family-state.service';
 
           <!-- Parent 2 -->
           <div class="col-12 col-xl-6">
-            <h6 class="fw-semibold mb-2">{{ label2() }}'s Details (secondary contact)</h6>
+            <h6 class="fw-semibold mb-2">Parent/Contact 2 Details</h6>
             <div class="row g-3">
               <div class="col-12">
                 <label class="field-label" for="v2-p2First">First name</label>

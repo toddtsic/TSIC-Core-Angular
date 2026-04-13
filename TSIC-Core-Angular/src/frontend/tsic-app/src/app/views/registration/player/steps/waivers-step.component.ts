@@ -28,9 +28,9 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
         @if (waiverDefs().length === 0) {
           <div class="alert alert-info">No waivers required for this event.</div>
         } @else {
-          <div class="wizard-callout wizard-callout-info">
+          <div class="wizard-callout wizard-callout-info" style="font-size: var(--font-size-base);">
             <i class="bi bi-info-circle"></i>
-            <span>These waivers apply to <strong>all selected players</strong>. Read each one and check to accept.</span>
+            <span>These waivers apply to <strong>ALL selected players</strong>. Read each one and check to accept.</span>
           </div>
 
           <!-- Player badges -->

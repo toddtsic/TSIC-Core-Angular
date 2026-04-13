@@ -16,7 +16,7 @@ import { FamilyStateService } from '../state/family-state.service';
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
         <h5 class="mb-1 fw-semibold">Address</h5>
-        <p class="wizard-tip">Enter your family's mailing address.</p>
+        <p class="wizard-tip">Enter your player's/family's mailing address.</p>
 
         <div [formGroup]="form" class="row g-3">
           <div class="col-12">

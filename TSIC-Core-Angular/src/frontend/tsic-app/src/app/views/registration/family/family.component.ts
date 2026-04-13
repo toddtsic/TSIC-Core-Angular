@@ -55,7 +55,7 @@ export class FamilyWizardV2Component implements OnInit {
         { id: 'credentials', label: 'Account', enabled: true },
         { id: 'contacts', label: 'Contacts', enabled: true },
         { id: 'address', label: 'Address', enabled: true },
-        { id: 'children', label: 'Children', enabled: true },
+        { id: 'children', label: 'Players', enabled: true },
         { id: 'review', label: 'Review', enabled: true },
         { id: 'tos', label: 'Terms of Service', enabled: this.state.mode() === 'create' },
     ]);

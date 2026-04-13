@@ -141,6 +141,7 @@ import { LoginComponent } from '../../../auth/login/login.component';
           <div class="or-divider">or</div>
 
           <div class="create-cta">
+            <p class="text-center fw-semibold mb-2 mt-1">Don't have a family account yet?</p>
             <button type="button"
                     class="btn btn-outline-primary fw-semibold w-100"
                     (click)="goToFamilyWizard()">

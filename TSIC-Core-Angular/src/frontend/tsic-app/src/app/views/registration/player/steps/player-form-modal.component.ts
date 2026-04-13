@@ -68,14 +68,14 @@ import type { ChildDto } from '@core/api';
           <div class="row g-2">
             <div class="col-6">
               <label for="pfm-email" class="form-label small fw-medium mb-1">
-                Email <span class="text-muted fw-normal">(optional)</span>
+                Email <span class="tip">(optional)</span>
               </label>
               <input id="pfm-email" type="email" class="form-control form-control-sm"
                      [value]="email()" (input)="email.set($any($event.target).value)" />
             </div>
             <div class="col-6">
               <label for="pfm-phone" class="form-label small fw-medium mb-1">
-                Phone <span class="text-muted fw-normal">(optional)</span>
+                Phone <span class="tip">(optional)</span>
               </label>
               <input id="pfm-phone" type="tel" inputmode="numeric" class="form-control form-control-sm"
                      [value]="phone()" (input)="onDigitsOnly($event)"

@@ -9,14 +9,14 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
   styles: [`
       .vi-header { background: linear-gradient(90deg,var(--bs-primary),var(--brand-primary-dark, var(--bs-primary))); color: var(--bs-white); }
       .vi-header h5 { font-weight:600; letter-spacing:.5px; }
-      .vi-body { background: var(--bs-body-bg); }
+      .vi-body { background: var(--bs-body-bg); font-size: var(--font-size-base); }
       .vi-section + .vi-section { border-top:1px solid var(--bs-border-color-translucent); margin-top:1rem; padding-top:1rem; }
       .vi-summary-list { list-style:none; margin:0; padding:0; }
-      .vi-summary-list li { display:flex; gap:.75rem; align-items: flex-start; padding:.35rem 0; }
-      .vi-summary-icon { width:1.25rem; text-align:center; opacity:.75; }
-      .vi-total { font-size:1.05rem; font-weight:600; }
+      .vi-summary-list li { display:flex; gap:.75rem; align-items: flex-start; padding:.4rem 0; font-size: var(--font-size-base); }
+      .vi-summary-icon { width:1rem; text-align:center; color: var(--bs-primary); font-weight: bold; line-height: 1; }
+      .vi-total { font-weight:600; }
       .vi-brand { font-weight:600; }
-      .vi-small { font-size:.825rem; color: var(--bs-secondary-color); }
+      .vi-small { font-size: var(--font-size-base); color: var(--bs-secondary-color); }
     `],
   template: `
     <tsic-dialog [open]="true" (requestClose)="onCancel()">
@@ -32,7 +32,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
         <div class="modal-body vi-body">
           <ul class="vi-summary-list" aria-label="Insurance purchase summary">
             <li>
-              <span class="vi-summary-icon" aria-hidden="true">🧾</span>
+              <span class="vi-summary-icon" aria-hidden="true">•</span>
               @if (viCcOnlyFlow) {
                 <div>Insurance premium(s) for <strong>{{ quotedPlayers.join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span>.</div>
               } @else {
@@ -40,11 +40,11 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
               }
             </li>
             <li>
-              <span class="vi-summary-icon" aria-hidden="true">📧</span>
+              <span class="vi-summary-icon" aria-hidden="true">•</span>
               <div>An email receipt will be sent to <strong>{{ email }}</strong> immediately after processing.</div>
             </li>
             <li class="vi-total">
-              <span class="vi-summary-icon" aria-hidden="true">💵</span>
+              <span class="vi-summary-icon" aria-hidden="true">•</span>
               @if (viCcOnlyFlow) {
                 <div>Total Insurance Premium: <span>{{ premiumTotal | currency }}</span></div>
               } @else {
@@ -53,7 +53,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
             </li>
             @if (!viCcOnlyFlow) {
               <li>
-                <span class="vi-summary-icon" aria-hidden="true">💳</span>
+                <span class="vi-summary-icon" aria-hidden="true">•</span>
                 <div>Your TSIC registration payment will also be processed now.</div>
               </li>
             }

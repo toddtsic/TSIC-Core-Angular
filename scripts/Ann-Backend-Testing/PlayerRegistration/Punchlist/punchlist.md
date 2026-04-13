@@ -91,7 +91,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Family Account info to be prominent since it's key context for the registration
 - **What happened**: Family Account not highlighted enough — consider making it more visible
 - **Severity**: UX
-- **Status**: Re-review — significant updates since this was logged (header now says "Family Account Sign In", wizard-tip styling, etc.). May already be addressed.
+- **Status**: Fixed — family-check step now shows a prominent "Let's Register Your Players!" hero with embedded "Family Account Sign In" login and Create/Update CTAs.
 
 ### PL-007: "Choose Your Players" screen — add Previous/Next buttons at bottom
 - **Area**: Registration Process Review
@@ -188,7 +188,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent white card background for the team assignment area, matching the grad year selection style
 - **What happened**: Assign Teams section doesn't have the same white background treatment — looks inconsistent with the previous screen
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — team-selection-step now uses the same `card shadow border-0 card-rounded` shell as eligibility-step.
 
 ### PL-019: Consider merging Graduation Year and Assign Teams into one screen
 - **Area**: Registration Process Review
@@ -196,7 +196,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Possibly a single screen since both are short player setup tasks
 - **What happened**: Two separate screens for related info — could these be combined into one step to reduce clicks?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — Ann chose to keep them as two separate steps.
 
 ### PL-020: Choose Your Players — change "Edit Account" to "Edit Family Contact Info"
 - **Area**: Registration Process Review
@@ -204,7 +204,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Label that clearly describes what you're editing
 - **What happened**: "Edit Account" is vague — should say "Edit Family Contact Info" to be specific
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — button relabeled to "Edit Family Contact Info".
 
 ### PL-021: USA Lacrosse Number validation — wrap phone number on one line in failed entry popup
 - **Area**: Registration Process Review
@@ -212,7 +212,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Phone number displayed fully on one line
 - **What happened**: Phone number wraps awkwardly across two lines — needs to stay on a single line
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — phone number wrapped in `<span style="white-space:nowrap">` so it stays on one line.
 
 ### PL-022: Player form — move Weight next to Height, make Height optional, move Shorts Size next to T-shirt Size
 - **Area**: Registration Process Review
@@ -220,7 +220,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Related fields grouped together — Height/Weight side by side, Shorts Size/T-shirt Size side by side; Height should be optional
 - **What happened**: Weight is not next to Height, Shorts Size is not next to T-shirt Size, and Height is required when it shouldn't be
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Open — fix is in the **profile metadata** (field order + Height required flag), not wizard code. Must be applied per affected profile.
 
 ### PL-023: Player Details form — increase font size of Team Selected next to Player Name
 - **Area**: Registration Process Review
@@ -228,7 +228,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Team Selected to be prominent and easy to read next to the Player Name
 - **What happened**: Team Selected text is too small — needs a bigger font so it stands out
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `.team-pill` bumped from 10px to `--font-size-sm` (14px) and semibold.
 
 ### PL-024: Player Details — white data entry fields with tinted surrounding background for consistency
 - **Area**: Registration Process Review
@@ -236,7 +236,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: White input fields on a tinted/shaded background, matching the look of other registration screens
 - **What happened**: Fields and background don't have enough contrast between them — make input fields white and the surrounding card background tinted for visual consistency across all registration screens
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `.field-grid` given a faint primary-tinted background; inputs/selects inside forced to `--neutral-0` (white) for contrast.
 
 ### PL-025: Review and Accept Waivers — larger player names in a list with individual checkboxes
 - **Area**: Registration Process Review
@@ -244,7 +244,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Player names displayed prominently in a list with a checkbox next to each name for the parent to actively confirm
 - **What happened**: Player names are too small and not listed clearly — consider having the parent check a box next to each player's name to acknowledge the waiver for each child individually
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Open — needs design decision. Current model: one checkbox per waiver applied to all selected players. Moving to per-player-per-waiver acceptance is a significant change (state shape, persistence, UI) with legal consent implications. Not an autonomous fix.
 
 ### PL-026: Review and Accept Waivers — make "ALL" capitalized and increase font size of intro text
 - **Area**: Registration Process Review
@@ -252,7 +252,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Prominent, easy-to-read text with emphasis on "ALL"
 - **What happened**: Text is too small and "all" is not capitalized — change to "ALL" (caps) and make the entire intro line larger so parents don't miss it
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — "all" → "ALL" and intro callout bumped to `--font-size-base`.
 
 ### PL-027: "Almost There!" screen — Team selection text needs larger font
 - **Area**: Registration Process Review
@@ -260,7 +260,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Team selection info displayed prominently
 - **What happened**: Team selection text is too small — needs a larger font so it stands out
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `.review-team-pill` bumped from 11px to `--font-size-sm` (14px) and semibold.
 
 ### PL-028: "Almost There!" screen — change "F" to "Female" (spell out gender)
 - **Area**: Registration Process Review
@@ -268,7 +268,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Full word "Female" (and presumably "Male" instead of "M")
 - **What happened**: Gender shows as a single letter abbreviation — should be spelled out
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `genderLabel()` helper maps F/M → Female/Male on the review screen.
 
 ### PL-029: "Almost There!" screen — "Review your details" notes slightly too small
 - **Area**: Registration Process Review
@@ -276,7 +276,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Text large enough to read comfortably without being oversized
 - **What happened**: All the detail notes are a bit too small — bump up the font size slightly (not too much, just enough to improve readability)
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `.review-field-value` bumped to `--font-size-base`; `.review-field-label` bumped from 10px to `--font-size-xs`.
 
 ### PL-030: "Almost There!" screen — player names as section headers need bolder font weight
 - **Area**: Registration Process Review
@@ -284,7 +284,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Player names to stand out clearly as section headers
 - **What happened**: Names aren't bold enough — need heavier font weight so they read as headers
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `.review-player-name` bumped to `--font-size-base` and bold weight.
 
 ### PL-031: "Almost There!" screen — should accounting/fee summary be shown here?
 - **Area**: Registration Process Review
@@ -318,7 +318,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Discount Code title to stand out (e.g., red or highlighted) and the "Enter Code" input field to be white so it's clearly a data entry field
 - **What happened**: Title doesn't stand out enough and the input field blends in with the background — needs a highlighted title (maybe red) and a white input field
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — label styled red/bold/uppercase; input forced to white (`--neutral-0`). Also replaced banned Bootstrap `form-control` with `field-input`.
 
 ### PL-035: Confirm Registration Payment + Insurance popup — standardize font size and replace icons with bullets
 - **Area**: Registration Process Review
@@ -326,7 +326,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All text items in the same (larger) font size, with simple bullet points instead of icons
 - **What happened**: Mixed font sizes and icons used instead of bullets — needs uniform larger font and plain bullet list
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — emoji icons (🧾📧💵💳) replaced with plain `•` bullets; all list items + footer normalized to `--font-size-base`.
 
 ### PL-036: Most Recent Transaction(s) only shows one payment after paying for two players
 - **Area**: Registration Process Review
@@ -343,7 +343,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Crisp, well-organized layout — 3 tables should stand out clearly, organization info in its own card, waiver info in its own card
 - **What happened**: Page feels cluttered — tables don't stand out, organization information and waiver content are not separated into their own distinct card areas
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Open — confirmation HTML is server-rendered via token substitution; layout fix lives in backend template, not the wizard step.
 
 ### PL-038: Waiver area on confirmation shows "BY CLICKING NEXT BELOW, I AGREE..." — confuses parents
 - **Area**: Registration Process Review
@@ -351,7 +351,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear indication that the waiver was already accepted during registration — no action needed
 - **What happened**: Text says "BY CLICKING NEXT BELOW, I AGREE WITH THE ABOVE RELEASE OF LIABILITY" which makes parents think they need to do something else. Either remove this text or add a clarifying note outside the waiver card (e.g., "Waiver accepted during registration")
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Open — text lives in the per-job waiver content stored server-side. Either edit the waiver source (per job) or strip/replace the trailing line in the confirmation token renderer. Backend work, not wizard.
 
 ### PL-039: After finishing registration and logging back in — no menus or info to review/edit
 - **Area**: Registration Process Review
@@ -377,7 +377,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent treatment — either "(OPTIONAL)" after the label or placeholder text like "Leave blank if unknown" inside the field
 - **What happened**: No consistent pattern for marking optional fields — need to pick one approach and apply it everywhere
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — standardized on `<span class="tip">(optional)</span>` (italic muted text). Migrated player-form-modal and family-edit-modal off the ad-hoc Bootstrap classes. Children-step and dynamic profile fields already match.
 
 ### PL-042: "Click Here to Begin" bulletin only goes to Adult Registration — consider splitting Player and Coach paths
 - **Area**: Registration Process Review
@@ -435,7 +435,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Helpful prompt text for new parents above the create account button
 - **What happened**: No introductory text above the "Create New Family Account" button — add "Don't have a family account yet?" to guide first-time parents
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — prompt added above the Create NEW Family Account button.
 
 ### PL-063: Premier Lacrosse 2026 (CAC site) behaves like a single player option site
 - **Area**: Registration Process Review
@@ -468,7 +468,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A review screen showing all the data entered (contacts, address, players) before proceeding
 - **What happened**: No review screen — Legacy provided one and it was helpful for parents to verify everything before continuing
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Re-review — wizard already has a Review & Save step (after Players, before ToS) that summarizes Parent 1, Parent 2, Address, and Players. May already satisfy the request.
 
 ### PL-059: "Add Child" button should read "Add Player"
 - **Area**: Family Account Creation
@@ -476,7 +476,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Button text to say "Add Player"
 - **What happened**: Button says "Add Child" — should say "Add Player"
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — submit button label changed from "Add child" to "Add Player".
 
 ### PL-058: Cell phone display should show hyphens (e.g., 555-123-4567)
 - **Area**: Family Account Creation
@@ -484,7 +484,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Display to always show the number formatted with hyphens
 - **What happened**: Number displays without hyphens. See the player data output after adding a new player as an example of where this shows up.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `formatPhone()` helper renders 10/11-digit phone as NNN-NNN-NNNN in the player list.
 
 ### PL-057: Player date of birth format should be MM/DD/YYYY not YYYY-MM-DD
 - **Area**: Family Account Creation
@@ -492,7 +492,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: US date format MM/DD/YYYY (e.g., 01/01/2015)
 - **What happened**: Shows as 2015-01-01 — should display as 01/01/2015
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — `formatDob()` helper renders ISO yyyy-mm-dd as MM/DD/YYYY in the player list.
 
 ### PL-056: After adding a player, header should say "Player 1 added"
 - **Area**: Family Account Creation
@@ -500,7 +500,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Header to confirm the player was added, e.g., "Player 1 added"
 - **What happened**: No confirmation header showing the player was successfully added
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — added players list header now reads "Player 1 added" (or "N players added" for >1).
 
 ### PL-055: "Add Children" section — rename to "Add Player", update wording
 - **Area**: Family Account Creation
@@ -508,7 +508,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Player-focused wording
 - **What happened**: Multiple wording changes needed: (1) Change "Add Children" button to "Add Player", (2) Change step 4 at top to "Players", (3) Change instruction to "Add at least one player to continue", (4) Remove the line "Add each child who will be registered as a player"
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — all four wording changes applied (section heading, step bar label, empty-state alert, removed instructional line).
 
 ### PL-054: Continue button doesn't activate until you click outside the last required field
 - **Area**: Family Account Creation
@@ -525,7 +525,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Wording that covers both player and family
 - **What happened**: Says "Enter your family's mailing address" — should say "Enter your player's/family's mailing address"
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed.
 
 ### PL-052: Add "Select Cell Phone Provider" field for text messaging — all registration types
 - **Area**: Family Account Creation
@@ -541,7 +541,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: No unnecessary instructional text
 - **What happened**: Line says "Both parent/guardian contacts are required" — should be removed
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — wizard-tip line removed.
 
 ### PL-050: Change Family Contacts headers to "Parent/Contact 1 Details" and "Parent/Contact 2 Details"
 - **Area**: Family Account Creation
@@ -549,7 +549,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Headers that clearly label each contact as "Parent/Contact 1 Details" and "Parent/Contact 2 Details"
 - **What happened**: Current headers don't use that wording — should be renamed for clarity
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — headers now read "Parent/Contact 1 Details" and "Parent/Contact 2 Details" (replaces dynamic Mom/Dad labels for these section headings).
 
 ### PL-049: Terms of Service acceptance screen missing after entering username/password
 - **Area**: Family Account Creation
@@ -573,4 +573,4 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear instructions for new users, and a way for existing users to go back to login
 - **What happened**: Text says "New here? Choose a username and password. Already have an account? Enter your existing credentials." — this is confusing. Should say "Choose a username and password for your NEW account" and on a new line "Already have an account? Select 'Back' below to login." Also need to add a Back button on this screen.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — wizard-tip rewritten to Ann's wording. Back button is provided by WizardShell on every step.

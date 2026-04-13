@@ -160,7 +160,7 @@ export class FormSchemaService {
                       + '<br><br><strong>Helpful Links:</strong><ul>'
                       + '<li>Look up your USA Lacrosse Number — <a href="https://account.usalacrosse.com/login/lookup" target="_blank">CLICK HERE</a></li>'
                       + '<li>Register for a USA Lacrosse Number — <a href="https://www.usalacrosse.com/membership" target="_blank">CLICK HERE</a></li></ul>'
-                      + 'For assistance please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882'
+                      + 'For assistance please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call <span style="white-space:nowrap">410-235-6882</span>'
                     : errorMessage;
                 return { name, label, type, required, options, placeholder, helpText, remoteUrl: finalRemoteUrl, errorMessage: finalErrorMessage, visibility, condition } as PlayerProfileFieldSchema;
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];

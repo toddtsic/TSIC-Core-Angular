@@ -54,7 +54,7 @@ import { JobService } from '@infrastructure/services/job.service';
                   <span class="review-player-name">{{ player.name }}</span>
                   @if (player.dob || player.gender) {
                     <span class="review-player-meta">
-                      @if (player.gender) { {{ player.gender }} }
+                      @if (player.gender) { {{ genderLabel(player.gender) }} }
                       @if (player.gender && player.dob) { &middot; }
                       @if (player.dob) { DOB: {{ player.dob | date:'mediumDate' }} }
                     </span>
@@ -191,8 +191,8 @@ import { JobService } from '@infrastructure/services/job.service';
       }
 
       .review-player-name {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
         color: var(--brand-text);
       }
 
@@ -208,8 +208,8 @@ import { JobService } from '@infrastructure/services/job.service';
       }
 
       .review-team-pill {
-        font-size: 11px;
-        font-weight: var(--font-weight-medium);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
         padding: 2px var(--space-2);
         border-radius: var(--radius-full);
         background: rgba(var(--bs-primary-rgb), 0.1);
@@ -279,7 +279,7 @@ import { JobService } from '@infrastructure/services/job.service';
       }
 
       .review-field-label {
-        font-size: 10px;
+        font-size: var(--font-size-xs);
         font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -287,7 +287,7 @@ import { JobService } from '@infrastructure/services/job.service';
       }
 
       .review-field-value {
-        font-size: var(--font-size-sm);
+        font-size: var(--font-size-base);
         font-weight: var(--font-weight-medium);
         color: var(--brand-text);
       }
@@ -347,6 +347,13 @@ export class ReviewStepComponent {
     getAmountForPlayer(playerId: string): number | null {
         const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
         return li ? li.amount : null;
+    }
+
+    genderLabel(g: string): string {
+        const v = (g || '').trim().toUpperCase();
+        if (v === 'F') return 'Female';
+        if (v === 'M') return 'Male';
+        return g;
     }
 
     isMultiTeamMode(): boolean {

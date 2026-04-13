@@ -16,26 +16,25 @@ import { FamilyStateService } from '../state/family-state.service';
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
-        <h5 class="mb-1 fw-semibold">Add Children</h5>
-        <p class="wizard-tip">Add each child who will be registered as a player.</p>
+        <h5 class="mb-1 fw-semibold">Add Player</h5>
 
         <!-- Children list -->
         <div class="mb-4">
           @if (state.children().length === 0) {
-            <div class="alert alert-info mb-3">Add at least one child to continue.</div>
+            <div class="alert alert-info mb-3">Add at least one player to continue.</div>
           }
           @if (state.children().length > 0) {
             <div class="border border-primary rounded p-3 bg-primary-subtle">
-              <h6 class="fw-semibold mb-3">Children added</h6>
+              <h6 class="fw-semibold mb-3">{{ state.children().length === 1 ? 'Player 1 added' : state.children().length + ' players added' }}</h6>
               <ul class="list-group mb-0">
                 @for (c of state.children(); track $index) {
                   <li class="list-group-item d-flex justify-content-between align-items-center"
                       [class.editing-row]="editingIndex() === $index">
                     <div>
                       <div class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</div>
-                      @if (c.dob) { <div class="text-muted small">DOB: {{ c.dob }}</div> }
+                      @if (c.dob) { <div class="text-muted small">DOB: {{ formatDob(c.dob) }}</div> }
                       @if (c.email) { <div class="text-muted small">Email: {{ c.email }}</div> }
-                      @if (c.phone) { <div class="text-muted small">Cell: {{ c.phone }}</div> }
+                      @if (c.phone) { <div class="text-muted small">Cell: {{ formatPhone(c.phone) }}</div> }
                     </div>
                     <div class="d-flex gap-1 align-items-center">
                       <button type="button" class="icon-action" (click)="edit($index)"
@@ -120,7 +119,7 @@ import { FamilyStateService } from '../state/family-state.service';
               </div>
               <div class="col-12 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary">
-                  {{ editingIndex() !== null ? 'Save changes' : 'Add child' }}
+                  {{ editingIndex() !== null ? 'Save changes' : 'Add Player' }}
                 </button>
                 @if (editingIndex() !== null) {
                   <button type="button" class="btn btn-outline-secondary" (click)="cancelEdit()">Cancel</button>
@@ -284,6 +283,19 @@ export class ChildrenStepComponent {
                 this.removing.set(null);
             },
         });
+    }
+
+    formatDob(iso: string): string {
+        // ISO yyyy-mm-dd → MM/DD/YYYY (avoid Date parsing to dodge UTC off-by-one)
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+        return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
+    }
+
+    formatPhone(raw: string): string {
+        const d = (raw || '').replaceAll(/\D+/g, '');
+        if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+        if (d.length === 11 && d.startsWith('1')) return `${d.slice(1, 4)}-${d.slice(4, 7)}-${d.slice(7)}`;
+        return raw;
     }
 
     onDigitsOnly(ev: Event): void {

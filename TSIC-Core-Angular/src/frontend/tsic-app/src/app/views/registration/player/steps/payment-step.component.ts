@@ -203,8 +203,8 @@ import type { LineItem } from '../state/payment-v2.service';
         @if (state.jobCtx.jobHasActiveDiscountCodes() && currentTotal() > 0) {
           <div class="d-flex gap-2 mb-3 align-items-end">
             <div class="flex-grow-1">
-              <label for="discountCode" class="form-label small mb-1 fw-medium">Discount Code</label>
-              <input type="text" class="form-control form-control-sm" id="discountCode"
+              <label for="discountCode" class="field-label discount-label">Discount Code</label>
+              <input type="text" class="field-input discount-input" id="discountCode"
                      [ngModel]="discountCode()"
                      (ngModelChange)="discountCode.set($event)"
                      placeholder="Enter code">
@@ -363,6 +363,17 @@ import type { LineItem } from '../state/payment-v2.service';
   `,
     styles: [`
       :host { display: block; }
+
+      .discount-label {
+        color: var(--bs-danger);
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-base);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .discount-input {
+        background-color: var(--neutral-0);
+      }
 
       .method-selector .method-btn {
         flex: 1;

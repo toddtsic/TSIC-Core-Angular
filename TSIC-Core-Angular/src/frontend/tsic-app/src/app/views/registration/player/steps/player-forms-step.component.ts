@@ -319,9 +319,9 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
       }
 
       .team-pill {
-        font-size: 10px;
-        font-weight: var(--font-weight-medium);
-        padding: 1px var(--space-2);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        padding: 2px var(--space-2);
         border-radius: var(--radius-full);
         background: rgba(var(--bs-primary-rgb), 0.1);
         color: var(--bs-primary);
@@ -337,10 +337,16 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 
       /* Field grid — 2-column on desktop, 1-column on mobile */
       .field-grid {
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-3);
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--space-1) var(--space-4);
+        background: rgba(var(--bs-primary-rgb), 0.04);
+
+        .field-input,
+        .field-select {
+          background-color: var(--neutral-0);
+        }
       }
 
       .field-row {

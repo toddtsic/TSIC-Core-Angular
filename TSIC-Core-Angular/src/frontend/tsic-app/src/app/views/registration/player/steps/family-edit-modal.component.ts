@@ -58,7 +58,7 @@ import type { FamilyUpdateRequest, ChildDto } from '@core/api';
               <hr class="form-divider">
 
               <!-- Parent 2 -->
-              <h6 class="section-heading"><i class="bi bi-person me-1"></i>Secondary Contact <span class="text-muted fw-normal">(optional)</span></h6>
+              <h6 class="section-heading"><i class="bi bi-person me-1"></i>Secondary Contact <span class="tip">(optional)</span></h6>
               <div class="row g-2 mb-2">
                 <div class="col-6">
                   <label class="form-label small fw-medium mb-1" for="fem-p2f">First Name</label>

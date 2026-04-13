@@ -33,7 +33,7 @@ import { environment } from '@environments/environment';
         <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Your Players</h5>
         <button type="button" class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
                 (click)="openFamilyEdit()">
-          <i class="bi bi-pencil-square me-1"></i>Edit Account
+          <i class="bi bi-pencil-square me-1"></i>Edit Family Contact Info
         </button>
       </div>
       <div class="card-body pt-3">
