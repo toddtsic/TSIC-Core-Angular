@@ -8,6 +8,7 @@ import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 
 const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
 
 @Component({
   selector: 'app-team-detail',
@@ -193,6 +194,12 @@ const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
           [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
           hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
 
+        <!-- ── Club Rep Fee Override ── -->
+        <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+          namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+          [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+
         <!-- ── Eligibility ── -->
         <div class="section-card">
           <div class="section-card-header">
@@ -310,10 +317,14 @@ export class TeamDetailComponent implements OnChanges {
 
   feeForm = {
     playerDeposit: null as number | null,
-    playerBalanceDue: null as number | null
+    playerBalanceDue: null as number | null,
+    clubRepDeposit: null as number | null,
+    clubRepBalanceDue: null as number | null
   };
   playerModifiers: ModifierForm[] = [];
+  clubRepModifiers: ModifierForm[] = [];
   private playerFeeId: string | null = null;
+  private clubRepFeeId: string | null = null;
 
   ngOnChanges(): void {
     this.loadDetail();
@@ -339,12 +350,23 @@ export class TeamDetailComponent implements OnChanges {
         this.ladtService.getAgegroupFees(detail.agegroupId).subscribe({
           next: (fees) => {
             const playerFee = fees.find((f: JobFeeDto) => f.roleId === PLAYER_ROLE && f.teamId === this.teamId);
+            const clubRepFee = fees.find((f: JobFeeDto) => f.roleId === CLUBREP_ROLE && f.teamId === this.teamId);
             this.playerFeeId = playerFee?.jobFeeId ?? null;
+            this.clubRepFeeId = clubRepFee?.jobFeeId ?? null;
             this.feeForm = {
               playerDeposit: playerFee?.deposit ?? null,
-              playerBalanceDue: playerFee?.balanceDue ?? null
+              playerBalanceDue: playerFee?.balanceDue ?? null,
+              clubRepDeposit: clubRepFee?.deposit ?? null,
+              clubRepBalanceDue: clubRepFee?.balanceDue ?? null
             };
             this.playerModifiers = (playerFee?.modifiers ?? []).map((m: any) => ({
+              feeModifierId: m.feeModifierId,
+              modifierType: m.modifierType,
+              amount: m.amount,
+              startDate: m.startDate?.substring(0, 10) ?? null,
+              endDate: m.endDate?.substring(0, 10) ?? null
+            }));
+            this.clubRepModifiers = (clubRepFee?.modifiers ?? []).map((m: any) => ({
               feeModifierId: m.feeModifierId,
               modifierType: m.modifierType,
               amount: m.amount,
@@ -414,6 +436,21 @@ export class TeamDetailComponent implements OnChanges {
       }));
     } else if (this.playerFeeId) {
       saves.push(this.ladtService.deleteFee(this.playerFeeId));
+    }
+
+    // Save club rep fee override (team-level) if any value set or modifiers exist
+    const hasClubRepFee = this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null || this.clubRepModifiers.length > 0;
+    if (agegroupId && hasClubRepFee) {
+      saves.push(this.ladtService.saveFee({
+        roleId: CLUBREP_ROLE,
+        agegroupId,
+        teamId: this.teamId,
+        deposit: this.feeForm.clubRepDeposit,
+        balanceDue: this.feeForm.clubRepBalanceDue,
+        modifiers: this.clubRepModifiers
+      }));
+    } else if (this.clubRepFeeId) {
+      saves.push(this.ladtService.deleteFee(this.clubRepFeeId));
     }
 
     forkJoin(saves).subscribe({
