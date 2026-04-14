@@ -1,18 +1,28 @@
-# ============================================================================
+﻿# ============================================================================
 # 5) Re-Set Nav System.ps1
 #
-# Walks the views/ folder structure to discover all nav-worthy components,
-# then generates an idempotent T-SQL script that rebuilds nav platform
-# defaults (JobId IS NULL) from scratch.
-# Job-level overrides (JobId IS NOT NULL) are preserved.
+# Generates scripts/5) Re-Set Nav System.sql — the T-SQL that rebuilds nav
+# platform defaults (JobId IS NULL) from scratch. Job-level overrides
+# (JobId IS NOT NULL) are preserved.
 #
-# Source of truth: views/ folder tree (L1 = section, L2 = item)
-# Guard metadata: cross-referenced from app.routes.ts
+# Model:
+#   Admin tier (Director / SuperDirector / SuperUser) — single manifest with
+#   per-role BIT flags. Per-item visibility mirrors the backing controller's
+#   [Authorize(Roles = "...")] attributes.
 #
-# Output: scripts/5) Re-Set Nav System.sql  (run on any target server)
+#   Narrow admin roles (RefAssignor, StoreAdmin) — single-purpose menus.
 #
-# Usage:
-#   .\scripts\"5) Re-Set Nav System.ps1"
+#   Registrant roles (Family, ClubRep, Player, Staff) — hand-authored here.
+#   No schedule items; rosters top-level; account-edit lives in the header
+#   avatar dropdown, not in role menus.
+#
+#   UnassignedAdult — Nav row with zero items.
+#
+# No Guard ladder, no string <= compares. No VisibilityRules emitted in seed;
+# per-item rules are preserved across runs.
+#
+# Output: scripts/5) Re-Set Nav System.sql
+# Apply:  sqlcmd -i "5) Re-Set Nav System.sql"   (or run via SSMS)
 # ============================================================================
 
 Set-StrictMode -Version Latest
@@ -20,275 +30,161 @@ $ErrorActionPreference = 'Stop'
 
 Write-Host ""
 Write-Host "+================================================+" -ForegroundColor Cyan
-Write-Host "|   Nav System Reset -- Route-Driven Rebuild    |" -ForegroundColor Cyan
+Write-Host "|   Nav System Reset -- Role-Scoped Rebuild     |" -ForegroundColor Cyan
 Write-Host "+================================================+" -ForegroundColor Cyan
 Write-Host ""
 
-# --Walk views/ folder structure ------------------------------------------
+# -- Role GUIDs ----------------------------------------------------------
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\TSIC-Core-Angular')).Path
-$viewsDir = Join-Path $repoRoot 'src\frontend\tsic-app\src\app\views'
-if (-not (Test-Path $viewsDir)) {
-    Write-Error "Cannot find views/ directory at: $viewsDir"
-    return
+$roleGuids = [ordered]@{
+    Director        = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06'
+    SuperDirector   = '7B9EB503-53C9-44FA-94A0-17760C512440'
+    SuperUser       = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9'
+    Staff           = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA'
+    RefAssignor     = '122075A3-2C42-4092-97F1-9673DF5B6A2C'
+    StoreAdmin      = '5B9B7055-4530-4E46-B403-1019FD8B8418'
+    Family          = 'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0'
+    Player          = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
+    ClubRep         = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
+    UnassignedAdult = 'C92D71A9-464D-40C5-BA35-DFD9111CC7EA'
 }
 
-# L1 folders to skip (not admin nav sections)
-$skipSections = @('auth', 'errors', 'registration', 'home', 'reporting')
+# -- Admin manifest ------------------------------------------------------
+# BIT flags: 1 = role sees this item, 0 = hidden. Values mirror backing
+# controller's [Authorize(Roles = "...")] attributes.
+# D = Director, SD = SuperDirector, SU = SuperUser.
 
-# L2 subfolders to skip (support/internal, not standalone nav items)
-$skipSubfolders = @('shared', 'dashboard', 'auto-build', 'wizards', 'wizards-v2')
-
-# Store: only 'admin' subfolder is an admin nav item
-$storeNavItems = @('admin')
-
-# Build guard lookup from app.routes.ts (folder = source of truth, routes = guard metadata)
-$routesFile = Join-Path $repoRoot 'src\frontend\tsic-app\src\app\app.routes.ts'
-$guardMap = @{}
-if (Test-Path $routesFile) {
-    $routesContent = Get-Content $routesFile -Raw
-    # Match all path+data blocks to extract guard levels
-    $routePattern = "path:\s*'([^']+)'[^}]*?data:\s*\{([^}]+)\}"
-    $routeMatches = [regex]::Matches($routesContent, $routePattern)
-    foreach ($m in $routeMatches) {
-        $rPath = $m.Groups[1].Value
-        $rData = $m.Groups[2].Value
-        if ($rData -match 'requireSuperUser') { $guardMap[$rPath] = 'superuser' }
-        elseif ($rData -match 'requireAdmin') { $guardMap[$rPath] = 'admin' }
-    }
-    Write-Host "Guard map: $($guardMap.Count) entries from app.routes.ts" -ForegroundColor DarkGray
-}
-
-# Walk the folder tree
-$routes = @()
-$l1Dirs = Get-ChildItem -Path $viewsDir -Directory | Sort-Object Name
-
-foreach ($l1 in $l1Dirs) {
-    $section = $l1.Name
-    if ($skipSections -contains $section) { continue }
-
-    $l2Dirs = @(Get-ChildItem -Path $l1.FullName -Directory | Sort-Object Name)
-
-    foreach ($l2 in $l2Dirs) {
-        $item = $l2.Name
-        if ($skipSubfolders -contains $item) { continue }
-
-        # Store: only include whitelisted subfolders
-        if ($section -eq 'store' -and $storeNavItems -notcontains $item) { continue }
-
-        $routePath = "$section/$item"
-
-        # Look up guard: try full path, then just the subfolder name (for nested route children)
-        $guard = 'admin'  # default
-        if ($guardMap.ContainsKey($routePath)) {
-            $guard = $guardMap[$routePath]
-        } elseif ($guardMap.ContainsKey($item)) {
-            $guard = $guardMap[$item]
-        }
-
-        $routes += [PSCustomObject]@{
-            Path  = $routePath
-            Guard = $guard
-        }
+function New-AdminItem {
+    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU)
+    [PSCustomObject]@{
+        Controller    = $Ctrl
+        ControllerIcon = $CtrlIcon
+        ControllerSort = $CtrlSort
+        Text          = $Text
+        Icon          = $Icon
+        RouterLink    = $Route
+        ItemSort      = $ItemSort
+        ForDirector   = $D
+        ForSuperDir   = $SD
+        ForSuperUser  = $SU
     }
 }
 
-Write-Host "Discovered $($routes.Count) nav items from $($l1Dirs.Count - $skipSections.Count) sections in views/" -ForegroundColor Green
+$adminManifest = @(
+    # Search
+    (New-AdminItem 'Search' 'search' 1 'Registrations' 'people' 'search/registrations' 1 1 1 1)
+    (New-AdminItem 'Search' 'search' 1 'Teams'         'shield' 'search/teams'         2 1 1 1)
 
-# --Section & display name mapping ----------------------------------------
+    # Configure
+    (New-AdminItem 'Configure' 'gear' 2 'Job'              'briefcase'    'configure/job'               1 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'       'sliders'      'configure/age-ranges'        2 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'   'tags'         'configure/discount-codes'    3 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Uniform Upload'   'upload'       'configure/uniform-upload'    4 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Administrators'   'person-badge' 'configure/administrators'   10 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Customer Groups'  'people'       'configure/customer-groups'  11 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options' 'list'         'configure/ddl-options'      12 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Customers'        'building'     'configure/customers'        13 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Theme'            'palette'      'configure/theme'            14 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Menus'            'list'         'configure/nav-editor'       15 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Widgets'          'grid'         'configure/widget-editor'    16 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'        'copy'         'configure/job-clone'        17 0 0 1)
 
-$sectionMap = @{
-    'configure'      = @{ Text = 'Configure';      Icon = 'gear' }
-    'search'         = @{ Text = 'Search';          Icon = 'search' }
-    'communications' = @{ Text = 'Communications';  Icon = 'envelope' }
-    'ladt'           = @{ Text = 'LADT';            Icon = 'diagram-3' }
-    'scheduling'     = @{ Text = 'Scheduling';      Icon = 'calendar' }
-    'arb'            = @{ Text = 'ARB';             Icon = 'credit-card' }
-    'tools'          = @{ Text = 'Tools';           Icon = 'tools' }
-    'store'          = @{ Text = 'Store';           Icon = 'cart' }
-    'home'           = @{ Text = 'Home';            Icon = 'house' }
-}
+    # Communications
+    (New-AdminItem 'Communications' 'envelope' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)
+    (New-AdminItem 'Communications' 'envelope' 3 'Email Log'         'envelope-open' 'communications/email-log'         2 1 1 1)
+    (New-AdminItem 'Communications' 'envelope' 3 'Push Notification' 'bell'          'communications/push-notification' 3 1 1 1)
 
-$itemNameOverrides = @{
-    'configure/job'              = 'Job Settings'
-    'configure/ddl-options'      = 'Dropdown Options'
-    'configure/nav-editor'       = 'Menus'
-    'configure/widget-editor'    = 'Widgets'
-    'configure/job-clone'        = 'Job Clone'
-    'configure/uniform-upload'   = 'Uniform Upload'
-    'configure/age-ranges'       = 'Age Ranges'
-    'configure/discount-codes'   = 'Discount Codes'
-    'configure/customer-groups'  = 'Customer Groups'
-    'ladt/editor'                = 'Editor'
-    'ladt/roster-swapper'        = 'Roster Swapper'
-    'ladt/pool-assignment'       = 'Pool Assignment'
-    'arb/health'                 = 'Health Check'
-    'tools/uslax-test'           = 'US Lax Tester'
-    'tools/uslax-rankings'       = 'US Lax Rankings'
-    'tools/profile-migration'    = 'Profile Migration'
-    'tools/profile-editor'       = 'Profile Editor'
-    'tools/change-password'      = 'Change Password'
-    'tools/customer-job-revenue' = 'Job Revenue'
-    'store/admin'                = 'Store Admin'
-    'scheduling/schedule-hub'    = 'Schedule Hub'
-    'scheduling/view-schedule'   = 'View Schedule'
-    'scheduling/master-schedule' = 'Master Schedule'
-    'scheduling/mobile-scorers'  = 'Mobile Scorers'
-    'scheduling/tournament-parking' = 'Tournament Parking'
-    'scheduling/bracket-seeds'   = 'Bracket Seeds'
-    'scheduling/referee-assignment' = 'Referee Assignment'
-    'scheduling/referee-calendar'   = 'Referee Calendar'
-    'scheduling/qa-results'      = 'QA Results'
-    'communications/email-log'   = 'Email Log'
-    'communications/push-notification' = 'Push Notification'
-}
+    # LADT
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Editor'          'pencil'            'ladt/editor'          1 1 1 1)
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Roster Swapper'  'arrow-left-right'  'ladt/roster-swapper'  2 1 1 1)
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'            'ladt/pool-assignment' 3 1 1 1)
 
-$itemIconMap = @{
-    'search/registrations'       = 'people'
-    'search/teams'               = 'shield'
-    'configure/job'              = 'briefcase'
-    'configure/age-ranges'       = 'sliders'
-    'configure/discount-codes'   = 'tags'
-    'configure/uniform-upload'   = 'upload'
-    'tools/uniform-upload'       = 'upload'
-    'configure/administrators'   = 'person-badge'
-    'configure/customer-groups'  = 'people'
-    'configure/ddl-options'      = 'list'
-    'configure/customers'        = 'building'
-    'configure/theme'            = 'palette'
-    'configure/nav-editor'       = 'list'
-    'configure/widget-editor'    = 'grid'
-    'configure/job-clone'        = 'copy'
-    'communications/bulletins'   = 'megaphone'
-    'communications/email-log'   = 'envelope-open'
-    'communications/push-notification' = 'bell'
-    'ladt/editor'                = 'pencil'
-    'ladt/roster-swapper'        = 'arrow-left-right'
-    'ladt/pool-assignment'       = 'people'
-    'scheduling/schedule-hub'    = 'grid'
-    'scheduling/view-schedule'   = 'eye'
-    'scheduling/master-schedule' = 'table'
-    'scheduling/rescheduler'     = 'arrow-repeat'
-    'scheduling/mobile-scorers'  = 'phone'
-    'scheduling/tournament-parking' = 'p-circle'
-    'scheduling/bracket-seeds'   = 'trophy'
-    'scheduling/referee-assignment' = 'person-check'
-    'scheduling/referee-calendar'   = 'calendar-check'
-    'scheduling/qa-results'      = 'clipboard-check'
-    'scheduling/fields'          = 'geo-alt'
-    'scheduling/pairings'        = 'arrow-left-right'
-    'scheduling/timeslots'       = 'clock'
-    'arb/health'                 = 'heart-pulse'
-    'tools/uslax-test'           = 'check-circle'
-    'tools/uslax-rankings'       = 'trophy'
-    'tools/profile-migration'    = 'arrow-right'
-    'tools/profile-editor'       = 'pencil-square'
-    'tools/change-password'      = 'key'
-    'tools/customer-job-revenue' = 'cash-stack'
-    'store/admin'                = 'shop'
-    'home'                       = 'house'
-    'brand-preview'              = 'palette2'
-}
+    # Scheduling
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'   'grid'         'scheduling/schedule-hub'   1 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'  'eye'          'scheduling/view-schedule'  2 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Rescheduler'    'arrow-repeat' 'scheduling/rescheduler'    3 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Mobile Scorers' 'phone'        'scheduling/mobile-scorers' 4 1 1 1)
 
-# --Helper: kebab-case to Title Case -------------------------------------
+    # ARB
+    (New-AdminItem 'ARB' 'credit-card' 6 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
 
-function ConvertTo-TitleCase([string]$kebab) {
-    ($kebab -split '-' | ForEach-Object {
-        if ($_.Length -gt 0) { $_.Substring(0,1).ToUpper() + $_.Substring(1) } else { $_ }
-    }) -join ' '
-}
+    # Tools
+    (New-AdminItem 'Tools' 'tools' 7 'US Lax Tester'     'check-circle'  'tools/uslax-test'            1 1 1 1)
+    (New-AdminItem 'Tools' 'tools' 7 'US Lax Rankings'   'trophy'        'tools/uslax-rankings'        2 1 1 1)
+    (New-AdminItem 'Tools' 'tools' 7 'Profile Migration' 'arrow-right'   'tools/profile-migration'    10 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 7 'Profile Editor'    'pencil-square' 'tools/profile-editor'       11 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 7 'Change Password'   'key'           'tools/change-password'      12 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 7 'Job Revenue'       'cash-stack'    'tools/customer-job-revenue' 13 0 0 1)
 
-# --Build manifest --------------------------------------------------------
-
-$manifest = @()
-$sectionSortCounter = @{}
-
-$sortedRoutes = $routes | Sort-Object Path
-
-foreach ($route in $sortedRoutes) {
-    $segments = $route.Path -split '/'
-    $section = $segments[0]
-
-    $sectionInfo = if ($sectionMap.ContainsKey($section)) {
-        $sectionMap[$section]
-    } else {
-        @{ Text = (ConvertTo-TitleCase $section); Icon = 'folder' }
-    }
-
-    $itemText = if ($itemNameOverrides.ContainsKey($route.Path)) {
-        $itemNameOverrides[$route.Path]
-    } elseif ($segments.Count -gt 1) {
-        ConvertTo-TitleCase $segments[-1]
-    } else {
-        $sectionInfo.Text
-    }
-
-    $itemIcon = if ($itemIconMap.ContainsKey($route.Path)) {
-        $itemIconMap[$route.Path]
-    } else {
-        'circle'
-    }
-
-    if (-not $sectionSortCounter.ContainsKey($section)) {
-        $sectionSortCounter[$section] = 1
-    } else {
-        $sectionSortCounter[$section]++
-    }
-
-    $manifest += [PSCustomObject]@{
-        Section     = $sectionInfo.Text
-        SectionIcon = $sectionInfo.Icon
-        ItemText    = $itemText
-        ItemIcon    = $itemIcon
-        RouterLink  = $route.Path
-        ItemSort    = $sectionSortCounter[$section]
-        Guard       = $route.Guard
-    }
-}
-
-$sectionOrder = @(
-    'Search', 'Configure', 'Communications', 'LADT',
-    'Scheduling', 'ARB', 'Tools', 'Store', 'Home'
+    # Store
+    (New-AdminItem 'Store' 'cart' 8 'Store Admin' 'shop' 'store/admin' 1 1 1 1)
 )
-$sectionSortMap = @{}
-for ($i = 0; $i -lt $sectionOrder.Count; $i++) {
-    $sectionSortMap[$sectionOrder[$i]] = $i + 1
+
+Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray
+
+# -- Narrow admin menus (single-purpose) ---------------------------------
+
+function New-L1 { param($Sort, $Text, $Icon)
+    [PSCustomObject]@{ Type='L1'; Sort=$Sort; Text=$Text; Icon=$Icon; Route=$null; Parent=$null }
+}
+function New-L2 { param($Parent, $Sort, $Text, $Icon, $Route)
+    [PSCustomObject]@{ Type='L2'; Parent=$Parent; Sort=$Sort; Text=$Text; Icon=$Icon; Route=$Route }
+}
+function New-Leaf { param($Sort, $Text, $Icon, $Route)
+    [PSCustomObject]@{ Type='Leaf'; Sort=$Sort; Text=$Text; Icon=$Icon; Route=$Route; Parent=$null }
 }
 
-# --Display manifest -----------------------------------------------------
+$refAssignorMenu = @(
+    (New-L1 1 'RefAssignor' 'person-check')
+      (New-L2 'RefAssignor' 1 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment')
+      (New-L2 'RefAssignor' 2 'Referee Calendar'   'calendar-week'   'scheduling/referee-calendar')
+)
 
-Write-Host ""
-Write-Host "Nav Manifest:" -ForegroundColor Yellow
-Write-Host ("-" * 80) -ForegroundColor DarkGray
+$storeAdminMenu = @(
+    (New-L1 1 'StoreAdmin' 'shop')
+      (New-L2 'StoreAdmin' 1 'Store Admin' 'speedometer2' 'store/admin')
+)
 
-$currentSection = ''
-foreach ($item in $manifest | Sort-Object { if ($sectionSortMap.ContainsKey($_.Section)) { $sectionSortMap[$_.Section] } else { 99 } }, ItemSort) {
-    if ($item.Section -ne $currentSection) {
-        $currentSection = $item.Section
-        $sSort = if ($sectionSortMap.ContainsKey($currentSection)) { $sectionSortMap[$currentSection] } else { 99 }
-        Write-Host ""
-        Write-Host "  [$sSort] $currentSection (bi-$($item.SectionIcon))" -ForegroundColor Cyan
-    }
-    $guardTag = if ($item.Guard -eq 'superuser') { ' [SU]' } else { '' }
-    Write-Host "      $($item.ItemSort). $($item.ItemText)  ->  $($item.RouterLink)  (bi-$($item.ItemIcon))$guardTag" -ForegroundColor White
-}
+$familyMenu = @(
+    (New-L1 1 'Registration' 'pencil-square')
+      (New-L2 'Registration' 1 'Register Player' 'person-plus' 'registration/entry')
+      (New-L2 'Registration' 2 'Pay Balance Due' 'credit-card' 'registration/player?mode=pay')
+    (New-L1 2 'Store' 'cart')
+      (New-L2 'Store' 1 'Event Store' 'shop' 'store')
+    (New-Leaf 3 'View Rosters' 'people' 'rosters')
+)
 
-Write-Host ""
-Write-Host ("-" * 80) -ForegroundColor DarkGray
-Write-Host "Total: $($manifest.Count) items in $($manifest | Select-Object -ExpandProperty Section -Unique | Measure-Object | Select-Object -ExpandProperty Count) sections" -ForegroundColor Green
-Write-Host ""
+$clubRepMenu = @(
+    (New-L1 1 'Registration' 'pencil-square')
+      (New-L2 'Registration' 1 'Register Teams' 'shield-plus' 'registration/entry')
+      (New-L2 'Registration' 2 'Club Rosters'   'people'      'club-rosters')
+    (New-L1 2 'Accounting' 'cash-stack')
+      (New-L2 'Accounting' 1 'Team Accounting' 'receipt' 'registration/team?mode=accounting')
+    (New-Leaf 3 'View Rosters' 'people' 'rosters')
+)
 
-# --Generate idempotent T-SQL script ---------------------------------------
+$playerMenu = @(
+    (New-Leaf 1 'View Rosters' 'people' 'rosters')
+)
+
+$staffMenu = @(
+    (New-Leaf 1 'View Rosters' 'people' 'rosters')
+)
+
+# UnassignedAdult: no items
+
+# -- Emit T-SQL ----------------------------------------------------------
+
+function Esc([string]$s) { if ($null -eq $s) { return '' } $s -replace "'", "''" }
 
 $sqlOutputPath = Join-Path $PSScriptRoot '5) Re-Set Nav System.sql'
-
 $sql = [System.Text.StringBuilder]::new()
 
 [void]$sql.AppendLine("-- ============================================================================")
 [void]$sql.AppendLine("-- 5) Re-Set Nav System.sql")
 [void]$sql.AppendLine("-- Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') by 5) Re-Set Nav System.ps1")
-[void]$sql.AppendLine("-- Idempotent: safe to run multiple times on any target database")
-[void]$sql.AppendLine("-- Preserves: job-level overrides, reporting items, visibility rules")
+[void]$sql.AppendLine("-- Role-scoped manifest; no ladder, no VisibilityRules emitted.")
+[void]$sql.AppendLine("-- Preserves: job-level overrides, reporting items, existing visibility rules.")
 [void]$sql.AppendLine("-- ============================================================================")
 [void]$sql.AppendLine("")
 [void]$sql.AppendLine("SET NOCOUNT ON;")
@@ -296,11 +192,8 @@ $sql = [System.Text.StringBuilder]::new()
 [void]$sql.AppendLine("BEGIN TRANSACTION;")
 [void]$sql.AppendLine("")
 
-# --1. Ensure schema + tables exist --
-
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 1. Ensure schema + tables exist")
-[void]$sql.AppendLine("-- ================================================================")
+# 1. Schema + tables
+[void]$sql.AppendLine("-- -- 1. Ensure schema + tables exist -------------------------------------")
 [void]$sql.AppendLine(@"
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'nav')
     EXEC('CREATE SCHEMA [nav] AUTHORIZATION [dbo]');
@@ -339,11 +232,15 @@ END
 "@)
 [void]$sql.AppendLine("")
 
-# --2. Preserve reporting items + visibility rules --
+# 2. Role GUID declarations
+[void]$sql.AppendLine("-- -- 2. Role GUIDs -------------------------------------------------------")
+foreach ($k in $roleGuids.Keys) {
+    [void]$sql.AppendLine("DECLARE @$k NVARCHAR(450) = '$($roleGuids[$k])';")
+}
+[void]$sql.AppendLine("")
 
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 2. Preserve reporting items + visibility rules")
-[void]$sql.AppendLine("-- ================================================================")
+# 3. Preserve reporting items + visibility rules
+[void]$sql.AppendLine("-- -- 3. Preserve reporting items + visibility rules ----------------------")
 [void]$sql.AppendLine(@"
 DECLARE @cnt INT;
 
@@ -369,128 +266,208 @@ PRINT CONCAT('Preserved ', @cnt, ' visibility rule(s)');
 "@)
 [void]$sql.AppendLine("")
 
-# --3. Clear platform defaults --
-
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 3. Clear platform defaults (job overrides preserved)")
-[void]$sql.AppendLine("-- ================================================================")
+# 4. Clear platform defaults
+[void]$sql.AppendLine("-- -- 4. Clear platform defaults (job overrides preserved) ----------------")
 [void]$sql.AppendLine(@"
 DELETE FROM [nav].[NavItem] WHERE [NavId] IN (SELECT [NavId] FROM [nav].[Nav] WHERE [JobId] IS NULL);
 DELETE FROM [nav].[Nav] WHERE [JobId] IS NULL;
-PRINT 'Cleared platform defaults (job overrides preserved)';
+PRINT 'Cleared platform defaults';
 "@)
 [void]$sql.AppendLine("")
 
-# --4. Insert Nav records (one per role) --
-
-$roleGuids = @{
-    Director       = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06'
-    SuperDirector  = '7B9EB503-53C9-44FA-94A0-17760C512440'
-    SuperUser      = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9'
-    Staff          = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA'
-    RefAssignor    = '122075A3-2C42-4092-97F1-9673DF5B6A2C'
-    StoreAdmin     = '5B9B7055-4530-4E46-B403-1019FD8B8418'
-    Family         = 'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0'
-    Player         = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
-    ClubRep        = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E'
-    UnassignedAdult = 'CE2CB370-5880-4624-A43E-048379C64331'
-}
-
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 4. Insert Nav records (one per role)")
-[void]$sql.AppendLine("-- ================================================================")
-foreach ($roleId in $roleGuids.Values) {
-    [void]$sql.AppendLine("INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('$roleId',NULL,1,GETDATE());")
+# 5. Insert Nav records (one per role)
+[void]$sql.AppendLine("-- -- 5. Insert Nav records (one per role) -------------------------------")
+foreach ($k in $roleGuids.Keys) {
+    [void]$sql.AppendLine("INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@$k, NULL, 1, GETDATE());")
 }
 [void]$sql.AppendLine("PRINT 'Inserted $($roleGuids.Count) Nav records';")
 [void]$sql.AppendLine("")
 
-# --5. Admin roles: insert sections + items using T-SQL variables --
-
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 5. Insert nav items per admin role")
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("DECLARE @navId INT, @parentId INT;")
+# 6. Admin manifest + fan-out
+[void]$sql.AppendLine("-- -- 6. Admin manifest (Director / SuperDirector / SuperUser) -----------")
+[void]$sql.AppendLine(@"
+IF OBJECT_ID('tempdb..#AdminManifest') IS NOT NULL DROP TABLE #AdminManifest;
+CREATE TABLE #AdminManifest (
+    Controller   NVARCHAR(50)  NOT NULL,
+    Icon         NVARCHAR(50)  NULL,
+    CtrlSort     INT           NOT NULL,
+    [Action]     NVARCHAR(100) NOT NULL,
+    ActionIcon   NVARCHAR(50)  NULL,
+    RouterLink   NVARCHAR(200) NOT NULL,
+    ActionSort   INT           NOT NULL,
+    ForDirector  BIT           NOT NULL,
+    ForSuperDir  BIT           NOT NULL,
+    ForSuperUser BIT           NOT NULL
+);
+"@)
+foreach ($item in $adminManifest) {
+    [void]$sql.AppendLine(
+        "INSERT INTO #AdminManifest VALUES (" +
+        "N'$(Esc $item.Controller)', N'$(Esc $item.ControllerIcon)', $($item.ControllerSort), " +
+        "N'$(Esc $item.Text)', N'$(Esc $item.Icon)', N'$(Esc $item.RouterLink)', $($item.ItemSort), " +
+        "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser));"
+    )
+}
 [void]$sql.AppendLine("")
 
-$adminRoles = @('Director','SuperDirector','SuperUser','Staff','RefAssignor','StoreAdmin')
+[void]$sql.AppendLine("-- Fan out admin manifest per admin role")
+[void]$sql.AppendLine(@"
+DECLARE @navId INT, @parentId INT, @roleId NVARCHAR(450);
 
-foreach ($roleName in $adminRoles) {
-    $roleId = $roleGuids[$roleName]
-    $guardLevel = if ($roleName -eq 'SuperUser') { 'superuser' } else { 'admin' }
+DECLARE role_cursor CURSOR LOCAL FAST_FORWARD FOR
+    SELECT RoleId FROM nav.Nav
+    WHERE JobId IS NULL AND RoleId IN (@Director, @SuperDirector, @SuperUser);
 
-    [void]$sql.AppendLine("-- --- $roleName ---")
-    [void]$sql.AppendLine("SELECT @navId = NavId FROM nav.Nav WHERE RoleId = '$roleId' AND JobId IS NULL;")
+OPEN role_cursor;
+FETCH NEXT FROM role_cursor INTO @roleId;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @roleId AND JobId IS NULL;
 
-    # Get sections visible to this role
-    $visibleSections = @($manifest | Where-Object {
-        $_.Guard -eq 'admin' -or ($guardLevel -eq 'superuser' -and $_.Guard -eq 'superuser')
-    } | Select-Object -ExpandProperty Section -Unique)
+    DECLARE @ctrl NVARCHAR(50), @ctrlIcon NVARCHAR(50), @ctrlSort INT;
+    DECLARE ctrl_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT DISTINCT Controller, Icon, CtrlSort
+        FROM #AdminManifest
+        WHERE CASE @roleId
+                 WHEN @Director      THEN ForDirector
+                 WHEN @SuperDirector THEN ForSuperDir
+                 WHEN @SuperUser     THEN ForSuperUser
+                 ELSE 0
+             END = 1
+        ORDER BY CtrlSort;
 
-    foreach ($sectionName in $visibleSections) {
-        $sSort = if ($sectionSortMap.ContainsKey($sectionName)) { $sectionSortMap[$sectionName] } else { 99 }
-        $sIcon = ($manifest | Where-Object { $_.Section -eq $sectionName } | Select-Object -First 1).SectionIcon
+    OPEN ctrl_cursor;
+    FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+        VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, GETDATE());
+        SET @parentId = SCOPE_IDENTITY();
 
-        # Get items in this section visible to this role
-        $sectionItems = @($manifest | Where-Object {
-            $_.Section -eq $sectionName -and
-            ($_.Guard -eq 'admin' -or ($guardLevel -eq 'superuser' -and $_.Guard -eq 'superuser'))
-        } | Sort-Object ItemSort)
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, GETDATE()
+        FROM #AdminManifest
+        WHERE Controller = @ctrl
+          AND CASE @roleId
+                 WHEN @Director      THEN ForDirector
+                 WHEN @SuperDirector THEN ForSuperDir
+                 WHEN @SuperUser     THEN ForSuperUser
+                 ELSE 0
+             END = 1
+        ORDER BY ActionSort;
 
-        if ($sectionItems.Count -eq 0) { continue }
+        FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+    END
+    CLOSE ctrl_cursor;
+    DEALLOCATE ctrl_cursor;
 
-        $escapedSection = $sectionName -replace "'", "''"
-        [void]$sql.AppendLine("INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,$sSort,N'$escapedSection',N'$sIcon',GETDATE());")
-        [void]$sql.AppendLine("SET @parentId = SCOPE_IDENTITY();")
+    FETCH NEXT FROM role_cursor INTO @roleId;
+END
+CLOSE role_cursor;
+DEALLOCATE role_cursor;
 
-        foreach ($item in $sectionItems) {
-            $escapedText = $item.ItemText -replace "'", "''"
-            [void]$sql.AppendLine("INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,$($item.ItemSort),N'$escapedText',N'$($item.ItemIcon)',N'$($item.RouterLink)',GETDATE());")
+PRINT 'Fanned admin manifest to Director / SuperDirector / SuperUser';
+"@)
+[void]$sql.AppendLine("")
+
+# -- Helper: emit SQL for a hand-authored role menu ----------------------
+function Emit-RoleMenu {
+    param($Builder, $RoleVar, $Menu, $RoleDescription)
+
+    [void]$Builder.AppendLine("-- $RoleDescription")
+    [void]$Builder.AppendLine("SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @$RoleVar AND JobId IS NULL;")
+
+    $currentL1 = $null
+
+    foreach ($entry in $Menu) {
+        switch ($entry.Type) {
+            'L1' {
+                $txt = Esc $entry.Text
+                $ico = Esc $entry.Icon
+                [void]$Builder.AppendLine(
+                    "INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) " +
+                    "VALUES (@navId, NULL, 1, $($entry.Sort), N'$txt', N'$ico', GETDATE());")
+                [void]$Builder.AppendLine("SET @parentId = SCOPE_IDENTITY();")
+                $currentL1 = $entry.Text
+            }
+            'L2' {
+                if ($entry.Parent -ne $currentL1) {
+                    throw "Role $RoleDescription menu: L2 '$($entry.Text)' declares parent '$($entry.Parent)' but current L1 is '$currentL1'. Order L2s directly after their L1."
+                }
+                $txt = Esc $entry.Text
+                $ico = Esc $entry.Icon
+                $rte = Esc $entry.Route
+                [void]$Builder.AppendLine(
+                    "INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) " +
+                    "VALUES (@navId, @parentId, 1, $($entry.Sort), N'$txt', N'$ico', N'$rte', GETDATE());")
+            }
+            'Leaf' {
+                $txt = Esc $entry.Text
+                $ico = Esc $entry.Icon
+                $rte = Esc $entry.Route
+                [void]$Builder.AppendLine(
+                    "INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) " +
+                    "VALUES (@navId, NULL, 1, $($entry.Sort), N'$txt', N'$ico', N'$rte', GETDATE());")
+            }
         }
     }
-
-    [void]$sql.AppendLine("")
-    Write-Host "  $roleName`: $($visibleSections.Count) sections" -ForegroundColor DarkGray
+    [void]$Builder.AppendLine("PRINT '$RoleDescription';")
+    [void]$Builder.AppendLine("")
 }
 
-Write-Host "  Non-admin roles (Family, Player, ClubRep, UnassignedAdult): nav records only" -ForegroundColor DarkGray
+# 7-12. Per-role hand-authored menus
+[void]$sql.AppendLine("-- -- 7. RefAssignor -----------------------------------------------------")
+Emit-RoleMenu $sql 'RefAssignor' $refAssignorMenu 'RefAssignor: Referee Assignment + Referee Calendar'
 
-# --6. Restore reporting items --
+[void]$sql.AppendLine("-- -- 8. StoreAdmin ------------------------------------------------------")
+Emit-RoleMenu $sql 'StoreAdmin' $storeAdminMenu 'StoreAdmin: Store Admin'
 
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 6. Restore reporting items")
-[void]$sql.AppendLine("-- ================================================================")
+[void]$sql.AppendLine("-- -- 9. Family ----------------------------------------------------------")
+Emit-RoleMenu $sql 'Family' $familyMenu 'Family: Registration + Store + View Rosters'
+
+[void]$sql.AppendLine("-- -- 10. ClubRep --------------------------------------------------------")
+Emit-RoleMenu $sql 'ClubRep' $clubRepMenu 'ClubRep: Registration + Accounting + View Rosters'
+
+[void]$sql.AppendLine("-- -- 11. Player ---------------------------------------------------------")
+Emit-RoleMenu $sql 'Player' $playerMenu 'Player: View Rosters'
+
+[void]$sql.AppendLine("-- -- 12. Staff ----------------------------------------------------------")
+Emit-RoleMenu $sql 'Staff' $staffMenu 'Staff: View Rosters'
+
+[void]$sql.AppendLine("-- UnassignedAdult: Nav row from section 5; no items emitted (intentional).")
+[void]$sql.AppendLine("PRINT 'UnassignedAdult: no menu items (intentional)';")
+[void]$sql.AppendLine("")
+
+# 13. Restore reporting items
+[void]$sql.AppendLine("-- -- 13. Restore preserved reporting items ------------------------------")
 [void]$sql.AppendLine(@"
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 IF @cnt > 0
 BEGIN
     DECLARE @suNavId INT;
-    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9' AND JobId IS NULL;
+    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = @SuperUser AND JobId IS NULL;
 
     DECLARE @apId INT;
     IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL)
     BEGIN
-        INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified)
-        VALUES(@suNavId,NULL,1,9,N'Analyze',N'bar-chart',GETDATE());
+        INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+        VALUES (@suNavId, NULL, 1, 9, N'Analyze', N'bar-chart', GETDATE());
         SET @apId = SCOPE_IDENTITY();
     END
     ELSE
         SELECT @apId = NavItemId FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL;
 
-    INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,NavigateUrl,[Target],Modified)
+    INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
     SELECT @suNavId, @apId, r.Active, r.SortOrder, r.[Text], r.IconName, r.RouterLink, r.NavigateUrl, r.[Target], GETDATE()
     FROM #ReportingItems r;
-    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze section');
+    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze');
 END
 DROP TABLE #ReportingItems;
 "@)
 [void]$sql.AppendLine("")
 
-# --7. Restore visibility rules --
-
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 7. Restore visibility rules")
-[void]$sql.AppendLine("-- ================================================================")
+# 14. Restore visibility rules
+[void]$sql.AppendLine("-- -- 14. Restore preserved visibility rules -----------------------------")
 [void]$sql.AppendLine(@"
 UPDATE ni
 SET ni.VisibilityRules = vr.VisibilityRules
@@ -500,33 +477,51 @@ JOIN #VisRules vr ON vr.RoleId = n.RoleId AND vr.RouterLink = ni.RouterLink
 WHERE n.JobId IS NULL;
 PRINT CONCAT('Restored ', @@ROWCOUNT, ' visibility rule(s)');
 DROP TABLE #VisRules;
+DROP TABLE #AdminManifest;
 "@)
 [void]$sql.AppendLine("")
 
-# --8. Summary + commit --
-
-[void]$sql.AppendLine("-- ================================================================")
-[void]$sql.AppendLine("-- 8. Summary")
-[void]$sql.AppendLine("-- ================================================================")
+# 15. Commit + summary
+[void]$sql.AppendLine("-- -- 15. Commit + summary -----------------------------------------------")
 [void]$sql.AppendLine(@"
 COMMIT TRANSACTION;
 
 SELECT
-    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL) AS [Platform Navs],
-    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL) AS [Platform Items],
-    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL) AS [Sections],
-    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NOT NULL) AS [Job Overrides (preserved)];
+    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL)                                                                      AS [Platform Navs],
+    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL)                        AS [Platform Items],
+    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL) AS [Sections or Top-level Leaves],
+    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NOT NULL)                                                                  AS [Job Overrides (preserved)];
+
+SELECT
+    r.Name AS [Role],
+    parent.Text AS [Section],
+    parent.SortOrder AS [SectionOrder],
+    parent.RouterLink AS [SectionRoute],
+    child.Text AS [Item],
+    child.SortOrder AS [ItemOrder],
+    child.RouterLink AS [ItemRoute]
+FROM [nav].[Nav] n
+JOIN [dbo].[AspNetRoles] r ON n.RoleId = r.Id
+LEFT JOIN [nav].[NavItem] parent ON parent.NavId = n.NavId AND parent.ParentNavItemId IS NULL
+LEFT JOIN [nav].[NavItem] child  ON child.ParentNavItemId = parent.NavItemId
+WHERE n.JobId IS NULL
+ORDER BY r.Name, parent.SortOrder, child.SortOrder;
 
 PRINT 'Nav system reset complete.';
+SET NOCOUNT OFF;
 "@)
 
-# --Write the file --------------------------------------------------------
+# -- Write file ----------------------------------------------------------
 
 $sql.ToString() | Set-Content -Path $sqlOutputPath -Encoding UTF8
 Write-Host ""
 Write-Host ("=" * 64) -ForegroundColor Green
 Write-Host " Generated: $sqlOutputPath" -ForegroundColor Green
-Write-Host " $($manifest.Count) nav items across $($adminRoles.Count) admin roles" -ForegroundColor Green
-Write-Host " Copy to server and run with: sqlcmd -i `"5) Re-Set Nav System.sql`"" -ForegroundColor Green
+Write-Host " Admin manifest: $($adminManifest.Count) items" -ForegroundColor Green
+Write-Host " Registrant menus: Family, ClubRep, Player, Staff (hand-authored)" -ForegroundColor Green
+Write-Host " Narrow admins: RefAssignor, StoreAdmin (hand-authored)" -ForegroundColor Green
+Write-Host " UnassignedAdult: Nav row, no items" -ForegroundColor Green
+Write-Host ""
+Write-Host " Apply with: sqlcmd -i `"5) Re-Set Nav System.sql`"" -ForegroundColor Green
 Write-Host ("=" * 64) -ForegroundColor Green
 Write-Host ""

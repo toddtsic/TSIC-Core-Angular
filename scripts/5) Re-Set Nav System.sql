@@ -1,17 +1,15 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-06 08:11:51 by 5) Re-Set Nav System.ps1
--- Idempotent: safe to run multiple times on any target database
--- Preserves: job-level overrides, reporting items, visibility rules
+-- Generated: 2026-04-14 14:14:02 by 5) Re-Set Nav System.ps1
+-- Role-scoped manifest; no ladder, no VisibilityRules emitted.
+-- Preserves: job-level overrides, reporting items, existing visibility rules.
 -- ============================================================================
 
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 
--- ================================================================
--- 1. Ensure schema + tables exist
--- ================================================================
+-- -- 1. Ensure schema + tables exist -------------------------------------
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'nav')
     EXEC('CREATE SCHEMA [nav] AUTHORIZATION [dbo]');
 
@@ -47,9 +45,19 @@ BEGIN
     PRINT 'Created table: nav.NavItem';
 END
 
--- ================================================================
--- 2. Preserve reporting items + visibility rules
--- ================================================================
+-- -- 2. Role GUIDs -------------------------------------------------------
+DECLARE @Director NVARCHAR(450) = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06';
+DECLARE @SuperDirector NVARCHAR(450) = '7B9EB503-53C9-44FA-94A0-17760C512440';
+DECLARE @SuperUser NVARCHAR(450) = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9';
+DECLARE @Staff NVARCHAR(450) = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA';
+DECLARE @RefAssignor NVARCHAR(450) = '122075A3-2C42-4092-97F1-9673DF5B6A2C';
+DECLARE @StoreAdmin NVARCHAR(450) = '5B9B7055-4530-4E46-B403-1019FD8B8418';
+DECLARE @Family NVARCHAR(450) = 'E0A8A5C3-A36C-417F-8312-E7083F1AA5A0';
+DECLARE @Player NVARCHAR(450) = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+DECLARE @ClubRep NVARCHAR(450) = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+DECLARE @UnassignedAdult NVARCHAR(450) = 'C92D71A9-464D-40C5-BA35-DFD9111CC7EA';
+
+-- -- 3. Preserve reporting items + visibility rules ----------------------
 DECLARE @cnt INT;
 
 IF OBJECT_ID('tempdb..#ReportingItems') IS NOT NULL DROP TABLE #ReportingItems;
@@ -72,362 +80,211 @@ WHERE n.JobId IS NULL
 SELECT @cnt = COUNT(*) FROM #VisRules;
 PRINT CONCAT('Preserved ', @cnt, ' visibility rule(s)');
 
--- ================================================================
--- 3. Clear platform defaults (job overrides preserved)
--- ================================================================
+-- -- 4. Clear platform defaults (job overrides preserved) ----------------
 DELETE FROM [nav].[NavItem] WHERE [NavId] IN (SELECT [NavId] FROM [nav].[Nav] WHERE [JobId] IS NULL);
 DELETE FROM [nav].[Nav] WHERE [JobId] IS NULL;
-PRINT 'Cleared platform defaults (job overrides preserved)';
+PRINT 'Cleared platform defaults';
 
--- ================================================================
--- 4. Insert Nav records (one per role)
--- ================================================================
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('5B9B7055-4530-4E46-B403-1019FD8B8418',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('DAC0C570-94AA-4A88-8D73-6034F1F72F3A',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('122075A3-2C42-4092-97F1-9673DF5B6A2C',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('FF4D1C27-F6DA-4745-98CC-D7E8121A5D06',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('CE2CB370-5880-4624-A43E-048379C64331',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('6A26171F-4D94-4928-94FA-2FEFD42C3C3E',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('E0A8A5C3-A36C-417F-8312-E7083F1AA5A0',NULL,1,GETDATE());
-INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES('7B9EB503-53C9-44FA-94A0-17760C512440',NULL,1,GETDATE());
+-- -- 5. Insert Nav records (one per role) -------------------------------
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@Director, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@SuperDirector, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@SuperUser, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@Staff, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@RefAssignor, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@StoreAdmin, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@Family, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@Player, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@ClubRep, NULL, 1, GETDATE());
+INSERT INTO [nav].[Nav]([RoleId],[JobId],[Active],[Modified]) VALUES (@UnassignedAdult, NULL, 1, GETDATE());
 PRINT 'Inserted 10 Nav records';
 
--- ================================================================
--- 5. Insert nav items per admin role
--- ================================================================
-DECLARE @navId INT, @parentId INT;
+-- -- 6. Admin manifest (Director / SuperDirector / SuperUser) -----------
+IF OBJECT_ID('tempdb..#AdminManifest') IS NOT NULL DROP TABLE #AdminManifest;
+CREATE TABLE #AdminManifest (
+    Controller   NVARCHAR(50)  NOT NULL,
+    Icon         NVARCHAR(50)  NULL,
+    CtrlSort     INT           NOT NULL,
+    [Action]     NVARCHAR(100) NOT NULL,
+    ActionIcon   NVARCHAR(50)  NULL,
+    RouterLink   NVARCHAR(200) NOT NULL,
+    ActionSort   INT           NOT NULL,
+    ForDirector  BIT           NOT NULL,
+    ForSuperDir  BIT           NOT NULL,
+    ForSuperUser BIT           NOT NULL
+);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Registrations', N'people', N'search/registrations', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Teams', N'shield', N'search/teams', 2, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job', N'briefcase', N'configure/job', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 2, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', N'tags', N'configure/discount-codes', 3, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Uniform Upload', N'upload', N'configure/uniform-upload', 4, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 10, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customer Groups', N'people', N'configure/customer-groups', 11, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 12, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'building', N'configure/customers', 13, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 14, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Menus', N'list', N'configure/nav-editor', 15, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widgets', N'grid', N'configure/widget-editor', 16, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 17, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'envelope', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'envelope', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'envelope', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil', N'ladt/editor', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 3, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 4, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 6, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'US Lax Tester', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 10, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 11, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Change Password', N'key', N'tools/change-password', 12, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 13, 0, 0, 1);
+INSERT INTO #AdminManifest VALUES (N'Store', N'cart', 8, N'Store Admin', N'shop', N'store/admin', 1, 1, 1, 1);
 
--- --- Director ---
-SELECT @navId = NavId FROM nav.Nav WHERE RoleId = 'FF4D1C27-F6DA-4745-98CC-D7E8121A5D06' AND JobId IS NULL;
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,6,N'ARB',N'credit-card',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Health Check',N'heart-pulse',N'arb/health',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,3,N'Communications',N'envelope',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bulletins',N'megaphone',N'communications/bulletins',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Email Log',N'envelope-open',N'communications/email-log',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Push Notification',N'bell',N'communications/push-notification',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,2,N'Configure',N'gear',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Age Ranges',N'sliders',N'configure/age-ranges',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'Discount Codes',N'tags',N'configure/discount-codes',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Job Settings',N'briefcase',N'configure/job',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,4,N'LADT',N'diagram-3',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Editor',N'pencil',N'ladt/editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Pool Assignment',N'people',N'ladt/pool-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Roster Swapper',N'arrow-left-right',N'ladt/roster-swapper',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,5,N'Scheduling',N'calendar',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bracket Seeds',N'trophy',N'scheduling/bracket-seeds',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Fields',N'geo-alt',N'scheduling/fields',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Master Schedule',N'table',N'scheduling/master-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Mobile Scorers',N'phone',N'scheduling/mobile-scorers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Pairings',N'arrow-left-right',N'scheduling/pairings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'QA Results',N'clipboard-check',N'scheduling/qa-results',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Referee Assignment',N'person-check',N'scheduling/referee-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Referee Calendar',N'calendar-check',N'scheduling/referee-calendar',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Rescheduler',N'arrow-repeat',N'scheduling/rescheduler',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Schedule Hub',N'grid',N'scheduling/schedule-hub',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Timeslots',N'clock',N'scheduling/timeslots',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,12,N'Tournament Parking',N'p-circle',N'scheduling/tournament-parking',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,13,N'View Schedule',N'eye',N'scheduling/view-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,1,N'Search',N'search',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Registrations',N'people',N'search/registrations',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Teams',N'shield',N'search/teams',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,8,N'Store',N'cart',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Store Admin',N'shop',N'store/admin',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,7,N'Tools',N'tools',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Uniform Upload',N'upload',N'tools/uniform-upload',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'US Lax Rankings',N'trophy',N'tools/uslax-rankings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'US Lax Tester',N'check-circle',N'tools/uslax-test',GETDATE());
+-- Fan out admin manifest per admin role
+DECLARE @navId INT, @parentId INT, @roleId NVARCHAR(450);
 
--- --- SuperDirector ---
-SELECT @navId = NavId FROM nav.Nav WHERE RoleId = '7B9EB503-53C9-44FA-94A0-17760C512440' AND JobId IS NULL;
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,6,N'ARB',N'credit-card',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Health Check',N'heart-pulse',N'arb/health',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,3,N'Communications',N'envelope',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bulletins',N'megaphone',N'communications/bulletins',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Email Log',N'envelope-open',N'communications/email-log',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Push Notification',N'bell',N'communications/push-notification',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,2,N'Configure',N'gear',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Age Ranges',N'sliders',N'configure/age-ranges',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'Discount Codes',N'tags',N'configure/discount-codes',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Job Settings',N'briefcase',N'configure/job',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,4,N'LADT',N'diagram-3',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Editor',N'pencil',N'ladt/editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Pool Assignment',N'people',N'ladt/pool-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Roster Swapper',N'arrow-left-right',N'ladt/roster-swapper',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,5,N'Scheduling',N'calendar',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bracket Seeds',N'trophy',N'scheduling/bracket-seeds',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Fields',N'geo-alt',N'scheduling/fields',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Master Schedule',N'table',N'scheduling/master-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Mobile Scorers',N'phone',N'scheduling/mobile-scorers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Pairings',N'arrow-left-right',N'scheduling/pairings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'QA Results',N'clipboard-check',N'scheduling/qa-results',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Referee Assignment',N'person-check',N'scheduling/referee-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Referee Calendar',N'calendar-check',N'scheduling/referee-calendar',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Rescheduler',N'arrow-repeat',N'scheduling/rescheduler',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Schedule Hub',N'grid',N'scheduling/schedule-hub',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Timeslots',N'clock',N'scheduling/timeslots',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,12,N'Tournament Parking',N'p-circle',N'scheduling/tournament-parking',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,13,N'View Schedule',N'eye',N'scheduling/view-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,1,N'Search',N'search',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Registrations',N'people',N'search/registrations',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Teams',N'shield',N'search/teams',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,8,N'Store',N'cart',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Store Admin',N'shop',N'store/admin',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,7,N'Tools',N'tools',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Uniform Upload',N'upload',N'tools/uniform-upload',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'US Lax Rankings',N'trophy',N'tools/uslax-rankings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'US Lax Tester',N'check-circle',N'tools/uslax-test',GETDATE());
+DECLARE role_cursor CURSOR LOCAL FAST_FORWARD FOR
+    SELECT RoleId FROM nav.Nav
+    WHERE JobId IS NULL AND RoleId IN (@Director, @SuperDirector, @SuperUser);
 
--- --- SuperUser ---
-SELECT @navId = NavId FROM nav.Nav WHERE RoleId = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9' AND JobId IS NULL;
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,6,N'ARB',N'credit-card',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Health Check',N'heart-pulse',N'arb/health',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,3,N'Communications',N'envelope',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bulletins',N'megaphone',N'communications/bulletins',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Email Log',N'envelope-open',N'communications/email-log',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Push Notification',N'bell',N'communications/push-notification',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,2,N'Configure',N'gear',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Administrators',N'person-badge',N'configure/administrators',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Age Ranges',N'sliders',N'configure/age-ranges',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Customer Groups',N'people',N'configure/customer-groups',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Customers',N'building',N'configure/customers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Dropdown Options',N'list',N'configure/ddl-options',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'Discount Codes',N'tags',N'configure/discount-codes',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Job Settings',N'briefcase',N'configure/job',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Job Clone',N'copy',N'configure/job-clone',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Menus',N'list',N'configure/nav-editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Theme',N'palette',N'configure/theme',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Widgets',N'grid',N'configure/widget-editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,4,N'LADT',N'diagram-3',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Editor',N'pencil',N'ladt/editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Pool Assignment',N'people',N'ladt/pool-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Roster Swapper',N'arrow-left-right',N'ladt/roster-swapper',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,5,N'Scheduling',N'calendar',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bracket Seeds',N'trophy',N'scheduling/bracket-seeds',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Fields',N'geo-alt',N'scheduling/fields',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Master Schedule',N'table',N'scheduling/master-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Mobile Scorers',N'phone',N'scheduling/mobile-scorers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Pairings',N'arrow-left-right',N'scheduling/pairings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'QA Results',N'clipboard-check',N'scheduling/qa-results',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Referee Assignment',N'person-check',N'scheduling/referee-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Referee Calendar',N'calendar-check',N'scheduling/referee-calendar',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Rescheduler',N'arrow-repeat',N'scheduling/rescheduler',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Schedule Hub',N'grid',N'scheduling/schedule-hub',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Timeslots',N'clock',N'scheduling/timeslots',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,12,N'Tournament Parking',N'p-circle',N'scheduling/tournament-parking',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,13,N'View Schedule',N'eye',N'scheduling/view-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,1,N'Search',N'search',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Registrations',N'people',N'search/registrations',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Teams',N'shield',N'search/teams',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,8,N'Store',N'cart',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Store Admin',N'shop',N'store/admin',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,7,N'Tools',N'tools',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Change Password',N'key',N'tools/change-password',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Job Revenue',N'cash-stack',N'tools/customer-job-revenue',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Profile Editor',N'pencil-square',N'tools/profile-editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Profile Migration',N'arrow-right',N'tools/profile-migration',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Uniform Upload',N'upload',N'tools/uniform-upload',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'US Lax Rankings',N'trophy',N'tools/uslax-rankings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'US Lax Tester',N'check-circle',N'tools/uslax-test',GETDATE());
+OPEN role_cursor;
+FETCH NEXT FROM role_cursor INTO @roleId;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @roleId AND JobId IS NULL;
 
--- --- Staff ---
-SELECT @navId = NavId FROM nav.Nav WHERE RoleId = '1DB2EBF0-F12B-43DC-A960-CFC7DD4642FA' AND JobId IS NULL;
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,6,N'ARB',N'credit-card',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Health Check',N'heart-pulse',N'arb/health',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,3,N'Communications',N'envelope',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bulletins',N'megaphone',N'communications/bulletins',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Email Log',N'envelope-open',N'communications/email-log',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Push Notification',N'bell',N'communications/push-notification',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,2,N'Configure',N'gear',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Age Ranges',N'sliders',N'configure/age-ranges',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'Discount Codes',N'tags',N'configure/discount-codes',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Job Settings',N'briefcase',N'configure/job',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,4,N'LADT',N'diagram-3',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Editor',N'pencil',N'ladt/editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Pool Assignment',N'people',N'ladt/pool-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Roster Swapper',N'arrow-left-right',N'ladt/roster-swapper',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,5,N'Scheduling',N'calendar',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bracket Seeds',N'trophy',N'scheduling/bracket-seeds',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Fields',N'geo-alt',N'scheduling/fields',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Master Schedule',N'table',N'scheduling/master-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Mobile Scorers',N'phone',N'scheduling/mobile-scorers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Pairings',N'arrow-left-right',N'scheduling/pairings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'QA Results',N'clipboard-check',N'scheduling/qa-results',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Referee Assignment',N'person-check',N'scheduling/referee-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Referee Calendar',N'calendar-check',N'scheduling/referee-calendar',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Rescheduler',N'arrow-repeat',N'scheduling/rescheduler',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Schedule Hub',N'grid',N'scheduling/schedule-hub',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Timeslots',N'clock',N'scheduling/timeslots',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,12,N'Tournament Parking',N'p-circle',N'scheduling/tournament-parking',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,13,N'View Schedule',N'eye',N'scheduling/view-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,1,N'Search',N'search',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Registrations',N'people',N'search/registrations',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Teams',N'shield',N'search/teams',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,8,N'Store',N'cart',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Store Admin',N'shop',N'store/admin',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,7,N'Tools',N'tools',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Uniform Upload',N'upload',N'tools/uniform-upload',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'US Lax Rankings',N'trophy',N'tools/uslax-rankings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'US Lax Tester',N'check-circle',N'tools/uslax-test',GETDATE());
+    DECLARE @ctrl NVARCHAR(50), @ctrlIcon NVARCHAR(50), @ctrlSort INT;
+    DECLARE ctrl_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT DISTINCT Controller, Icon, CtrlSort
+        FROM #AdminManifest
+        WHERE CASE @roleId
+                 WHEN @Director      THEN ForDirector
+                 WHEN @SuperDirector THEN ForSuperDir
+                 WHEN @SuperUser     THEN ForSuperUser
+                 ELSE 0
+             END = 1
+        ORDER BY CtrlSort;
 
--- --- RefAssignor ---
-SELECT @navId = NavId FROM nav.Nav WHERE RoleId = '122075A3-2C42-4092-97F1-9673DF5B6A2C' AND JobId IS NULL;
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,6,N'ARB',N'credit-card',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Health Check',N'heart-pulse',N'arb/health',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,3,N'Communications',N'envelope',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bulletins',N'megaphone',N'communications/bulletins',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Email Log',N'envelope-open',N'communications/email-log',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Push Notification',N'bell',N'communications/push-notification',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,2,N'Configure',N'gear',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Age Ranges',N'sliders',N'configure/age-ranges',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'Discount Codes',N'tags',N'configure/discount-codes',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Job Settings',N'briefcase',N'configure/job',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,4,N'LADT',N'diagram-3',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Editor',N'pencil',N'ladt/editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Pool Assignment',N'people',N'ladt/pool-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Roster Swapper',N'arrow-left-right',N'ladt/roster-swapper',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,5,N'Scheduling',N'calendar',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bracket Seeds',N'trophy',N'scheduling/bracket-seeds',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Fields',N'geo-alt',N'scheduling/fields',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Master Schedule',N'table',N'scheduling/master-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Mobile Scorers',N'phone',N'scheduling/mobile-scorers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Pairings',N'arrow-left-right',N'scheduling/pairings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'QA Results',N'clipboard-check',N'scheduling/qa-results',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Referee Assignment',N'person-check',N'scheduling/referee-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Referee Calendar',N'calendar-check',N'scheduling/referee-calendar',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Rescheduler',N'arrow-repeat',N'scheduling/rescheduler',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Schedule Hub',N'grid',N'scheduling/schedule-hub',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Timeslots',N'clock',N'scheduling/timeslots',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,12,N'Tournament Parking',N'p-circle',N'scheduling/tournament-parking',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,13,N'View Schedule',N'eye',N'scheduling/view-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,1,N'Search',N'search',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Registrations',N'people',N'search/registrations',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Teams',N'shield',N'search/teams',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,8,N'Store',N'cart',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Store Admin',N'shop',N'store/admin',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,7,N'Tools',N'tools',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Uniform Upload',N'upload',N'tools/uniform-upload',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'US Lax Rankings',N'trophy',N'tools/uslax-rankings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'US Lax Tester',N'check-circle',N'tools/uslax-test',GETDATE());
+    OPEN ctrl_cursor;
+    FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+        VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, GETDATE());
+        SET @parentId = SCOPE_IDENTITY();
 
--- --- StoreAdmin ---
-SELECT @navId = NavId FROM nav.Nav WHERE RoleId = '5B9B7055-4530-4E46-B403-1019FD8B8418' AND JobId IS NULL;
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,6,N'ARB',N'credit-card',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Health Check',N'heart-pulse',N'arb/health',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,3,N'Communications',N'envelope',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bulletins',N'megaphone',N'communications/bulletins',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Email Log',N'envelope-open',N'communications/email-log',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Push Notification',N'bell',N'communications/push-notification',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,2,N'Configure',N'gear',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Age Ranges',N'sliders',N'configure/age-ranges',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'Discount Codes',N'tags',N'configure/discount-codes',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Job Settings',N'briefcase',N'configure/job',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,4,N'LADT',N'diagram-3',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Editor',N'pencil',N'ladt/editor',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Pool Assignment',N'people',N'ladt/pool-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Roster Swapper',N'arrow-left-right',N'ladt/roster-swapper',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,5,N'Scheduling',N'calendar',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Bracket Seeds',N'trophy',N'scheduling/bracket-seeds',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Fields',N'geo-alt',N'scheduling/fields',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,3,N'Master Schedule',N'table',N'scheduling/master-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,4,N'Mobile Scorers',N'phone',N'scheduling/mobile-scorers',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Pairings',N'arrow-left-right',N'scheduling/pairings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'QA Results',N'clipboard-check',N'scheduling/qa-results',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'Referee Assignment',N'person-check',N'scheduling/referee-assignment',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,8,N'Referee Calendar',N'calendar-check',N'scheduling/referee-calendar',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,9,N'Rescheduler',N'arrow-repeat',N'scheduling/rescheduler',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,10,N'Schedule Hub',N'grid',N'scheduling/schedule-hub',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,11,N'Timeslots',N'clock',N'scheduling/timeslots',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,12,N'Tournament Parking',N'p-circle',N'scheduling/tournament-parking',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,13,N'View Schedule',N'eye',N'scheduling/view-schedule',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,1,N'Search',N'search',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Registrations',N'people',N'search/registrations',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,2,N'Teams',N'shield',N'search/teams',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,8,N'Store',N'cart',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,1,N'Store Admin',N'shop',N'store/admin',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified) VALUES(@navId,NULL,1,7,N'Tools',N'tools',GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,5,N'Uniform Upload',N'upload',N'tools/uniform-upload',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,6,N'US Lax Rankings',N'trophy',N'tools/uslax-rankings',GETDATE());
-INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,Modified) VALUES(@navId,@parentId,1,7,N'US Lax Tester',N'check-circle',N'tools/uslax-test',GETDATE());
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
+        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, GETDATE()
+        FROM #AdminManifest
+        WHERE Controller = @ctrl
+          AND CASE @roleId
+                 WHEN @Director      THEN ForDirector
+                 WHEN @SuperDirector THEN ForSuperDir
+                 WHEN @SuperUser     THEN ForSuperUser
+                 ELSE 0
+             END = 1
+        ORDER BY ActionSort;
 
--- ================================================================
--- 6. Restore reporting items
--- ================================================================
+        FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+    END
+    CLOSE ctrl_cursor;
+    DEALLOCATE ctrl_cursor;
+
+    FETCH NEXT FROM role_cursor INTO @roleId;
+END
+CLOSE role_cursor;
+DEALLOCATE role_cursor;
+
+PRINT 'Fanned admin manifest to Director / SuperDirector / SuperUser';
+
+-- -- 7. RefAssignor -----------------------------------------------------
+-- RefAssignor: Referee Assignment + Referee Calendar
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @RefAssignor AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'RefAssignor', N'person-check', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', GETDATE());
+PRINT 'RefAssignor: Referee Assignment + Referee Calendar';
+
+-- -- 8. StoreAdmin ------------------------------------------------------
+-- StoreAdmin: Store Admin
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @StoreAdmin AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'StoreAdmin', N'shop', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Store Admin', N'speedometer2', N'store/admin', GETDATE());
+PRINT 'StoreAdmin: Store Admin';
+
+-- -- 9. Family ----------------------------------------------------------
+-- Family: Registration + Store + View Rosters
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Family AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Register Player', N'person-plus', N'registration/entry', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'Pay Balance Due', N'credit-card', N'registration/player?mode=pay', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 2, N'Store', N'cart', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Event Store', N'shop', N'store', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 3, N'View Rosters', N'people', N'rosters', GETDATE());
+PRINT 'Family: Registration + Store + View Rosters';
+
+-- -- 10. ClubRep --------------------------------------------------------
+-- ClubRep: Registration + Accounting + View Rosters
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @ClubRep AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Register Teams', N'shield-plus', N'registration/entry', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'Club Rosters', N'people', N'club-rosters', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 2, N'Accounting', N'cash-stack', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Team Accounting', N'receipt', N'registration/team?mode=accounting', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 3, N'View Rosters', N'people', N'rosters', GETDATE());
+PRINT 'ClubRep: Registration + Accounting + View Rosters';
+
+-- -- 11. Player ---------------------------------------------------------
+-- Player: View Rosters
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Player AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'View Rosters', N'people', N'rosters', GETDATE());
+PRINT 'Player: View Rosters';
+
+-- -- 12. Staff ----------------------------------------------------------
+-- Staff: View Rosters
+SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Staff AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'View Rosters', N'people', N'rosters', GETDATE());
+PRINT 'Staff: View Rosters';
+
+-- UnassignedAdult: Nav row from section 5; no items emitted (intentional).
+PRINT 'UnassignedAdult: no menu items (intentional)';
+
+-- -- 13. Restore preserved reporting items ------------------------------
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 IF @cnt > 0
 BEGIN
     DECLARE @suNavId INT;
-    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = 'CD9DC8D7-19A0-47C3-A3E5-ACB19FB90DA9' AND JobId IS NULL;
+    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = @SuperUser AND JobId IS NULL;
 
     DECLARE @apId INT;
     IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL)
     BEGIN
-        INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,Modified)
-        VALUES(@suNavId,NULL,1,9,N'Analyze',N'bar-chart',GETDATE());
+        INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+        VALUES (@suNavId, NULL, 1, 9, N'Analyze', N'bar-chart', GETDATE());
         SET @apId = SCOPE_IDENTITY();
     END
     ELSE
         SELECT @apId = NavItemId FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL;
 
-    INSERT INTO nav.NavItem(NavId,ParentNavItemId,Active,SortOrder,[Text],IconName,RouterLink,NavigateUrl,[Target],Modified)
+    INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
     SELECT @suNavId, @apId, r.Active, r.SortOrder, r.[Text], r.IconName, r.RouterLink, r.NavigateUrl, r.[Target], GETDATE()
     FROM #ReportingItems r;
-    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze section');
+    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze');
 END
 DROP TABLE #ReportingItems;
 
--- ================================================================
--- 7. Restore visibility rules
--- ================================================================
+-- -- 14. Restore preserved visibility rules -----------------------------
 UPDATE ni
 SET ni.VisibilityRules = vr.VisibilityRules
 FROM nav.NavItem ni
@@ -436,17 +293,32 @@ JOIN #VisRules vr ON vr.RoleId = n.RoleId AND vr.RouterLink = ni.RouterLink
 WHERE n.JobId IS NULL;
 PRINT CONCAT('Restored ', @@ROWCOUNT, ' visibility rule(s)');
 DROP TABLE #VisRules;
+DROP TABLE #AdminManifest;
 
--- ================================================================
--- 8. Summary
--- ================================================================
+-- -- 15. Commit + summary -----------------------------------------------
 COMMIT TRANSACTION;
 
 SELECT
-    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL) AS [Platform Navs],
-    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL) AS [Platform Items],
-    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId=n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL) AS [Sections],
-    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NOT NULL) AS [Job Overrides (preserved)];
+    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NULL)                                                                      AS [Platform Navs],
+    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL)                        AS [Platform Items],
+    (SELECT COUNT(*) FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId WHERE n.JobId IS NULL AND ni.ParentNavItemId IS NULL) AS [Sections or Top-level Leaves],
+    (SELECT COUNT(*) FROM nav.Nav WHERE JobId IS NOT NULL)                                                                  AS [Job Overrides (preserved)];
+
+SELECT
+    r.Name AS [Role],
+    parent.Text AS [Section],
+    parent.SortOrder AS [SectionOrder],
+    parent.RouterLink AS [SectionRoute],
+    child.Text AS [Item],
+    child.SortOrder AS [ItemOrder],
+    child.RouterLink AS [ItemRoute]
+FROM [nav].[Nav] n
+JOIN [dbo].[AspNetRoles] r ON n.RoleId = r.Id
+LEFT JOIN [nav].[NavItem] parent ON parent.NavId = n.NavId AND parent.ParentNavItemId IS NULL
+LEFT JOIN [nav].[NavItem] child  ON child.ParentNavItemId = parent.NavItemId
+WHERE n.JobId IS NULL
+ORDER BY r.Name, parent.SortOrder, child.SortOrder;
 
 PRINT 'Nav system reset complete.';
+SET NOCOUNT OFF;
 
