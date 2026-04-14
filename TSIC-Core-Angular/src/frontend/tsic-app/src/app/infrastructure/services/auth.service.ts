@@ -53,7 +53,11 @@ export class AuthService {
   public readonly isAdmin = computed(() => {
     const user = this.currentUser();
     const roles = user?.roles || (user?.role ? [user.role] : []);
-    return roles.includes(Roles.Superuser) || roles.includes(Roles.Director) || roles.includes(Roles.SuperDirector);
+    return roles.includes(Roles.Superuser)
+        || roles.includes(Roles.Director)
+        || roles.includes(Roles.SuperDirector)
+        || roles.includes(Roles.RefAssignor)
+        || roles.includes(Roles.StoreAdmin);
   });
 
   constructor() {
