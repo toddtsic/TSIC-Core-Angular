@@ -186,7 +186,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         TeamFeeApplicationContext ctx,
         CancellationToken ct = default)
     {
-        var resolved = await ResolveFeeForAgegroupAsync(jobId, RoleConstants.ClubRep, agegroupId, ct);
+        // Full Team → Agegroup → Job cascade for ClubRep, mirroring the Player path.
+        // Symmetric scope design — see scripts/6b verify-fees-feebase-concordance.sql
+        // TEST 2, which joins team/agegroup/job rows identically to Player TEST 1.
+        var resolved = await ResolveFeeAsync(jobId, RoleConstants.ClubRep, agegroupId, team.TeamId, ct);
 
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
@@ -219,7 +222,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         TeamFeeApplicationContext ctx,
         CancellationToken ct = default)
     {
-        var resolved = await ResolveFeeForAgegroupAsync(jobId, RoleConstants.ClubRep, targetAgegroupId, ct);
+        // Full Team → Agegroup → Job cascade; honors a team-level ClubRep override if
+        // one exists for this team in its new agegroup. See FeeResolutionService.ApplyNewTeamFeesAsync
+        // for the design rationale.
+        var resolved = await ResolveFeeAsync(jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId, ct);
 
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
