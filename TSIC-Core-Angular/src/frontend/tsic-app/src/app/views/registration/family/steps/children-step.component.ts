@@ -117,7 +117,7 @@ import { FamilyStateService } from '../state/family-state.service';
                        [class.is-invalid]="submitted() && form.controls.phone.errors?.['pattern']" />
                 @if (submitted() && form.controls.phone.errors?.['pattern']) { <div class="field-error">Numbers only</div> }
               </div>
-              <div class="col-12 d-flex gap-2">
+              <div class="col-12 d-flex gap-2 justify-content-end">
                 <button type="submit" class="btn btn-outline-primary">
                   {{ editingIndex() !== null ? 'Save changes' : 'Add Player' }}
                 </button>

@@ -587,7 +587,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Back button at the bottom of the screen, consistent with the instruction text "Already have an account? Select Back below to login."
 - **What happened**: No Back button at the bottom — the instruction text references a button that isn't there
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — replaced "Select Back below to login" with inline "click here" link routing to `registration/player` (credentials-step.component.ts)
 
 ### SP-002: "Let's Register Your Players!" — remove "Update My Family Account Data and/or Players" button
 - **Area**: Registration Process Review
@@ -595,7 +595,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Either no button (since the first post-login screen already provides these functions), or for the button to navigate to the correct place
 - **What happened**: Button is redundant with post-login functionality AND doesn't lead to the correct place — remove it
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed — removed the redundant button (family-check-step.component.ts)
 
 ### SP-003: "Let's Register Your Players!" — reword sign-in instruction
 - **Area**: Registration Process Review
@@ -603,7 +603,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Wording that covers both registering and updating an existing family account
 - **What happened**: Text reads "Sign in with your family account to get started." — change to "Sign in to get started or to update your family account details."
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't change — current wording is acceptable
 
 ### SP-004: Move "Add Player" button to right side of entry card for clarity
 - **Area**: Family Account Creation
@@ -611,7 +611,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: "Add Player" button positioned on the right side of the card where player data is entered, so it's visually clear it must be clicked before Continue
 - **What happened**: Current placement isn't clear enough — users may click Continue before adding the player they just typed in. Move "Add Player" to the right side of the entry card.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — Add Player button moved flush right (children-step.component.ts)
 
 ### SP-005: Review screen — move Username to its own section at top, relabel "Family Account Username"
 - **Area**: Family Account Creation
@@ -619,7 +619,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The account username displayed in a distinct section at the top of the data card, labeled "Family Account Username"
 - **What happened**: Username currently sits at the bottom of Parent/Contact 1 info and is labeled only "Username" — promote it to its own top-of-card section and relabel it "Family Account Username"
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Completed
 
 ### SP-006: Edit Player — make "Save changes" more prominent and move to right with Cancel
 - **Area**: Family Account Creation
@@ -627,5 +627,5 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A prominent, easy-to-spot "Save changes" button — ideally positioned on the right side of the edit card alongside Cancel so the action is obvious
 - **What happened**: Save changes button is not visually prominent and its placement makes it easy to miss — move it to the right side next to Cancel and give it stronger visual emphasis
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Completed
 

@@ -146,11 +146,6 @@ import { LoginComponent } from '../../../auth/login/login.component';
                     (click)="goToFamilyWizard()">
               <i class="bi bi-people-fill me-2"></i>Create NEW Family Account
             </button>
-            <button type="button"
-                    class="btn btn-outline-secondary fw-semibold w-100 mt-3"
-                    (click)="goToFamilyWizard()">
-              <i class="bi bi-pencil-square me-2"></i>Update My Family Account Data and/or Players
-            </button>
           </div>
         }
       </div>

@@ -90,24 +90,24 @@ import { FamilyStateService } from '../state/family-state.service';
           }
           @if (state.children().length > 0) {
             <div class="table-responsive">
-              <table class="table align-middle table-sm">
-                <thead class="table-light">
+              <table class="tsic-grid">
+                <thead>
                   <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Gender</th>
-                    <th scope="col">DOB</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Cellphone</th>
+                    <th class="tsic-grid-header">Name</th>
+                    <th class="tsic-grid-header">Gender</th>
+                    <th class="tsic-grid-header">DOB</th>
+                    <th class="tsic-grid-header">Email</th>
+                    <th class="tsic-grid-header">Cellphone</th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (c of state.children(); track $index) {
                     <tr>
-                      <td class="fw-semibold">{{ c.firstName }} {{ c.lastName }}</td>
-                      <td>{{ c.gender }}</td>
-                      <td>{{ c.dob || '—' }}</td>
-                      <td>{{ c.email || '—' }}</td>
-                      <td>{{ c.phone || '—' }}</td>
+                      <td class="tsic-grid-cell fw-semibold">{{ c.firstName }} {{ c.lastName }}</td>
+                      <td class="tsic-grid-cell">{{ c.gender }}</td>
+                      <td class="tsic-grid-cell">{{ formatDob(c.dob) }}</td>
+                      <td class="tsic-grid-cell">{{ c.email || '—' }}</td>
+                      <td class="tsic-grid-cell">{{ c.phone || '—' }}</td>
                     </tr>
                   }
                 </tbody>
@@ -187,6 +187,12 @@ export class ReviewStepComponent implements OnInit {
     label2(): string {
         const l = this.jobService.currentJob()?.dadLabel?.trim();
         return l && l.length > 0 ? l : 'Parent 2';
+    }
+
+    formatDob(dob: string | null | undefined): string {
+        if (!dob) return '—';
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dob);
+        return m ? `${m[2]}/${m[3]}/${m[1]}` : dob;
     }
 
     ngOnInit(): void {

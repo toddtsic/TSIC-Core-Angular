@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { FamilyStateService } from '../state/family-state.service';
 
@@ -12,12 +13,12 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-credentials-step',
     standalone: true,
-    imports: [ReactiveFormsModule, AutofocusDirective],
+    imports: [ReactiveFormsModule, AutofocusDirective, RouterLink],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
         <h5 class="mb-1 fw-semibold">Create Family Account</h5>
-        <p class="wizard-tip">Choose a username and password for your NEW account.<br>Already have an account? Select <strong>Back</strong> below to login.</p>
+        <p class="wizard-tip">Choose a username and password for your NEW account.<br>Already have an account? <a routerLink="../player">click here</a>.</p>
 
         @if (validationError()) {
           <div class="alert alert-danger d-flex align-items-start gap-2 mb-3" role="alert">
