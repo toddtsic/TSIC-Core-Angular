@@ -30,6 +30,7 @@ import { ContactsTabComponent } from './components/contacts-tab.component';
 import { TeamResultsModalComponent } from './components/team-results-modal.component';
 import { EditGameModalComponent } from './components/edit-game-modal.component';
 import { GameClockModalComponent } from './components/game-clock-modal.component';
+import { InlineGameClockComponent } from './components/inline-game-clock.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
@@ -55,6 +56,7 @@ interface FilterChip {
         TeamResultsModalComponent,
         EditGameModalComponent,
         GameClockModalComponent,
+        InlineGameClockComponent,
         TsicDialogComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,6 +70,11 @@ interface FilterChip {
                         <span class="title-badge">{{ games().length }}</span>
                     }
                 </h1>
+                @if (currentJobId() && hasGameClockGames()) {
+                    <app-inline-game-clock
+                        [jobId]="currentJobId()"
+                        (expand)="gameClockVisible.set(true)" />
+                }
                 @if (eventName()) {
                     <p class="page-subtitle">{{ eventName() }}</p>
                 }
@@ -471,8 +478,17 @@ interface FilterChip {
 
         /* ── Header ── */
         .page-header {
-            text-align: center;
-            padding: var(--space-2) 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-4);
+            padding: var(--space-2) var(--space-3);
+            margin: 0 calc(var(--space-3) * -1);
+            background: var(--bs-body-bg);
+            border-bottom: 1px solid var(--bs-border-color);
         }
 
         .page-title {
@@ -480,6 +496,7 @@ interface FilterChip {
             font-size: var(--font-size-3xl);
             font-weight: 700;
             color: var(--bs-body-color);
+            flex-shrink: 0;
         }
 
         .title-badge {
@@ -499,10 +516,21 @@ interface FilterChip {
         }
 
         .page-subtitle {
-            margin: var(--space-1) 0 0;
+            margin: 0;
             font-size: var(--font-size-sm);
             color: var(--bs-secondary-color);
             font-weight: 400;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: center;
+                gap: var(--space-1);
+            }
+            .page-subtitle { text-align: center; }
         }
 
         /* ═══ Desktop Filter Bar ═══ */

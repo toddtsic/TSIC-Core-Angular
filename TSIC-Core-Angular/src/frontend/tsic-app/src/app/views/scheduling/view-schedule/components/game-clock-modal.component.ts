@@ -1,16 +1,20 @@
 import {
+    AfterViewInit,
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     EventEmitter,
+    HostListener,
     OnDestroy,
     OnInit,
     Output,
+    ViewChild,
     computed,
     inject,
     input,
     signal
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Subject, Subscription, interval, takeUntil } from 'rxjs';
 import type { GameClockAvailableGameTimesDto, GameClockConfigDto, GameClockStartDataDto } from '@core/api';
 import { ViewScheduleService } from '../services/view-schedule.service';
@@ -38,13 +42,16 @@ interface LiveGame {
 @Component({
     selector: 'app-game-clock-modal',
     standalone: true,
-    imports: [DatePipe],
+    imports: [DatePipe, DecimalPipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div class="modal-backdrop" (click)="close.emit()">
+        <div #modalRoot class="modal-backdrop" (click)="close.emit()">
             <div class="modal-card" (click)="$event.stopPropagation()">
                 <div class="modal-header">
                     <h3 class="modal-title">Game Clock</h3>
+                    @if (status() === 'active-game-updated' && activeGame()?.activeIntervalLabel === 'START') {
+                        <span class="modal-title-note">No live games at this time</span>
+                    }
                     <button class="modal-close" (click)="close.emit()" aria-label="Close">&times;</button>
                 </div>
 
@@ -106,11 +113,12 @@ interface LiveGame {
                     }
 
                     @if (status() === 'active-game-updated' && activeGame(); as ag) {
-                        @if (ag.activeIntervalLabel === 'START') {
-                            <div class="pre-start-note">No live games at this time</div>
-                        }
-
                         <div class="countdown-card">
+                            <div class="state-chip" [attr.data-state]="stateKey(ag.activeIntervalLabel)">
+                                <span class="state-dot"></span>
+                                <span class="state-text">{{ stateLabel(ag.activeIntervalLabel) }}</span>
+                            </div>
+
                             <div class="countdown-subtitle">
                                 <div>
                                     Time remaining
@@ -124,21 +132,26 @@ interface LiveGame {
                             </div>
 
                             <div class="countdown-row">
+                                @if (ag.remainingDays > 0) {
+                                    <div class="time-unit">
+                                        <div class="time-value">{{ ag.remainingDays }}</div>
+                                        <div class="time-label">DAYS</div>
+                                    </div>
+                                    <span class="sep">:</span>
+                                }
                                 <div class="time-unit">
-                                    <div class="time-value">{{ ag.remainingDays }}</div>
-                                    <div class="time-label">D</div>
+                                    <div class="time-value">{{ ag.remainingHours | number: '2.0-0' }}</div>
+                                    <div class="time-label">HRS</div>
                                 </div>
+                                <span class="sep">:</span>
                                 <div class="time-unit">
-                                    <div class="time-value">{{ ag.remainingHours }}</div>
-                                    <div class="time-label">H</div>
+                                    <div class="time-value">{{ ag.remainingMinutes | number: '2.0-0' }}</div>
+                                    <div class="time-label">MIN</div>
                                 </div>
-                                <div class="time-unit">
-                                    <div class="time-value">{{ ag.remainingMinutes }}</div>
-                                    <div class="time-label">M</div>
-                                </div>
-                                <div class="time-unit">
-                                    <div class="time-value">{{ ag.remainingSeconds }}</div>
-                                    <div class="time-label">S</div>
+                                <span class="sep">:</span>
+                                <div class="time-unit seconds" [class.tick]="tickFlash()">
+                                    <div class="time-value">{{ ag.remainingSeconds | number: '2.0-0' }}</div>
+                                    <div class="time-label">SEC</div>
                                 </div>
                             </div>
                         </div>
@@ -175,12 +188,21 @@ interface LiveGame {
             justify-content: space-between;
             padding: var(--space-3) var(--space-4);
             border-bottom: 1px solid var(--bs-border-color);
+            gap: var(--space-2);
         }
         .modal-title {
             margin: 0;
             font-size: var(--font-size-lg, 1.125rem);
             font-weight: 600;
             color: var(--bs-body-color);
+        }
+        .modal-title-note {
+            flex: 1;
+            text-align: right;
+            margin-right: var(--space-3);
+            font-size: var(--font-size-sm, 0.875rem);
+            font-style: italic;
+            color: var(--bs-secondary-color);
         }
         .modal-close {
             background: none;
@@ -200,23 +222,27 @@ interface LiveGame {
 
         .bucket-toggle {
             display: flex;
-            gap: var(--space-2);
+            gap: 0;
             margin-bottom: var(--space-3);
+            padding: 4px;
+            background: var(--bs-secondary-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--bs-border-radius);
         }
         .bucket-toggle button {
             flex: 1;
             padding: var(--space-2) var(--space-3);
-            border: 1px solid var(--bs-border-color);
-            background: var(--bs-body-bg);
-            color: var(--bs-body-color);
-            border-radius: var(--bs-border-radius);
+            border: none;
+            background: transparent;
+            color: var(--bs-secondary-color);
+            border-radius: calc(var(--bs-border-radius) - 2px);
             cursor: pointer;
             font-weight: 500;
         }
+        .bucket-toggle button:hover:not(.active) { color: var(--bs-body-color); }
         .bucket-toggle button.active {
             background: var(--bs-primary);
             color: #fff;
-            border-color: var(--bs-primary);
         }
         .bucket-toggle button:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
@@ -268,28 +294,71 @@ interface LiveGame {
             color: var(--bs-secondary-color);
         }
 
-        .pre-start-note {
+        .countdown-card {
+            background: linear-gradient(160deg,
+                var(--bs-primary) 0%,
+                color-mix(in srgb, var(--bs-primary) 70%, #000 30%) 100%);
+            color: #fff;
+            border: 1px solid color-mix(in srgb, var(--bs-primary) 60%, #000);
+            border-radius: var(--bs-border-radius-lg);
+            padding: var(--space-5) var(--space-4);
             text-align: center;
-            padding: var(--space-2);
-            color: var(--bs-danger);
-            font-weight: 600;
-            font-size: var(--font-size-sm);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                inset 0 -1px 0 rgba(0,0,0,0.25),
+                0 8px 24px -6px rgba(0,0,0,0.35);
         }
 
-        .countdown-card {
-            background: var(--bs-primary);
-            color: #fff;
-            border-radius: var(--bs-border-radius);
-            padding: var(--space-4);
-            text-align: center;
+        @media (prefers-reduced-motion: no-preference) {
+            .countdown-card {
+                animation: card-fade-in 120ms ease-out;
+            }
         }
+        @keyframes card-fade-in {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .state-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: 4px 12px;
+            margin-bottom: var(--space-1);
+            background: rgba(0,0,0,0.25);
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+        .state-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .state-chip[data-state="upcoming"]   { color: rgba(255,255,255,0.75); }
+        .state-chip[data-state="live"]       { color: var(--bs-danger); }
+        .state-chip[data-state="halftime"]   { color: var(--bs-warning); }
+        .state-chip[data-state="transition"] { color: rgba(255,255,255,0.75); }
+
+        @media (prefers-reduced-motion: no-preference) {
+            .state-chip[data-state="live"] .state-dot {
+                animation: pulse-dot 1.4s ease-in-out infinite;
+            }
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.4; transform: scale(1.3); }
+        }
+
         .countdown-subtitle {
             font-size: var(--font-size-sm, 0.875rem);
             line-height: 1.4;
-            margin-bottom: var(--space-3);
+            margin-bottom: var(--space-5);
         }
         .countdown-subtitle .highlight {
-            color: #ffd54a;
+            color: var(--bs-warning);
             font-weight: 700;
             font-size: 1rem;
         }
@@ -297,39 +366,67 @@ interface LiveGame {
         .countdown-row {
             display: flex;
             justify-content: center;
+            align-items: flex-start;
             gap: var(--space-3);
             flex-wrap: nowrap;
         }
         .time-unit {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: var(--space-2);
-            flex-direction: row-reverse;
+            gap: var(--space-1);
+        }
+        .sep {
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            color: rgba(255,255,255,0.4);
+            font-weight: 700;
+            line-height: calc(clamp(2.5rem, 8vw, 3.75rem) + var(--space-1) * 2);
         }
         .time-label {
-            color: #ffd54a;
-            font-size: 0.9rem;
+            color: var(--bs-warning);
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         .time-value {
-            background: #fff;
-            color: #111;
+            background: color-mix(in srgb, #000 25%, transparent);
+            color: #fff;
             border-radius: var(--bs-border-radius);
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.15),
+                0 2px 6px rgba(0,0,0,0.3);
             min-width: 2.2ex;
             padding: var(--space-1) var(--space-2);
-            font-size: 2em;
-            font-weight: 600;
+            font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+            font-variant-numeric: tabular-nums;
+            font-size: clamp(2.5rem, 8vw, 3.75rem);
+            font-weight: 700;
             line-height: 1;
+        }
+
+        .time-unit.seconds .time-value {
+            transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+        }
+        .time-unit.seconds.tick .time-value {
+            transform: scale(1.04);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.3),
+                0 4px 12px rgba(0,0,0,0.4);
         }
 
         @media (prefers-reduced-motion: reduce) {
             .modal-backdrop, .modal-card { animation: none !important; transition: none !important; }
+            .time-unit.seconds .time-value,
+            .time-unit.seconds.tick .time-value {
+                transition: none !important;
+                transform: none !important;
+            }
+            .state-chip[data-state="live"] .state-dot { animation: none !important; }
         }
     `]
 })
-export class GameClockModalComponent implements OnInit, OnDestroy {
+export class GameClockModalComponent implements OnInit, OnDestroy, AfterViewInit {
     jobId = input.required<string>();
 
     @Output() close = new EventEmitter<void>();
@@ -342,6 +439,10 @@ export class GameClockModalComponent implements OnInit, OnDestroy {
     readonly selectedBucket = signal<Bucket>('rr');
     private readonly selectedGameStart = signal<Date | undefined>(undefined);
     readonly status = signal<UpdateStatus>('loading');
+    readonly tickFlash = signal(false);
+
+    @ViewChild('modalRoot') private modalRoot?: ElementRef<HTMLElement>;
+    private priorFocus: HTMLElement | null = null;
 
     readonly hasBothBuckets = computed(() => this.rrGames().length > 0 && this.poGames().length > 0);
 
@@ -371,10 +472,68 @@ export class GameClockModalComponent implements OnInit, OnDestroy {
         }
     }
 
+    ngAfterViewInit(): void {
+        this.priorFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        queueMicrotask(() => this.focusFirst());
+    }
+
     ngOnDestroy(): void {
         this.unsubscribe$.next();
         this.unsubscribe$.complete();
         this.countdownSub?.unsubscribe();
+        this.priorFocus?.focus();
+    }
+
+    @HostListener('document:keydown.escape')
+    onEscape(): void {
+        this.close.emit();
+    }
+
+    @HostListener('document:keydown', ['$event'])
+    onKeydown(ev: KeyboardEvent): void {
+        if (ev.key !== 'Tab') return;
+        const focusable = this.getFocusable();
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        if (ev.shiftKey && active === first) {
+            ev.preventDefault();
+            last.focus();
+        } else if (!ev.shiftKey && active === last) {
+            ev.preventDefault();
+            first.focus();
+        }
+    }
+
+    stateKey(label: string): 'upcoming' | 'live' | 'halftime' | 'transition' {
+        if (label === 'START') return 'upcoming';
+        if (label === 'HALF TIME' || label === 'FIRST QUARTER TIME' || label === 'THIRD QUARTER TIME') return 'halftime';
+        if (label === 'TRANSITION') return 'transition';
+        return 'live';
+    }
+
+    stateLabel(label: string): string {
+        const key = this.stateKey(label);
+        switch (key) {
+            case 'upcoming':   return 'UPCOMING';
+            case 'live':       return 'LIVE';
+            case 'halftime':   return 'HALFTIME';
+            case 'transition': return 'BREAK';
+        }
+    }
+
+    private getFocusable(): HTMLElement[] {
+        if (!this.modalRoot) return [];
+        const nodes = this.modalRoot.nativeElement.querySelectorAll<HTMLElement>(
+            'button, [tabindex]:not([tabindex="-1"])'
+        );
+        return Array.from(nodes).filter(el => !el.hasAttribute('disabled'));
+    }
+
+    private focusFirst(): void {
+        const focusable = this.getFocusable();
+        focusable[0]?.focus();
     }
 
     selectBucket(b: Bucket): void {
@@ -531,6 +690,8 @@ export class GameClockModalComponent implements OnInit, OnDestroy {
             this.tickRemaining(updatedAg, now);
             const updatedGame: LiveGame = { ...games[0], gameData: updatedAg };
             this.setGameInCurrentBucket(updatedGame);
+            this.tickFlash.set(true);
+            setTimeout(() => this.tickFlash.set(false), 150);
         });
     }
 
