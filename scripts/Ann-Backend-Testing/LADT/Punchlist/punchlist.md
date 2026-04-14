@@ -72,7 +72,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Settings to have multiple items, or Sync Division Names to be elsewhere
 - **What happened**: Sync Division Names is the only item under Settings — feels like it doesn't belong there
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — action renamed to "Theme Division Names" and lives under the gear/theme dropdown. The "theming" framing is the intended convention; gear is the home for future theming-related actions.
 
 ### PL-005: League-level "+" circle — is it needed?
 - **Area**: Tree Navigation
@@ -80,7 +80,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear purpose or no button if unnecessary
 - **What happened**: Not sure what this adds or if it's needed at the League level
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — the `+` at the League level is "Add Age Group" and is required for the empty-state scenario where a league has no age groups yet (no child nodes to drop next to). Consistent with the `+` pattern at Age Group level (adds Division) and Division level (adds Team).
 
 ### PL-006: Remove Team popup references "Dropped Teams" — not applicable to player sites
 - **Area**: Team Settings
@@ -105,7 +105,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Only league-relevant settings
 - **What happened**: Not clear if Hide Contacts and Hide Standings belong at the League level
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — confirmed with Todd that Hide Contacts and Hide Standings are correctly league-level settings. They're global privacy toggles that apply across every team/division within the league.
 
 ### PL-009: League edit Advanced — does Reschedule Emails belong here?
 - **Area**: League Settings
@@ -113,7 +113,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Only league-relevant advanced settings
 - **What happened**: Reschedule Emails option is there — not clear it belongs at the League level
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — Reschedule Emails addon stays at the League level. It's league-wide notification routing (addresses CC'd on reschedule emails for any team/division in the league), parallel with the other league-wide settings (Hide Contacts, Hide Standings).
 
 ### PL-010: League edit Legacy — missing options: Coach Score, TM-See-Schedule, SortProfile, Player Fee Override
 - **Area**: League Settings
@@ -121,7 +121,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Options for Coach Score, TM-See-Schedule, SortProfile, Player Fee Override
 - **What happened**: These options are no longer there — need to know if they're still needed or moved elsewhere
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — all four options (Coach Score, TM-See-Schedule, SortProfile, Player Fee Override) were deliberately dropped from the new system.
 
 ### PL-011: LADT tree — add hover text showing the level name (League / AgeGroup / Division / Team)
 - **Area**: Tree Navigation
@@ -191,7 +191,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Different functionality from the Edit icon
 - **What happened**: Takes you to the same place as the Edit icon — may not be needed
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — `AG SET` is a status label, not a button. It's a green pill on the fee amount in the Fees column indicating the fee was configured at the Agegroup level (peers: `TEAM SET`, `JOB SET`, and `FROM AG`/`FROM JOB` for inherited values). It answers "was this fee set here, or did it cascade down?" — the same row opens the edit flyin because clicking any row-cell triggers row selection, not because the badge itself is a button.
 
 ### PL-019: Age Group Details fly-in — Early Bird dropdown truncates option labels
 - **Area**: Age Group Settings
@@ -216,7 +216,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Understanding of whether this field still serves a purpose
 - **What happened**: Need Todd to confirm if Sort Age is still used anywhere or can be removed
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — Todd confirmed Sort Age is still functional (used for agegroup ordering). Field stays in the DTO and UI.
 
 ### PL-022: League table — add down-arrow button to navigate to Age Groups for consistency
 - **Area**: League Settings
@@ -232,7 +232,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Up/down buttons grouped with Division name; only relevant columns shown
 - **What happened**: Up/down buttons are separate from Division column, and Fees column is present but may not be needed here
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — (1) Fees column removed from `DIVISION_COLUMNS` — divisions are not a scope in `fees.JobFees` (schema has `AgegroupId` + `TeamId`, no `DivisionId`), so fee pills on division rows were always inherited noise. Also removed the now-dead `level===2` branch in `enrichWithFees` and the `'division'` case in `buildFeePills`. (2) "Up/down" affordances are the drill-navigation badges (`↑A` up to Age Group, `T↓N` down to Teams) in the action column, matching the Team and Agegroup tables. Prior polish (uniform 110px action column, pencil left-aligned) already addresses adjacency.
 
 ### PL-024: "Add New Division" button — wrong placement and adds a Team instead
 - **Area**: Division Settings
@@ -266,7 +266,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Trash cans also available at higher levels (e.g., Division) when no items underneath
 - **What happened**: Not sure if delete is available at higher levels when they have no children — need to verify
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — behavior already correct. `canDelete(node)` in ladt.component.ts: League never deletable from tree (by design); Agegroup deletable when `teamCount === 0`; Division deletable when not "Unassigned" AND `teamCount === 0`; Team always shows trash (backend guards scheduled/payment edge cases).
 
 ### PL-028: Team Details table — reorder and narrow columns so important data is visible on first screen
 - **Area**: Team Settings
@@ -300,7 +300,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear understanding of which job types these settings apply to
 - **What happened**: Need to review whether these are relevant for all job types or only specific ones
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Open — talk to Todd. Needs a product-side decision on applicability per job type (Player / Family / CAC / Team-only tournament). No code change proposed yet.
 
 ### PL-032: Team Details — should Dates section come before Overrides since dates are always used?
 - **Area**: Team Settings
@@ -325,7 +325,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Level of Play to be configured here or clear indication of where it's set
 - **What happened**: Not clear if Level of Play is actually set in this section — need to confirm
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — Level of Play was a plain `<input>` whose "dropdown" was just browser autofill history (unsorted, included whatever anyone had ever typed). Replaced with a real `<select>` offering a curated sorted list (blank, 1, 2, 3, 4, 5 (strongest)).
 
 ### PL-035: Keyword Pairs — add explanatory note so users understand what this is for
 - **Area**: Team Settings

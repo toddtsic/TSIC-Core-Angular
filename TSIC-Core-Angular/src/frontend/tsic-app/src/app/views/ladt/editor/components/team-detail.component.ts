@@ -215,9 +215,16 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
                 <option value="C">Co-Ed</option>
               </select>
             </div>
-            <div style="width: 80px;">
+            <div style="min-width: 120px;">
               <label class="fee-label">Level of Play</label>
-              <input class="form-control form-control-sm" [(ngModel)]="form.levelOfPlay" name="levelOfPlay">
+              <select class="form-select form-select-sm" [(ngModel)]="form.levelOfPlay" name="levelOfPlay">
+                <option [ngValue]="null">—</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5 (strongest)</option>
+              </select>
             </div>
           </div>
         </div>

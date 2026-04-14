@@ -654,7 +654,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   };
 
   /** Build fee pill data for a grid row from cached jobFees */
-  private buildFeePills(scopeId: string, scopeType: 'agegroup' | 'division' | 'team'): any[] {
+  private buildFeePills(scopeId: string, scopeType: 'agegroup' | 'team'): any[] {
     const fees = this.jobFees();
     if (!fees.length) return [];
 
@@ -722,8 +722,6 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     return Array.from(roleMap.entries()).map(([roleId, entry]) => {
       const inherited = scopeType === 'agegroup'
         ? entry.source === 'job'           // agegroup grid: job-level = inherited
-        : scopeType === 'division'
-        ? true                             // division grid: always inherited (divisions don't own fees)
         : entry.source !== 'team';         // team grid: anything not team-level = inherited
 
       const activeModifiers = entry.modifiers.filter(m => m.active);
@@ -747,17 +745,12 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       for (const row of data) {
         row._fees = this.buildFeePills(row.agegroupId, 'agegroup');
       }
-    } else if (level === 2) {
-      for (const row of data) {
-        // Divisions inherit from their parent agegroup
-        const parentAgId = row._parentAgId;
-        row._fees = parentAgId ? this.buildFeePills(parentAgId, 'division') : [];
-      }
     } else if (level === 3) {
       for (const row of data) {
         row._fees = this.buildFeePills(row.teamId, 'team');
       }
     }
+    // level 2 (Divisions): no fee pills — divisions aren't a scope in fees.JobFees.
   }
 
   private getParentParts(node: LadtFlatNode): ParentBreadcrumb[] {
