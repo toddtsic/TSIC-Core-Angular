@@ -176,6 +176,12 @@ export class TeamWizardV2Component implements OnInit {
                 this.auth.logoutLocal();
             }
         }
+
+        const stepParam = this.route.snapshot.queryParamMap.get('step');
+        if (stepParam) {
+            const idx = this.activeSteps().findIndex(s => s.id === stepParam);
+            if (idx >= 0) this._currentIndex.set(idx);
+        }
     }
 
     // ── Navigation ──────────────────────────────────────────────────
