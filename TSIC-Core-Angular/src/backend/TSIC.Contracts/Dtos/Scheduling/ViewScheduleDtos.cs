@@ -171,10 +171,16 @@ public record ViewGameDto
     public int? T2Score { get; init; }
     public required string T1Type { get; init; }
     public required string T2Type { get; init; }
+    /// <summary>DB-sourced description for T1Type (e.g. "Pool Play", "Quarterfinals"). From reference.scheduleTeamTypes.</summary>
+    public string? T1TypeDesc { get; init; }
+    /// <summary>DB-sourced description for T2Type. From reference.scheduleTeamTypes.</summary>
+    public string? T2TypeDesc { get; init; }
     public string? T1Ann { get; init; }
     public string? T2Ann { get; init; }
     public int? Rnd { get; init; }
     public int? GStatusCode { get; init; }
+    /// <summary>DB-sourced status label (e.g. "scheduled", "final", "forfeit"). Null when GStatusCode is null.</summary>
+    public string? GStatusText { get; init; }
     public string? Color { get; init; }
     /// <summary>Team 1 overall record "W-L-T" (pool-play teams only).</summary>
     public string? T1Record { get; init; }
@@ -274,6 +280,8 @@ public record TeamResultDto
     public double? Latitude { get; init; }
     public double? Longitude { get; init; }
     public int? GStatusCode { get; init; }
+    /// <summary>DB-sourced status label (e.g. "scheduled", "final", "forfeit"). Null when GStatusCode is null.</summary>
+    public string? GStatusText { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -369,4 +377,13 @@ public record ScheduleCapabilitiesDto
     public required bool HideContacts { get; init; }
     public required bool IsPublicAccess { get; init; }
     public required string SportName { get; init; }
+    /// <summary>DB-sourced game status codes + labels. Source of truth for status dropdowns and display.</summary>
+    public required List<GameStatusOptionDto> GameStatusOptions { get; init; }
+}
+
+/// <summary>A single row from Leagues.GameStatusCodes — the source of truth for game status labels.</summary>
+public record GameStatusOptionDto
+{
+    public required int Code { get; init; }
+    public required string Text { get; init; }
 }

@@ -1,0 +1,119 @@
+// ══════════════════════════════════════════════════════════════════════════
+// Fly-in Detail Panel — canonical right-side slide-out surface
+//
+// Usage:
+//   @if (isOpen()) {
+//     <div class="detail-backdrop" (click)="close()"></div>
+//   }
+//   <div class="detail-panel" [class.open]="isOpen()">
+//     <div class="panel-header">
+//       <div class="header-top-row">
+//         <h3 class="panel-title">…</h3>
+//         <button class="btn-close" (click)="close()">&times;</button>
+//       </div>
+//     </div>
+//     <div class="panel-body">…</div>
+//     <div class="panel-footer">…</div>  // optional
+//   </div>
+//
+// Mirrors the pattern in search/registrations + search/teams detail panels.
+// ══════════════════════════════════════════════════════════════════════════
+
+.detail-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1049;
+}
+
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 560px;
+  height: 100vh;
+  background: var(--bs-body-bg);
+  border-left: 1px solid var(--bs-border-color);
+  box-shadow: var(--shadow-xl);
+  z-index: 1050;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  &.open {
+    transform: translateX(0);
+  }
+
+  @media (max-width: 767.98px) {
+    width: 100vw;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.detail-panel .panel-header {
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--surface-elevated-bg, var(--bs-body-bg));
+  flex-shrink: 0;
+}
+
+.detail-panel .header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.detail-panel .panel-title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.detail-panel .btn-close {
+  padding: var(--space-2);
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  color: var(--brand-text, var(--bs-body-color));
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    opacity: 1;
+  }
+}
+
+.detail-panel .panel-body {
+  flex: 1;
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+
+.detail-panel .panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  flex-shrink: 0;
+}

@@ -449,6 +449,9 @@ public sealed class ScheduleRepository : IScheduleRepository
             .AsNoTracking()
             .Include(s => s.Field)
             .Include(s => s.Agegroup)
+            .Include(s => s.GStatusCodeNavigation)
+            .Include(s => s.T1TypeNavigation)
+            .Include(s => s.T2TypeNavigation)
             .Where(s => s.JobId == jobId && s.GDate.HasValue);
 
         query = ApplyCadtFilter(query, request);
@@ -667,8 +670,24 @@ public sealed class ScheduleRepository : IScheduleRepository
         return await _context.Schedule
             .AsNoTracking()
             .Include(s => s.Field)
+            .Include(s => s.GStatusCodeNavigation)
+            .Include(s => s.T1TypeNavigation)
+            .Include(s => s.T2TypeNavigation)
             .Where(s => (s.T1Id == teamId || s.T2Id == teamId) && s.GDate.HasValue)
             .OrderBy(s => s.GDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<GameStatusOptionDto>> GetGameStatusOptionsAsync(CancellationToken ct = default)
+    {
+        return await _context.GameStatusCodes
+            .AsNoTracking()
+            .OrderBy(s => s.GStatusCode)
+            .Select(s => new GameStatusOptionDto
+            {
+                Code = s.GStatusCode,
+                Text = s.GStatusText ?? ""
+            })
             .ToListAsync(ct);
     }
 

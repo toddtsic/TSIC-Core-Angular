@@ -158,6 +158,12 @@ public interface IScheduleRepository
     Task<List<Schedule>> GetTeamGamesAsync(Guid teamId, CancellationToken ct = default);
 
     /// <summary>
+    /// Get all rows from Leagues.GameStatusCodes — the DB source of truth for status dropdowns and display.
+    /// Ordered by code ascending.
+    /// </summary>
+    Task<List<Dtos.Scheduling.GameStatusOptionDto>> GetGameStatusOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Get bracket games for a job, optionally filtered by agegroup/division.
     /// Returns games where T1Type or T2Type is a bracket type (Q, S, F, X, Y, Z).
     /// </summary>

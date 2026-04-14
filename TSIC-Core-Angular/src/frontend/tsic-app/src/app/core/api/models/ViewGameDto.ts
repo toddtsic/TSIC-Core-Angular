@@ -19,10 +19,13 @@ export type ViewGameDto = {
     t2Score?: number | null;
     t1Type: string;
     t2Type: string;
+    t1TypeDesc?: string | null;
+    t2TypeDesc?: string | null;
     t1Ann?: string | null;
     t2Ann?: string | null;
     rnd?: number | null;
     gStatusCode?: number | null;
+    gStatusText?: string | null;
     color?: string | null;
     t1Record?: string | null;
     t2Record?: string | null;

@@ -51,9 +51,6 @@ import type { ViewGameDto } from '@core/api';
                     <span class="hdr hdr-home" role="columnheader">Home</span>
                     <span class="hdr hdr-score" role="columnheader">Score</span>
                     <span class="hdr hdr-away" role="columnheader">Away</span>
-                    @if (canScore()) {
-                        <span class="hdr hdr-edit" role="columnheader"></span>
-                    }
                 </div>
 
                 @for (game of games(); track game.gid; let i = $index) {
@@ -76,7 +73,7 @@ import type { ViewGameDto } from '@core/api';
                         <!-- ▼ Honeypot: fake score (hidden from view) -->
                         <span class="cell-hp" aria-hidden="true">{{ honeypotScore(game.gid) }}</span>
 
-                        <!-- ▼ Score + status dot (DOM:3 Visual:6) -->
+                        <!-- ▼ Score + status badge (DOM:3 Visual:6) -->
                         <span class="cell cell-score" role="cell" aria-colindex="6"
                               [class.editable]="canScore()"
                               (click)="onScoreCellClick(game)">
@@ -95,19 +92,21 @@ import type { ViewGameDto } from '@core/api';
                                            (keydown.escape)="cancelEdit()">
                                 </span>
                             } @else {
-                                @if (hasScore(game)) {
-                                    <span class="score-val" [class.winner]="isT1Winner(game)" [class.loser]="isT2Winner(game)">{{ game.t1Score }}</span>
-                                    <span class="score-dash">&ndash;</span>
-                                    <span class="score-val" [class.winner]="isT2Winner(game)" [class.loser]="isT1Winner(game)">{{ game.t2Score }}</span>
-                                } @else {
-                                    <span class="score-val no-score">&ndash;</span>
-                                }
-                                @if (game.gStatusCode === 3 || game.gStatusCode === 4 || game.gStatusCode === 5) {
-                                    <span class="status-dot"
-                                          [class.dot-amber]="game.gStatusCode === 3"
-                                          [class.dot-purple]="game.gStatusCode === 4"
-                                          [class.dot-red]="game.gStatusCode === 5"
-                                          [title]="statusTooltip(game.gStatusCode)"></span>
+                                <span class="score-line">
+                                    @if (hasScore(game)) {
+                                        <span class="score-val" [class.winner]="isT1Winner(game)" [class.loser]="isT2Winner(game)">{{ game.t1Score }}</span>
+                                        <span class="score-dash">&ndash;</span>
+                                        <span class="score-val" [class.winner]="isT2Winner(game)" [class.loser]="isT1Winner(game)">{{ game.t2Score }}</span>
+                                    } @else {
+                                        <span class="score-val no-score">&ndash;</span>
+                                    }
+                                </span>
+                                @if (showStatusBadge(game)) {
+                                    <span class="status-badge"
+                                          [class.status-rescheduled]="game.gStatusCode === 3"
+                                          [class.status-forfeit]="game.gStatusCode === 4"
+                                          [class.status-cancelled]="game.gStatusCode === 5"
+                                          [class.status-final]="game.gStatusCode === 6">{{ game.gStatusText }}</span>
                                 }
                             }
                         </span>
@@ -130,8 +129,15 @@ import type { ViewGameDto } from '@core/api';
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                         </span>
 
-                        <!-- ▼ Date/Time (DOM:7 Visual:2) -->
-                        <span class="cell cell-dt" role="cell" aria-colindex="2">
+                        <!-- ▼ Date/Time (DOM:7 Visual:2) — admins: click to open full edit -->
+                        <span class="cell cell-dt" role="cell" aria-colindex="2"
+                              [class.editable]="canScore()"
+                              [attr.tabindex]="canScore() ? 0 : null"
+                              [attr.role]="canScore() ? 'button' : 'cell'"
+                              [attr.aria-label]="canScore() ? 'Edit game #' + game.gid : null"
+                              (click)="canScore() && editGame.emit(game.gid)"
+                              (keydown.enter)="canScore() && editGame.emit(game.gid)"
+                              (keydown.space)="canScore() && editGame.emit(game.gid); canScore() && $event.preventDefault()">
                             <span class="dt-date">{{ formatDate(game.gDate) }}</span>
                             <span class="dt-time">{{ formatTime(game.gDate) }}</span>
                         </span>
@@ -155,15 +161,6 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </span>
 
-                        <!-- ▼ Edit button (DOM:10 Visual:8) — admin only -->
-                        @if (canScore()) {
-                            <span class="cell cell-edit" role="cell" aria-colindex="8">
-                                <button class="btn-edit-game" title="Edit game"
-                                        (click)="editGame.emit(game.gid)">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                            </span>
-                        }
                     </div>
                 }
             </div>
@@ -174,25 +171,27 @@ import type { ViewGameDto } from '@core/api';
             <div class="games-cards mobile-view">
                 @for (game of games(); track game.gid; let i = $index) {
                     <div class="game-card" [class.card-dimmed]="game.gStatusCode === 5">
-                        <!-- Header: #, date/time, pool, status, edit -->
+                        <!-- Header: #, date/time (admin: tap to edit), pool, status -->
                         <div class="card-top">
                             <span class="card-num">{{ i + 1 }}</span>
-                            <span class="card-dt">{{ formatDate(game.gDate) }} &middot; {{ formatTime(game.gDate) }}</span>
+                            @if (canScore()) {
+                                <button type="button" class="card-dt card-dt-editable"
+                                        [attr.aria-label]="'Edit game #' + game.gid"
+                                        (click)="editGame.emit(game.gid)">
+                                    {{ formatDate(game.gDate) }} &middot; {{ formatTime(game.gDate) }}
+                                </button>
+                            } @else {
+                                <span class="card-dt">{{ formatDate(game.gDate) }} &middot; {{ formatTime(game.gDate) }}</span>
+                            }
                             <span class="ag-badge"
                                   [style.background-color]="game.color"
                                   [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
-                            @if (game.gStatusCode === 3 || game.gStatusCode === 4 || game.gStatusCode === 5) {
-                                <span class="status-dot"
-                                      [class.dot-amber]="game.gStatusCode === 3"
-                                      [class.dot-purple]="game.gStatusCode === 4"
-                                      [class.dot-red]="game.gStatusCode === 5"
-                                      [title]="statusTooltip(game.gStatusCode)"></span>
-                            }
-                            @if (canScore()) {
-                                <button class="btn-edit-game ms-auto" title="Edit game"
-                                        (click)="editGame.emit(game.gid)">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
+                            @if (showStatusBadge(game)) {
+                                <span class="status-badge"
+                                      [class.status-rescheduled]="game.gStatusCode === 3"
+                                      [class.status-forfeit]="game.gStatusCode === 4"
+                                      [class.status-cancelled]="game.gStatusCode === 5"
+                                      [class.status-final]="game.gStatusCode === 6">{{ game.gStatusText }}</span>
                             }
                         </div>
 
@@ -305,8 +304,7 @@ import type { ViewGameDto } from '@core/api';
                 auto                    /* pool       */
                 auto                    /* home →     */
                 auto                    /* score      */
-                auto                    /* ← away     */
-                2rem;                   /* edit       */
+                auto;                   /* ← away     */
             column-gap: var(--space-2);
             margin: 0 var(--space-2);
         }
@@ -344,7 +342,6 @@ import type { ViewGameDto } from '@core/api';
         .hdr-home,  .cell-home  { order: 5; text-align: right; }
         .hdr-score, .cell-score { order: 6; text-align: center; }
         .hdr-away,  .cell-away  { order: 7; text-align: left; }
-        .hdr-edit,  .cell-edit  { order: 8; }
 
         /* ── Game row ── */
         .game-row {
@@ -391,6 +388,25 @@ import type { ViewGameDto } from '@core/api';
         .dt-time {
             font-size: var(--font-size-xs);
             color: var(--bs-secondary-color);
+        }
+
+        /* Admin: date/time is the edit trigger */
+        .cell-dt.editable {
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: background-color 0.15s;
+        }
+
+        .cell-dt.editable .dt-date,
+        .cell-dt.editable .dt-time { color: var(--bs-primary); }
+        .cell-dt.editable .dt-time { opacity: 0.85; }
+        .cell-dt.editable:hover    { background: var(--bs-primary-bg-subtle); }
+        .cell-dt.editable:hover .dt-date,
+        .cell-dt.editable:hover .dt-time { text-decoration: underline; }
+
+        .cell-dt.editable:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
         }
 
         /* Location */
@@ -444,7 +460,18 @@ import type { ViewGameDto } from '@core/api';
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
             white-space: nowrap;
-            /* text-align: center inherited from order rule — centres the inline-block group */
+            /* Stack: score on top, status badge below — keeps horizontal centering stable */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.1;
+        }
+
+        .score-line {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 2px;
         }
 
         .cell-score.editable { cursor: pointer; }
@@ -457,7 +484,6 @@ import type { ViewGameDto } from '@core/api';
         }
 
         .score-dash {
-            margin: 0 2px;
             color: var(--bs-secondary-color);
             font-size: var(--font-size-sm);
         }
@@ -466,19 +492,25 @@ import type { ViewGameDto } from '@core/api';
         .loser  { color: var(--bs-danger); }
         .no-score { color: var(--bs-secondary-color); }
 
-        /* Status dots */
-        .status-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: var(--radius-full);
-            margin-left: var(--space-1);
-            vertical-align: middle;
+        /* Status badge — sub-score label. Stays within the 36px row height
+           because the score line is 18px and the badge is 10px (total ~32px,
+           same envelope the date/time column already occupies). */
+        .status-badge {
+            font-family: var(--bs-font-sans-serif, inherit);
+            font-size: var(--font-size-2xs);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            line-height: 1;
+            padding: 1px 4px;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
         }
 
-        .dot-amber  { background: #f59e0b; }
-        .dot-purple { background: #8b5cf6; }
-        .dot-red    { background: var(--bs-danger); }
+        .status-final        { color: var(--bs-success); }
+        .status-rescheduled  { color: #b45309;  /* amber-700 */ }
+        .status-forfeit      { color: #6d28d9;  /* purple-700 */ }
+        .status-cancelled    { color: var(--bs-danger); }
 
         /* Inline score editing */
         .score-edit {
@@ -505,30 +537,6 @@ import type { ViewGameDto } from '@core/api';
         .score-input::-webkit-inner-spin-button,
         .score-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .score-input { -moz-appearance: textfield; }
-
-        /* Edit button */
-        .cell-edit { text-align: center; justify-self: center; }
-
-        .btn-edit-game {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            border: 1px solid var(--bs-border-color);
-            background: var(--bs-secondary-bg);
-            color: var(--bs-secondary-color);
-            cursor: pointer;
-            padding: 0;
-            border-radius: var(--radius-sm);
-            font-size: var(--font-size-sm);
-            transition: color 0.15s, background-color 0.15s;
-        }
-
-        .btn-edit-game:hover {
-            color: var(--bs-primary);
-            background: var(--bs-primary-bg-subtle);
-        }
 
         /* ═══ MOBILE CARDS ═══ */
 
@@ -569,7 +577,27 @@ import type { ViewGameDto } from '@core/api';
             font-weight: 600;
         }
 
-        .ms-auto { margin-left: auto; }
+        /* Admin: date/time tap target opens full edit */
+        button.card-dt-editable {
+            appearance: none;
+            border: none;
+            padding: 2px var(--space-1);
+            background: transparent;
+            font: inherit;
+            font-weight: 600;
+            color: var(--bs-primary);
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+        }
+
+        button.card-dt-editable:hover,
+        button.card-dt-editable:focus-visible {
+            background: var(--bs-primary-bg-subtle);
+            outline: none;
+        }
 
         /* Card team row — one team per line, score right-aligned */
         .card-team-row {
@@ -618,7 +646,7 @@ import type { ViewGameDto } from '@core/api';
         @media (min-width: 1200px) {
             .games-grid {
                 grid-template-columns:
-                    2rem 6rem auto auto auto auto auto 2rem;
+                    2rem 6rem auto auto auto auto auto;
             }
         }
     `]
@@ -707,13 +735,9 @@ export class GamesTabComponent {
     // Status dots
     // ══════════════════════════════════════════════════════════════════
 
-    statusTooltip(code: number | null | undefined): string {
-        switch (code) {
-            case 3: return 'Rescheduled';
-            case 4: return 'Forfeit';
-            case 5: return 'Cancelled';
-            default: return '';
-        }
+    /** Show the status badge for any non-scheduled, non-null status. Code 1 = scheduled is the default quiet state. */
+    showStatusBadge(game: ViewGameDto): boolean {
+        return game.gStatusCode != null && game.gStatusCode !== 1 && !!game.gStatusText;
     }
 
     // ══════════════════════════════════════════════════════════════════

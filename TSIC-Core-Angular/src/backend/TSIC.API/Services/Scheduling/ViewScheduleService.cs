@@ -30,13 +30,15 @@ public sealed class ViewScheduleService : IViewScheduleService
         Guid jobId, bool isAuthenticated, bool isAdmin, CancellationToken ct = default)
     {
         var (allowPublicAccess, hideContacts, sportName) = await _scheduleRepo.GetScheduleFlagsAsync(jobId, ct);
+        var statusOptions = await _scheduleRepo.GetGameStatusOptionsAsync(ct);
 
         return new ScheduleCapabilitiesDto
         {
             CanScore = isAuthenticated && isAdmin,
             HideContacts = hideContacts,
             IsPublicAccess = allowPublicAccess,
-            SportName = sportName
+            SportName = sportName,
+            GameStatusOptions = statusOptions
         };
     }
 
@@ -69,10 +71,13 @@ public sealed class ViewScheduleService : IViewScheduleService
                 T2Score = g.T2Score,
                 T1Type = t1Type,
                 T2Type = t2Type,
+                T1TypeDesc = g.T1TypeNavigation?.TeamTypeDesc,
+                T2TypeDesc = g.T2TypeNavigation?.TeamTypeDesc,
                 T1Ann = g.T1Ann,
                 T2Ann = g.T2Ann,
                 Rnd = g.Rnd,
                 GStatusCode = g.GStatusCode,
+                GStatusText = g.GStatusCodeNavigation?.GStatusText,
                 Color = g.Agegroup?.Color,
                 T1Record = t1Type == "T" && g.T1Id.HasValue
                     ? recordLookup.GetValueOrDefault(g.T1Id.Value) : null,
@@ -124,7 +129,9 @@ public sealed class ViewScheduleService : IViewScheduleService
                     : "T";
             }
 
-            // Determine game type from team type codes
+            // Translate team-role code → game-type label. reference.scheduleTeamTypes.teamTypeDesc
+            // describes the TEAM's role (e.g. "Finalist"), not the GAME type (e.g. "Finals"),
+            // so we intentionally map codes to game-oriented copy here.
             var teamType = isT1 ? g.T1Type : g.T2Type;
             var gameType = teamType == "T" ? "Pool Play" : GetBracketRoundName(teamType);
 
@@ -142,7 +149,8 @@ public sealed class ViewScheduleService : IViewScheduleService
                 OpponentRecord = oppId.HasValue ? recordLookup.GetValueOrDefault(oppId.Value) : null,
                 Latitude = g.Field?.Latitude,
                 Longitude = g.Field?.Longitude,
-                GStatusCode = g.GStatusCode
+                GStatusCode = g.GStatusCode,
+                GStatusText = g.GStatusCodeNavigation?.GStatusText
             };
         }).ToList();
 
@@ -286,7 +294,9 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         game.T1Score = request.T1Score;
         game.T2Score = request.T2Score;
-        game.GStatusCode = request.GStatusCode ?? 2; // 2 = Completed
+        // Leagues.GameStatusCodes: 1=scheduled, 3=rescheduled, 4=forfeit, 5=cancelled, 6=final.
+        // Entering a score implies the game has concluded → default to 6 (final).
+        game.GStatusCode = request.GStatusCode ?? 6;
         game.LebUserId = userId;
         game.Modified = DateTime.UtcNow;
 
@@ -516,6 +526,9 @@ public sealed class ViewScheduleService : IViewScheduleService
             : "pending";
     }
 
+    // Translates a team-role code (from reference.scheduleTeamTypes) into game-type copy.
+    // The DB's teamTypeDesc describes the TEAM's role ("Finalist"); this method maps to
+    // game-oriented labels ("Finals") for display in the Team Results modal's game-type badge.
     private static string GetBracketRoundName(string? type) => type switch
     {
         "Z" => "Round of 64",

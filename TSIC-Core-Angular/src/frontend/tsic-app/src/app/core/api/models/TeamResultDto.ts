@@ -16,5 +16,6 @@ export type TeamResultDto = {
     latitude?: number | null;
     longitude?: number | null;
     gStatusCode?: number | null;
+    gStatusText?: string | null;
 };
 

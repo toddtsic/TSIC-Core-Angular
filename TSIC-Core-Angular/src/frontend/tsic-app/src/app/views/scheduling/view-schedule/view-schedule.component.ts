@@ -378,6 +378,7 @@ interface FilterChip {
             [game]="editingGame()"
             [visible]="editGameVisible()"
             [teams]="flatTeamList()"
+            [statusOptions]="capabilities()?.gameStatusOptions ?? []"
             (close)="editGameVisible.set(false)"
             (save)="onEditGameSave($event)" />
 

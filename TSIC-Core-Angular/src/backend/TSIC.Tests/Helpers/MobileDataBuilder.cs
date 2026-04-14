@@ -248,7 +248,7 @@ public class MobileDataBuilder
         {
             game.T1Score = t1Score;
             game.T2Score = t2Score;
-            game.GStatusCode = 2; // Completed
+            game.GStatusCode = 6; // 6 = final (Leagues.GameStatusCodes)
         }
     }
 

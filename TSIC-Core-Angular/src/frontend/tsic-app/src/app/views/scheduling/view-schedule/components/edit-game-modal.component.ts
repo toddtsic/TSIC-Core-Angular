@@ -3,7 +3,7 @@ import {
     input, Output, signal
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { ViewGameDto, EditGameRequest } from '@core/api';
+import type { ViewGameDto, EditGameRequest, GameStatusOptionDto } from '@core/api';
 
 export interface TeamOption {
     teamId: string;
@@ -18,234 +18,179 @@ export interface TeamOption {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (visible()) {
-            <div class="modal-backdrop" (click)="close.emit()">
-                <div class="modal-card" [class.compact]="isBracketMode()" (click)="$event.stopPropagation()">
-                    <!-- Header -->
-                    <div class="modal-header">
-                        <h3 class="modal-title">{{ isBracketMode() ? 'Score' : 'Edit Game #' + game()?.gid }}</h3>
-                        <button class="modal-close" (click)="close.emit()" aria-label="Close">&times;</button>
-                    </div>
-
-                    <!-- Body -->
-                    <div class="modal-body">
-                        @if (game(); as g) {
-                            @if (isBracketMode()) {
-                                <!-- Compact bracket scoring: team names + score inputs -->
-                                <div class="score-row">
-                                    <span class="team-label">{{ t1Name() }}</span>
-                                    <input type="number" class="form-input score-box"
-                                           min="0" max="99"
-                                           [ngModel]="t1Score()"
-                                           (ngModelChange)="t1Score.set($event)"
-                                           (keydown.enter)="onSave()" />
-                                </div>
-                                <div class="score-row">
-                                    <span class="team-label">{{ t2Name() }}</span>
-                                    <input type="number" class="form-input score-box"
-                                           min="0" max="99"
-                                           [ngModel]="t2Score()"
-                                           (ngModelChange)="t2Score.set($event)"
-                                           (keydown.enter)="onSave()" />
-                                </div>
-                            } @else {
-                                <!-- Full edit: team picker, scores, annotations, status -->
-
-                                <!-- Team 1 -->
-                                <div class="form-section">
-                                    <div class="section-label">Team 1</div>
-
-                                    <div class="form-group">
-                                        <label class="form-label">Team</label>
-                                        <select class="form-input"
-                                                [ngModel]="t1Id()"
-                                                (ngModelChange)="onTeamChange(1, $event)">
-                                            <option [ngValue]="null">(no team)</option>
-                                            @for (group of groupedTeams(); track group.divName) {
-                                                <optgroup [label]="group.divName">
-                                                    @for (t of group.teams; track t.teamId) {
-                                                        <option [ngValue]="t.teamId">{{ t.teamName }}</option>
-                                                    }
-                                                </optgroup>
-                                            }
-                                        </select>
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group form-group-half">
-                                            <label class="form-label">Score</label>
-                                            <input type="number" class="form-input"
-                                                   min="0" max="99"
-                                                   [ngModel]="t1Score()"
-                                                   (ngModelChange)="t1Score.set($event)" />
-                                        </div>
-                                        <div class="form-group form-group-half">
-                                            <label class="form-label">Annotation</label>
-                                            <input type="text" class="form-input"
-                                                   [ngModel]="t1Ann()"
-                                                   (ngModelChange)="t1Ann.set($event)" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Team 2 -->
-                                <div class="form-section">
-                                    <div class="section-label">Team 2</div>
-
-                                    <div class="form-group">
-                                        <label class="form-label">Team</label>
-                                        <select class="form-input"
-                                                [ngModel]="t2Id()"
-                                                (ngModelChange)="onTeamChange(2, $event)">
-                                            <option [ngValue]="null">(no team)</option>
-                                            @for (group of groupedTeams(); track group.divName) {
-                                                <optgroup [label]="group.divName">
-                                                    @for (t of group.teams; track t.teamId) {
-                                                        <option [ngValue]="t.teamId">{{ t.teamName }}</option>
-                                                    }
-                                                </optgroup>
-                                            }
-                                        </select>
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group form-group-half">
-                                            <label class="form-label">Score</label>
-                                            <input type="number" class="form-input"
-                                                   min="0" max="99"
-                                                   [ngModel]="t2Score()"
-                                                   (ngModelChange)="t2Score.set($event)" />
-                                        </div>
-                                        <div class="form-group form-group-half">
-                                            <label class="form-label">Annotation</label>
-                                            <input type="text" class="form-input"
-                                                   [ngModel]="t2Ann()"
-                                                   (ngModelChange)="t2Ann.set($event)" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Status -->
-                                <div class="form-group">
-                                    <label class="form-label">Status</label>
-                                    <select class="form-input"
-                                            [ngModel]="gStatusCode()"
-                                            (ngModelChange)="gStatusCode.set(+$event)">
-                                        <option [value]="1">Scheduled</option>
-                                        <option [value]="2">Completed</option>
-                                        <option [value]="3">Cancelled</option>
-                                        <option [value]="4">Postponed</option>
-                                    </select>
-                                </div>
-                            }
-                        }
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="modal-footer">
-                        <button class="btn btn-cancel" (click)="close.emit()">Cancel</button>
-                        <button class="btn btn-save" (click)="onSave()">Save</button>
-                    </div>
+            <div class="detail-backdrop" (click)="close.emit()"></div>
+        }
+        <div class="detail-panel" [class.open]="visible()">
+            <div class="panel-header">
+                <div class="header-top-row">
+                    <h3 class="panel-title">{{ isBracketMode() ? 'Score' : 'Edit Game #' + game()?.gid }}</h3>
+                    <button class="btn-close" (click)="close.emit()" aria-label="Close">&times;</button>
                 </div>
             </div>
-        }
+
+            <div class="panel-body">
+                @if (game(); as g) {
+                    @if (isBracketMode()) {
+                        <div class="panel-card">
+                            <h4 class="panel-card-title">Score</h4>
+                            <div class="score-row">
+                                <span class="team-label">{{ t1Name() }}</span>
+                                <input type="number" class="form-input score-box"
+                                       min="0" max="99"
+                                       [ngModel]="t1Score()"
+                                       (ngModelChange)="t1Score.set($event)"
+                                       (keydown.enter)="onSave()" />
+                            </div>
+                            <div class="score-row">
+                                <span class="team-label">{{ t2Name() }}</span>
+                                <input type="number" class="form-input score-box"
+                                       min="0" max="99"
+                                       [ngModel]="t2Score()"
+                                       (ngModelChange)="t2Score.set($event)"
+                                       (keydown.enter)="onSave()" />
+                            </div>
+                        </div>
+                    } @else {
+                        <div class="panel-card">
+                            <h4 class="panel-card-title">Team 1</h4>
+
+                            <div class="form-group">
+                                <label class="form-label">Team</label>
+                                <select class="form-input"
+                                        [ngModel]="t1Id()"
+                                        (ngModelChange)="onTeamChange(1, $event)">
+                                    <option [ngValue]="null">(no team)</option>
+                                    @for (group of groupedTeams(); track group.divName) {
+                                        <optgroup [label]="group.divName">
+                                            @for (t of group.teams; track t.teamId) {
+                                                <option [ngValue]="t.teamId">{{ t.teamName }}</option>
+                                            }
+                                        </optgroup>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group form-group-half">
+                                    <label class="form-label">Score</label>
+                                    <input type="number" class="form-input"
+                                           min="0" max="99"
+                                           [ngModel]="t1Score()"
+                                           (ngModelChange)="t1Score.set($event)" />
+                                </div>
+                                <div class="form-group form-group-half">
+                                    <label class="form-label">Annotation</label>
+                                    <input type="text" class="form-input"
+                                           [ngModel]="t1Ann()"
+                                           (ngModelChange)="t1Ann.set($event)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <h4 class="panel-card-title">Team 2</h4>
+
+                            <div class="form-group">
+                                <label class="form-label">Team</label>
+                                <select class="form-input"
+                                        [ngModel]="t2Id()"
+                                        (ngModelChange)="onTeamChange(2, $event)">
+                                    <option [ngValue]="null">(no team)</option>
+                                    @for (group of groupedTeams(); track group.divName) {
+                                        <optgroup [label]="group.divName">
+                                            @for (t of group.teams; track t.teamId) {
+                                                <option [ngValue]="t.teamId">{{ t.teamName }}</option>
+                                            }
+                                        </optgroup>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group form-group-half">
+                                    <label class="form-label">Score</label>
+                                    <input type="number" class="form-input"
+                                           min="0" max="99"
+                                           [ngModel]="t2Score()"
+                                           (ngModelChange)="t2Score.set($event)" />
+                                </div>
+                                <div class="form-group form-group-half">
+                                    <label class="form-label">Annotation</label>
+                                    <input type="text" class="form-input"
+                                           [ngModel]="t2Ann()"
+                                           (ngModelChange)="t2Ann.set($event)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-card">
+                            <h4 class="panel-card-title">Status</h4>
+                            <div class="form-group">
+                                <select class="form-input status-select"
+                                        [ngModel]="gStatusCode()"
+                                        (ngModelChange)="gStatusCode.set(+$event)">
+                                    @for (opt of statusOptions(); track opt.code) {
+                                        <option [value]="opt.code">{{ capitalize(opt.text) }}</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="panel-footer">
+                <button class="btn btn-outline-secondary btn-sm" (click)="close.emit()">Cancel</button>
+                <button class="btn btn-primary btn-sm" (click)="onSave()">Save</button>
+            </div>
+        </div>
     `,
     styles: [`
-        .modal-backdrop {
-            position: fixed;
-            inset: 0;
-            z-index: 1050;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Framed card inside panel body — matches search/registrations .contact-zone */
+        .panel-card {
             padding: var(--space-4);
-        }
-
-        .modal-card {
-            background: var(--bs-body-bg);
-            border-radius: var(--bs-border-radius-lg);
-            max-width: 700px;
-            width: 100%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--bs-primary);
+            border-radius: var(--radius-lg);
+            background: var(--surface-elevated-bg);
+            margin-bottom: var(--space-4);
             display: flex;
             flex-direction: column;
+            gap: var(--space-3);
         }
 
-        .modal-card.compact {
-            max-width: 380px;
+        .panel-card:last-of-type {
+            margin-bottom: 0;
         }
 
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: var(--space-3) var(--space-4);
-            border-bottom: 1px solid var(--bs-border-color);
-            flex-shrink: 0;
-        }
-
-        .modal-title {
+        .panel-card-title {
             margin: 0;
-            font-size: var(--font-size-lg, 1.125rem);
-            font-weight: 600;
-            color: var(--bs-body-color);
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            line-height: 1;
-            color: var(--bs-secondary-color);
-            cursor: pointer;
-            padding: 0 var(--space-1);
-        }
-
-        .modal-close:hover {
-            color: var(--bs-body-color);
-        }
-
-        .modal-body {
-            padding: var(--space-3) var(--space-4);
-            overflow-y: auto;
-        }
-
-        .form-section {
-            margin-bottom: var(--space-4);
-            padding-bottom: var(--space-3);
-            border-bottom: 1px solid var(--bs-border-color);
-        }
-
-        .section-label {
-            font-weight: 600;
             font-size: var(--font-size-sm);
-            color: var(--bs-secondary-color);
+            font-weight: var(--font-weight-semibold);
+            color: var(--bs-primary);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: var(--space-2);
         }
 
         .form-group {
-            margin-bottom: var(--space-3);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
         }
 
         .form-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: var(--space-3);
         }
 
         .form-group-half {
-            flex: 1;
+            min-width: 0;
         }
 
         .form-label {
-            display: block;
-            font-weight: 600;
-            font-size: var(--font-size-sm);
-            color: var(--bs-body-color);
-            margin-bottom: var(--space-1);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            color: var(--text-muted, var(--bs-secondary-color));
         }
 
         .form-input {
@@ -267,45 +212,6 @@ export interface TeamOption {
 
         select.form-input {
             cursor: pointer;
-        }
-
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: var(--space-2);
-            padding: var(--space-3) var(--space-4);
-            border-top: 1px solid var(--bs-border-color);
-            flex-shrink: 0;
-        }
-
-        .btn {
-            padding: var(--space-1) var(--space-4);
-            border: 1px solid transparent;
-            border-radius: var(--bs-border-radius);
-            font-size: var(--font-size-sm);
-            font-weight: 500;
-            cursor: pointer;
-            line-height: 1.5;
-        }
-
-        .btn-cancel {
-            background: var(--bs-secondary-bg);
-            color: var(--bs-body-color);
-            border-color: var(--bs-border-color);
-        }
-
-        .btn-cancel:hover {
-            background: var(--bs-tertiary-bg);
-        }
-
-        .btn-save {
-            background: var(--bs-primary);
-            color: white;
-            border-color: var(--bs-primary);
-        }
-
-        .btn-save:hover {
-            opacity: 0.9;
         }
 
         /* ── Compact bracket score layout ── */
@@ -344,6 +250,7 @@ export class EditGameModalComponent {
     game = input<ViewGameDto | null>(null);
     visible = input<boolean>(false);
     teams = input<TeamOption[]>([]);
+    statusOptions = input<GameStatusOptionDto[]>([]);
 
     @Output() close = new EventEmitter<void>();
     @Output() save = new EventEmitter<EditGameRequest>();
@@ -405,6 +312,10 @@ export class EditGameModalComponent {
             this.t2Id.set(teamId);
             this.t2Name.set(name);
         }
+    }
+
+    capitalize(s: string): string {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
     }
 
     onSave(): void {

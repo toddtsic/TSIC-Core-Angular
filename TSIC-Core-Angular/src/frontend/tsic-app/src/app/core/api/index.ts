@@ -271,6 +271,7 @@ export type { GameDateInfoDto } from './models/GameDateInfoDto';
 export type { GameDayDto } from './models/GameDayDto';
 export type { GameRefAssignmentDto } from './models/GameRefAssignmentDto';
 export type { GameShiftTarget } from './models/GameShiftTarget';
+export type { GameStatusOptionDto } from './models/GameStatusOptionDto';
 export type { GameSummaryResponse } from './models/GameSummaryResponse';
 export type { GetChatMessagesRequest } from './models/GetChatMessagesRequest';
 export type { GetChatMessagesResponse } from './models/GetChatMessagesResponse';
