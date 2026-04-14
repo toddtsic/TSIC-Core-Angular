@@ -46,7 +46,9 @@
                                     <app-ladt-tree-filter
                                         [treeData]="ladtTree()"
                                         [checkedIds]="ladtCheckedIds()"
-                                        [initialExpandLevel]="0"
+                                        [requireScheduled]="true"
+                                        [excludeWaitlistDropped]="true"
+                                        searchPlaceholder="Filter age groups..."
                                         (checkedIdsChange)="onLadtSelectionChange($event)" />
                                 </div>
                             }
@@ -63,6 +65,10 @@
                                     <app-cadt-tree-filter
                                         [treeData]="clubs()"
                                         [checkedIds]="cadtCheckedIds()"
+                                        [requireScheduled]="true"
+                                        [requireClubRep]="true"
+                                        [excludeWaitlistDropped]="true"
+                                        searchPlaceholder="Filter clubs..."
                                         (checkedIdsChange)="onCadtSelectionChange($event)" />
                                 </div>
                             }

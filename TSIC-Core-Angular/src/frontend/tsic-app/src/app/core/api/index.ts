@@ -302,6 +302,7 @@ export type { JobConfigSchedulingDto } from './models/JobConfigSchedulingDto';
 export type { JobConfigTeamsDto } from './models/JobConfigTeamsDto';
 export type { JobDdlOptionsDto } from './models/JobDdlOptionsDto';
 export type { JobFeeDto } from './models/JobFeeDto';
+export type { JobFilterTreeDto } from './models/JobFilterTreeDto';
 export type { JobImageUploadResultDto } from './models/JobImageUploadResultDto';
 export type { JobMetadataResponse } from './models/JobMetadataResponse';
 export type { JobMonthlyCountDto } from './models/JobMonthlyCountDto';

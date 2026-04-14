@@ -7,6 +7,10 @@ export type LadtAgegroupNode = {
     agegroupId: string;
     agegroupName: string;
     color?: string | null;
+    teamCount?: number;
+    playerCount?: number;
+    isWaitlist?: boolean;
+    isDropped?: boolean;
     divisions: Array<LadtDivisionNode>;
 };
 

@@ -3,49 +3,44 @@ import {
   ChangeDetectionStrategy, SimpleChanges, OnChanges
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { CadtClubNode } from '@core/api';
+import type { LadtAgegroupNode } from '@core/api';
 
 /**
- * Flat node for rendering the 4-level CADT tree: Club → Agegroup → Division → Team.
- * Levels: 0=club, 1=agegroup, 2=division, 3=team.
- * Metadata fields (isScheduled/hasClubRep on team nodes; isWaitlist/isDropped on agegroup nodes)
- * drive the [requireScheduled] / [requireClubRep] / [excludeWaitlistDropped] filter flags.
+ * Flat node for rendering the 3-level LADT filter tree: Agegroup \u2192 Division \u2192 Team.
+ * Levels: 0=agegroup, 1=division, 2=team. Metadata flags (isScheduled/hasClubRep on teams,
+ * isWaitlist/isDropped on agegroups) drive the [requireScheduled] / [requireClubRep] /
+ * [excludeWaitlistDropped] filter flags.
  */
-interface CadtFlatNode {
+interface LadtFlatNode {
   id: string;
   parentId: string | null;
   name: string;
   level: number;
   isLeaf: boolean;
   expandable: boolean;
-  color: string | null; // agegroup color (inherited to div/team)
+  color: string | null;
   teamCount: number;
   playerCount: number;
-  /** All descendant IDs (for cascade check/uncheck) */
   descendantIds: string[];
-  /** Team-level metadata for filter flag pruning (set on leaf team nodes only). */
   isScheduled?: boolean;
   hasClubRep?: boolean;
-  /** Agegroup-level flags for filter flag pruning (set on agegroup nodes only). */
   isWaitlist?: boolean;
   isDropped?: boolean;
 }
 
-export interface CadtSelectionEvent {
-  clubNames: string[];
+export interface LadtSelectionEvent {
   agegroupIds: string[];
   divisionIds: string[];
   teamIds: string[];
 }
 
 @Component({
-  selector: 'app-cadt-tree-filter',
+  selector: 'app-ladt-tree-filter',
   standalone: true,
   imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="cadt-tree-filter">
-      <!-- Search box -->
+    <div class="ladt-tree-filter">
       @if (showSearch) {
         <div class="tree-search">
           <input type="text"
@@ -59,17 +54,14 @@ export interface CadtSelectionEvent {
         </div>
       }
 
-      <!-- Column headers -->
       <div class="tree-col-headers">
         <span class="tree-col-header">Teams</span>
         <span class="tree-col-header">Players</span>
       </div>
 
-      <!-- Tree nodes -->
       <div class="tree-container">
         @for (node of visibleNodes(); track node.id) {
           @if (node.id === 'root:job') {
-            <!-- Synthetic root: totals row, clickable to expand/collapse -->
             <div class="tree-node tree-root" (click)="toggleExpand(node)">
               <svg class="tree-root-chevron" [class.expanded]="expandedIds().has(node.id)"
                    xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
@@ -93,7 +85,6 @@ export interface CadtSelectionEvent {
           } @else {
             <div class="tree-node"
                  [style.padding-left.rem]="(node.level < 1 ? 0 : node.level - 1) * 1.25">
-              <!-- Expand/collapse arrow -->
               @if (node.expandable) {
                 <span class="tree-expand"
                       [class.expanded]="expandedIds().has(node.id)"
@@ -107,22 +98,18 @@ export interface CadtSelectionEvent {
                 <span class="tree-expand-spacer"></span>
               }
 
-              <!-- Checkbox -->
               <input type="checkbox"
                      class="tree-checkbox"
                      [checked]="checkedIdsSignal().has(node.id)"
                      [indeterminate]="checkState().get(node.id) === 'some'"
                      (change)="onCheck(node, $event)" />
 
-              <!-- Agegroup color dot -->
               @if (node.color) {
                 <span class="tree-color-dot" [style.background]="node.color"></span>
               }
 
-              <!-- Name -->
               <span class="tree-name" (click)="toggleExpand(node)">{{ node.name }}</span>
 
-              <!-- Count badges -->
               <span class="tree-badges">
                 @if (!node.isLeaf) {
                   <span class="tree-badge"
@@ -144,7 +131,7 @@ export interface CadtSelectionEvent {
     </div>
   `,
   styles: [`
-    .cadt-tree-filter {
+    .ladt-tree-filter {
       font-size: var(--font-size-xs, 0.75rem);
       line-height: 1.4;
       display: flex;
@@ -157,12 +144,7 @@ export interface CadtSelectionEvent {
       overflow-y: auto;
     }
 
-    .tree-search {
-      position: relative;
-      margin-bottom: var(--space-2, 8px);
-      flex-shrink: 0;
-    }
-
+    .tree-search { position: relative; margin-bottom: var(--space-2, 8px); flex-shrink: 0; }
     .tree-search-input {
       width: 100%;
       padding: var(--space-1, 4px) var(--space-2, 8px);
@@ -175,248 +157,129 @@ export interface CadtSelectionEvent {
       outline: none;
       box-sizing: border-box;
     }
-
     .tree-search-input:focus {
       border-color: var(--bs-primary);
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-primary) 25%, transparent);
     }
-
-    .tree-search-input::placeholder {
-      color: var(--bs-secondary-color);
-    }
-
+    .tree-search-input::placeholder { color: var(--bs-secondary-color); }
     .tree-search-clear {
-      position: absolute;
-      right: var(--space-1, 4px);
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--bs-secondary-color);
-      font-size: 1rem;
-      cursor: pointer;
-      padding: 0 var(--space-1, 4px);
-      line-height: 1;
+      position: absolute; right: var(--space-1, 4px); top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--bs-secondary-color);
+      font-size: 1rem; cursor: pointer; padding: 0 var(--space-1, 4px); line-height: 1;
     }
-
-    .tree-search-clear:hover {
-      color: var(--bs-body-color);
-    }
+    .tree-search-clear:hover { color: var(--bs-body-color); }
 
     .tree-col-headers {
-      display: flex;
-      justify-content: flex-end;
-      gap: 6px;
+      display: flex; justify-content: flex-end; gap: 6px;
       padding: 0 4px 2px;
       color: var(--bs-secondary-color);
-      font-size: 0.55rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-size: 0.55rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
     }
+    .tree-col-header { min-width: 24px; text-align: center; }
 
-    .tree-col-header {
-      min-width: 24px;
-      text-align: center;
-    }
-
-    .tree-container {
-      overflow-x: hidden;
-    }
-
+    .tree-container { overflow-x: hidden; }
     .tree-node {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 4px;
-      border-radius: var(--bs-border-radius);
-      cursor: default;
+      display: flex; align-items: center; gap: 4px;
+      padding: 2px 4px; border-radius: var(--bs-border-radius); cursor: default;
     }
-
-    .tree-node:hover {
-      background: var(--bs-tertiary-bg);
-    }
+    .tree-node:hover { background: var(--bs-tertiary-bg); }
 
     .tree-expand {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-      cursor: pointer;
-      color: var(--bs-secondary-color);
-      transition: transform 0.15s;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; flex-shrink: 0; cursor: pointer;
+      color: var(--bs-secondary-color); transition: transform 0.15s;
     }
-
-    .tree-expand.expanded {
-      transform: rotate(90deg);
-    }
-
-    .tree-expand-spacer {
-      display: inline-block;
-      width: 16px;
-      flex-shrink: 0;
-    }
+    .tree-expand.expanded { transform: rotate(90deg); }
+    .tree-expand-spacer { display: inline-block; width: 16px; flex-shrink: 0; }
 
     .tree-checkbox {
       accent-color: var(--bs-primary);
-      width: 15px;
-      height: 15px;
-      flex-shrink: 0;
-      cursor: pointer;
+      width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;
     }
 
     .tree-color-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
     }
 
     .tree-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      cursor: pointer;
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
     }
 
     .tree-root {
       border-bottom: 1px solid var(--bs-border-color-translucent);
-      margin-bottom: 2px;
-      padding-bottom: 2px;
-      font-weight: 600;
-      color: var(--bs-secondary-color);
-      font-size: 0.6875rem;
-      cursor: pointer;
+      margin-bottom: 2px; padding-bottom: 2px;
+      font-weight: 600; color: var(--bs-secondary-color);
+      font-size: 0.6875rem; cursor: pointer;
     }
-
-    .tree-root-actions {
-      display: inline-flex;
-      gap: 2px;
-    }
-
+    .tree-root-actions { display: inline-flex; gap: 2px; }
     .tree-toggle-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 16px;
-      height: 16px;
-      padding: 0;
-      border: none;
-      border-radius: var(--bs-border-radius);
-      background: transparent;
-      color: var(--bs-secondary-color);
-      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; padding: 0; border: none;
+      border-radius: var(--bs-border-radius); background: transparent;
+      color: var(--bs-secondary-color); cursor: pointer;
     }
-
-    .tree-toggle-btn:hover {
-      background: var(--bs-tertiary-bg);
-      color: var(--bs-body-color);
-    }
-
+    .tree-toggle-btn:hover { background: var(--bs-tertiary-bg); color: var(--bs-body-color); }
     .tree-root-chevron {
-      flex-shrink: 0;
-      color: var(--bs-secondary-color);
-      opacity: 0.6;
-      transition: transform 0.15s;
-      cursor: pointer;
+      flex-shrink: 0; color: var(--bs-secondary-color); opacity: 0.6;
+      transition: transform 0.15s; cursor: pointer;
     }
+    .tree-root-chevron.expanded { transform: rotate(90deg); }
 
-    .tree-root-chevron.expanded {
-      transform: rotate(90deg);
-    }
-
-    .tree-badges {
-      margin-left: auto;
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
+    .tree-badges { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
     .tree-badge {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 24px;
-      height: 18px;
-      padding: 0 var(--space-1, 4px);
+      flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 18px; padding: 0 var(--space-1, 4px);
       border-radius: 9px;
-      background: var(--bs-tertiary-bg);
-      color: var(--bs-body-color);
-      font-size: 0.625rem;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
+      background: var(--bs-tertiary-bg); color: var(--bs-body-color);
+      font-size: 0.625rem; font-weight: 700; font-variant-numeric: tabular-nums;
     }
-
-    .tree-badge.is-zero {
-      opacity: 0.4;
-    }
-
-    .badge-default {
-      background: var(--bs-info);
-      color: var(--bs-white);
-    }
+    .tree-badge.is-zero { opacity: 0.4; }
 
     .badge-muted {
       background: color-mix(in srgb, var(--bs-secondary) 40%, var(--bs-card-bg));
       color: var(--bs-body-color);
     }
-
     .badge-outline {
-      background: transparent;
-      border: 1.5px solid var(--bs-body-color);
-      color: var(--bs-body-color);
+      background: transparent; border: 1.5px solid var(--bs-body-color); color: var(--bs-body-color);
     }
-
     .tree-empty {
       padding: var(--space-2, 8px) var(--space-3, 12px);
-      color: var(--bs-secondary-color);
-      font-style: italic;
+      color: var(--bs-secondary-color); font-style: italic;
     }
   `]
 })
-export class CadtTreeFilterComponent implements OnChanges {
-  /** CADT data: Club → Agegroup → Division → Team. */
-  @Input() treeData: CadtClubNode[] = [];
+export class LadtTreeFilterComponent implements OnChanges {
+  /** LADT data: Agegroup \u2192 Division \u2192 Team. */
+  @Input() treeData: LadtAgegroupNode[] = [];
   @Input() hideRootLevel = false;
-  @Input() searchPlaceholder = 'Filter clubs...';
+  @Input() searchPlaceholder = 'Filter agegroups...';
   @Input() showSearch = true;
-  /** When set, wraps all clubs under a synthetic root node (e.g. job name). */
+  /** When set, wraps all agegroups under a synthetic root node (e.g. job name). */
   @Input() rootLabel = '';
-  /** Header label shown flush-left above the tree (e.g. "Club/Agegroup/Division/Team") */
   @Input() headerLabel = '';
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
-  /** Internal signal for checked state — synced from parent @Input, updated on user interaction. */
   readonly checkedIdsSignal = signal(new Set<string>());
 
   @Input() set checkedIds(value: Set<string>) {
     this.checkedIdsSignal.set(value);
   }
 
-  // ── Filter flag inputs (signal-backed so visibleNodes recomputes on change) ──
-  /** When true, prune teams whose IsScheduled flag is false. */
+  // Filter flag inputs
   @Input() set requireScheduled(value: boolean) { this.requireScheduledSig.set(value); }
-  /** When true, prune teams whose HasClubRep flag is false. */
   @Input() set requireClubRep(value: boolean) { this.requireClubRepSig.set(value); }
-  /** When true, prune agegroups whose IsWaitlist or IsDropped flag is true (cascades to descendants). */
   @Input() set excludeWaitlistDropped(value: boolean) { this.excludeWaitlistDroppedSig.set(value); }
 
   private readonly requireScheduledSig = signal(false);
   private readonly requireClubRepSig = signal(false);
   private readonly excludeWaitlistDroppedSig = signal(false);
 
-  // Internal state
-  flatNodes = signal<CadtFlatNode[]>([]);
+  flatNodes = signal<LadtFlatNode[]>([]);
   expandedIds = signal<Set<string>>(new Set());
   searchTerm = signal('');
-  private parentMap = new Map<string, string | null>(); // childId -> parentId
+  private parentMap = new Map<string, string | null>();
 
-  /** Flat nodes filtered by flag inputs and search, then pruned to only visible (expanded) rows */
   visibleNodes = computed(() => {
     const nodes = this.flatNodes();
     const expanded = this.expandedIds();
@@ -425,8 +288,7 @@ export class CadtTreeFilterComponent implements OnChanges {
     const requireClubRep = this.requireClubRepSig();
     const excludeWaitlistDropped = this.excludeWaitlistDroppedSig();
 
-    // Pass 1: filter-flag prune. Cascades upward — a non-leaf node is kept iff at least
-    // one descendant team is kept. When all flags are false this is a no-op.
+    // Pass 1: flag-filter prune, cascading upward. No-op when all flags false.
     let flagFiltered = nodes;
     if (requireScheduled || requireClubRep || excludeWaitlistDropped) {
       const excludedAgIds = new Set<string>();
@@ -437,10 +299,9 @@ export class CadtTreeFilterComponent implements OnChanges {
       }
       const keptIds = new Set<string>();
       for (const n of nodes) {
-        if (!n.isLeaf) continue; // teams only
+        if (!n.isLeaf) continue;
         if (requireScheduled && !n.isScheduled) continue;
         if (requireClubRep && !n.hasClubRep) continue;
-        // Walk up — block if any ancestor agegroup is excluded
         let blocked = false;
         let cur: string | null = n.parentId;
         while (cur) {
@@ -458,18 +319,18 @@ export class CadtTreeFilterComponent implements OnChanges {
       flagFiltered = nodes.filter(n => keptIds.has(n.id));
     }
 
-    // Pass 2: search by club name — matching clubs and all their descendants remain visible.
+    // Pass 2: search by agegroup name.
     let filteredNodes = flagFiltered;
     if (term) {
       const matchingRootIds = new Set<string>();
       for (const node of flagFiltered) {
-        if (node.id.startsWith('club:') && node.name.toLowerCase().includes(term)) {
+        if (node.id.startsWith('ag:') && node.name.toLowerCase().includes(term)) {
           matchingRootIds.add(node.id);
         }
       }
       filteredNodes = flagFiltered.filter(node => {
         if (node.id === 'root:job') return true;
-        if (node.id.startsWith('club:') && (node.parentId === 'root:job' || !node.parentId)) {
+        if (node.id.startsWith('ag:') && (node.parentId === 'root:job' || !node.parentId)) {
           return matchingRootIds.has(node.id);
         }
         let ancestorId: string | null = node.parentId;
@@ -482,7 +343,7 @@ export class CadtTreeFilterComponent implements OnChanges {
     }
 
     // Pass 3: expansion visibility
-    const visible: CadtFlatNode[] = [];
+    const visible: LadtFlatNode[] = [];
     for (const node of filteredNodes) {
       if (this.hideRootLevel && node.level === 0) continue;
       if (this.isNodeVisible(node, expanded, filteredNodes)) {
@@ -492,7 +353,6 @@ export class CadtTreeFilterComponent implements OnChanges {
     return visible;
   });
 
-  /** Check state per node: 'all' | 'some' | 'none' */
   checkState = computed(() => {
     const checked = this.checkedIdsSignal();
     const nodes = this.flatNodes();
@@ -528,11 +388,10 @@ export class CadtTreeFilterComponent implements OnChanges {
   }
 
   private buildFlatNodes(): void {
-    const result: CadtFlatNode[] = [];
+    const result: LadtFlatNode[] = [];
     this.parentMap.clear();
     const levelOffset = this.rootLabel ? 1 : 0;
 
-    // Synthetic root node when rootLabel is provided
     if (this.rootLabel) {
       const rootId = 'root:job';
       this.parentMap.set(rootId, null);
@@ -540,18 +399,14 @@ export class CadtTreeFilterComponent implements OnChanges {
       const allDescendants: string[] = [];
       let totalTeams = 0;
       let totalPlayers = 0;
-      for (const club of this.treeData) {
-        const clubId = `club:${club.clubName}`;
-        allDescendants.push(clubId);
-        totalTeams += club.teamCount ?? 0;
-        totalPlayers += club.playerCount ?? 0;
-        for (const ag of club.agegroups ?? []) {
-          allDescendants.push(`ag:${club.clubName}|${ag.agegroupId}`);
-          for (const div of ag.divisions ?? []) {
-            allDescendants.push(`div:${club.clubName}|${div.divId}`);
-            for (const team of div.teams ?? []) {
-              allDescendants.push(`team:${team.teamId}`);
-            }
+      for (const ag of this.treeData) {
+        allDescendants.push(`ag:${ag.agegroupId}`);
+        totalTeams += ag.teamCount ?? 0;
+        totalPlayers += ag.playerCount ?? 0;
+        for (const div of ag.divisions ?? []) {
+          allDescendants.push(`div:${div.divId}`);
+          for (const team of div.teams ?? []) {
+            allDescendants.push(`team:${team.teamId}`);
           }
         }
       }
@@ -570,130 +425,88 @@ export class CadtTreeFilterComponent implements OnChanges {
       });
     }
 
-    for (const club of this.treeData) {
-      const clubId = `club:${club.clubName}`;
-      const clubParent = this.rootLabel ? 'root:job' : null;
-      this.parentMap.set(clubId, clubParent);
+    for (const ag of this.treeData) {
+      const agId = `ag:${ag.agegroupId}`;
+      const agParent = this.rootLabel ? 'root:job' : null;
+      this.parentMap.set(agId, agParent);
 
-      const clubDescendants: string[] = [];
-
-      // Pre-collect all descendant IDs for the club
-      // Agegroup/division IDs are scoped by club name to avoid duplicates
-      // (same ag/div can appear under multiple clubs)
-      for (const ag of club.agegroups ?? []) {
-        const agId = `ag:${club.clubName}|${ag.agegroupId}`;
-        clubDescendants.push(agId);
-        for (const div of ag.divisions ?? []) {
-          const divId = `div:${club.clubName}|${div.divId}`;
-          clubDescendants.push(divId);
-          for (const team of div.teams ?? []) {
-            clubDescendants.push(`team:${team.teamId}`);
-          }
+      const agDescendants: string[] = [];
+      for (const div of ag.divisions ?? []) {
+        const divId = `div:${div.divId}`;
+        agDescendants.push(divId);
+        for (const team of div.teams ?? []) {
+          agDescendants.push(`team:${team.teamId}`);
         }
       }
 
+      const agColor = ag.color ?? null;
+
       result.push({
-        id: clubId,
-        parentId: clubParent,
-        name: club.clubName,
+        id: agId,
+        parentId: agParent,
+        name: ag.agegroupName,
         level: 0 + levelOffset,
-        isLeaf: (club.agegroups ?? []).length === 0,
-        expandable: (club.agegroups ?? []).length > 0,
-        color: null,
-        teamCount: club.teamCount ?? 0,
-        playerCount: club.playerCount ?? 0,
-        descendantIds: clubDescendants
+        isLeaf: (ag.divisions ?? []).length === 0,
+        expandable: (ag.divisions ?? []).length > 0,
+        color: agColor,
+        teamCount: ag.teamCount ?? 0,
+        playerCount: ag.playerCount ?? 0,
+        descendantIds: agDescendants,
+        isWaitlist: ag.isWaitlist ?? false,
+        isDropped: ag.isDropped ?? false
       });
 
-      for (const ag of club.agegroups ?? []) {
-        const agId = `ag:${club.clubName}|${ag.agegroupId}`;
-        this.parentMap.set(agId, clubId);
+      for (const div of ag.divisions ?? []) {
+        const divId = `div:${div.divId}`;
+        this.parentMap.set(divId, agId);
 
-        const agDescendants: string[] = [];
-        for (const div of ag.divisions ?? []) {
-          const divId = `div:${club.clubName}|${div.divId}`;
-          agDescendants.push(divId);
-          for (const team of div.teams ?? []) {
-            agDescendants.push(`team:${team.teamId}`);
-          }
-        }
-
-        const agColor = ag.color ?? null;
+        const divDescendants = (div.teams ?? []).map(t => `team:${t.teamId}`);
 
         result.push({
-          id: agId,
-          parentId: clubId,
-          name: ag.agegroupName,
+          id: divId,
+          parentId: agId,
+          name: div.divName,
           level: 1 + levelOffset,
-          isLeaf: (ag.divisions ?? []).length === 0,
-          expandable: (ag.divisions ?? []).length > 0,
+          isLeaf: (div.teams ?? []).length === 0,
+          expandable: (div.teams ?? []).length > 0,
           color: agColor,
-          teamCount: ag.teamCount ?? 0,
-          playerCount: ag.playerCount ?? 0,
-          descendantIds: agDescendants,
-          isWaitlist: ag.isWaitlist ?? false,
-          isDropped: ag.isDropped ?? false
+          teamCount: div.teamCount ?? 0,
+          playerCount: div.playerCount ?? 0,
+          descendantIds: divDescendants
         });
 
-        for (const div of ag.divisions ?? []) {
-          const divId = `div:${club.clubName}|${div.divId}`;
-          this.parentMap.set(divId, agId);
-
-          const divDescendants: string[] = [];
-          for (const team of div.teams ?? []) {
-            divDescendants.push(`team:${team.teamId}`);
-          }
+        for (const team of div.teams ?? []) {
+          const teamId = `team:${team.teamId}`;
+          this.parentMap.set(teamId, divId);
 
           result.push({
-            id: divId,
-            parentId: agId,
-            name: div.divName,
+            id: teamId,
+            parentId: divId,
+            name: team.teamName,
             level: 2 + levelOffset,
-            isLeaf: (div.teams ?? []).length === 0,
-            expandable: (div.teams ?? []).length > 0,
-            color: agColor,  // Inherit agegroup color
-            teamCount: div.teamCount ?? 0,
-            playerCount: div.playerCount ?? 0,
-            descendantIds: divDescendants
+            isLeaf: true,
+            expandable: false,
+            color: agColor,
+            teamCount: 0,
+            playerCount: team.playerCount ?? 0,
+            descendantIds: [],
+            isScheduled: team.isScheduled ?? false,
+            hasClubRep: team.hasClubRep ?? false
           });
-
-          for (const team of div.teams ?? []) {
-            const teamId = `team:${team.teamId}`;
-            this.parentMap.set(teamId, divId);
-
-            result.push({
-              id: teamId,
-              parentId: divId,
-              name: team.teamName,
-              level: 3 + levelOffset,
-              isLeaf: true,
-              expandable: false,
-              color: agColor,  // Inherit agegroup color
-              teamCount: 0,
-              playerCount: team.playerCount ?? 0,
-              descendantIds: [],
-              isScheduled: team.isScheduled ?? false,
-              hasClubRep: team.hasClubRep ?? false
-            });
-          }
         }
       }
     }
 
     this.flatNodes.set(result);
-    // Start collapsed — root not expanded, children hidden
     this.expandedIds.set(new Set());
   }
 
   private isNodeVisible(
-    node: CadtFlatNode,
+    node: LadtFlatNode,
     expanded: Set<string>,
-    filteredNodes: CadtFlatNode[]
+    filteredNodes: LadtFlatNode[]
   ): boolean {
-    // Root-level nodes are always visible
     if (!node.parentId) return true;
-
-    // Walk up parent chain - all ancestors must be expanded AND present in filtered set
     const filteredIds = new Set(filteredNodes.map(n => n.id));
     let currentId: string | null = node.parentId;
     while (currentId) {
@@ -713,7 +526,7 @@ export class CadtTreeFilterComponent implements OnChanges {
     this.expandedIds.set(new Set());
   }
 
-  toggleExpand(node: CadtFlatNode): void {
+  toggleExpand(node: LadtFlatNode): void {
     if (!node.expandable) return;
     this.expandedIds.update(ids => {
       const next = new Set(ids);
@@ -723,7 +536,7 @@ export class CadtTreeFilterComponent implements OnChanges {
     });
   }
 
-  onCheck(node: CadtFlatNode, event: Event): void {
+  onCheck(node: LadtFlatNode, event: Event): void {
     const isChecked = (event.target as HTMLInputElement).checked;
     const next = new Set(this.checkedIdsSignal());
 
@@ -741,14 +554,11 @@ export class CadtTreeFilterComponent implements OnChanges {
     this.checkedIdsChange.emit(next);
   }
 
-  /** After checking children, check parent if ALL its children are now checked */
   private bubbleCheckUp(nodeId: string, checked: Set<string>): void {
     const parentId = this.parentMap.get(nodeId);
     if (!parentId) return;
-
     const parent = this.flatNodes().find(n => n.id === parentId);
     if (!parent) return;
-
     const allDescendantsChecked = parent.descendantIds.every(id => checked.has(id));
     if (allDescendantsChecked) {
       checked.add(parentId);
@@ -756,7 +566,14 @@ export class CadtTreeFilterComponent implements OnChanges {
     }
   }
 
-  /** Returns white or dark text depending on background luminance */
+  private bubbleUncheckUp(nodeId: string, checked: Set<string>): void {
+    let currentId = this.parentMap.get(nodeId);
+    while (currentId) {
+      checked.delete(currentId);
+      currentId = this.parentMap.get(currentId) ?? null;
+    }
+  }
+
   contrastText(hex: string | null): string {
     if (!hex) return 'var(--bs-white)';
     const c = hex.replace('#', '');
@@ -766,14 +583,4 @@ export class CadtTreeFilterComponent implements OnChanges {
     const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return lum > 0.55 ? 'var(--bs-dark)' : 'var(--bs-white)';
   }
-
-  /** After unchecking children, uncheck all ancestors */
-  private bubbleUncheckUp(nodeId: string, checked: Set<string>): void {
-    let currentId = this.parentMap.get(nodeId);
-    while (currentId) {
-      checked.delete(currentId);
-      currentId = this.parentMap.get(currentId) ?? null;
-    }
-  }
-
 }

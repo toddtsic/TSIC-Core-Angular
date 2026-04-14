@@ -16,9 +16,9 @@ import { findTimeClashInRow } from '../shared/utils/conflict-detection';
 import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleGridComponent } from '../shared/components/schedule-grid/schedule-grid.component';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
-import { LadtTreeFilterComponent } from '../../search/registrations/components/ladt-tree-filter.component';
-import { LadtService } from '../../ladt/editor/services/ladt.service';
-import type { LadtTreeNodeDto } from '@core/api';
+import { LadtTreeFilterComponent } from '../shared/components/ladt-tree-filter/ladt-tree-filter.component';
+import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
+import type { CadtClubNode, LadtAgegroupNode } from '@core/api';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 @Component({
@@ -31,7 +31,7 @@ import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/t
 })
 export class ReschedulerComponent implements OnInit {
     private readonly svc = inject(ReschedulerService);
-    private readonly ladtSvc = inject(LadtService);
+    private readonly jobFilterTreeSvc = inject(JobFilterTreeService);
     private readonly toast = inject(ToastService);
 
     @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
@@ -44,10 +44,10 @@ export class ReschedulerComponent implements OnInit {
     readonly ladtExpanded = signal(true);
     readonly cadtExpanded = signal(false);
 
-    // LADT tree data + selection
-    readonly ladtTree = signal<LadtTreeNodeDto[]>([]);
+    // LADT tree data + selection (3-level: Agegroup → Division → Team)
+    readonly ladtTree = signal<LadtAgegroupNode[]>([]);
+    readonly cadtTree = signal<CadtClubNode[]>([]);
     readonly ladtCheckedIds = signal<Set<string>>(new Set());
-    private ladtLevelMap = new Map<string, number>(); // nodeId → level (0=League,1=AG,2=Div,3=Team)
     private ladtLabelMap = new Map<string, string>(); // nodeId → display name
     private ladtParentMap = new Map<string, string>(); // nodeId → parentId
 
@@ -105,7 +105,7 @@ export class ReschedulerComponent implements OnInit {
 
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
-    readonly clubs = computed(() => this.filterOptions()?.clubs ?? []);
+    readonly clubs = computed(() => this.cadtTree());
     readonly gameDays = computed(() => this.filterOptions()?.gameDays ?? []);
     readonly fields = computed(() => this.filterOptions()?.fields ?? []);
 
@@ -205,7 +205,7 @@ export class ReschedulerComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadFilterOptions();
-        this.loadLadtTree();
+        this.loadJobFilterTree();
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -223,51 +223,35 @@ export class ReschedulerComponent implements OnInit {
         });
     }
 
-    // ── LADT tree ──
+    // ── Unified CADT/LADT tree (single /api/job-filter-tree endpoint) ──
 
-    private loadLadtTree(): void {
-        this.ladtSvc.getTree().subscribe({
-            next: (root) => {
-                const filtered = this.filterLadtTree(root.leagues);
-                this.ladtTree.set(filtered);
-                this.buildLadtLevelMap(filtered);
+    private loadJobFilterTree(): void {
+        this.jobFilterTreeSvc.getForJob().subscribe({
+            next: (data) => {
+                this.cadtTree.set(data.cadt);
+                this.ladtTree.set(data.ladt);
+                this.buildLadtMaps(data.ladt);
             }
         });
     }
 
-    /** Strip scheduling-irrelevant nodes: Dropped/Waitlist agegroups, Unassigned divisions, empty divisions */
-    private filterLadtTree(leagues: LadtTreeNodeDto[]): LadtTreeNodeDto[] {
-        return leagues.map(league => {
-            const agegroups = ((league.children ?? []) as LadtTreeNodeDto[])
-                .filter(ag => {
-                    const upper = ag.name.toUpperCase();
-                    return !upper.startsWith('DROPPED') && !upper.startsWith('WAITLIST');
-                })
-                .map(ag => {
-                    const divisions = ((ag.children ?? []) as LadtTreeNodeDto[])
-                        .filter(div =>
-                            div.name.toUpperCase() !== 'UNASSIGNED' && div.teamCount > 0
-                        );
-                    return { ...ag, children: divisions } as LadtTreeNodeDto;
-                })
-                .filter(ag => ((ag.children ?? []) as LadtTreeNodeDto[]).length > 0);
-            return { ...league, children: agegroups } as LadtTreeNodeDto;
-        }).filter(league => ((league.children ?? []) as LadtTreeNodeDto[]).length > 0);
-    }
-
-    private buildLadtLevelMap(nodes: LadtTreeNodeDto[]): void {
-        this.ladtLevelMap.clear();
+    private buildLadtMaps(agegroups: LadtAgegroupNode[]): void {
         this.ladtLabelMap.clear();
         this.ladtParentMap.clear();
-        const recurse = (items: LadtTreeNodeDto[], parentId?: string) => {
-            for (const node of items) {
-                this.ladtLevelMap.set(node.id, node.level);
-                this.ladtLabelMap.set(node.id, node.name);
-                if (parentId) this.ladtParentMap.set(node.id, parentId);
-                if (node.children?.length) recurse(node.children as LadtTreeNodeDto[], node.id);
+        for (const ag of agegroups) {
+            const agId = `ag:${ag.agegroupId}`;
+            this.ladtLabelMap.set(agId, ag.agegroupName);
+            for (const div of ag.divisions ?? []) {
+                const divId = `div:${div.divId}`;
+                this.ladtLabelMap.set(divId, div.divName);
+                this.ladtParentMap.set(divId, agId);
+                for (const team of div.teams ?? []) {
+                    const teamId = `team:${team.teamId}`;
+                    this.ladtLabelMap.set(teamId, team.teamName);
+                    this.ladtParentMap.set(teamId, divId);
+                }
             }
-        };
-        recurse(nodes);
+        }
     }
 
     onLadtSelectionChange(checked: Set<string>): void {
@@ -276,11 +260,9 @@ export class ReschedulerComponent implements OnInit {
         const divIds: string[] = [];
         const teamIds: string[] = [];
         for (const id of checked) {
-            const level = this.ladtLevelMap.get(id);
-            if (level === 1) agIds.push(id);
-            else if (level === 2) divIds.push(id);
-            else if (level === 3) teamIds.push(id);
-            // level 0 (league) is ignored — its agegroups are already checked via cascade
+            if (id.startsWith('ag:')) agIds.push(id.substring(3));
+            else if (id.startsWith('div:')) divIds.push(id.substring(4));
+            else if (id.startsWith('team:')) teamIds.push(id.substring(5));
         }
         this.ladtAgegroupIds.set(agIds);
         this.ladtDivisionIds.set(divIds);
@@ -322,11 +304,11 @@ export class ReschedulerComponent implements OnInit {
     removeFilterChip(chip: { source: string; id: string }): void {
         if (chip.source === 'ladt') {
             const checked = new Set(this.ladtCheckedIds());
-            this.removeNodeAndDescendants(checked, chip.id, this.ladtTree());
+            this.pruneByAncestor(checked, chip.id, this.ladtParentMap);
             this.onLadtSelectionChange(checked);
         } else if (chip.source === 'cadt') {
             const checked = new Set(this.cadtCheckedIds());
-            this.removeNodeAndDescendants(checked, chip.id, null);
+            this.pruneByAncestor(checked, chip.id, this.cadtMaps().parents);
             this.onCadtSelectionChange(checked);
         } else if (chip.source === 'day') {
             this.selectedGameDays.set(this.selectedGameDays().filter(d => d !== chip.id));
@@ -337,44 +319,18 @@ export class ReschedulerComponent implements OnInit {
         }
     }
 
-    /** Remove a node and all its descendants from a checked set. */
-    private removeNodeAndDescendants(checked: Set<string>, nodeId: string, ladtNodes: LadtTreeNodeDto[] | null): void {
+    /** Remove a node and every descendant from a checked set via parent-map traversal. */
+    private pruneByAncestor(checked: Set<string>, nodeId: string, parents: Map<string, string>): void {
         checked.delete(nodeId);
-        if (ladtNodes) {
-            // LADT: walk tree to find descendants
-            const findAndRemove = (nodes: LadtTreeNodeDto[]): boolean => {
-                for (const n of nodes) {
-                    if (n.id === nodeId) {
-                        this.removeAllChildren(checked, n);
-                        return true;
-                    }
-                    if (n.children?.length && findAndRemove(n.children as LadtTreeNodeDto[])) return true;
-                }
-                return false;
-            };
-            findAndRemove(ladtNodes);
-        } else {
-            // CADT: use parent map to find descendants
-            const { parents } = this.cadtMaps();
-            const toRemove: string[] = [];
-            for (const id of checked) {
-                // Walk ancestors to see if nodeId is an ancestor
-                let cur = id;
-                while (cur) {
-                    if (cur === nodeId) { toRemove.push(id); break; }
-                    cur = parents.get(cur) ?? '';
-                }
+        const toRemove: string[] = [];
+        for (const id of checked) {
+            let cur: string | undefined = id;
+            while (cur) {
+                if (cur === nodeId) { toRemove.push(id); break; }
+                cur = parents.get(cur);
             }
-            for (const id of toRemove) checked.delete(id);
         }
-    }
-
-    private removeAllChildren(checked: Set<string>, node: LadtTreeNodeDto): void {
-        if (!node.children?.length) return;
-        for (const child of node.children as LadtTreeNodeDto[]) {
-            checked.delete(child.id);
-            this.removeAllChildren(checked, child);
-        }
+        for (const id of toRemove) checked.delete(id);
     }
 
     clearFilters(): void {

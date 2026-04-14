@@ -6,6 +6,8 @@ export type CadtTeamNode = {
     teamId: string;
     teamName: string;
     playerCount?: number;
+    isScheduled?: boolean;
+    hasClubRep?: boolean;
     isFavorited?: boolean | null;
 };
 

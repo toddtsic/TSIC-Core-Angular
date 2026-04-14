@@ -9,6 +9,8 @@ export type CadtAgegroupNode = {
     color?: string | null;
     teamCount?: number;
     playerCount?: number;
+    isWaitlist?: boolean;
+    isDropped?: boolean;
     divisions: Array<CadtDivisionNode>;
 };
 

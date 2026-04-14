@@ -111,6 +111,7 @@ builder.Services.AddScoped<ILeagueRepository, LeagueRepository>();
 builder.Services.AddScoped<IDivisionRepository, DivisionRepository>();
 builder.Services.AddScoped<IScheduleCascadeRepository, ScheduleCascadeRepository>();
 builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
+builder.Services.AddScoped<IJobFilterTreeRepository, JobFilterTreeRepository>();
 builder.Services.AddScoped<IAutoBuildRepository, AutoBuildRepository>();
 builder.Services.AddScoped<IBracketSeedRepository, BracketSeedRepository>();
 builder.Services.AddScoped<IDeviceRepository, DeviceRepository>();

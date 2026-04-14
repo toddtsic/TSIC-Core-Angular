@@ -5,5 +5,9 @@
 export type LadtTeamNode = {
     teamId: string;
     teamName: string;
+    clubName?: string | null;
+    playerCount?: number;
+    isScheduled?: boolean;
+    hasClubRep?: boolean;
 };
 

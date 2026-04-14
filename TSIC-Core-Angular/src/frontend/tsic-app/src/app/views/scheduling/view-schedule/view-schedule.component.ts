@@ -22,7 +22,9 @@ import type {
     LadtAgegroupNode
 } from '@core/api';
 import { ViewScheduleService } from './services/view-schedule.service';
+import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { LadtTreeFilterComponent } from '../shared/components/ladt-tree-filter/ladt-tree-filter.component';
 import { GamesTabComponent } from './components/games-tab.component';
 import { StandingsTabComponent } from './components/standings-tab.component';
 import { BracketsTabComponent } from './components/brackets-tab.component';
@@ -49,6 +51,7 @@ interface FilterChip {
     imports: [
         FormsModule,
         CadtTreeFilterComponent,
+        LadtTreeFilterComponent,
         GamesTabComponent,
         StandingsTabComponent,
         BracketsTabComponent,
@@ -96,8 +99,11 @@ interface FilterChip {
                         @if (openPanel() === 'cadt') {
                             <div class="filter-panel" (click)="$event.stopPropagation()">
                                 <app-cadt-tree-filter
-                                    [treeData]="filterOptions()?.clubs ?? []"
+                                    [treeData]="cadtTree()"
                                     [checkedIds]="checkedIds"
+                                    [requireScheduled]="true"
+                                    [requireClubRep]="true"
+                                    [excludeWaitlistDropped]="true"
                                     searchPlaceholder="Filter clubs..."
                                     (checkedIdsChange)="onCadtSelectionChange($event)" />
                             </div>
@@ -118,10 +124,11 @@ interface FilterChip {
                         </button>
                         @if (openPanel() === 'ladt') {
                             <div class="filter-panel" (click)="$event.stopPropagation()">
-                                <app-cadt-tree-filter
-                                    [treeData]="ladtAsCadtNodes()"
+                                <app-ladt-tree-filter
+                                    [treeData]="ladtTree()"
                                     [checkedIds]="ladtCheckedIds"
-                                    [hideRootLevel]="true"
+                                    [requireScheduled]="true"
+                                    [excludeWaitlistDropped]="true"
                                     searchPlaceholder="Filter age groups..."
                                     (checkedIdsChange)="onLadtSelectionChange($event)" />
                             </div>
@@ -339,8 +346,11 @@ interface FilterChip {
                             <div class="filter-group filter-group-tree">
                                 <label class="filter-group-label">By Club</label>
                                 <app-cadt-tree-filter
-                                    [treeData]="filterOptions()?.clubs ?? []"
+                                    [treeData]="cadtTree()"
                                     [checkedIds]="checkedIds"
+                                    [requireScheduled]="true"
+                                    [requireClubRep]="true"
+                                    [excludeWaitlistDropped]="true"
                                     searchPlaceholder="Filter clubs..."
                                     (checkedIdsChange)="onCadtSelectionChange($event)" />
                             </div>
@@ -350,10 +360,11 @@ interface FilterChip {
                         @if (hasLadtData()) {
                             <div class="filter-group filter-group-tree">
                                 <label class="filter-group-label">By Age Group</label>
-                                <app-cadt-tree-filter
-                                    [treeData]="ladtAsCadtNodes()"
+                                <app-ladt-tree-filter
+                                    [treeData]="ladtTree()"
                                     [checkedIds]="ladtCheckedIds"
-                                    [hideRootLevel]="true"
+                                    [requireScheduled]="true"
+                                    [excludeWaitlistDropped]="true"
                                     searchPlaceholder="Filter age groups..."
                                     (checkedIdsChange)="onLadtSelectionChange($event)" />
                             </div>
@@ -925,6 +936,7 @@ interface FilterChip {
 })
 export class ViewScheduleComponent implements OnInit {
     private readonly svc = inject(ViewScheduleService);
+    private readonly jobFilterTreeSvc = inject(JobFilterTreeService);
     private readonly route = inject(ActivatedRoute);
     protected readonly auth = inject(AuthService);
     private readonly jobService = inject(JobService);
@@ -936,6 +948,10 @@ export class ViewScheduleComponent implements OnInit {
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
     readonly capabilities = signal<ScheduleCapabilitiesDto | null>(null);
     readonly filterModalVisible = signal(false);
+
+    // ── Unified CADT/LADT trees from /api/job-filter-tree ──
+    readonly cadtTree = signal<CadtClubNode[]>([]);
+    readonly ladtTree = signal<LadtAgegroupNode[]>([]);
 
     // ── Desktop dropdown panel ──
     readonly openPanel = signal<PanelId | null>(null);
@@ -990,12 +1006,12 @@ export class ViewScheduleComponent implements OnInit {
 
     readonly eventName = computed(() => this.jobService.currentJob()?.jobName ?? '');
 
-    readonly hasCadtData = computed(() => (this.filterOptions()?.clubs?.length ?? 0) > 0);
-    readonly hasLadtData = computed(() => (this.filterOptions()?.agegroups?.length ?? 0) > 0);
+    readonly hasCadtData = computed(() => this.cadtTree().length > 0);
+    readonly hasLadtData = computed(() => this.ladtTree().length > 0);
 
     /** Flat team list for edit-game modal team picker (grouped by division) */
     readonly flatTeamList = computed(() => {
-        const clubs = this.filterOptions()?.clubs ?? [];
+        const clubs = this.cadtTree();
         const teams: { teamId: string; teamName: string; divName: string }[] = [];
         for (const club of clubs) {
             for (const ag of club.agegroups ?? []) {
@@ -1007,28 +1023,6 @@ export class ViewScheduleComponent implements OnInit {
             }
         }
         return teams;
-    });
-
-    /** LADT data wrapped as CadtClubNode[] for tree component reuse (single virtual club) */
-    readonly ladtAsCadtNodes = computed<CadtClubNode[]>(() => {
-        const agegroups = this.filterOptions()?.agegroups ?? [];
-        if (agegroups.length === 0) return [];
-        return [{
-            clubName: '__ladt__',
-            agegroups: agegroups.map(ag => ({
-                agegroupId: ag.agegroupId,
-                agegroupName: ag.agegroupName,
-                color: ag.color,
-                divisions: (ag.divisions ?? []).map(div => ({
-                    divId: div.divId,
-                    divName: div.divName,
-                    teams: (div.teams ?? []).map(t => ({
-                        teamId: t.teamId,
-                        teamName: t.teamName
-                    }))
-                }))
-            }))
-        }];
     });
 
     readonly cadtFilterCount = computed(() => this.cadtTeamIds().length > 0 ? this.checkedIds.size : 0);
@@ -1059,13 +1053,15 @@ export class ViewScheduleComponent implements OnInit {
         const opts = this.filterOptions();
 
         // CADT chips
-        if (opts?.clubs && this.cadtTeamIds().length > 0) {
-            this.buildTreeChips(opts.clubs, this.checkedIds, 'cadt', chips);
+        const cadt = this.cadtTree();
+        if (cadt.length > 0 && this.cadtTeamIds().length > 0) {
+            this.buildTreeChips(cadt, this.checkedIds, 'cadt', chips);
         }
 
         // LADT chips
-        if (opts?.agegroups && this.ladtTeamIds().length > 0) {
-            this.buildLadtChips(opts.agegroups, chips);
+        const ladt = this.ladtTree();
+        if (ladt.length > 0 && this.ladtTeamIds().length > 0) {
+            this.buildLadtChips(ladt, chips);
         }
 
         // Game Day chip
@@ -1104,6 +1100,11 @@ export class ViewScheduleComponent implements OnInit {
 
         this.svc.getFilterOptions(this.jobPath).subscribe(opts => {
             this.filterOptions.set(opts);
+        });
+
+        this.jobFilterTreeSvc.getForJob(this.jobPath).subscribe(tree => {
+            this.cadtTree.set(tree.cadt);
+            this.ladtTree.set(tree.ladt);
         });
 
         this.svc.getCapabilities(this.jobPath).subscribe(caps => {
@@ -1182,8 +1183,8 @@ export class ViewScheduleComponent implements OnInit {
                 if (chip.nodeId) {
                     const next = new Set(this.checkedIds);
                     next.delete(chip.nodeId);
-                    this.removeTreeDescendants(chip.nodeId, next, this.filterOptions()?.clubs ?? []);
-                    this.removeTreeAncestors(chip.nodeId, next, this.filterOptions()?.clubs ?? []);
+                    this.removeTreeDescendants(chip.nodeId, next, this.cadtTree());
+                    this.removeTreeAncestors(chip.nodeId, next, this.cadtTree());
                     this.checkedIds = next;
                     this.deriveCadtTeamIds();
                     this.refreshTab();
@@ -1193,8 +1194,8 @@ export class ViewScheduleComponent implements OnInit {
                 if (chip.nodeId) {
                     const next = new Set(this.ladtCheckedIds);
                     next.delete(chip.nodeId);
-                    this.removeTreeDescendants(chip.nodeId, next, this.ladtAsCadtNodes());
-                    this.removeTreeAncestors(chip.nodeId, next, this.ladtAsCadtNodes());
+                    this.removeLadtDescendants(chip.nodeId, next, this.ladtTree());
+                    this.removeLadtAncestors(chip.nodeId, next, this.ladtTree());
                     this.ladtCheckedIds = next;
                     this.deriveLadtTeamIds();
                     this.refreshTab();
@@ -1426,7 +1427,7 @@ export class ViewScheduleComponent implements OnInit {
      */
     private deriveCadtTeamIds(): void {
         const teamIdSet = new Set<string>();
-        const clubs = this.filterOptions()?.clubs ?? [];
+        const clubs = this.cadtTree();
 
         for (const club of clubs) {
             if (this.checkedIds.has(`club:${club.clubName}`)) {
@@ -1455,23 +1456,21 @@ export class ViewScheduleComponent implements OnInit {
 
     /**
      * Resolve all checked LADT nodes down to team IDs.
-     * The LADT tree is Agegroup → Division → Team (no club level).
-     * Node IDs use __ladt__ as the virtual club name.
+     * LADT IDs are agegroup-rooted (no club layer): ag:<agId>, div:<divId>, team:<teamId>.
      */
     private deriveLadtTeamIds(): void {
         const teamIdSet = new Set<string>();
-        const agegroups = this.filterOptions()?.agegroups ?? [];
-        const clubName = '__ladt__';
+        const agegroups = this.ladtTree();
 
         for (const ag of agegroups) {
-            if (this.ladtCheckedIds.has(`ag:${clubName}|${ag.agegroupId}`)) {
+            if (this.ladtCheckedIds.has(`ag:${ag.agegroupId}`)) {
                 for (const div of ag.divisions ?? []) {
                     for (const team of div.teams ?? []) teamIdSet.add(team.teamId);
                 }
                 continue;
             }
             for (const div of ag.divisions ?? []) {
-                if (this.ladtCheckedIds.has(`div:${clubName}|${div.divId}`)) {
+                if (this.ladtCheckedIds.has(`div:${div.divId}`)) {
                     for (const team of div.teams ?? []) teamIdSet.add(team.teamId);
                     continue;
                 }
@@ -1515,17 +1514,16 @@ export class ViewScheduleComponent implements OnInit {
         }
     }
 
-    /** Build chips for LADT — uses the LADT tree directly (not wrapped) */
+    /** Build chips for LADT — agegroup-rooted IDs (no club layer). */
     private buildLadtChips(agegroups: LadtAgegroupNode[], chips: FilterChip[]): void {
-        const clubName = '__ladt__';
         for (const ag of agegroups) {
-            if (this.ladtCheckedIds.has(`ag:${clubName}|${ag.agegroupId}`)) {
-                chips.push({ category: 'Age', label: ag.agegroupName, type: 'ladt', nodeId: `ag:${clubName}|${ag.agegroupId}` });
+            if (this.ladtCheckedIds.has(`ag:${ag.agegroupId}`)) {
+                chips.push({ category: 'Age', label: ag.agegroupName, type: 'ladt', nodeId: `ag:${ag.agegroupId}` });
                 continue;
             }
             for (const div of ag.divisions ?? []) {
-                if (this.ladtCheckedIds.has(`div:${clubName}|${div.divId}`)) {
-                    chips.push({ category: 'Division', label: div.divName, type: 'ladt', nodeId: `div:${clubName}|${div.divId}` });
+                if (this.ladtCheckedIds.has(`div:${div.divId}`)) {
+                    chips.push({ category: 'Division', label: div.divName, type: 'ladt', nodeId: `div:${div.divId}` });
                     continue;
                 }
                 for (const team of div.teams ?? []) {
@@ -1589,6 +1587,42 @@ export class ViewScheduleComponent implements OnInit {
                             checked.delete(divId); checked.delete(agId); checked.delete(clubId);
                             return;
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    /** LADT counterpart — agegroup-rooted IDs, no club layer. */
+    private removeLadtDescendants(nodeId: string, checked: Set<string>, agegroups: LadtAgegroupNode[]): void {
+        for (const ag of agegroups) {
+            const agId = `ag:${ag.agegroupId}`;
+            if (agId === nodeId) {
+                for (const div of ag.divisions ?? []) {
+                    checked.delete(`div:${div.divId}`);
+                    for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
+                }
+                return;
+            }
+            for (const div of ag.divisions ?? []) {
+                if (`div:${div.divId}` === nodeId) {
+                    for (const team of div.teams ?? []) checked.delete(`team:${team.teamId}`);
+                    return;
+                }
+            }
+        }
+    }
+
+    private removeLadtAncestors(nodeId: string, checked: Set<string>, agegroups: LadtAgegroupNode[]): void {
+        for (const ag of agegroups) {
+            const agId = `ag:${ag.agegroupId}`;
+            for (const div of ag.divisions ?? []) {
+                const divId = `div:${div.divId}`;
+                if (divId === nodeId) { checked.delete(agId); return; }
+                for (const team of div.teams ?? []) {
+                    if (`team:${team.teamId}` === nodeId) {
+                        checked.delete(divId); checked.delete(agId);
+                        return;
                     }
                 }
             }

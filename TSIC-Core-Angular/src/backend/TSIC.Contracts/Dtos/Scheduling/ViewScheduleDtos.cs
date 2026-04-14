@@ -89,6 +89,10 @@ public record CadtAgegroupNode
     public string? Color { get; init; }
     public int TeamCount { get; init; }
     public int PlayerCount { get; init; }
+    /// <summary>True when AgegroupName contains "WAITLIST" — surfaces opt to exclude via [excludeWaitlistDropped].</summary>
+    public bool IsWaitlist { get; init; }
+    /// <summary>True when AgegroupName contains "DROPPED" — surfaces opt to exclude via [excludeWaitlistDropped].</summary>
+    public bool IsDropped { get; init; }
     public required List<CadtDivisionNode> Divisions { get; init; }
 }
 
@@ -108,6 +112,10 @@ public record CadtTeamNode
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public int PlayerCount { get; init; }
+    /// <summary>True when the team appears in the Schedule table for this job.</summary>
+    public bool IsScheduled { get; init; }
+    /// <summary>True when the team has a ClubrepRegistrationid (a club affiliation).</summary>
+    public bool HasClubRep { get; init; }
     public bool? IsFavorited { get; init; }
 }
 
@@ -119,6 +127,12 @@ public record LadtAgegroupNode
     public required Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
     public string? Color { get; init; }
+    public int TeamCount { get; init; }
+    public int PlayerCount { get; init; }
+    /// <summary>True when AgegroupName contains "WAITLIST" — surfaces opt to exclude via [excludeWaitlistDropped].</summary>
+    public bool IsWaitlist { get; init; }
+    /// <summary>True when AgegroupName contains "DROPPED" — surfaces opt to exclude via [excludeWaitlistDropped].</summary>
+    public bool IsDropped { get; init; }
     public required List<LadtDivisionNode> Divisions { get; init; }
 }
 
@@ -127,6 +141,8 @@ public record LadtDivisionNode
 {
     public required Guid DivId { get; init; }
     public required string DivName { get; init; }
+    public int TeamCount { get; init; }
+    public int PlayerCount { get; init; }
     public required List<LadtTeamNode> Teams { get; init; }
 }
 
@@ -135,6 +151,25 @@ public record LadtTeamNode
 {
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
+    /// <summary>The team's club name when it has a ClubRep, null otherwise. Lets LADT consumers know club affiliation without a separate lookup.</summary>
+    public string? ClubName { get; init; }
+    public int PlayerCount { get; init; }
+    /// <summary>True when the team appears in the Schedule table for this job.</summary>
+    public bool IsScheduled { get; init; }
+    /// <summary>True when the team has a ClubrepRegistrationid (a club affiliation).</summary>
+    public bool HasClubRep { get; init; }
+}
+
+/// <summary>
+/// Unified job filter tree response — single endpoint serves both CADT (Club → Agegroup → Division → Team)
+/// and LADT (Agegroup → Division → Team) views from one query. Each node carries metadata flags
+/// (IsScheduled, HasClubRep, IsWaitlist, IsDropped) so frontend consumers filter per their context
+/// without per-surface backend variants.
+/// </summary>
+public record JobFilterTreeDto
+{
+    public required List<CadtClubNode> Cadt { get; init; }
+    public required List<LadtAgegroupNode> Ladt { get; init; }
 }
 
 /// <summary>Field summary for the field filter dropdown.</summary>
