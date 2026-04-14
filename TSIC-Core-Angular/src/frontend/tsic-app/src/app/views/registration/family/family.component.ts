@@ -107,6 +107,10 @@ export class FamilyWizardV2Component implements OnInit {
         if (stepParam) {
             const idx = this.activeSteps().findIndex(s => s.id === stepParam);
             if (idx >= 0) this.currentIndex.set(idx);
+            // Authenticated deep-link skips credentials step — hydrate profile from API.
+            if (this.auth.isAuthenticated()) {
+                this.state.loadProfile();
+            }
         }
     }
 

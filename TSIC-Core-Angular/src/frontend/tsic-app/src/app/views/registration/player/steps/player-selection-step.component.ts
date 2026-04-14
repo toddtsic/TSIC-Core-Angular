@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { PlayerFormModalComponent } from './player-form-modal.component';
-import { FamilyEditModalComponent } from './family-edit-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { environment } from '@environments/environment';
@@ -16,7 +16,7 @@ import { environment } from '@environments/environment';
 @Component({
     selector: 'app-prw-player-selection-step',
     standalone: true,
-    imports: [DatePipe, PlayerFormModalComponent, FamilyEditModalComponent, ConfirmDialogComponent],
+    imports: [DatePipe, PlayerFormModalComponent, ConfirmDialogComponent],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -33,7 +33,7 @@ import { environment } from '@environments/environment';
         <h5 class="mb-0 fw-semibold" style="font-size: var(--font-size-base)">Your Players</h5>
         <button type="button" class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
                 (click)="openFamilyEdit()">
-          <i class="bi bi-pencil-square me-1"></i>Edit Family Contact Info
+          <i class="bi bi-pencil-square me-1"></i>Edit Family Account/Players
         </button>
       </div>
       <div class="card-body pt-3">
@@ -47,10 +47,7 @@ import { environment } from '@environments/environment';
           <div class="wizard-empty-state">
             <i class="bi bi-person-plus-fill"></i>
             <strong>No players on this account yet</strong>
-            <span>Add your first player to get started.</span>
-            <button type="button" class="btn btn-primary btn-sm mt-2" (click)="openAddPlayer()">
-              <i class="bi bi-plus-circle me-1"></i>Add Player
-            </button>
+            <span>Use <em>Edit Family Account/Players</em> above to add your first player.</span>
           </div>
         } @else {
           <div class="player-list">
@@ -98,10 +95,6 @@ import { environment } from '@environments/environment';
               </label>
             }
           </div>
-
-          <button type="button" class="btn btn-outline-primary btn-sm mt-3" (click)="openAddPlayer()">
-            <i class="bi bi-plus-circle me-1"></i>Add Player
-          </button>
         }
       </div>
     </div>
@@ -114,13 +107,6 @@ import { environment } from '@environments/environment';
         [initialData]="editingPlayerData()"
         (saved)="onPlayerSaved()"
         (closed)="showPlayerModal.set(false)" />
-    }
-
-    <!-- Family account edit modal -->
-    @if (showFamilyModal()) {
-      <app-family-edit-modal
-        (saved)="onFamilySaved()"
-        (closed)="showFamilyModal.set(false)" />
     }
 
     <!-- Dev-only delete confirmation -->
@@ -299,6 +285,7 @@ export class PlayerSelectionStepComponent {
     readonly state = inject(PlayerWizardStateService);
     private readonly http = inject(HttpClient);
     private readonly toast = inject(ToastService);
+    private readonly router = inject(Router);
     readonly advance = output<void>();
     readonly hasRegistered = computed(() =>
         this.state.familyPlayers.familyPlayers().some(p => p.registered));
@@ -312,9 +299,6 @@ export class PlayerSelectionStepComponent {
     readonly editingPlayerId = signal<string | null>(null);
     readonly editingPlayerData = signal<{ firstName?: string; lastName?: string; gender?: string; dob?: string } | null>(null);
 
-    // ── Family modal ────────────────────────────────────────────────
-    readonly showFamilyModal = signal(false);
-
     toggle(playerId: string): void {
         this.state.togglePlayerSelection(playerId);
     }
@@ -325,13 +309,6 @@ export class PlayerSelectionStepComponent {
             this.state.togglePlayerSelection(playerId);
         }
         this.advance.emit();
-    }
-
-    openAddPlayer(): void {
-        this.playerModalMode.set('add');
-        this.editingPlayerId.set(null);
-        this.editingPlayerData.set(null);
-        this.showPlayerModal.set(true);
     }
 
     openEditPlayer(player: { playerId: string; firstName: string; lastName: string; gender: string; dob?: string | null }): void {
@@ -352,12 +329,12 @@ export class PlayerSelectionStepComponent {
     }
 
     openFamilyEdit(): void {
-        this.showFamilyModal.set(true);
-    }
-
-    onFamilySaved(): void {
-        this.showFamilyModal.set(false);
-        this.refreshPlayers();
+        const jobPath = this.state.jobCtx.jobPath();
+        if (!jobPath) return;
+        const returnUrl = `/${jobPath}/registration/player?step=players`;
+        this.router.navigate([`/${jobPath}/registration/family`], {
+            queryParams: { step: 'children', returnUrl },
+        });
     }
 
     // ── Dev delete confirmation ────────────────────────────────────
