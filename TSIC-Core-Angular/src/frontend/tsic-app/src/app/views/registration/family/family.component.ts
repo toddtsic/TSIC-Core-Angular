@@ -42,6 +42,7 @@ export class FamilyWizardV2Component implements OnInit {
     readonly state = inject(FamilyStateService);
 
     @ViewChild(CredentialsStepComponent) credentialsStep?: CredentialsStepComponent;
+    @ViewChild(ChildrenStepComponent) childrenStep?: ChildrenStepComponent;
 
     // ── Step management ─────────────────────────────────────────────
     readonly currentIndex = signal(0);
@@ -114,6 +115,11 @@ export class FamilyWizardV2Component implements OnInit {
         // Intercept credentials step — validate against backend before advancing
         if (this.currentStepId() === 'credentials') {
             this.validateAndAdvance();
+            return;
+        }
+
+        // Flush any unsaved Add Player form input before leaving the Children step.
+        if (this.currentStepId() === 'children' && this.childrenStep && !this.childrenStep.commitPending()) {
             return;
         }
 

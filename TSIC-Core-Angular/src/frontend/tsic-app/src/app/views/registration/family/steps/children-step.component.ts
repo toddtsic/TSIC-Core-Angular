@@ -215,6 +215,23 @@ export class ChildrenStepComponent {
         return d.toISOString().slice(0, 10);
     }
 
+    /**
+     * If the form has unsaved input, commit it before the wizard advances.
+     * Returns true if a commit happened or the form is empty; false if the form
+     * has data but is invalid (caller should block navigation).
+     */
+    commitPending(): boolean {
+        if (this.form.pristine) return true;
+        const hasAnyValue = Object.values(this.form.value).some(v => !!(v ?? '').toString().trim());
+        if (!hasAnyValue) return true;
+        if (this.form.invalid) {
+            this.submitted.set(true);
+            return false;
+        }
+        this.addChild();
+        return true;
+    }
+
     addChild(): void {
         this.submitted.set(true);
         if (this.form.invalid) return;

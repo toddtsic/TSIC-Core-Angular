@@ -16,7 +16,16 @@ import { FamilyStateService } from '../state/family-state.service';
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
-        <h5 class="mb-1 fw-semibold">Review & Save</h5>
+        <h5 class="mb-1 fw-semibold d-flex align-items-center flex-wrap gap-2">
+          <span>Review & Save</span>
+          @if (state.username()) {
+            <span class="username-chip">
+              <i class="bi bi-person-badge"></i>
+              <span class="username-chip-label">Family Username</span>
+              <span class="username-chip-value">{{ state.username() }}</span>
+            </span>
+          }
+        </h5>
         <p class="wizard-tip">Please verify your information below. Your account will be saved automatically.</p>
         <!-- Parent summary -->
         <div class="row g-3">
@@ -120,6 +129,41 @@ import { FamilyStateService } from '../state/family-state.service';
       </div>
     </div>
   `,
+    styles: [`
+      .username-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border-radius: 999px;
+        background: linear-gradient(135deg,
+            rgba(var(--bs-primary-rgb), 0.12),
+            rgba(var(--bs-primary-rgb), 0.06));
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        font-size: 0.875rem;
+        line-height: 1.2;
+
+        i {
+          color: var(--bs-primary);
+          font-size: 0.95rem;
+        }
+      }
+
+      .username-chip-label {
+        color: var(--neutral-600);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.7rem;
+      }
+
+      .username-chip-value {
+        color: var(--bs-primary);
+        font-weight: 700;
+        font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReviewStepComponent implements OnInit {
