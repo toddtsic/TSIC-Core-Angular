@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, output } from '@ang
 import { ActivatedRoute } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { FamilyStateService } from '../state/family-state.service';
+import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 
 /**
  * Family wizard v2 — Review step.
@@ -12,7 +13,7 @@ import { FamilyStateService } from '../state/family-state.service';
 @Component({
     selector: 'app-fam-review-step',
     standalone: true,
-    imports: [],
+    imports: [PhonePipe],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
@@ -41,7 +42,7 @@ import { FamilyStateService } from '../state/family-state.service';
               <div class="small text-muted">Name</div>
               <div>{{ state.parent1().firstName }} {{ state.parent1().lastName }}</div>
               <div class="small text-muted mt-2">Cellphone</div>
-              <div>{{ state.parent1().phone || '—' }}</div>
+              <div>{{ state.parent1().phone | phone }}</div>
               <div class="small text-muted mt-2">Email</div>
               <div>{{ state.parent1().email }}</div>
               @if (state.mode() === 'create') {
@@ -56,7 +57,7 @@ import { FamilyStateService } from '../state/family-state.service';
               <div class="small text-muted">Name</div>
               <div>{{ state.parent2().firstName }} {{ state.parent2().lastName }}</div>
               <div class="small text-muted mt-2">Cellphone</div>
-              <div>{{ state.parent2().phone || '—' }}</div>
+              <div>{{ state.parent2().phone | phone }}</div>
               <div class="small text-muted mt-2">Email</div>
               <div>{{ state.parent2().email || '—' }}</div>
             </div>
@@ -110,7 +111,7 @@ import { FamilyStateService } from '../state/family-state.service';
                       <td class="tsic-grid-cell">{{ c.gender }}</td>
                       <td class="tsic-grid-cell">{{ formatDob(c.dob) }}</td>
                       <td class="tsic-grid-cell">{{ c.email || '—' }}</td>
-                      <td class="tsic-grid-cell">{{ c.phone || '—' }}</td>
+                      <td class="tsic-grid-cell">{{ c.phone | phone }}</td>
                     </tr>
                   }
                 </tbody>
