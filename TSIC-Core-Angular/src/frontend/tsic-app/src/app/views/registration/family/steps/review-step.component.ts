@@ -25,6 +25,12 @@ import { FamilyStateService } from '../state/family-state.service';
               <span class="username-chip-value">{{ state.username() }}</span>
             </span>
           }
+          @if (!state.submitting() && state.submitSuccess()) {
+            <span class="saved-chip ms-auto">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>{{ state.mode() === 'edit' ? 'Changes saved' : 'Family account saved' }}</span>
+            </span>
+          }
         </h5>
         <p class="wizard-tip">Please verify your information below. Your account will be saved automatically.</p>
         <!-- Parent summary -->
@@ -73,9 +79,6 @@ import { FamilyStateService } from '../state/family-state.service';
               Saving your family account…
             </span>
           }
-          @if (!state.submitting() && state.submitSuccess()) {
-            <span class="text-success small">Family account saved.</span>
-          }
           @if (!state.submitting() && state.submitError()) {
             <span class="text-danger small">{{ state.submitError() }}</span>
             <button type="button" class="btn btn-sm btn-outline-danger" (click)="state.submit()">Retry</button>
@@ -118,7 +121,7 @@ import { FamilyStateService } from '../state/family-state.service';
 
         <!-- Edit mode: return buttons -->
         @if (state.mode() === 'edit') {
-          <div class="d-flex gap-2 mt-3">
+          <div class="d-flex gap-2 mt-3 justify-content-end">
             <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
             @if (showReturnToRegistration) {
               <button type="button" class="btn btn-primary" (click)="completed.emit('register')">Return to Player Registration</button>
@@ -156,6 +159,22 @@ import { FamilyStateService } from '../state/family-state.service';
         text-transform: uppercase;
         letter-spacing: 0.04em;
         font-size: 0.7rem;
+      }
+
+      .saved-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border-radius: 999px;
+        background: rgba(var(--bs-success-rgb), 0.10);
+        border: 1px solid rgba(var(--bs-success-rgb), 0.30);
+        color: var(--bs-success);
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.2;
+
+        i { font-size: 0.95rem; }
       }
 
       .username-chip-value {
