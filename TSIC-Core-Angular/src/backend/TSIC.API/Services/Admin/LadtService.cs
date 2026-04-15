@@ -84,6 +84,11 @@ public sealed class LadtService : ILadtService
 
             foreach (var ag in agegroups)
             {
+                // The "Dropped Teams" agegroup is the history bucket for soft-dropped
+                // (inactive) teams. Its rollups should count those teams so the node
+                // shows a real number; jobwide totals stay active-only.
+                var isDroppedAg = string.Equals(ag.AgegroupName, "Dropped Teams", StringComparison.OrdinalIgnoreCase);
+
                 var divisions = await _divisionRepo.GetByAgegroupIdAsync(ag.AgegroupId, cancellationToken);
                 var divisionNodes = new List<LadtTreeNodeDto>();
 
@@ -118,9 +123,9 @@ public sealed class LadtService : ILadtService
                         });
                     }
 
-                    var activeTeamNodes = teamNodes.Where(t => t.Active).ToList();
-                    var divTeamCount = activeTeamNodes.Count;
-                    var divPlayerCount = activeTeamNodes.Sum(t => t.PlayerCount);
+                    var rollupTeamNodes = isDroppedAg ? teamNodes : teamNodes.Where(t => t.Active).ToList();
+                    var divTeamCount = rollupTeamNodes.Count;
+                    var divPlayerCount = rollupTeamNodes.Sum(t => t.PlayerCount);
 
                     divisionNodes.Add(new LadtTreeNodeDto
                     {

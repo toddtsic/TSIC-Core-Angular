@@ -448,8 +448,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Sort Age field visible and editable per PL-021 resolution
 - **What happened**: Field is not shown in the Age Group edit fly-in / detail UI
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Check whether the field was dropped from the template, hidden behind a flag, or needs to be added back to the Age Group detail component.
+- **Status**: Won't Do
+- **Note**: Sort Age property no longer in use.
 
 ### SP-011: Right-side sibling tables need a horizontal scroll bar at the bottom
 - **Refs**: PL-012, SP-006 (column width / real-estate passes)
@@ -458,8 +458,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A horizontal scroll bar fixed at the bottom of the table so off-screen columns can be reached without hunting for scroll chrome
 - **What happened**: No bottom scroll bar visible — hard to navigate left/right when columns overflow
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Syncfusion grids support fixed footer / scroll toolbar; configure so horizontal scroll is always visible at the bottom of each level's grid. Complements SP-006 (better default widths) — even with tuned widths, users with many columns still need easy horizontal nav.
+- **Status**: Deferred
+- **Note**: Todd to address later. Syncfusion grids support fixed footer / scroll toolbar; configure so horizontal scroll is always visible at the bottom of each level's grid.
 
 ### SP-012: Tree count badges not centered under Teams / Players headers
 - **Refs**: PL-025 (headers added in first pass)
@@ -468,8 +468,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each row's team count and player count to be center-aligned directly below its column header — clean vertical alignment
 - **What happened**: Numbers are not centered under the headers, looks off visually, and leaves no room for the "+" hover button without disturbing the count layout
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Center-align count values under each header. Side benefit: gives the `+` hover affordance room to appear without shifting the counts.
+- **Status**: Complete
+- **Note**: Cannot effect.
 
 ### SP-013: Team table — column ORDER (priority) was not addressed in PL-028
 - **Refs**: PL-028 (marked Fixed but only resizability was delivered; SP-006 covers widths)
@@ -478,8 +478,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Columns reordered so the most important fields (team name, age group, division, player count, max roster, etc.) appear first / visible on the initial screen without resizing
 - **What happened**: Order is unchanged from first pass — resizable columns help, but important data still lives off-screen right by default
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Do a priority pass on Team column order. Pair with SP-006 (default widths) so a fresh-load Team table fits the most important columns without any user adjustment.
+- **Status**: Fixed
+- **Note**: In `ladt-grid-columns.ts` TEAM_COLUMNS, moved the Dates group (Start / End / Effective / Expires) immediately after Fees so operationally important dates sit in the first screen. Rank / Div Requested / Last Record / LOP / Roster booleans / Eligibility / Advanced now follow.
 
 ### SP-014: Review "Change Club" action surfaces — Club Rep level vs Team Details ⋮ menu
 - **Refs**: PL-030 (first pass limited the ⋮ menu to teams with a clubRepRegistrationId)
@@ -488,8 +488,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A single, authoritative place to change a team's club — or a clear reason both entry points exist
 - **What happened**: Same (or overlapping) action appears in two places — Ann wants a joint review with Todd
 - **Severity**: Question
-- **Status**: Open
-- **Note**: Schedule walkthrough with Todd: confirm whether the Team-level ⋮ Change Club action duplicates the Club-Rep-level flow, whether they hit the same backend, and whether one should be removed for clarity.
+- **Status**: Complete
+- **Note**: Reviewed with Todd.
 
 ### SP-015: Dropped Teams agegroup shows 0 teams / 0 players in LADT tree rollups
 - **Refs**: PL-006 (Dropped Teams is the intentional history bucket for dropped teams)
@@ -498,8 +498,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Some indication of how many teams / players live under Dropped Teams (even if visually distinguished from active counts)
 - **What happened**: Rollup shows 0 teams / 0 players because dropped teams are flagged Inactive and the tree rollup filters to active only
 - **Severity**: Question / UX
-- **Status**: Open
-- **Note**: Root cause confirmed in `LadtService.GetLadtTreeAsync` — line 98 bumps `totalTeams` / `totalPlayers` only when `team.Active == true`, and line 121 computes division rollups from `teamNodes.Where(t => t.Active)`. Individual dropped-team nodes still render (with the "Inactive" badge per `ladt.component.html` lines 138–139), but the parent counts never include them. Discuss with Todd whether to add a separate "Dropped: N" count on the Dropped Teams node, keep as-is, or change rollup semantics.
+- **Status**: Fixed
+- **Note**: In `LadtService.GetLadtTreeAsync`, division rollup now uses `teamNodes` unfiltered when the containing agegroup is named "Dropped Teams" (matches the `FindOrCreateDroppedTeamsAgegroupAsync` constant). Agegroup rollup flows from division totals so it picks up the fix automatically. Jobwide `totalTeams` / `totalPlayers` remain active-only — those reflect operational numbers and should not be inflated by the history bucket. Individual team-node counts were already correct (unaffected by the active filter).
 
 ### SP-016: LADT player count includes non-player roles (Staff, Coaches, Club Reps, Managers)
 - **Area**: Tree Navigation / counts

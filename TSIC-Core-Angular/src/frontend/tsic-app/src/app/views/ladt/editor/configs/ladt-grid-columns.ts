@@ -56,6 +56,11 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'playerCount', header: 'Players', type: 'number', width: '75px' },
   { field: 'maxCount', header: 'Max Roster', type: 'number', width: '75px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
+  // Dates
+  { field: 'startdate', header: 'Start', type: 'date', group: 'Dates', width: '100px' },
+  { field: 'enddate', header: 'End', type: 'date', group: 'Dates', width: '100px' },
+  { field: 'effectiveasofdate', header: 'Effective', type: 'date', group: 'Dates', width: '100px' },
+  { field: 'expireondate', header: 'Expires', type: 'date', group: 'Dates', width: '100px' },
   { field: 'divRank', header: 'Rank', type: 'number', width: '75px' },
   { field: 'divisionRequested', header: 'Div Requested', type: 'string', width: '140px' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string', width: '90px' },
@@ -63,11 +68,6 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   // Roster
   { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster', width: '70px' },
   { field: 'bHideRoster', header: 'Hide Roster', type: 'boolean', group: 'Roster', width: '70px' },
-  // Dates
-  { field: 'startdate', header: 'Start', type: 'date', group: 'Dates', width: '100px' },
-  { field: 'enddate', header: 'End', type: 'date', group: 'Dates', width: '100px' },
-  { field: 'effectiveasofdate', header: 'Effective', type: 'date', group: 'Dates', width: '100px' },
-  { field: 'expireondate', header: 'Expires', type: 'date', group: 'Dates', width: '100px' },
   // Eligibility
   { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility', width: '60px' },
   // Advanced
