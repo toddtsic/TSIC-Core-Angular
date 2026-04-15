@@ -34,6 +34,7 @@ public class LadtStubTests
     private readonly Mock<IClubRepository> _clubRepo = new();
     private readonly Mock<IScheduleRepository> _scheduleRepo = new();
     private readonly Mock<ITeamPlacementService> _placement = new();
+    private readonly Mock<IFeeRepository> _feeRepo = new();
 
     private LadtService CreateService() => new(
         _leagueRepo.Object,
@@ -47,7 +48,8 @@ public class LadtStubTests
         _clubTeamRepo.Object,
         _clubRepo.Object,
         _scheduleRepo.Object,
-        _placement.Object
+        _placement.Object,
+        _feeRepo.Object
     );
 
     // ─── AddStubAgegroup ──────────────────────────────────────────────────
