@@ -264,5 +264,17 @@ public class FeeRepository : IFeeRepository
     public void AddModifier(FeeModifiers modifier) => _context.FeeModifiers.Add(modifier);
     public void Remove(JobFees jobFee) => _context.JobFees.Remove(jobFee);
     public void RemoveModifier(FeeModifiers modifier) => _context.FeeModifiers.Remove(modifier);
+
+    public async Task<int> DeleteByAgegroupIdAsync(Guid agegroupId, CancellationToken ct = default)
+    {
+        // Delete modifiers first (FK_FeeModifiers_JobFees), then the agegroup-scoped fee rows.
+        await _context.FeeModifiers
+            .Where(m => m.JobFee!.AgegroupId == agegroupId)
+            .ExecuteDeleteAsync(ct);
+        return await _context.JobFees
+            .Where(jf => jf.AgegroupId == agegroupId)
+            .ExecuteDeleteAsync(ct);
+    }
+
     public async Task SaveChangesAsync(CancellationToken ct = default) => await _context.SaveChangesAsync(ct);
 }

@@ -343,3 +343,182 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Severity**: UX
 - **Status**: Fixed
 - **Note**: Renamed to "LADT Tree". Hover text on the heading shows "Leagues, Age Groups, Divisions, Teams".
+
+---
+
+## Second Pass Items
+
+*Started 2026-04-14. Numbered independently (SP-001, SP-002, ...).*
+
+### SP-001: LADT/Editor menu click does not collapse expanded tree to age group level
+- **Refs**: PL-001 (original marked Won't Fix on the assumption collapse-to-agegroup already worked)
+- **Area**: Tree Navigation
+- **What I did**: Opened LADT, expanded the tree past the age group level, then clicked the LADT/Editor menu item again
+- **What I expected**: Tree to collapse back to the age group level (per PL-001 resolution)
+- **What happened**: Tree stays fully expanded — no collapse happens at all
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Ann agrees collapsing all the way to root is wrong; the correct behavior is collapse-to-agegroup as originally stated in PL-001. Needs investigation into why the menu click isn't triggering that collapse.
+
+### SP-002: Review "Standardize Division Names" tool with Todd; revisit info-box wording
+- **Refs**: PL-003 (info-box subtitle added in first pass)
+- **Area**: Toolbar & Bulk Actions
+- **What I did**: Re-read the Standardize Division Names dialog during second pass
+- **What I expected**: Walk through the tool with Todd to confirm the behavior and refine the top-of-dialog info box copy
+- **What happened**: Ann wants a joint review of how the tool actually works end-to-end, plus text edits to the info box at the top of the dialog
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Action item — schedule walkthrough with Todd, then propose revised info-box copy.
+
+### SP-003: Age Group Details fly-in — swap fee-card order for tournaments
+- **Area**: Age Group Settings
+- **What I did**: Reviewed the Age Group Details fly-in fee cards during second pass
+- **What I expected**: Card order to match the dominant fee type for the site type — Team/ClubRep fees featured first on tournament sites, Player fees first everywhere else
+- **What happened**: Currently Player Fees card is always above the Team/ClubRep Fees card regardless of site type
+- **Severity**: UX
+- **Status**: Open
+- **Note**: On tournament sites, put Club Rep / Team Fees card above the Player Fees card. On all other site types (league, player, family, CAC), keep Player Fees card on top. Goal: reduce data-entry errors when setting up a tourney by surfacing the relevant fee type first.
+
+### SP-004: Delete Agegroup fails with FK_JobFees_Agegroups when fees exist
+- **Area**: Age Group Settings
+- **What I did**: Tried to delete an age group that had fee entries configured
+- **What I expected**: Agegroup to delete cleanly (or be blocked with a clear user-facing message)
+- **What happened**: Unhandled `DbUpdateException` / `SqlException`: *"The DELETE statement conflicted with the REFERENCE constraint 'FK_JobFees_Agegroups'."*
+- **Severity**: Bug
+- **Status**: Fixed
+- **Note**: Added `IFeeRepository.DeleteByAgegroupIdAsync` using EF `ExecuteDeleteAsync` — single-statement batch delete of `FeeModifiers` (via `JobFee.AgegroupId == x`) then `JobFees` (`AgegroupId == x`). No schema change. `LadtService.DeleteAgegroupAsync` calls it after the existing teams-guard and division-cleanup, so nothing underneath remains when fees are removed. Build verified clean.
+
+### SP-005: After deleting an AgeGroup/Division/Team, right-hand panel goes blank
+- **Area**: Tree Navigation
+- **What I did**: Deleted an Age Group (also observed for Division and Team deletes)
+- **What I expected**: Right-side panel to land on the sibling table at the deleted item's level, so I can visually confirm the row is gone
+- **What happened**: Right side of the screen goes blank — no table shown at all
+- **Severity**: UX
+- **Status**: Open
+- **Note**: On successful delete, navigate/select to the parent's children-grid at the same level (e.g., deleting an Age Group shows the League's Age Groups grid; deleting a Division shows the Age Group's Divisions grid; deleting a Team shows the Division's Teams grid). Gives immediate visual confirmation the item was removed.
+
+### SP-006: Right-side grids still too wide — tune default column widths to content across all levels
+- **Refs**: PL-012 (first pass delivered resizable columns via Syncfusion grid)
+- **Area**: All level grids (League / Age Group / Division / Team)
+- **What I did**: Reviewed the right-side sibling tables at every level
+- **What I expected**: Default widths sized to actual content so more columns fit on the first screen without resizing
+- **What happened**: Columns still eat too much horizontal space by default (example: Gender column is far wider than its 1–2 char value needs). Resizing is possible but the out-of-box layout wastes real estate.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Pass on column defaults at all four levels. Size narrow columns (Gender, counts, short codes) to content; reserve flex growth for name/label columns. Goal: maximize visible columns on first paint before any user resize.
+
+### SP-007: "Add New X" buttons on sibling grids create children, not siblings
+- **Refs**: PL-015, PL-024 (both marked Won't Fix in first pass — Ann disagrees)
+- **Area**: All level grids (Age Group / Division grids most visibly)
+- **What I did**: Clicked "Add New Age Group" on the Age Groups sibling grid; also tried "Add New Division" on the Divisions grid
+- **What I expected**: Add New Age Group → a new row at the top/bottom of the current Age Groups table with Age Group column "New Age Group" (i.e., a new sibling at the level the grid represents). Likewise "Add New Division" should add a new Division row in the Divisions grid.
+- **What happened**: Add New Age Group adds a Division under the current Age Group in the tree; Add New Division adds a Team under the current Division in the tree. Button label says "Age Group" / "Division" but the action goes one level down.
+- **Severity**: Bug (label / action mismatch)
+- **Status**: Open
+- **Note**: Ann's mental model: the grid shows X at a given level; an "Add New X" button on that grid should create another X (sibling). Todd's prior reasoning (PL-015/PL-024) was "you add from the parent level" — needs revisiting given the button text explicitly names the grid's level. Either rewire the action to create a sibling, or rename the button to match what it actually does.
+
+### SP-008: "Add New Team" creates a phantom child node that flashes and disappears in the tree
+- **Refs**: SP-007 (same class of "Add New" mismatch at Team level)
+- **Area**: Team Settings / Tree Navigation
+- **What I did**: Clicked "Add New Team" on the Teams grid header
+- **What I expected**: A new Team row to appear in the Teams grid as a sibling
+- **What happened**: A subitem is created under the selected Team in the LADT tree — it shows briefly in the tree, then disappears
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Two problems: (1) same level-mismatch pattern as SP-007 — action fires one level below the grid; (2) the phantom node appearing then disappearing suggests the create call succeeds optimistically then gets rolled back / filtered out because Teams have no valid child type. Needs investigation alongside SP-007 fix.
+
+### SP-009: Rename `A` chevron to `AG` for consistency with AG SET / AG-level terminology
+- **Refs**: PL-018 (AG SET pill uses "AG" for Age Group)
+- **Area**: Tree Navigation / row actions
+- **What I did**: Noticed the drill/chevron navigation badges use single letters `A`, `D`, `T` for Age Group / Division / Team
+- **What I expected**: Letter prefix consistent with other Age Group labels elsewhere in the UI (e.g., the `AG SET` / `FROM AG` fee pills use `AG`)
+- **What happened**: Currently `A` is used on the chevron; mixed with `AG` elsewhere
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Change the Age Group chevron label from `A` to `AG` everywhere it appears — both the up-nav chevron (Division/Team rows → Age Group) and the down-drill badge (`A↓N` on League rows per PL-022). Leave `D` (Division) and `T` (Team) as-is since there's no corresponding dual-letter convention for those. Audit hover text / aria labels if the letter is referenced anywhere.
+
+### SP-010: Sort Age field not visible in Age Group edit UI
+- **Refs**: PL-021 (Todd confirmed Sort Age is still functional and "stays in the DTO and UI")
+- **Area**: Age Group Settings
+- **What I did**: Opened Age Group edit to find the Sort Age field
+- **What I expected**: Sort Age field visible and editable per PL-021 resolution
+- **What happened**: Field is not shown in the Age Group edit fly-in / detail UI
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Check whether the field was dropped from the template, hidden behind a flag, or needs to be added back to the Age Group detail component.
+
+### SP-011: Right-side sibling tables need a horizontal scroll bar at the bottom
+- **Refs**: PL-012, SP-006 (column width / real-estate passes)
+- **Area**: All level grids
+- **What I did**: Opened a sibling table with more columns than fit the viewport
+- **What I expected**: A horizontal scroll bar fixed at the bottom of the table so off-screen columns can be reached without hunting for scroll chrome
+- **What happened**: No bottom scroll bar visible — hard to navigate left/right when columns overflow
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Syncfusion grids support fixed footer / scroll toolbar; configure so horizontal scroll is always visible at the bottom of each level's grid. Complements SP-006 (better default widths) — even with tuned widths, users with many columns still need easy horizontal nav.
+
+### SP-012: Tree count badges not centered under Teams / Players headers
+- **Refs**: PL-025 (headers added in first pass)
+- **Area**: Tree Navigation
+- **What I did**: Viewed the LADT tree with the new Teams / Players column headers
+- **What I expected**: Each row's team count and player count to be center-aligned directly below its column header — clean vertical alignment
+- **What happened**: Numbers are not centered under the headers, looks off visually, and leaves no room for the "+" hover button without disturbing the count layout
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Center-align count values under each header. Side benefit: gives the `+` hover affordance room to appear without shifting the counts.
+
+### SP-013: Team table — column ORDER (priority) was not addressed in PL-028
+- **Refs**: PL-028 (marked Fixed but only resizability was delivered; SP-006 covers widths)
+- **Area**: Team Settings
+- **What I did**: Re-opened the Team table during second pass
+- **What I expected**: Columns reordered so the most important fields (team name, age group, division, player count, max roster, etc.) appear first / visible on the initial screen without resizing
+- **What happened**: Order is unchanged from first pass — resizable columns help, but important data still lives off-screen right by default
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Do a priority pass on Team column order. Pair with SP-006 (default widths) so a fresh-load Team table fits the most important columns without any user adjustment.
+
+### SP-014: Review "Change Club" action surfaces — Club Rep level vs Team Details ⋮ menu
+- **Refs**: PL-030 (first pass limited the ⋮ menu to teams with a clubRepRegistrationId)
+- **Area**: Team Settings
+- **What I did**: Noticed Change Club is exposed both at the Club Rep level and inside the Team Details ⋮ menu
+- **What I expected**: A single, authoritative place to change a team's club — or a clear reason both entry points exist
+- **What happened**: Same (or overlapping) action appears in two places — Ann wants a joint review with Todd
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Schedule walkthrough with Todd: confirm whether the Team-level ⋮ Change Club action duplicates the Club-Rep-level flow, whether they hit the same backend, and whether one should be removed for clarity.
+
+### SP-015: Dropped Teams agegroup shows 0 teams / 0 players in LADT tree rollups
+- **Refs**: PL-006 (Dropped Teams is the intentional history bucket for dropped teams)
+- **Area**: Tree Navigation / Team Settings
+- **What I did**: Viewed Lax For The Cure : Summer 2025 in the LADT tree; looked at the Dropped Teams agegroup and its Dropped Teams division
+- **What I expected**: Some indication of how many teams / players live under Dropped Teams (even if visually distinguished from active counts)
+- **What happened**: Rollup shows 0 teams / 0 players because dropped teams are flagged Inactive and the tree rollup filters to active only
+- **Severity**: Question / UX
+- **Status**: Open
+- **Note**: Root cause confirmed in `LadtService.GetLadtTreeAsync` — line 98 bumps `totalTeams` / `totalPlayers` only when `team.Active == true`, and line 121 computes division rollups from `teamNodes.Where(t => t.Active)`. Individual dropped-team nodes still render (with the "Inactive" badge per `ladt.component.html` lines 138–139), but the parent counts never include them. Discuss with Todd whether to add a separate "Dropped: N" count on the Dropped Teams node, keep as-is, or change rollup semantics.
+
+### SP-016: LADT player count includes non-player roles (Staff, Coaches, Club Reps, Managers)
+- **Area**: Tree Navigation / counts
+- **What I did**: Compared player counts on Lax For The Cure : Summer 2025 between Legacy (9,365) and new LADT (9,637) — delta of 272
+- **What I expected**: "Players" count in the LADT tree to reflect only player registrations, matching Legacy
+- **What happened**: New count is inflated by ~272 because every active registration assigned to a team is counted regardless of role
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Root cause in `TeamRepository.GetPlayerCountsByTeamAsync` (TeamRepository.cs:443-448) — `.Where(r => r.JobId == jobId && r.BActive == true && r.AssignedTeamId != null)` has no role filter, so Coaches / Managers / ClubReps / Staff with `AssignedTeamId` are all summed into the "Players" total. Fix: add a role filter to restrict to player role(s) only (confirm with Todd which RoleId value(s) qualify — likely the player role constant used elsewhere). Audit any other places that use this method to make sure the new filter matches their intent.
+
+### SP-017: LADT Tree styling pass — improve scannability and hierarchy cues
+- **Area**: Tree Navigation
+- **What I did**: Reviewed overall tree visual design during second pass
+- **What I expected**: Clearer hierarchy cues and easier row scanning without adding chrome noise
+- **What happened**: Tree looks a bit flat — long sibling lists are hard to scan and the selected/current node isn't strongly distinguished
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Candidate treatments to evaluate (pick a subset):
+  1. **Subtle zebra striping** — alternating row backgrounds for quick scanning. On a tree this can look noisy; if used, scope the stripe to siblings within the same parent (restart zebra at each branch) rather than across the flattened list.
+  2. **Depth-tint indentation gutter** — tint only the left gutter of each row slightly deeper per level. Anchors the eye to hierarchy without fighting icons/badges.
+  3. **Hover + selected accent** — 3px left accent bar on the currently-selected node so the "you are here" state is unmistakable; plus the existing hover highlight.
+  4. **Level-icon color consistency** — distinct but muted palette colors for League / AgeGroup / Division / Team icons, driven by palette tokens so palette switching still works.
+  5. **Denser typography at deeper levels** — slightly smaller font at Team vs League, reinforcing scale without extra chrome.
+  6. **Separator rule between top-level Leagues** — thin divider between League blocks cleans up mental grouping on jobs with many leagues.
+  Recommendation going in: **#2 + #3 + #6**. Avoid full-row zebra on a tree — maintenance headache once nodes expand/collapse mid-list.
+

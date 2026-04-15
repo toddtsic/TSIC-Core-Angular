@@ -29,6 +29,7 @@ public sealed class LadtService : ILadtService
     private readonly IClubRepository _clubRepo;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamPlacementService _placement;
+    private readonly IFeeRepository _feeRepo;
 
     public LadtService(
         ILeagueRepository leagueRepo,
@@ -42,7 +43,8 @@ public sealed class LadtService : ILadtService
         IClubTeamRepository clubTeamRepo,
         IClubRepository clubRepo,
         IScheduleRepository scheduleRepo,
-        ITeamPlacementService placement)
+        ITeamPlacementService placement,
+        IFeeRepository feeRepo)
     {
         _leagueRepo = leagueRepo;
         _agegroupRepo = agegroupRepo;
@@ -56,6 +58,7 @@ public sealed class LadtService : ILadtService
         _clubRepo = clubRepo;
         _scheduleRepo = scheduleRepo;
         _placement = placement;
+        _feeRepo = feeRepo;
     }
 
     // ═══════════════════════════════════════════
@@ -396,6 +399,9 @@ public sealed class LadtService : ILadtService
             var tracked = await _divisionRepo.GetByIdAsync(div.DivId, cancellationToken);
             if (tracked != null) _divisionRepo.Remove(tracked);
         }
+
+        // Batch-delete any JobFees rows still referencing this agegroup (FK_JobFees_Agegroups).
+        await _feeRepo.DeleteByAgegroupIdAsync(agegroupId, cancellationToken);
 
         _agegroupRepo.Remove(ag);
         await _agegroupRepo.SaveChangesAsync(cancellationToken);

@@ -111,6 +111,13 @@ public interface IFeeRepository
     /// <summary>Removes a FeeModifiers row.</summary>
     void RemoveModifier(FeeModifiers modifier);
 
+    /// <summary>
+    /// Batch-deletes every JobFees row scoped to the given agegroup (and their modifiers).
+    /// Uses EF Core <c>ExecuteDeleteAsync</c>; commits immediately, independent of other tracked changes.
+    /// Caller must have already confirmed no teams/divisions remain under the agegroup.
+    /// </summary>
+    Task<int> DeleteByAgegroupIdAsync(Guid agegroupId, CancellationToken ct = default);
+
     /// <summary>Persists all pending changes.</summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 }
