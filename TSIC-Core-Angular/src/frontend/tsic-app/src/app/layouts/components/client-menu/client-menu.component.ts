@@ -126,7 +126,7 @@ export class ClientMenuComponent {
             const link = child.routerLink?.split('?')[0].replace(/^\/+/, '').toLowerCase();
             if (!link) return false;
             // Match against URL segments to avoid substring collisions
-            // e.g. "rosters" should not match "club-rosters"
+            // e.g. "rosters/public" should not match "rosters/club"
             const segments = url.split('/').filter(Boolean);
             const linkSegments = link.split('/').filter(Boolean);
             // Check if the URL ends with the link segments (path-suffix match)

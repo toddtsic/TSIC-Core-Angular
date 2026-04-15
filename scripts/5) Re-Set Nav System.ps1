@@ -151,24 +151,27 @@ $familyMenu = @(
       (New-L2 'Registration' 2 'Pay Balance Due' 'credit-card' 'registration/player?step=payment')
     (New-L1 2 'Store' 'cart')
       (New-L2 'Store' 1 'Event Store' 'shop' 'store')
-    (New-Leaf 3 'View Rosters' 'people' 'rosters')
+    (New-Leaf 3 'View Rosters' 'people' 'rosters/public')
 )
 
 $clubRepMenu = @(
     (New-L1 1 'Registration' 'pencil-square')
       (New-L2 'Registration' 1 'Register Teams' 'shield-plus' 'registration/entry')
-      (New-L2 'Registration' 2 'Club Rosters'   'people'      'club-rosters')
     (New-L1 2 'Accounting' 'cash-stack')
       (New-L2 'Accounting' 1 'Team Accounting' 'receipt' 'registration/team?step=payment')
-    (New-Leaf 3 'View Rosters' 'people' 'rosters')
+    (New-L1 3 'Rosters' 'people')
+      (New-L2 'Rosters' 1 'Club Rosters' 'people' 'rosters/club')
+      (New-L2 'Rosters' 2 'View Rosters' 'people' 'rosters/public')
 )
 
 $playerMenu = @(
-    (New-Leaf 1 'View Rosters' 'people' 'rosters')
+    (New-L1 1 'Rosters' 'people')
+      (New-L2 'Rosters' 1 'View Rosters' 'people' 'rosters/view-rosters')
 )
 
 $staffMenu = @(
-    (New-Leaf 1 'View Rosters' 'people' 'rosters')
+    (New-L1 1 'Rosters' 'people')
+      (New-L2 'Rosters' 1 'View Rosters' 'people' 'rosters/view-rosters')
 )
 
 # UnassignedAdult: no items

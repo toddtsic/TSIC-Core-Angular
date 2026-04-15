@@ -229,33 +229,39 @@ INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], Icon
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 2, N'Store', N'cart', GETDATE());
 SET @parentId = SCOPE_IDENTITY();
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Event Store', N'shop', N'store', GETDATE());
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 3, N'View Rosters', N'people', N'rosters', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 3, N'View Rosters', N'people', N'rosters/public', GETDATE());
 PRINT 'Family: Registration + Store + View Rosters';
 
 -- -- 10. ClubRep --------------------------------------------------------
--- ClubRep: Registration + Accounting + View Rosters
+-- ClubRep: Registration + Accounting + Rosters
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @ClubRep AND JobId IS NULL;
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
 SET @parentId = SCOPE_IDENTITY();
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Register Teams', N'shield-plus', N'registration/entry', GETDATE());
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'Club Rosters', N'people', N'club-rosters', GETDATE());
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 2, N'Accounting', N'cash-stack', GETDATE());
 SET @parentId = SCOPE_IDENTITY();
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Team Accounting', N'receipt', N'registration/team?step=payment', GETDATE());
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 3, N'View Rosters', N'people', N'rosters', GETDATE());
-PRINT 'ClubRep: Registration + Accounting + View Rosters';
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 3, N'Rosters', N'people', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Club Rosters', N'people', N'rosters/club', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters/public', GETDATE());
+PRINT 'ClubRep: Registration + Accounting + Rosters';
 
 -- -- 11. Player ---------------------------------------------------------
--- Player: View Rosters
+-- Player: Rosters > View Rosters
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Player AND JobId IS NULL;
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'View Rosters', N'people', N'rosters', GETDATE());
-PRINT 'Player: View Rosters';
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Rosters', N'people', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'View Rosters', N'people', N'rosters/view-rosters', GETDATE());
+PRINT 'Player: Rosters > View Rosters';
 
 -- -- 12. Staff ----------------------------------------------------------
--- Staff: View Rosters
+-- Staff: Rosters > View Rosters
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Staff AND JobId IS NULL;
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, NULL, 1, 1, N'View Rosters', N'people', N'rosters', GETDATE());
-PRINT 'Staff: View Rosters';
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Rosters', N'people', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'View Rosters', N'people', N'rosters/view-rosters', GETDATE());
+PRINT 'Staff: Rosters > View Rosters';
 
 -- UnassignedAdult: Nav row from section 5; no items emitted (intentional).
 PRINT 'UnassignedAdult: no menu items (intentional)';

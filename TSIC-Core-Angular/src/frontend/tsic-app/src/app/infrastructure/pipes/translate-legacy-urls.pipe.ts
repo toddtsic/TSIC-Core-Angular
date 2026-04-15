@@ -18,7 +18,7 @@ const JOB_TYPE_TOURNAMENT = 2;
  * - StartARegistration + bClubRep=true → /{jobPath}/registration/team
  * - StartARegistration + bStaff=true → /{jobPath}/registration/adult?role={unassigned|coach}
  *   Same site-aware key choice based on BAllowRosterViewAdult.
- * - Rosters/RostersPublicLookupTourny → /{jobPath}/rosters
+ * - Rosters/RostersPublicLookupTourny → /{jobPath}/rosters/public
  *
  * Site-awareness: pipe reads JobService.currentJob().bAllowRosterViewAdult to decide
  * the URL key. true (tournament with public adult roster) → coach (resolves to Staff).
@@ -108,7 +108,7 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
         }
 
         if (lower.includes('rosters/rosterspubliclookuptourny') || lower.includes('rosters/rosterpubliclookup')) {
-            return `<a href="/${jobPath}/rosters">CLICK HERE</a>`;
+            return `<a href="/${jobPath}/rosters/public">CLICK HERE</a>`;
         }
 
         if (lower.includes('playerwaiverupdate')) {

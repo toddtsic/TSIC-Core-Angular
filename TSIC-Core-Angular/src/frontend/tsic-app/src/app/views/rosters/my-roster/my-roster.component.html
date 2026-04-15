@@ -1,0 +1,118 @@
+<div class="page-header">
+    <h2>
+        @if (teamName()) {
+            {{ teamName() }}
+        } @else {
+            Team Roster
+        }
+    </h2>
+    @if (allowed()) {
+        <span class="header-count">{{ players().length }} {{ players().length === 1 ? 'player' : 'players' }}</span>
+    }
+</div>
+
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-body-secondary">Loading roster...</p>
+    </div>
+}
+
+@if (!isLoading() && !allowed()) {
+    <div class="alert alert-info d-flex align-items-start" role="alert">
+        <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+        <div>
+            <strong>Roster unavailable.</strong>
+            <div class="small mt-1">{{ reason() ?? 'Please check back later.' }}</div>
+        </div>
+    </div>
+}
+
+@if (!isLoading() && allowed()) {
+    <!-- Email toolbar -->
+    <div class="email-toolbar">
+        <div class="toolbar-group">
+            <label class="select-all">
+                <input type="checkbox"
+                       [checked]="allChecked"
+                       (change)="toggleAll($any($event.target).checked)" />
+                <span>Select all</span>
+            </label>
+            @if (selectedCount() > 0) {
+                <span class="selection-pill">{{ selectedCount() }} selected</span>
+            }
+        </div>
+        <div class="toolbar-actions">
+            <button type="button" class="btn btn-outline-primary btn-sm"
+                    [disabled]="selectedCount() === 0"
+                    (click)="openEmailSelected()">
+                <i class="bi bi-envelope-check me-1"></i>
+                Email Selected
+            </button>
+            <button type="button" class="btn btn-primary btn-sm"
+                    [disabled]="players().length === 0"
+                    (click)="openEmailAll()">
+                <i class="bi bi-envelope-fill me-1"></i>
+                Email All
+            </button>
+        </div>
+    </div>
+
+    <!-- Roster grid -->
+    @if (players().length > 0) {
+        <ejs-grid [dataSource]="players()"
+                  [allowSorting]="true"
+                  [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
+                  cssClass="tsic-grid-tight my-roster-grid">
+            <e-columns>
+                <e-column headerText="" width="48" [allowSorting]="false">
+                    <ng-template #template let-data>
+                        <input type="checkbox"
+                               class="row-check"
+                               [checked]="isSelected(data.registrationId)"
+                               (change)="toggleRow(data.registrationId, $any($event.target).checked)" />
+                    </ng-template>
+                </e-column>
+                <e-column field="playerName" headerText="Player" width="240"></e-column>
+                <e-column field="roleName" headerText="Role" width="100"></e-column>
+                <e-column field="position" headerText="Position" width="110"></e-column>
+                <e-column field="gradYear" headerText="Grad" width="80" textAlign="Center"></e-column>
+                <e-column field="email" headerText="Email" width="240">
+                    <ng-template #template let-data>
+                        @if (data.email) {
+                            <a [href]="'mailto:' + data.email" class="cell-link">{{ data.email }}</a>
+                        } @else {
+                            <span class="text-body-secondary">&mdash;</span>
+                        }
+                    </ng-template>
+                </e-column>
+                <e-column field="cellphone" headerText="Phone" width="140">
+                    <ng-template #template let-data>
+                        @if (data.cellphone) {
+                            {{ data.cellphone | phone }}
+                        } @else {
+                            <span class="text-body-secondary">&mdash;</span>
+                        }
+                    </ng-template>
+                </e-column>
+            </e-columns>
+        </ejs-grid>
+    }
+
+    @if (players().length === 0) {
+        <div class="text-center py-5 text-body-secondary">
+            <i class="bi bi-people fs-1 d-block mb-2"></i>
+            <p>No teammates on this roster yet.</p>
+        </div>
+    }
+}
+
+@if (emailDialogOpen()) {
+    <app-my-roster-email-dialog
+        [mode]="emailMode()"
+        [recipients]="emailRecipients()"
+        [registrationIds]="emailRegistrationIds()"
+        (closed)="closeEmail()"
+        (sent)="onEmailSent()">
+    </app-my-roster-email-dialog>
+}

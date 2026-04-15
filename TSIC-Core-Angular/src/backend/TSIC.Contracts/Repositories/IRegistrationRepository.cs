@@ -393,6 +393,22 @@ public interface IRegistrationRepository
     Task<List<SwapperPlayerDto>> GetRosterByTeamIdAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Get a team's roster projected for the Player/Staff "View Rosters" screen.
+    /// Includes Email + Cellphone (needed for the batch-email feature). AsNoTracking.
+    /// </summary>
+    Task<List<TSIC.Contracts.Dtos.MyRoster.MyRosterPlayerDto>> GetMyRosterByTeamIdAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads the two roster-visibility flags on a Job. Returns null if the job does not exist.
+    /// </summary>
+    Task<(bool AllowPlayer, bool AllowAdult)?> GetRosterViewFlagsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the TeamName for a given team, scoped to a job. Null if not found.
+    /// </summary>
+    Task<string?> GetTeamNameAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get all Unassigned Adult registrations for a job.
     /// These are master coach/adult records in the unassigned pool. AsNoTracking.
     /// </summary>

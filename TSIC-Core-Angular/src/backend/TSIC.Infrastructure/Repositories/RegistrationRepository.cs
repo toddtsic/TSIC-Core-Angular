@@ -1888,6 +1888,64 @@ public class RegistrationRepository : IRegistrationRepository
         }).ToList();
     }
 
+    public async Task<List<TSIC.Contracts.Dtos.MyRoster.MyRosterPlayerDto>> GetMyRosterByTeamIdAsync(
+        Guid teamId, Guid jobId, CancellationToken ct = default)
+    {
+        var raw = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.AssignedTeamId == teamId && r.JobId == jobId && (r.BActive ?? true))
+            .Select(r => new
+            {
+                r.RegistrationId,
+                LastName = r.User != null ? r.User.LastName ?? "" : "",
+                FirstName = r.User != null ? r.User.FirstName ?? "" : "",
+                RoleName = r.Role != null ? r.Role.Name ?? "" : "",
+                BActive = r.BActive ?? true,
+                Email = r.User != null ? r.User.Email : null,
+                Cellphone = r.User != null ? r.User.Cellphone : null,
+                GradYearRaw = r.GradYear,
+                r.Position,
+                Gender = r.User != null ? r.User.Gender : null,
+            })
+            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
+            .ToListAsync(ct);
+
+        return raw.Select(r => new TSIC.Contracts.Dtos.MyRoster.MyRosterPlayerDto
+        {
+            RegistrationId = r.RegistrationId,
+            PlayerName = string.IsNullOrWhiteSpace(r.LastName) && string.IsNullOrWhiteSpace(r.FirstName)
+                ? "Unknown"
+                : $"{r.LastName}, {r.FirstName}".Trim().TrimEnd(',').Trim(),
+            RoleName = r.RoleName,
+            BActive = r.BActive,
+            Email = r.Email,
+            Cellphone = r.Cellphone,
+            GradYear = int.TryParse(r.GradYearRaw, out var gy) ? gy : null,
+            Position = r.Position,
+            Gender = r.Gender,
+        }).ToList();
+    }
+
+    public async Task<(bool AllowPlayer, bool AllowAdult)?> GetRosterViewFlagsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var row = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new { j.BAllowRosterViewPlayer, j.BAllowRosterViewAdult })
+            .FirstOrDefaultAsync(ct);
+        return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult);
+    }
+
+    public async Task<string?> GetTeamNameAsync(Guid teamId, Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == teamId && t.JobId == jobId)
+            .Select(t => t.TeamName)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _context.Registrations

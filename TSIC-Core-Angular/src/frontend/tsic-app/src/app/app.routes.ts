@@ -344,14 +344,6 @@ export const routes: Routes = [
 				data: { requireAdmin: true },
 				loadComponent: () => import('./views/store/admin/store-admin.component').then(m => m.StoreAdminComponent)
 			},
-			// Club Rep — roster management
-			{
-				path: 'club-rosters',
-				canActivate: [authGuard],
-				data: { requireClubRep: true },
-				loadComponent: () => import('./views/club-rosters/club-rosters.component').then(m => m.ClubRostersComponent),
-				title: 'Club Rosters'
-			},
 			// Reporting
 			{
 				path: 'reporting/:action',
@@ -445,12 +437,32 @@ export const routes: Routes = [
 				data: { publicMode: true },
 				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
-			// Public rosters view (anonymous access)
+			// Rosters — unified parent segment. Children handle role-specific views.
 			{
-				path: 'rosters',
+				// Public tournament brackets (anonymous access)
+				path: 'rosters/public',
 				data: { publicMode: true },
 				loadComponent: () => import('./views/rosters/public-rosters/public-rosters.component').then(m => m.PublicRostersComponent)
 			},
+			{
+				// Club Rep — multi-team roster management (move/delete)
+				path: 'rosters/club',
+				canActivate: [authGuard],
+				data: { requireClubRep: true },
+				loadComponent: () => import('./views/club-rosters/club-rosters.component').then(m => m.ClubRostersComponent),
+				title: 'Club Rosters'
+			},
+			{
+				// Player/Staff — restricted team-roster view (job visibility flags checked server-side)
+				path: 'rosters/view-rosters',
+				canActivate: [authGuard],
+				loadComponent: () => import('./views/rosters/my-roster/my-roster.component').then(m => m.MyRosterComponent),
+				title: 'Team Roster'
+			},
+			// Back-compat redirects for legacy paths (bulletins, bookmarks, external links)
+			{ path: 'rosters', redirectTo: 'rosters/public', pathMatch: 'full' },
+			{ path: 'club-rosters', redirectTo: 'rosters/club', pathMatch: 'full' },
+			{ path: 'my-roster', redirectTo: 'rosters/view-rosters', pathMatch: 'full' },
 			// Post-registration insurance re-entry — URL baked into confirmation email template.
 			// Exact-case path preserved so existing DB-stored email/confirmation links resolve.
 			{
