@@ -222,6 +222,8 @@ public class JobConfigService : IJobConfigService
         job.BTeamPushDirectors = req.BTeamPushDirectors;
         job.BUseWaitlists = req.BUseWaitlists;
         job.BShowTeamNameOnlyInSchedules = req.BShowTeamNameOnlyInSchedules;
+        job.BAllowRosterViewAdult = req.BAllowRosterViewAdult;
+        job.BAllowRosterViewPlayer = req.BAllowRosterViewPlayer;
 
         // SuperUser-only
         if (isSuperUser)
@@ -249,8 +251,6 @@ public class JobConfigService : IJobConfigService
         job.RefereeRegConfirmationOnScreen = req.RefereeRegConfirmationOnScreen;
         job.RecruiterRegConfirmationEmail = req.RecruiterRegConfirmationEmail;
         job.RecruiterRegConfirmationOnScreen = req.RecruiterRegConfirmationOnScreen;
-        job.BAllowRosterViewAdult = req.BAllowRosterViewAdult;
-        job.BAllowRosterViewPlayer = req.BAllowRosterViewPlayer;
 
         job.Modified = DateTime.UtcNow;
         await _repo.SaveChangesAsync(ct);
@@ -619,6 +619,8 @@ public class JobConfigService : IJobConfigService
         BTeamPushDirectors = job.BTeamPushDirectors,
         BUseWaitlists = job.BUseWaitlists,
         BShowTeamNameOnlyInSchedules = job.BShowTeamNameOnlyInSchedules,
+        BAllowRosterViewAdult = job.BAllowRosterViewAdult,
+        BAllowRosterViewPlayer = job.BAllowRosterViewPlayer,
         // SuperUser-only
         BOfferTeamRegsaverInsurance = isSuperUser ? job.BOfferTeamRegsaverInsurance : null,
     };
@@ -635,8 +637,6 @@ public class JobConfigService : IJobConfigService
         RefereeRegConfirmationOnScreen = job.RefereeRegConfirmationOnScreen,
         RecruiterRegConfirmationEmail = job.RecruiterRegConfirmationEmail,
         RecruiterRegConfirmationOnScreen = job.RecruiterRegConfirmationOnScreen,
-        BAllowRosterViewAdult = job.BAllowRosterViewAdult,
-        BAllowRosterViewPlayer = job.BAllowRosterViewPlayer,
     };
 
     private static JobConfigSchedulingDto MapScheduling(Jobs job, GameClockParams? gcp) => new()

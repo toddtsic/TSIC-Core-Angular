@@ -95,6 +95,24 @@
       </div>
     </div>
 
+    <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-eye me-2"></i>Roster Visibility</h6>
+      <div class="field-check-row">
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bAllowRosterViewAdult()"
+            (ngModelChange)="bAllowRosterViewAdult.set($event); onFieldChange()" />
+          <span class="field-label">Adult</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bAllowRosterViewPlayer()"
+            (ngModelChange)="bAllowRosterViewPlayer.set($event); onFieldChange()" />
+          <span class="field-label">Player</span>
+        </label>
+      </div>
+    </div>
+
     @if (svc.isSuperUser()) {
       <div class="form-section form-section--super">
         <h6 class="section-title">

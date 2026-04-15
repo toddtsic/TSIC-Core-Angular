@@ -23,6 +23,8 @@ export class TeamsTabComponent implements OnInit {
   bTeamPushDirectors = linkedSignal(() => this.svc.teams()?.bTeamPushDirectors ?? null);
   bUseWaitlists = linkedSignal(() => this.svc.teams()?.bUseWaitlists ?? false);
   bShowTeamNameOnlyInSchedules = linkedSignal(() => this.svc.teams()?.bShowTeamNameOnlyInSchedules ?? false);
+  bAllowRosterViewAdult = linkedSignal(() => this.svc.teams()?.bAllowRosterViewAdult ?? false);
+  bAllowRosterViewPlayer = linkedSignal(() => this.svc.teams()?.bAllowRosterViewPlayer ?? false);
 
   // SuperUser-only
   bOfferTeamRegsaverInsurance = linkedSignal(() => this.svc.teams()?.bOfferTeamRegsaverInsurance ?? null);
@@ -42,6 +44,8 @@ export class TeamsTabComponent implements OnInit {
       bTeamPushDirectors: t.bTeamPushDirectors,
       bUseWaitlists: t.bUseWaitlists,
       bShowTeamNameOnlyInSchedules: t.bShowTeamNameOnlyInSchedules,
+      bAllowRosterViewAdult: t.bAllowRosterViewAdult,
+      bAllowRosterViewPlayer: t.bAllowRosterViewPlayer,
     };
     if (this.svc.isSuperUser()) {
       req.bOfferTeamRegsaverInsurance = t.bOfferTeamRegsaverInsurance ?? null;
@@ -79,6 +83,8 @@ export class TeamsTabComponent implements OnInit {
       bTeamPushDirectors: this.bTeamPushDirectors(),
       bUseWaitlists: this.bUseWaitlists(),
       bShowTeamNameOnlyInSchedules: this.bShowTeamNameOnlyInSchedules(),
+      bAllowRosterViewAdult: this.bAllowRosterViewAdult(),
+      bAllowRosterViewPlayer: this.bAllowRosterViewPlayer(),
     };
     if (this.svc.isSuperUser()) {
       req.bOfferTeamRegsaverInsurance = this.bOfferTeamRegsaverInsurance();

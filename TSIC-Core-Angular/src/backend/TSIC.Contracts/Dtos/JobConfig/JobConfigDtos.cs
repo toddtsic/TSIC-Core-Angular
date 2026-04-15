@@ -237,6 +237,8 @@ public record JobConfigTeamsDto
     public required bool? BTeamPushDirectors { get; init; }
     public required bool BUseWaitlists { get; init; }
     public required bool BShowTeamNameOnlyInSchedules { get; init; }
+    public required bool BAllowRosterViewAdult { get; init; }
+    public required bool BAllowRosterViewPlayer { get; init; }
 
     // SuperUser-only
     public bool? BOfferTeamRegsaverInsurance { get; init; }
@@ -255,6 +257,8 @@ public record UpdateJobConfigTeamsRequest
     public required bool? BTeamPushDirectors { get; init; }
     public required bool BUseWaitlists { get; init; }
     public required bool BShowTeamNameOnlyInSchedules { get; init; }
+    public required bool BAllowRosterViewAdult { get; init; }
+    public required bool BAllowRosterViewPlayer { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
     public bool? BOfferTeamRegsaverInsurance { get; init; }
@@ -276,8 +280,6 @@ public record JobConfigCoachesDto
     public required string? RefereeRegConfirmationOnScreen { get; init; }
     public required string? RecruiterRegConfirmationEmail { get; init; }
     public required string? RecruiterRegConfirmationOnScreen { get; init; }
-    public required bool BAllowRosterViewAdult { get; init; }
-    public required bool BAllowRosterViewPlayer { get; init; }
 }
 
 public record UpdateJobConfigCoachesRequest
@@ -292,8 +294,6 @@ public record UpdateJobConfigCoachesRequest
     public required string? RefereeRegConfirmationOnScreen { get; init; }
     public required string? RecruiterRegConfirmationEmail { get; init; }
     public required string? RecruiterRegConfirmationOnScreen { get; init; }
-    public required bool BAllowRosterViewAdult { get; init; }
-    public required bool BAllowRosterViewPlayer { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════

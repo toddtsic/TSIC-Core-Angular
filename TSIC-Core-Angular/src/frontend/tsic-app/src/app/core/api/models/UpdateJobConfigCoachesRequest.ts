@@ -13,7 +13,5 @@ export type UpdateJobConfigCoachesRequest = {
     refereeRegConfirmationOnScreen: string | null;
     recruiterRegConfirmationEmail: string | null;
     recruiterRegConfirmationOnScreen: string | null;
-    bAllowRosterViewAdult: boolean;
-    bAllowRosterViewPlayer: boolean;
 };
 

@@ -14,6 +14,8 @@ export type JobConfigTeamsDto = {
     bTeamPushDirectors: boolean | null;
     bUseWaitlists: boolean;
     bShowTeamNameOnlyInSchedules: boolean;
+    bAllowRosterViewAdult: boolean;
+    bAllowRosterViewPlayer: boolean;
     bOfferTeamRegsaverInsurance?: boolean | null;
 };
 

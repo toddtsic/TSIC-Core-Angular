@@ -29,8 +29,6 @@ export class CoachesTabComponent implements OnInit {
   refereeRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.refereeRegConfirmationOnScreen ?? null);
   recruiterRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationEmail ?? null);
   recruiterRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.recruiterRegConfirmationOnScreen ?? null);
-  bAllowRosterViewAdult = linkedSignal(() => this.svc.coaches()?.bAllowRosterViewAdult ?? false);
-  bAllowRosterViewPlayer = linkedSignal(() => this.svc.coaches()?.bAllowRosterViewPlayer ?? false);
 
   private readonly cleanSnapshot = computed(() => {
     const c = this.svc.coaches();
@@ -46,8 +44,6 @@ export class CoachesTabComponent implements OnInit {
       refereeRegConfirmationOnScreen: c.refereeRegConfirmationOnScreen,
       recruiterRegConfirmationEmail: c.recruiterRegConfirmationEmail,
       recruiterRegConfirmationOnScreen: c.recruiterRegConfirmationOnScreen,
-      bAllowRosterViewAdult: c.bAllowRosterViewAdult,
-      bAllowRosterViewPlayer: c.bAllowRosterViewPlayer,
     } satisfies UpdateJobConfigCoachesRequest);
   });
 
@@ -85,8 +81,6 @@ export class CoachesTabComponent implements OnInit {
       refereeRegConfirmationOnScreen: this.refereeRegConfirmationOnScreen(),
       recruiterRegConfirmationEmail: this.recruiterRegConfirmationEmail(),
       recruiterRegConfirmationOnScreen: this.recruiterRegConfirmationOnScreen(),
-      bAllowRosterViewAdult: this.bAllowRosterViewAdult(),
-      bAllowRosterViewPlayer: this.bAllowRosterViewPlayer(),
     };
   }
 }
