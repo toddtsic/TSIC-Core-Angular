@@ -68,3 +68,13 @@ public record UpdateAgegroupColorRequest
 {
     public string? Color { get; init; }
 }
+
+public record CloneAgegroupRequest
+{
+    public required string AgegroupName { get; init; }
+    public bool CopyEligibility { get; init; } = true;
+    public bool CopyRosterSettings { get; init; } = true;
+    public bool CopyVisualIdentity { get; init; } = true;
+    public bool CopyFees { get; init; } = true;
+    public bool CopyDivisions { get; init; } = true;
+}

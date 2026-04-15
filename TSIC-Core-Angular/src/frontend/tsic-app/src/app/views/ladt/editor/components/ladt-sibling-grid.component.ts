@@ -166,6 +166,11 @@ export interface ParentBreadcrumb {
             <i class="bi bi-arrow-down-short me-2"></i>{{ drillDownLabel(mr) }}
           </button>
         }
+        @if (level === 1) {
+          <button type="button" class="menu-item" (click)="menuClone()">
+            <i class="bi bi-copy me-2"></i>Clone age group
+          </button>
+        }
         @if (level === 3) {
           <button type="button" class="menu-item" (click)="menuClone()">
             <i class="bi bi-copy me-2"></i>Clone team

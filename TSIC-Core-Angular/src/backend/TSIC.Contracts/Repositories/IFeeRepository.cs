@@ -103,6 +103,12 @@ public interface IFeeRepository
     /// </summary>
     Task<List<JobFees>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Gets all agegroup-scoped JobFees rows (AgegroupId == agegroupId AND TeamId IS NULL)
+    /// with their FeeModifiers. AsNoTracking — intended for read-then-clone flows.
+    /// </summary>
+    Task<List<JobFees>> GetByAgegroupScopeAsync(Guid agegroupId, CancellationToken ct = default);
+
     // Write operations
 
     /// <summary>Adds a new JobFees row.</summary>

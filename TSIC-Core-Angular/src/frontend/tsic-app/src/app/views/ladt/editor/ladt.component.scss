@@ -87,6 +87,10 @@
     min-width: 44px;
     text-align: center;
     color: var(--bs-secondary-color);
+
+    &.teams {
+      text-align: right;
+    }
   }
 }
 

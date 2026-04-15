@@ -9,6 +9,7 @@ import { DivisionDetailComponent } from './components/division-detail.component'
 import { TeamDetailComponent } from './components/team-detail.component';
 import { LadtSiblingGridComponent } from './components/ladt-sibling-grid.component';
 import { CloneTeamDialogComponent } from './components/clone-team-dialog.component';
+import { CloneAgegroupDialogComponent } from './components/clone-agegroup-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { FormsModule } from '@angular/forms';
@@ -50,6 +51,7 @@ export interface LadtFlatNode {
     TeamDetailComponent,
     LadtSiblingGridComponent,
     CloneTeamDialogComponent,
+    CloneAgegroupDialogComponent,
     ConfirmDialogComponent,
     TsicDialogComponent
   ],
@@ -67,6 +69,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   // Clone dialog state (driven from grid-row clone button)
   cloneSource = signal<{ teamId: string; teamName: string; hasClubRep: boolean; clubName: string | null } | null>(null);
+  cloneAgegroupSource = signal<{ agegroupId: string; agegroupName: string } | null>(null);
   totalTeams = signal(0);
   totalPlayers = signal(0);
 
@@ -936,6 +939,13 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   }
 
   onGridCloneRow(row: any): void {
+    if (row?.agegroupId && !row?.teamId && !row?.divId) {
+      this.cloneAgegroupSource.set({
+        agegroupId: row.agegroupId,
+        agegroupName: row.agegroupName ?? ''
+      });
+      return;
+    }
     if (!row?.teamId) return;
     this.cloneSource.set({
       teamId: row.teamId,
@@ -952,6 +962,15 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   onCloneDialogCloned(newTeam: { teamId: string }): void {
     this.cloneSource.set(null);
     this.onDetailCloned(newTeam.teamId);
+  }
+
+  onCloneAgegroupDialogCancelled(): void {
+    this.cloneAgegroupSource.set(null);
+  }
+
+  onCloneAgegroupDialogCloned(newAg: { agegroupId: string }): void {
+    this.cloneAgegroupSource.set(null);
+    this.onDetailCloned(newAg.agegroupId);
   }
 
   // ── Mobile ──

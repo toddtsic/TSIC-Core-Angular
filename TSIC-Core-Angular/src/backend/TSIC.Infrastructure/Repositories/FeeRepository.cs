@@ -269,6 +269,15 @@ public class FeeRepository : IFeeRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<JobFees>> GetByAgegroupScopeAsync(Guid agegroupId, CancellationToken ct = default)
+    {
+        return await _context.JobFees
+            .AsNoTracking()
+            .Where(jf => jf.AgegroupId == agegroupId && jf.TeamId == null)
+            .Include(jf => jf.FeeModifiers)
+            .ToListAsync(ct);
+    }
+
     public void Add(JobFees jobFee) => _context.JobFees.Add(jobFee);
     public void AddModifier(FeeModifiers modifier) => _context.FeeModifiers.Add(modifier);
     public void Remove(JobFees jobFee) => _context.JobFees.Remove(jobFee);

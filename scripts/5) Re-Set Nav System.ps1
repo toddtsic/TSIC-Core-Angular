@@ -145,34 +145,52 @@ $storeAdminMenu = @(
       (New-L2 'StoreAdmin' 1 'Store Admin' 'speedometer2' 'store/admin')
 )
 
-$familyMenu = @(
-    (New-L1 1 'Registration' 'pencil-square')
-      (New-L2 'Registration' 1 'Register Player' 'person-plus' 'registration/entry')
-      (New-L2 'Registration' 2 'Pay Balance Due' 'credit-card' 'registration/player?step=payment')
-    (New-L1 2 'Store' 'cart')
-      (New-L2 'Store' 1 'Event Store' 'shop' 'store')
-    (New-Leaf 3 'View Rosters' 'people' 'rosters/public')
+# -- Registrant manifest (Family / ClubRep / Player / Staff) -------------
+# Single source of truth. BIT flags (F / C / P / S) govern which role sees
+# an item. Adding a new item = one row. Same label can NEVER point at two
+# different routes: each (Text, RouterLink) pair is declared exactly once.
+
+function New-RegItem {
+    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $F, $C, $P, $S)
+    [PSCustomObject]@{
+        Controller     = $Ctrl
+        ControllerIcon = $CtrlIcon
+        ControllerSort = $CtrlSort
+        Text           = $Text
+        Icon           = $Icon
+        RouterLink     = $Route
+        ItemSort       = $ItemSort
+        ForFamily      = $F
+        ForClubRep     = $C
+        ForPlayer      = $P
+        ForStaff       = $S
+    }
+}
+
+$registrantManifest = @(
+    # Ctrl            CtrlIcon          CS  Text               Icon            Route                                IS  F C P S
+    (New-RegItem 'Registration'   'pencil-square'    1 'Register Player' 'person-plus'  'registration/entry'                1  1 0 0 0)
+    (New-RegItem 'Registration'   'pencil-square'    1 'Pay Balance Due' 'credit-card'  'registration/player?step=payment'  2  1 0 0 0)
+    (New-RegItem 'Registration'   'pencil-square'    1 'Register Teams'  'shield-plus'  'registration/entry'                3  0 1 0 0)
+    (New-RegItem 'Accounting'     'cash-stack'       2 'Team Accounting' 'receipt'      'registration/team?step=payment'    1  0 1 0 0)
+    (New-RegItem 'Store'          'cart'             3 'Event Store'     'shop'         'store'                             1  1 0 0 0)
+    (New-RegItem 'Rosters'        'people'           4 'Club Rosters'    'people'       'rosters/club'                      1  0 1 0 0)
+    (New-RegItem 'Rosters'        'people'           4 'View Rosters'    'people'       'rosters/view-rosters'              2  0 0 1 1)
 )
 
-$clubRepMenu = @(
-    (New-L1 1 'Registration' 'pencil-square')
-      (New-L2 'Registration' 1 'Register Teams' 'shield-plus' 'registration/entry')
-    (New-L1 2 'Accounting' 'cash-stack')
-      (New-L2 'Accounting' 1 'Team Accounting' 'receipt' 'registration/team?step=payment')
-    (New-L1 3 'Rosters' 'people')
-      (New-L2 'Rosters' 1 'Club Rosters' 'people' 'rosters/club')
-      (New-L2 'Rosters' 2 'View Rosters' 'people' 'rosters/public')
-)
+Write-Host "Registrant manifest: $($registrantManifest.Count) items" -ForegroundColor DarkGray
 
-$playerMenu = @(
-    (New-L1 1 'Rosters' 'people')
-      (New-L2 'Rosters' 1 'View Rosters' 'people' 'rosters/view-rosters')
-)
-
-$staffMenu = @(
-    (New-L1 1 'Rosters' 'people')
-      (New-L2 'Rosters' 1 'View Rosters' 'people' 'rosters/view-rosters')
-)
+# Validator: same (Text, RouterLink) pair cannot appear with diverging routes.
+$labelRouteMap = @{}
+foreach ($it in $registrantManifest) {
+    if ($labelRouteMap.ContainsKey($it.Text)) {
+        if ($labelRouteMap[$it.Text] -ne $it.RouterLink) {
+            throw "Registrant manifest: label '$($it.Text)' maps to both '$($labelRouteMap[$it.Text])' and '$($it.RouterLink)'. Rename one or unify routes."
+        }
+    } else {
+        $labelRouteMap[$it.Text] = $it.RouterLink
+    }
+}
 
 # UnassignedAdult: no items
 
@@ -418,6 +436,48 @@ function Emit-RoleMenu {
     [void]$Builder.AppendLine("")
 }
 
+# -- Helper: emit SQL for a registrant role from the shared manifest -----
+function Emit-RegistrantMenu {
+    param($Builder, $RoleVar, $RoleDescription, $FlagField)
+
+    [void]$Builder.AppendLine("-- $RoleDescription")
+
+    $items = @($script:registrantManifest | Where-Object { $_.$FlagField -eq 1 })
+    if ($items.Count -eq 0) {
+        [void]$Builder.AppendLine("-- Nav row from section 5; no items emitted (intentional).")
+        [void]$Builder.AppendLine("PRINT '$RoleDescription';")
+        [void]$Builder.AppendLine("")
+        return
+    }
+
+    [void]$Builder.AppendLine("SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @$RoleVar AND JobId IS NULL;")
+
+    $ctrlGroups = $items | Group-Object Controller | Sort-Object { ($_.Group | Select-Object -First 1).ControllerSort }
+
+    foreach ($grp in $ctrlGroups) {
+        $first = $grp.Group | Select-Object -First 1
+        $ctrlTxt  = Esc $first.Controller
+        $ctrlIco  = Esc $first.ControllerIcon
+        $ctrlSort = $first.ControllerSort
+
+        [void]$Builder.AppendLine(
+            "INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) " +
+            "VALUES (@navId, NULL, 1, $ctrlSort, N'$ctrlTxt', N'$ctrlIco', GETDATE());")
+        [void]$Builder.AppendLine("SET @parentId = SCOPE_IDENTITY();")
+
+        foreach ($item in ($grp.Group | Sort-Object ItemSort)) {
+            $txt = Esc $item.Text
+            $ico = Esc $item.Icon
+            $rte = Esc $item.RouterLink
+            [void]$Builder.AppendLine(
+                "INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) " +
+                "VALUES (@navId, @parentId, 1, $($item.ItemSort), N'$txt', N'$ico', N'$rte', GETDATE());")
+        }
+    }
+    [void]$Builder.AppendLine("PRINT '$RoleDescription';")
+    [void]$Builder.AppendLine("")
+}
+
 # 7-12. Per-role hand-authored menus
 [void]$sql.AppendLine("-- -- 7. RefAssignor -----------------------------------------------------")
 Emit-RoleMenu $sql 'RefAssignor' $refAssignorMenu 'RefAssignor: Referee Assignment + Referee Calendar'
@@ -426,16 +486,16 @@ Emit-RoleMenu $sql 'RefAssignor' $refAssignorMenu 'RefAssignor: Referee Assignme
 Emit-RoleMenu $sql 'StoreAdmin' $storeAdminMenu 'StoreAdmin: Store Admin'
 
 [void]$sql.AppendLine("-- -- 9. Family ----------------------------------------------------------")
-Emit-RoleMenu $sql 'Family' $familyMenu 'Family: Registration + Store + View Rosters'
+Emit-RegistrantMenu $sql 'Family'  'Family: Registration + Store'                  'ForFamily'
 
 [void]$sql.AppendLine("-- -- 10. ClubRep --------------------------------------------------------")
-Emit-RoleMenu $sql 'ClubRep' $clubRepMenu 'ClubRep: Registration + Accounting + View Rosters'
+Emit-RegistrantMenu $sql 'ClubRep' 'ClubRep: Registration + Accounting + Rosters'  'ForClubRep'
 
 [void]$sql.AppendLine("-- -- 11. Player ---------------------------------------------------------")
-Emit-RoleMenu $sql 'Player' $playerMenu 'Player: View Rosters'
+Emit-RegistrantMenu $sql 'Player'  'Player: View Rosters'                          'ForPlayer'
 
 [void]$sql.AppendLine("-- -- 12. Staff ----------------------------------------------------------")
-Emit-RoleMenu $sql 'Staff' $staffMenu 'Staff: View Rosters'
+Emit-RegistrantMenu $sql 'Staff'   'Staff: View Rosters'                           'ForStaff'
 
 [void]$sql.AppendLine("-- UnassignedAdult: Nav row from section 5; no items emitted (intentional).")
 [void]$sql.AppendLine("PRINT 'UnassignedAdult: no menu items (intentional)';")
@@ -521,7 +581,7 @@ Write-Host ""
 Write-Host ("=" * 64) -ForegroundColor Green
 Write-Host " Generated: $sqlOutputPath" -ForegroundColor Green
 Write-Host " Admin manifest: $($adminManifest.Count) items" -ForegroundColor Green
-Write-Host " Registrant menus: Family, ClubRep, Player, Staff (hand-authored)" -ForegroundColor Green
+Write-Host " Registrant manifest: $($registrantManifest.Count) items (flag-driven)" -ForegroundColor Green
 Write-Host " Narrow admins: RefAssignor, StoreAdmin (hand-authored)" -ForegroundColor Green
 Write-Host " UnassignedAdult: Nav row, no items" -ForegroundColor Green
 Write-Host ""

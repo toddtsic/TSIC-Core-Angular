@@ -18,6 +18,7 @@ import type {
   DropTeamResultDto,
   ClubRegistrationDto,
   CloneTeamRequest,
+  CloneAgegroupRequest,
   MoveTeamToClubRequest,
   MoveTeamToClubResultDto,
   CreateStubRequest,
@@ -72,6 +73,10 @@ export class LadtService {
 
   deleteAgegroup(agegroupId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/agegroups/${agegroupId}`);
+  }
+
+  cloneAgegroup(agegroupId: string, request: CloneAgegroupRequest): Observable<AgegroupDetailDto> {
+    return this.http.post<AgegroupDetailDto>(`${this.apiUrl}/agegroups/${agegroupId}/clone`, request);
   }
 
   addStubAgegroup(leagueId: string, name?: string): Observable<string> {

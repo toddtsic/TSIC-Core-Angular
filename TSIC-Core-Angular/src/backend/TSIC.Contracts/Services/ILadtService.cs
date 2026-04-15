@@ -28,6 +28,7 @@ public interface ILadtService
     Task<AgegroupDetailDto> UpdateAgegroupAsync(Guid agegroupId, UpdateAgegroupRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task UpdateAgegroupColorAsync(Guid agegroupId, string? color, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task DeleteAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
+    Task<AgegroupDetailDto> CloneAgegroupAsync(Guid agegroupId, CloneAgegroupRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default);
     Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default);
 
     // ── Division ──

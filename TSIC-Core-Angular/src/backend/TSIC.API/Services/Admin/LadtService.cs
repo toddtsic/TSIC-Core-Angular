@@ -412,6 +412,142 @@ public sealed class LadtService : ILadtService
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<AgegroupDetailDto> CloneAgegroupAsync(Guid agegroupId, CloneAgegroupRequest request, Guid jobId, string userId, CancellationToken cancellationToken = default)
+    {
+        await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
+        var source = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
+
+        // Build the new agegroup. Always-copied: league linkage, name (from request),
+        // season, audit. Gated by flags: eligibility, roster settings, visual, fees.
+        var clone = new Agegroups
+        {
+            AgegroupId = Guid.NewGuid(),
+            LeagueId = source.LeagueId,
+            AgegroupName = request.AgegroupName,
+            Season = source.Season,
+            SortAge = source.SortAge,
+            MaxTeams = source.MaxTeams,
+            MaxTeamsPerClub = source.MaxTeamsPerClub,
+            LebUserId = userId,
+            Modified = DateTime.UtcNow
+        };
+
+        if (request.CopyEligibility)
+        {
+            clone.Gender = source.Gender;
+            clone.DobMin = source.DobMin;
+            clone.DobMax = source.DobMax;
+            clone.GradYearMin = source.GradYearMin;
+            clone.GradYearMax = source.GradYearMax;
+            clone.SchoolGradeMin = source.SchoolGradeMin;
+            clone.SchoolGradeMax = source.SchoolGradeMax;
+        }
+
+        if (request.CopyRosterSettings)
+        {
+            clone.BAllowSelfRostering = source.BAllowSelfRostering;
+            clone.BChampionsByDivision = source.BChampionsByDivision;
+            clone.BHideStandings = source.BHideStandings;
+            clone.BAllowApiRosterAccess = source.BAllowApiRosterAccess;
+        }
+
+        if (request.CopyVisualIdentity)
+        {
+            clone.Color = source.Color;
+        }
+
+        if (request.CopyFees)
+        {
+            // Entity-level fee windows + override live alongside JobFees rows.
+            clone.LateFee = source.LateFee;
+            clone.LateFeeStart = source.LateFeeStart;
+            clone.LateFeeEnd = source.LateFeeEnd;
+            clone.DiscountFee = source.DiscountFee;
+            clone.DiscountFeeStart = source.DiscountFeeStart;
+            clone.DiscountFeeEnd = source.DiscountFeeEnd;
+            clone.PlayerFeeOverride = source.PlayerFeeOverride;
+        }
+
+        _agegroupRepo.Add(clone);
+
+        // Agegroup-scoped JobFees (+ modifiers): fresh ids, repoint to new AgegroupId.
+        if (request.CopyFees)
+        {
+            var sourceFees = await _feeRepo.GetByAgegroupScopeAsync(source.AgegroupId, cancellationToken);
+            foreach (var sf in sourceFees)
+            {
+                var newFeeId = Guid.NewGuid();
+                _feeRepo.Add(new JobFees
+                {
+                    JobFeeId = newFeeId,
+                    JobId = sf.JobId,
+                    RoleId = sf.RoleId,
+                    AgegroupId = clone.AgegroupId,
+                    TeamId = null,
+                    Deposit = sf.Deposit,
+                    BalanceDue = sf.BalanceDue,
+                    Modified = DateTime.UtcNow,
+                    LebUserId = userId
+                });
+                foreach (var mod in sf.FeeModifiers)
+                {
+                    _feeRepo.AddModifier(new FeeModifiers
+                    {
+                        FeeModifierId = Guid.NewGuid(),
+                        JobFeeId = newFeeId,
+                        ModifierType = mod.ModifierType,
+                        Amount = mod.Amount,
+                        StartDate = mod.StartDate,
+                        EndDate = mod.EndDate,
+                        Modified = DateTime.UtcNow,
+                        LebUserId = userId
+                    });
+                }
+            }
+        }
+
+        // Divisions (shells only). Teams are never cloned with an agegroup — users
+        // populate teams manually or via per-team clone.
+        var hasUnassigned = false;
+        if (request.CopyDivisions)
+        {
+            var sourceDivisions = await _divisionRepo.GetByAgegroupIdAsync(source.AgegroupId, cancellationToken);
+            foreach (var sd in sourceDivisions)
+            {
+                _divisionRepo.Add(new Divisions
+                {
+                    DivId = Guid.NewGuid(),
+                    AgegroupId = clone.AgegroupId,
+                    DivName = sd.DivName,
+                    MaxRoundNumberToShow = sd.MaxRoundNumberToShow,
+                    LebUserId = userId,
+                    Modified = DateTime.UtcNow
+                });
+                if (string.Equals(sd.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
+                    hasUnassigned = true;
+            }
+        }
+
+        // Every agegroup must have an Unassigned division — matches CreateAgegroupAsync.
+        // Seed one if CopyDivisions is off, or if the source lacked one.
+        if (!hasUnassigned)
+        {
+            _divisionRepo.Add(new Divisions
+            {
+                DivId = Guid.NewGuid(),
+                AgegroupId = clone.AgegroupId,
+                DivName = UnassignedDivisionName,
+                LebUserId = userId,
+                Modified = DateTime.UtcNow
+            });
+        }
+
+        await _agegroupRepo.SaveChangesAsync(cancellationToken);
+
+        return MapAgegroup(clone);
+    }
+
     public async Task<Guid> AddStubAgegroupAsync(Guid leagueId, Guid jobId, string userId, string? name = null, CancellationToken cancellationToken = default)
     {
         await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);

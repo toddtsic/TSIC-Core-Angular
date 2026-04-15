@@ -298,6 +298,7 @@
           [playerCount]="node.playerCount"
           (saved)="onDetailSaved()"
           (deleted)="onDetailDeleted()"
+          (cloned)="onDetailCloned($event)"
         />
       } @else if (node.level === 2) {
         <app-division-detail
@@ -501,4 +502,12 @@
     [clubName]="src.clubName"
     (cancelled)="onCloneDialogCancelled()"
     (cloned)="onCloneDialogCloned($event)" />
+}
+
+@if (cloneAgegroupSource(); as src) {
+  <app-clone-agegroup-dialog
+    [sourceAgegroupId]="src.agegroupId"
+    [sourceAgegroupName]="src.agegroupName"
+    (cancelled)="onCloneAgegroupDialogCancelled()"
+    (cloned)="onCloneAgegroupDialogCloned($event)" />
 }

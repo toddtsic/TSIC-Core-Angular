@@ -164,6 +164,21 @@ public class LadtController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    [HttpPost("agegroups/{agegroupId:guid}/clone")]
+    public async Task<ActionResult<AgegroupDetailDto>> CloneAgegroup(Guid agegroupId, [FromBody] CloneAgegroupRequest request, CancellationToken cancellationToken)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            var detail = await _ladtService.CloneAgegroupAsync(agegroupId, request, jobId!.Value, userId!, cancellationToken);
+            return Ok(detail);
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     [HttpPost("agegroups/stub/{leagueId:guid}")]
     public async Task<ActionResult<Guid>> AddStubAgegroup(Guid leagueId, [FromBody] CreateStubRequest? request, CancellationToken cancellationToken)
     {

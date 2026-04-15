@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
+import { CloneAgegroupDialogComponent } from './clone-agegroup-dialog.component';
 import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
 import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-helpers';
 import { JobService } from '../../../../infrastructure/services/job.service';
@@ -15,7 +16,7 @@ const JOB_TYPE_TOURNAMENT = 2;
 @Component({
   selector: 'app-agegroup-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, FeeCardComponent],
+  imports: [CommonModule, FormsModule, FeeCardComponent, CloneAgegroupDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -29,6 +30,9 @@ const JOB_TYPE_TOURNAMENT = 2;
             <i class="bi bi-currency-dollar me-1"></i>Push Fees to Players
           </button>
         }
+        <button class="btn btn-sm btn-outline-secondary" (click)="openCloneDialog()" [disabled]="isSaving() || !agegroup()" title="Clone age group">
+          <i class="bi bi-copy me-1"></i>Clone
+        </button>
         <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()"
                 [disabled]="isSaving() || !canDelete"
                 [title]="!canDelete ? 'Remove all teams before deleting this age group' : 'Delete this age group'">
@@ -36,6 +40,14 @@ const JOB_TYPE_TOURNAMENT = 2;
         </button>
       </div>
     </div>
+
+    @if (showCloneDialog() && agegroup(); as ag) {
+      <app-clone-agegroup-dialog
+        [sourceAgegroupId]="ag.agegroupId"
+        [sourceAgegroupName]="ag.agegroupName || ''"
+        (cancelled)="showCloneDialog.set(false)"
+        (cloned)="onCloneSuccess($event)" />
+    }
 
     @if (isLoading()) {
       <div class="text-center py-4">
@@ -238,6 +250,7 @@ export class AgegroupDetailComponent implements OnChanges {
   @Input() playerCount = 0;
   @Output() saved = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
+  @Output() cloned = new EventEmitter<string>();
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
@@ -250,6 +263,7 @@ export class AgegroupDetailComponent implements OnChanges {
   saveMessage = signal<string | null>(null);
   isError = signal(false);
   showDeleteConfirm = signal(false);
+  showCloneDialog = signal(false);
   colorDropdownOpen = signal(false);
 
   colorOptions = AGEGROUP_COLORS;
@@ -425,6 +439,17 @@ export class AgegroupDetailComponent implements OnChanges {
   selectColor(value: string | null): void {
     this.form.color = value;
     this.colorDropdownOpen.set(false);
+  }
+
+  openCloneDialog(): void {
+    this.showCloneDialog.set(true);
+  }
+
+  onCloneSuccess(clone: AgegroupDetailDto): void {
+    this.showCloneDialog.set(false);
+    this.saveMessage.set('Age group cloned successfully.');
+    this.isError.set(false);
+    this.cloned.emit(clone.agegroupId);
   }
 
   confirmDelete(): void {
