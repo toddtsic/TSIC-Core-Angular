@@ -21,5 +21,6 @@ export type SwapperPlayerDto = {
     feeTotal: number;
     owedTotal: number;
     registrationTs?: string | null;
+    uniformNo?: string | null;
 };
 

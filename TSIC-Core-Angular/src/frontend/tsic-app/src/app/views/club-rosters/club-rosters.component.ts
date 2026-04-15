@@ -1,9 +1,9 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { ClubRosterService } from './club-rosters.service';
 import { TeamDropdownComponent } from './team-dropdown.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
-import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
 import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
@@ -11,7 +11,7 @@ import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
 @Component({
     selector: 'app-club-rosters',
     standalone: true,
-    imports: [GridAllModule, TeamDropdownComponent, ConfirmDialogComponent, TsicDialogComponent],
+    imports: [FormsModule, GridAllModule, TeamDropdownComponent, ConfirmDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './club-rosters.component.html',
     styleUrl: './club-rosters.component.scss'
@@ -34,6 +34,8 @@ export class ClubRostersComponent implements OnInit {
     // Move modal state
     readonly moveTarget = signal<ClubRosterPlayerDto | null>(null);
     readonly moveTargetTeamId = signal<string | null>(null);
+    readonly editUniformNumber = signal<string>('');
+    readonly isSavingUniform = signal(false);
 
     // Delete modal state
     readonly deleteTarget = signal<ClubRosterPlayerDto | null>(null);
@@ -97,6 +99,7 @@ export class ClubRostersComponent implements OnInit {
     startMove(player: ClubRosterPlayerDto): void {
         this.moveTarget.set(player);
         this.moveTargetTeamId.set(null);
+        this.editUniformNumber.set(player.uniformNumber ?? '');
     }
 
     cancelMove(): void {
@@ -127,6 +130,35 @@ export class ClubRostersComponent implements OnInit {
             error: (err) => {
                 this.isMutating.set(false);
                 this.toast.show(err.error?.message || 'Move failed.', 'danger');
+            }
+        });
+    }
+
+    saveUniformNumber(): void {
+        const player = this.moveTarget();
+        if (!player) return;
+
+        const newValue = this.editUniformNumber().trim() || null;
+        if (newValue === (player.uniformNumber ?? null)) return;
+
+        this.isSavingUniform.set(true);
+        this.rosterService.updateUniformNumber({
+            registrationId: player.registrationId,
+            uniformNumber: newValue
+        }).subscribe({
+            next: () => {
+                this.isSavingUniform.set(false);
+                this.toast.show('Uniform number updated.', 'success');
+                // Update the roster signal in-place
+                this.roster.set(this.roster().map(p =>
+                    p.registrationId === player.registrationId
+                        ? { ...p, uniformNumber: newValue } : p
+                ));
+                this.moveTarget.set({ ...player, uniformNumber: newValue });
+            },
+            error: (err) => {
+                this.isSavingUniform.set(false);
+                this.toast.show(err.error?.message || 'Failed to update uniform number.', 'danger');
             }
         });
     }

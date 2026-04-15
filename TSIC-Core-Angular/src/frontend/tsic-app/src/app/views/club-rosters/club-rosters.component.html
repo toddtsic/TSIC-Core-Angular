@@ -60,28 +60,19 @@
                   [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
                   cssClass="tsic-grid-tight">
             <e-columns>
-                <e-column field="playerName" headerText="Player" width="280">
+                <e-column field="playerName" headerText="Player">
                     <ng-template #template let-data>
                         <a class="player-link" (click)="startMove(data)">{{ data.playerName }}</a>
                     </ng-template>
                 </e-column>
-                <e-column field="isActive" headerText="Status" width="90" [allowSorting]="false">
+                <e-column field="uniformNumber" headerText="#" width="60" textAlign="Center">
                     <ng-template #template let-data>
-                        @if (data.isActive) {
-                            <span class="active-badge active-yes">Active</span>
-                        } @else {
-                            <span class="active-badge active-no">Inactive</span>
-                        }
+                        {{ data.uniformNumber || '—' }}
                     </ng-template>
                 </e-column>
                 <e-column headerText="" width="80" [allowSorting]="false">
                     <ng-template #template let-data>
                         <div class="row-actions">
-                            <button class="action-btn" title="Move to another team"
-                                    [disabled]="isMutating()"
-                                    (click)="startMove(data)">
-                                <i class="bi bi-arrow-right-circle"></i>
-                            </button>
                             <button class="action-btn action-btn-danger" title="Delete registration"
                                     [disabled]="isMutating()"
                                     (click)="startDelete(data)">
@@ -105,33 +96,63 @@
   </div>
 }
 
-<!-- Move Modal -->
+<!-- Player Fly-in Panel -->
 @if (moveTarget()) {
-    <tsic-dialog [open]="true" size="sm" (requestClose)="cancelMove()">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Move Player</h5>
-                <button type="button" class="btn-close" (click)="cancelMove()" aria-label="Close"></button>
+    <div class="detail-backdrop" (click)="cancelMove()"></div>
+}
+<div class="detail-panel" [class.open]="!!moveTarget()">
+    @if (moveTarget(); as player) {
+        <div class="panel-header">
+            <div class="panel-header__top">
+                <h3 class="panel-title">{{ player.playerName }}</h3>
+                <button type="button" class="panel-close" (click)="cancelMove()" aria-label="Close">&times;</button>
             </div>
-            <div class="modal-body">
-                <!-- Player -->
-                <div class="move-field">
-                    <label class="field-label">Player</label>
-                    <div class="move-field__value">{{ moveTarget()!.playerName }}</div>
-                </div>
+            <div class="panel-tags">
+                <span class="panel-tag">
+                    <span class="panel-tag__label">Age Group:</span>
+                    <span class="panel-tag__value">{{ selectedTeam()?.agegroupName }}</span>
+                </span>
+                <span class="panel-tag">
+                    <span class="panel-tag__label">Team:</span>
+                    <span class="panel-tag__value">{{ selectedTeam()?.teamName }}</span>
+                </span>
+            </div>
+        </div>
 
-                <!-- From -->
-                <div class="move-field">
-                    <label class="field-label">From</label>
-                    <div class="move-field__value">
-                        <span class="move-field__badge">{{ selectedTeam()?.agegroupName }}</span>
-                        {{ selectedTeam()?.teamName }}
+        <div class="panel-body">
+            <!-- Edit Section -->
+            <div class="section-card">
+                <h4 class="section-card__title">Edit Player</h4>
+                <div class="form-group">
+                    <label for="uniformInput" class="field-label">Uniform #</label>
+                    <div class="uniform-row">
+                        <input id="uniformInput"
+                               class="field-input uniform-input"
+                               type="text"
+                               maxlength="10"
+                               [ngModel]="editUniformNumber()"
+                               (ngModelChange)="editUniformNumber.set($event)"
+                               [disabled]="isSavingUniform()"
+                               placeholder="—" />
                     </div>
                 </div>
+                <div class="section-card__actions">
+                    <button class="btn btn-primary btn-sm"
+                            [disabled]="isSavingUniform()"
+                            (click)="saveUniformNumber()">
+                        @if (isSavingUniform()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Save
+                    </button>
+                </div>
+            </div>
 
-                <!-- To -->
-                <div class="move-field">
-                    <label class="field-label">To</label>
+            <!-- Move Section -->
+            <div class="section-card">
+                <h4 class="section-card__title">Move to Another Team</h4>
+                <div class="form-group">
+                    <label class="field-label">Destination</label>
                     <app-team-dropdown
                         [teams]="otherTeams()"
                         [value]="moveTargetTeamId()"
@@ -139,21 +160,20 @@
                         (valueChange)="onMoveTeamSelected($event)">
                     </app-team-dropdown>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelMove()">Cancel</button>
-                <button type="button" class="btn btn-primary btn-sm"
-                        [disabled]="!moveTargetTeamId() || isMutating()"
-                        (click)="confirmMove()">
-                    @if (isMutating()) {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                    }
-                    <i class="bi bi-arrow-right-circle me-1"></i>Move
-                </button>
+                <div class="section-card__actions">
+                    <button type="button" class="btn btn-primary btn-sm"
+                            [disabled]="!moveTargetTeamId() || isMutating()"
+                            (click)="confirmMove()">
+                        @if (isMutating()) {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-arrow-right-circle me-1"></i>Move
+                    </button>
+                </div>
             </div>
         </div>
-    </tsic-dialog>
-}
+    }
+</div>
 
 <!-- Delete Confirmation Modal -->
 @if (deleteTarget()) {

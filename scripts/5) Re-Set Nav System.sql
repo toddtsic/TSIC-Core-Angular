@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-15 15:11:04 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-15 16:12:22 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; no ladder, no VisibilityRules emitted.
 -- Preserves: job-level overrides, reporting items, existing visibility rules.
 -- ============================================================================
@@ -36,6 +36,7 @@ BEGIN
         [SortOrder] INT NOT NULL DEFAULT 0, [Text] NVARCHAR(200) NOT NULL,
         [IconName] NVARCHAR(100) NULL, [RouterLink] NVARCHAR(500) NULL,
         [NavigateUrl] NVARCHAR(500) NULL, [Target] NVARCHAR(20) NULL,
+        [VisibilityRules] NVARCHAR(MAX) NULL,
         [Modified] DATETIME2 NOT NULL DEFAULT GETDATE(), [ModifiedBy] NVARCHAR(450) NULL,
         CONSTRAINT [PK_nav_NavItem] PRIMARY KEY CLUSTERED ([NavItemId]),
         CONSTRAINT [FK_nav_NavItem_NavId] FOREIGN KEY ([NavId]) REFERENCES [nav].[Nav]([NavId]) ON DELETE CASCADE,
@@ -61,10 +62,16 @@ DECLARE @UnassignedAdult NVARCHAR(450) = 'C92D71A9-464D-40C5-BA35-DFD9111CC7EA';
 DECLARE @cnt INT;
 
 IF OBJECT_ID('tempdb..#ReportingItems') IS NOT NULL DROP TABLE #ReportingItems;
-SELECT ni.NavItemId, ni.NavId, ni.ParentNavItemId, ni.Active, ni.SortOrder,
+SELECT n.RoleId,
+       parent.[Text]      AS ParentText,
+       parent.IconName    AS ParentIcon,
+       parent.SortOrder   AS ParentSort,
+       ni.Active, ni.SortOrder,
        ni.[Text], ni.IconName, ni.RouterLink, ni.NavigateUrl, ni.[Target]
 INTO #ReportingItems
-FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId
+FROM nav.NavItem ni
+JOIN nav.Nav n ON ni.NavId = n.NavId
+LEFT JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
 WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%';
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
@@ -232,22 +239,21 @@ INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], Icon
 PRINT 'Family: Registration + Store';
 
 -- -- 10. ClubRep --------------------------------------------------------
--- ClubRep: Registration + Accounting + Rosters
+-- ClubRep: My Club (Registration + Accounting + Rosters)
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @ClubRep AND JobId IS NULL;
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'My Club', N'building', GETDATE());
 SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 3, N'Register Teams', N'shield-plus', N'registration/entry', GETDATE());
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 2, N'Accounting', N'cash-stack', GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Team Accounting', N'receipt', N'registration/team?step=payment', GETDATE());
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 4, N'Rosters', N'people', GETDATE());
-SET @parentId = SCOPE_IDENTITY();
-INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Club Rosters', N'people', N'rosters/club', GETDATE());
-PRINT 'ClubRep: Registration + Accounting + Rosters';
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 1, N'Registration', N'pencil-square', N'registration/team?step=teams', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'Accounting', N'cash-stack', N'registration/team?step=payment', GETDATE());
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 3, N'Rosters', N'people', N'rosters/club', GETDATE());
+PRINT 'ClubRep: My Club (Registration + Accounting + Rosters)';
 
 -- -- 11. Player ---------------------------------------------------------
 -- Player: View Rosters
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Player AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 4, N'My Registration', N'person-badge', N'registration/player', GETDATE());
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 4, N'Rosters', N'people', GETDATE());
 SET @parentId = SCOPE_IDENTITY();
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters/view-rosters', GETDATE());
@@ -256,6 +262,9 @@ PRINT 'Player: View Rosters';
 -- -- 12. Staff ----------------------------------------------------------
 -- Staff: View Rosters
 SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @Staff AND JobId IS NULL;
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 1, N'Registration', N'pencil-square', GETDATE());
+SET @parentId = SCOPE_IDENTITY();
+INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 5, N'Staff Registration', N'person-workspace', N'registration/adult?role=coach', GETDATE());
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified) VALUES (@navId, NULL, 1, 4, N'Rosters', N'people', GETDATE());
 SET @parentId = SCOPE_IDENTITY();
 INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified) VALUES (@navId, @parentId, 1, 2, N'View Rosters', N'people', N'rosters/view-rosters', GETDATE());
@@ -268,23 +277,50 @@ PRINT 'UnassignedAdult: no menu items (intentional)';
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 IF @cnt > 0
 BEGIN
-    DECLARE @suNavId INT;
-    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = @SuperUser AND JobId IS NULL;
+    DECLARE @rptRoleId NVARCHAR(450), @rptParentText NVARCHAR(200),
+            @rptParentIcon NVARCHAR(100), @rptParentSort INT;
+    DECLARE @rptNavId INT, @rptParentId INT;
 
-    DECLARE @apId INT;
-    IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL)
+    -- Restore grouped reporting items (with parent hierarchy, per role)
+    DECLARE rpt_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT DISTINCT RoleId, ParentText, ParentIcon, ParentSort
+        FROM #ReportingItems
+        WHERE ParentText IS NOT NULL;
+
+    OPEN rpt_cursor;
+    FETCH NEXT FROM rpt_cursor INTO @rptRoleId, @rptParentText, @rptParentIcon, @rptParentSort;
+    WHILE @@FETCH_STATUS = 0
     BEGIN
-        INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
-        VALUES (@suNavId, NULL, 1, 9, N'Analyze', N'bar-chart', GETDATE());
-        SET @apId = SCOPE_IDENTITY();
-    END
-    ELSE
-        SELECT @apId = NavItemId FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL;
+        SELECT @rptNavId = NavId FROM nav.Nav WHERE RoleId = @rptRoleId AND JobId IS NULL;
 
+        -- Find or create the parent controller item
+        IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @rptNavId AND [Text] = @rptParentText AND ParentNavItemId IS NULL)
+        BEGIN
+            INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+            VALUES (@rptNavId, NULL, 1, @rptParentSort, @rptParentText, @rptParentIcon, GETDATE());
+            SET @rptParentId = SCOPE_IDENTITY();
+        END
+        ELSE
+            SELECT @rptParentId = NavItemId FROM nav.NavItem WHERE NavId = @rptNavId AND [Text] = @rptParentText AND ParentNavItemId IS NULL;
+
+        INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
+        SELECT @rptNavId, @rptParentId, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
+        FROM #ReportingItems ri
+        WHERE ri.RoleId = @rptRoleId AND ri.ParentText = @rptParentText;
+
+        FETCH NEXT FROM rpt_cursor INTO @rptRoleId, @rptParentText, @rptParentIcon, @rptParentSort;
+    END
+    CLOSE rpt_cursor;
+    DEALLOCATE rpt_cursor;
+
+    -- Restore orphaned reporting items (no parent — top-level leaves)
     INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
-    SELECT @suNavId, @apId, r.Active, r.SortOrder, r.[Text], r.IconName, r.RouterLink, r.NavigateUrl, r.[Target], GETDATE()
-    FROM #ReportingItems r;
-    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze');
+    SELECT n.NavId, NULL, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
+    FROM #ReportingItems ri
+    JOIN nav.Nav n ON n.RoleId = ri.RoleId AND n.JobId IS NULL
+    WHERE ri.ParentText IS NULL;
+
+    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) with original role + parent grouping');
 END
 DROP TABLE #ReportingItems;
 

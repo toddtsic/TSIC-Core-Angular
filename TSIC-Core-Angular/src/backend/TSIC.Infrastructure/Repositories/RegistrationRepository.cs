@@ -1858,7 +1858,8 @@ public class RegistrationRepository : IRegistrationRepository
                 r.FeeBase,
                 r.FeeTotal,
                 r.OwedTotal,
-                r.RegistrationTs
+                r.RegistrationTs,
+                r.UniformNo
             })
             .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
             .ToListAsync(ct);
@@ -1884,7 +1885,8 @@ public class RegistrationRepository : IRegistrationRepository
             FeeBase = r.FeeBase,
             FeeTotal = r.FeeTotal,
             OwedTotal = r.OwedTotal,
-            RegistrationTs = r.RegistrationTs
+            RegistrationTs = r.RegistrationTs,
+            UniformNo = r.UniformNo
         }).ToList();
     }
 

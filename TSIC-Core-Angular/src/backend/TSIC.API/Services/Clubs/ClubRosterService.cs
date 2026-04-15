@@ -45,7 +45,8 @@ public sealed class ClubRosterService : IClubRosterService
                 PlayerName = r.PlayerName,
                 AgegroupName = agName,
                 TeamName = tmName,
-                IsActive = r.BActive
+                IsActive = r.BActive,
+                UniformNumber = r.UniformNo
             })
             .ToList();
     }
@@ -120,6 +121,24 @@ public sealed class ClubRosterService : IClubRosterService
             AffectedCount = deleted,
             Message = $"Deleted {deleted} {plural}."
         };
+    }
+
+    public async Task UpdateUniformNumberAsync(
+        UpdateUniformNumberRequest request, Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
+            ?? throw new KeyNotFoundException("Registration not found.");
+
+        if (reg.JobId != jobId)
+            throw new KeyNotFoundException("Registration not found.");
+
+        if (reg.AssignedTeamId.HasValue)
+            await ValidateTeamOwnershipAsync(reg.AssignedTeamId.Value, clubRepRegistrationId, jobId, ct);
+
+        reg.UniformNo = request.UniformNumber?.Trim();
+        reg.Modified = DateTime.UtcNow;
+
+        await _registrationRepo.SaveChangesAsync(ct);
     }
 
     private async Task ValidateTeamOwnershipAsync(

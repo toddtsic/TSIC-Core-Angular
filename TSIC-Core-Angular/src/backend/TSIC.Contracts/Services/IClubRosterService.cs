@@ -11,4 +11,6 @@ public interface IClubRosterService
     Task<ClubRosterMutationResultDto> MovePlayersAsync(MovePlayersRequest request, Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
 
     Task<ClubRosterMutationResultDto> DeletePlayersAsync(DeletePlayersRequest request, Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
+
+    Task UpdateUniformNumberAsync(UpdateUniformNumberRequest request, Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default);
 }

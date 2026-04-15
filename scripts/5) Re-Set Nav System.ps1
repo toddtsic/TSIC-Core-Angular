@@ -145,6 +145,13 @@ $storeAdminMenu = @(
       (New-L2 'StoreAdmin' 1 'Store Admin' 'speedometer2' 'store/admin')
 )
 
+$clubRepMenu = @(
+    (New-L1 1 'My Club' 'building')
+      (New-L2 'My Club' 1 'Registration' 'pencil-square' 'registration/team?step=teams')
+      (New-L2 'My Club' 2 'Accounting'   'cash-stack'    'registration/team?step=payment')
+      (New-L2 'My Club' 3 'Rosters'      'people'        'rosters/club')
+)
+
 # -- Registrant manifest (Family / ClubRep / Player / Staff) -------------
 # Single source of truth. BIT flags (F / C / P / S) govern which role sees
 # an item. Adding a new item = one row. Same label can NEVER point at two
@@ -171,10 +178,9 @@ $registrantManifest = @(
     # Ctrl            CtrlIcon          CS  Text               Icon            Route                                IS  F C P S
     (New-RegItem 'Registration'   'pencil-square'    1 'Register Player' 'person-plus'  'registration/entry'                1  1 0 0 0)
     (New-RegItem 'Registration'   'pencil-square'    1 'Pay Balance Due' 'credit-card'  'registration/player?step=payment'  2  1 0 0 0)
-    (New-RegItem 'Registration'   'pencil-square'    1 'Register Teams'  'shield-plus'  'registration/entry'                3  0 1 0 0)
-    (New-RegItem 'Accounting'     'cash-stack'       2 'Team Accounting' 'receipt'      'registration/team?step=payment'    1  0 1 0 0)
+    (New-RegItem 'Registration'   'pencil-square'    1 'My Registration' 'person-badge' 'registration/player'               4  0 0 1 0)
+    (New-RegItem 'Registration'   'pencil-square'    1 'Staff Registration' 'person-workspace' 'registration/adult?role=coach' 5  0 0 0 1)
     (New-RegItem 'Store'          'cart'             3 'Event Store'     'shop'         'store'                             1  1 0 0 0)
-    (New-RegItem 'Rosters'        'people'           4 'Club Rosters'    'people'       'rosters/club'                      1  0 1 0 0)
     (New-RegItem 'Rosters'        'people'           4 'View Rosters'    'people'       'rosters/view-rosters'              2  0 0 1 1)
 )
 
@@ -242,6 +248,7 @@ BEGIN
         [SortOrder] INT NOT NULL DEFAULT 0, [Text] NVARCHAR(200) NOT NULL,
         [IconName] NVARCHAR(100) NULL, [RouterLink] NVARCHAR(500) NULL,
         [NavigateUrl] NVARCHAR(500) NULL, [Target] NVARCHAR(20) NULL,
+        [VisibilityRules] NVARCHAR(MAX) NULL,
         [Modified] DATETIME2 NOT NULL DEFAULT GETDATE(), [ModifiedBy] NVARCHAR(450) NULL,
         CONSTRAINT [PK_nav_NavItem] PRIMARY KEY CLUSTERED ([NavItemId]),
         CONSTRAINT [FK_nav_NavItem_NavId] FOREIGN KEY ([NavId]) REFERENCES [nav].[Nav]([NavId]) ON DELETE CASCADE,
@@ -266,10 +273,16 @@ foreach ($k in $roleGuids.Keys) {
 DECLARE @cnt INT;
 
 IF OBJECT_ID('tempdb..#ReportingItems') IS NOT NULL DROP TABLE #ReportingItems;
-SELECT ni.NavItemId, ni.NavId, ni.ParentNavItemId, ni.Active, ni.SortOrder,
+SELECT n.RoleId,
+       parent.[Text]      AS ParentText,
+       parent.IconName    AS ParentIcon,
+       parent.SortOrder   AS ParentSort,
+       ni.Active, ni.SortOrder,
        ni.[Text], ni.IconName, ni.RouterLink, ni.NavigateUrl, ni.[Target]
 INTO #ReportingItems
-FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId
+FROM nav.NavItem ni
+JOIN nav.Nav n ON ni.NavId = n.NavId
+LEFT JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
 WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%';
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
@@ -489,7 +502,7 @@ Emit-RoleMenu $sql 'StoreAdmin' $storeAdminMenu 'StoreAdmin: Store Admin'
 Emit-RegistrantMenu $sql 'Family'  'Family: Registration + Store'                  'ForFamily'
 
 [void]$sql.AppendLine("-- -- 10. ClubRep --------------------------------------------------------")
-Emit-RegistrantMenu $sql 'ClubRep' 'ClubRep: Registration + Accounting + Rosters'  'ForClubRep'
+Emit-RoleMenu $sql 'ClubRep' $clubRepMenu 'ClubRep: My Club (Registration + Accounting + Rosters)'
 
 [void]$sql.AppendLine("-- -- 11. Player ---------------------------------------------------------")
 Emit-RegistrantMenu $sql 'Player'  'Player: View Rosters'                          'ForPlayer'
@@ -507,23 +520,50 @@ Emit-RegistrantMenu $sql 'Staff'   'Staff: View Rosters'                        
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 IF @cnt > 0
 BEGIN
-    DECLARE @suNavId INT;
-    SELECT @suNavId = NavId FROM nav.Nav WHERE RoleId = @SuperUser AND JobId IS NULL;
+    DECLARE @rptRoleId NVARCHAR(450), @rptParentText NVARCHAR(200),
+            @rptParentIcon NVARCHAR(100), @rptParentSort INT;
+    DECLARE @rptNavId INT, @rptParentId INT;
 
-    DECLARE @apId INT;
-    IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL)
+    -- Restore grouped reporting items (with parent hierarchy, per role)
+    DECLARE rpt_cursor CURSOR LOCAL FAST_FORWARD FOR
+        SELECT DISTINCT RoleId, ParentText, ParentIcon, ParentSort
+        FROM #ReportingItems
+        WHERE ParentText IS NOT NULL;
+
+    OPEN rpt_cursor;
+    FETCH NEXT FROM rpt_cursor INTO @rptRoleId, @rptParentText, @rptParentIcon, @rptParentSort;
+    WHILE @@FETCH_STATUS = 0
     BEGIN
-        INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
-        VALUES (@suNavId, NULL, 1, 9, N'Analyze', N'bar-chart', GETDATE());
-        SET @apId = SCOPE_IDENTITY();
-    END
-    ELSE
-        SELECT @apId = NavItemId FROM nav.NavItem WHERE NavId = @suNavId AND [Text] = 'Analyze' AND ParentNavItemId IS NULL;
+        SELECT @rptNavId = NavId FROM nav.Nav WHERE RoleId = @rptRoleId AND JobId IS NULL;
 
+        -- Find or create the parent controller item
+        IF NOT EXISTS (SELECT 1 FROM nav.NavItem WHERE NavId = @rptNavId AND [Text] = @rptParentText AND ParentNavItemId IS NULL)
+        BEGIN
+            INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
+            VALUES (@rptNavId, NULL, 1, @rptParentSort, @rptParentText, @rptParentIcon, GETDATE());
+            SET @rptParentId = SCOPE_IDENTITY();
+        END
+        ELSE
+            SELECT @rptParentId = NavItemId FROM nav.NavItem WHERE NavId = @rptNavId AND [Text] = @rptParentText AND ParentNavItemId IS NULL;
+
+        INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
+        SELECT @rptNavId, @rptParentId, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
+        FROM #ReportingItems ri
+        WHERE ri.RoleId = @rptRoleId AND ri.ParentText = @rptParentText;
+
+        FETCH NEXT FROM rpt_cursor INTO @rptRoleId, @rptParentText, @rptParentIcon, @rptParentSort;
+    END
+    CLOSE rpt_cursor;
+    DEALLOCATE rpt_cursor;
+
+    -- Restore orphaned reporting items (no parent — top-level leaves)
     INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
-    SELECT @suNavId, @apId, r.Active, r.SortOrder, r.[Text], r.IconName, r.RouterLink, r.NavigateUrl, r.[Target], GETDATE()
-    FROM #ReportingItems r;
-    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) under Analyze');
+    SELECT n.NavId, NULL, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
+    FROM #ReportingItems ri
+    JOIN nav.Nav n ON n.RoleId = ri.RoleId AND n.JobId IS NULL
+    WHERE ri.ParentText IS NULL;
+
+    PRINT CONCAT('Restored ', @cnt, ' reporting item(s) with original role + parent grouping');
 END
 DROP TABLE #ReportingItems;
 "@)

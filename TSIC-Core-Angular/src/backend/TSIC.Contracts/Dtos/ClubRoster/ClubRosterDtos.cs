@@ -21,6 +21,16 @@ public record ClubRosterPlayerDto
     public required string AgegroupName { get; init; }
     public required string TeamName { get; init; }
     public required bool IsActive { get; init; }
+    public string? UniformNumber { get; init; }
+}
+
+/// <summary>
+/// Request to update a player's uniform number.
+/// </summary>
+public record UpdateUniformNumberRequest
+{
+    public required Guid RegistrationId { get; init; }
+    public string? UniformNumber { get; init; }
 }
 
 /// <summary>

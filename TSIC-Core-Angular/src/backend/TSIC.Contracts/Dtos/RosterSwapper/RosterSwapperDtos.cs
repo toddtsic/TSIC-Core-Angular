@@ -40,6 +40,7 @@ public record SwapperPlayerDto
     public required decimal FeeTotal { get; init; }
     public required decimal OwedTotal { get; init; }
     public DateTime? RegistrationTs { get; init; }
+    public string? UniformNo { get; init; }
 }
 
 /// <summary>

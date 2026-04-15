@@ -7,6 +7,7 @@ import { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
 import { ClubRosterMutationResultDto } from '@core/api/models/ClubRosterMutationResultDto';
 import { MovePlayersRequest } from '@core/api/models/MovePlayersRequest';
 import { DeletePlayersRequest } from '@core/api/models/DeletePlayersRequest';
+import { UpdateUniformNumberRequest } from '@core/api/models/UpdateUniformNumberRequest';
 
 @Injectable({ providedIn: 'root' })
 export class ClubRosterService {
@@ -27,5 +28,9 @@ export class ClubRosterService {
 
     deletePlayers(request: DeletePlayersRequest): Observable<ClubRosterMutationResultDto> {
         return this.http.post<ClubRosterMutationResultDto>(`${this.apiUrl}/delete-players`, request);
+    }
+
+    updateUniformNumber(request: UpdateUniformNumberRequest): Observable<void> {
+        return this.http.patch<void>(`${this.apiUrl}/uniform-number`, request);
     }
 }

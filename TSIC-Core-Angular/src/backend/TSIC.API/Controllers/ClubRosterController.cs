@@ -98,6 +98,29 @@ public class ClubRosterController : ControllerBase
         }
     }
 
+    [HttpPatch("uniform-number")]
+    public async Task<ActionResult> UpdateUniformNumber(
+        [FromBody] UpdateUniformNumberRequest request, CancellationToken ct)
+    {
+        var (regId, jobId) = await ResolveContextAsync();
+        if (regId == null || jobId == null)
+            return BadRequest(new { message = "Registration context required." });
+
+        try
+        {
+            await _clubRosterService.UpdateUniformNumberAsync(request, regId.Value, jobId.Value, ct);
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     private async Task<(Guid? regId, Guid? jobId)> ResolveContextAsync()
     {
         var regId = User.GetRegistrationId();

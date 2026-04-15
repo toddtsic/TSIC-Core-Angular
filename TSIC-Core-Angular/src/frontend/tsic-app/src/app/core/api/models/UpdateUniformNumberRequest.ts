@@ -2,12 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ClubRosterPlayerDto = {
+export type UpdateUniformNumberRequest = {
     registrationId: string;
-    playerName: string;
-    agegroupName: string;
-    teamName: string;
-    isActive: boolean;
     uniformNumber?: string | null;
 };
 

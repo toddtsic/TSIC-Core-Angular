@@ -653,6 +653,7 @@ export type { UpdateTeamActiveRequest } from './models/UpdateTeamActiveRequest';
 export type { UpdateTeamDivRankRequest } from './models/UpdateTeamDivRankRequest';
 export type { UpdateTeamRankingRequest } from './models/UpdateTeamRankingRequest';
 export type { UpdateTeamRequest } from './models/UpdateTeamRequest';
+export type { UpdateUniformNumberRequest } from './models/UpdateUniformNumberRequest';
 export type { UpdateUserDemographicsRequest } from './models/UpdateUserDemographicsRequest';
 export type { UpdateUserEmailRequest } from './models/UpdateUserEmailRequest';
 export type { UpdateWidgetRequest } from './models/UpdateWidgetRequest';
