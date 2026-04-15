@@ -69,6 +69,12 @@ export interface ParentBreadcrumb {
                 <i class="bi bi-trash"></i>
               </button>
             }
+            @if (level === 3 && !data['_isSpecial']) {
+              <button class="btn-action btn-clone" title="Clone team"
+                      (click)="cloneRow.emit(data); $event.stopPropagation()">
+                <i class="bi bi-copy"></i>
+              </button>
+            }
             @if (!data['_isSpecial']) {
               <span class="nav-badges">
                 @if (level === 2) {
@@ -295,6 +301,7 @@ export interface ParentBreadcrumb {
     }
     .btn-edit:hover { color: var(--bs-info); }
     .btn-del:hover { color: var(--bs-danger); }
+    .btn-clone:hover { color: var(--bs-primary); }
 
     .drill-badge {
       display: inline-flex;
@@ -451,6 +458,7 @@ export class LadtSiblingGridComponent implements OnChanges {
   @Output() editRow = new EventEmitter<string>();
   @Output() deleteRow = new EventEmitter<string>();
   @Output() addSibling = new EventEmitter<void>();
+  @Output() cloneRow = new EventEmitter<any>();
   @Output() navigateTo = new EventEmitter<string>();
 
   @ViewChild('grid') grid!: GridComponent;
@@ -466,7 +474,9 @@ export class LadtSiblingGridComponent implements OnChanges {
   frozenCount = computed(() => countFrozenColumns(this.columns));
 
   // Uniform action column width — fits pencil + drill badge for up to 3-digit counts
-  actionColWidth = computed(() => 110);
+  actionColWidth(): number {
+    return this.level === 3 ? 140 : 110;
+  }
 
   sortedData = computed(() => {
     const rows = this.dataSignal();

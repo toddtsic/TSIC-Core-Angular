@@ -8,6 +8,7 @@ import { AgegroupDetailComponent } from './components/agegroup-detail.component'
 import { DivisionDetailComponent } from './components/division-detail.component';
 import { TeamDetailComponent } from './components/team-detail.component';
 import { LadtSiblingGridComponent } from './components/ladt-sibling-grid.component';
+import { CloneTeamDialogComponent } from './components/clone-team-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { FormsModule } from '@angular/forms';
@@ -48,6 +49,7 @@ export interface LadtFlatNode {
     DivisionDetailComponent,
     TeamDetailComponent,
     LadtSiblingGridComponent,
+    CloneTeamDialogComponent,
     ConfirmDialogComponent,
     TsicDialogComponent
   ],
@@ -62,6 +64,9 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   isLoading = signal(false);
   isTreeBusy = signal(false);
   errorMessage = signal<string | null>(null);
+
+  // Clone dialog state (driven from grid-row clone button)
+  cloneSource = signal<{ teamId: string; teamName: string; hasClubRep: boolean; clubName: string | null } | null>(null);
   totalTeams = signal(0);
   totalPlayers = signal(0);
 
@@ -241,7 +246,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     }
   }
 
-  loadTree(selectId?: string): void {
+  loadTree(selectId?: string, openDetailAfter = false): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
@@ -271,6 +276,9 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           if (newNode) {
             this.expandAncestors(newNode, flat);
             this.selectNode(newNode);
+            if (openDetailAfter) {
+              this.openDetail(selectId);
+            }
           }
         }
       },
@@ -799,8 +807,42 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   onDetailSaved(): void {
     const node = this.selectedNode();
     this.jobFees.set([]); // invalidate fee cache so grid reloads fresh
+    this.closeDetail();
     this.loadTree();
     if (node) this.loadSiblings(node);
+  }
+
+  onDetailCloned(newTeamId: string): void {
+    // Reload tree and refocus on the clone — fly-in stays open on the new team.
+    this.jobFees.set([]);
+    this.closeDetail();
+    this.loadTree(newTeamId, /* openDetailAfter */ true);
+  }
+
+  onDetailDropped(): void {
+    // Team moved to Dropped Teams. Mutate locally — no endpoint refresh.
+    // Mirrors onDetailDeleted (SP-005 pattern). A natural refresh later
+    // surfaces the team under the Dropped Teams agegroup.
+    const dropped = this.selectedNode();
+    this.jobFees.set([]);
+    this.closeDetail();
+
+    if (!dropped) return;
+
+    this.flatNodes.update(nodes => nodes.filter(n => n.id !== dropped.id));
+
+    const idField = this.siblingIdField();
+    if (idField) {
+      this.siblingData.update(rows => rows.filter((r: any) => r[idField] !== dropped.id));
+    }
+
+    const remainingSiblingId = this.siblingIdField()
+      ? (this.siblingData()[0] as any)?.[this.siblingIdField()] ?? null
+      : null;
+    const siblingNode = remainingSiblingId
+      ? this.flatNodes().find(n => n.id === remainingSiblingId) ?? null
+      : null;
+    this.selectedNode.set(siblingNode);
   }
 
   onDetailDeleted(): void {
@@ -891,6 +933,25 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     // parent is the selected node's parent, not the selected node itself.
     if (!selected.parentId) return;
     this.startAdd(selected.parentId);
+  }
+
+  onGridCloneRow(row: any): void {
+    if (!row?.teamId) return;
+    this.cloneSource.set({
+      teamId: row.teamId,
+      teamName: row.teamName ?? '',
+      hasClubRep: !!row.clubRepRegistrationId,
+      clubName: row.clubName ?? null
+    });
+  }
+
+  onCloneDialogCancelled(): void {
+    this.cloneSource.set(null);
+  }
+
+  onCloneDialogCloned(newTeam: { teamId: string }): void {
+    this.cloneSource.set(null);
+    this.onDetailCloned(newTeam.teamId);
   }
 
   // ── Mobile ──

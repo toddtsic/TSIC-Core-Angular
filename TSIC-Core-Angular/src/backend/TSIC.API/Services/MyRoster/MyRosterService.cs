@@ -37,11 +37,9 @@ public sealed class MyRosterService : IMyRosterService
         if (flags == null)
             return Denied("Job not found.");
 
-        // Player: gated by BAllowRosterViewPlayer only.
-        // Staff:  gated by BOTH flags (most-restrictive reading of "use both").
         var allowed = roleName == RoleConstants.Names.PlayerName
             ? flags.Value.AllowPlayer
-            : (flags.Value.AllowPlayer && flags.Value.AllowAdult);
+            : flags.Value.AllowAdult;
 
         if (!allowed)
             return Denied("Roster viewing is disabled for this event.");

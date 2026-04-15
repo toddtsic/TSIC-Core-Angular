@@ -5,5 +5,10 @@
 export type CloneTeamRequest = {
     teamName: string;
     addToClubLibrary: boolean;
+    copyFees?: boolean;
+    copyEligibility?: boolean;
+    copyRosterSettings?: boolean;
+    copyDates?: boolean;
+    copyVisualIdentity?: boolean;
 };
 

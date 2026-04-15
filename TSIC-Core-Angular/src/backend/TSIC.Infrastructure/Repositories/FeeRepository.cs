@@ -260,6 +260,15 @@ public class FeeRepository : IFeeRepository
             .SingleOrDefaultAsync(jf => jf.JobFeeId == jobFeeId, ct);
     }
 
+    public async Task<List<JobFees>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default)
+    {
+        return await _context.JobFees
+            .AsNoTracking()
+            .Where(jf => jf.TeamId == teamId)
+            .Include(jf => jf.FeeModifiers)
+            .ToListAsync(ct);
+    }
+
     public void Add(JobFees jobFee) => _context.JobFees.Add(jobFee);
     public void AddModifier(FeeModifiers modifier) => _context.FeeModifiers.Add(modifier);
     public void Remove(JobFees jobFee) => _context.JobFees.Remove(jobFee);

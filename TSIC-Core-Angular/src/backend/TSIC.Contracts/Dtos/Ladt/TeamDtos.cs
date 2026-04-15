@@ -143,6 +143,11 @@ public record CloneTeamRequest
 {
     public required string TeamName { get; init; }
     public required bool AddToClubLibrary { get; init; }
+    public bool CopyFees { get; init; } = true;
+    public bool CopyEligibility { get; init; } = true;
+    public bool CopyRosterSettings { get; init; } = true;
+    public bool CopyDates { get; init; } = true;
+    public bool CopyVisualIdentity { get; init; } = true;
 }
 
 public record MoveTeamToClubRequest

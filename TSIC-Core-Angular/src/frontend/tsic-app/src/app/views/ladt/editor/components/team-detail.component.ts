@@ -5,6 +5,7 @@ import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { CloneTeamDialogComponent } from './clone-team-dialog.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 
@@ -15,7 +16,7 @@ const JOB_TYPE_TOURNAMENT = 2;
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, CloneTeamDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -67,40 +68,14 @@ const JOB_TYPE_TOURNAMENT = 2;
         </div>
       }
 
-      @if (showCloneDialog()) {
-        <div class="alert alert-secondary" role="alert">
-          <h6 class="alert-heading mb-2">
-            <i class="bi bi-copy me-1"></i>Clone Team
-          </h6>
-          <div class="mb-2">
-            <label class="form-label small mb-1">New Team Name</label>
-            <input class="form-control form-control-sm"
-                   [ngModel]="cloneName()"
-                   (ngModelChange)="cloneName.set($event)"
-                   [ngModelOptions]="{standalone: true}">
-          </div>
-          @if (team()?.clubRepRegistrationId) {
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox" id="cloneAddToClub"
-                     [ngModel]="cloneAddToClub()"
-                     (ngModelChange)="cloneAddToClub.set($event)"
-                     [ngModelOptions]="{standalone: true}">
-              <label class="form-check-label small" for="cloneAddToClub">
-                Add to {{ team()?.clubName }}'s team library
-              </label>
-            </div>
-          }
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="showCloneDialog.set(false)">Cancel</button>
-            <button type="button" class="btn btn-sm btn-primary" (click)="doClone()"
-                    [disabled]="!cloneName().trim() || isSaving()">
-              @if (isSaving()) {
-                <span class="spinner-border spinner-border-sm me-1"></span>
-              }
-              Clone
-            </button>
-          </div>
-        </div>
+      @if (showCloneDialog() && team(); as t) {
+        <app-clone-team-dialog
+          [sourceTeamId]="teamId"
+          [sourceTeamName]="t.teamName ?? ''"
+          [hasClubRep]="!!t.clubRepRegistrationId"
+          [clubName]="t.clubName ?? null"
+          (cancelled)="showCloneDialog.set(false)"
+          (cloned)="onCloneSuccess($event)" />
       }
 
       @if (showChangeClub()) {
@@ -309,8 +284,9 @@ const JOB_TYPE_TOURNAMENT = 2;
 export class TeamDetailComponent implements OnChanges {
   @Input({ required: true }) teamId!: string;
   @Output() saved = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<void>();
+  @Output() cloned = new EventEmitter<string>();
   @Output() clubChanged = new EventEmitter<void>();
+  @Output() dropped = new EventEmitter<void>();
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
@@ -330,8 +306,6 @@ export class TeamDetailComponent implements OnChanges {
   moreOpen = signal(false);
   showChangeClubWarning = signal(false);
   showCloneDialog = signal(false);
-  cloneName = signal('');
-  cloneAddToClub = signal(false);
 
   form: any = {};
 
@@ -503,13 +477,10 @@ export class TeamDetailComponent implements OnChanges {
   doDrop(): void {
     this.isSaving.set(true);
     this.ladtService.dropTeam(this.teamId).subscribe({
-      next: (result) => {
+      next: () => {
         this.isSaving.set(false);
         this.showDropConfirm.set(false);
-        this.isError.set(false);
-        this.saveMessage.set(result.message);
-        this.loadDetail();
-        this.saved.emit(); // refresh tree to show moved/inactive state
+        this.dropped.emit();
       },
       error: (err) => {
         this.isSaving.set(false);
@@ -521,30 +492,14 @@ export class TeamDetailComponent implements OnChanges {
   }
 
   openCloneDialog(): void {
-    this.cloneName.set(`${this.team()?.teamName ?? ''} (Copy)`);
-    this.cloneAddToClub.set(!!this.team()?.clubRepRegistrationId);
     this.showCloneDialog.set(true);
   }
 
-  doClone(): void {
-    const name = this.cloneName()?.trim();
-    if (!name) return;
-
-    this.isSaving.set(true);
-    this.ladtService.cloneTeam(this.teamId, { teamName: name, addToClubLibrary: this.cloneAddToClub() }).subscribe({
-      next: () => {
-        this.isSaving.set(false);
-        this.isError.set(false);
-        this.showCloneDialog.set(false);
-        this.saveMessage.set('Team cloned successfully.');
-        this.cloned.emit();
-      },
-      error: (err) => {
-        this.isSaving.set(false);
-        this.isError.set(true);
-        this.saveMessage.set(err.error?.message || 'Failed to clone team.');
-      }
-    });
+  onCloneSuccess(newTeam: TeamDetailDto): void {
+    this.showCloneDialog.set(false);
+    this.isError.set(false);
+    this.saveMessage.set('Team cloned successfully.');
+    this.cloned.emit(newTeam.teamId);
   }
 
   confirmChangeClub(): void {

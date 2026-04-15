@@ -97,6 +97,12 @@ public interface IFeeRepository
     /// </summary>
     Task<JobFees?> GetTrackedByIdAsync(Guid jobFeeId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Gets all team-scoped JobFees rows (TeamId == teamId) with their FeeModifiers.
+    /// AsNoTracking — intended for read-then-clone flows.
+    /// </summary>
+    Task<List<JobFees>> GetByTeamIdAsync(Guid teamId, CancellationToken ct = default);
+
     // Write operations
 
     /// <summary>Adds a new JobFees row.</summary>

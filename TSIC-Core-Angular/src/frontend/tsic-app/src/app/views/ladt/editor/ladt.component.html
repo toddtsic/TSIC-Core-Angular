@@ -263,6 +263,7 @@
             (editRow)="openDetail($event)"
             (deleteRow)="onGridDelete($event)"
             (addSibling)="onGridAdd()"
+            (cloneRow)="onGridCloneRow($event)"
             (navigateTo)="onGridNavigate($event)"
           />
         }
@@ -310,8 +311,9 @@
         <app-team-detail
           [teamId]="node.id"
           (saved)="onDetailSaved()"
-          (cloned)="onDetailSaved()"
+          (cloned)="onDetailCloned($event)"
           (clubChanged)="onDetailSaved()"
+          (dropped)="onDetailDropped()"
         />
       }
     </div>
@@ -488,4 +490,15 @@
       </div>
     </div>
   </tsic-dialog>
+}
+
+<!-- Row-level clone dialog (grid action column) -->
+@if (cloneSource(); as src) {
+  <app-clone-team-dialog
+    [sourceTeamId]="src.teamId"
+    [sourceTeamName]="src.teamName"
+    [hasClubRep]="src.hasClubRep"
+    [clubName]="src.clubName"
+    (cancelled)="onCloneDialogCancelled()"
+    (cloned)="onCloneDialogCloned($event)" />
 }

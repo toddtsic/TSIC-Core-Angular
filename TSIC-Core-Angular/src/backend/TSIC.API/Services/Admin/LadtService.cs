@@ -928,10 +928,20 @@ public sealed class LadtService : ILadtService
         var source = await _teamRepo.GetByIdReadOnlyAsync(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
 
+        // Server-side enforcement of UI-coupled rules:
+        //   Club linkage requires a source clubrep and forces fee copy, so that the
+        //   cloned team lands with the fees the clubrep is financially responsible for.
+        if (request.AddToClubLibrary && !source.ClubrepRegistrationid.HasValue)
+            throw new InvalidOperationException("Cannot copy club linkage: source team has no club rep.");
+        if (request.AddToClubLibrary && !request.CopyFees)
+            throw new InvalidOperationException("Copy fees must be enabled when copying club linkage.");
+
         var nextRank = source.DivId.HasValue
             ? await _teamRepo.GetNextDivRankAsync(source.DivId.Value, cancellationToken)
             : 1;
 
+        // Clone always lands in source's exact division. Cross-AG/div moves are handled
+        // by the pool swapper, not by clone.
         var clone = new TSIC.Domain.Entities.Teams
         {
             TeamId = Guid.NewGuid(),
@@ -942,45 +952,51 @@ public sealed class LadtService : ILadtService
             TeamName = request.TeamName,
             Active = true,
             DivRank = nextRank,
-            DivisionRequested = source.DivisionRequested,
-            Color = source.Color,
-            MaxCount = source.MaxCount,
-            BAllowSelfRostering = source.BAllowSelfRostering,
-            BHideRoster = source.BHideRoster,
-            Startdate = source.Startdate,
-            Enddate = source.Enddate,
-            Effectiveasofdate = source.Effectiveasofdate,
-            Expireondate = source.Expireondate,
-            DobMin = source.DobMin,
-            DobMax = source.DobMax,
-            GradYearMin = source.GradYearMin,
-            GradYearMax = source.GradYearMax,
-            SchoolGradeMin = source.SchoolGradeMin,
-            SchoolGradeMax = source.SchoolGradeMax,
-            Gender = source.Gender,
             Season = source.Season,
             Year = source.Year,
-            Dow = source.Dow,
-            Dow2 = source.Dow2,
-            FieldId1 = source.FieldId1,
-            FieldId2 = source.FieldId2,
-            FieldId3 = source.FieldId3,
-            LevelOfPlay = source.LevelOfPlay,
-            Requests = source.Requests,
-            KeywordPairs = source.KeywordPairs,
-            TeamComments = source.TeamComments,
             LebUserId = userId,
             Createdate = DateTime.UtcNow,
             Modified = DateTime.UtcNow
         };
 
-        // Optionally link clone to the source team's club
-        if (request.AddToClubLibrary && source.ClubrepRegistrationid.HasValue)
+        if (request.CopyEligibility)
+        {
+            clone.DobMin = source.DobMin;
+            clone.DobMax = source.DobMax;
+            clone.GradYearMin = source.GradYearMin;
+            clone.GradYearMax = source.GradYearMax;
+            clone.SchoolGradeMin = source.SchoolGradeMin;
+            clone.SchoolGradeMax = source.SchoolGradeMax;
+            clone.Gender = source.Gender;
+        }
+
+        if (request.CopyRosterSettings)
+        {
+            clone.MaxCount = source.MaxCount;
+            clone.BAllowSelfRostering = source.BAllowSelfRostering;
+            clone.BHideRoster = source.BHideRoster;
+        }
+
+        if (request.CopyDates)
+        {
+            clone.Startdate = source.Startdate;
+            clone.Enddate = source.Enddate;
+            clone.Effectiveasofdate = source.Effectiveasofdate;
+            clone.Expireondate = source.Expireondate;
+        }
+
+        if (request.CopyVisualIdentity)
+        {
+            clone.Color = source.Color;
+            clone.LevelOfPlay = source.LevelOfPlay;
+        }
+
+        // Link clone to source team's club rep (defensive re-check guaranteed above)
+        if (request.AddToClubLibrary)
         {
             clone.ClubrepRegistrationid = source.ClubrepRegistrationid;
             clone.ClubrepId = source.ClubrepId;
 
-            // Create a new ClubTeam entry for this clone
             if (source.ClubTeamId.HasValue)
             {
                 var sourceClubTeam = await _clubTeamRepo.GetByIdAsync(source.ClubTeamId.Value, cancellationToken);
@@ -1003,9 +1019,48 @@ public sealed class LadtService : ILadtService
         }
 
         _teamRepo.Add(clone);
+
+        // Stage cloned fees (team-scoped JobFees + their FeeModifiers). Each row gets
+        // a fresh Id and points at the new clone.TeamId.
+        if (request.CopyFees)
+        {
+            var sourceFees = await _feeRepo.GetByTeamIdAsync(source.TeamId, cancellationToken);
+            foreach (var sf in sourceFees)
+            {
+                var newFeeId = Guid.NewGuid();
+                _feeRepo.Add(new JobFees
+                {
+                    JobFeeId = newFeeId,
+                    JobId = sf.JobId,
+                    RoleId = sf.RoleId,
+                    AgegroupId = sf.AgegroupId,
+                    TeamId = clone.TeamId,
+                    Deposit = sf.Deposit,
+                    BalanceDue = sf.BalanceDue,
+                    Modified = DateTime.UtcNow,
+                    LebUserId = userId
+                });
+                foreach (var mod in sf.FeeModifiers)
+                {
+                    _feeRepo.AddModifier(new FeeModifiers
+                    {
+                        FeeModifierId = Guid.NewGuid(),
+                        JobFeeId = newFeeId,
+                        ModifierType = mod.ModifierType,
+                        Amount = mod.Amount,
+                        StartDate = mod.StartDate,
+                        EndDate = mod.EndDate,
+                        Modified = DateTime.UtcNow,
+                        LebUserId = userId
+                    });
+                }
+            }
+        }
+
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
-        // Recalculate club rep financials since the new team carries fees
+        // Resolver runs AFTER fees are persisted so the club rep's financial rollup
+        // reflects the new team's fees.
         if (clone.ClubrepRegistrationid.HasValue)
             await _registrationRepo.SynchronizeClubRepFinancialsAsync(clone.ClubrepRegistrationid.Value, userId, cancellationToken);
 
