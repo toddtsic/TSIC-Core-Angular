@@ -424,6 +424,9 @@ public class JobRepository : IJobRepository
                 TeamRegistrationOpen = j.BRegistrationAllowTeam == true
                     && (j.JobTypeId == 2 || j.JobTypeId == 3),
                 TeamRegRequiresToken = j.BteamRegRequiresToken,
+                ClubRepAllowAdd = j.BClubRepAllowAdd == true,
+                ClubRepAllowEdit = j.BClubRepAllowEdit == true,
+                ClubRepAllowDelete = j.BClubRepAllowDelete == true,
                 StoreEnabled = j.BEnableStore == true,
                 StoreHasActiveItems = j.BEnableStore == true
                     && _context.Stores.Any(s => s.JobId == j.JobId
@@ -435,6 +438,22 @@ public class JobRepository : IJobRepository
                 AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
                 PublicSuspended = j.BSuspendPublic,
                 RegistrationExpiry = j.ExpiryUsers
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<JobTeamCapabilities?> GetTeamCapabilitiesAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobTeamCapabilities
+            {
+                TeamRegistrationOpen = j.BRegistrationAllowTeam == true
+                    && (j.JobTypeId == 2 || j.JobTypeId == 3),
+                ClubRepAllowAdd = j.BClubRepAllowAdd == true,
+                ClubRepAllowEdit = j.BClubRepAllowEdit == true,
+                ClubRepAllowDelete = j.BClubRepAllowDelete == true
             })
             .FirstOrDefaultAsync(cancellationToken);
     }

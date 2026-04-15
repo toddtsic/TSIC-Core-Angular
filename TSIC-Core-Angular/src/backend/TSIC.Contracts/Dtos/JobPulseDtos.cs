@@ -10,6 +10,9 @@ public record JobPulseDto
     public required bool PlayerRegRequiresToken { get; init; }
     public required bool TeamRegistrationOpen { get; init; }
     public required bool TeamRegRequiresToken { get; init; }
+    public required bool ClubRepAllowAdd { get; init; }
+    public required bool ClubRepAllowEdit { get; init; }
+    public required bool ClubRepAllowDelete { get; init; }
     public required bool StoreEnabled { get; init; }
     public required bool StoreHasActiveItems { get; init; }
     public required bool AllowStoreWalkup { get; init; }

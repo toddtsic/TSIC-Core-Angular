@@ -524,6 +524,25 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new UnauthorizedAccessException("User does not have access to this club");
         }
 
+        // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowAdd
+        // semantics. Frontend hides the Add CTA via pulse, but the endpoint must still refuse
+        // a direct call after the window closes.
+        var capabilities = await _jobs.GetTeamCapabilitiesAsync(jobId);
+        if (capabilities == null)
+        {
+            throw new InvalidOperationException("Event not found");
+        }
+        if (!capabilities.TeamRegistrationOpen)
+        {
+            _logger.LogWarning("Register-team blocked for job {JobId}: team registration CLOSED", jobId);
+            throw new InvalidOperationException("Team registration is CLOSED at this time.");
+        }
+        if (!capabilities.ClubRepAllowAdd)
+        {
+            _logger.LogWarning("Register-team blocked for job {JobId}: ClubRepAllowAdd=false", jobId);
+            throw new InvalidOperationException("The site is currently CLOSED to ADDING Teams/Coaches.");
+        }
+
         // Get league for this job (prefer primary, fall back to first league)
         var leagueId = await _jobLeagues.GetPrimaryLeagueForJobAsync(jobId);
 
@@ -739,6 +758,23 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             _logger.LogWarning("Team not found: {TeamId}", teamId);
             throw new InvalidOperationException("Team registration not found");
+        }
+
+        // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowDelete.
+        var capabilities = await _jobs.GetTeamCapabilitiesAsync(team.JobId);
+        if (capabilities == null)
+        {
+            throw new InvalidOperationException("Event not found");
+        }
+        if (!capabilities.TeamRegistrationOpen)
+        {
+            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): team registration CLOSED", teamId, team.JobId);
+            throw new InvalidOperationException("Team registration is CLOSED at this time.");
+        }
+        if (!capabilities.ClubRepAllowDelete)
+        {
+            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): ClubRepAllowDelete=false", teamId, team.JobId);
+            throw new InvalidOperationException("The site is currently CLOSED to DELETING Teams/Coaches.");
         }
 
         // Check if team has made payments

@@ -1,4 +1,5 @@
-import { Injectable, inject, signal, DestroyRef } from '@angular/core';
+import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ClubRepStateService } from './club-rep-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
@@ -8,7 +9,8 @@ import { TeamInsuranceStateService } from '@views/registration/team/services/tea
 import { TeamInsuranceService } from '@views/registration/team/services/team-insurance.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
-import type { UserContactInfoDto } from '@core/api';
+import { environment } from '@environments/environment';
+import type { UserContactInfoDto, JobPulseDto } from '@core/api';
 
 /**
  * Team Wizard State Service — THIN ORCHESTRATOR.
@@ -28,6 +30,7 @@ export class TeamWizardStateService {
     readonly teamInsurance = inject(TeamInsuranceService);
     private readonly jobService = inject(JobService);
     private readonly fieldData = inject(FormFieldDataService);
+    private readonly http = inject(HttpClient);
 
     // ── Job context ────────────────────────────────────────────────────
     private readonly _jobPath = signal('');
@@ -48,6 +51,27 @@ export class TeamWizardStateService {
     private readonly _waiverAccepted = signal(false);
     readonly waiverAccepted = this._waiverAccepted.asReadonly();
 
+    /**
+     * Job pulse — exposes team-registration capability flags:
+     *   teamRegistrationOpen, clubRepAllowAdd, clubRepAllowEdit, clubRepAllowDelete.
+     * Null until the pulse fetch completes; treat null as "not yet loaded" (err on
+     * the conservative side and hide mutating controls).
+     */
+    private readonly _pulse = signal<JobPulseDto | null>(null);
+    readonly pulse = this._pulse.asReadonly();
+
+    /** Can the ClubRep register a library team for this event? */
+    readonly canRegisterTeam = computed(() => {
+        const p = this._pulse();
+        return !!p && p.teamRegistrationOpen && p.clubRepAllowAdd;
+    });
+
+    /** Can the ClubRep unregister (drop) a team from this event? */
+    readonly canRemoveTeam = computed(() => {
+        const p = this._pulse();
+        return !!p && p.teamRegistrationOpen && p.clubRepAllowDelete;
+    });
+
     /** True when the job has a refund policy configured */
     hasRefundPolicy(): boolean { return !!this._refundPolicyHtml()?.trim(); }
 
@@ -63,6 +87,16 @@ export class TeamWizardStateService {
         this._jobPath.set(jobPath);
         this.clubRep.initFromPreferences();
         this.loadMetadata(jobPath);
+        this.loadPulse(jobPath);
+    }
+
+    private loadPulse(jobPath: string): void {
+        this.http.get<JobPulseDto>(`${environment.apiUrl}/jobs/${jobPath}/pulse`)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: p => this._pulse.set(p),
+                error: () => this._pulse.set(null),
+            });
     }
 
     private loadMetadata(jobPath: string): void {
@@ -101,6 +135,7 @@ export class TeamWizardStateService {
         this._clubRepContact.set(null);
         this._refundPolicyHtml.set(null);
         this._waiverAccepted.set(false);
+        this._pulse.set(null);
         this.clubRep.reset();
         this.teamPayment.reset();
         this.teamPaymentState.reset();

@@ -7,6 +7,9 @@ export type JobPulseDto = {
     playerRegRequiresToken: boolean;
     teamRegistrationOpen: boolean;
     teamRegRequiresToken: boolean;
+    clubRepAllowAdd: boolean;
+    clubRepAllowEdit: boolean;
+    clubRepAllowDelete: boolean;
     storeEnabled: boolean;
     storeHasActiveItems: boolean;
     allowStoreWalkup: boolean;

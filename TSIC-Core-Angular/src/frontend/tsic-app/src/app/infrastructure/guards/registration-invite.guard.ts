@@ -49,7 +49,14 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
         }
 
         // 1. Registration not open
+        // Authenticated users (returning ClubReps / Players) keep access so they can view
+        // existing teams, pay balances, and use any capabilities the job config still allows.
+        // The wizard consults per-action pulse flags (ClubRepAllowAdd/Edit/Delete, etc.) to
+        // gate UI, and the corresponding endpoints enforce those flags server-side.
         if (!pulse[config.registrationOpenKey]) {
+            if (auth.isAuthenticated()) {
+                return true;
+            }
             toast.show(`${config.registrationType} registration is not currently open for this event.`, 'warning', 6000);
             return router.createUrlTree([`/${jobPath}`]);
         }

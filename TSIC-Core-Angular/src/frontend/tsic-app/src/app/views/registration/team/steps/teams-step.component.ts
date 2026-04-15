@@ -75,7 +75,7 @@ interface AgePickerTeam {
               [teams]="enteredTeams()"
               [showDeposit]="showDepositColumns()"
               [showProcessing]="showProcessingColumn()"
-              [showRemove]="true"
+              [showRemove]="canRemoveTeam()"
               [actionInProgress]="actionInProgress()"
               [frozenTeamCol]="true"
               [teamColWidth]="180"
@@ -133,12 +133,14 @@ interface AgePickerTeam {
                 <span class="lib-name">{{ team.clubTeamName }}</span>
                 @if (isEnteredTeam(team.clubTeamId)) {
                   <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
-                } @else {
+                } @else if (canRegisterTeam()) {
                   <button type="button" class="btn-register"
                           [disabled]="actionInProgress()"
                           (click)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)">
                     Register
                   </button>
+                } @else {
+                  <span class="lib-badge lib-badge-muted"><i class="bi bi-lock-fill me-1"></i>Closed</span>
                 }
               </div>
             }
@@ -478,6 +480,11 @@ interface AgePickerTeam {
         margin-left: auto;
       }
 
+      .lib-badge-muted {
+        background: rgba(var(--bs-secondary-rgb), 0.1);
+        color: var(--brand-text-muted);
+      }
+
       /* ── Register button (library rows) ── */
       .btn-register {
         display: inline-flex;
@@ -721,6 +728,10 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'this event');
+
+    /** Capability flags from job pulse — gate the Register/Remove UI controls. */
+    readonly canRegisterTeam = this.state.canRegisterTeam;
+    readonly canRemoveTeam = this.state.canRemoveTeam;
 
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);

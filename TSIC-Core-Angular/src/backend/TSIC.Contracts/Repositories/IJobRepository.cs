@@ -231,6 +231,13 @@ public interface IJobRepository
     /// </summary>
     Task<bool> IsStoreWalkupAllowedAsync(Guid jobId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Job-level team-registration capability flags consumed by ClubRep-facing endpoints
+    /// to gate add/edit/delete operations. Mirrors the three <c>BClubRepAllow*</c> columns
+    /// plus the global <c>BRegistrationAllowTeam</c> gate. Returns null when jobId is unknown.
+    /// </summary>
+    Task<JobTeamCapabilities?> GetTeamCapabilitiesAsync(Guid jobId, CancellationToken cancellationToken = default);
+
     // ── Event Browse (public-facing mobile endpoints) ──
 
     Task<List<Dtos.EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default);
@@ -257,6 +264,14 @@ public record JobFeeSettings
     public string? PayTo { get; init; }
     public string? MailTo { get; init; }
     public string? MailinPaymentWarning { get; init; }
+}
+
+public record JobTeamCapabilities
+{
+    public required bool TeamRegistrationOpen { get; init; }
+    public required bool ClubRepAllowAdd { get; init; }
+    public required bool ClubRepAllowEdit { get; init; }
+    public required bool ClubRepAllowDelete { get; init; }
 }
 
 public record InsuranceOfferInfo
