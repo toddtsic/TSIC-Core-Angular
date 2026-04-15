@@ -1,14 +1,16 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
 
 const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
 const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+const JOB_TYPE_TOURNAMENT = 2;
 
 @Component({
   selector: 'app-team-detail',
@@ -188,17 +190,25 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
           </div>
         </div>
 
-        <!-- ── Player Fee Override ── -->
-        <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-          namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-          [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
-          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
-
-        <!-- ── Club Rep Fee Override ── -->
-        <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-          namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-          [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
-          hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+        @if (isTournament()) {
+          <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+          <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
+            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+        } @else {
+          <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
+            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+          <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+        }
 
         <!-- ── Eligibility ── -->
         <div class="section-card">
@@ -303,6 +313,9 @@ export class TeamDetailComponent implements OnChanges {
   @Output() clubChanged = new EventEmitter<void>();
 
   private readonly ladtService = inject(LadtService);
+  private readonly jobService = inject(JobService);
+
+  readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
   team = signal<TeamDetailDto | null>(null);
   isLoading = signal(false);

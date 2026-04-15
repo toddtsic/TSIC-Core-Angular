@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, HostListener, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, HostListener, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -6,9 +6,11 @@ import { LadtService } from '../services/ladt.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
 import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
 import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-helpers';
+import { JobService } from '../../../../infrastructure/services/job.service';
 
 const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
 const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+const JOB_TYPE_TOURNAMENT = 2;
 
 @Component({
   selector: 'app-agegroup-detail',
@@ -119,16 +121,23 @@ const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
           </div>
         </div>
 
-        <!-- ── Player Fees ── -->
-        <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
-          namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-          [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
-          placeholder="Optional" />
-
-        <!-- ── Club Rep / Team Fees ── -->
-        <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-          namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-          [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers" />
+        @if (isTournament()) {
+          <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers" />
+          <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
+            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+            placeholder="Optional" />
+        } @else {
+          <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
+            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+            placeholder="Optional" />
+          <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers" />
+        }
 
         <!-- ── Save ── -->
         <div class="d-flex align-items-center gap-3 mt-3">
@@ -231,6 +240,9 @@ export class AgegroupDetailComponent implements OnChanges {
   @Output() deleted = new EventEmitter<void>();
 
   private readonly ladtService = inject(LadtService);
+  private readonly jobService = inject(JobService);
+
+  readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
   agegroup = signal<AgegroupDetailDto | null>(null);
   isLoading = signal(false);

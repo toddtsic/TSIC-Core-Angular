@@ -357,8 +357,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Tree to collapse back to the age group level (per PL-001 resolution)
 - **What happened**: Tree stays fully expanded — no collapse happens at all
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Ann agrees collapsing all the way to root is wrong; the correct behavior is collapse-to-agegroup as originally stated in PL-001. Needs investigation into why the menu click isn't triggering that collapse.
+- **Status**: Won't Do
+- **Note**: Angular router does not re-navigate / refresh the component when the active route is clicked again, so there's no hook to trigger a collapse. Not worth working around.
 
 ### SP-002: Review "Standardize Division Names" tool with Todd; revisit info-box wording
 - **Refs**: PL-003 (info-box subtitle added in first pass)
@@ -367,8 +367,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Walk through the tool with Todd to confirm the behavior and refine the top-of-dialog info box copy
 - **What happened**: Ann wants a joint review of how the tool actually works end-to-end, plus text edits to the info box at the top of the dialog
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Action item — schedule walkthrough with Todd, then propose revised info-box copy.
+- **Status**: Complete
+- **Note**: Reviewed with Todd.
 
 ### SP-003: Age Group Details fly-in — swap fee-card order for tournaments
 - **Area**: Age Group Settings
@@ -376,8 +376,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Card order to match the dominant fee type for the site type — Team/ClubRep fees featured first on tournament sites, Player fees first everywhere else
 - **What happened**: Currently Player Fees card is always above the Team/ClubRep Fees card regardless of site type
 - **Severity**: UX
-- **Status**: Open
-- **Note**: On tournament sites, put Club Rep / Team Fees card above the Player Fees card. On all other site types (league, player, family, CAC), keep Player Fees card on top. Goal: reduce data-entry errors when setting up a tourney by surfacing the relevant fee type first.
+- **Status**: Fixed
+- **Note**: `agegroup-detail.component.ts` now injects `JobService` and computes `isTournament` from `currentJob().jobTypeId === 2`. Template renders Club Rep / Team Fees card above Player Fees card on tournament jobs; default order elsewhere.
 
 ### SP-004: Delete Agegroup fails with FK_JobFees_Agegroups when fees exist
 - **Area**: Age Group Settings
@@ -394,8 +394,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Right-side panel to land on the sibling table at the deleted item's level, so I can visually confirm the row is gone
 - **What happened**: Right side of the screen goes blank — no table shown at all
 - **Severity**: UX
-- **Status**: Open
-- **Note**: On successful delete, navigate/select to the parent's children-grid at the same level (e.g., deleting an Age Group shows the League's Age Groups grid; deleting a Division shows the Age Group's Divisions grid; deleting a Team shows the Division's Teams grid). Gives immediate visual confirmation the item was removed.
+- **Status**: Fixed
+- **Note**: `onDetailDeleted` was wiping selection + sibling grid then calling `loadTree()` for a full endpoint refresh. Replaced with local-only mutation: remove the deleted node from `flatNodes` and `siblingData`, point `selectedNode` at a remaining sibling so the same-level grid stays mounted with its existing columns. No endpoint call. Edge case: deleting the last sibling falls back to empty state.
 
 ### SP-006: Right-side grids still too wide — tune default column widths to content across all levels
 - **Refs**: PL-012 (first pass delivered resizable columns via Syncfusion grid)
@@ -404,8 +404,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Default widths sized to actual content so more columns fit on the first screen without resizing
 - **What happened**: Columns still eat too much horizontal space by default (example: Gender column is far wider than its 1–2 char value needs). Resizing is possible but the out-of-box layout wastes real estate.
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Pass on column defaults at all four levels. Size narrow columns (Gender, counts, short codes) to content; reserve flex growth for name/label columns. Goal: maximize visible columns on first paint before any user resize.
+- **Status**: Complete
+- **Note**: Further visual refinements deferred until app is ready for release. Three-part fix:
+  1. `ladt-grid-columns.ts` — every column across League / Age Group / Division / Team now has an explicit width sized to content (Gender/short codes 60px; boolean badges 70px; small ints 75px; dates 100px; medium strings 140px; long strings 180px; frozen name cols 160–180px; fees composite 220px).
+  2. `ladt-sibling-grid.component.ts` — `parseWidth` fallback lowered from 120 → 90 so any future column added without a width lands at a saner default; data-cell font-size switched from `0.82rem` to `var(--font-size-xs)` to match tree and headers.
+  3. `ladt.component.scss` — tree↔grid seam strengthened (2px border + layered tertiary shadow), grid panel tinted with `--bs-tertiary-bg` and inset with `--space-2` padding so the SF grid floats as a card against the seam.
 
 ### SP-007: "Add New X" buttons on sibling grids create children, not siblings
 - **Refs**: PL-015, PL-024 (both marked Won't Fix in first pass — Ann disagrees)
@@ -414,8 +417,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Add New Age Group → a new row at the top/bottom of the current Age Groups table with Age Group column "New Age Group" (i.e., a new sibling at the level the grid represents). Likewise "Add New Division" should add a new Division row in the Divisions grid.
 - **What happened**: Add New Age Group adds a Division under the current Age Group in the tree; Add New Division adds a Team under the current Division in the tree. Button label says "Age Group" / "Division" but the action goes one level down.
 - **Severity**: Bug (label / action mismatch)
-- **Status**: Open
-- **Note**: Ann's mental model: the grid shows X at a given level; an "Add New X" button on that grid should create another X (sibling). Todd's prior reasoning (PL-015/PL-024) was "you add from the parent level" — needs revisiting given the button text explicitly names the grid's level. Either rewire the action to create a sibling, or rename the button to match what it actually does.
+- **Status**: Fixed
+- **Note**: Root cause in `onGridAdd()` (ladt.component.ts): was calling `startAdd(selected.id)`, making the selected node the phantom's parent → phantom rendered at `selected.level + 1`. Changed to `startAdd(selected.parentId)`, so the phantom becomes a true sibling at the same level as the selected row. League-grid (level 0, no parent) no-ops — league creation is not supported via this path today. Likely also resolves SP-008 (team-level mismatch + phantom rollback) since the phantom no longer lands at an unsupported level=4.
 
 ### SP-008: "Add New Team" creates a phantom child node that flashes and disappears in the tree
 - **Refs**: SP-007 (same class of "Add New" mismatch at Team level)
@@ -424,10 +427,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A new Team row to appear in the Teams grid as a sibling
 - **What happened**: A subitem is created under the selected Team in the LADT tree — it shows briefly in the tree, then disappears
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Two problems: (1) same level-mismatch pattern as SP-007 — action fires one level below the grid; (2) the phantom node appearing then disappearing suggests the create call succeeds optimistically then gets rolled back / filtered out because Teams have no valid child type. Needs investigation alongside SP-007 fix.
+- **Status**: Fixed
+- **Note**: Resolved by SP-007 fix in `onGridAdd()`. Phantom no longer lands at level 4 under a team; now correctly creates a sibling team at level 3.
 
 ### SP-009: Rename `A` chevron to `AG` for consistency with AG SET / AG-level terminology
+- **Status**: Complete (handled in other session)
 - **Refs**: PL-018 (AG SET pill uses "AG" for Age Group)
 - **Area**: Tree Navigation / row actions
 - **What I did**: Noticed the drill/chevron navigation badges use single letters `A`, `D`, `T` for Age Group / Division / Team

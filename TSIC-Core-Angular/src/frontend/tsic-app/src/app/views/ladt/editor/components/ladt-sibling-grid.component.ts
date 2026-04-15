@@ -74,7 +74,7 @@ export interface ParentBreadcrumb {
                 @if (level === 2) {
                   <span class="drill-badge drill-up" title="Navigate up to Age Group"
                         (click)="navigateTo.emit(data['_parentAgId']); $event.stopPropagation()">
-                    <i class="bi bi-arrow-up-short"></i>A
+                    <i class="bi bi-arrow-up-short"></i>Ag
                   </span>
                 }
                 @if (level === 3) {
@@ -86,7 +86,7 @@ export interface ParentBreadcrumb {
                 @if (level === 0 && (data['agegroupCount'] ?? 0) > 0) {
                   <span class="drill-badge" title="Navigate down to {{ data['agegroupCount'] }} Age Groups"
                         (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
-                    A<i class="bi bi-arrow-down-short"></i>{{ data['agegroupCount'] }}
+                    Ag<i class="bi bi-arrow-down-short"></i>{{ data['agegroupCount'] }}
                   </span>
                 }
                 @if (level === 1 && (data['divisionCount'] ?? 0) > 0) {
@@ -220,8 +220,9 @@ export interface ParentBreadcrumb {
       overflow: auto;
     }
 
-    :host ::ng-deep .e-grid .e-headercell {
-      font-size: var(--font-size-xs);
+    :host ::ng-deep .e-grid .e-headercell,
+    :host ::ng-deep .e-grid .e-headercelldiv {
+      font-size: var(--font-size-xs) !important;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.02em;
@@ -230,7 +231,7 @@ export interface ParentBreadcrumb {
     }
 
     :host ::ng-deep .e-grid .e-rowcell {
-      font-size: 0.82rem;
+      font-size: var(--font-size-xs) !important;
       padding: var(--space-1) var(--space-2);
     }
 
@@ -541,7 +542,7 @@ export class LadtSiblingGridComponent implements OnChanges {
   // ── Helpers ──
 
   parseWidth(width: string | undefined): number {
-    return parseInt(width ?? '120', 10);
+    return parseInt(width ?? '90', 10);
   }
 
   getTextAlign(col: LadtColumnDef): string {

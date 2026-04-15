@@ -797,10 +797,30 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   }
 
   onDetailDeleted(): void {
+    const deleted = this.selectedNode();
     this.closeDetail();
-    this.selectedNode.set(null);
-    this.siblingData.set([]);
-    this.loadTree();
+
+    if (!deleted) return;
+
+    // Local removal — no endpoint refresh. Keeps the right-side grid mounted
+    // on the deleted item's level by selecting the parent node.
+    this.flatNodes.update(nodes => nodes.filter(n => n.id !== deleted.id));
+
+    const idField = this.siblingIdField();
+    if (idField) {
+      this.siblingData.update(rows => rows.filter((r: any) => r[idField] !== deleted.id));
+    }
+
+    // Point selectedNode at a remaining sibling so the grid stays mounted
+    // at the correct level with its existing columns. Falls back to null
+    // (empty state) when the deleted item was the last sibling.
+    const remainingSiblingId = this.siblingIdField()
+      ? (this.siblingData()[0] as any)?.[this.siblingIdField()] ?? null
+      : null;
+    const siblingNode = remainingSiblingId
+      ? this.flatNodes().find(n => n.id === remainingSiblingId) ?? null
+      : null;
+    this.selectedNode.set(siblingNode);
   }
 
 
@@ -859,7 +879,11 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   onGridAdd(): void {
     const selected = this.selectedNode();
     if (!selected) return;
-    this.startAdd(selected.id);
+    // The grid shows siblings of `selected`. Adding from the grid header
+    // should create another sibling at the same level — so the phantom's
+    // parent is the selected node's parent, not the selected node itself.
+    if (!selected.parentId) return;
+    this.startAdd(selected.parentId);
   }
 
   // ── Mobile ──
