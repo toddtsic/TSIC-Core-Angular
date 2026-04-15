@@ -522,3 +522,42 @@ Use these as a guide for what to walk through. You don't have to go in order.
   6. **Separator rule between top-level Leagues** — thin divider between League blocks cleans up mental grouping on jobs with many leagues.
   Recommendation going in: **#2 + #3 + #6**. Avoid full-row zebra on a tree — maintenance headache once nodes expand/collapse mid-list.
 
+### SP-018: Clone Team — fees not copied to the cloned team; add Clone button to Teams table header
+- **Area**: Team Settings / Clone Team
+- **What I did**: Cloned a team from the existing Clone Team action, then opened the clone to review its settings
+- **What I expected**: Clone to be a full copy of the source team — every configured feature carried over, including the team's fees
+- **What happened**: Fees did not populate on the cloned team; other features should also be audited to confirm parity with the source
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Two-part ask:
+  1. **Fix**: Clone Team must copy all team-level features from the original, including fees. Audit every feature/relationship attached to a team and confirm each is cloned (fees, age group linkage, roster caps, contacts, etc.) — fees is the known miss but the pattern suggests others may be incomplete.
+  2. **UX**: Add a second Clone Team button placement next to the "Add New Team" button in the upper-right of the Teams table (keep the existing row-level clone too). Goal is to make job creation fast — surfacing Clone Team at the table header turns it into a first-class "new team" path rather than a buried row action.
+
+### SP-019: Team Details fly-in — compress content so Save is visible without scrolling
+- **Area**: Team Settings / fly-in layout
+- **What I did**: Opened the Team Details fly-in and tried to save edits
+- **What I expected**: All team info plus the Save button to fit in a single viewport — no scroll required to reach Save
+- **What happened**: Fly-in content is tall enough that Save sits below the fold; user has to scroll to commit changes
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Compress the Team Details fly-in layout — tighter vertical spacing, collapse/group rarely-edited sections, or reflow into two columns where the fly-in is wide enough — so the full form + Save action fits in one screen. Pair with a sticky footer holding Save/Cancel if full compression isn't achievable.
+
+### SP-020: LADT fly-ins — auto-close on Save and reflect changes immediately in the table
+- **Area**: LADT (all fly-ins: Team, Age Group, Division, League, etc.)
+- **What I did**: Clicked Save on an LADT fly-in after editing
+- **What I expected**: Fly-in closes automatically on successful save and the underlying table/tree refreshes in place so the edit is visible right away
+- **What happened**: Fly-in stays open after Save — user has to click the "x" to dismiss it, and it's not obvious the table reflects the change until the fly-in is closed
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Apply to **every LADT fly-in** (Team, Age Group, Division, League, any others). On successful Save: close the fly-in and ensure the parent table/tree shows the updated row without a manual refresh. Keep the "x" for explicit cancel/close, but Save should be a one-click commit-and-dismiss. Confirm error paths still keep the fly-in open with validation messaging.
+
+### SP-021: Add Clone AgeGroup function (mirror of Clone Team)
+- **Refs**: SP-018 (Clone Team fee-copy fix — AgeGroup clone should land with that lesson applied)
+- **Area**: Age Group Settings / LADT
+- **What I did**: Asked whether cloning an age group end-to-end is feasible given Clone Team already exists
+- **What I expected**: A Clone AgeGroup action that copies the age group plus all its nested children (divisions, teams, fees, and any other configured features) as one operation
+- **What happened**: No Clone AgeGroup exists today — only Clone Team
+- **Severity**: Feature
+- **Status**: Open
+- **Note**: Mirror the Clone Team stack — `LadtService.CloneTeamAsync` / `LadtController` / `CloneTeamRequest` DTO / `ladt.service.ts` / `team-detail.component.ts` — for age groups. Clone must deep-copy: the age group record, all divisions under it, all teams under those divisions, and **all fees** (apply the SP-018 audit up front so AgeGroup clone ships with full feature parity rather than repeating the fees miss). Surface entry points symmetric with Clone Team: row-level clone on the AgeGroup row plus a "Clone AgeGroup" button in the AgeGroup table header area, so job creation stays fast. Confirm naming/suffix convention with Todd (e.g., "(Copy)") and whether cloned teams should start Active or Inactive.
+
