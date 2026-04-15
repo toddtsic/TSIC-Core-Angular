@@ -177,6 +177,7 @@ export interface LadtSelectionEvent {
       text-transform: uppercase; letter-spacing: 0.5px;
     }
     .tree-col-header { min-width: 24px; text-align: center; }
+    .tree-col-header:first-child { text-align: right; }
 
     .tree-container { overflow-x: hidden; }
     .tree-node {

@@ -219,6 +219,9 @@ export interface CadtSelectionEvent {
       min-width: 24px;
       text-align: center;
     }
+    .tree-col-header:first-child {
+      text-align: right;
+    }
 
     .tree-container {
       overflow-x: hidden;

@@ -56,58 +56,20 @@ export interface ParentBreadcrumb {
 
       <e-columns>
         <!-- Action column (always first, frozen) -->
-        <e-column headerText="" [width]="actionColWidth()" textAlign="Left"
+        <e-column headerText=""
+                  [width]="actionColWidth()" [minWidth]="actionColWidth()" [maxWidth]="actionColWidth()"
+                  textAlign="Left"
                   [allowSorting]="false" [allowResizing]="false">
           <ng-template #template let-data>
             <button class="btn-action btn-edit" title="Edit"
                     (click)="editRow.emit(data[idField]); $event.stopPropagation()">
               <i class="bi bi-pencil"></i>
             </button>
-            @if (canDeleteFn(data)) {
-              <button class="btn-action btn-del" title="Delete"
-                      (click)="deleteRow.emit(data[idField]); $event.stopPropagation()">
-                <i class="bi bi-trash"></i>
+            @if (hasMenuItems(data)) {
+              <button class="btn-action btn-menu" title="More actions"
+                      (click)="openMenu($event, data); $event.stopPropagation()">
+                <i class="bi bi-three-dots-vertical"></i>
               </button>
-            }
-            @if (level === 3 && !data['_isSpecial']) {
-              <button class="btn-action btn-clone" title="Clone team"
-                      (click)="cloneRow.emit(data); $event.stopPropagation()">
-                <i class="bi bi-copy"></i>
-              </button>
-            }
-            @if (!data['_isSpecial']) {
-              <span class="nav-badges">
-                @if (level === 2) {
-                  <span class="drill-badge drill-up" title="Navigate up to Age Group"
-                        (click)="navigateTo.emit(data['_parentAgId']); $event.stopPropagation()">
-                    <i class="bi bi-arrow-up-short"></i>Ag
-                  </span>
-                }
-                @if (level === 3) {
-                  <span class="drill-badge drill-up" title="Navigate up to Division"
-                        (click)="navigateTo.emit(data['_parentDivId']); $event.stopPropagation()">
-                    <i class="bi bi-arrow-up-short"></i>D
-                  </span>
-                }
-                @if (level === 0 && (data['agegroupCount'] ?? 0) > 0) {
-                  <span class="drill-badge" title="Navigate down to {{ data['agegroupCount'] }} Age Groups"
-                        (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
-                    Ag<i class="bi bi-arrow-down-short"></i>{{ data['agegroupCount'] }}
-                  </span>
-                }
-                @if (level === 1 && (data['divisionCount'] ?? 0) > 0) {
-                  <span class="drill-badge" title="Navigate down to {{ data['divisionCount'] }} Divisions"
-                        (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
-                    D<i class="bi bi-arrow-down-short"></i>{{ data['divisionCount'] }}
-                  </span>
-                }
-                @if (level === 2 && (data['teamCount'] ?? 0) > 0) {
-                  <span class="drill-badge" title="Navigate down to {{ data['teamCount'] }} Teams"
-                        (click)="drillDown.emit(data[idField]); $event.stopPropagation()">
-                    T<i class="bi bi-arrow-down-short"></i>{{ data['teamCount'] }}
-                  </span>
-                }
-              </span>
             }
           </ng-template>
         </e-column>
@@ -190,6 +152,32 @@ export interface ParentBreadcrumb {
         }
       </e-columns>
     </ejs-grid>
+
+    @if (menuRow(); as mr) {
+      <div class="menu-backdrop" (click)="closeMenu()"></div>
+      <div class="row-menu" [style.top.px]="menuTop()" [style.left.px]="menuLeft()">
+        @if (parentNavTarget(mr)) {
+          <button type="button" class="menu-item" (click)="menuNavUp()">
+            <i class="bi bi-arrow-up-short me-2"></i>{{ parentNavLabel() }}
+          </button>
+        }
+        @if (drillDownCount(mr) > 0) {
+          <button type="button" class="menu-item" (click)="menuDrillDown()">
+            <i class="bi bi-arrow-down-short me-2"></i>{{ drillDownLabel(mr) }}
+          </button>
+        }
+        @if (level === 3) {
+          <button type="button" class="menu-item" (click)="menuClone()">
+            <i class="bi bi-copy me-2"></i>Clone team
+          </button>
+        }
+        @if (canDeleteFn(mr)) {
+          <button type="button" class="menu-item menu-item-danger" (click)="menuDelete()">
+            <i class="bi bi-trash me-2"></i>Delete
+          </button>
+        }
+      </div>
+    }
   `,
   styles: [`
     :host {
@@ -239,6 +227,15 @@ export interface ParentBreadcrumb {
     :host ::ng-deep .e-grid .e-rowcell {
       font-size: var(--font-size-xs) !important;
       padding: var(--space-1) var(--space-2);
+    }
+
+    /* Compact padding on the first (action) cell — Syncfusion's default 12px
+       horizontal padding blows the action col out to ~112px regardless of
+       the declared [width] value. */
+    :host ::ng-deep .e-grid .e-rowcell:first-child,
+    :host ::ng-deep .e-grid .e-headercell:first-child {
+      padding-left: 4px !important;
+      padding-right: 4px !important;
     }
 
     /* Row states */
@@ -300,8 +297,35 @@ export interface ParentBreadcrumb {
       color: var(--bs-body-color);
     }
     .btn-edit:hover { color: var(--bs-info); }
-    .btn-del:hover { color: var(--bs-danger); }
-    .btn-clone:hover { color: var(--bs-primary); }
+    .btn-menu:hover { color: var(--bs-primary); }
+
+    /* ⋮ row-action menu (positioned fixed so it escapes e-rowcell clipping) */
+    .menu-backdrop {
+      position: fixed; inset: 0; z-index: 1055; background: transparent;
+    }
+    .row-menu {
+      position: fixed; z-index: 1056;
+      min-width: 160px;
+      background: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-md);
+      padding: var(--space-1) 0;
+    }
+    .menu-item {
+      display: flex; align-items: center;
+      width: 100%;
+      padding: var(--space-1) var(--space-3);
+      border: none; background: transparent;
+      font-size: var(--font-size-xs);
+      color: var(--bs-body-color);
+      text-align: left; cursor: pointer;
+    }
+    .menu-item:hover {
+      background: var(--bs-tertiary-bg);
+    }
+    .menu-item-danger { color: var(--bs-danger); }
+    .menu-item-danger:hover { background: rgba(var(--bs-danger-rgb), 0.08); }
 
     .drill-badge {
       display: inline-flex;
@@ -473,9 +497,82 @@ export class LadtSiblingGridComponent implements OnChanges {
   // Frozen column count (action col + frozen data cols)
   frozenCount = computed(() => countFrozenColumns(this.columns));
 
-  // Uniform action column width — fits pencil + drill badge for up to 3-digit counts
+  // Uniform action column width — fits pencil + ⋮ menu (nav badges moved into menu)
   actionColWidth(): number {
-    return this.level === 3 ? 140 : 110;
+    return 64;
+  }
+
+  // ── Row action menu (⋮) ──
+  menuRow = signal<any | null>(null);
+  menuTop = signal(0);
+  menuLeft = signal(0);
+
+  hasMenuItems(row: any): boolean {
+    return !row?._isSpecial;
+  }
+
+  // ── Nav helpers (used by menu items) ──
+  parentNavTarget(row: any): string | null {
+    if (this.level === 2) return row?.['_parentAgId'] ?? null;
+    if (this.level === 3) return row?.['_parentDivId'] ?? null;
+    return null;
+  }
+  parentNavLabel(): string {
+    if (this.level === 2) return 'Go up to Age Group';
+    if (this.level === 3) return 'Go up to Division';
+    return '';
+  }
+  drillDownCount(row: any): number {
+    if (this.level === 0) return row?.['agegroupCount'] ?? 0;
+    if (this.level === 1) return row?.['divisionCount'] ?? 0;
+    if (this.level === 2) return row?.['teamCount'] ?? 0;
+    return 0;
+  }
+  drillDownLabel(row: any): string {
+    const n = this.drillDownCount(row);
+    if (this.level === 0) return `Drill into ${n} Age Group${n === 1 ? '' : 's'}`;
+    if (this.level === 1) return `Drill into ${n} Division${n === 1 ? '' : 's'}`;
+    if (this.level === 2) return `Drill into ${n} Team${n === 1 ? '' : 's'}`;
+    return '';
+  }
+
+  menuNavUp(): void {
+    const row = this.menuRow();
+    const target = row ? this.parentNavTarget(row) : null;
+    if (target) this.navigateTo.emit(target);
+    this.closeMenu();
+  }
+
+  menuDrillDown(): void {
+    const row = this.menuRow();
+    if (row) this.drillDown.emit(row[this.idField]);
+    this.closeMenu();
+  }
+
+  openMenu(event: MouseEvent, row: any): void {
+    const btn = event.currentTarget as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    // Position menu just below-right of the button; fixed positioning so it
+    // escapes Syncfusion's .e-rowcell overflow:hidden clipping.
+    this.menuTop.set(rect.bottom + 2);
+    this.menuLeft.set(rect.left);
+    this.menuRow.set(row);
+  }
+
+  closeMenu(): void {
+    this.menuRow.set(null);
+  }
+
+  menuDelete(): void {
+    const row = this.menuRow();
+    if (row) this.deleteRow.emit(row[this.idField]);
+    this.closeMenu();
+  }
+
+  menuClone(): void {
+    const row = this.menuRow();
+    if (row) this.cloneRow.emit(row);
+    this.closeMenu();
   }
 
   sortedData = computed(() => {
