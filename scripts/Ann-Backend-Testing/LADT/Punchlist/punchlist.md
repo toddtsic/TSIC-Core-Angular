@@ -507,8 +507,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: "Players" count in the LADT tree to reflect only player registrations, matching Legacy
 - **What happened**: New count is inflated by ~272 because every active registration assigned to a team is counted regardless of role
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Root cause in `TeamRepository.GetPlayerCountsByTeamAsync` (TeamRepository.cs:443-448) — `.Where(r => r.JobId == jobId && r.BActive == true && r.AssignedTeamId != null)` has no role filter, so Coaches / Managers / ClubReps / Staff with `AssignedTeamId` are all summed into the "Players" total. Fix: add a role filter to restrict to player role(s) only (confirm with Todd which RoleId value(s) qualify — likely the player role constant used elsewhere). Audit any other places that use this method to make sure the new filter matches their intent.
+- **Status**: Fixed
+- **Note**: Added `&& r.RoleId == RoleConstants.Player` to `TeamRepository.GetPlayerCountsByTeamAsync`. Only caller is `LadtService.GetLadtTreeAsync` (two call sites) — both want player-only counts per method name, so constraining the method is safe.
 
 ### SP-017: LADT Tree styling pass — improve scannability and hierarchy cues
 - **Area**: Tree Navigation
@@ -516,7 +516,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clearer hierarchy cues and easier row scanning without adding chrome noise
 - **What happened**: Tree looks a bit flat — long sibling lists are hard to scan and the selected/current node isn't strongly distinguished
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Complete
+- **Resolution**: Audit found LADT tree is visually solid post-SP-006 (hover, selected tint, per-level icon colors, inactive strikethrough, count badges all present). CADT tree is a checkbox-filter pattern — different UX, leave as-is. Candidate treatments deemed polish, not must-have.
 - **Note**: Candidate treatments to evaluate (pick a subset):
   1. **Subtle zebra striping** — alternating row backgrounds for quick scanning. On a tree this can look noisy; if used, scope the stripe to siblings within the same parent (restart zebra at each branch) rather than across the flattened list.
   2. **Depth-tint indentation gutter** — tint only the left gutter of each row slightly deeper per level. Anchors the eye to hierarchy without fighting icons/badges.

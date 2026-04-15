@@ -442,7 +442,10 @@ public class TeamRepository : ITeamRepository
     {
         return await _context.Registrations
             .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.BActive == true && r.AssignedTeamId != null)
+            .Where(r => r.JobId == jobId
+                     && r.BActive == true
+                     && r.AssignedTeamId != null
+                     && r.RoleId == RoleConstants.Player)
             .GroupBy(r => r.AssignedTeamId!.Value)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);

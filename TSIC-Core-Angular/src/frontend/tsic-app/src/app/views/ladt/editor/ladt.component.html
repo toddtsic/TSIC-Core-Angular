@@ -52,11 +52,17 @@
     </div>
 
     <div class="tree-toolbar">
-      <button class="btn btn-sm btn-outline-secondary" (click)="expandAll()" title="Expand all">
-        <i class="bi bi-arrows-expand"></i>
+      <button class="btn btn-sm btn-outline-secondary text-nowrap" (click)="expandAll()"
+              [disabled]="isTreeBusy()" title="Expand all">
+        @if (isTreeBusy()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+        } @else {
+          <i class="bi bi-plus-square me-1"></i>
+        }
+        Expand
       </button>
-      <button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()" title="Collapse all">
-        <i class="bi bi-arrows-collapse"></i>
+      <button class="btn btn-sm btn-outline-secondary text-nowrap" (click)="collapseAll()" title="Collapse all">
+        <i class="bi bi-dash-square me-1"></i>Collapse
       </button>
       <button class="btn btn-sm btn-outline-secondary ms-auto" (click)="loadTree()" title="Refresh"
               [disabled]="isLoading()">

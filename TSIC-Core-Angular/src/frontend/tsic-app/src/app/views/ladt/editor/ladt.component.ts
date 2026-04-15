@@ -60,6 +60,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   // ── State ──
   isLoading = signal(false);
+  isTreeBusy = signal(false);
   errorMessage = signal<string | null>(null);
   totalTeams = signal(0);
   totalPlayers = signal(0);
@@ -344,11 +345,17 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   }
 
   expandAll(): void {
-    const next = new Set<string>();
-    for (const n of this.flatNodes()) {
-      if (n.expandable) next.add(n.id);
-    }
-    this.expandedIds.set(next);
+    this.isTreeBusy.set(true);
+    // Yield to the browser so the spinner paints before the expensive expansion
+    // re-renders the tree. Double-rAF gives the paint a full frame.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const next = new Set<string>();
+      for (const n of this.flatNodes()) {
+        if (n.expandable) next.add(n.id);
+      }
+      this.expandedIds.set(next);
+      this.isTreeBusy.set(false);
+    }));
   }
 
   collapseAll(): void {
