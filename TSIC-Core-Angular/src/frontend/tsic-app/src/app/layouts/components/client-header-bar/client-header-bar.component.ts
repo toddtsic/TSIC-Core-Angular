@@ -89,14 +89,11 @@ export class ClientHeaderBarComponent {
 
         if (role === Roles.ClubRep) {
             items.push({ icon: 'bi-person-gear', label: 'Edit Profile', route: 'account/club-rep' });
-
-            const canEditTeamReg = pulse.teamRegistrationOpen
-                && (pulse.clubRepAllowAdd || pulse.clubRepAllowEdit || pulse.clubRepAllowDelete);
-            if (canEditTeamReg) {
-                items.push({ icon: 'bi-pencil-square', label: 'Team Registration', route: 'registration/team?step=teams' });
-            }
+            // Team Registration is the ClubRep's workspace — always linked; the wizard
+            // itself gates add/edit/delete on clubRepAllow* caps.
+            items.push({ icon: 'bi-pencil-square', label: 'Team Registration', route: 'registration/team?step=teams' });
             if ((pulse.myClubRepTotalOwed ?? 0) > 0) {
-                items.push({ icon: 'bi-cash-stack', label: 'Pay Team Balance', route: 'registration/team?step=payment' });
+                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/team?step=payment' });
             }
             if ((pulse.myClubRepTeamCount ?? 0) > 0) {
                 items.push({ icon: 'bi-people', label: 'Club Rosters', route: 'rosters/club' });
@@ -109,7 +106,7 @@ export class ClientHeaderBarComponent {
                 items.push({ icon: 'bi-person-badge', label: 'My Registration', route: 'registration/player?step=players' });
             }
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0) {
-                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance', route: 'registration/player?step=payment' });
+                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/player?step=payment' });
             }
             if (pulse.allowRosterViewPlayer && pulse.myAssignedTeamId) {
                 items.push({ icon: 'bi-people', label: 'View Roster', route: 'rosters/view-rosters' });
@@ -120,7 +117,7 @@ export class ClientHeaderBarComponent {
         } else if (role === Roles.Staff) {
             items.push({ icon: 'bi-person-gear', label: 'My Registration', route: 'registration/adult?step=profile' });
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0) {
-                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance', route: 'registration/adult?step=payment' });
+                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/adult?step=payment' });
             }
             if (pulse.allowRosterViewAdult && pulse.myAssignedTeamId) {
                 items.push({ icon: 'bi-people', label: 'View Roster', route: 'rosters/view-rosters' });
