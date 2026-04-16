@@ -22,6 +22,7 @@ public record JobPulseDto
     public required bool StoreEnabled { get; init; }
     public required bool StoreHasActiveItems { get; init; }
     public required bool AllowStoreWalkup { get; init; }
+    public required bool EnableStayToPlay { get; init; }
     public required bool SchedulePublished { get; init; }
     public required bool PlayerRegistrationPlanned { get; init; }
     public required bool AdultRegistrationPlanned { get; init; }

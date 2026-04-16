@@ -655,6 +655,7 @@ export class BulletinFormModalComponent implements OnInit {
             storeEnabled: partial.storeEnabled ?? true,
             storeHasActiveItems: partial.storeHasActiveItems ?? true,
             allowStoreWalkup: partial.allowStoreWalkup ?? true,
+            enableStayToPlay: partial.enableStayToPlay ?? true,
             schedulePublished: partial.schedulePublished ?? true,
             playerRegistrationPlanned: partial.playerRegistrationPlanned ?? true,
             adultRegistrationPlanned: partial.adultRegistrationPlanned ?? true,

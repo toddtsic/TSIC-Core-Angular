@@ -436,6 +436,7 @@ public class JobRepository : IJobRepository
                     && _context.Stores.Any(s => s.JobId == j.JobId
                         && _context.StoreItems.Any(si => si.StoreId == s.StoreId && si.Active)),
                 AllowStoreWalkup = j.BAllowStoreWalkup,
+                EnableStayToPlay = j.BenableStp == true,
                 SchedulePublished = j.BScheduleAllowPublicAccess == true,
                 PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
                     && j.BRegistrationAllowPlayer != true,

@@ -17,6 +17,7 @@ export type JobPulseDto = {
     storeEnabled: boolean;
     storeHasActiveItems: boolean;
     allowStoreWalkup: boolean;
+    enableStayToPlay: boolean;
     schedulePublished: boolean;
     playerRegistrationPlanned: boolean;
     adultRegistrationPlanned: boolean;

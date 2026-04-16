@@ -134,8 +134,7 @@ export class ClientHeaderBarComponent {
             if (pulse.storeEnabled && pulse.storeHasActiveItems) {
                 items.push({ icon: 'bi-cart', label: 'Store', route: 'store' });
             }
-            // Stub: StayToPlay integrates here once allowStoreWalkup gates it.
-            if (pulse.allowStoreWalkup) {
+            if (pulse.enableStayToPlay) {
                 items.push({ icon: 'bi-building-check', label: 'Stay-to-Play', route: 'store' });
             }
         }

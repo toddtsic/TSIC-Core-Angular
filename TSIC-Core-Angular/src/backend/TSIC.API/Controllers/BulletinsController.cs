@@ -131,6 +131,7 @@ public class BulletinsController : ControllerBase
                 StoreEnabled = true,
                 StoreHasActiveItems = true,
                 AllowStoreWalkup = true,
+                EnableStayToPlay = true,
                 SchedulePublished = true,
                 PlayerRegistrationPlanned = true,
                 AdultRegistrationPlanned = true,
