@@ -94,4 +94,48 @@ public class ClubRepsController : ControllerBase
             });
         }
     }
+
+    [Authorize]
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(ClubRepProfileDto), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> GetMyProfile()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        var profile = await _clubService.GetSelfProfileAsync(userId);
+        if (profile == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(profile);
+    }
+
+    [Authorize]
+    [HttpPut("me")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] ClubRepProfileUpdateRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        var success = await _clubService.UpdateSelfProfileAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new { Message = "Failed to update profile" });
+        }
+
+        return NoContent();
+    }
 }
