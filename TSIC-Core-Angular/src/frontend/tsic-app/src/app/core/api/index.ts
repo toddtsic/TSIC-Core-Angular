@@ -140,6 +140,8 @@ export type { ClubOperationResultDto } from './models/ClubOperationResultDto';
 export type { ClubRegistrationDto } from './models/ClubRegistrationDto';
 export type { ClubRepAccountingDto } from './models/ClubRepAccountingDto';
 export type { ClubRepClubDto } from './models/ClubRepClubDto';
+export type { ClubRepProfileDto } from './models/ClubRepProfileDto';
+export type { ClubRepProfileUpdateRequest } from './models/ClubRepProfileUpdateRequest';
 export type { ClubRepRegistrationRequest } from './models/ClubRepRegistrationRequest';
 export type { ClubRepRegistrationResponse } from './models/ClubRepRegistrationResponse';
 export type { ClubRosterMutationResultDto } from './models/ClubRosterMutationResultDto';

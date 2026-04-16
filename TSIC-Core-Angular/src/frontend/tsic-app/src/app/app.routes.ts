@@ -459,6 +459,14 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/rosters/my-roster/my-roster.component').then(m => m.MyRosterComponent),
 				title: 'Team Roster'
 			},
+			// Post-registration account actions — surfaced from the user-dropdown.
+			{
+				path: 'account/club-rep',
+				canActivate: [authGuard],
+				data: { requireClubRep: true },
+				loadComponent: () => import('./views/account/club-rep-profile/club-rep-profile.component').then(m => m.ClubRepProfileComponent),
+				title: 'Edit Profile'
+			},
 			// Back-compat redirects for legacy paths (bulletins, bookmarks, external links)
 			{ path: 'rosters', redirectTo: 'rosters/public', pathMatch: 'full' },
 			{ path: 'club-rosters', redirectTo: 'rosters/club', pathMatch: 'full' },

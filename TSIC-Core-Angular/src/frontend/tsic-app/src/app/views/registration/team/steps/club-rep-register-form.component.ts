@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, output, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, OnInit, output, signal, computed } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError } from 'rxjs/operators';
@@ -9,7 +9,7 @@ import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptan
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
-import type { ClubRepRegistrationRequest, ClubSearchResult } from '@core/api';
+import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubSearchResult } from '@core/api';
 
 /**
  * Club decision state:
@@ -196,7 +196,13 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-shield-plus me-2"></i>Create Club Rep Account</h5>
+          <h5 class="modal-title">
+            @if (isEdit()) {
+              <i class="bi bi-person-gear me-2"></i>Edit Profile
+            } @else {
+              <i class="bi bi-shield-plus me-2"></i>Create Club Rep Account
+            }
+          </h5>
           <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
@@ -216,6 +222,7 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
           } @else {
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
+              @if (!isEdit()) {
               <!-- ═══ CLUB NAME INPUT ═══ -->
               <div class="mb-2">
                 <label class="form-label fw-medium small mb-1">Club Name</label>
@@ -398,6 +405,7 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
               </div>
 
               <hr class="form-divider my-2">
+              }
 
               <!-- ═══ PERSONAL INFO ═══ -->
               <div class="row g-2 mb-2">
@@ -466,11 +474,16 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
               }
 
               <button type="submit" class="btn btn-primary w-100 fw-semibold mt-3"
-                      [disabled]="saving() || !canSubmit()">
+                      [disabled]="saving() || (!isEdit() && !canSubmit())">
                 @if (saving()) {
-                  <span class="spinner-border spinner-border-sm me-1"></span>Creating...
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                  @if (isEdit()) { Saving... } @else { Creating... }
                 } @else {
-                  <i class="bi bi-person-plus-fill me-1"></i>Create Account
+                  @if (isEdit()) {
+                    <i class="bi bi-check-lg me-1"></i>Save Changes
+                  } @else {
+                    <i class="bi bi-person-plus-fill me-1"></i>Create Account
+                  }
                 }
               </button>
             </form>
@@ -481,9 +494,17 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ClubRepRegisterFormComponent {
+export class ClubRepRegisterFormComponent implements OnInit {
+    /** 'create' = self-register a new ClubRep (default). 'edit' = update current profile. */
+    readonly mode = input<'create' | 'edit'>('create');
+    /** Existing profile data to prefill in edit mode. */
+    readonly existing = input<ClubRepProfileDto | null>(null);
+
     readonly registered = output<{ username: string; password: string }>();
+    readonly saved = output<void>();
     readonly closed = output<void>();
+
+    readonly isEdit = computed(() => this.mode() === 'edit');
 
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
@@ -590,6 +611,34 @@ export class ClubRepRegisterFormComponent {
         });
     }
 
+    ngOnInit(): void {
+        if (!this.isEdit()) return;
+
+        // Edit mode: disable the creation-only fields (they're excluded from form.value
+        // and from form.invalid when disabled) and prefill the profile fields.
+        this.form.controls.clubName.disable();
+        this.form.controls.username.disable();
+        this.form.controls.password.disable();
+        this.form.controls.confirmPassword.disable();
+
+        // canSubmit() gates on clubDecision; 'clear' skips the club-search gate entirely.
+        this.clubDecision.set('clear');
+
+        const data = this.existing();
+        if (data) {
+            this.form.patchValue({
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                cellphone: data.cellphone,
+                streetAddress: data.streetAddress,
+                city: data.city,
+                state: data.state,
+                postalCode: data.postalCode,
+            });
+        }
+    }
+
     /** Pre-fill a mailto body to make contacting the rep as easy as possible */
     getEmailBody(club: ClubSearchResult): string {
         return `Hi${club.repName ? ' ' + club.repName : ''},\n\n`
@@ -625,6 +674,12 @@ export class ClubRepRegisterFormComponent {
 
     onSubmit(): void {
         this.submitted.set(true);
+        if (this.isEdit()) {
+            if (this.form.invalid) return;
+            this.submitEdit();
+            return;
+        }
+
         if (this.form.invalid || !this.canSubmit() || this.passwordMismatch()) return;
 
         this.saving.set(true);
@@ -669,6 +724,38 @@ export class ClubRepRegisterFormComponent {
                     this.saving.set(false);
                     const httpErr = err as { error?: { message?: string } };
                     this.errorMsg.set(httpErr?.error?.message || 'Request failed.');
+                },
+            });
+    }
+
+    private submitEdit(): void {
+        this.saving.set(true);
+        this.errorMsg.set(null);
+
+        const v = this.form.getRawValue();
+        const request: ClubRepProfileUpdateRequest = {
+            firstName: (v.firstName ?? '').trim(),
+            lastName: (v.lastName ?? '').trim(),
+            email: (v.email ?? '').trim(),
+            cellphone: (v.cellphone ?? '').trim(),
+            streetAddress: (v.streetAddress ?? '').trim(),
+            city: (v.city ?? '').trim(),
+            state: v.state ?? '',
+            postalCode: (v.postalCode ?? '').trim(),
+        };
+
+        this.clubService.updateSelfProfile(request)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.saving.set(false);
+                    this.toast.show('Profile updated.', 'success', 2500);
+                    this.saved.emit();
+                },
+                error: (err: unknown) => {
+                    this.saving.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.errorMsg.set(httpErr?.error?.message || 'Update failed.');
                 },
             });
     }

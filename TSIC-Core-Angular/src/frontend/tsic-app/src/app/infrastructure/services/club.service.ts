@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse } from '@core/api';
+import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse, ClubRepProfileDto, ClubRepProfileUpdateRequest } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -38,5 +38,19 @@ export class ClubService {
         if (state) params['state'] = state;
 
         return this.http.get<ClubSearchResult[]>(`${this.clubsApiUrl}/search`, { params });
+    }
+
+    /**
+     * Read the authenticated user's profile fields (for the ClubRep profile edit page).
+     */
+    getSelfProfile(): Observable<ClubRepProfileDto> {
+        return this.http.get<ClubRepProfileDto>(`${this.clubRepsApiUrl}/me`);
+    }
+
+    /**
+     * Update the authenticated user's profile fields.
+     */
+    updateSelfProfile(request: ClubRepProfileUpdateRequest): Observable<void> {
+        return this.http.put<void>(`${this.clubRepsApiUrl}/me`, request);
     }
 }
