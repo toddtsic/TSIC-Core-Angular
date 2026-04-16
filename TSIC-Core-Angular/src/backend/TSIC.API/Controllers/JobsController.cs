@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -251,11 +252,32 @@ public class JobsController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("{jobPath}/pulse")]
-    public async Task<ActionResult<JobPulseDto>> GetJobPulse(string jobPath)
+    public async Task<ActionResult<JobPulseDto>> GetJobPulse(string jobPath, CancellationToken ct)
     {
-        var pulse = await _jobRepository.GetJobPulseAsync(jobPath);
+        var pulse = await _jobRepository.GetJobPulseAsync(jobPath, ct);
         if (pulse == null)
             return NotFound(new { message = $"Job not found: {jobPath}" });
+
+        // Overlay per-user context when JWT is scoped to this same job.
+        if (User.Identity?.IsAuthenticated == true
+            && string.Equals(User.GetJobPath(), jobPath, StringComparison.OrdinalIgnoreCase))
+        {
+            var regId = User.GetRegistrationId();
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (regId.HasValue && !string.IsNullOrEmpty(role))
+            {
+                var ctx = await _jobRepository.GetPulseUserContextAsync(regId.Value, role, ct);
+                pulse = pulse with
+                {
+                    MyAssignedTeamId = ctx.AssignedTeamId,
+                    MyRegistrationOwedTotal = ctx.RegistrationOwedTotal,
+                    MyHasPurchasedPlayerRegsaver = ctx.HasPurchasedPlayerRegsaver,
+                    MyClubRepTeamCount = ctx.ClubRepTeamCount,
+                    MyClubRepTotalOwed = ctx.ClubRepTotalOwed,
+                    MyClubRepHasTeamWithoutRegsaver = ctx.ClubRepHasTeamWithoutRegsaver
+                };
+            }
+        }
 
         return Ok(pulse);
     }

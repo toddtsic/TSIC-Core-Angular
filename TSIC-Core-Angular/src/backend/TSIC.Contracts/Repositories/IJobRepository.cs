@@ -221,6 +221,13 @@ public interface IJobRepository
     Task<Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Per-user, per-job overlay for the pulse: assigned team, owed total, regsaver
+    /// purchased; ClubRep aggregates across owned teams. Caller must have already
+    /// verified the regId belongs to the job in question (e.g. JWT jobPath matches).
+    /// </summary>
+    Task<Dtos.JobPulseUserContext> GetPulseUserContextAsync(Guid regId, string role, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Find the most recent prior-year sibling job (same CustomerId, JobTypeId, SportId, Season).
     /// Returns null if no prior-year sibling exists.
     /// </summary>

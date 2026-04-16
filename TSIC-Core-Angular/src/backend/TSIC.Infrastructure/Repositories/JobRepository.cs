@@ -427,6 +427,10 @@ public class JobRepository : IJobRepository
                 ClubRepAllowAdd = j.BClubRepAllowAdd == true,
                 ClubRepAllowEdit = j.BClubRepAllowEdit == true,
                 ClubRepAllowDelete = j.BClubRepAllowDelete == true,
+                AllowRosterViewPlayer = j.BAllowRosterViewPlayer == true,
+                AllowRosterViewAdult = j.BAllowRosterViewAdult == true,
+                OfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance == true,
+                OfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance == true,
                 StoreEnabled = j.BEnableStore == true,
                 StoreHasActiveItems = j.BEnableStore == true
                     && _context.Stores.Any(s => s.JobId == j.JobId
@@ -440,6 +444,44 @@ public class JobRepository : IJobRepository
                 RegistrationExpiry = j.ExpiryUsers
             })
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Contracts.Dtos.JobPulseUserContext> GetPulseUserContextAsync(
+        Guid regId, string role, CancellationToken cancellationToken = default)
+    {
+        if (string.Equals(role, "Club Rep", StringComparison.OrdinalIgnoreCase))
+        {
+            var teams = await _context.Teams
+                .AsNoTracking()
+                .Where(t => t.ClubrepRegistrationid == regId)
+                .Select(t => new { t.OwedTotal, t.ViPolicyId })
+                .ToListAsync(cancellationToken);
+
+            return new Contracts.Dtos.JobPulseUserContext
+            {
+                ClubRepTeamCount = teams.Count,
+                ClubRepTotalOwed = teams.Sum(t => t.OwedTotal ?? 0m),
+                ClubRepHasTeamWithoutRegsaver = teams.Any(t => t.ViPolicyId == null)
+            };
+        }
+
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == regId)
+            .Select(r => new { r.AssignedTeamId, r.OwedTotal, r.RegsaverPolicyId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (reg == null)
+        {
+            return new Contracts.Dtos.JobPulseUserContext();
+        }
+
+        return new Contracts.Dtos.JobPulseUserContext
+        {
+            AssignedTeamId = reg.AssignedTeamId,
+            RegistrationOwedTotal = reg.OwedTotal,
+            HasPurchasedPlayerRegsaver = reg.RegsaverPolicyId != null
+        };
     }
 
     public async Task<JobTeamCapabilities?> GetTeamCapabilitiesAsync(Guid jobId, CancellationToken cancellationToken = default)
