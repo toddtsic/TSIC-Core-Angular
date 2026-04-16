@@ -14,6 +14,12 @@ public interface IFamilyMemberRepository
     Task<List<string>> GetChildUserIdsAsync(string familyUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reverse lookup: given a child (Player) userId, find the parent family's userId.
+    /// Returns null if not linked to any family.
+    /// </summary>
+    Task<string?> GetParentFamilyUserIdAsync(string childUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add a new family member link (does NOT call SaveChanges).
     /// </summary>
     void Add(FamilyMembers familyMember);

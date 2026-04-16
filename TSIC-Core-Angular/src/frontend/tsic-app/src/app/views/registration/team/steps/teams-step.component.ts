@@ -931,20 +931,7 @@ export class TeamTeamsStepComponent implements OnInit {
                     this.lopOptions.set(meta.lopOptions || []);
                     this.showDepositColumns.set(!(meta.bTeamsFullPaymentRequired ?? false));
                     this.showProcessingColumn.set(meta.bAddProcessingFees ?? false);
-                    this.state.teamPayment.setTeams(meta.registeredTeams || []);
-                    this.state.teamPayment.setJobPath(this.state.jobPath());
-                    this.state.teamPayment.setPaymentConfig(
-                        meta.paymentMethodsAllowedCode,
-                        meta.bAddProcessingFees,
-                        meta.bApplyProcessingFeesToTeamDeposit,
-                        meta.payTo,
-                        meta.mailTo,
-                        meta.mailinPaymentWarning,
-                    );
-                    this.state.setHasActiveDiscountCodes(meta.hasActiveDiscountCodes);
-                    this.state.setFullPaymentRequired(meta.bTeamsFullPaymentRequired ?? true);
-                    this.state.setClubRepContact(meta.clubRepContactInfo ?? null);
-                    this.state.setRefundPolicyHtml(meta.playerRegRefundPolicy ?? null);
+                    this.state.applyTeamsMetadata(meta);
                 },
                 error: () => {
                     this.loading.set(false);

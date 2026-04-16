@@ -61,11 +61,18 @@ public class PlayerRegistrationController : ControllerBase
             return Unauthorized(new { message = "User not authenticated" });
         }
 
-        // Verify family account exists
-        var family = await _familyRepo.GetByFamilyUserIdAsync(userId);
-        if (family == null)
+        // Determine role to mint — preserve Player role, default to Family
+        var incomingRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var mintRole = incomingRole == "Player" ? "Player" : "Family";
+
+        if (mintRole != "Player")
         {
-            return BadRequest(new { message = "Family account not found. Please create a family account first." });
+            // Family flow — verify family account exists
+            var family = await _familyRepo.GetByFamilyUserIdAsync(userId);
+            if (family == null)
+            {
+                return BadRequest(new { message = "Family account not found. Please create a family account first." });
+            }
         }
 
         // Verify job exists
@@ -86,7 +93,7 @@ public class PlayerRegistrationController : ControllerBase
         }
 
         // Generate job-scoped token (jobPath + role, NO regId)
-        var token = _tokenService.GenerateJobScopedToken(user, request.JobPath, jobMetadata?.JobLogoPath, "Family");
+        var token = _tokenService.GenerateJobScopedToken(user, request.JobPath, jobMetadata?.JobLogoPath, mintRole);
 
         return Ok(new AuthTokenResponse
         {

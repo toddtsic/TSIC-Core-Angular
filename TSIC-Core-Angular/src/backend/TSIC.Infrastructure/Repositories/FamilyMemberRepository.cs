@@ -24,6 +24,15 @@ public class FamilyMemberRepository : IFamilyMemberRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<string?> GetParentFamilyUserIdAsync(string childUserId, CancellationToken cancellationToken = default)
+    {
+        return await _context.FamilyMembers
+            .AsNoTracking()
+            .Where(fm => fm.FamilyMemberUserId == childUserId)
+            .Select(fm => fm.FamilyUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public void Add(FamilyMembers familyMember)
     {
         _context.FamilyMembers.Add(familyMember);

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -63,6 +64,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
 export class PlayerWizardV2Component implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly toast = inject(ToastService);
     private readonly teamService = inject(TeamService);
     private readonly paySvc = inject(PaymentV2Service);
@@ -192,14 +194,23 @@ export class PlayerWizardV2Component implements OnInit {
             if (validRole && sameJob) {
                 this.state.initialize(jobPath);
                 this.teamService.loadForJob(jobPath);
+                // Skip family-check — already authenticated for this job
+                const playersIdx = this.activeSteps().findIndex(s => s.id === 'players');
+                if (playersIdx >= 0) this._currentIndex.set(playersIdx);
             }
         }
-        // Deep-link via query param
-        const stepParam = this.route.snapshot.queryParamMap.get('step');
-        if (stepParam) {
-            const idx = this.activeSteps().findIndex(s => s.id === stepParam);
-            if (idx >= 0) this._currentIndex.set(idx);
-        }
+        // Deep-link via query param (overrides skip above if specified).
+        // Subscribe (not snapshot) so role-menu clicks that differ only in ?step=
+        // while already on the wizard actually move to the requested step.
+        this.route.queryParamMap
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(params => {
+                const stepParam = params.get('step');
+                if (stepParam) {
+                    const idx = this.activeSteps().findIndex(s => s.id === stepParam);
+                    if (idx >= 0) this._currentIndex.set(idx);
+                }
+            });
     }
 
     // ── Navigation ────────────────────────────────────────────────────

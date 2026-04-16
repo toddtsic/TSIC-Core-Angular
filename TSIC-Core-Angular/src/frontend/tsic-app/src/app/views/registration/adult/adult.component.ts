@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { isValidAdultRegRoleKey } from '@infrastructure/services/adult-registration.service';
@@ -45,6 +46,7 @@ export class AdultWizardV2Component implements OnInit {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly auth = inject(AuthService);
+    private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(AdultWizardStateService);
 
     jobPath = '';
@@ -142,12 +144,17 @@ export class AdultWizardV2Component implements OnInit {
             }
         });
 
-        // Deep-link: ?step=<id>
-        const stepParam = this.route.snapshot.queryParamMap.get('step');
-        if (stepParam) {
-            const idx = this.activeSteps().findIndex(s => s.id === stepParam);
-            if (idx >= 0) this.currentIndex.set(idx);
-        }
+        // Deep-link: ?step=<id>. Subscribe (not snapshot) so role-menu clicks that
+        // differ only in ?step= while already on the wizard move to the new step.
+        this.route.queryParamMap
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(params => {
+                const stepParam = params.get('step');
+                if (stepParam) {
+                    const idx = this.activeSteps().findIndex(s => s.id === stepParam);
+                    if (idx >= 0) this.currentIndex.set(idx);
+                }
+            });
     }
 
     // ── Navigation ──────────────────────────────────────────────────

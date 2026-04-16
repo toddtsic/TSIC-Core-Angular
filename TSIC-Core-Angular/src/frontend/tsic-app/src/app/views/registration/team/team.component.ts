@@ -79,8 +79,11 @@ export class TeamWizardV2Component implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(TeamWizardStateService);
 
-    private readonly _currentIndex = signal(0);
-    readonly currentIndex = this._currentIndex.asReadonly();
+    // Step id, not index, is the source of truth. Index-based state breaks deep links
+    // when activeSteps changes shape after async metadata load (e.g. waivers coming
+    // online gated on hasRefundPolicy pushed every subsequent step up by one).
+    private readonly _currentStepId = signal<string>('login');
+    readonly currentStepId = this._currentStepId.asReadonly();
 
     // ── Step definitions ──────────────────────────────────────────────
     readonly steps = computed<WizardStepDef[]>(() => [
@@ -93,10 +96,10 @@ export class TeamWizardV2Component implements OnInit {
 
     readonly activeSteps = computed(() => this.steps().filter(s => s.enabled));
 
-    readonly currentStepId = computed(() => {
+    readonly currentIndex = computed(() => {
         const active = this.activeSteps();
-        const idx = Math.min(this._currentIndex(), active.length - 1);
-        return active[idx]?.id ?? 'login';
+        const idx = active.findIndex(s => s.id === this._currentStepId());
+        return idx >= 0 ? idx : 0;
     });
 
     readonly shellConfig = computed<WizardShellConfig>(() => ({
@@ -177,23 +180,50 @@ export class TeamWizardV2Component implements OnInit {
             }
         }
 
-        const stepParam = this.route.snapshot.queryParamMap.get('step');
-        if (stepParam) {
-            const idx = this.activeSteps().findIndex(s => s.id === stepParam);
-            if (idx >= 0) this._currentIndex.set(idx);
+        // Subscribe (not snapshot) so clicking a role-menu item that differs only in
+        // ?step= while already on the wizard actually moves to the requested step.
+        // Resolve against the full step list (not activeSteps) so deep links land
+        // correctly even when a step becomes enabled later (metadata-gated).
+        this.route.queryParamMap
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(params => {
+                const stepParam = params.get('step');
+                if (stepParam && this.steps().some(s => s.id === stepParam)) {
+                    this._currentStepId.set(stepParam);
+                }
+            });
+
+        // Deep-link past login: hydrate cross-cutting state (payment config, waiver,
+        // refund policy, contact info) so payment/review steps render correctly even
+        // when the user bypasses login + teams. Teams-step does its own richer load
+        // when mounted, so arriving at step=teams also gets this state populated.
+        if (this._currentStepId() !== 'login' && currentUser?.role === 'Club Rep') {
+            this.hydrateForDeepLink();
         }
+    }
+
+    /** Fetch teams metadata once and apply to wizard state — deep-link entry path. */
+    private hydrateForDeepLink(): void {
+        this.teamReg.getTeamsMetadata()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: meta => this.state.applyTeamsMetadata(meta),
+                error: () => { /* Interceptor surfaces errors; each step falls back to its own load. */ },
+            });
     }
 
     // ── Navigation ──────────────────────────────────────────────────
     back(): void {
-        if (this._currentIndex() > 0) {
-            this._currentIndex.set(this._currentIndex() - 1);
+        const active = this.activeSteps();
+        const idx = this.currentIndex();
+        if (idx > 0) {
+            this._currentStepId.set(active[idx - 1].id);
         }
     }
 
     next(): void {
         const active = this.activeSteps();
-        const idx = this._currentIndex();
+        const idx = this.currentIndex();
         if (idx >= active.length - 1) return;
 
         if (this.currentStepId() === 'review') {
@@ -201,13 +231,20 @@ export class TeamWizardV2Component implements OnInit {
             return;
         }
 
-        this._currentIndex.set(idx + 1);
+        this._currentStepId.set(active[idx + 1].id);
     }
 
     goToStep(stepIndex: number): void {
-        if (stepIndex < this._currentIndex()) {
-            this._currentIndex.set(stepIndex);
+        const active = this.activeSteps();
+        if (stepIndex >= 0 && stepIndex < active.length && stepIndex < this.currentIndex()) {
+            this._currentStepId.set(active[stepIndex].id);
         }
+    }
+
+    /** Advance to whichever step follows login — waivers if gated-enabled, else teams. */
+    private advancePastLogin(): void {
+        const active = this.activeSteps();
+        if (active.length > 1) this._currentStepId.set(active[1].id);
     }
 
     finish(): void {
@@ -273,13 +310,11 @@ export class TeamWizardV2Component implements OnInit {
                     this.teamReg.getTeamsMetadata().pipe(takeUntilDestroyed(this.destroyRef))
                         .subscribe({
                             next: (meta) => {
-                                if (meta.bWaiverSigned3) {
-                                    this.state.setWaiverAccepted(true);
-                                }
-                                this._currentIndex.set(1); // advance past login
+                                this.state.applyTeamsMetadata(meta);
+                                this.advancePastLogin();
                             },
                             error: () => {
-                                this._currentIndex.set(1); // advance anyway, teams step will load metadata
+                                this.advancePastLogin();
                             },
                         });
                 },
@@ -287,7 +322,7 @@ export class TeamWizardV2Component implements OnInit {
                     // Interceptor safety net handles the toast.
                     // Return to login — don't advance with broken token.
                     this.auth.logoutLocal();
-                    this._currentIndex.set(0);
+                    this._currentStepId.set('login');
                 },
             });
     }

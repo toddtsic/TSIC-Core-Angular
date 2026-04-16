@@ -69,6 +69,17 @@ public sealed class FamilyService : IFamilyService
 
         var linkedChildIds = await _familyMemberRepo.GetChildUserIdsAsync(familyUserId);
 
+        // Caller might be a child (Player reviewing registration) — resolve parent family
+        if (linkedChildIds.Count == 0)
+        {
+            var parentId = await _familyMemberRepo.GetParentFamilyUserIdAsync(familyUserId);
+            if (parentId != null)
+            {
+                familyUserId = parentId;
+                linkedChildIds = await _familyMemberRepo.GetChildUserIdsAsync(familyUserId);
+            }
+        }
+
         var fam = await _familiesRepo.GetByFamilyUserIdAsync(familyUserId);
         var asp = await _userRepo.GetByIdAsync(familyUserId);
 

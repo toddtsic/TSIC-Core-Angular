@@ -10,7 +10,7 @@ import { TeamInsuranceService } from '@views/registration/team/services/team-ins
 import { JobService } from '@infrastructure/services/job.service';
 import { FormFieldDataService } from '@infrastructure/services/form-field-data.service';
 import { environment } from '@environments/environment';
-import type { UserContactInfoDto, JobPulseDto } from '@core/api';
+import type { UserContactInfoDto, JobPulseDto, TeamsMetadataResponse } from '@core/api';
 
 /**
  * Team Wizard State Service — THIN ORCHESTRATOR.
@@ -81,6 +81,32 @@ export class TeamWizardStateService {
     setClubRepContact(v: UserContactInfoDto | null): void { this._clubRepContact.set(v); }
     setRefundPolicyHtml(v: string | null): void { this._refundPolicyHtml.set(v); }
     setWaiverAccepted(v: boolean): void { this._waiverAccepted.set(v); }
+
+    /**
+     * Apply a TeamsMetadataResponse to the cross-cutting wizard state — payment
+     * config, refund policy, waiver state, contact info. Called by teams-step on
+     * its own load and by team.component for deep-link hydration so any step can
+     * render with populated state regardless of entry path.
+     */
+    applyTeamsMetadata(meta: TeamsMetadataResponse): void {
+        this.teamPayment.setTeams(meta.registeredTeams || []);
+        this.teamPayment.setJobPath(this._jobPath());
+        this.teamPayment.setPaymentConfig(
+            meta.paymentMethodsAllowedCode,
+            meta.bAddProcessingFees,
+            meta.bApplyProcessingFeesToTeamDeposit,
+            meta.payTo,
+            meta.mailTo,
+            meta.mailinPaymentWarning,
+        );
+        this._hasActiveDiscountCodes.set(meta.hasActiveDiscountCodes);
+        this._fullPaymentRequired.set(meta.bTeamsFullPaymentRequired ?? true);
+        this._clubRepContact.set(meta.clubRepContactInfo ?? null);
+        this._refundPolicyHtml.set(meta.playerRegRefundPolicy ?? null);
+        if (meta.bWaiverSigned3) {
+            this._waiverAccepted.set(true);
+        }
+    }
 
     // ── Initialize ─────────────────────────────────────────────────────
     initialize(jobPath: string): void {
