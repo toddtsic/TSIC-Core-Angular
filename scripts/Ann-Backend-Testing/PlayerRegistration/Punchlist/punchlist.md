@@ -629,3 +629,101 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Severity**: UX
 - **Status**: Completed
 
+### SP-007: Edit Family Account/Players — flow drops into Players step with no forward path to Contacts/Address; Back loses changes
+- **Area**: Family Account Creation
+- **What I did**: Logged in with an existing Family Account and selected "Edit Family Account/Players". Added two players. Then tried to edit Contacts and Address info.
+- **What I expected**: Edit flow to walk through Contacts → Address → Players → Review → Register, carrying changes forward through each step — same logical order as the create flow
+- **What happened**: (1) Only way to reach Contacts/Address was to click the Back arrow, which isn't intuitive as an "edit" path. (2) Going back one step further jumped to the Create New Family Account screen and my player additions were lost — had to start over.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-008: Processing fees not carried forward from Legacy; re-entry loses "Registered" status and forces re-entry of Grad Year/Team
+- **Area**: Registration Process Review
+- **What I did**: Registered two players on The Players Series: Summer Showcase 2026. No processing fees appeared on the payment screen. Went back into admin and added the processing fees, then returned to the payment screen.
+- **What I expected**: (1) Processing fees configured in Legacy to carry forward automatically — no manual re-entry needed. (2) After adding fees, they should apply to all selected players. (3) On return to the registration flow, already-registered players should retain their "Registered" status and the previously collected Grad Year and Team data.
+- **What happened**: (1) Processing fees were missing on the payment screen for both players. (2) After adding fees manually, they only applied to one of the two players. (3) On return, the players no longer showed as "Registered" and I was forced to re-enter Grad Year and Team — data the system already had.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-009: Processing fees configured in Job Configuration/Payment don't apply to fresh registrations
+- **Area**: Registration Process Review
+- **What I did**: After re-adding Processing Fees in Job Configuration/Payment, created a brand new family account and walked through registration from scratch on The Players Series: Summer Showcase 2026.
+- **What I expected**: Processing fees configured in Job Configuration/Payment to apply to the amount owed on the payment screen
+- **What happened**: Payment screen did not charge the processing fees, even though they were properly configured in Job Configuration/Payment for this job. Suggests the payment screen isn't reading the fee configuration correctly for new registrations.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-010: No Back option on Choose Your Players screen (possible regression of PL-014)
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the Choose Your Players screen during a second-pass walkthrough
+- **What I expected**: A Back button to return to the prior step — PL-014 was previously marked Fixed (WizardShellComponent was supposed to provide Back on all steps)
+- **What happened**: No Back option visible on the Choose Your Players screen — appears to be a regression of PL-014
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-011: Trash can icons missing on Choose Your Players card (reopens PL-015)
+- **Area**: Registration Process Review
+- **What I did**: Looked at player rows on the Choose Your Players card during second-pass review
+- **What I expected**: A trash can icon next to the pencil icon on each player row — PL-015 was marked Fixed with note "trash icon already present next to pencil on each player row"
+- **What happened**: Trash can icons are NOT present next to the pencil icons on the player rows. PL-015 needs to be reopened — the icon either was never added or has regressed.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-012: Revisit capacity info in Assign Teams dropdown (reopens PL-017)
+- **Area**: Registration Process Review
+- **What I did**: Reconsidered the "Capacity shown in dropdown" behavior that was previously marked Won't Fix on PL-017
+- **What I expected**: Feature to be evaluated against director preferences and legacy behavior before committing to it
+- **What happened**: Concerns: (1) directors may not want capacity visible to parents — especially when a high max default is in place, (2) Legacy did not expose this, (3) showing capacity may cause more issues than it solves. Recommend making this optional (director toggle) or removing entirely to match Legacy.
+- **Severity**: Question
+- **Status**: Open
+
+### SP-013: Profile migration from Legacy must preserve exact field order (follow-up to PL-022)
+- **Area**: Registration Process Review
+- **What I did**: Looked at the player form for The Players Series: Girls Summer Showcase 2026 during second-pass review. PL-022 was marked Fixed ("field order is profile-driven") but the migrated profile didn't match Legacy's field order.
+- **What I expected**: When profiles are migrated from Legacy into the new system, field order should be imported exactly as presented in Legacy — clients expect their forms to look the same
+- **What happened**: This profile came over with fields in a different order than Legacy. I manually edited the new version and the profile is now correct. But this is a broader migration-quality concern: the profile importer (CSharpToMetadataParser or similar) needs to preserve Legacy's original field ordering so directors aren't required to re-sequence every migrated profile by hand.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Individual profile corrected manually. Underlying migration-order issue still needs to be addressed to prevent recurrence on other profiles.
+
+### SP-014: Review and Accept Waivers — visibly list players the waiver applies to (follow-up to PL-025)
+- **Area**: Registration Process Review
+- **What I did**: Revisited the Review and Accept Waivers screen. PL-025 was closed Won't Fix because per-player interactive checkboxes don't change the consent, which is reasonable.
+- **What I expected**: A clearer visual signal of which players the waiver covers, without requiring the parent to tick each player individually
+- **What happened**: Compromise suggestion — keep the single acceptance checkbox per waiver, but render the selected players as a visible list directly on the screen. Options in order of preference: (1) bullet list with a pre-checked check-mark icon next to each player name, (2) bullet list with names only, (3) plain list with names called out prominently. Goal: make it obvious at a glance who the waiver applies to.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-015: "Almost There!" screen — player name section headers still need more visual distinction (follow-up to PL-030)
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Almost There review screen after PL-030 fix (player names bumped to base size + bold weight)
+- **What I expected**: Player names to read clearly as section headers separating each player's review block
+- **What happened**: Even with the bold + larger font, the names still don't feel distinct enough as table/section headers. Suggest adding color (e.g., blue/primary) or another treatment beyond weight alone so the eye jumps to them as clear section dividers.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-016: Refund Protection — can a parent re-opt-in after declining? (follow-up to PL-033)
+- **Area**: Registration Process Review
+- **What I did**: Re-read PL-033, which documented that the Refund Protection decline is locked for the session by design
+- **What I expected**: Clarity on whether a parent has any path to add coverage later — e.g., if they log back in after declining, do they see the offer again, or is there a dedicated "second chance" link/bulletin somewhere?
+- **What happened**: Unknown — need confirmation of the intended post-decline experience. Options to consider: (1) offer re-appears on next login until a window closes, (2) a bulletin/link in the Family Account area lets them opt in after the fact, (3) truly one-shot with no recovery. Need to decide + document.
+- **Severity**: Question
+- **Status**: Open
+
+### SP-017: Post-registration login — Player role lands with no actions (no Edit, no Pay Balance, etc.)
+- **Area**: Registration Process Review
+- **What I did**: With a player already registered, used Family Account Login (upper-right) and selected the Player's role on the role-selection screen
+- **What I expected**: A landing page offering post-registration actions — at minimum: edit registration details, view/pay balance due, view receipt, view teams/schedule
+- **What happened**: After selecting the Player role, there are no options to do anything — dead end for returning registered players. Consider: (1) a "My Registrations" dashboard with Edit / Pay Balance / View Receipt actions, (2) surface any outstanding balance prominently, (3) allow profile / form field updates where the window hasn't closed.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-018: Discount code "Girls100" zeroes out payment but registration never persists — silent failure
+- **Area**: Registration Process Review
+- **What I did**: Registered a player on The Players Series: Summer Showcase 2026 from TestFamily007. Entered Discount Code "Girls100" (absolute discount amount: $100). Payment screen showed $0 owed and I completed the flow.
+- **What I expected**: Either (a) registration records successfully at $0 owed and shows up in Search/Registrations, or (b) a clear error preventing the flow from finishing
+- **What happened**: Payment screen returned "nothing owed" and appeared to complete successfully, but the registration never persisted — the player does not appear in Search/Registrations. Silent failure with no error surfaced to the parent. Registration is effectively lost.
+- **Severity**: Bug
+- **Status**: Open
+- **Repro notes**: TestFamily007, The Players Series: Summer Showcase 2026, discount code "Girls100" ($100 absolute). Bring-fee-to-zero discount path appears to short-circuit the registration/persist step.
+
