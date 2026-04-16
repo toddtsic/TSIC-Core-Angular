@@ -10,6 +10,10 @@ export type JobPulseDto = {
     clubRepAllowAdd: boolean;
     clubRepAllowEdit: boolean;
     clubRepAllowDelete: boolean;
+    allowRosterViewPlayer: boolean;
+    allowRosterViewAdult: boolean;
+    offerPlayerRegsaverInsurance: boolean;
+    offerTeamRegsaverInsurance: boolean;
     storeEnabled: boolean;
     storeHasActiveItems: boolean;
     allowStoreWalkup: boolean;
@@ -18,5 +22,11 @@ export type JobPulseDto = {
     adultRegistrationPlanned: boolean;
     publicSuspended: boolean;
     registrationExpiry?: string | null;
+    myAssignedTeamId?: string | null;
+    myRegistrationOwedTotal?: number | null;
+    myHasPurchasedPlayerRegsaver?: boolean | null;
+    myClubRepTeamCount?: number | null;
+    myClubRepTotalOwed?: number | null;
+    myClubRepHasTeamWithoutRegsaver?: boolean | null;
 };
 
