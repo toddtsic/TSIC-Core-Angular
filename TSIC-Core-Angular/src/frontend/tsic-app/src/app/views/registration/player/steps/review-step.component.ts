@@ -155,7 +155,7 @@ import { JobService } from '@infrastructure/services/job.service';
         background: rgba(var(--bs-body-color-rgb), 0.03);
         border-bottom: 1px solid var(--border-color);
         font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
+        font-weight: var(--font-weight-bold);
         color: var(--brand-text);
         text-transform: uppercase;
         letter-spacing: 0.03em;

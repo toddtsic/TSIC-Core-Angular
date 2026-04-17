@@ -680,7 +680,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Feature to be evaluated against director preferences and legacy behavior before committing to it
 - **What happened**: Concerns: (1) directors may not want capacity visible to parents — especially when a high max default is in place, (2) Legacy did not expose this, (3) showing capacity may cause more issues than it solves. Recommend making this optional (director toggle) or removing entirely to match Legacy.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Reconsider
+- **Note**: No capacity indication visible in dropdown for Player Series Girls Summer Showcase 2026. Revisit whether this feature is active and whether it should be.
 
 ### SP-013: Profile migration from Legacy must preserve exact field order (follow-up to PL-022)
 - **Area**: Registration Process Review
@@ -689,7 +690,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: This profile came over with fields in a different order than Legacy. I manually edited the new version and the profile is now correct. But this is a broader migration-quality concern: the profile importer (CSharpToMetadataParser or similar) needs to preserve Legacy's original field ordering so directors aren't required to re-sequence every migrated profile by hand.
 - **Severity**: Bug
 - **Status**: Fixed
-- **Note**: Root cause: `CSharpToMetadataParser.ParseViewFile` ran each regex pattern (hidden inputs, inputs, selects, textareas, Html helpers) as separate passes over the file. Output order was grouped by element type, not by source position. Fixed to collect all matches with their source position and sort by position before deduplicating — field order now matches the Legacy .cshtml view exactly. Re-run migration for affected profiles to pick up corrected ordering.
+- **Note**: Root cause: `CSharpToMetadataParser.ParseViewFile` ran each regex pattern (hidden inputs, inputs, selects, textareas, Html helpers) as separate passes over the file. Output order was grouped by element type, not by source position. Fixed to collect all matches with their source position and sort by position before deduplicating. Important: field order is derived from the Legacy `.cshtml` view file (the actual rendered form), NOT from the ViewModel `.cs` class declaration order — the view is the authority for what parents saw. Re-run migration for affected profiles to pick up corrected ordering.
 
 ### SP-014: Review and Accept Waivers — visibly list players the waiver applies to (follow-up to PL-025)
 - **Area**: Registration Process Review
@@ -697,7 +698,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clearer visual signal of which players the waiver covers, without requiring the parent to tick each player individually
 - **What happened**: Compromise suggestion — keep the single acceptance checkbox per waiver, but render the selected players as a visible list directly on the screen. Options in order of preference: (1) bullet list with a pre-checked check-mark icon next to each player name, (2) bullet list with names only, (3) plain list with names called out prominently. Goal: make it obvious at a glance who the waiver applies to.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — player name badges already display below the waiver callout, showing which players the waiver covers.
 
 ### SP-015: "Almost There!" screen — player name section headers still need more visual distinction (follow-up to PL-030)
 - **Area**: Registration Process Review
@@ -705,7 +707,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Player names to read clearly as section headers separating each player's review block
 - **What happened**: Even with the bold + larger font, the names still don't feel distinct enough as table/section headers. Suggest adding color (e.g., blue/primary) or another treatment beyond weight alone so the eye jumps to them as clear section dividers.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Per-player section headers bumped to bold weight (uppercase + letter-spacing retained). Ann reviewed live and approved.
 
 ### SP-016: Refund Protection — can a parent re-opt-in after declining? (follow-up to PL-033)
 - **Area**: Registration Process Review
@@ -713,7 +716,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clarity on whether a parent has any path to add coverage later — e.g., if they log back in after declining, do they see the offer again, or is there a dedicated "second chance" link/bulletin somewhere?
 - **What happened**: Unknown — need confirmation of the intended post-decline experience. Options to consider: (1) offer re-appears on next login until a window closes, (2) a bulletin/link in the Family Account area lets them opt in after the fact, (3) truly one-shot with no recovery. Need to decide + document.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: By design — refund protection decline is locked for the session.
 
 ### SP-017: Post-registration login — Player role lands with no actions (no Edit, no Pay Balance, etc.)
 - **Area**: Registration Process Review
@@ -721,7 +725,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A landing page offering post-registration actions — at minimum: edit registration details, view/pay balance due, view receipt, view teams/schedule
 - **What happened**: After selecting the Player role, there are no options to do anything — dead end for returning registered players. Consider: (1) a "My Registrations" dashboard with Edit / Pay Balance / View Receipt actions, (2) surface any outstanding balance prominently, (3) allow profile / form field updates where the window hasn't closed.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Deferred
+- **Note**: Part of the broader default menus initiative being addressed separately.
 
 ### SP-018: Discount code "Girls100" zeroes out payment but registration never persists — silent failure
 - **Area**: Registration Process Review
