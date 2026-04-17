@@ -678,11 +678,6 @@
 .text-danger { color: var(--bs-danger) !important; }
 .text-muted { color: var(--text-muted) !important; }
 
-.inactive-name {
-  color: var(--bs-secondary-color);
-  text-decoration: line-through;
-}
-
 // Buttons
 .btn {
   padding: var(--space-2) var(--space-4);

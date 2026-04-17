@@ -563,7 +563,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   exportExcel(): void {
     const results = this.searchResults();
     if (this.grid && results) {
-      this.grid.excelExport({ dataSource: results.result });
+      this.grid.excelExport({ dataSource: results.result, includeHiddenColumn: true });
     }
   }
 
