@@ -328,8 +328,7 @@ import type { LineItem } from '../state/payment-v2.service';
             </button>
           }
           @if (showPayNowButton()) {
-            <div class="text-center">
-            <button type="button" class="btn btn-primary"
+            <button type="button" class="btn btn-primary w-100"
                     (click)="submit()"
                     [disabled]="!canSubmit() || submitting()">
               @if (submitting()) {
@@ -338,7 +337,6 @@ import type { LineItem } from '../state/payment-v2.service';
                 <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
               }
             </button>
-            </div>
           }
           @if (showCheckSection()) {
             <button type="button" class="btn btn-primary"
