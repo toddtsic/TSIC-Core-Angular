@@ -468,10 +468,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.executeSearch();
   }
 
-  clearAllChips(): void {
-    this.clearFilters();
-  }
-
   onRowSelected(): void {
     const selectedRecords = this.grid.getSelectedRecords() as RegistrationSearchResultDto[];
     const pageSize = (this.grid.pageSettings.pageSize as number) || 20;
