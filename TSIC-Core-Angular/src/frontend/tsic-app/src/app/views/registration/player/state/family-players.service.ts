@@ -51,7 +51,6 @@ export class FamilyPlayersService {
 
     // ── Controlled mutators ───────────────────────────────────────────
     setHasFamilyAccount(v: 'yes' | 'no' | null): void { this._hasFamilyAccount.set(v); }
-    updateFamilyPlayers(players: FamilyPlayerDto[]): void { this._familyPlayers.set(players); }
     clearDebugFamilyPlayersResp(): void { this._debugFamilyPlayersResp.set(null); }
 
     // ── Derived ───────────────────────────────────────────────────────
@@ -185,8 +184,33 @@ export class FamilyPlayersService {
         this.applyFamilyUser(resp);
         this.applyRegSaverDetails(resp);
         const players = this.buildFamilyPlayersList(resp);
+        this.reconcileSelections(players);
         this._familyPlayers.set(players);
         return players;
+    }
+
+    /**
+     * `selected` is frontend-only wizard state ("parent picked this player").
+     * The server doesn't track it — `buildFamilyPlayersList` leaves it false.
+     *
+     * This method owns the full lifecycle:
+     *   - Initial load (no prior state): seed selected = registered
+     *     so already-active players start checked.
+     *   - Reload (prior state exists): carry forward the parent's
+     *     selections so mid-wizard reloads don't wipe them.
+     */
+    private reconcileSelections(players: FamilyPlayerDto[]): void {
+        const prev = this._familyPlayers();
+        if (prev.length === 0) {
+            // Initial load — seed from registered
+            for (const p of players) p.selected = p.registered;
+        } else {
+            // Reload — preserve existing selections
+            const selectedIds = new Set(prev.filter(p => p.selected).map(p => p.playerId));
+            for (const p of players) {
+                if (selectedIds.has(p.playerId)) p.selected = true;
+            }
+        }
     }
 
     private handleError(_err: unknown): void {
@@ -291,7 +315,7 @@ export class FamilyPlayersService {
                 gender: getPropertyCI<string>(p, 'gender') ?? '',
                 dob: getPropertyCI<string>(p, 'dob') ?? undefined,
                 registered: !!getPropertyCI<boolean>(p, 'registered'),
-                selected: !!getPropertyCI<boolean>(p, 'selected') || !!getPropertyCI<boolean>(p, 'registered'),
+                selected: false,
                 priorRegistrations: priorRegs,
                 defaultFieldValues: getPropertyCI<Record<string, unknown>>(p, 'defaultFieldValues') ?? undefined,
             } as FamilyPlayerDto;

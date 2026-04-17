@@ -65,9 +65,13 @@ import type { LineItem } from '../state/payment-v2.service';
                   <tr>
                     <th>Player</th>
                     <th>Team</th>
-                    <th class="text-end">Fee</th>
+                    <th class="text-end">Base</th>
+                    <th class="text-end">Proc</th>
+                    <th class="text-end">DC</th>
+                    <th class="text-end">Adj</th>
+                    <th class="text-end">Total</th>
                     <th class="text-end">Paid</th>
-                    <th class="text-end">Due</th>
+                    <th class="text-end">Owed</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -75,26 +79,19 @@ import type { LineItem } from '../state/payment-v2.service';
                     <tr>
                       <td>{{ li.playerName }}</td>
                       <td>{{ li.teamName }}</td>
+                      <td class="text-end">{{ li.feeBase | currency }}</td>
+                      <td class="text-end">{{ li.feeProcessing | currency }}</td>
+                      <td class="text-end" [class.text-success]="li.feeDiscount > 0">{{ li.feeDiscount > 0 ? '-' : '' }}{{ li.feeDiscount | currency }}</td>
+                      <td class="text-end">{{ li.feeLateFee | currency }}</td>
                       <td class="text-end">{{ li.feeTotal | currency }}</td>
                       <td class="text-end">{{ li.paidTotal | currency }}</td>
-                      <td class="text-end">{{ li.amount | currency }}</td>
+                      <td class="text-end fw-bold">{{ li.amount | currency }}</td>
                     </tr>
                   }
                 </tbody>
                 <tfoot>
-                  @if (paySvc.appliedDiscount() > 0) {
-                    <tr>
-                      <td colspan="4" class="text-end text-success">Discount</td>
-                      <td class="text-end text-success">-{{ paySvc.appliedDiscount() | currency }}</td>
-                    </tr>
-                  }
                   <tr class="table-primary due-now-row">
-                    @if (!paySvc.isArbScenario() && !paySvc.isDepositScenario()) {
-                      <th class="text-start fw-bold">To Pay in Full</th>
-                      <th colspan="3" class="text-end">Due Now</th>
-                    } @else {
-                      <th colspan="4" class="text-end">Due Now</th>
-                    }
+                    <th colspan="8" class="text-end">Due Now</th>
                     <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                   </tr>
                 </tfoot>
@@ -217,8 +214,8 @@ import type { LineItem } from '../state/payment-v2.service';
           </div>
           @if (paySvc.discountMessage()) {
             <div class="small mb-3"
-                 [class.text-success]="paySvc.appliedDiscount() > 0"
-                 [class.text-danger]="paySvc.appliedDiscount() === 0">
+                 [class.text-success]="paySvc.discountAppliedOk()"
+                 [class.text-danger]="!paySvc.discountAppliedOk()">
               {{ paySvc.discountMessage() }}
             </div>
           }

@@ -70,7 +70,6 @@ function createFamilyPlayersStub() {
     const _familyPlayers = signal<FamilyPlayerDto[]>([]);
     return {
         familyPlayers: _familyPlayers.asReadonly(),
-        updateFamilyPlayers: (players: FamilyPlayerDto[]) => _familyPlayers.set(players),
         loadFamilyPlayersOnce: () => Promise.resolve(),
         _set: (players: FamilyPlayerDto[]) => _familyPlayers.set(players),
     };
@@ -190,6 +189,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 75 }),
                         formFieldValues: {},
                     }],
@@ -286,6 +286,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 50 }),
                         formFieldValues: {},
                     }],
@@ -298,17 +299,16 @@ describe('PaymentV2Service', () => {
             expect(service.depositTotal()).toBe(80);
         });
 
-        it('should compute currentTotal in PIF mode as totalAmount minus discount', () => {
+        it('should compute currentTotal in PIF mode as totalAmount', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 200 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
             playerState.setSelectedTeams({ p1: 't1' });
             (jobCtx.paymentOption as WritableSignal<string>).set('PIF');
 
-            // No discount applied
             expect(service.currentTotal()).toBe(200);
         });
 
-        it('should compute currentTotal in Deposit mode as existingBalance + depositTotal minus discount', () => {
+        it('should compute currentTotal in Deposit mode as existingBalance + depositTotal', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 200, deposit: 60 }));
             teamSvc._addTeam(makeTeam({ teamId: 't2', fee: 300, deposit: 80 }));
             fp._set([
@@ -320,6 +320,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 50 }),
                         formFieldValues: {},
                     }],
@@ -389,11 +390,150 @@ describe('PaymentV2Service', () => {
     // ─── Discount Reset ──────────────────────────────────────────────
 
     describe('resetDiscount', () => {
-        it('should clear applied discount and message', () => {
+        it('should clear message and success flag', () => {
             service.resetDiscount();
 
-            expect(service.appliedDiscount()).toBe(0);
             expect(service.discountMessage()).toBeNull();
+            expect(service.discountAppliedOk()).toBe(false);
+        });
+    });
+
+    // ─── Discount Code — currentTotal reflects financials ────────────
+
+    describe('discount code — currentTotal reflects financials', () => {
+        it('should reflect updated owedTotal after partial discount', () => {
+            // Backend applied $100 discount: feeBase=595, feeDiscount=100, owedTotal=495
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1',
+                    registered: true,
+                    selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1',
+                        active: true,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 495, feeBase: 595, feeDiscount: 100, feeTotal: 495 }),
+                        formFieldValues: {},
+                    }],
+                }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1' });
+
+            expect(service.currentTotal()).toBe(495);
+        });
+
+        it('should show zero when discount zeroes owedTotal', () => {
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1',
+                    registered: true,
+                    selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1',
+                        active: true,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 0, feeBase: 595, feeDiscount: 595, feeTotal: 0 }),
+                        formFieldValues: {},
+                    }],
+                }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1' });
+
+            expect(service.currentTotal()).toBe(0);
+        });
+
+        it('should use team fee when no financials present (new player, pre-discount)', () => {
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
+            fp._set([makePlayer({ playerId: 'p1' })]);
+            playerState.setSelectedTeams({ p1: 't1' });
+
+            expect(service.currentTotal()).toBe(595);
+        });
+
+        it('should sum owedTotals across multiple players with financials', () => {
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
+            teamSvc._addTeam(makeTeam({ teamId: 't2', fee: 400 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1',
+                    registered: true,
+                    selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1',
+                        active: true,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 400, feeBase: 595, feeDiscount: 195, feeTotal: 400 }),
+                        formFieldValues: {},
+                    }],
+                }),
+                makePlayer({
+                    playerId: 'p2',
+                    registered: true,
+                    selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r2',
+                        active: true,
+                        assignedTeamId: 't2',
+                        financials: makeFinancials({ owedTotal: 200, feeBase: 400, feeDiscount: 200, feeTotal: 200 }),
+                        formFieldValues: {},
+                    }],
+                }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+
+            expect(service.currentTotal()).toBe(600);
+        });
+
+        it('should sum discounted financials and team fee for mixed players', () => {
+            // p1 existing with post-discount owedTotal, p2 new with team fee
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
+            teamSvc._addTeam(makeTeam({ teamId: 't2', fee: 300 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1',
+                    registered: true,
+                    selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1',
+                        active: true,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 495, feeBase: 595, feeDiscount: 100, feeTotal: 495 }),
+                        formFieldValues: {},
+                    }],
+                }),
+                makePlayer({ playerId: 'p2' }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+
+            expect(service.currentTotal()).toBe(795);
+        });
+
+        it('should not change currentTotal when resetDiscount is called (discount is in financials)', () => {
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1',
+                    registered: true,
+                    selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1',
+                        active: true,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 495, feeBase: 595, feeDiscount: 100, feeTotal: 495 }),
+                        formFieldValues: {},
+                    }],
+                }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1' });
+
+            const totalBefore = service.currentTotal();
+            service.resetDiscount();
+
+            expect(service.discountMessage()).toBeNull();
+            expect(service.discountAppliedOk()).toBe(false);
+            expect(service.currentTotal()).toBe(totalBefore);
         });
     });
 });

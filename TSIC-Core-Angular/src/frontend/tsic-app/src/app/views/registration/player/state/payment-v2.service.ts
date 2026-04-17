@@ -26,9 +26,13 @@ export interface LineItem {
     playerName: string;
     teamId: string;
     teamName: string;
-    amount: number;
+    feeBase: number;
+    feeProcessing: number;
+    feeDiscount: number;
+    feeLateFee: number;
     feeTotal: number;
     paidTotal: number;
+    amount: number;
 }
 
 /**
@@ -43,16 +47,15 @@ export class PaymentV2Service {
     private readonly teams = inject(TeamService);
     private readonly http = inject(HttpClient);
 
-    private readonly _appliedDiscount = signal(0);
     private readonly _discountMessage = signal<string | null>(null);
     private readonly _discountApplying = signal(false);
-    private readonly _appliedDiscountResponse = signal<ApplyDiscountResponseDto | null>(null);
+    private readonly _discountAppliedOk = signal(false);
     private readonly _selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
 
-    readonly appliedDiscount = this._appliedDiscount.asReadonly();
     readonly discountMessage = this._discountMessage.asReadonly();
     readonly discountApplying = this._discountApplying.asReadonly();
-    readonly appliedDiscountResponse = this._appliedDiscountResponse.asReadonly();
+    /** True after a discount was successfully applied (drives success styling on the message). */
+    readonly discountAppliedOk = this._discountAppliedOk.asReadonly();
     readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
 
     lineItems = computed<LineItem[]>(() => {
@@ -72,10 +75,15 @@ export class PaymentV2Service {
                 const registration = this.getExistingRegistrationForTeam(p.id, tid);
                 const financials = registration?.financials;
                 if (!team && !registration) continue;
-                const amount = financials ? this.getAmountFromFinancials(financials) : this.getAmount(team);
-                const feeTotal = financials ? toNumber(financials.feeTotal) : this.getAmount(team);
+                const teamFee = this.getAmount(team);
+                const feeBase = financials ? toNumber(financials.feeBase) : teamFee;
+                const feeProcessing = financials ? toNumber(financials.feeProcessing) : 0;
+                const feeDiscount = financials ? toNumber(financials.feeDiscount) : 0;
+                const feeLateFee = financials ? toNumber(financials.feeLateFee) : 0;
+                const feeTotal = financials ? toNumber(financials.feeTotal) : teamFee;
                 const paidTotal = financials ? toNumber(financials.paidTotal) : 0;
-                items.push({ playerId: p.id, playerName: p.name, teamId: tid, teamName: team?.teamName || registration?.assignedTeamName || '', amount, feeTotal, paidTotal });
+                const amount = financials ? this.getAmountFromFinancials(financials) : teamFee;
+                items.push({ playerId: p.id, playerName: p.name, teamId: tid, teamName: team?.teamName || registration?.assignedTeamName || '', feeBase, feeProcessing, feeDiscount, feeLateFee, feeTotal, paidTotal, amount });
             }
         }
         return items;
@@ -115,7 +123,7 @@ export class PaymentV2Service {
         const opt = this.jobCtx.paymentOption();
         const existing = this.existingBalanceTotal();
         const base = opt === 'Deposit' ? existing + this.depositTotal() : this.totalAmount();
-        return Math.max(0, base - this._appliedDiscount());
+        return Math.max(0, base);
     });
 
     arbOccurrences = computed(() => this.jobCtx.adnArbBillingOccurences() || 10);
@@ -178,8 +186,8 @@ export class PaymentV2Service {
     }
 
     resetDiscount(): void {
-        this._appliedDiscount.set(0);
         this._discountMessage.set(null);
+        this._discountAppliedOk.set(false);
     }
 
     applyDiscount(code: string): void {
@@ -190,65 +198,47 @@ export class PaymentV2Service {
             amount: option === 'Deposit' ? this.getDepositForPlayer(li.playerId) : li.amount,
         }));
         if (items.length === 0) {
-            this._appliedDiscount.set(0);
             this._discountMessage.set('No payable items eligible for discount');
             return;
         }
         this._discountApplying.set(true);
         this._discountMessage.set(null);
+        this._discountAppliedOk.set(false);
         const req: ApplyDiscountRequestDto = { jobPath: this.jobCtx.jobPath(), code, items };
         this.http.post<ApplyDiscountResponseDto>(`${environment.apiUrl}/player-registration/apply-discount`, req)
             .subscribe({
                 next: (resp: ApplyDiscountResponseDto) => {
-                    this._discountApplying.set(false);
-                    this._appliedDiscountResponse.set(resp);
                     const total = resp?.totalDiscount ?? 0;
                     if (resp?.success && toNumber(total) > 0) {
-                        this._appliedDiscount.set(0);
+                        this._discountAppliedOk.set(true);
                         this._discountMessage.set(resp?.message || 'Discount applied');
-                        if (resp?.updatedFinancials) this.mergeUpdatedFinancials(resp.updatedFinancials);
+                        // Reload family players — the server has already persisted the
+                        // discount, so the reload brings back correct financials.
+                        // Spinner stays on until the reload completes so the UI
+                        // doesn't flash stale amounts between POST and reload.
                         const jobPath = this.jobCtx.jobPath();
                         const apiBase = this.jobCtx.resolveApiBase();
-                        this.fp.loadFamilyPlayersOnce(jobPath, apiBase).catch(err => console.warn('[PaymentV2] refresh after discount failed', err));
+                        this.fp.loadFamilyPlayersOnce(jobPath, apiBase)
+                            .catch(err => console.warn('[PaymentV2] refresh after discount failed', err))
+                            .finally(() => this._discountApplying.set(false));
                     } else {
-                        this._appliedDiscount.set(0);
+                        this._discountApplying.set(false);
+                        this._discountAppliedOk.set(false);
                         this._discountMessage.set(resp?.message || 'Invalid or ineligible discount code');
                     }
                 },
                 error: (err: HttpErrorResponse) => {
                     this._discountApplying.set(false);
-                    this._appliedDiscountResponse.set(null);
-                    this._appliedDiscount.set(0);
+                    this._discountAppliedOk.set(false);
                     this._discountMessage.set(formatHttpError(err));
                 },
             });
-    }
-
-    private getExistingRegistration(playerId: string) {
-        const p = this.fp.familyPlayers().find(fp => fp.playerId === playerId);
-        if (!p?.priorRegistrations?.length) return null;
-        const active = p.priorRegistrations.find(r => r.active);
-        return active ?? p.priorRegistrations.at(-1) ?? null;
     }
 
     private getExistingRegistrationForTeam(playerId: string, teamId: string) {
         const p = this.fp.familyPlayers().find(fp => fp.playerId === playerId);
         if (!p?.priorRegistrations?.length) return null;
         return p.priorRegistrations.find(r => r.assignedTeamId === teamId) ?? null;
-    }
-
-    private mergeUpdatedFinancials(updatedFinancials: Record<string, RegistrationFinancialsDto>): void {
-        const players = this.fp.familyPlayers();
-        const updated = players.map(p => {
-            const newFin = updatedFinancials[p.playerId];
-            if (!newFin || !p.priorRegistrations?.length) return p;
-            const activeIdx = p.priorRegistrations.findIndex(r => r.active);
-            const targetIdx = activeIdx >= 0 ? activeIdx : p.priorRegistrations.length - 1;
-            const clone = { ...p, priorRegistrations: [...p.priorRegistrations] };
-            clone.priorRegistrations[targetIdx] = { ...clone.priorRegistrations[targetIdx], financials: newFin };
-            return clone;
-        });
-        this.fp.updateFamilyPlayers(updated);
     }
 
     private getAmountFromFinancials(financials: RegistrationFinancialsDto): number {
