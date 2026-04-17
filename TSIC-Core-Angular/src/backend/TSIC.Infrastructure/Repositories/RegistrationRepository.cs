@@ -854,11 +854,11 @@ public class RegistrationRepository : IRegistrationRepository
         if (teamRows.Count == 0)
             return [];
 
-        // Batch-load active player counts per team (single query)
+        // Batch-load player counts per team (players only, single query)
         var teamIds = teamRows.Select(t => t.TeamId).ToList();
         var playerCounts = await _context.Registrations
             .AsNoTracking()
-            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value) && r.BActive == true)
+            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value) && r.BActive == true && r.RoleId == RoleConstants.Player)
             .GroupBy(r => r.AssignedTeamId!.Value)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.TeamId, g => g.Count, ct);

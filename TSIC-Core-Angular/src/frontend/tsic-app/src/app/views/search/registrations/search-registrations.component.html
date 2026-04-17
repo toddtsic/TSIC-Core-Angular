@@ -77,7 +77,7 @@
                 placeholder="First or Last"
                 [ngModel]="searchRequest().name"
                 (ngModelChange)="updateName($event)"
-                (keydown.enter)="executeSearch()" />
+                />
             </div>
           </div>
 
@@ -208,7 +208,7 @@
                 placeholder="Email address"
                 [ngModel]="searchRequest().email"
                 (ngModelChange)="updateEmail($event)"
-                (keydown.enter)="executeSearch()" />
+                />
             </div>
             <div class="form-group">
               <label for="filterPhone">Phone</label>
@@ -216,7 +216,7 @@
                 placeholder="Cell phone"
                 [ngModel]="searchRequest().phone"
                 (ngModelChange)="updatePhone($event)"
-                (keydown.enter)="executeSearch()" />
+                />
             </div>
             <div class="form-group">
               <label for="filterRegDate">Registered On or After</label>
@@ -330,7 +330,7 @@
                 placeholder="School name"
                 [ngModel]="searchRequest().schoolName"
                 (ngModelChange)="updateSchoolName($event)"
-                (keydown.enter)="executeSearch()" />
+                />
             </div>
             @if (!isTournament()) {
               <div class="form-group">
@@ -387,7 +387,7 @@
                 placeholder="Invoice number"
                 [ngModel]="searchRequest().invoiceNumber"
                 (ngModelChange)="updateInvoiceNumber($event)"
-                (keydown.enter)="executeSearch()" />
+                />
             </div>
           </div>
         </div>
@@ -443,6 +443,7 @@
         <button type="button" class="btn btn-drawer-reset" (click)="clearFilters()">Reset</button>
         <button type="button"
           class="btn btn-drawer-search"
+          [class.is-dirty]="isFilterDirty()"
           (click)="executeSearch()"
           [disabled]="isSearching()">
           @if (isSearching()) {
@@ -451,6 +452,9 @@
             <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           }
           Search
+          @if (isFilterDirty()) {
+            <span class="dirty-dot" aria-label="Unapplied filter changes"></span>
+          }
         </button>
       </div>
     </aside>

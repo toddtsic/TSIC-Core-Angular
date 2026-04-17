@@ -36,8 +36,8 @@
     flex-shrink: 0;
   }
 
-  .form-control {
-    padding-left: calc(var(--space-2) + 13px + var(--space-1));
+  input.form-control {
+    padding-left: calc(var(--space-2) + 13px + var(--space-3)) !important;
 
     &::placeholder {
       color: var(--bs-secondary-color);
@@ -380,10 +380,34 @@
       outline: none;
       box-shadow: var(--shadow-focus);
     }
+
+    .dirty-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--bs-warning);
+      margin-left: var(--space-1);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-warning) 40%, transparent);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
+  }
+}
+
+// Pulse the footer Search button when the filter state differs from what was
+// last queried. Reuses the existing `pulse-glow` keyframes defined above.
+// Keyframes + selector must live at top level (not nested inside .filters-panel)
+// so Angular's emulated view encapsulation scopes them consistently.
+.btn-drawer-search.is-dirty {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-drawer-search.is-dirty {
+    animation: none;
   }
 }
 

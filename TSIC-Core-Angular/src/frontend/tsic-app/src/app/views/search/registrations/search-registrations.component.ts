@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel, SelectionSettingsModel } from '@syncfusion/ej2-angular-grids';
@@ -121,6 +121,14 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   // Filters fly-in panel state
   isFiltersPanelOpen = signal(false);
+
+  // Snapshot of the request that was last sent to the server. Used to light up
+  // the Search button when the user has edited filters but not yet re-queried.
+  private lastExecutedRequest = signal<string>('');
+
+  isFilterDirty = computed(() =>
+    JSON.stringify(this.searchRequest()) !== this.lastExecutedRequest()
+  );
 
   // Selection state
   selectedRegistrations = signal<Set<string>>(new Set());
@@ -316,6 +324,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   executeSearch(): void {
     this.isFiltersPanelOpen.set(false);
     this.isSearching.set(true);
+    this.lastExecutedRequest.set(JSON.stringify(this.searchRequest()));
     const req = this.sanitizeRequest(this.searchRequest());
     this.searchService.search(req).subscribe({
       next: (results) => {
@@ -329,6 +338,23 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         this.isSearching.set(false);
       }
     });
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.isFiltersPanelOpen()) {
+      this.isFiltersPanelOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.enter', ['$event'])
+  onEnterKey(event: KeyboardEvent): void {
+    if (!this.isFiltersPanelOpen()) return;
+    const target = event.target as HTMLElement | null;
+    // Let buttons handle their own Enter, and let Syncfusion popups handle
+    // item selection — only trigger search for "generic" Enter presses.
+    if (target?.closest('button, .e-popup')) return;
+    this.executeSearch();
   }
 
   clearFilters(): void {
@@ -659,7 +685,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       agegroupIds,
       divisionIds
     }));
-    this.executeSearch();
   }
 
   // ── CADT tree selection handler ──
@@ -679,7 +704,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       ...req,
       cadtTeamIds: cadtTeamIds
     }));
-    this.executeSearch();
   }
 
   /** Remove a CADT node + its descendants + uncheck ancestors */
@@ -740,7 +764,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   updateRosterThreshold(value: string): void {
     const num = value === '' || value == null ? undefined : Number(value);
     this.searchRequest.update(req => ({ ...req, rosterThreshold: num }));
-    this.executeSearch();
   }
 
   // ── Multi-select update helpers ──
@@ -754,7 +777,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       }
       return updated;
     });
-    this.executeSearch();
   }
 
   updateName(value: string): void {
@@ -779,7 +801,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   updateRegDateFrom(value: string): void {
     this.searchRequest.update(req => ({ ...req, regDateFrom: value || undefined }));
-    this.executeSearch();
   }
 
   /** Convert empty arrays to undefined so backend ignores them */
