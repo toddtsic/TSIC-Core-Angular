@@ -1152,9 +1152,13 @@ public class RegistrationRepository : IRegistrationRepository
 
         // ── Date range ──
         if (request.RegDateFrom.HasValue)
-            query = query.Where(r => r.RegistrationTs >= request.RegDateFrom.Value);
+            query = query.Where(r => r.RegistrationTs >= request.RegDateFrom.Value.Date);
         if (request.RegDateTo.HasValue)
-            query = query.Where(r => r.RegistrationTs <= request.RegDateTo.Value);
+        {
+            // Include the full "To" day by comparing against the next day's midnight.
+            var toExclusive = request.RegDateTo.Value.Date.AddDays(1);
+            query = query.Where(r => r.RegistrationTs < toExclusive);
+        }
 
         // ── Club roster threshold search (with optional club name filter) ──
         if (request.RosterThreshold != null)

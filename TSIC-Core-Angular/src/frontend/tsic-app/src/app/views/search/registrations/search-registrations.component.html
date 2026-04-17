@@ -252,16 +252,10 @@
                   (keydown.enter)="executeSearch()" />
               </div>
               <div class="form-group">
-                <label for="filterDateFrom">Reg Date From</label>
-                <input type="date" id="filterDateFrom" class="form-control"
+                <label for="filterRegDate">Registered On or After</label>
+                <input type="date" id="filterRegDate" class="form-control"
                   [ngModel]="searchRequest().regDateFrom"
                   (ngModelChange)="updateRegDateFrom($event)" />
-              </div>
-              <div class="form-group">
-                <label for="filterDateTo">Reg Date To</label>
-                <input type="date" id="filterDateTo" class="form-control"
-                  [ngModel]="searchRequest().regDateTo"
-                  (ngModelChange)="updateRegDateTo($event)" />
               </div>
             </div>
           </div>

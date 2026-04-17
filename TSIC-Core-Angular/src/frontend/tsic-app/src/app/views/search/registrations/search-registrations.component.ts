@@ -35,6 +35,7 @@ interface FilterChip {
   value: string;
 }
 
+
 @Component({
   selector: 'app-search-registrations',
   standalone: true,
@@ -201,8 +202,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.email) chips.push({ category: 'Email', label: req.email, filterKey: 'email', value: req.email });
     if (req.phone) chips.push({ category: 'Phone', label: req.phone, filterKey: 'phone', value: req.phone });
     if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
-    if (req.regDateFrom) chips.push({ category: 'From', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
-    if (req.regDateTo) chips.push({ category: 'To', label: req.regDateTo, filterKey: 'regDateTo', value: req.regDateTo });
+    if (req.regDateFrom) chips.push({ category: 'On or After', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.rosterThreshold != null) chips.push({ category: 'Rostered <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
     addArrayChips('For Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
 
@@ -787,11 +787,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   updateRegDateFrom(value: string): void {
     this.searchRequest.update(req => ({ ...req, regDateFrom: value || undefined }));
-    this.executeSearch();
-  }
-
-  updateRegDateTo(value: string): void {
-    this.searchRequest.update(req => ({ ...req, regDateTo: value || undefined }));
     this.executeSearch();
   }
 
