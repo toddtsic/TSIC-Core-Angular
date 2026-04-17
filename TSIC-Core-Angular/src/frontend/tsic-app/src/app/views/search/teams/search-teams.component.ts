@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService, DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
@@ -83,6 +83,17 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	searchResults = signal<TeamSearchResponse | null>(null);
 	isSearching = signal(false);
+
+	// Filters fly-in panel state
+	isFiltersPanelOpen = signal(false);
+
+	// Snapshot of the request last sent to the server — used to light up the
+	// footer Search button when filters differ from what was last queried.
+	private lastExecutedRequest = signal<string>('');
+
+	isFilterDirty = computed(() =>
+		JSON.stringify(this.searchRequest()) !== this.lastExecutedRequest()
+	);
 
 	// Detail panel state
 	selectedDetail = signal<TeamSearchDetailDto | null>(null);
@@ -236,7 +247,10 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	}
 
 	executeSearch(): void {
+		if (this.isSearching()) return; // guard against double-fire
+		this.isFiltersPanelOpen.set(false);
 		this.isSearching.set(true);
+		this.lastExecutedRequest.set(JSON.stringify(this.searchRequest()));
 		const req = this.sanitizeRequest(this.searchRequest());
 		this.searchService.search(req).subscribe({
 			next: (results) => {
@@ -249,6 +263,13 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 				this.isSearching.set(false);
 			}
 		});
+	}
+
+	@HostListener('document:keydown.escape')
+	onEscapeKey(): void {
+		if (this.isFiltersPanelOpen()) {
+			this.isFiltersPanelOpen.set(false);
+		}
 	}
 
 	clearFilters(): void {
@@ -340,10 +361,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		this.executeSearch();
 	}
 
-	clearAllChips(): void {
-		this.clearFilters();
-	}
-
 	onActionComplete(args: any): void {
 		if (args.requestType === 'sorting' || args.requestType === 'paging') {
 			this.refreshRowNumbers();
@@ -424,7 +441,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		classify(this.ladtTree());
 
 		this.searchRequest.update(req => ({ ...req, teamIds, agegroupIds, divisionIds }));
-		this.executeSearch();
 	}
 
 	onCadtCheckedChange(checkedIds: Set<string>): void {
@@ -442,7 +458,6 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			...req,
 			cadtTeamIds
 		}));
-		this.executeSearch();
 	}
 
 	/** Remove a CADT node + its descendants + uncheck ancestors */
@@ -510,12 +525,10 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 			}
 			return updated;
 		});
-		this.executeSearch();
 	}
 
 	updateWaitlistScheduledStatus(value: string): void {
 		this.searchRequest.update(req => ({ ...req, waitlistScheduledStatus: value || null }));
-		this.executeSearch();
 	}
 
 	private sanitizeRequest(req: TeamSearchRequest): TeamSearchRequest {

@@ -17,198 +17,253 @@
     Search Teams
   </h1>
 
-  <!-- Filter Panel -->
-  <div class="filter-panel">
-    <div class="section-header">
-      <span class="section-title">Filters</span>
-      <span class="tip">Select more than one filter to narrow your search</span>
-    </div>
-    <div class="filter-bar-compact">
-      <!-- Row 1: Waitlist, Active Status, Pay Status, Pay Meth -->
-      <div class="filter-row-4">
-        <div class="form-group">
-          <label>Waitlist / Scheduled</label>
-          <ejs-dropdownlist
-            [dataSource]="filterOptions()?.waitlistScheduledStatuses ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().waitlistScheduledStatus"
-            (change)="updateWaitlistScheduledStatus($event.value)"
-            [allowFiltering]="false"
-            [showClearButton]="true"
-            placeholder="All"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'auto'">
-          </ejs-dropdownlist>
-        </div>
-
-        <div class="form-group">
-          <label>Active Status</label>
-          <ejs-multiselect #ms2
-            [dataSource]="filterOptions()?.activeStatuses ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().activeStatuses"
-            (change)="updateMultiSelect('activeStatuses', $event.value)"
-            (open)="onMultiSelectOpen(ms2)"
-            [mode]="'CheckBox'"
-            [allowFiltering]="false"
-            [showDropDownIcon]="true"
-            [closePopupOnSelect]="false"
-            [changeOnBlur]="false"
-            placeholder="All Statuses"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'auto'">
-          </ejs-multiselect>
-        </div>
-
-        <div class="form-group">
-          <label>Pay Status</label>
-          <ejs-multiselect #ms3
-            [dataSource]="filterOptions()?.payStatuses ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().payStatuses"
-            (change)="updateMultiSelect('payStatuses', $event.value)"
-            (open)="onMultiSelectOpen(ms3)"
-            [mode]="'CheckBox'"
-            [allowFiltering]="false"
-            [showDropDownIcon]="true"
-            [closePopupOnSelect]="false"
-            [changeOnBlur]="false"
-            placeholder="All"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'auto'">
-          </ejs-multiselect>
-        </div>
-
-        <div class="form-group">
-          <label>Pay Meth</label>
-          <ejs-multiselect #ms6
-            [dataSource]="filterOptions()?.paymentTypes ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().paymentTypes"
-            (change)="updateMultiSelect('paymentTypes', $event.value)"
-            (open)="onMultiSelectOpen(ms6)"
-            [mode]="'CheckBox'"
-            [allowFiltering]="false"
-            [showDropDownIcon]="true"
-            [closePopupOnSelect]="false"
-            [changeOnBlur]="false"
-            placeholder="All"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'320px'">
-          </ejs-multiselect>
-        </div>
+  <!-- Filters Fly-In Drawer (same pattern as search-registrations) -->
+  @if (isFiltersPanelOpen()) {
+    <div class="filters-backdrop" (click)="isFiltersPanelOpen.set(false)"></div>
+  }
+  <aside class="filters-panel" [class.open]="isFiltersPanelOpen()">
+    <!-- Drawer Header -->
+    <div class="panel-header">
+      <div class="header-top-row">
+        <h2 class="panel-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          Filters
+        </h2>
+        <button type="button" class="btn-close" aria-label="Close filters" (click)="isFiltersPanelOpen.set(false)">&times;</button>
       </div>
+      <p class="tip">Select more than one filter to narrow your search</p>
+    </div>
 
-      <!-- Row 2: CADT, LADT, LOP -->
-      <div class="filter-row-4">
-        @if (hasCadtData() && jobName()) {
-          <div class="form-group form-group-tree">
-            <label class="tree-filter-label">
-              <span class="tree-filter-label-text"><strong class="tree-label-accent">Club</strong>/A/D/T</span>
-              <span class="tree-col-legend">Teams | Players</span>
-            </label>
-            @if (cadtTreeLoading()) {
-              <div class="tree-loading">
-                <span class="spinner-border spinner-border-sm"></span>
-                <span>Loading tree&hellip;</span>
-              </div>
-            } @else {
-              <app-cadt-tree-filter #cadtTreeRef
-                [treeData]="cadtTree()"
-                [checkedIds]="cadtCheckedIds()"
-                rootLabel="C-A-D-T"
-                headerLabel="Club/A/D/T"
-                [showSearch]="false"
-                (checkedIdsChange)="onCadtCheckedChange($event)">
-              </app-cadt-tree-filter>
-            }
-          </div>
-        }
-
-        <div class="form-group form-group-tree">
-          <label class="tree-filter-label">
-            <span class="tree-filter-label-text"><strong class="tree-label-accent">League</strong>/A/D/T</span>
-            <span class="tree-col-legend">Teams | Players</span>
-          </label>
-          @if (ladtTreeLoading()) {
-            <div class="tree-loading">
-              <span class="spinner-border spinner-border-sm"></span>
-              <span>Loading tree&hellip;</span>
+    <!-- Drawer Body -->
+    <div class="panel-body">
+      <!-- Section: Core -->
+      <div class="section-card">
+        <div class="section-card-header">Core</div>
+        <div class="section-card-body">
+          <div class="filter-row-5">
+            <div class="form-group">
+              <label>Waitlist / Scheduled</label>
+              <ejs-dropdownlist
+                [dataSource]="filterOptions()?.waitlistScheduledStatuses ?? []"
+                [fields]="msFields"
+                [value]="searchRequest().waitlistScheduledStatus"
+                (change)="updateWaitlistScheduledStatus($event.value)"
+                [allowFiltering]="false"
+                [showClearButton]="true"
+                placeholder="All"
+                [itemTemplate]="countBadgeTemplate"
+                cssClass="filter-ms"
+                [popupWidth]="'auto'">
+              </ejs-dropdownlist>
             </div>
-          } @else {
-            <app-ladt-tree-filter #ladtTreeRef
-              [treeData]="ladtTree()"
-              [checkedIds]="ladtCheckedIds()"
-              rootLabel="L-A-D-T"
-              headerLabel="League/A/D/T"
-              (checkedIdsChange)="onLadtCheckedChange($event)">
-            </app-ladt-tree-filter>
-          }
-        </div>
 
-        <div class="form-group">
-          <label>Level of Play</label>
-          <ejs-multiselect #ms1
-            [dataSource]="filterOptions()?.levelOfPlays ?? []"
-            [fields]="msFields"
-            [value]="searchRequest().levelOfPlays"
-            (change)="updateMultiSelect('levelOfPlays', $event.value)"
-            (open)="onMultiSelectOpen(ms1)"
-            [mode]="'CheckBox'"
-            [allowFiltering]="false"
-            [showDropDownIcon]="true"
-            [closePopupOnSelect]="false"
-            [changeOnBlur]="false"
-            placeholder="All"
-            [itemTemplate]="countBadgeTemplate"
-            cssClass="filter-ms"
-            [popupWidth]="'auto'">
-          </ejs-multiselect>
+            <div class="form-group">
+              <label>Active Status</label>
+              <ejs-multiselect #ms2
+                [dataSource]="filterOptions()?.activeStatuses ?? []"
+                [fields]="msFields"
+                [value]="searchRequest().activeStatuses"
+                (change)="updateMultiSelect('activeStatuses', $event.value)"
+                (open)="onMultiSelectOpen(ms2)"
+                [mode]="'CheckBox'"
+                [allowFiltering]="false"
+                [showDropDownIcon]="true"
+                [closePopupOnSelect]="false"
+                [changeOnBlur]="false"
+                placeholder="All Statuses"
+                [itemTemplate]="countBadgeTemplate"
+                cssClass="filter-ms"
+                [popupWidth]="'auto'">
+              </ejs-multiselect>
+            </div>
+
+            <div class="form-group">
+              <label>Pay Status</label>
+              <ejs-multiselect #ms3
+                [dataSource]="filterOptions()?.payStatuses ?? []"
+                [fields]="msFields"
+                [value]="searchRequest().payStatuses"
+                (change)="updateMultiSelect('payStatuses', $event.value)"
+                (open)="onMultiSelectOpen(ms3)"
+                [mode]="'CheckBox'"
+                [allowFiltering]="false"
+                [showDropDownIcon]="true"
+                [closePopupOnSelect]="false"
+                [changeOnBlur]="false"
+                placeholder="All"
+                [itemTemplate]="countBadgeTemplate"
+                cssClass="filter-ms"
+                [popupWidth]="'auto'">
+              </ejs-multiselect>
+            </div>
+
+            <div class="form-group">
+              <label>Pay Meth</label>
+              <ejs-multiselect #ms6
+                [dataSource]="filterOptions()?.paymentTypes ?? []"
+                [fields]="msFields"
+                [value]="searchRequest().paymentTypes"
+                (change)="updateMultiSelect('paymentTypes', $event.value)"
+                (open)="onMultiSelectOpen(ms6)"
+                [mode]="'CheckBox'"
+                [allowFiltering]="false"
+                [showDropDownIcon]="true"
+                [closePopupOnSelect]="false"
+                [changeOnBlur]="false"
+                placeholder="All"
+                [itemTemplate]="countBadgeTemplate"
+                cssClass="filter-ms"
+                [popupWidth]="'320px'">
+              </ejs-multiselect>
+            </div>
+
+            <div class="form-group">
+              <label>Level of Play</label>
+              <ejs-multiselect #ms1
+                [dataSource]="filterOptions()?.levelOfPlays ?? []"
+                [fields]="msFields"
+                [value]="searchRequest().levelOfPlays"
+                (change)="updateMultiSelect('levelOfPlays', $event.value)"
+                (open)="onMultiSelectOpen(ms1)"
+                [mode]="'CheckBox'"
+                [allowFiltering]="false"
+                [showDropDownIcon]="true"
+                [closePopupOnSelect]="false"
+                [changeOnBlur]="false"
+                placeholder="All"
+                [itemTemplate]="countBadgeTemplate"
+                cssClass="filter-ms"
+                [popupWidth]="'auto'">
+              </ejs-multiselect>
+            </div>
+          </div>
         </div>
       </div>
 
-    </div>
-  </div>
+      <!-- Section: Hierarchy -->
+      <div class="section-card">
+        <div class="section-card-header">Hierarchy</div>
+        <div class="section-card-body">
+          <div class="filter-row-5">
+            @if (hasCadtData() && jobName()) {
+              <div class="form-group form-group-tree">
+                <label class="tree-filter-label">
+                  <span class="tree-filter-label-text"><strong class="tree-label-accent">Club</strong>/A/D/T</span>
+                  <span class="tree-col-legend">Teams | Players</span>
+                </label>
+                @if (cadtTreeLoading()) {
+                  <div class="tree-loading">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <span>Loading tree&hellip;</span>
+                  </div>
+                } @else {
+                  <app-cadt-tree-filter #cadtTreeRef
+                    [treeData]="cadtTree()"
+                    [checkedIds]="cadtCheckedIds()"
+                    rootLabel="C-A-D-T"
+                    headerLabel="Club/A/D/T"
+                    [showSearch]="false"
+                    (checkedIdsChange)="onCadtCheckedChange($event)">
+                  </app-cadt-tree-filter>
+                }
+              </div>
+            }
 
-  <!-- Filter Chips Strip -->
-  @if (activeFilterChips().length > 0 && searchResults()) {
-    <div class="filter-chips-strip">
-      <span class="chip-strip-label">Selected Filters</span>
-      @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
-        <span class="filter-chip">
-          <span class="chip-category">{{ chip.category }}:</span>
-          <span class="chip-label">{{ chip.label }}</span>
-          <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </span>
-      }
-      <button type="button" class="chip-clear-all" (click)="clearAllChips()">Clear All</button>
-      <span class="chip-strip-spacer"></span>
+            <div class="form-group form-group-tree">
+              <label class="tree-filter-label">
+                <span class="tree-filter-label-text"><strong class="tree-label-accent">League</strong>/A/D/T</span>
+                <span class="tree-col-legend">Teams | Players</span>
+              </label>
+              @if (ladtTreeLoading()) {
+                <div class="tree-loading">
+                  <span class="spinner-border spinner-border-sm"></span>
+                  <span>Loading tree&hellip;</span>
+                </div>
+              } @else {
+                <app-ladt-tree-filter #ladtTreeRef
+                  [treeData]="ladtTree()"
+                  [checkedIds]="ladtCheckedIds()"
+                  rootLabel="L-A-D-T"
+                  headerLabel="League/A/D/T"
+                  (checkedIdsChange)="onLadtCheckedChange($event)">
+                </app-ladt-tree-filter>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drawer Footer -->
+    <div class="panel-footer">
+      <button type="button" class="btn btn-drawer-reset" (click)="clearFilters()">Reset</button>
       <button type="button"
-        class="btn btn-chip-search"
+        class="btn btn-drawer-search"
         (click)="executeSearch()"
         [disabled]="isSearching()">
         @if (isSearching()) {
           <span class="spinner-border spinner-border-sm"></span>
         } @else {
-          <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         }
         Search
-      </button>
-      <button type="button" class="btn btn-reset" (click)="clearFilters()">
-        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        Reset
+        @if (isFilterDirty()) {
+          <span class="dirty-dot" aria-label="Unapplied filter changes"></span>
+        }
       </button>
     </div>
-  }
+  </aside>
+
+  <!-- Filter Chips Strip (always visible; filter toggle lives here) -->
+  <div class="filter-chips-strip">
+    <button type="button"
+      class="chip-strip-toggle"
+      [class.has-active]="activeFilterChips().length > 0"
+      (click)="isFiltersPanelOpen.set(!isFiltersPanelOpen())"
+      [attr.aria-label]="'Open filters (' + activeFilterChips().length + ' active)'"
+      [attr.aria-expanded]="isFiltersPanelOpen()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      @if (activeFilterChips().length > 0) {
+        <span class="chip-strip-toggle-badge">{{ activeFilterChips().length }}</span>
+      }
+    </button>
+    <span class="chip-strip-label">Selected Filters</span>
+    @if (activeFilterChips().length === 0) {
+      <span class="chip-strip-empty">None &mdash; click the search icon to add filters</span>
+    }
+    @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
+      <span class="filter-chip">
+        <span class="chip-category">{{ chip.category }}:</span>
+        <span class="chip-label">{{ chip.label }}</span>
+        <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </span>
+    }
+    @if (activeFilterChips().length > 0) {
+      <button type="button" class="chip-clear-all" (click)="clearFilters()">Reset</button>
+    }
+    <span class="chip-strip-spacer"></span>
+    <button type="button"
+      class="btn btn-chip-search"
+      (click)="executeSearch()"
+      [disabled]="isSearching()">
+      @if (isSearching()) {
+        <span class="spinner-border spinner-border-sm"></span>
+      } @else {
+        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      }
+      Search
+    </button>
+  </div>
 
   <!-- Results Grid -->
   <div class="results-container">
@@ -287,7 +342,11 @@
           <!-- Scrollable columns -->
           <e-column field="agegroupName" headerText="Agegroup" width="130"></e-column>
           <e-column field="divName" headerText="Div/Pool" width="120"></e-column>
-          <e-column field="levelOfPlay" headerText="LOP" width="90"></e-column>
+          <e-column field="levelOfPlay" headerText="LOP" width="90">
+            <ng-template #template let-data>
+              {{ data.levelOfPlay?.toString().split(' ')[0] }}
+            </ng-template>
+          </e-column>
           <e-column field="paidTotal" headerText="Paid" width="100" textAlign="Right">
             <ng-template #template let-data>
               <span class="money-cell money-paid">{{ data.paidTotal | currency }}</span>
