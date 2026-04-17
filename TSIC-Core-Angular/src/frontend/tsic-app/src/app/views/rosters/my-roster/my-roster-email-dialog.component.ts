@@ -52,8 +52,7 @@ import type { BatchEmailResponse } from '@core/api/models/BatchEmailResponse';
                       placeholder="Write your message..."></textarea>
           </div>
           <p class="small text-body-secondary mb-0">
-            Tokens like <code>!PERSON</code>, <code>!EMAIL</code>, and <code>!JOBNAME</code>
-            are replaced per recipient when the email is sent.
+            Use <code>!PERSON</code> to address each teammate by name — it's replaced per recipient when the email is sent.
           </p>
         </div>
 

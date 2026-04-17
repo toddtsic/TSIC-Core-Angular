@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using TSIC.Contracts.Dtos.MyRoster;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Repositories;
@@ -26,8 +27,9 @@ public sealed class MyRosterService : IMyRosterService
         if (caller == null)
             return Denied("Registration not found.");
 
-        var roleName = caller.Role?.Name;
-        if (roleName != RoleConstants.Names.PlayerName && roleName != RoleConstants.Names.StaffName)
+        var isPlayer = caller.RoleId == RoleConstants.Player;
+        var isStaff = caller.RoleId == RoleConstants.Staff;
+        if (!isPlayer && !isStaff)
             return Denied("Only players and staff may view team rosters.");
 
         if (caller.AssignedTeamId == null)
@@ -37,11 +39,8 @@ public sealed class MyRosterService : IMyRosterService
         if (flags == null)
             return Denied("Job not found.");
 
-        // Player: gated by BAllowRosterViewPlayer only.
-        // Staff:  gated by BOTH flags (most-restrictive reading of "use both").
-        var allowed = roleName == RoleConstants.Names.PlayerName
-            ? flags.Value.AllowPlayer
-            : (flags.Value.AllowPlayer && flags.Value.AllowAdult);
+        // Legacy spec: Player gated by BAllowRosterViewPlayer; Staff gated by BAllowRosterViewAdult — independently.
+        var allowed = isPlayer ? flags.Value.AllowPlayer : flags.Value.AllowAdult;
 
         if (!allowed)
             return Denied("Roster viewing is disabled for this event.");
@@ -83,15 +82,25 @@ public sealed class MyRosterService : IMyRosterService
         var caller = await _registrationRepo.GetByIdAsync(callerRegistrationId, ct)
             ?? throw new UnauthorizedAccessException("Registration not found.");
 
+        // Teammate-to-teammate emails may only resolve !PERSON. Any other token
+        // (!AMTFEES, !AMTPAID, !AMTOWED, !EMAIL, etc.) would leak recipient PII/financials
+        // through the shared substitution pipeline — strip them before delegating.
         var batch = new BatchEmailRequest
         {
             RegistrationIds = targetIds,
-            Subject = request.Subject,
-            BodyTemplate = request.BodyTemplate,
+            Subject = StripDisallowedTokens(request.Subject),
+            BodyTemplate = StripDisallowedTokens(request.BodyTemplate),
         };
 
         return await _searchService.SendBatchEmailAsync(caller.JobId, callerUserId, batch, ct);
     }
+
+    private static readonly Regex TokenPattern = new(
+        @"!(?!PERSON\b)[A-Z0-9_-]+",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static string StripDisallowedTokens(string input) =>
+        string.IsNullOrEmpty(input) ? input : TokenPattern.Replace(input, string.Empty);
 
     private static MyRosterResponseDto Denied(string reason) => new()
     {
