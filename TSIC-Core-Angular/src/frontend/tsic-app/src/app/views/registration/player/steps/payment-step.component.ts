@@ -145,10 +145,19 @@ import type { LineItem } from '../state/payment-v2.service';
           }
         }
 
-        <!-- VerticalInsure / RegSaver region — matches legacy: widget + prompt only -->
-        @if (insuranceState.offerPlayerRegSaver() && insuranceState.verticalInsureOffer().data) {
+        <!-- VerticalInsure / RegSaver region -->
+        @if (insuranceState.offerPlayerRegSaver()) {
           <div class="mb-3">
-            <div #viOffer id="dVIOffer" class="text-center"></div>
+            <div #viOffer id="dVIOffer" class="text-center vi-container">
+              @if (!insuranceSvc.widgetInitialized()) {
+                <div class="py-4">
+                  <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p class="text-muted mt-2 small mb-0">Getting Registration Insurance Quote...</p>
+                </div>
+              }
+            </div>
             @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
               <div class="alert alert-secondary border-0 py-2 small" role="alert">
                 Insurance is optional. Please indicate your interest in registration insurance for each player listed.
@@ -395,6 +404,8 @@ import type { LineItem } from '../state/payment-v2.service';
           box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
         }
       }
+
+      .vi-container { min-height: 280px; }
 
       .check-instructions {
         background: rgba(var(--bs-info-rgb), 0.04);

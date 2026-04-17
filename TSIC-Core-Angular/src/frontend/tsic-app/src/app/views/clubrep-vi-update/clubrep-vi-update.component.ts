@@ -146,7 +146,16 @@ type ViewState = 'login' | 'loading' | 'offer' | 'nothing' | 'success' | 'error'
                 </p>
 
                 <div class="mb-3">
-                  <div #viOffer id="dVITeamOffer" class="text-center"></div>
+                  <div #viOffer id="dVITeamOffer" class="text-center" style="min-height: 280px;">
+                    @if (!teamInsurance.widgetInitialized()) {
+                      <div class="py-4">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="text-muted mt-2 small mb-0">Getting Registration Insurance Quote...</p>
+                      </div>
+                    }
+                  </div>
                   @if (teamInsurance.widgetInitialized() && !teamInsurance.hasUserResponse()) {
                     <div class="alert alert-secondary border-0 py-2 small" role="alert">
                       Please indicate your interest in Registration Protection for each
