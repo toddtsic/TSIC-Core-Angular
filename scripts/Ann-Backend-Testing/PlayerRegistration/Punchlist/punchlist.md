@@ -662,7 +662,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Back button to return to the prior step — PL-014 was previously marked Fixed (WizardShellComponent was supposed to provide Back on all steps)
 - **What happened**: No Back option visible on the Choose Your Players screen — appears to be a regression of PL-014
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: Players is the first real step after family-check (login). When authenticated, family-check is skipped and the user lands directly on players. Back would go to the "Signed in as xxx" screen — no useful action there.
 
 ### SP-011: Trash can icons missing on Choose Your Players card (reopens PL-015)
 - **Area**: Registration Process Review
@@ -670,7 +671,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A trash can icon next to the pencil icon on each player row — PL-015 was marked Fixed with note "trash icon already present next to pencil on each player row"
 - **What happened**: Trash can icons are NOT present next to the pencil icons on the player rows. PL-015 needs to be reopened — the icon either was never added or has regressed.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
+- **Note**: This screen selects which players to register — it doesn't manage the player roster. Removing players from the family account is done via "Edit Family Account/Players" which opens the family wizard.
 
 ### SP-012: Revisit capacity info in Assign Teams dropdown (reopens PL-017)
 - **Area**: Registration Process Review
