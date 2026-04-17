@@ -35,6 +35,7 @@ export type JobMetadataResponse = {
     bBannerIsCustom?: boolean;
     jobTypeName?: string | null;
     jobTypeId: number;
+    sportName?: string | null;
     registrationMode?: string;
     paymentMethodsAllowedCode?: number;
     bAddProcessingFees?: boolean;

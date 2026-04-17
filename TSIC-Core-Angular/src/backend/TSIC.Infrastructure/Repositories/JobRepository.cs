@@ -135,6 +135,7 @@ public class JobRepository : IJobRepository
                 BBannerIsCustom = jdo.ParallaxSlideCount > 0,
                 JobTypeName = jdo.Job.JobType.JobTypeName,
                 JobTypeId = jdo.Job.JobTypeId,
+                SportName = jdo.Job.Sport.SportName,
                 PaymentMethodsAllowedCode = jdo.Job.PaymentMethodsAllowedCode,
                 BAddProcessingFees = jdo.Job.BAddProcessingFees,
                 PayTo = jdo.Job.PayTo,

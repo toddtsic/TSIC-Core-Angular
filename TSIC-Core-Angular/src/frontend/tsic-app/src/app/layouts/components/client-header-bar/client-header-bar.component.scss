@@ -333,16 +333,16 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-full);
-    background: transparent;
-    border: 1px solid transparent;
+    background: rgba(var(--bs-primary-rgb), 0.06);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
     color: var(--bs-body-color);
     cursor: pointer;
     transition: background 0.2s ease, border-color 0.2s ease;
 
     .bi-person-circle {
-        font-size: var(--font-size-2xl);
+        font-size: var(--font-size-xl);
         color: var(--bs-primary);
     }
 
@@ -357,7 +357,8 @@
     }
 
     &:hover {
-        background: rgba(var(--bs-primary-rgb), 0.08);
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        border-color: rgba(var(--bs-primary-rgb), 0.25);
     }
 
     &:focus-visible {
@@ -411,10 +412,10 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-full);
-    background: transparent;
-    border: 1px solid transparent;
+    background: rgba(var(--bs-primary-rgb), 0.06);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
     color: var(--bs-body-color);
     font-size: var(--font-size-sm);
     font-weight: 500;
@@ -423,7 +424,7 @@
     white-space: nowrap;
 
     .bi-person-circle {
-        font-size: var(--font-size-2xl);
+        font-size: var(--font-size-xl);
         color: var(--bs-primary);
     }
 
@@ -438,7 +439,8 @@
     }
 
     &:hover {
-        background: rgba(var(--bs-primary-rgb), 0.08);
+        background: rgba(var(--bs-primary-rgb), 0.12);
+        border-color: rgba(var(--bs-primary-rgb), 0.25);
     }
 
     &:focus-visible {
@@ -447,64 +449,45 @@
     }
 }
 
-// Initialed avatar — sized and shaped to match the adjacent home + theme-toggle
-// icon buttons (36px) so it sits as a true peer in that button row.
-.avatar-initials {
+// Friendly first-name label inside the trigger pill. Body color + semibold reads
+// as identity (not a hyperlink); primary accent appears on parent hover only.
+// Max-width + ellipsis guards header layout against unusually long first names.
+// Sport ball icon prefix for the friendly first-name label. Inline SVG with
+// sport-accurate fills for instant recognition at small size. Size is
+// controllable via --sport-icon-size on the component host or an ancestor.
+.sport-icon {
+    --sport-icon-size: 18px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg,
-            var(--bs-primary) 0%,
-            color-mix(in srgb, var(--bs-primary) 75%, #000) 100%);
-    color: var(--neutral-0, #fff);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-bold);
-    letter-spacing: 0.02em;
-    line-height: 1;
+    width: var(--sport-icon-size);
+    height: var(--sport-icon-size);
     flex-shrink: 0;
-    user-select: none;
-    border: 1px solid rgba(var(--neutral-0-rgb, 255, 255, 255), 0.3);
-    box-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.18),
-        inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.18);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+}
+
+.user-menu-name--friendly {
+    color: var(--bs-body-color);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.01em;
+    max-width: 10ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.2s ease;
 
     .user-menu-trigger:hover &,
     .mobile-menu-trigger:hover & {
-        transform: translateY(-1px);
-        box-shadow:
-            0 3px 8px rgba(0, 0, 0, 0.22),
-            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.22);
+        color: var(--bs-primary);
     }
 
     @media (prefers-reduced-motion: reduce) {
         transition: none;
-
-        .user-menu-trigger:hover &,
-        .mobile-menu-trigger:hover & {
-            transform: none;
-        }
-    }
-}
-
-// When the trigger shows the avatar, the avatar IS the button — drop the chevron
-// and collapse the button's own padding/decoration so it sits flush with the
-// sibling 36px icon buttons.
-.user-menu-trigger:has(.avatar-initials),
-.mobile-menu-trigger:has(.avatar-initials) {
-    padding: 0;
-    gap: 0;
-
-    .user-menu-chevron,
-    .mobile-menu-chevron {
-        display: none;
-    }
-
-    &:hover {
-        background: transparent;
     }
 }
 

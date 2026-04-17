@@ -105,6 +105,7 @@ public class JobsController : ControllerBase
             BBannerIsCustom = jobMetadata.BBannerIsCustom,
             JobTypeName = jobMetadata.JobTypeName,
             JobTypeId = jobMetadata.JobTypeId,
+            SportName = jobMetadata.SportName,
             RegistrationMode = _metadataService.GetRegistrationMode(
                 jobMetadata.CoreRegformPlayerRaw, jobMetadata.JsonOptions),
             PaymentMethodsAllowedCode = jobMetadata.PaymentMethodsAllowedCode,

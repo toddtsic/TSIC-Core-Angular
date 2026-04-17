@@ -75,17 +75,19 @@ export class ClientHeaderBarComponent {
         this.user() ? 'Log out & return to TeamSportsInfo.com' : 'TeamSportsInfo.com home'
     );
 
-    /** Two-letter initials for the header avatar circle. Empty when the pulse has no
-     *  name for the current scope (e.g. family account pre-role-selection) — the template
-     *  falls back to the generic person-circle icon in that case. */
-    readonly initials = computed(() => {
-        const p = this.pulse();
-        const first = p?.myFirstName?.trim();
-        const last = p?.myLastName?.trim();
-        if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
-        if (first) return first[0].toUpperCase();
-        if (last) return last[0].toUpperCase();
-        return '';
+    /** First name from the pulse for the friendly header label. Empty when the pulse
+     *  has no name for the current scope (e.g. family account pre-role-selection) — the
+     *  template falls back to the original icon + username layout in that case. */
+    readonly firstName = computed(() => this.pulse()?.myFirstName?.trim() ?? '');
+
+    /** Sport key for the header ball icon. Each ball has a distinctive color/pattern that
+     *  reads at icon size. Lacrosse is the house fallback for unknown sports. */
+    readonly sportKey = computed<'basketball' | 'baseball' | 'soccer' | 'lacrosse'>(() => {
+        const name = this.jobService.currentJob()?.sportName?.toLowerCase() ?? '';
+        if (name.includes('basketball')) return 'basketball';
+        if (name.includes('baseball')) return 'baseball';
+        if (name.includes('soccer')) return 'soccer';
+        return 'lacrosse';
     });
 
     /** "First Last" from pulse when available; used in tooltip + dropdown header. */

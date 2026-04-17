@@ -60,6 +60,7 @@ public record JobMetadataDto
     public string? JobTypeName { get; init; }
     /// <summary>Canonical job type discriminator — see <see cref="TSIC.Domain.Constants.JobConstants"/>.</summary>
     public required int JobTypeId { get; init; }
+    public string? SportName { get; init; }
     public required int PaymentMethodsAllowedCode { get; init; }
     public required bool BAddProcessingFees { get; init; }
     public string? PayTo { get; init; }

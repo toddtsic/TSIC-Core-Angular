@@ -39,6 +39,8 @@ public class JobMetadataResponse
     public string? JobTypeName { get; set; }
     /// <summary>Canonical job type discriminator. Matches TSIC.Domain.Constants.JobConstants.</summary>
     public required int JobTypeId { get; set; }
+    /// <summary>Sport name from Jobs.Sports.SportName (e.g. "Lacrosse", "Basketball"). Used for icon mapping on the client.</summary>
+    public string? SportName { get; set; }
     // Registration mode: "PP" (Player Profile, 1-to-1) or "CAC" (Camps & Clinics, 1-to-many)
     public string RegistrationMode { get; set; } = "PP";
     // Payment method restrictions (1=CC only, 2=CC or Check, 3=Check only)
