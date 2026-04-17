@@ -277,6 +277,15 @@ export class PlayerWizardV2Component implements OnInit {
                 this.toast.show('Registration submission failed. Please review and try again.', 'danger', 5000);
                 return; // stay on review step
             }
+            // Reload family players so the payment tab has full financials
+            // (feeBase, feeProcessing, etc.) from the registration just created.
+            try {
+                const jobPath = this.state.jobCtx.jobPath();
+                const apiBase = this.state.jobCtx.resolveApiBase();
+                await this.state.familyPlayers.loadFamilyPlayersOnce(jobPath, apiBase);
+            } catch (err: unknown) {
+                console.warn('[PlayerWizard] post-preSubmit reload failed', err);
+            }
         }
 
         this._currentIndex.set(idx + 1);
