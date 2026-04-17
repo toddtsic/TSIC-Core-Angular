@@ -450,6 +450,14 @@ public class JobRepository : IJobRepository
     public async Task<Contracts.Dtos.JobPulseUserContext> GetPulseUserContextAsync(
         Guid regId, string role, CancellationToken cancellationToken = default)
     {
+        // Name lookup — regId is a Registration row for every role; Registration.UserId
+        // points to the AspNetUsers row carrying FirstName/LastName.
+        var nameInfo = await (from r in _context.Registrations.AsNoTracking()
+                              join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+                              where r.RegistrationId == regId
+                              select new { u.FirstName, u.LastName })
+            .FirstOrDefaultAsync(cancellationToken);
+
         if (string.Equals(role, "Club Rep", StringComparison.OrdinalIgnoreCase))
         {
             var teams = await _context.Teams
@@ -462,7 +470,9 @@ public class JobRepository : IJobRepository
             {
                 ClubRepTeamCount = teams.Count,
                 ClubRepTotalOwed = teams.Sum(t => t.OwedTotal ?? 0m),
-                ClubRepHasTeamWithoutRegsaver = teams.Any(t => t.ViPolicyId == null)
+                ClubRepHasTeamWithoutRegsaver = teams.Any(t => t.ViPolicyId == null),
+                FirstName = nameInfo?.FirstName,
+                LastName = nameInfo?.LastName
             };
         }
 
@@ -474,14 +484,20 @@ public class JobRepository : IJobRepository
 
         if (reg == null)
         {
-            return new Contracts.Dtos.JobPulseUserContext();
+            return new Contracts.Dtos.JobPulseUserContext
+            {
+                FirstName = nameInfo?.FirstName,
+                LastName = nameInfo?.LastName
+            };
         }
 
         return new Contracts.Dtos.JobPulseUserContext
         {
             AssignedTeamId = reg.AssignedTeamId,
             RegistrationOwedTotal = reg.OwedTotal,
-            HasPurchasedPlayerRegsaver = reg.RegsaverPolicyId != null
+            HasPurchasedPlayerRegsaver = reg.RegsaverPolicyId != null,
+            FirstName = nameInfo?.FirstName,
+            LastName = nameInfo?.LastName
         };
     }
 

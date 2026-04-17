@@ -332,17 +332,17 @@
 .mobile-menu-trigger {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-2);
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-full);
-    background: rgba(var(--bs-primary-rgb), 0.06);
-    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--bs-body-color);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease;
 
     .bi-person-circle {
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-2xl);
         color: var(--bs-primary);
     }
 
@@ -357,8 +357,12 @@
     }
 
     &:hover {
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        border-color: rgba(var(--bs-primary-rgb), 0.25);
+        background: rgba(var(--bs-primary-rgb), 0.08);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus, 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25));
     }
 }
 
@@ -407,19 +411,19 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-full);
-    background: rgba(var(--bs-primary-rgb), 0.06);
-    border: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+    background: transparent;
+    border: 1px solid transparent;
     color: var(--bs-body-color);
     font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease;
     white-space: nowrap;
 
     .bi-person-circle {
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-2xl);
         color: var(--bs-primary);
     }
 
@@ -434,9 +438,81 @@
     }
 
     &:hover {
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        border-color: rgba(var(--bs-primary-rgb), 0.25);
+        background: rgba(var(--bs-primary-rgb), 0.08);
     }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus, 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25));
+    }
+}
+
+// Initialed avatar — sized and shaped to match the adjacent home + theme-toggle
+// icon buttons (36px) so it sits as a true peer in that button row.
+.avatar-initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,
+            var(--bs-primary) 0%,
+            color-mix(in srgb, var(--bs-primary) 75%, #000) 100%);
+    color: var(--neutral-0, #fff);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.02em;
+    line-height: 1;
+    flex-shrink: 0;
+    user-select: none;
+    border: 1px solid rgba(var(--neutral-0-rgb, 255, 255, 255), 0.3);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.18);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    .user-menu-trigger:hover &,
+    .mobile-menu-trigger:hover & {
+        transform: translateY(-1px);
+        box-shadow:
+            0 3px 8px rgba(0, 0, 0, 0.22),
+            inset 0 1px 0 rgba(var(--neutral-0-rgb, 255, 255, 255), 0.22);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+
+        .user-menu-trigger:hover &,
+        .mobile-menu-trigger:hover & {
+            transform: none;
+        }
+    }
+}
+
+// When the trigger shows the avatar, the avatar IS the button — drop the chevron
+// and collapse the button's own padding/decoration so it sits flush with the
+// sibling 36px icon buttons.
+.user-menu-trigger:has(.avatar-initials),
+.mobile-menu-trigger:has(.avatar-initials) {
+    padding: 0;
+    gap: 0;
+
+    .user-menu-chevron,
+    .mobile-menu-chevron {
+        display: none;
+    }
+
+    &:hover {
+        background: transparent;
+    }
+}
+
+// Full-name line above the "Signed in as" role line in the dropdown header.
+.user-menu-fullname {
+    font-weight: var(--font-weight-semibold);
+    color: var(--bs-body-color);
+    margin-bottom: var(--space-1);
 }
 
 .user-menu-backdrop {

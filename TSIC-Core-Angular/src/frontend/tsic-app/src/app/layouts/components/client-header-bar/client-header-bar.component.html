@@ -70,8 +70,13 @@
             <div class="d-md-none">
                 <div class="user-menu-wrapper">
                     <button type="button" class="mobile-menu-trigger" (click)="toggleMobileMenu($event)"
-                        [attr.aria-expanded]="mobileMenuOpen()" aria-label="User menu">
+                        [attr.aria-expanded]="mobileMenuOpen()" aria-label="User menu"
+                        [title]="avatarTitle()">
+                        @if (initials()) {
+                        <span class="avatar-initials">{{ initials() }}</span>
+                        } @else {
                         <i class="bi bi-person-circle"></i>
+                        }
                         <i class="bi bi-chevron-down mobile-menu-chevron" [class.open]="mobileMenuOpen()"></i>
                     </button>
 
@@ -81,6 +86,9 @@
                         [style.top.px]="mobileMenuTop()" [style.right.px]="mobileMenuRight()">
                         @if (user()?.role) {
                         <div class="user-menu-header">
+                            @if (fullName()) {
+                            <div class="user-menu-fullname">{{ fullName() }}</div>
+                            }
                             Signed in as <strong>{{ user()?.role }}</strong>
                         </div>
                         <div class="user-menu-divider"></div>
@@ -188,10 +196,14 @@
                 <!-- User dropdown menu -->
                 <div class="user-menu-wrapper">
                     <button type="button" class="user-menu-trigger" (click)="toggleUserMenu($event)"
-                        [attr.aria-expanded]="userMenuOpen()">
+                        [attr.aria-expanded]="userMenuOpen()" [title]="avatarTitle()">
+                        @if (initials()) {
+                        <span class="avatar-initials">{{ initials() }}</span>
+                        } @else {
                         <i class="bi bi-person-circle"></i>
                         @if (user()?.username) {
                         <span class="user-menu-name">{{ user()?.username }}</span>
+                        }
                         }
                         <i class="bi bi-chevron-down user-menu-chevron" [class.open]="userMenuOpen()"></i>
                     </button>
@@ -202,6 +214,9 @@
                         [style.top.px]="menuTop()" [style.right.px]="menuRight()">
                         @if (user()?.role) {
                         <div class="user-menu-header">
+                            @if (fullName()) {
+                            <div class="user-menu-fullname">{{ fullName() }}</div>
+                            }
                             Signed in as <strong>{{ user()?.role }}</strong>
                         </div>
                         <div class="user-menu-divider"></div>

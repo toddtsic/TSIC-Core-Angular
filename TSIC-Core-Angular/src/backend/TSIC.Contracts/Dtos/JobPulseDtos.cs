@@ -40,6 +40,10 @@ public record JobPulseDto
     public int? MyClubRepTeamCount { get; init; }
     public decimal? MyClubRepTotalOwed { get; init; }
     public bool? MyClubRepHasTeamWithoutRegsaver { get; init; }
+
+    // Display name of the regId owner (Player / ClubRep / Staff / etc). Used for header initials.
+    public string? MyFirstName { get; init; }
+    public string? MyLastName { get; init; }
 }
 
 /// <summary>
@@ -58,4 +62,8 @@ public record JobPulseUserContext
     public int? ClubRepTeamCount { get; init; }
     public decimal? ClubRepTotalOwed { get; init; }
     public bool? ClubRepHasTeamWithoutRegsaver { get; init; }
+
+    // Display name of the regId owner
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
 }

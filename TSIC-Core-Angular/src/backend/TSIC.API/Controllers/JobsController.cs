@@ -34,6 +34,7 @@ public class JobsController : ControllerBase
     private readonly IMenuRepository _menuRepository;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IJobRepository _jobRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IPlayerRegistrationMetadataService _metadataService;
 
     public JobsController(
@@ -43,6 +44,7 @@ public class JobsController : ControllerBase
         IMenuRepository menuRepository,
         IHttpContextAccessor httpContextAccessor,
         IJobRepository jobRepository,
+        IUserRepository userRepository,
         IPlayerRegistrationMetadataService metadataService)
     {
         _logger = logger;
@@ -51,6 +53,7 @@ public class JobsController : ControllerBase
         _menuRepository = menuRepository;
         _httpContextAccessor = httpContextAccessor;
         _jobRepository = jobRepository;
+        _userRepository = userRepository;
         _metadataService = metadataService;
     }
 
@@ -258,24 +261,42 @@ public class JobsController : ControllerBase
         if (pulse == null)
             return NotFound(new { message = $"Job not found: {jobPath}" });
 
-        // Overlay per-user context when JWT is scoped to this same job.
-        if (User.Identity?.IsAuthenticated == true
-            && string.Equals(User.GetJobPath(), jobPath, StringComparison.OrdinalIgnoreCase))
+        // Overlay per-user context when authenticated. Name always resolves from the
+        // JWT sub (account holder) so header initials work even pre-role-selection;
+        // regId-scoped fields only populate when JWT is scoped to this same job.
+        if (User.Identity?.IsAuthenticated == true)
         {
-            var regId = User.GetRegistrationId();
-            var role = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (regId.HasValue && !string.IsNullOrEmpty(role))
+            // Account-holder name from JWT sub — available immediately after login.
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userId))
             {
-                var ctx = await _jobRepository.GetPulseUserContextAsync(regId.Value, role, ct);
-                pulse = pulse with
+                var nameMap = await _userRepository.GetUserNameMapAsync(new[] { userId }, ct);
+                if (nameMap.TryGetValue(userId, out var name))
                 {
-                    MyAssignedTeamId = ctx.AssignedTeamId,
-                    MyRegistrationOwedTotal = ctx.RegistrationOwedTotal,
-                    MyHasPurchasedPlayerRegsaver = ctx.HasPurchasedPlayerRegsaver,
-                    MyClubRepTeamCount = ctx.ClubRepTeamCount,
-                    MyClubRepTotalOwed = ctx.ClubRepTotalOwed,
-                    MyClubRepHasTeamWithoutRegsaver = ctx.ClubRepHasTeamWithoutRegsaver
-                };
+                    pulse = pulse with { MyFirstName = name.FirstName, MyLastName = name.LastName };
+                }
+            }
+
+            // Role-scoped overlay (regId + role + matching jobPath).
+            if (string.Equals(User.GetJobPath(), jobPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var regId = User.GetRegistrationId();
+                var role = User.FindFirst(ClaimTypes.Role)?.Value;
+                if (regId.HasValue && !string.IsNullOrEmpty(role))
+                {
+                    var ctx = await _jobRepository.GetPulseUserContextAsync(regId.Value, role, ct);
+                    pulse = pulse with
+                    {
+                        MyAssignedTeamId = ctx.AssignedTeamId,
+                        MyRegistrationOwedTotal = ctx.RegistrationOwedTotal,
+                        MyHasPurchasedPlayerRegsaver = ctx.HasPurchasedPlayerRegsaver,
+                        MyClubRepTeamCount = ctx.ClubRepTeamCount,
+                        MyClubRepTotalOwed = ctx.ClubRepTotalOwed,
+                        MyClubRepHasTeamWithoutRegsaver = ctx.ClubRepHasTeamWithoutRegsaver,
+                        MyFirstName = ctx.FirstName ?? pulse.MyFirstName,
+                        MyLastName = ctx.LastName ?? pulse.MyLastName
+                    };
+                }
             }
         }
 

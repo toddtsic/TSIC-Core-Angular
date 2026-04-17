@@ -75,6 +75,38 @@ export class ClientHeaderBarComponent {
         this.user() ? 'Log out & return to TeamSportsInfo.com' : 'TeamSportsInfo.com home'
     );
 
+    /** Two-letter initials for the header avatar circle. Empty when the pulse has no
+     *  name for the current scope (e.g. family account pre-role-selection) — the template
+     *  falls back to the generic person-circle icon in that case. */
+    readonly initials = computed(() => {
+        const p = this.pulse();
+        const first = p?.myFirstName?.trim();
+        const last = p?.myLastName?.trim();
+        if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+        if (first) return first[0].toUpperCase();
+        if (last) return last[0].toUpperCase();
+        return '';
+    });
+
+    /** "First Last" from pulse when available; used in tooltip + dropdown header. */
+    readonly fullName = computed(() => {
+        const p = this.pulse();
+        const first = p?.myFirstName?.trim();
+        const last = p?.myLastName?.trim();
+        if (first && last) return `${first} ${last}`;
+        return first || last || '';
+    });
+
+    /** Tooltip for the avatar trigger: "John Smith — Player" (or just role, or username). */
+    readonly avatarTitle = computed(() => {
+        const name = this.fullName();
+        const role = this.user()?.role;
+        if (name && role) return `${name} — ${role}`;
+        if (name) return name;
+        if (role) return role;
+        return this.user()?.username ?? '';
+    });
+
     /**
      * Role-conditional task list shown in the user dropdown for non-admin roles.
      * Admin roles get their tasks from the primary nav chrome, not this dropdown.
