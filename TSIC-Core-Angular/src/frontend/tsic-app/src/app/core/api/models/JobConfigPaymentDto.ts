@@ -6,6 +6,7 @@ export type JobConfigPaymentDto = {
     paymentMethodsAllowedCode: number;
     bAddProcessingFees: boolean;
     processingFeePercent: number | null;
+    minProcessingFeePercent: number;
     bApplyProcessingFeesToTeamDeposit: boolean | null;
     perPlayerCharge: number | null;
     perTeamCharge: number | null;

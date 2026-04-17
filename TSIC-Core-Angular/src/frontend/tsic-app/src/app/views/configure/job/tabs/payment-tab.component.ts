@@ -20,6 +20,7 @@ export class PaymentTabComponent implements OnInit {
   paymentMethodsAllowedCode = linkedSignal(() => this.svc.payment()?.paymentMethodsAllowedCode ?? 1);
   bAddProcessingFees = linkedSignal(() => this.svc.payment()?.bAddProcessingFees ?? false);
   processingFeePercent = linkedSignal(() => this.svc.payment()?.processingFeePercent ?? null);
+  minProcessingFeePercent = computed(() => this.svc.payment()?.minProcessingFeePercent ?? null);
   bApplyProcessingFeesToTeamDeposit = linkedSignal(() => this.svc.payment()?.bApplyProcessingFeesToTeamDeposit ?? null);
   perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? null);
   perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? null);
@@ -78,6 +79,13 @@ export class PaymentTabComponent implements OnInit {
     } else {
       this.svc.markDirty('payment');
     }
+  }
+
+  onProcessingFeeChange(value: number | null): void {
+    const min = this.minProcessingFeePercent();
+    const clamped = (value !== null && min !== null && value < min) ? min : value;
+    this.processingFeePercent.set(clamped);
+    this.onFieldChange();
   }
 
   save(): void {

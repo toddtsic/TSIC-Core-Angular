@@ -31,25 +31,34 @@
         </div>
         <div class="col-md-6">
           <fieldset class="config-fieldset">
-            <legend class="field-label">Processing Fee</legend>
+            <legend class="field-label">
+              Processing Fee
+              @if (!svc.isSuperUser()) {
+                <i class="bi bi-lock-fill ms-1 text-muted" title="SuperUser only"></i>
+              }
+            </legend>
             <div class="field-check-row">
               <div class="d-flex align-items-center gap-2">
                 <label class="field-check">
                   <input type="checkbox"
                     [ngModel]="bAddProcessingFees()"
-                    (ngModelChange)="bAddProcessingFees.set($event); onFieldChange()" />
+                    (ngModelChange)="bAddProcessingFees.set($event); onFieldChange()"
+                    [disabled]="!svc.isSuperUser()" />
                   <span class="field-label mb-0">Add Fee</span>
                 </label>
-                <input type="number" class="field-input" step="0.01" placeholder="%"
+                <input type="number" class="field-input" step="0.01"
+                  [placeholder]="minProcessingFeePercent() !== null ? (minProcessingFeePercent() + '%') : '%'"
                   style="max-width: 70px"
+                  [min]="minProcessingFeePercent()"
                   [ngModel]="processingFeePercent()"
-                  (ngModelChange)="processingFeePercent.set($event); onFieldChange()"
-                  [disabled]="!bAddProcessingFees()" />
+                  (ngModelChange)="onProcessingFeeChange($event)"
+                  [disabled]="!bAddProcessingFees() || !svc.isSuperUser()" />
               </div>
               <label class="field-check">
                 <input type="checkbox"
                   [ngModel]="bApplyProcessingFeesToTeamDeposit()"
-                  (ngModelChange)="bApplyProcessingFeesToTeamDeposit.set($event); onFieldChange()" />
+                  (ngModelChange)="bApplyProcessingFeesToTeamDeposit.set($event); onFieldChange()"
+                  [disabled]="!svc.isSuperUser()" />
                 <span class="field-label mb-0">Apply to Team Deposit</span>
               </label>
             </div>

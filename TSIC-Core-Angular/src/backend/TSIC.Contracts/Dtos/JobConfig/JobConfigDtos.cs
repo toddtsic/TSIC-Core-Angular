@@ -78,6 +78,11 @@ public record JobConfigPaymentDto
     public required int PaymentMethodsAllowedCode { get; init; }
     public required bool BAddProcessingFees { get; init; }
     public required decimal? ProcessingFeePercent { get; init; }
+    /// <summary>
+    /// Effective minimum processing fee rate (percentage). Read-only — surfaced so
+    /// the UI can display it as a placeholder when ProcessingFeePercent is NULL.
+    /// </summary>
+    public required decimal MinProcessingFeePercent { get; init; }
     public required bool? BApplyProcessingFeesToTeamDeposit { get; init; }
     public required decimal? PerPlayerCharge { get; init; }
     public required decimal? PerTeamCharge { get; init; }

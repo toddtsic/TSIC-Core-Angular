@@ -545,6 +545,7 @@ public class JobConfigService : IJobConfigService
         PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
         BAddProcessingFees = job.BAddProcessingFees,
         ProcessingFeePercent = job.ProcessingFeePercent,
+        MinProcessingFeePercent = FeeConstants.MinProcessingFeePercent,
         BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit,
         PerPlayerCharge = job.PerPlayerCharge,
         PerTeamCharge = job.PerTeamCharge,
