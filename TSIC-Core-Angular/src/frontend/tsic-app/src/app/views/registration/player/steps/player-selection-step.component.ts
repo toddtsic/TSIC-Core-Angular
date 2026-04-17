@@ -333,7 +333,7 @@ export class PlayerSelectionStepComponent {
         if (!jobPath) return;
         const returnUrl = `/${jobPath}/registration/player?step=players`;
         this.router.navigate([`/${jobPath}/registration/family`], {
-            queryParams: { step: 'children', returnUrl },
+            queryParams: { step: 'contacts', returnUrl },
         });
     }
 

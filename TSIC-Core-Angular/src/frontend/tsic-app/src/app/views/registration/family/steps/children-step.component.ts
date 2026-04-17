@@ -232,6 +232,8 @@ export class ChildrenStepComponent {
         return true;
     }
 
+    readonly saving = signal(false);
+
     addChild(): void {
         this.submitted.set(true);
         if (this.form.invalid) return;
@@ -247,13 +249,42 @@ export class ChildrenStepComponent {
         const idx = this.editingIndex();
         if (idx !== null) {
             const existing = this.state.children()[idx];
-            this.state.updateChildAt(idx, { ...child, userId: existing?.userId, hasRegistrations: existing?.hasRegistrations });
-            this.editingIndex.set(null);
+            if (existing?.userId) {
+                this.saving.set(true);
+                this.familyApi.updateChild(existing.userId, child).subscribe({
+                    next: () => {
+                        this.state.updateChildAt(idx, { ...child, userId: existing.userId, hasRegistrations: existing.hasRegistrations });
+                        this.editingIndex.set(null);
+                        this.form.reset();
+                        this.submitted.set(false);
+                        this.saving.set(false);
+                    },
+                    error: (err) => {
+                        console.error('[ChildrenStep] update failed', err);
+                        this.saving.set(false);
+                    },
+                });
+            } else {
+                this.state.updateChildAt(idx, { ...child, userId: existing?.userId, hasRegistrations: existing?.hasRegistrations });
+                this.editingIndex.set(null);
+                this.form.reset();
+                this.submitted.set(false);
+            }
         } else {
-            this.state.addChild(child);
+            this.saving.set(true);
+            this.familyApi.addChild(child).subscribe({
+                next: (res) => {
+                    this.state.addChild({ ...child, userId: res.childUserId ?? undefined });
+                    this.form.reset();
+                    this.submitted.set(false);
+                    this.saving.set(false);
+                },
+                error: (err) => {
+                    console.error('[ChildrenStep] add failed', err);
+                    this.saving.set(false);
+                },
+            });
         }
-        this.form.reset();
-        this.submitted.set(false);
     }
 
     edit(index: number): void {

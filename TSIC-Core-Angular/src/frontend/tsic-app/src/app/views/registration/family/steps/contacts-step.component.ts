@@ -127,6 +127,22 @@ import { FamilyStateService } from '../state/family-state.service';
             </div>
           </div>
         </div>
+
+        @if (state.mode() === 'edit') {
+          <div class="d-flex align-items-center gap-2 justify-content-end mt-4">
+            @if (state.profileSaved()) {
+              <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>
+            }
+            <button type="button" class="btn btn-outline-primary"
+                    [disabled]="!canUpdate() || state.profileSaving()"
+                    (click)="update()">
+              @if (state.profileSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Update Contacts
+            </button>
+          </div>
+        }
       </div>
     </div>
   `,
@@ -135,7 +151,7 @@ import { FamilyStateService } from '../state/family-state.service';
 export class ContactsStepComponent {
     private readonly fb = inject(FormBuilder);
     private readonly jobService = inject(JobService);
-    private readonly state = inject(FamilyStateService);
+    readonly state = inject(FamilyStateService);
 
     readonly touched = signal(false);
 
@@ -189,6 +205,7 @@ export class ContactsStepComponent {
 
     syncToState(): void {
         this.touched.set(true);
+        this.state.clearSavedFlag();
         const v = this.form.value;
         this.state.setParent1({
             firstName: v.p1First ?? '', lastName: v.p1Last ?? '', phone: v.p1Phone ?? '',
@@ -198,6 +215,15 @@ export class ContactsStepComponent {
             firstName: v.p2First ?? '', lastName: v.p2Last ?? '', phone: v.p2Phone ?? '',
             email: v.p2Email ?? '', emailConfirm: v.p2EmailConfirm ?? '',
         });
+    }
+
+    canUpdate(): boolean {
+        return this.state.hasValidParent1() && this.state.hasValidParent2();
+    }
+
+    update(): void {
+        this.syncToState();
+        this.state.persistProfile();
     }
 
     onDigitsOnly(controlName: string, ev: Event): void {

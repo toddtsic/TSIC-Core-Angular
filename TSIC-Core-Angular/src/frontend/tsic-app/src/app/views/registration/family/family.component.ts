@@ -117,7 +117,8 @@ export class FamilyWizardV2Component implements OnInit {
     // ── Navigation ──────────────────────────────────────────────────
     next(): void {
         // Intercept credentials step — validate against backend before advancing
-        if (this.currentStepId() === 'credentials') {
+        // Skip validation if already authenticated (user navigated back to this step)
+        if (this.currentStepId() === 'credentials' && !this.auth.isAuthenticated()) {
             this.validateAndAdvance();
             return;
         }
@@ -129,6 +130,12 @@ export class FamilyWizardV2Component implements OnInit {
 
         if (this.currentIndex() < this.activeSteps().length - 1) {
             this.currentIndex.update(i => i + 1);
+        }
+    }
+
+    goToStep(stepIndex: number): void {
+        if (stepIndex < this.currentIndex()) {
+            this.currentIndex.set(stepIndex);
         }
     }
 

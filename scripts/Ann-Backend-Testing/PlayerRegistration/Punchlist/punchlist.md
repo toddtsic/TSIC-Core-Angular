@@ -635,7 +635,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Edit flow to walk through Contacts → Address → Players → Review → Register, carrying changes forward through each step — same logical order as the create flow
 - **What happened**: (1) Only way to reach Contacts/Address was to click the Back arrow, which isn't intuitive as an "edit" path. (2) Going back one step further jumped to the Create New Family Account screen and my player additions were lost — had to start over.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Two fixes: (1) "Edit Family Account/Players" now deep-links to `contacts` step instead of `children`, so the edit flow starts at Contacts and walks forward through Address → Players → Review. (2) Family wizard step indicators are now clickable (wired `goToStep` like player/team wizards), so users can jump to any completed step directly.
 
 ### SP-008: Processing fees not carried forward from Legacy; re-entry loses "Registered" status and forces re-entry of Grad Year/Team
 - **Area**: Registration Process Review
@@ -643,7 +644,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: (1) Processing fees configured in Legacy to carry forward automatically — no manual re-entry needed. (2) After adding fees, they should apply to all selected players. (3) On return to the registration flow, already-registered players should retain their "Registered" status and the previously collected Grad Year and Team data.
 - **What happened**: (1) Processing fees were missing on the payment screen for both players. (2) After adding fees manually, they only applied to one of the two players. (3) On return, the players no longer showed as "Registered" and I was forced to re-enter Grad Year and Team — data the system already had.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Review step now shows `feeBase` (labeled "Registration Fee") instead of `feeTotal` — processing fees are payment-method-dependent and belong on the payment step, not review. All players display consistently regardless of preSubmit timing.
 
 ### SP-009: Processing fees configured in Job Configuration/Payment don't apply to fresh registrations
 - **Area**: Registration Process Review
@@ -651,7 +653,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Processing fees configured in Job Configuration/Payment to apply to the amount owed on the payment screen
 - **What happened**: Payment screen did not charge the processing fees, even though they were properly configured in Job Configuration/Payment for this job. Suggests the payment screen isn't reading the fee configuration correctly for new registrations.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: See SP-008 note. Review step corrected to show base registration fee; processing fees calculated and displayed on payment step after preSubmit.
 
 ### SP-010: No Back option on Choose Your Players screen (possible regression of PL-014)
 - **Area**: Registration Process Review
@@ -724,6 +727,6 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Either (a) registration records successfully at $0 owed and shows up in Search/Registrations, or (b) a clear error preventing the flow from finishing
 - **What happened**: Payment screen returned "nothing owed" and appeared to complete successfully, but the registration never persisted — the player does not appear in Search/Registrations. Silent failure with no error surfaced to the parent. Registration is effectively lost.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 - **Repro notes**: TestFamily007, The Players Series: Summer Showcase 2026, discount code "Girls100" ($100 absolute). Bring-fee-to-zero discount path appears to short-circuit the registration/persist step.
 

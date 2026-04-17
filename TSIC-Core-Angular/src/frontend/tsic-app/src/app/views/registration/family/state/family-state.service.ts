@@ -90,6 +90,12 @@ export class FamilyStateService {
     readonly profileLoading = this._profileLoading.asReadonly();
     readonly profileError = this._profileError.asReadonly();
 
+    // ── Profile persist (edit mode) ─────────────────────────────────
+    private readonly _profileSaving = signal(false);
+    private readonly _profileSaved = signal(false);
+    readonly profileSaving = this._profileSaving.asReadonly();
+    readonly profileSaved = this._profileSaved.asReadonly();
+
     // ── Derived ─────────────────────────────────────────────────────
     readonly hasValidCredentials = computed(() => {
         const u = this._username().trim().length >= 3;
@@ -222,7 +228,9 @@ export class FamilyStateService {
                         this._profileError.set('No family profile found.');
                         return;
                     }
-                    // Populate state from server response
+                    // Existing account — switch to edit mode
+                    this._mode.set('edit');
+                    this._accountExists.set(true);
                     this._username.set(profile.username ?? '');
                     this._parent1.set({
                         firstName: profile.primary?.firstName ?? '',
@@ -246,12 +254,14 @@ export class FamilyStateService {
                     });
                     this._children.set(
                         (profile.children ?? []).map(c => ({
+                            userId: c.userId ?? undefined,
                             firstName: c.firstName ?? '',
                             lastName: c.lastName ?? '',
                             gender: c.gender ?? '',
                             dob: c.dob ?? undefined,
                             email: c.email ?? undefined,
                             phone: c.phone ?? undefined,
+                            hasRegistrations: c.hasRegistrations ?? false,
                         })),
                     );
                 },
@@ -261,6 +271,32 @@ export class FamilyStateService {
                 },
             });
     }
+
+    // ── API: Persist profile (edit mode, per-step save) ──────────────
+    persistProfile(): void {
+        if (this._mode() !== 'edit') return;
+        this._profileSaving.set(true);
+        this._profileSaved.set(false);
+        const username = this._username() || this.authService.getCurrentUser()?.username || '';
+        this.familyService.updateFamily({
+            username,
+            primary: { firstName: this._parent1().firstName, lastName: this._parent1().lastName, cellphone: this._parent1().phone, email: this._parent1().email },
+            secondary: { firstName: this._parent2().firstName, lastName: this._parent2().lastName, cellphone: this._parent2().phone, email: this._parent2().email },
+            address: { streetAddress: this._address().address1, city: this._address().city, state: this._address().state, postalCode: this._address().postalCode },
+            children: this._children().map(c => ({ userId: c.userId, firstName: c.firstName, lastName: c.lastName, gender: c.gender, dob: c.dob, email: c.email, phone: c.phone })),
+        }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+            next: () => {
+                this._profileSaving.set(false);
+                this._profileSaved.set(true);
+            },
+            error: (err: unknown) => {
+                this._profileSaving.set(false);
+                console.error('[FamilyState] persistProfile failed', err);
+            },
+        });
+    }
+
+    clearSavedFlag(): void { this._profileSaved.set(false); }
 
     // ── API: Submit (create or update) ──────────────────────────────
     submit(): void {

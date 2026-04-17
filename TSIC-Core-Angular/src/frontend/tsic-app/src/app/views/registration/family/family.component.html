@@ -6,7 +6,8 @@
   [showContinue]="showContinue()"
   [showActionBarOnFirstStep]="true"
   (back)="back()"
-  (continue)="next()">
+  (continue)="next()"
+  (goToStep)="goToStep($event)">
 
   @switch (currentStepId()) {
     @case ('credentials') {

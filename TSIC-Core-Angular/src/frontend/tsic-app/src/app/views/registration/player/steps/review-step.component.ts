@@ -61,8 +61,9 @@ import { JobService } from '@infrastructure/services/job.service';
                   }
                 </div>
                 <div class="review-player-amount">
-                  @if (getAmountForPlayer(player.userId) !== null) {
-                    {{ getAmountForPlayer(player.userId) | currency }}
+                  @if (getBaseFeeForPlayer(player.userId) !== null) {
+                    <span class="review-fee-label">Registration Fee</span>
+                    {{ getBaseFeeForPlayer(player.userId) | currency }}
                   } @else {
                     <span class="text-muted">&ndash;</span>
                   }
@@ -83,10 +84,10 @@ import { JobService } from '@infrastructure/services/job.service';
               }
             </div>
           }
-          @if (paySvc.totalAmount() > 0) {
+          @if (baseFeeTotal() > 0) {
             <div class="review-total-row">
-              <span>Total</span>
-              <span class="review-total-amount">{{ paySvc.totalAmount() | currency }}</span>
+              <span>Registration Fee Total</span>
+              <span class="review-total-amount">{{ baseFeeTotal() | currency }}</span>
             </div>
           }
         </div>
@@ -240,6 +241,14 @@ import { JobService } from '@infrastructure/services/job.service';
         font-weight: var(--font-weight-semibold);
         color: var(--brand-text);
         white-space: nowrap;
+        text-align: right;
+      }
+
+      .review-fee-label {
+        display: block;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-normal);
+        color: var(--text-muted);
       }
 
       /* ── Total row ────────────────────────────────────── */
@@ -344,9 +353,13 @@ export class ReviewStepComponent {
         return [team?.teamName || teams];
     }
 
-    getAmountForPlayer(playerId: string): number | null {
+    getBaseFeeForPlayer(playerId: string): number | null {
         const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
-        return li ? li.amount : null;
+        return li ? li.feeBase : null;
+    }
+
+    baseFeeTotal(): number {
+        return this.paySvc.lineItems().reduce((sum, li) => sum + li.feeBase, 0);
     }
 
     genderLabel(g: string): string {

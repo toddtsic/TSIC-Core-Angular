@@ -54,6 +54,22 @@ import { FamilyStateService } from '../state/family-state.service';
             @if (touched() && form.controls.postalCode.errors?.['minlength']) { <div class="field-error">Must be at least 5 characters</div> }
           </div>
         </div>
+
+        @if (state.mode() === 'edit') {
+          <div class="d-flex align-items-center gap-2 justify-content-end mt-4">
+            @if (state.profileSaved()) {
+              <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>
+            }
+            <button type="button" class="btn btn-outline-primary"
+                    [disabled]="!canUpdate() || state.profileSaving()"
+                    (click)="update()">
+              @if (state.profileSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Update Address
+            </button>
+          </div>
+        }
       </div>
     </div>
   `,
@@ -61,7 +77,7 @@ import { FamilyStateService } from '../state/family-state.service';
 })
 export class AddressStepComponent {
     private readonly fb = inject(FormBuilder);
-    private readonly state = inject(FamilyStateService);
+    readonly state = inject(FamilyStateService);
     private readonly fieldData = inject(FormFieldDataService);
 
     readonly touched = signal(false);
@@ -87,10 +103,20 @@ export class AddressStepComponent {
 
     syncToState(): void {
         this.touched.set(true);
+        this.state.clearSavedFlag();
         const v = this.form.value;
         this.state.setAddress({
             address1: v.address1 ?? '', city: v.city ?? '',
             state: v.state ?? '', postalCode: v.postalCode ?? '',
         });
+    }
+
+    canUpdate(): boolean {
+        return this.state.hasValidAddress();
+    }
+
+    update(): void {
+        this.syncToState();
+        this.state.persistProfile();
     }
 }

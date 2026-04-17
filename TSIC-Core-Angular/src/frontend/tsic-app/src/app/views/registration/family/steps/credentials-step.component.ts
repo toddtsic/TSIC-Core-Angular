@@ -17,6 +17,15 @@ import { FamilyStateService } from '../state/family-state.service';
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
+        @if (auth.isAuthenticated()) {
+          <div class="d-flex align-items-center gap-3 py-3">
+            <i class="bi bi-person-check-fill fs-3" style="color: var(--bs-success)"></i>
+            <div>
+              <h5 class="mb-1 fw-semibold">Family Account</h5>
+              <p class="mb-0">Signed in as <strong>{{ state.username() || auth.getCurrentUser()?.username }}</strong></p>
+            </div>
+          </div>
+        } @else {
         <h5 class="mb-1 fw-semibold">Create Family Account</h5>
         <p class="wizard-tip">Choose a username and password for your NEW account.<br>Already have an account? <a routerLink="../player">click here</a>.</p>
 
@@ -90,6 +99,7 @@ import { FamilyStateService } from '../state/family-state.service';
           </div>
           }
         </div>
+        }
       </div>
     </div>
   `,
@@ -97,7 +107,7 @@ import { FamilyStateService } from '../state/family-state.service';
 })
 export class CredentialsStepComponent {
     private readonly fb = inject(FormBuilder);
-    private readonly auth = inject(AuthService);
+    readonly auth = inject(AuthService);
     readonly state = inject(FamilyStateService);
 
     readonly touched = signal(false);
