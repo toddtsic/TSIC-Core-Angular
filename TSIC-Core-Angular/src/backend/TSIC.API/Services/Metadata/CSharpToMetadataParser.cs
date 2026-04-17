@@ -159,8 +159,11 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
     /// </summary>
     private List<ViewFieldInfo> ParseViewFile(string viewContent)
     {
-        // Collect all matches across all patterns with their source position
-        var candidates = new List<(int Position, string FieldName, string Visibility, string InputType)>();
+        // Collect all matches across all patterns with source position + priority.
+        // Priority 0 = hidden patterns, 1 = visible. When a hidden input matches
+        // both the hidden pattern and the general <input> pattern at the same
+        // position, the hidden version wins.
+        var candidates = new List<(int Position, int Priority, string FieldName, string Visibility, string InputType)>();
 
         // Pattern 1: <input asp-for="FieldName" type="hidden" /> (either attribute order)
         var hiddenInputPattern = @"<input[^>]*\btype\s*=\s*[""']hidden[""'][^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>|<input[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*\btype\s*=\s*[""']hidden[""'][^>]*>";
@@ -169,7 +172,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             var raw = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
             var fn = ExtractFieldName(raw);
             if (!string.IsNullOrEmpty(fn))
-                candidates.Add((m.Index, fn, "hidden", "HIDDEN"));
+                candidates.Add((m.Index, 0, fn, "hidden", "HIDDEN"));
         }
 
         // Pattern 2: @Html.HiddenFor(m => m.FieldName)
@@ -177,7 +180,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         {
             var fn = ExtractFieldName(m.Groups[1].Value);
             if (!string.IsNullOrEmpty(fn))
-                candidates.Add((m.Index, fn, "hidden", "HIDDEN"));
+                candidates.Add((m.Index, 0, fn, "hidden", "HIDDEN"));
         }
 
         // Pattern 3: <input asp-for="FieldName" /> (non-hidden caught by seenFields dedup)
@@ -185,7 +188,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         {
             var fn = ExtractFieldName(m.Groups[1].Value);
             if (!string.IsNullOrEmpty(fn))
-                candidates.Add((m.Index, fn, "public", "TEXT"));
+                candidates.Add((m.Index, 1, fn, "public", "TEXT"));
         }
 
         // Pattern 3b: <select asp-for="FieldName" ...>
@@ -193,7 +196,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         {
             var fn = ExtractFieldName(m.Groups[1].Value);
             if (!string.IsNullOrEmpty(fn))
-                candidates.Add((m.Index, fn, "public", "SELECT"));
+                candidates.Add((m.Index, 1, fn, "public", "SELECT"));
         }
 
         // Pattern 3c: <textarea asp-for="FieldName" ...>
@@ -201,7 +204,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         {
             var fn = ExtractFieldName(m.Groups[1].Value);
             if (!string.IsNullOrEmpty(fn))
-                candidates.Add((m.Index, fn, "public", "TEXTAREA"));
+                candidates.Add((m.Index, 1, fn, "public", "TEXTAREA"));
         }
 
         // Pattern 4: @Html.TextBoxFor / CheckBoxFor / TextAreaFor / DropDownListFor / EditorFor
@@ -218,16 +221,20 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
                     "DropDownListFor" => "SELECT",
                     _ => "TEXT"
                 };
-                candidates.Add((m.Index, fn, "public", inputType));
+                candidates.Add((m.Index, 1, fn, "public", inputType));
             }
         }
 
-        // Sort by source position, then deduplicate (first occurrence wins)
-        candidates.Sort((a, b) => a.Position.CompareTo(b.Position));
+        // Sort by source position, then priority (hidden before visible at same position)
+        candidates.Sort((a, b) =>
+        {
+            var pos = a.Position.CompareTo(b.Position);
+            return pos != 0 ? pos : a.Priority.CompareTo(b.Priority);
+        });
 
         var fields = new List<ViewFieldInfo>();
         var seenFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (_, fieldName, visibility, inputType) in candidates)
+        foreach (var (_, _, fieldName, visibility, inputType) in candidates)
         {
             if (seenFields.Add(fieldName))
             {
