@@ -153,110 +153,63 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
     }
 
     /// <summary>
-    /// Parse .cshtml view file to extract fields in order (top-to-bottom)
+    /// Parse .cshtml view file to extract fields in order (top-to-bottom).
+    /// All patterns are collected with their source position and sorted so
+    /// the output preserves the exact field order from the Legacy view.
     /// </summary>
     private List<ViewFieldInfo> ParseViewFile(string viewContent)
     {
-        var fields = new List<ViewFieldInfo>();
-        var seenFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Collect all matches across all patterns with their source position
+        var candidates = new List<(int Position, string FieldName, string Visibility, string InputType)>();
 
-        // Pattern 1: <input asp-for="FieldName" type="hidden" />
+        // Pattern 1: <input asp-for="FieldName" type="hidden" /> (either attribute order)
         var hiddenInputPattern = @"<input[^>]*\btype\s*=\s*[""']hidden[""'][^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>|<input[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*\btype\s*=\s*[""']hidden[""'][^>]*>";
-        var hiddenMatches = Regex.Matches(viewContent, hiddenInputPattern, RegexOptions.IgnoreCase);
-
-        foreach (var fieldName in hiddenMatches
-            .Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value)
-            .Select(asp => ExtractFieldName(asp))
-            .Where(fn => !string.IsNullOrEmpty(fn) && seenFields.Add(fn)))
+        foreach (Match m in Regex.Matches(viewContent, hiddenInputPattern, RegexOptions.IgnoreCase))
         {
-            fields.Add(new ViewFieldInfo
-            {
-                Name = fieldName,
-                Visibility = "hidden",
-                InputType = "HIDDEN"
-            });
+            var raw = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+            var fn = ExtractFieldName(raw);
+            if (!string.IsNullOrEmpty(fn))
+                candidates.Add((m.Index, fn, "hidden", "HIDDEN"));
         }
 
         // Pattern 2: @Html.HiddenFor(m => m.FieldName)
-        var hiddenHelperPattern = @"@Html\.HiddenFor\(m\s*=>\s*m\.([^)]+)\)";
-        foreach (Match match in Regex.Matches(viewContent, hiddenHelperPattern))
+        foreach (Match m in Regex.Matches(viewContent, @"@Html\.HiddenFor\(m\s*=>\s*m\.([^)]+)\)"))
         {
-            var fieldName = ExtractFieldName(match.Groups[1].Value);
-
-            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
-            {
-                fields.Add(new ViewFieldInfo
-                {
-                    Name = fieldName,
-                    Visibility = "hidden",
-                    InputType = "HIDDEN"
-                });
-            }
+            var fn = ExtractFieldName(m.Groups[1].Value);
+            if (!string.IsNullOrEmpty(fn))
+                candidates.Add((m.Index, fn, "hidden", "HIDDEN"));
         }
 
-        // Pattern 3: <input asp-for="FieldName" /> (not hidden)
-        var inputPattern = @"<input[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>";
-        foreach (Match match in Regex.Matches(viewContent, inputPattern, RegexOptions.IgnoreCase))
+        // Pattern 3: <input asp-for="FieldName" /> (non-hidden caught by seenFields dedup)
+        foreach (Match m in Regex.Matches(viewContent, @"<input[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>", RegexOptions.IgnoreCase))
         {
-            var aspForValue = match.Groups[1].Value;
-            var fieldName = ExtractFieldName(aspForValue);
-
-            // Skip if already added as hidden or if it has type="hidden"
-            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
-            {
-                fields.Add(new ViewFieldInfo
-                {
-                    Name = fieldName,
-                    Visibility = "public",
-                    InputType = "TEXT"
-                });
-            }
+            var fn = ExtractFieldName(m.Groups[1].Value);
+            if (!string.IsNullOrEmpty(fn))
+                candidates.Add((m.Index, fn, "public", "TEXT"));
         }
 
         // Pattern 3b: <select asp-for="FieldName" ...>
-        var selectPattern = @"<select[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>";
-        foreach (Match match in Regex.Matches(viewContent, selectPattern, RegexOptions.IgnoreCase))
+        foreach (Match m in Regex.Matches(viewContent, @"<select[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>", RegexOptions.IgnoreCase))
         {
-            var aspForValue = match.Groups[1].Value;
-            var fieldName = ExtractFieldName(aspForValue);
-
-            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
-            {
-                fields.Add(new ViewFieldInfo
-                {
-                    Name = fieldName,
-                    Visibility = "public",
-                    InputType = "SELECT"
-                });
-            }
+            var fn = ExtractFieldName(m.Groups[1].Value);
+            if (!string.IsNullOrEmpty(fn))
+                candidates.Add((m.Index, fn, "public", "SELECT"));
         }
 
         // Pattern 3c: <textarea asp-for="FieldName" ...>
-        var textareaPattern = @"<textarea[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>";
-        foreach (Match match in Regex.Matches(viewContent, textareaPattern, RegexOptions.IgnoreCase))
+        foreach (Match m in Regex.Matches(viewContent, @"<textarea[^>]*\basp-for\s*=\s*[""']([^""']+)[""'][^>]*>", RegexOptions.IgnoreCase))
         {
-            var aspForValue = match.Groups[1].Value;
-            var fieldName = ExtractFieldName(aspForValue);
-
-            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
-            {
-                fields.Add(new ViewFieldInfo
-                {
-                    Name = fieldName,
-                    Visibility = "public",
-                    InputType = "TEXTAREA"
-                });
-            }
+            var fn = ExtractFieldName(m.Groups[1].Value);
+            if (!string.IsNullOrEmpty(fn))
+                candidates.Add((m.Index, fn, "public", "TEXTAREA"));
         }
 
-        // Pattern 4: @Html.TextBoxFor / CheckBoxFor / etc
-        var htmlHelperPattern = @"@Html\.(TextBoxFor|CheckBoxFor|TextAreaFor|DropDownListFor|EditorFor)\(m\s*=>\s*m\.([^),\s]+)";
-        foreach (Match match in Regex.Matches(viewContent, htmlHelperPattern))
+        // Pattern 4: @Html.TextBoxFor / CheckBoxFor / TextAreaFor / DropDownListFor / EditorFor
+        foreach (Match m in Regex.Matches(viewContent, @"@Html\.(TextBoxFor|CheckBoxFor|TextAreaFor|DropDownListFor|EditorFor)\(m\s*=>\s*m\.([^),\s]+)"))
         {
-            var helperType = match.Groups[1].Value;
-            var fieldName = ExtractFieldName(match.Groups[2].Value);
-
-            if (!string.IsNullOrEmpty(fieldName) && seenFields.Add(fieldName))
+            var helperType = m.Groups[1].Value;
+            var fn = ExtractFieldName(m.Groups[2].Value);
+            if (!string.IsNullOrEmpty(fn))
             {
                 var inputType = helperType switch
                 {
@@ -265,11 +218,23 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
                     "DropDownListFor" => "SELECT",
                     _ => "TEXT"
                 };
+                candidates.Add((m.Index, fn, "public", inputType));
+            }
+        }
 
+        // Sort by source position, then deduplicate (first occurrence wins)
+        candidates.Sort((a, b) => a.Position.CompareTo(b.Position));
+
+        var fields = new List<ViewFieldInfo>();
+        var seenFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (_, fieldName, visibility, inputType) in candidates)
+        {
+            if (seenFields.Add(fieldName))
+            {
                 fields.Add(new ViewFieldInfo
                 {
                     Name = fieldName,
-                    Visibility = "public",
+                    Visibility = visibility,
                     InputType = inputType
                 });
             }

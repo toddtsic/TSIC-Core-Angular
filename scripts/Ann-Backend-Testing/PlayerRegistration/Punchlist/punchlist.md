@@ -688,8 +688,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: When profiles are migrated from Legacy into the new system, field order should be imported exactly as presented in Legacy — clients expect their forms to look the same
 - **What happened**: This profile came over with fields in a different order than Legacy. I manually edited the new version and the profile is now correct. But this is a broader migration-quality concern: the profile importer (CSharpToMetadataParser or similar) needs to preserve Legacy's original field ordering so directors aren't required to re-sequence every migrated profile by hand.
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Individual profile corrected manually. Underlying migration-order issue still needs to be addressed to prevent recurrence on other profiles.
+- **Status**: Fixed
+- **Note**: Root cause: `CSharpToMetadataParser.ParseViewFile` ran each regex pattern (hidden inputs, inputs, selects, textareas, Html helpers) as separate passes over the file. Output order was grouped by element type, not by source position. Fixed to collect all matches with their source position and sort by position before deduplicating — field order now matches the Legacy .cshtml view exactly. Re-run migration for affected profiles to pick up corrected ordering.
 
 ### SP-014: Review and Accept Waivers — visibly list players the waiver applies to (follow-up to PL-025)
 - **Area**: Registration Process Review
