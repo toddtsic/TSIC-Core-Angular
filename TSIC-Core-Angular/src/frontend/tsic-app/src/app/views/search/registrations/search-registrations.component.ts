@@ -322,6 +322,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   executeSearch(): void {
+    if (this.isSearching()) return; // Guard against double-fire (Enter bubbling + button click)
     this.isFiltersPanelOpen.set(false);
     this.isSearching.set(true);
     this.lastExecutedRequest.set(JSON.stringify(this.searchRequest()));
@@ -347,15 +348,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }
   }
 
-  @HostListener('document:keydown.enter', ['$event'])
-  onEnterKey(event: KeyboardEvent): void {
-    if (!this.isFiltersPanelOpen()) return;
-    const target = event.target as HTMLElement | null;
-    // Let buttons handle their own Enter, and let Syncfusion popups handle
-    // item selection — only trigger search for "generic" Enter presses.
-    if (target?.closest('button, .e-popup')) return;
-    this.executeSearch();
-  }
 
   clearFilters(): void {
     const opts = this.filterOptions();
