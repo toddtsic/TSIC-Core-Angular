@@ -119,8 +119,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   searchResults = signal<RegistrationSearchResponse | null>(null);
   isSearching = signal(false);
 
-  // Expandable "More Filters" state
-  moreFiltersExpanded = signal(false);
+  // Filters fly-in panel state
+  isFiltersPanelOpen = signal(false);
 
   // Selection state
   selectedRegistrations = signal<Set<string>>(new Set());
@@ -314,7 +314,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   executeSearch(): void {
-    this.moreFiltersExpanded.set(false);
+    this.isFiltersPanelOpen.set(false);
     this.isSearching.set(true);
     const req = this.sanitizeRequest(this.searchRequest());
     this.searchService.search(req).subscribe({
@@ -364,10 +364,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.cadtCheckedIds.set(new Set());
     this.treesCollapsed.set(false);
     this.executeSearch();
-  }
-
-  toggleMoreFilters(): void {
-    this.moreFiltersExpanded.update(v => !v);
   }
 
   /** Trees collapsed state — collapses when a multiselect opens */

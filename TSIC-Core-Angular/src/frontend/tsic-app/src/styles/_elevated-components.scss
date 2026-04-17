@@ -21,7 +21,11 @@
     // position:fixed siblings (user-menu dropdown) in the same paint layer.
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    z-index: 1;
+    // isolation:isolate creates a stacking context for the ::before (z-index:-1)
+    // WITHOUT lifting .logo-box itself to an explicit z-index at its parent.
+    // Using z-index:1 here caused the logos to paint above overlay panels at the
+    // root stacking context (filter drawer, etc.).
+    isolation: isolate;
     overflow: hidden;
 
     // Enhanced background support for logo transparency issues
