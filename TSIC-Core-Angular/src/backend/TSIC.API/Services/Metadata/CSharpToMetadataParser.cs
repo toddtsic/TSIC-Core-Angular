@@ -91,6 +91,14 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             if (presentDbColumns.Contains(prop.Name))
                 continue; // already included via view
 
+            // Skip waiver checkboxes that only exist in the admin class —
+            // a waiver the player never signed is meaningless to an admin.
+            if (prop.Meta.PropertyType == "bool" && prop.Meta.Validation?.RequiredTrue == true)
+            {
+                _logger.LogInformation("Skipping admin-only waiver checkbox '{Name}' — players cannot sign it", prop.Name);
+                continue;
+            }
+
             var field = new ProfileMetadataField
             {
                 Name = ToCamelCase(prop.Name),

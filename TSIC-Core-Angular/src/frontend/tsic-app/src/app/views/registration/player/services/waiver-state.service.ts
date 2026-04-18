@@ -171,6 +171,8 @@ export class WaiverStateService {
                     fields = parsed.fields;
                 }
                 for (const f of fields) {
+                    const vis = String(f?.visibility ?? 'public').toLowerCase();
+                    if (vis === 'hidden' || vis === 'adminonly') continue;
                     const name = String(f?.name || f?.dbColumn || f?.field || '').toLowerCase();
                     const label = String(f?.label || f?.displayName || f?.['display'] || f?.name || '').toLowerCase();
                     const t = String(f?.type || f?.inputType || '').toLowerCase();
@@ -248,6 +250,8 @@ export class WaiverStateService {
         const containsAll = hasAllParts;
         for (const f of schemas) {
             try {
+                const vis = (f.visibility ?? 'public').toLowerCase();
+                if (vis === 'hidden' || vis === 'adminonly') continue;
                 const lname = f.name.toLowerCase();
                 const llabel = f.label.toLowerCase();
                 const isCheckbox = f.type === 'checkbox';

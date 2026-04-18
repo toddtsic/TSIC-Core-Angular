@@ -651,11 +651,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
         var html = WebUtility.HtmlDecode(raw) ?? string.Empty;
         html = html.Replace("!JOBNAME", jobName ?? string.Empty).Replace("!CUSTOMERNAME", customerName ?? string.Empty);
-        // Legacy waiver text authored for a pre-confirmation flow often trails with
-        // "BY CLICKING NEXT BELOW, I AGREE...". The confirmation page has no Next
-        // button, so strip these sentences and any paragraph wrappers they leave empty.
-        html = Regex.Replace(html, @"BY\s+CLICKING[^.!?<]*[.!?]?", string.Empty, RegexOptions.IgnoreCase);
-        html = Regex.Replace(html, @"<p[^>]*>\s*</p>", string.Empty, RegexOptions.IgnoreCase);
+        html = StripClickingConsentSentences(html);
         var safeLabel = string.IsNullOrWhiteSpace(label) ? "Waiver:" : label;
         return HtmlTableBuilder.RenderWaiverBlock(safeLabel, html, emailMode);
     }
@@ -687,6 +683,22 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.EndBodyOnly(sb);
         HtmlTableBuilder.EndTableOnly(sb);
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Strips legacy "BY CLICKING NEXT/CONTINUE..." consent sentences from waiver HTML.
+    /// These are redundant — the UI checkbox establishes consent.
+    /// </summary>
+    internal static string StripClickingConsentSentences(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return html;
+        // Match "BY CLICKING..." through to sentence-ending punctuation.
+        // Allow inline HTML tags within the sentence (previous regex excluded '<'
+        // which caused partial matches when text was wrapped in <strong> etc.).
+        html = Regex.Replace(html, @"BY\s+CLICKING[^.!?]*[.!?]", string.Empty, RegexOptions.IgnoreCase);
+        // Clean up empty paragraph wrappers left behind
+        html = Regex.Replace(html, @"<p[^>]*>\s*</p>", string.Empty, RegexOptions.IgnoreCase);
+        return html;
     }
 }
 
