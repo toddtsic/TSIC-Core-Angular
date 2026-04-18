@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
+import { TeamService } from '../services/team.service';
 
 /**
  * Eligibility step — shows a per-player dropdown for the constraint field
@@ -9,7 +11,8 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 @Component({
     selector: 'app-prw-eligibility-step',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, DropDownListModule],
+    schemas: [CUSTOM_ELEMENTS_SCHEMA],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -31,16 +34,31 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
                 <label class="player-name" [for]="'elig-' + pid">
                   {{ getPlayerName(pid) }}
                 </label>
-                <select
-                  class="elig-select"
-                  [id]="'elig-' + pid"
-                  [ngModel]="state.eligibility.getEligibilityForPlayer(pid) || ''"
-                  (ngModelChange)="onEligibilityChange(pid, $event)">
-                  <option value="">— Select —</option>
-                  @for (opt of eligibilityOptions(); track opt) {
-                    <option [value]="opt">{{ opt }}</option>
-                  }
-                </select>
+                @if (isClubMode()) {
+                  <ejs-dropdownlist
+                    [id]="'elig-' + pid"
+                    [dataSource]="eligibilityOptions()"
+                    [value]="state.eligibility.getEligibilityForPlayer(pid) || null"
+                    [allowFiltering]="true"
+                    [filterBarPlaceholder]="'Type to search clubs...'"
+                    filterType="Contains"
+                    placeholder="— Select —"
+                    [popupHeight]="'300px'"
+                    cssClass="elig-sf-ddl"
+                    (change)="onSfChange(pid, $event)">
+                  </ejs-dropdownlist>
+                } @else {
+                  <select
+                    class="elig-select"
+                    [id]="'elig-' + pid"
+                    [ngModel]="state.eligibility.getEligibilityForPlayer(pid) || ''"
+                    (ngModelChange)="onEligibilityChange(pid, $event)">
+                    <option value="">— Select —</option>
+                    @for (opt of eligibilityOptions(); track opt) {
+                      <option [value]="opt">{{ opt }}</option>
+                    }
+                  </select>
+                }
               </div>
               @if (state.eligibility.getEligibilityForPlayer(pid)) {
                 <i class="bi bi-check-circle-fill set-icon"></i>
@@ -125,6 +143,22 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
         }
       }
 
+      :host ::ng-deep .elig-sf-ddl {
+        width: 100%;
+
+        .e-input-group {
+          font-size: var(--font-size-sm);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          background-color: var(--neutral-50);
+        }
+
+        .e-input-group.e-input-focus {
+          border-color: var(--bs-primary);
+          box-shadow: var(--shadow-focus);
+        }
+      }
+
       .set-icon {
         font-size: var(--font-size-lg);
         color: var(--bs-primary);
@@ -135,7 +169,12 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 })
 export class EligibilityStepComponent {
     readonly state = inject(PlayerWizardStateService);
+    private readonly teamService = inject(TeamService);
     readonly advance = output<void>();
+
+    readonly isClubMode = computed(() =>
+        (this.state.eligibility.teamConstraintType() || '').toUpperCase() === 'BYCLUBNAME',
+    );
 
     readonly cardTitle = computed(() => {
         const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
@@ -165,6 +204,15 @@ export class EligibilityStepComponent {
     }
 
     eligibilityOptions(): string[] {
+        const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
+        if (ct === 'BYCLUBNAME') {
+            const teams = this.teamService.allTeams();
+            if (!teams) return [];
+            const clubs = [...new Set(
+                teams.filter(t => !!t.clubName).map(t => t.clubName!.trim())
+            )].sort();
+            return clubs;
+        }
         const schemas = this.state.jobCtx.profileFieldSchemas();
         const eligField = this.state.eligibility.determineEligibilityField(schemas);
         if (!eligField) return [];
@@ -182,5 +230,10 @@ export class EligibilityStepComponent {
                 .every(id => !!this.state.eligibility.getEligibilityForPlayer(id));
             if (allSet) this.advance.emit();
         }
+    }
+
+    /** Syncfusion DropDownList change handler — delegates to shared logic. */
+    onSfChange(playerId: string, e: any): void {
+        this.onEligibilityChange(playerId, e.value ?? '');
     }
 }

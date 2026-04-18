@@ -270,7 +270,8 @@ export class ChildrenStepComponent {
                 this.form.reset();
                 this.submitted.set(false);
             }
-        } else {
+        } else if (this.state.mode() === 'edit') {
+            // Edit mode — persist to server immediately
             this.saving.set(true);
             this.familyApi.addChild(child).subscribe({
                 next: (res) => {
@@ -284,6 +285,11 @@ export class ChildrenStepComponent {
                     this.saving.set(false);
                 },
             });
+        } else {
+            // Create mode — no account yet, collect locally
+            this.state.addChild(child);
+            this.form.reset();
+            this.submitted.set(false);
         }
     }
 

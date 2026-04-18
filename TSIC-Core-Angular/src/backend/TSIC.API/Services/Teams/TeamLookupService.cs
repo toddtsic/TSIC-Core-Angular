@@ -92,7 +92,8 @@ public class TeamLookupService : ITeamLookupService
                 WaitlistTeamId = null,
                 StartDate = t.StartDate,
                 EndDate = t.EndDate,
-                PerRegistrantFee = t.PerRegistrantFee
+                PerRegistrantFee = t.PerRegistrantFee,
+                ClubName = t.ClubName
             };
         }).ToList();
 

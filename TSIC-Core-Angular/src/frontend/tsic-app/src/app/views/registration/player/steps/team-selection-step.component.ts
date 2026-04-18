@@ -675,7 +675,8 @@ export class TeamSelectionStepComponent {
 
     getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
         return this.getAvailableTeams(playerId).map(team => {
-            let label = team.teamName;
+            const clubPrefix = team.clubName?.trim() ? `${team.clubName.trim()}: ` : '';
+            let label = clubPrefix + team.teamName;
             if (team.divisionName) label += ` · ${team.divisionName}`;
             if (team.effectiveFee != null && team.effectiveFee > 0) {
                 label += ` (${this.formatCurrency(team.effectiveFee)})`;

@@ -26,6 +26,7 @@ export interface AvailableTeam {
     startDate?: string | null;
     endDate?: string | null;
     perRegistrantFee?: number | null;
+    clubName?: string | null;
 }
 
 interface CacheEntry { data: AvailableTeam[]; ts: number; }
@@ -38,6 +39,7 @@ export class TeamService {
 
     // raw teams for current job
     private readonly _teams = signal<AvailableTeam[] | null>(null);
+    readonly allTeams = this._teams.asReadonly();
     // loading + error state signals
     private readonly _loading = signal<boolean>(false);
     private readonly _error = signal<string | null>(null);
@@ -70,8 +72,8 @@ export class TeamService {
                 return teams.filter(t => (t.teamName || '').toLowerCase().includes(rangeName));
             }
             case 'BYCLUBNAME': {
-                const needle = constraintValue.toLowerCase();
-                return teams.filter(t => (t.teamName || '').toLowerCase().includes(needle));
+                const needle = constraintValue.trim().toLowerCase();
+                return teams.filter(t => (t.clubName || '').trim().toLowerCase() === needle);
             }
             default:
                 return teams;
@@ -138,8 +140,8 @@ export class TeamService {
                 });
             }
             case 'BYCLUBNAME': {
-                const needle = v.toLowerCase();
-                return teams.filter(t => (t.teamName || '').toLowerCase().includes(needle));
+                const needle = v.trim().toLowerCase();
+                return teams.filter(t => (t.clubName || '').trim().toLowerCase() === needle);
             }
             default:
                 return teams;

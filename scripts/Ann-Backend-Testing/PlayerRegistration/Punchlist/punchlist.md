@@ -768,8 +768,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Player to be added to the list and confirmed (e.g., "Player 1 added")
 - **What happened**: Nothing happens — button click produces no visible response, no error, no player added. Complete blocker for new family registrations.
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Add Player DOES work when logged in to an existing Family Account and choosing "Edit Family Account". The issue is specific to the new account creation flow.
+- **Status**: Fixed
+- **Note**: Root cause: commit `833ff7d4` changed `addChild()` to always call `POST /api/family/child` immediately, which requires `[Authorize]`. In create mode, no account/token exists yet → 401. Fixed by checking `state.mode()`: edit mode persists via API; create mode collects locally in state (children are bundled into the `FamilyRegistrationRequest` on final submit).
 
 ### SP-034: Choose Your Players — show "Registered - Inactive" in red for unpaid/incomplete registrations
 - **Area**: Registration Process Review
@@ -811,7 +811,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Dropdown to show available club options for selection
 - **What happened**: Select dropdown has no options — empty list, can't assign a club to the player
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause: club names are dynamic (from active self-rostering teams with a ClubrepRegistration), not static profile metadata. `ClubName` was already queried in `TeamRepository` but dropped during service→DTO mapping. Fix: (1) added `ClubName` to `AvailableTeamDto`, mapped in `TeamLookupService`, switched source to `ClubrepRegistration.ClubName` (legacy parity), added Dropped/Waitlist agegroup exclusion. (2) Frontend eligibility step derives distinct club names from available teams for BYCLUBNAME constraint. (3) Upgraded club dropdown to Syncfusion typeahead with contains filtering. (4) Team selection step prepends club name to dropdown labels. (5) BYCLUBNAME filter updated to match on `clubName` field (exact, trimmed) instead of `teamName`.
 
 ### SP-029: Confirmation email — show last 4 digits of credit card under Method column
 - **Area**: Registration Process Review
