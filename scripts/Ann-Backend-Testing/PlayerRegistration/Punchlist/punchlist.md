@@ -737,3 +737,142 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Status**: Fixed
 - **Repro notes**: TestFamily007, The Players Series: Summer Showcase 2026, discount code "Girls100" ($100 absolute). Bring-fee-to-zero discount path appears to short-circuit the registration/persist step.
 
+### SP-019: Registration Complete Confirmation page — revisit layout for visual polish (reopens PL-037)
+- **Area**: Registration Process Review
+- **What I did**: Reviewed the Registration Complete Confirmation page after initial Won't Fix on PL-037
+- **What I expected**: A more visually pleasing, polished layout for the confirmation page
+- **What happened**: Page still needs work to be more pleasing to the eye. Ann and Todd to review together and collaboratively improve the layout — tables, organization info, waiver section, and overall visual treatment.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Collaborative review session needed — Ann + Todd to walk through the page together and decide on improvements. Use the Complete Payment screen as the design reference — mirror that layout/styling for consistency.
+
+### SP-020: Waiver confirmation still shows "BY CLICKING NEXT BELOW, I AGREE..." sentence — only partial fix applied (reopens PL-038)
+- **Area**: Registration Process Review
+- **What I did**: Checked the waiver area on the Registration Complete Confirmation page after PL-038 was marked Fixed
+- **What I expected**: The entire "BY CLICKING NEXT BELOW, I AGREE WITH THE ABOVE RELEASE OF LIABILITY" sentence to be stripped from the confirmation display
+- **What happened**: Only the words "By Clicking" were removed — the rest of the sentence still appears. The entire sentence needs to be removed, not just the first two words.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-021: Post-registration login must provide menus to review/edit — Legacy parity required (reopens PL-039)
+- **Area**: Registration Process Review
+- **What I did**: Reviewed PL-039 status (Won't Fix — "by design, bulletin provides Begin/Edit links")
+- **What I expected**: After logging back in post-registration, menus and options to review or edit registration details — same as Legacy provides
+- **What happened**: Won't Fix is not acceptable here. Legacy provides this functionality and directors/parents use it heavily. Relying solely on bulletin links is not a substitute — parents need a proper post-login experience with menus for reviewing registrations, editing details, paying balances, etc. This is a Legacy parity gap that must be addressed.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-022: Add Player button does nothing on New Family Account registration flow
+- **Area**: Family Account Creation
+- **What I did**: Created a New Family Account, progressed through the wizard to the Add Player screen, entered player data, and clicked "Add Player"
+- **What I expected**: Player to be added to the list and confirmed (e.g., "Player 1 added")
+- **What happened**: Nothing happens — button click produces no visible response, no error, no player added. Complete blocker for new family registrations.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Add Player DOES work when logged in to an existing Family Account and choosing "Edit Family Account". The issue is specific to the new account creation flow.
+
+### SP-034: Choose Your Players — show "Registered - Inactive" in red for unpaid/incomplete registrations
+- **Area**: Registration Process Review
+- **What I did**: Registered two players on LI Yellow Jackets: Players 2026, reached the payment screen, then left without paying. Players were correctly submitted as Inactive. Logged back in to the family account.
+- **What I expected**: Choose Your Players screen to show "Registered - Inactive" in red next to each player, similar to how "Registered" is shown in green for active/paid players
+- **What happened**: No indication that these players have an incomplete/inactive registration. Parents need to see at a glance which players still need payment so they can resume the process.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: LI Yellow Jackets: Players 2026 (ARB site). The Inactive status is correctly saved on the backend — just not surfaced on the Choose Your Players screen.
+
+### SP-033: ARB Complete Payment — show per-player installment details (number + amount) for multi-player registrations
+- **Area**: Registration Process Review
+- **What I did**: Registered more than one player on an ARB site and reached the Complete Payment screen
+- **What I expected**: Each player's installment plan details visible — number of installments and amount per installment — either in the accounting table or above the payment summary
+- **What happened**: Only a combined payment total is shown. Parents need to see the per-player installment breakdown (how many payments, how much each) before committing. This is critical information — especially when players may have different fee amounts or installment structures.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-032: Processing fees applied on payment screen even though disabled in Job Settings/Payment
+- **Area**: Registration Process Review
+- **What I did**: Checked Configure/Job Settings/Payment for LI Yellow Jackets: Players 2026 (ARB site) — Processing Fees checkbox is unchecked. Then registered a player.
+- **What I expected**: No processing fees charged on the payment screen since the checkbox is disabled in job configuration
+- **What happened**: Processing fees are still being applied on the payment screen despite the setting being unchecked. The payment screen is ignoring the job-level processing fee configuration.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: LI Yellow Jackets: Players 2026 (ARB site). Inverse of SP-008/SP-009 — those had fees enabled but not applied; this one has fees disabled but still applied.
+
+### SP-031: Set Player Club screen — remove "Determines team placement" text at top
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Set Player Club screen
+- **What I expected**: Clean screen without unnecessary instructional text
+- **What happened**: Text "Determines team placement" appears at the top — unnecessary and potentially confusing. Remove it.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-030: Tournament Player Registration — Set Player Club dropdown options not showing
+- **Area**: Registration Process Review
+- **What I did**: Went through Player Registration for a tournament and reached the Set Player Club step
+- **What I expected**: Dropdown to show available club options for selection
+- **What happened**: Select dropdown has no options — empty list, can't assign a club to the player
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-029: Confirmation email — show last 4 digits of credit card under Method column
+- **Area**: Registration Process Review
+- **What I did**: Completed registration and reviewed the confirmation email
+- **What I expected**: Payment method to include the last 4 digits of the card used (e.g., "Credit Card xx1234")
+- **What happened**: Method column shows generic "Credit Card Payment" — no card identification. Showing last 4 digits helps parents confirm which card was charged, especially families with multiple cards.
+- **Severity**: Question
+- **Status**: Open
+
+### SP-028: CAC "Almost There!" screen — show Registration Fee per event, not combined per player
+- **Area**: Registration Process Review
+- **What I did**: Selected two $100 events for 2 players on a CAC registration and reached the "Almost There!" review screen
+- **What I expected**: Under Players and Teams, each event listed individually with its own Registration Fee (e.g., Event A — Registration Fee $100, Event B — Registration Fee $100) per player, since event fees can differ
+- **What happened**: Shows a single Registration Fee of $100 per player instead of breaking it out per event. The total of $400 is correct (2 players × 2 events × $100), but parents need to see the per-event fee breakdown to verify what they're paying for — especially when events have different prices.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-027: CAC Player Details — replace "2 events selected" summary with bulleted list of chosen events
+- **Area**: Registration Process Review
+- **What I did**: Selected multiple events on a CAC registration and advanced to the Player Details screen
+- **What I expected**: A visible list of which events were selected, so I can verify my choices and go back to correct any mistakes
+- **What happened**: Screen only shows "2 events selected" (or similar count) — doesn't name the actual events. With many options available on CAC sites, it's easy to mis-select. Replace the count with a bulleted list of the chosen event names so parents can review and go Back if needed.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-026: CAC Select Events — enlarge/highlight instruction text "Check the camps or clinics for each player"
+- **Area**: Registration Process Review
+- **What I did**: Reached the Select Events screen on a CAC (Club/Affiliate/Camp) registration
+- **What I expected**: Instruction text at the top to be prominent and easy to read — parents need to understand they're checking events per player
+- **What happened**: Instruction "Check the camps or clinics for each player" is too small and doesn't stand out. Needs larger font, possibly highlighted or bolded, so parents don't miss it.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-025: Discount Code "Girls100" splits $100 across players instead of applying $100 per player
+- **Area**: Registration Process Review
+- **What I did**: Registered two players on The Players Series: Summer Showcase 2026 and applied Discount Code "Girls100" ($100 absolute discount)
+- **What I expected**: Each player to receive the full $100 discount individually — $100 off Player 1 and $100 off Player 2
+- **What happened**: The $100 was split evenly between the two players — each received only $50 off. The math and adjustments were internally consistent for $50 each, but the discount should apply per player, not be divided across the family.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Related to SP-018 (same discount code). The discount engine appears to treat the absolute amount as a family-level total rather than a per-player amount.
+
+### SP-024: Accounting Table on Complete Payment screen — layout, width, and column label improvements
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Accounting Table on the Complete Payment screen
+- **What I expected**: A clean, wide, readable table with clear column labels and no row wrapping
+- **What happened**: Table needs significant rework. Specific changes requested:
+  - Make the table a distinct card with its own visual boundary
+  - Make it wider so each row fits on one line without wrapping
+  - Adjust font size as needed for readability
+  - Add a "Reg Date" column after "Team"
+  - Rename columns: "Team" → "Selected Team", "Base" → "Fee Base", "Proc" → "Processing Fee", "DC" → "Discount Code", "Total" → "Total Fee", "Owed" → "Owes"
+  - "Adj" column — clarify purpose: is this a Correction Record amount? If so, relabel to "Fee Adjustment". Discuss with Todd.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-023: Review & Save screen — Continue buttons do nothing; "Return Home" label is misleading
+- **Area**: Family Account Creation
+- **What I did**: Edited an existing Family Account and reached the Review & Save screen. Screen has both a "Return Home" button and Continue buttons (top and bottom).
+- **What I expected**: A single clear path forward to the Choose Your Players screen
+- **What happened**: (1) "Return Home" button correctly goes to Choose Your Players screen — desired behavior, but label is misleading. (2) Continue buttons (top and bottom) do nothing when clicked. Recommend either: (a) rename "Return Home" to "Continue to Registration" and remove the non-functional Continue buttons, or (b) wire the Continue buttons to go to Choose Your Players and remove "Return Home".
+- **Severity**: Bug
+- **Status**: Open
+
