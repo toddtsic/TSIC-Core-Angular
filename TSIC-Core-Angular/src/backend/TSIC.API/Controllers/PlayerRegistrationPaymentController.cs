@@ -177,30 +177,13 @@ public class PlayerRegistrationPaymentController : ControllerBase
         }
         else
         {
-            var cap = Math.Min(amount, total);
-            // Proportional distribution by amount with rounding adjustment
-            var weights = items
-                .Select(i => new { i.PlayerId, i.Amount, w = i.Amount / total })
-                .ToList();
-            var prelim = weights
-                .Select(w => new { w.PlayerId, d = Math.Round(cap * w.w, 2, MidpointRounding.AwayFromZero) })
-                .ToList();
-            var sum = prelim.Sum(x => x.d);
-            // Adjust rounding drift to ensure sum == cap
-            var drift = cap - sum; // could be positive or negative within a few cents
-            if (drift != 0m)
+            // Absolute discount: apply full amount to each player (capped at their fee).
+            // Legacy parity — each player receives the full code amount individually.
+            foreach (var it in items)
             {
-                // Apply drift to the item with the largest amount to minimize distortion
-                var primary = weights.OrderByDescending(x => x.Amount).First();
-                var current = prelim.First(x => x.PlayerId.Equals(primary.PlayerId, StringComparison.OrdinalIgnoreCase)).d;
-                var adjusted = current + drift;
-                prelim = prelim.Select(x => x.PlayerId.Equals(primary.PlayerId, StringComparison.OrdinalIgnoreCase)
-                    ? new { x.PlayerId, d = adjusted }
-                    : x).ToList();
-            }
-            foreach (var p in prelim)
-            {
-                if (p.d > 0m) perPlayer[p.PlayerId] = p.d;
+                var d = Math.Min(amount, it.Amount);
+                d = Math.Round(d, 2, MidpointRounding.AwayFromZero);
+                if (d > 0m) perPlayer[it.PlayerId] = d;
             }
             totalDiscount = perPlayer.Values.Sum();
         }

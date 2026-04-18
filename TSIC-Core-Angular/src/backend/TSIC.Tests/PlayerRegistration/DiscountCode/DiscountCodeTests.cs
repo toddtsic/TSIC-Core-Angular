@@ -408,8 +408,8 @@ public class DiscountCodeTests
     // 7. Two players — proportional distribution
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Absolute: $100 across 2 players ($414/$207) → proportional split with proc reduction")]
-    public async Task Absolute_TwoPlayers_ProportionalDistribution()
+    [Fact(DisplayName = "Absolute: $100 across 2 players ($414/$207) → per-player application with proc reduction")]
+    public async Task Absolute_TwoPlayers_PerPlayerApplication()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
             processingFeePercent: 3.5m,
@@ -428,28 +428,25 @@ public class DiscountCodeTests
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
         dto.Success.Should().BeTrue();
-        dto.TotalDiscount.Should().Be(100m);
+        dto.TotalDiscount.Should().Be(200m);
         dto.SuccessCount.Should().Be(2);
 
         var dbReg1 = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg1.RegistrationId);
         var dbReg2 = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg2.RegistrationId);
 
-        // Proportional: total=621, p1 weight=414/621=0.6667, p2 weight=207/621=0.3333
-        // p1 discount = round(100 * 0.6667, 2) = 66.67
-        // p2 discount = round(100 * 0.3333, 2) = 33.33
-        dbReg1.FeeDiscount.Should().Be(66.67m);
-        dbReg2.FeeDiscount.Should().Be(33.33m);
-        (dbReg1.FeeDiscount + dbReg2.FeeDiscount).Should().Be(100m);
+        // Per-player: each player gets the full $100 (capped at their fee)
+        dbReg1.FeeDiscount.Should().Be(100m);
+        dbReg2.FeeDiscount.Should().Be(100m);
 
-        // ReduceProcessingFee for p1: 66.67 * 0.035 = 2.33, proc 14.00 → 11.67
-        // ComputeTotals(400, 66.67, 0, 11.67): total = 400+11.67-66.67 = 345.00
-        dbReg1.FeeProcessing.Should().Be(11.67m);
-        dbReg1.FeeTotal.Should().Be(345.00m);
+        // ReduceProcessingFee for p1: 100 * 0.035 = 3.50, proc 14.00 → 10.50
+        // ComputeTotals(400, 100, 0, 10.50): total = 400+10.50-100 = 310.50
+        dbReg1.FeeProcessing.Should().Be(10.50m);
+        dbReg1.FeeTotal.Should().Be(310.50m);
 
-        // ReduceProcessingFee for p2: 33.33 * 0.035 = 1.17, proc 7.00 → 5.83
-        // ComputeTotals(200, 33.33, 0, 5.83): total = 200+5.83-33.33 = 172.50
-        dbReg2.FeeProcessing.Should().Be(5.83m);
-        dbReg2.FeeTotal.Should().Be(172.50m);
+        // ReduceProcessingFee for p2: 100 * 0.035 = 3.50, proc 7.00 → 3.50
+        // ComputeTotals(200, 100, 0, 3.50): total = 200+3.50-100 = 103.50
+        dbReg2.FeeProcessing.Should().Be(3.50m);
+        dbReg2.FeeTotal.Should().Be(103.50m);
 
         dbReg1.PaidTotal.Should().Be(0m);
         dbReg2.PaidTotal.Should().Be(0m);

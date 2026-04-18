@@ -853,8 +853,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each player to receive the full $100 discount individually — $100 off Player 1 and $100 off Player 2
 - **What happened**: The $100 was split evenly between the two players — each received only $50 off. The math and adjustments were internally consistent for $50 each, but the discount should apply per player, not be divided across the family.
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: Related to SP-018 (same discount code). The discount engine appears to treat the absolute amount as a family-level total rather than a per-player amount.
+- **Status**: Fixed
+- **Note**: Root cause: `PlayerRegistrationPaymentController.ApplyDiscount` treated absolute discounts as a single pool distributed proportionally by fee weight across players. Legacy applied the full amount to each player individually. Fixed to `Math.Min(amount, playerFee)` per player — each gets the full code amount, capped at their fee. Test updated to verify per-player application ($100 each, not $66.67/$33.33).
 
 ### SP-024: Accounting Table on Complete Payment screen — layout, width, and column label improvements
 - **Area**: Registration Process Review
