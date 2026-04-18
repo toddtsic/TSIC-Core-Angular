@@ -36,6 +36,18 @@ public sealed class FeeResolutionService : IFeeResolutionService
         return Math.Max(jobPercent ?? FeeConstants.MinProcessingFeePercent, FeeConstants.MinProcessingFeePercent) / 100m;
     }
 
+    /// <summary>
+    /// Returns both the effective processing rate AND whether the job has processing fees enabled.
+    /// Single source of truth — callers should not need to pass AddProcessingFees externally.
+    /// </summary>
+    private async Task<(decimal Rate, bool Enabled)> GetProcessingConfigAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var settings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
+        var enabled = settings?.BAddProcessingFees ?? false;
+        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
+        return (rate, enabled);
+    }
+
     // ── Resolution ──────────────────────────────────────────────
 
     public async Task<ResolvedFee?> ResolveFeeAsync(
@@ -104,8 +116,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         reg.FeeDiscount = modifiers.TotalDiscount;
         reg.FeeLatefee = modifiers.TotalLateFee;
 
-        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate);
+        var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
     }
 
     // ── Adult Registration: New (UA, Referee, Recruiter — no team) ──
@@ -133,8 +145,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         reg.FeeDiscount = totalDiscount;
         reg.FeeLatefee = totalLateFee;
 
-        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate);
+        var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
     }
 
     // ── Player Registration: New ────────────────────────────────
@@ -155,8 +167,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         reg.FeeLatefee = modifiers.TotalLateFee;
         // FeeDonation — not set here; player sets it in wizard
 
-        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate);
+        var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
     }
 
     // ── Player Registration: Swap ───────────────────────────────
@@ -175,8 +187,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // FeeLatefee  — KEPT
         // FeeDonation — KEPT
 
-        var rate = await GetEffectiveProcessingRateAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate);
+        var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
     }
 
     // ── Team Entity: New ────────────────────────────────────────
@@ -248,9 +260,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     // ── Private: Processing + Totals ────────────────────────────
 
-    private void ApplyProcessingAndTotals(Registrations reg, FeeApplicationContext ctx, decimal processingRate)
+    private void ApplyProcessingAndTotals(Registrations reg, FeeApplicationContext ctx, decimal processingRate, bool jobEnablesProcessingFees)
     {
-        if (ctx.AddProcessingFees && reg.FeeBase > 0m)
+        if (jobEnablesProcessingFees && reg.FeeBase > 0m)
         {
             var adjustedBase = Math.Max(reg.FeeBase - ctx.NonCcPayments, 0m);
             reg.FeeProcessing = _playerFeeCalc.GetDefaultProcessing(adjustedBase, processingRate);

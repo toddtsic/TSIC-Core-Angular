@@ -752,7 +752,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The entire "BY CLICKING NEXT BELOW, I AGREE WITH THE ABOVE RELEASE OF LIABILITY" sentence to be stripped from the confirmation display
 - **What happened**: Only the words "By Clicking" were removed — the rest of the sentence still appears. The entire sentence needs to be removed, not just the first two words.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause: regex `[^.!?<]*` excluded `<`, so inline HTML tags (e.g. `<strong>`) stopped the match after "BY CLICKING". Fixed regex to `[^.!?]*` (allows tags). Extracted `StripClickingConsentSentences()` static helper and applied in both `BuildWaiverHtmlAsync` (confirmation/email) and `GetJobMetadata` (frontend waivers step). Sentence stripped everywhere — redundant since the checkbox "I agree to..." establishes consent.
 
 ### SP-021: Post-registration login must provide menus to review/edit — Legacy parity required (reopens PL-039)
 - **Area**: Registration Process Review
