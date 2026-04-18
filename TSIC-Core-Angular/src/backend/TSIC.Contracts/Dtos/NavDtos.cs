@@ -4,25 +4,32 @@ namespace TSIC.Contracts.Dtos;
 
 /// <summary>
 /// Deserialization model for the VisibilityRules JSON column on NavItem.
-/// Sports/JobTypes are allowlists (show only if match); CustomersDeny is a denylist (hide if match).
-/// Empty/null arrays = no filter on that dimension. All three AND-gated.
+/// Sports/JobTypes/RequiresFlags are allowlists (show only if match); CustomersDeny is a denylist (hide if match).
+/// Empty/null arrays = no filter on that dimension. All four AND-gated.
 /// </summary>
 public record NavItemVisibilityRules
 {
     public List<string>? Sports { get; init; }
     public List<string>? JobTypes { get; init; }
     public List<string>? CustomersDeny { get; init; }
+    /// <summary>
+    /// Job-level feature flags that must ALL be active for this item to render.
+    /// Flag names are derived from Jobs entity properties (e.g. storeEnabled, adnArb,
+    /// mobileEnabled, teamEligibilityByAge, playerSiteOnly).
+    /// </summary>
+    public List<string>? RequiresFlags { get; init; }
 }
 
 /// <summary>
 /// Reference data for the visibility rules editor — distinct sport names,
-/// job type names, and customer names from the database.
+/// job type names, customer names, and available job-level feature flag names.
 /// </summary>
 public record NavVisibilityOptionsDto
 {
     public required List<string> Sports { get; init; }
     public required List<string> JobTypes { get; init; }
     public required List<string> Customers { get; init; }
+    public required List<string> Flags { get; init; }
 }
 
 // ── Read DTOs ────────────────────────────────────────────────

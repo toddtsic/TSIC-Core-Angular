@@ -219,18 +219,51 @@ public class NavRepository : INavRepository
 
     // ─── Private helpers ────────────────────────────────────────────
 
-    private sealed record JobNavContext(string? SportName, string? JobTypeName, string? CustomerName);
+    private sealed record JobNavContext(
+        string? SportName,
+        string? JobTypeName,
+        string? CustomerName,
+        HashSet<string> ActiveFlags);
 
     private async Task<JobNavContext?> GetJobNavContextAsync(Guid jobId, CancellationToken ct)
     {
-        return await _context.Jobs
+        var raw = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobNavContext(
-                j.Sport.SportName,
-                j.JobType.JobTypeName,
-                j.Customer.CustomerName))
+            .Select(j => new
+            {
+                SportName = j.Sport.SportName,
+                JobTypeName = j.JobType.JobTypeName,
+                CustomerName = j.Customer.CustomerName,
+                j.JobTypeId,
+                j.BEnableStore,
+                j.AdnArb,
+                j.BenableStp,
+                j.CoreRegformPlayer
+            })
             .FirstOrDefaultAsync(ct);
+
+        if (raw == null) return null;
+
+        var flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (raw.BEnableStore == true) flags.Add("storeEnabled");
+        if (raw.AdnArb == true) flags.Add("adnArb");
+        if (raw.BenableStp == true) flags.Add("mobileEnabled");
+
+        // 2nd pipe of CoreRegformPlayer defines team eligibility;
+        // value "BYAGERANGE" activates the teamEligibilityByAge flag.
+        if (!string.IsNullOrEmpty(raw.CoreRegformPlayer))
+        {
+            var parts = raw.CoreRegformPlayer.Split('|');
+            if (parts.Length >= 2 && string.Equals(parts[1], "BYAGERANGE", StringComparison.OrdinalIgnoreCase))
+                flags.Add("teamEligibilityByAge");
+        }
+
+        // JobTypeId 1/4/6 = player-site-only job types
+        if (raw.JobTypeId is 1 or 4 or 6) flags.Add("playerSiteOnly");
+
+        return new JobNavContext(raw.SportName, raw.JobTypeName, raw.CustomerName, flags);
     }
 
     /// <summary>
@@ -267,6 +300,15 @@ public class NavRepository : INavRepository
         if (rules.CustomersDeny is { Count: > 0 } && ctx.CustomerName != null
             && rules.CustomersDeny.Contains(ctx.CustomerName, StringComparer.OrdinalIgnoreCase))
             return false;
+
+        // RequiresFlags allowlist — ALL listed flags must be active
+        if (rules.RequiresFlags is { Count: > 0 })
+        {
+            foreach (var flag in rules.RequiresFlags)
+            {
+                if (!ctx.ActiveFlags.Contains(flag)) return false;
+            }
+        }
 
         return true;
     }

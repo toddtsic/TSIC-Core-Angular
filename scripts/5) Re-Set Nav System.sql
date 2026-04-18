@@ -1,8 +1,9 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-16 05:44:59 by 5) Re-Set Nav System.ps1
--- Role-scoped manifest; no ladder, no VisibilityRules emitted.
--- Preserves: job-level overrides, reporting items, existing visibility rules.
+-- Generated: 2026-04-18 14:49:23 by 5) Re-Set Nav System.ps1
+-- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
+-- the section is JobType/sport/customer-conditional (e.g. Scheduling).
+-- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
 -- ============================================================================
 
 SET NOCOUNT ON;
@@ -98,49 +99,60 @@ PRINT 'Inserted 5 Nav records';
 -- -- 6. Admin manifest (Director / SuperDirector / SuperUser) -----------
 IF OBJECT_ID('tempdb..#AdminManifest') IS NOT NULL DROP TABLE #AdminManifest;
 CREATE TABLE #AdminManifest (
-    Controller   NVARCHAR(50)  NOT NULL,
-    Icon         NVARCHAR(50)  NULL,
-    CtrlSort     INT           NOT NULL,
-    [Action]     NVARCHAR(100) NOT NULL,
-    ActionIcon   NVARCHAR(50)  NULL,
-    RouterLink   NVARCHAR(200) NOT NULL,
-    ActionSort   INT           NOT NULL,
-    ForDirector  BIT           NOT NULL,
-    ForSuperDir  BIT           NOT NULL,
-    ForSuperUser BIT           NOT NULL
+    Controller      NVARCHAR(50)  NOT NULL,
+    Icon            NVARCHAR(50)  NULL,
+    CtrlSort        INT           NOT NULL,
+    [Action]        NVARCHAR(100) NOT NULL,
+    ActionIcon      NVARCHAR(50)  NULL,
+    RouterLink      NVARCHAR(200) NOT NULL,
+    ActionSort      INT           NOT NULL,
+    ForDirector     BIT           NOT NULL,
+    ForSuperDir     BIT           NOT NULL,
+    ForSuperUser    BIT           NOT NULL,
+    VisibilityRules NVARCHAR(MAX) NULL    -- JSON, applied to L1 section; NULL = always visible
 );
-INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Registrations', N'people', N'search/registrations', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Teams', N'shield', N'search/teams', 2, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job', N'briefcase', N'configure/job', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 2, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', N'tags', N'configure/discount-codes', 3, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Uniform Upload', N'upload', N'configure/uniform-upload', 4, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 10, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customer Groups', N'people', N'configure/customer-groups', 11, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 12, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'building', N'configure/customers', 13, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 14, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Menus', N'list', N'configure/nav-editor', 15, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widgets', N'grid', N'configure/widget-editor', 16, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 17, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'envelope', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'envelope', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'envelope', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil', N'ladt/editor', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 3, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 4, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 6, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'US Lax Tester', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 10, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 11, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Change Password', N'key', N'tools/change-password', 12, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 7, N'Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 13, 0, 0, 1);
-INSERT INTO #AdminManifest VALUES (N'Store', N'cart', 8, N'Store Admin', N'shop', N'store/admin', 1, 1, 1, 1);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Registrations', N'people', N'search/registrations', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Teams', N'shield', N'search/teams', 2, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Settings', N'briefcase', N'configure/job', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 2, 1, 1, 1, N'{"requiresFlags":["teamEligibilityByAge"]}');
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', N'tags', N'configure/discount-codes', 3, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'L-A-D-T', N'diagram-3', N'ladt/editor', 4, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Rosters', N'arrow-left-right', N'ladt/roster-swapper', 5, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Pools', N'people', N'ladt/pool-assignment', 6, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Bulletins', N'megaphone', N'communications/bulletins', 7, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Email Log', N'envelope-open', N'communications/email-log', 8, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Push Notification', N'bell', N'communications/push-notification', 9, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Uniform Upload', N'upload', N'configure/uniform-upload', 10, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Store Admin', N'shop', N'store/admin', 11, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}');
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'US Lax Tester', N'check-circle', N'tools/uslax-test', 12, 1, 1, 1, N'{"sports":["Lacrosse"]}');
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 13, 1, 1, 1, N'{"sports":["Lacrosse"]}');
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 20, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customer Groups', N'people', N'configure/customer-groups', 21, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 22, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'building', N'configure/customers', 23, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 24, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Menus', N'list', N'configure/nav-editor', 25, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widgets', N'grid', N'configure/widget-editor', 26, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 27, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 28, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 29, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Change Password', N'key', N'tools/change-password', 30, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 3, N'Report Library', N'collection', N'reports', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 3, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 2, 0, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 4, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 4, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 4, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 3, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 4, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 4, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
+INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 5, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1, NULL);
+
+-- Section-level rules applied to L1 independent of per-item aggregation
+IF OBJECT_ID('tempdb..#SectionRules') IS NOT NULL DROP TABLE #SectionRules;
+CREATE TABLE #SectionRules (
+    Controller      NVARCHAR(50)  NOT NULL PRIMARY KEY,
+    VisibilityRules NVARCHAR(MAX) NOT NULL
+);
+INSERT INTO #SectionRules VALUES (N'Scheduling', N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}');
+INSERT INTO #SectionRules VALUES (N'ARB', N'{"requiresFlags":["adnArb"]}');
 
 -- Fan out admin manifest per admin role
 DECLARE @navId INT, @parentId INT, @roleId NVARCHAR(450);
@@ -155,28 +167,47 @@ WHILE @@FETCH_STATUS = 0
 BEGIN
     SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @roleId AND JobId IS NULL;
 
-    DECLARE @ctrl NVARCHAR(50), @ctrlIcon NVARCHAR(50), @ctrlSort INT;
+    -- Per-L1 cursor. L1 rules are inherited ONLY when every visible item under the
+    -- controller carries the same non-null rule (treated as a section-wide rule).
+    -- Mixed / partial rules stay on their individual L2 rows so the L1 remains visible
+    -- while per-item gating applies.
+    DECLARE @ctrl NVARCHAR(50), @ctrlIcon NVARCHAR(50), @ctrlSort INT, @ctrlVisRules NVARCHAR(MAX);
     DECLARE ctrl_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT DISTINCT Controller, Icon, CtrlSort
-        FROM #AdminManifest
+        SELECT am.Controller,
+               MIN(am.Icon)     AS Icon,
+               MIN(am.CtrlSort) AS CtrlSort,
+               COALESCE(
+                    MIN(sr.VisibilityRules),
+                    CASE
+                        WHEN COUNT(*) = COUNT(am.VisibilityRules)
+                         AND COUNT(DISTINCT am.VisibilityRules) = 1
+                        THEN MIN(am.VisibilityRules)
+                        ELSE NULL
+                    END
+               ) AS VisibilityRules
+        FROM #AdminManifest am
+        LEFT JOIN #SectionRules sr ON sr.Controller = am.Controller
         WHERE CASE @roleId
                  WHEN @Director      THEN ForDirector
                  WHEN @SuperDirector THEN ForSuperDir
                  WHEN @SuperUser     THEN ForSuperUser
                  ELSE 0
              END = 1
-        ORDER BY CtrlSort;
+        GROUP BY am.Controller
+        ORDER BY MIN(am.CtrlSort);
 
     OPEN ctrl_cursor;
-    FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+    FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort, @ctrlVisRules;
     WHILE @@FETCH_STATUS = 0
     BEGIN
-        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
-        VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, GETDATE());
+        -- L1 (section parent) — gets rules only when every child shares them.
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, VisibilityRules, Modified)
+        VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, @ctrlVisRules, GETDATE());
         SET @parentId = SCOPE_IDENTITY();
 
-        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
-        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, GETDATE()
+        -- L2 leaves — carry their own rules for per-item gating.
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, Modified)
+        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, VisibilityRules, GETDATE()
         FROM #AdminManifest
         WHERE Controller = @ctrl
           AND CASE @roleId
@@ -187,7 +218,7 @@ BEGIN
              END = 1
         ORDER BY ActionSort;
 
-        FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+        FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort, @ctrlVisRules;
     END
     CLOSE ctrl_cursor;
     DEALLOCATE ctrl_cursor;
@@ -277,6 +308,7 @@ WHERE n.JobId IS NULL;
 PRINT CONCAT('Restored ', @@ROWCOUNT, ' visibility rule(s)');
 DROP TABLE #VisRules;
 DROP TABLE #AdminManifest;
+DROP TABLE #SectionRules;
 
 -- -- 15. Commit + summary -----------------------------------------------
 COMMIT TRANSACTION;

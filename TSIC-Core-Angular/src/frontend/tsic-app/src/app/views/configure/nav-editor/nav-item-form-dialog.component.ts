@@ -9,6 +9,7 @@ interface VisibilityRules {
     sports?: string[];
     jobTypes?: string[];
     customersDeny?: string[];
+    requiresFlags?: string[];
 }
 
 export interface NavItemFormResult {
@@ -320,6 +321,28 @@ export interface NavItemFormResult {
                     </div>
                   }
 
+                  <!-- Required Flags (allowlist; ALL must be active) -->
+                  @if (visibilityOptions.flags.length > 0) {
+                    <div class="rule-section mb-3">
+                      <label class="form-label small fw-medium">
+                        Required Flags
+                        <span class="text-muted fw-normal">(all selected must be active on the job; empty = no flag gating)</span>
+                      </label>
+                      <div class="flag-checks">
+                        @for (flag of visibilityOptions.flags; track flag) {
+                          <label class="flag-check">
+                            <input
+                              type="checkbox"
+                              [checked]="selectedRequiresFlags().includes(flag)"
+                              (change)="toggleSelection('requiresFlags', flag)"
+                            >
+                            <span>{{ flag }}</span>
+                          </label>
+                        }
+                      </div>
+                    </div>
+                  }
+
                   <!-- Customers Deny (denylist) -->
                   @if (visibilityOptions.customers.length > 0) {
                     <div class="rule-section mb-3">
@@ -527,6 +550,24 @@ export interface NavItemFormResult {
             margin: 0;
             cursor: pointer;
         }
+        .flag-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2) var(--space-4);
+        }
+        .flag-check {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-1) var(--space-2);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            user-select: none;
+        }
+        .flag-check input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+        }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -554,6 +595,7 @@ export class NavItemFormDialogComponent implements OnInit {
     selectedSports = signal<string[]>([]);
     selectedJobTypes = signal<string[]>([]);
     selectedCustomersDeny = signal<string[]>([]);
+    selectedRequiresFlags = signal<string[]>([]);
     openDropdown = signal<string | null>(null);
     searchTerm = signal('');
 
@@ -609,8 +651,12 @@ export class NavItemFormDialogComponent implements OnInit {
             this.selectedSports.set(rules.sports ?? []);
             this.selectedJobTypes.set(rules.jobTypes ?? []);
             this.selectedCustomersDeny.set(rules.customersDeny ?? []);
+            this.selectedRequiresFlags.set(rules.requiresFlags ?? []);
             // Auto-expand if rules exist
-            if ((rules.sports?.length ?? 0) > 0 || (rules.jobTypes?.length ?? 0) > 0 || (rules.customersDeny?.length ?? 0) > 0) {
+            if ((rules.sports?.length ?? 0) > 0
+                || (rules.jobTypes?.length ?? 0) > 0
+                || (rules.customersDeny?.length ?? 0) > 0
+                || (rules.requiresFlags?.length ?? 0) > 0) {
                 this.rulesExpanded.set(true);
             }
         } catch {
@@ -618,11 +664,12 @@ export class NavItemFormDialogComponent implements OnInit {
         }
     }
 
-    toggleSelection(dimension: 'sports' | 'jobTypes' | 'customersDeny', value: string): void {
+    toggleSelection(dimension: 'sports' | 'jobTypes' | 'customersDeny' | 'requiresFlags', value: string): void {
         const signalMap = {
             sports: this.selectedSports,
             jobTypes: this.selectedJobTypes,
-            customersDeny: this.selectedCustomersDeny
+            customersDeny: this.selectedCustomersDeny,
+            requiresFlags: this.selectedRequiresFlags
         };
         const sig = signalMap[dimension];
         const current = sig();
@@ -652,7 +699,8 @@ export class NavItemFormDialogComponent implements OnInit {
     hasAnyRules(): boolean {
         return this.selectedSports().length > 0
             || this.selectedJobTypes().length > 0
-            || this.selectedCustomersDeny().length > 0;
+            || this.selectedCustomersDeny().length > 0
+            || this.selectedRequiresFlags().length > 0;
     }
 
     activeRuleCount(): number {
@@ -660,6 +708,7 @@ export class NavItemFormDialogComponent implements OnInit {
         if (this.selectedSports().length > 0) count++;
         if (this.selectedJobTypes().length > 0) count++;
         if (this.selectedCustomersDeny().length > 0) count++;
+        if (this.selectedRequiresFlags().length > 0) count++;
         return count;
     }
 
@@ -670,6 +719,7 @@ export class NavItemFormDialogComponent implements OnInit {
         if (this.selectedSports().length > 0) rules.sports = this.selectedSports();
         if (this.selectedJobTypes().length > 0) rules.jobTypes = this.selectedJobTypes();
         if (this.selectedCustomersDeny().length > 0) rules.customersDeny = this.selectedCustomersDeny();
+        if (this.selectedRequiresFlags().length > 0) rules.requiresFlags = this.selectedRequiresFlags();
 
         return JSON.stringify(rules);
     }

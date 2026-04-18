@@ -6,5 +6,6 @@ export type NavVisibilityOptionsDto = {
     sports: Array<string>;
     jobTypes: Array<string>;
     customers: Array<string>;
+    flags: Array<string>;
 };
 

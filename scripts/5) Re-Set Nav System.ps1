@@ -7,8 +7,9 @@
 #
 # Model:
 #   Admin tier (Director / SuperDirector / SuperUser) — single manifest with
-#   per-role BIT flags. Per-item visibility mirrors the backing controller's
-#   [Authorize(Roles = "...")] attributes.
+#   per-role BIT flags. Structure mirrors legacy Jobs.JobMenu_Items grouping
+#   for Director familiarity at cutover (Configure mega-L1; Search; Reports;
+#   Scheduling; ARB).
 #
 #   Narrow admin roles (RefAssignor, StoreAdmin) — single-purpose menus.
 #
@@ -16,8 +17,11 @@
 #   served by this nav system. Their tasks live in the header avatar dropdown
 #   (client-header-bar). No nav rows or items are emitted for those roles.
 #
-# No Guard ladder, no string <= compares. No VisibilityRules emitted in seed;
-# per-item rules are preserved across runs.
+# VisibilityRules: seeded on L1 (section parent) rows when a section should
+# be JobType/sport/customer-conditional. The runtime evaluator
+# (NavRepository.PassesVisibilityRules) removes the whole section when rules
+# fail — L2 rules are unnecessary. Hand-authored rules are preserved across
+# re-runs (step 14) and override seeded values on items with matching RouterLink.
 #
 # Output: scripts/5) Re-Set Nav System.sql
 # Apply:  sqlcmd -i "5) Re-Set Nav System.sql"   (or run via SSMS)
@@ -48,69 +52,92 @@ $roleGuids = [ordered]@{
 # D = Director, SD = SuperDirector, SU = SuperUser.
 
 function New-AdminItem {
-    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU)
+    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU, $VisRules = $null)
     [PSCustomObject]@{
-        Controller    = $Ctrl
-        ControllerIcon = $CtrlIcon
-        ControllerSort = $CtrlSort
-        Text          = $Text
-        Icon          = $Icon
-        RouterLink    = $Route
-        ItemSort      = $ItemSort
-        ForDirector   = $D
-        ForSuperDir   = $SD
-        ForSuperUser  = $SU
+        Controller      = $Ctrl
+        ControllerIcon  = $CtrlIcon
+        ControllerSort  = $CtrlSort
+        Text            = $Text
+        Icon            = $Icon
+        RouterLink      = $Route
+        ItemSort        = $ItemSort
+        ForDirector     = $D
+        ForSuperDir     = $SD
+        ForSuperUser    = $SU
+        VisibilityRules = $VisRules   # applied to the L1 section; NULL = always visible
     }
 }
 
+# VisibilityRules JSON presets — runtime evaluator (NavRepository.PassesVisibilityRules) consumes as-is.
+# JobTypeName values match reference.JobTypes.JobTypeName.
+# Flag names are derived in NavRepository.GetJobNavContextAsync from Jobs entity columns:
+#   storeEnabled           <- BEnableStore
+#   adnArb                 <- AdnArb
+#   mobileEnabled          <- BenableStp
+#   teamEligibilityByAge   <- CoreRegformPlayer (2nd pipe == 'BYAGERANGE')
+#   playerSiteOnly         <- JobTypeId IN (1,4,6)
+$rulesTournamentLeague   = '{"jobTypes":["Tournament Scheduling","League Scheduling"]}'
+$rulesStoreEnabled       = '{"requiresFlags":["storeEnabled"]}'
+$rulesMobileEnabled      = '{"requiresFlags":["mobileEnabled"]}'
+$rulesTeamEligByAge      = '{"requiresFlags":["teamEligibilityByAge"]}'
+$rulesAdnArb             = '{"requiresFlags":["adnArb"]}'
+$rulesLacrosse           = '{"sports":["Lacrosse"]}'
+
+# Section-level rules keyed by Controller name. These override any value inferred
+# from per-item aggregation and land on the L1 section parent. Use this when the
+# section is gated as a whole but individual items carry additional per-item rules
+# (e.g. Scheduling is Tournament/League only, while Mobile Scorers adds mobileEnabled).
+$sectionRules = @{
+    'Scheduling' = $rulesTournamentLeague
+    'ARB'        = $rulesAdnArb
+}
+
 $adminManifest = @(
-    # Search
+    # -- Search ------------------------------------------------------------
     (New-AdminItem 'Search' 'search' 1 'Registrations' 'people' 'search/registrations' 1 1 1 1)
     (New-AdminItem 'Search' 'search' 1 'Teams'         'shield' 'search/teams'         2 1 1 1)
 
-    # Configure
-    (New-AdminItem 'Configure' 'gear' 2 'Job'              'briefcase'    'configure/job'               1 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'       'sliders'      'configure/age-ranges'        2 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'   'tags'         'configure/discount-codes'    3 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Uniform Upload'   'upload'       'configure/uniform-upload'    4 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Administrators'   'person-badge' 'configure/administrators'   10 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Customer Groups'  'people'       'configure/customer-groups'  11 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options' 'list'         'configure/ddl-options'      12 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Customers'        'building'     'configure/customers'        13 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Theme'            'palette'      'configure/theme'            14 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Menus'            'list'         'configure/nav-editor'       15 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Widgets'          'grid'         'configure/widget-editor'    16 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'        'copy'         'configure/job-clone'        17 0 0 1)
+    # -- Configure (mega-L1 preserving legacy Director familiarity) --------
+    # Director-visible items (sort 1-19)
+    (New-AdminItem 'Configure' 'gear' 2 'Job Settings'      'briefcase'         'configure/job'                      1 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'        'sliders'           'configure/age-ranges'               2 1 1 1 $rulesTeamEligByAge)
+    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'    'tags'              'configure/discount-codes'           3 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'L-A-D-T'           'diagram-3'         'ladt/editor'                        4 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Rosters'           'arrow-left-right'  'ladt/roster-swapper'                5 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Pools'             'people'            'ladt/pool-assignment'               6 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Bulletins'         'megaphone'         'communications/bulletins'           7 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Email Log'         'envelope-open'     'communications/email-log'           8 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Push Notification' 'bell'              'communications/push-notification'   9 1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Configure' 'gear' 2 'Uniform Upload'    'upload'            'configure/uniform-upload'          10 1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Store Admin'       'shop'              'store/admin'                       11 1 1 1 $rulesStoreEnabled)
+    (New-AdminItem 'Configure' 'gear' 2 'US Lax Tester'     'check-circle'      'tools/uslax-test'                  12 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'Configure' 'gear' 2 'US Lax Rankings'   'trophy'            'tools/uslax-rankings'              13 1 1 1 $rulesLacrosse)
 
-    # Communications
-    (New-AdminItem 'Communications' 'envelope' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)
-    (New-AdminItem 'Communications' 'envelope' 3 'Email Log'         'envelope-open' 'communications/email-log'         2 1 1 1)
-    (New-AdminItem 'Communications' 'envelope' 3 'Push Notification' 'bell'          'communications/push-notification' 3 1 1 1)
+    # SuperUser-only items (sort 20+)
+    (New-AdminItem 'Configure' 'gear' 2 'Administrators'    'person-badge'      'configure/administrators'          20 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Customer Groups'   'people'            'configure/customer-groups'         21 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'  'list'              'configure/ddl-options'             22 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Customers'         'building'          'configure/customers'               23 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Theme'             'palette'           'configure/theme'                   24 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Menus'             'list'              'configure/nav-editor'              25 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Widgets'           'grid'              'configure/widget-editor'           26 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'              'configure/job-clone'               27 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Profile Migration' 'arrow-right'       'tools/profile-migration'           28 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'    'pencil-square'     'tools/profile-editor'              29 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Change Password'   'key'               'tools/change-password'             30 0 0 1)
 
-    # LADT
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Editor'          'pencil'            'ladt/editor'          1 1 1 1)
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Roster Swapper'  'arrow-left-right'  'ladt/roster-swapper'  2 1 1 1)
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'            'ladt/pool-assignment' 3 1 1 1)
+    # -- Reports (single leaf today → future Report Library; Customer Job Revenue SD+ only) --
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 3 'Report Library'       'collection' 'reports'                     1 1 1 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 3 'Customer Job Revenue' 'cash-stack' 'tools/customer-job-revenue'  2 0 1 1)
 
-    # Scheduling
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'   'grid'         'scheduling/schedule-hub'   1 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'  'eye'          'scheduling/view-schedule'  2 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Rescheduler'    'arrow-repeat' 'scheduling/rescheduler'    3 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Mobile Scorers' 'phone'        'scheduling/mobile-scorers' 4 1 1 1)
+    # -- Scheduling (section-gated to Tournament/League via $sectionRules; Mobile Scorers adds mobileEnabled) --
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Schedule Hub'   'grid'         'scheduling/schedule-hub'   1 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'View Schedule'  'eye'          'scheduling/view-schedule'  2 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Rescheduler'    'arrow-repeat' 'scheduling/rescheduler'    3 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Mobile Scorers' 'phone'        'scheduling/mobile-scorers' 4 1 1 1 $rulesMobileEnabled)
 
-    # ARB
-    (New-AdminItem 'ARB' 'credit-card' 6 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
-
-    # Tools
-    (New-AdminItem 'Tools' 'tools' 7 'US Lax Tester'     'check-circle'  'tools/uslax-test'            1 1 1 1)
-    (New-AdminItem 'Tools' 'tools' 7 'US Lax Rankings'   'trophy'        'tools/uslax-rankings'        2 1 1 1)
-    (New-AdminItem 'Tools' 'tools' 7 'Profile Migration' 'arrow-right'   'tools/profile-migration'    10 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 7 'Profile Editor'    'pencil-square' 'tools/profile-editor'       11 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 7 'Change Password'   'key'           'tools/change-password'      12 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 7 'Job Revenue'       'cash-stack'    'tools/customer-job-revenue' 13 0 0 1)
-
-    # Store
-    (New-AdminItem 'Store' 'cart' 8 'Store Admin' 'shop' 'store/admin' 1 1 1 1)
+    # -- ARB (section-gated on adnArb flag via $sectionRules) -------------
+    (New-AdminItem 'ARB' 'credit-card' 5 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray
@@ -148,8 +175,9 @@ $sql = [System.Text.StringBuilder]::new()
 [void]$sql.AppendLine("-- ============================================================================")
 [void]$sql.AppendLine("-- 5) Re-Set Nav System.sql")
 [void]$sql.AppendLine("-- Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') by 5) Re-Set Nav System.ps1")
-[void]$sql.AppendLine("-- Role-scoped manifest; no ladder, no VisibilityRules emitted.")
-[void]$sql.AppendLine("-- Preserves: job-level overrides, reporting items, existing visibility rules.")
+[void]$sql.AppendLine("-- Role-scoped manifest; VisibilityRules seeded on L1 section parents where")
+[void]$sql.AppendLine("-- the section is JobType/sport/customer-conditional (e.g. Scheduling).")
+[void]$sql.AppendLine("-- Preserves: job-level overrides, reporting items, hand-authored L2 rules.")
 [void]$sql.AppendLine("-- ============================================================================")
 [void]$sql.AppendLine("")
 [void]$sql.AppendLine("SET NOCOUNT ON;")
@@ -260,24 +288,42 @@ foreach ($k in $roleGuids.Keys) {
 [void]$sql.AppendLine(@"
 IF OBJECT_ID('tempdb..#AdminManifest') IS NOT NULL DROP TABLE #AdminManifest;
 CREATE TABLE #AdminManifest (
-    Controller   NVARCHAR(50)  NOT NULL,
-    Icon         NVARCHAR(50)  NULL,
-    CtrlSort     INT           NOT NULL,
-    [Action]     NVARCHAR(100) NOT NULL,
-    ActionIcon   NVARCHAR(50)  NULL,
-    RouterLink   NVARCHAR(200) NOT NULL,
-    ActionSort   INT           NOT NULL,
-    ForDirector  BIT           NOT NULL,
-    ForSuperDir  BIT           NOT NULL,
-    ForSuperUser BIT           NOT NULL
+    Controller      NVARCHAR(50)  NOT NULL,
+    Icon            NVARCHAR(50)  NULL,
+    CtrlSort        INT           NOT NULL,
+    [Action]        NVARCHAR(100) NOT NULL,
+    ActionIcon      NVARCHAR(50)  NULL,
+    RouterLink      NVARCHAR(200) NOT NULL,
+    ActionSort      INT           NOT NULL,
+    ForDirector     BIT           NOT NULL,
+    ForSuperDir     BIT           NOT NULL,
+    ForSuperUser    BIT           NOT NULL,
+    VisibilityRules NVARCHAR(MAX) NULL    -- JSON, applied to L1 section; NULL = always visible
 );
 "@)
 foreach ($item in $adminManifest) {
+    $rulesCol = if ([string]::IsNullOrEmpty($item.VisibilityRules)) { 'NULL' } else { "N'$(Esc $item.VisibilityRules)'" }
     [void]$sql.AppendLine(
         "INSERT INTO #AdminManifest VALUES (" +
         "N'$(Esc $item.Controller)', N'$(Esc $item.ControllerIcon)', $($item.ControllerSort), " +
         "N'$(Esc $item.Text)', N'$(Esc $item.Icon)', N'$(Esc $item.RouterLink)', $($item.ItemSort), " +
-        "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser));"
+        "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser), $rulesCol);"
+    )
+}
+[void]$sql.AppendLine("")
+
+# Section-rule overlay: explicit L1 rules for whole sections, independent of per-item rules.
+[void]$sql.AppendLine("-- Section-level rules applied to L1 independent of per-item aggregation")
+[void]$sql.AppendLine(@"
+IF OBJECT_ID('tempdb..#SectionRules') IS NOT NULL DROP TABLE #SectionRules;
+CREATE TABLE #SectionRules (
+    Controller      NVARCHAR(50)  NOT NULL PRIMARY KEY,
+    VisibilityRules NVARCHAR(MAX) NOT NULL
+);
+"@)
+foreach ($ctrl in $sectionRules.Keys) {
+    [void]$sql.AppendLine(
+        "INSERT INTO #SectionRules VALUES (N'$(Esc $ctrl)', N'$(Esc $sectionRules[$ctrl])');"
     )
 }
 [void]$sql.AppendLine("")
@@ -296,28 +342,47 @@ WHILE @@FETCH_STATUS = 0
 BEGIN
     SELECT @navId = NavId FROM nav.Nav WHERE RoleId = @roleId AND JobId IS NULL;
 
-    DECLARE @ctrl NVARCHAR(50), @ctrlIcon NVARCHAR(50), @ctrlSort INT;
+    -- Per-L1 cursor. L1 rules are inherited ONLY when every visible item under the
+    -- controller carries the same non-null rule (treated as a section-wide rule).
+    -- Mixed / partial rules stay on their individual L2 rows so the L1 remains visible
+    -- while per-item gating applies.
+    DECLARE @ctrl NVARCHAR(50), @ctrlIcon NVARCHAR(50), @ctrlSort INT, @ctrlVisRules NVARCHAR(MAX);
     DECLARE ctrl_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT DISTINCT Controller, Icon, CtrlSort
-        FROM #AdminManifest
+        SELECT am.Controller,
+               MIN(am.Icon)     AS Icon,
+               MIN(am.CtrlSort) AS CtrlSort,
+               COALESCE(
+                    MIN(sr.VisibilityRules),
+                    CASE
+                        WHEN COUNT(*) = COUNT(am.VisibilityRules)
+                         AND COUNT(DISTINCT am.VisibilityRules) = 1
+                        THEN MIN(am.VisibilityRules)
+                        ELSE NULL
+                    END
+               ) AS VisibilityRules
+        FROM #AdminManifest am
+        LEFT JOIN #SectionRules sr ON sr.Controller = am.Controller
         WHERE CASE @roleId
                  WHEN @Director      THEN ForDirector
                  WHEN @SuperDirector THEN ForSuperDir
                  WHEN @SuperUser     THEN ForSuperUser
                  ELSE 0
              END = 1
-        ORDER BY CtrlSort;
+        GROUP BY am.Controller
+        ORDER BY MIN(am.CtrlSort);
 
     OPEN ctrl_cursor;
-    FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+    FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort, @ctrlVisRules;
     WHILE @@FETCH_STATUS = 0
     BEGIN
-        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, Modified)
-        VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, GETDATE());
+        -- L1 (section parent) — gets rules only when every child shares them.
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, VisibilityRules, Modified)
+        VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, @ctrlVisRules, GETDATE());
         SET @parentId = SCOPE_IDENTITY();
 
-        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, Modified)
-        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, GETDATE()
+        -- L2 leaves — carry their own rules for per-item gating.
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, Modified)
+        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, VisibilityRules, GETDATE()
         FROM #AdminManifest
         WHERE Controller = @ctrl
           AND CASE @roleId
@@ -328,7 +393,7 @@ BEGIN
              END = 1
         ORDER BY ActionSort;
 
-        FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort;
+        FETCH NEXT FROM ctrl_cursor INTO @ctrl, @ctrlIcon, @ctrlSort, @ctrlVisRules;
     END
     CLOSE ctrl_cursor;
     DEALLOCATE ctrl_cursor;
@@ -461,6 +526,7 @@ WHERE n.JobId IS NULL;
 PRINT CONCAT('Restored ', @@ROWCOUNT, ' visibility rule(s)');
 DROP TABLE #VisRules;
 DROP TABLE #AdminManifest;
+DROP TABLE #SectionRules;
 "@)
 [void]$sql.AppendLine("")
 
