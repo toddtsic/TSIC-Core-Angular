@@ -199,6 +199,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<Registrations> RegistrationsUser { get; set; } = new List<Registrations>();
 
+    public virtual ICollection<ReportCatalogue> ReportCatalogue { get; set; } = new List<ReportCatalogue>();
+
     public virtual ICollection<Schedule> Schedule { get; set; } = new List<Schedule>();
 
     public virtual ICollection<Sports> Sports { get; set; } = new List<Sports>();

@@ -6,6 +6,7 @@ using OfficeOpenXml;
 using TSIC.API.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 
 namespace TSIC.API.Services.Reporting;
 
@@ -13,16 +14,63 @@ public sealed class ReportingService : IReportingService
 {
     private readonly IReportingRepository _reportingRepository;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IVisibilityRulesEvaluator _visibilityEvaluator;
     private readonly ReportingSettings _settings;
 
     public ReportingService(
         IReportingRepository reportingRepository,
         IHttpClientFactory httpClientFactory,
+        IVisibilityRulesEvaluator visibilityEvaluator,
         IOptions<ReportingSettings> settings)
     {
         _reportingRepository = reportingRepository;
         _httpClientFactory = httpClientFactory;
+        _visibilityEvaluator = visibilityEvaluator;
         _settings = settings.Value;
+    }
+
+    public async Task<List<ReportCatalogueEntryDto>> GetCatalogueForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await _reportingRepository.GetActiveCatalogueEntriesAsync(cancellationToken);
+
+        var jobCtx = await _visibilityEvaluator.BuildJobContextAsync(jobId, cancellationToken);
+        if (jobCtx == null) return new List<ReportCatalogueEntryDto>();
+
+        return rows
+            .Where(r => _visibilityEvaluator.Passes(r.VisibilityRules, jobCtx))
+            .ToList();
+    }
+
+    public Task<List<ReportCatalogueEntryDto>> GetFullCatalogueAsync(
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.GetAllCatalogueEntriesAsync(cancellationToken);
+
+    public Task<ReportCatalogueEntryDto> CreateCatalogueEntryAsync(
+        ReportCatalogueWriteDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.CreateCatalogueEntryAsync(dto, lebUserId, cancellationToken);
+
+    public Task<ReportCatalogueEntryDto?> UpdateCatalogueEntryAsync(
+        Guid reportId,
+        ReportCatalogueWriteDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.UpdateCatalogueEntryAsync(reportId, dto, lebUserId, cancellationToken);
+
+    public Task<bool> DeleteCatalogueEntryAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.DeleteCatalogueEntryAsync(reportId, cancellationToken);
+
+    public async Task<VerifyStoredProcedureDto> VerifyStoredProcedureAsync(
+        string spName,
+        CancellationToken cancellationToken = default)
+    {
+        var exists = await _reportingRepository.StoredProcedureExistsAsync(spName, cancellationToken);
+        return new VerifyStoredProcedureDto { StoredProcName = spName, Exists = exists };
     }
 
     public async Task<ReportExportResult> ExportCrystalReportAsync(

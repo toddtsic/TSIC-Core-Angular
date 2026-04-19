@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-18 20:44:36 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-19 09:00:31 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -143,7 +143,7 @@ INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Pairings', N
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', N'clock', N'scheduling/timeslots', 11, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', 12, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results', N'check2-square', N'scheduling/qa-results', 13, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reports', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 7, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Store', N'shop', 8, N'Store Admin', N'speedometer2', N'store/admin', 1, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}');

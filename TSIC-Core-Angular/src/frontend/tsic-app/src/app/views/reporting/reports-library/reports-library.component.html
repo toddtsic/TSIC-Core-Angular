@@ -1,0 +1,80 @@
+<section class="reports-library">
+    <header class="reports-library__header">
+        <div>
+            <h1>Report Library</h1>
+        </div>
+        <div class="reports-library__filter">
+            <label class="field-label" for="reports-filter">Filter</label>
+            <input
+                id="reports-filter"
+                class="field-input"
+                type="search"
+                placeholder="Search title or description"
+                [value]="filterText()"
+                (input)="onFilterInput($any($event.target).value)" />
+        </div>
+    </header>
+
+    @if (catalogueLoading()) {
+        <div class="reports-library__banner reports-library__banner--info">
+            Loading dynamic catalogue…
+        </div>
+    }
+
+    @if (catalogueError(); as msg) {
+        <div class="reports-library__banner reports-library__banner--warn">
+            <span>{{ msg }}</span>
+            <button type="button" class="btn btn-link" (click)="retryCatalogue()">Retry</button>
+        </div>
+    }
+
+    @if (runError(); as msg) {
+        <div class="reports-library__banner reports-library__banner--error">
+            {{ msg }}
+        </div>
+    }
+
+    @if (cards().length === 0 && !catalogueLoading()) {
+        <div class="reports-library__empty">
+            <p>No reports match your filter.</p>
+        </div>
+    } @else {
+        <div class="reports-library__grid">
+            @for (card of cards(); track card.id) {
+                <article class="report-card" [class.report-card--running]="runningId() === card.id">
+                    <div class="report-card__icon">
+                        @if (card.iconName) {
+                            <i class="bi bi-{{ card.iconName }}" aria-hidden="true"></i>
+                        } @else {
+                            <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                        }
+                    </div>
+                    <div class="report-card__body">
+                        <h3 class="report-card__title">
+                            {{ card.title }}
+                            @if (card.kind === 'type2') {
+                                <span class="report-card__badge" title="Stored-procedure driven (dynamic)">SP</span>
+                            }
+                        </h3>
+                        @if (card.description) {
+                            <p class="report-card__desc">{{ card.description }}</p>
+                        }
+                    </div>
+                    <div class="report-card__actions">
+                        <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            [disabled]="runningId() !== null"
+                            (click)="runCard(card)">
+                            @if (runningId() === card.id) {
+                                Running…
+                            } @else {
+                                Run
+                            }
+                        </button>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>

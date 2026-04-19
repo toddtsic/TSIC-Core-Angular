@@ -1,0 +1,130 @@
+﻿Reports,All Customer Jobs Accounting Records (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[Customer_RegistrationAccounting_Records]&bUseJobId=true&bUseDateUnscheduled=false,201,6,"online sales, player registration for camp or clinic, player registration for club sport, player registration for showcase, team registration for league play, team registration for tournament","Director, Superuser",2027
+Reports,Player Transactions (Excel),Reporting,Get_JobPlayer_Transactions,175,5,"player registration for camp or clinic, player registration for club sport, player registration for showcase, team registration for league play, team registration for tournament","Director, SuperDirector, Superuser",2027
+Reports,Net Users (pdf),Reporting,Get_NetUsers,155,4,"player registration for camp or clinic, player registration for club sport, team registration for league play, team registration for tournament",Superuser,2027
+Reports,Player Data (Excel),Reporting,Get_JobPlayers_STEPS_Excel,129,4,"player registration for camp or clinic, player registration for club sport, player registration for showcase, team registration for league play","Director, SuperDirector, Superuser",2027
+Reports,Staff Data (Excel),Reporting,JobStaff_Excel,103,4,"player registration for club sport, player registration for showcase, team registration for league play, team registration for tournament","Director, SuperDirector",2027
+Reports,Player Export,Reporting,Get_JobPlayers_STEPS_Excel,101,2,"team registration for league play, team registration for tournament",Director,2027
+Scheduling,Export Schedule (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[Schedule_Export_ToTournyMachine]&bUseJobId=true&bUseDateUnscheduled=false,101,2,"team registration for league play, team registration for tournament",Director,2027
+Scheduling,Field Utilization (pdf),Reporting,FieldUtilizationAcrossLeaguesTournament,101,2,"team registration for league play, team registration for tournament",Director,2027
+Scheduling,Field Utilization By Date (pdf),Reporting,FieldUtilizationAcrossLeaguesByDateTournament,101,2,"team registration for league play, team registration for tournament",Director,2027
+Scheduling,Game Boards,Reporting,Schedule_ByAgegroup,101,2,"team registration for league play, team registration for tournament",Director,2027
+Reports,Teams Export (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[Schedule_Export_Teams_ToTournyMachine]&bUseJobId=true&bUseDateUnscheduled=false,98,2,"team registration for league play, team registration for tournament","Director, Superuser",2027
+Reports,Check-In (pdf),Reporting,tournycheckin,97,2,"team registration for league play, team registration for tournament",Director,2027
+Reports,College Recruiter Report (pdf),Reporting,TournamentRecruitingReport,90,2,"team registration for league play, team registration for tournament",Director,2027
+Reports,Club Reps (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[JobClubRepContacts]&bUseJobId=true,89,2,"team registration for league play, team registration for tournament","Director, Superuser",2027
+Reports,College Recruiter Data Dump (excel),Reporting,TournamentRecruitingReport_DataDump,89,2,"team registration for league play, team registration for tournament",Director,2027
+Reports,Rosters Packed (pdf),Reporting,Get_JobRosters_PackedByPositionAGNoClubPlayers,80,2,"player registration for club sport, player registration for showcase","Director, SuperDirector",2027
+Reports,Rosters Recruiting Data Dump (Excel),Reporting,Get_JobRosters_RecruitingReport_DumpExcel,80,2,"player registration for club sport, player registration for showcase","Director, SuperDirector",2027
+Reports,Rosters Recruiting Data Dump Public (Excel),Reporting,Get_JobRosters_RecruitingReport_Public_DumpExcel,80,2,"player registration for club sport, player registration for showcase","Director, SuperDirector",2027
+Reports,Rosters Recruiting Report (pdf),Reporting,Get_JobRosters_RecruitingReport,80,2,"player registration for club sport, player registration for showcase","Director, SuperDirector",2027
+Reports,Player Details (Excel),Reporting,JobPlayers_YJ_Excel,63,5,"online sales, player registration for camp or clinic, player registration for club sport, player registration for showcase, team registration for tournament","Director, Superuser",2026
+Reports,Tournament Rosters Packed (pdf),Reporting,TournamentRosterPacked_PositionSchool,63,2,"team registration for league play, team registration for tournament",Director,2027
+Schedules,Game Boards,Reporting,Schedule_ByAgegroup,61,1,player registration for showcase,"Director, SuperDirector",2027
+Docs,Check In Report (pdf),Reporting,AmericanSelectTournyCheckin,51,1,player registration for showcase,"Director, SuperDirector",2027
+Docs,Evaluation Report (pdf),Reporting,AmericanSelectEvaluation,51,1,player registration for showcase,"Director, SuperDirector",2027
+Docs,Main Event Rosters (pdf),Reporting,AmericanSelectMainEventRosters,51,1,player registration for showcase,"Director, SuperDirector",2027
+Reports,Evaluation Report (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[AmericanSelectEvaluationSheet]&bUseJobId=true&bUseDateUnscheduled=false,51,1,player registration for showcase,Superuser,2027
+Reports,Club Rosters (pdf),Reporting,Job_Rosters_NoMedical,48,2,"player registration for camp or clinic, player registration for club sport",Director,2026
+Reports,Discounted Players (Excel),Reporting,Get_DiscountedPlayers,41,5,"player registration for camp or clinic, player registration for club sport, player registration for showcase, team registration for league play, team registration for tournament","Director, Superuser",2026
+Reports,Player Data (All Customer Jobs) (Excel),Reporting,Get_CustomerPlayers1,40,3,"player registration for camp or clinic, player registration for club sport, player registration for showcase",Director,2027
+Reports,Tournament Rosters Packed (pdf),Reporting,TournamentRosterPacked,40,2,"team registration for league play, team registration for tournament",Director,2027
+Reports,Tournament Rosters Packed (pdf) (JS),Reporting,TournamentRosterPacked_PositionSchool,40,2,"team registration for league play, team registration for tournament",Director,2027
+Player Stats,Entry Form (pdf),Reporting,PlayerStats_E120,29,2,"player registration for club sport, player registration for showcase",Superuser,2026
+Reports,Player Data (Excel),Reporting,Get_JobPlayers_E120_Excel,29,2,"player registration for club sport, player registration for showcase","Director, Superuser",2026
+Reports,Player Stats Entry Form (pdf),Reporting,PlayerStats_E120,29,2,"player registration for club sport, player registration for showcase",Superuser,2026
+Reports,Active Players Report (pdf),Reporting,Get_JobPlayers_STEPS,23,3,"player registration for camp or clinic, player registration for club sport, team registration for league play",Superuser,2027
+Reports,Discounted Players,Reporting,Get_DiscountedPlayers,23,3,"player registration for camp or clinic, player registration for club sport, player registration for showcase","Director, Superuser",2026
+Reports,Club Rosters,Reporting,Job_Club_Rosters,20,3,"player registration for camp or clinic, player registration for club sport, team registration for tournament",Director,2027
+Reports,Active and Inactive Player Data (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[ThePlayers_PlayerShowCaseExport_IncludeInactive]&bUseJobId=true,19,2,"player registration for club sport, player registration for showcase","Director, Superuser",2026
+Reports,Rostered Players Data (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[ThePlayers_PlayerShowCaseExportII]&bUseJobId=true,16,2,"player registration for club sport, player registration for showcase",Director,2026
+Reports,Camp Checkin (pdf),Reporting,Job_CampCheckin,14,3,"online sales, player registration for camp or clinic, player registration for showcase","Director, Superuser",2026
+Reports,Camp Data Dump (Excel),Reporting,camp_datadump,14,3,"online sales, player registration for camp or clinic, player registration for showcase",Director,2026
+Reports,Camp Export (Long)(Excel),Reporting,camp_excelexport_long,14,3,"online sales, player registration for camp or clinic, player registration for showcase",Director,2026
+Reports,Camp Export (Short)(Excel),Reporting,camp_excelexport_short,14,3,"online sales, player registration for camp or clinic, player registration for showcase",Director,2026
+Reports,Camper Export (Very Short)(Excel),Reporting,camp_excelexport_veryshort,14,3,"online sales, player registration for camp or clinic, player registration for showcase",Director,2026
+Reports,Custom Accounting Report (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[CathyCampBreakoutPerJob_PreviousMonth]&bUseJobId=true,14,3,"online sales, player registration for camp or clinic, player registration for showcase",Superuser,2026
+Reports,Club Rosters for Coaches (pdf),Reporting,clubrostersNoMedicalII,13,3,"player registration for camp or clinic, player registration for club sport, team registration for tournament",Director,2026
+Reports,Commuters (pdf),Reporting,camp_commuters,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Day/Night Groups (Excel),Reporting,camp_excelexport_daygroups,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Daygroups (pdf),Reporting,camp_daygroups,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Daygroups-Stacked (pdf),Reporting,camp_daygroups_pdf,13,2,"online sales, player registration for camp or clinic","Director, Superuser",2026
+Reports,Night Groups (pdf),Reporting,camp_nightgroups,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Nightgroups-Stacked(pdf),Reporting,camp_nightgroups_pdf,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Roommates (Excel),Reporting,camp_excelexport_roomies,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Roommates (pdf),Reporting,camp_roomies,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Roommates (with position)(Excel),Reporting,camp_excelexport_room_position,13,2,"online sales, player registration for camp or clinic",Director,2026
+Reports,Counts Year over Year (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[MaxExposure_CountsAtYear_ByTeam],12,3,"online sales, player registration for camp or clinic, player registration for showcase","Director, Superuser",2026
+Reports,Parents Mailing Data (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[PlayerParentMailingData],12,3,"online sales, player registration for camp or clinic, player registration for showcase","Director, Superuser",2026
+Reports,Player Club Coaches (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[MaxExposure_ClubCoaches],12,3,"online sales, player registration for camp or clinic, player registration for showcase",Director,2026
+Player Stats,Player Stats Entry Form (pdf),Reporting,PlayerStats_E120,10,1,player registration for showcase,Director,2026
+Player Stats,Player Stats Export (Excel),Reporting,PlayerStats_ParisiExportExcel,10,1,player registration for showcase,Director,2026
+Reports,Checkin Spreadsheet with VacCard and MedForm Status,Reporting,ExportStoredProcedureResults?spName=[reporting].[CathyCampCheckinWithVacAndMedform],9,3,"online sales, player registration for camp or clinic, player registration for showcase","Director, Superuser",2026
+Reports,Rosters for Coaches (pdf),Reporting,clubrostersNoMedicalII,9,1,player registration for club sport,Director,2027
+Reports,Camp Check-in Report (pdf),Reporting,Job_CampCheckin,8,1,player registration for showcase,Director,2026
+Reports,Rosters Packed XPO (pdf),Reporting,Get_JobRosters_PackedByPosition_XPO,8,1,player registration for showcase,Director,2026
+Reports,Rosters Recruiting Report XPO (pdf),Reporting,Get_JobRosters_RecruitingReport_XPO,8,1,player registration for showcase,Director,2026
+Reports,Team Field Distribution,Reporting,Get_TeamFieldDistribution,8,2,"team registration for league play, team registration for tournament",Director,2027
+Reports,Training Groups (pdf),Reporting,Camp_Daygroups,8,1,player registration for showcase,"Director, Superuser",2026
+Reports,Export Club Coaches Details (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[StepsCoaches_Export]&bUseJobId=true,7,1,player registration for club sport,"Director, Superuser",2027
+Reports,Mobile Users,Reporting,Mobile_JobUsers,7,1,player registration for club sport,Director,2027
+Reports,Player Check-In (another version) (pdf),Reporting,AmericanSelectTournyCheckin,6,1,player registration for club sport,Director,2026
+Reports,Player Check-In Report (pdf),Reporting,JobRosters_TryoutsCheckReport,6,1,player registration for club sport,Superuser,2026
+Reports,Player Check-In Report(pdf),Reporting,JobRosters_TryoutsCheckReport,6,1,player registration for club sport,Director,2026
+Reports,Rosters Packed Skills Groups XPO (pdf),Reporting,JobRosters_DayGroupsPackedXPO,6,1,player registration for showcase,Director,2026
+Reports,Check in Reports,Reporting,JobRosters_TryoutsCheckReport,5,1,player registration for club sport,"Director, Superuser",2026
+Reports,Check-In Report,Reporting,ISP_CheckinFlat,5,2,"player registration for club sport, team registration for league play","Director, Superuser",2026
+Reports,Main Event Rosters (pdf),Reporting,AmericanSelectMainEventRosters,5,1,player registration for showcase,Superuser,2026
+Reports,Player Data (Excel),Reporting,Get_JobPlayers_Liberty_Excel,5,1,player registration for club sport,Director,2026
+Reports,Player Data (Excel) Director View,Reporting,Get_JobPlayers_E120_Excel,5,2,"player registration for club sport, player registration for showcase",Superuser,2026
+Reports,Pushes Per Event (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[JobPushTeamResultsSummary]&bUseJobId=true&bUseDateUnscheduled=false,5,2,"team registration for league play, team registration for tournament","Director, Superuser",2027
+Reports,Score Entry Sheets,Reporting,Score_Input,5,2,"player registration for club sport, team registration for league play","Director, Superuser",2026
+Reports,Last Month X-Customer Revenue Summary,Reporting,ExportStoredProcedureResults?spName=[adn].[monthlycustomerrollups]&bUseJobId=true,4,1,player registration for club sport,Superuser,2027
+Reports,LSN TV Roster Report (pdf),Reporting,TournamentRecruitingReportUSL,4,2,"team registration for league play, team registration for tournament",Director,2026
+Reports,Rosters for coaches (pdf),Reporting,Job_Club_Rosters,4,1,player registration for camp or clinic,Director,2026
+Search,Charlies RegSaver Registrants,Reporting,ExportStoredProcedureResults?spName=[reporting].[RegsaverRegistrants_Charlie]&bUseJobId=false&bUseDateUnscheduled=false,4,1,player registration for club sport,Superuser,2027
+Search,RegSaver Registrants,Reporting,ExportStoredProcedureResults?spName=[reporting].[RegsaverRegistrants_Charlie]&bUseJobId=false&bUseDateUnscheduled=false,4,1,player registration for club sport,Director,2027
+Reports,Club Rosters (pdf),Reporting,Job_Club_Rosters,3,1,player registration for club sport,Director,2027
+Reports,Club Rosters for Coaches (pdf),Reporting,Club_AllJobs_Rosters_NoMedical,3,1,player registration for club sport,Director,2026
+Reports,"Customer Contact Export (All Jobs, All Years)",Reporting,ExportStoredProcedureResults?spName=[reporting].[CustomerEndUsersDump]&bUseJobId=true&bUseDateUnscheduled=false,3,1,team registration for tournament,"Director, Superuser",2026
+Reports,Export History,Reporting,ExportStoredProcedureResults?spName=[reporting].[ExportReportsHistory]&bUseJobId=true&bUseDateUnscheduled=false,3,1,player registration for club sport,"Director, Superuser",2027
+Reports,MSYSA Export (Excel),Reporting,JobRosters_MSYSA,3,1,player registration for club sport,Director,2026
+Reports,Rostered Players Data (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[ThePlayers_PlayerShowCaseExport]&bUseJobId=true,3,1,player registration for showcase,Director,2026
+Reports,Scheduled Teams Export (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[Schedule_Export_Teams_ToTournyMachine]&bUseJobId=true&bUseDateUnscheduled=false,3,1,team registration for tournament,Director,2027
+Reports,Transaction Rollup (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[GetJobTransactionRollup]&bUseJobId=true&bUseDateUnscheduled=false,3,2,"player registration for club sport, team registration for league play","Director, Superuser",2026
+Reports,Campers Checkin (pdf),Reporting,Job_CampCheckinII,2,1,player registration for camp or clinic,Director,2026
+Reports,Campers Export (Excel),Reporting,camp_excelexport_summer,2,1,player registration for camp or clinic,Director,2026
+Reports,Campers Export (pdf),Reporting,camp_excelexport_summer_pdf,2,1,player registration for camp or clinic,Director,2026
+Reports,College Recruiter Report (pdf),Reporting,TournamentRecruitingReportASL,2,2,"team registration for league play, team registration for tournament","Director, Superuser",2026
+Reports,Counts Year Over Year (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[MaxExposure_CountsAtYear_ByTeam]&bUseJobId=true,2,1,player registration for camp or clinic,"Director, Superuser",2026
+Reports,Customer EndUser Data Dump (all time),Reporting,ExportStoredProcedureResults?spName=[reporting].[CustomerEndUsersDump]&bUseJobId=true&bUseDateUnscheduled=false,2,1,team registration for tournament,Superuser,2026
+Reports,"Customer Registrations By Job, Agegroup, Div, Team",Reporting,ExportStoredProcedureResults?spName=[reporting].[AmericanSelect_CustomerJobRegistrationsByJobAgegroupDivTeam]&bUseJobId=true&bUseDateUnscheduled=false,2,2,"team registration for league play, team registration for tournament",Director,2026
+Reports,Export Staff (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[StaffExport]&bUseJobId=true&bUseDateUnscheduled=false,2,2,"team registration for league play, team registration for tournament","Director, Superuser",2026
+Reports,Job QA (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[JobCloneQA]&bUseJobId=true&bUseDateUnscheduled=false,2,1,player registration for club sport,Superuser,2026
+Reports,Parents Mailing Data (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[PlayerParentMailingData]&bUseJobId=true,2,1,player registration for camp or clinic,"Director, Superuser",2026
+Reports,Player Club Coaches (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[MaxExposure_ClubCoaches]&bUseJobId=true,2,1,player registration for camp or clinic,Director,2026
+Reports,Player Export (Excel),Reporting,Get_JobPlayers_STEPS_Excel,2,2,"team registration for league play, team registration for tournament",Superuser,2026
+Reports,Players Amt Paid By Camp (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[CathyCampBreakoutPerJob_AmtPaid]&bUseJobId=true,2,1,player registration for camp or clinic,Director,2026
+Reports,Players Amt Paid By Camp (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[CathyCampBreakoutPerJob_AmtPaid]&bUseJobId=true&bUseDateUnscheduled=false,2,1,player registration for camp or clinic,Superuser,2026
+Reports,Rosters Packed Skills Groups (pdf),Reporting,JobRosters_DayGroupsPackedXPO,2,1,player registration for showcase,Director,2026
+Reports,Sibling Report (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[sibling_report]&bUseJobId=true,2,1,player registration for club sport,Director,2026
+Reports,Team Contact Emails (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[TournamentExportClubrepsAndCoachesEmail]&bUseJobId=true&bUseDateUnscheduled=false,2,1,team registration for tournament,Director,2026
+Reports,Team Counts ALL REGIONS Year to Date 2021-2026,Reporting,ExportStoredProcedureResults?spName=[utility].[AmericanSelect_CountsAtYear_ByTeam]&bUseJobId=true&bUseDateUnscheduled=false,2,2,"team registration for league play, team registration for tournament","Director, Superuser",2026
+Reports,Teams Export,Reporting,League_Teams,2,1,team registration for tournament,Superuser,2025
+Reports,Teams Export (Excel),Reporting,League_Teams,2,1,team registration for tournament,Director,2026
+Reports,Teams Export (TM) (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[Schedule_Export_Teams_ToTournyMachine]&bUseJobId=true&bUseDateUnscheduled=false,2,1,team registration for tournament,Director,2026
+Scheduling,Field Utilization With Nominations,Reporting,FieldUtilizationWithNominations,2,2,"team registration for league play, team registration for tournament","Director, Superuser",2026
+Scheduling,QA Results,Reporting,ExportStoredProcedureResults?spName=[utility].[Schedule_QA_Tourny]&bUseJobId=true&bUseDateUnscheduled=true,2,2,"team registration for league play, team registration for tournament",Superuser,2026
+Scheduling,QA Schedule,Reporting,ExportStoredProcedureResults?spName=[utility].[Schedule_QA_Tourny]&bUseJobId=true&bUseDateUnscheduled=true,2,2,"team registration for league play, team registration for tournament",Director,2026
+Scheduling,Schedule By Team,Reporting,ScheduleByClubAgTPerPage,2,2,"team registration for league play, team registration for tournament","Director, Superuser",2026
+Scheduling,Schedule QA Results (Excel),Reporting,ExportStoredProcedureResults?spName=[utility].[Schedule_QA_Tourny]&bUseJobId=true&bUseDateUnscheduled=true?maxGSIMinutes=60,2,1,player registration for club sport,"Director, Superuser",2026
+Scheduling,Tourny Checkin (pdf),Reporting,covidtournycheckin,2,1,team registration for tournament,Director,2026
+Search,Discounted Players (Excel),Reporting,Get_DiscountedPlayers,2,1,player registration for club sport,Superuser,2026
+Reports,Historical Tourney Participation by Club 22-25,Reporting,ExportStoredProcedureResults?spName=[reporting].[TournyYearOverYearClubTeams]&bUseJobId=true&bUseDateUnscheduled=false,1,1,team registration for tournament,Superuser,2026
+Reports,Lori Tourney CR Team Count YOY 22-25,Reporting,ExportStoredProcedureResults?spName=[reporting].[TournyYearOverYearClubTeams]&bUseJobId=true&bUseDateUnscheduled=false,1,1,team registration for tournament,Superuser,2026
+Reports,Packed Skills Group XPO,Reporting,JobRosters_DayGroupsPackedXPO,1,1,player registration for showcase,Superuser,2025
+Reports,Player Contact History (Excel),Reporting,ExportStoredProcedureResults?spName=[reporting].[TLCContactsHx]&bUseJobId=true&bUseDateUnscheduled=false,1,1,player registration for club sport,Superuser,2026
+Reports,SUMMARY Team Counts ALL Regions YTD/FC 2021-2026,Reporting,ExportStoredProcedureResults?spName=[utility].[AmericanSelect_CountsAtYear_ByTeamII]&bUseJobId=true&bUseDateUnscheduled=false,1,1,team registration for league play,Director,2026
+Reports,Team Counts ALL REGIONS Summary Rollup 21-26,Reporting,ExportStoredProcedureResults?spName=[utility].[AmericanSelect_CountsAtYear_ByTeamII]&bUseJobId=true&bUseDateUnscheduled=false,1,1,team registration for league play,Superuser,2026
+Scheduling,Game Cards,Reporting,Schedule_Gamecards,1,1,team registration for tournament,"Director, Superuser",2025
+Scheduling,QA Report - Referee,Reporting,ExportStoredProcedureResults?spName=[reporting].[RefAssignmentQA]&bUseJobId=true,1,1,team registration for tournament,Director,2025
+Scheduling,Ref QA,Reporting,ExportStoredProcedureResults?spName=[reporting].[RefAssignmentQA]&bUseJobId=true,1,1,team registration for tournament,Superuser,2025

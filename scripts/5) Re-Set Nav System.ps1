@@ -121,6 +121,7 @@ $adminManifest = @(
     (New-AdminItem 'Configure' 'gear' 2 'Nav Editor'        'list'         'configure/nav-editor'       9  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Widget Editor'     'grid'         'configure/widget-editor'    10 0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'         'configure/job-clone'        11 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'  'collection'   'reporting/report-catalogue-editor' 12 0 0 1)
 
     # -- Communications ----------------------------------------------------
     (New-AdminItem 'Communications' 'megaphone' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)
@@ -148,7 +149,7 @@ $adminManifest = @(
     (New-AdminItem 'Scheduling' 'calendar' 5 'QA Results'         'check2-square'   'scheduling/qa-results'         13 1 1 1)
 
     # -- Reports (L1 stub; reporting/% items reattached at step 13) --------
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Report Library' 'collection' 'reports' 1 1 1 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Report Library' 'collection' 'reporting/reports-library' 1 1 1 1)
 
     # -- ARB (section-gated on adnArb flag via $sectionRules) -------------
     (New-AdminItem 'ARB' 'credit-card' 7 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)

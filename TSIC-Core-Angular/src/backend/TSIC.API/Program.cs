@@ -128,6 +128,7 @@ builder.Services.AddScoped<IEmailLogRepository, EmailLogRepository>();
 builder.Services.AddScoped<IMobileScorerRepository, MobileScorerRepository>();
 builder.Services.AddScoped<IArbSubscriptionRepository, ArbSubscriptionRepository>();
 
+builder.Services.AddScoped<IVisibilityRulesEvaluator, VisibilityRulesEvaluator>();
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();

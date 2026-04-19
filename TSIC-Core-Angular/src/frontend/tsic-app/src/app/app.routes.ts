@@ -347,6 +347,18 @@ export const routes: Routes = [
 			},
 			// Reporting
 			{
+				path: 'reporting/reports-library',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				loadComponent: () => import('./views/reporting/reports-library/reports-library.component').then(m => m.ReportsLibraryComponent)
+			},
+			{
+				path: 'reporting/report-catalogue-editor',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser] },
+				loadComponent: () => import('./views/reporting/report-catalogue-editor/report-catalogue-editor.component').then(m => m.ReportCatalogueEditorComponent)
+			},
+			{
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
 			},

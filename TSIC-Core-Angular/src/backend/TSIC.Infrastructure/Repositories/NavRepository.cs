@@ -1,7 +1,7 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -14,15 +14,12 @@ namespace TSIC.Infrastructure.Repositories;
 public class NavRepository : INavRepository
 {
     private readonly SqlDbContext _context;
+    private readonly IVisibilityRulesEvaluator _visibilityEvaluator;
 
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
-    public NavRepository(SqlDbContext context)
+    public NavRepository(SqlDbContext context, IVisibilityRulesEvaluator visibilityEvaluator)
     {
         _context = context;
+        _visibilityEvaluator = visibilityEvaluator;
     }
 
     public async Task<NavDto?> GetPlatformDefaultAsync(
@@ -78,7 +75,7 @@ public class NavRepository : INavRepository
         CancellationToken cancellationToken = default)
     {
         // 0. Fetch job metadata for visibility rule evaluation
-        var jobCtx = await GetJobNavContextAsync(jobId, cancellationToken);
+        var jobCtx = await _visibilityEvaluator.BuildJobContextAsync(jobId, cancellationToken);
 
         // 1. Get platform default nav record
         var defaultNav = await _context.Nav
@@ -217,102 +214,6 @@ public class NavRepository : INavRepository
         };
     }
 
-    // ─── Private helpers ────────────────────────────────────────────
-
-    private sealed record JobNavContext(
-        string? SportName,
-        string? JobTypeName,
-        string? CustomerName,
-        HashSet<string> ActiveFlags);
-
-    private async Task<JobNavContext?> GetJobNavContextAsync(Guid jobId, CancellationToken ct)
-    {
-        var raw = await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => new
-            {
-                SportName = j.Sport.SportName,
-                JobTypeName = j.JobType.JobTypeName,
-                CustomerName = j.Customer.CustomerName,
-                j.JobTypeId,
-                j.BEnableStore,
-                j.AdnArb,
-                j.BenableStp,
-                j.CoreRegformPlayer
-            })
-            .FirstOrDefaultAsync(ct);
-
-        if (raw == null) return null;
-
-        var flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (raw.BEnableStore == true) flags.Add("storeEnabled");
-        if (raw.AdnArb == true) flags.Add("adnArb");
-        if (raw.BenableStp == true) flags.Add("mobileEnabled");
-
-        // 2nd pipe of CoreRegformPlayer defines team eligibility;
-        // value "BYAGERANGE" activates the teamEligibilityByAge flag.
-        if (!string.IsNullOrEmpty(raw.CoreRegformPlayer))
-        {
-            var parts = raw.CoreRegformPlayer.Split('|');
-            if (parts.Length >= 2 && string.Equals(parts[1], "BYAGERANGE", StringComparison.OrdinalIgnoreCase))
-                flags.Add("teamEligibilityByAge");
-        }
-
-        // JobTypeId 1/4/6 = player-site-only job types
-        if (raw.JobTypeId is 1 or 4 or 6) flags.Add("playerSiteOnly");
-
-        return new JobNavContext(raw.SportName, raw.JobTypeName, raw.CustomerName, flags);
-    }
-
-    /// <summary>
-    /// Evaluates visibility rules against job metadata.
-    /// Returns true if the item should be visible for this job.
-    /// </summary>
-    private static bool PassesVisibilityRules(string? rulesJson, JobNavContext ctx)
-    {
-        if (string.IsNullOrEmpty(rulesJson)) return true;
-
-        NavItemVisibilityRules? rules;
-        try
-        {
-            rules = JsonSerializer.Deserialize<NavItemVisibilityRules>(rulesJson, JsonOpts);
-        }
-        catch
-        {
-            return true; // Malformed JSON = fail-open
-        }
-
-        if (rules == null) return true;
-
-        // Sports allowlist
-        if (rules.Sports is { Count: > 0 } && ctx.SportName != null
-            && !rules.Sports.Contains(ctx.SportName, StringComparer.OrdinalIgnoreCase))
-            return false;
-
-        // JobTypes allowlist
-        if (rules.JobTypes is { Count: > 0 } && ctx.JobTypeName != null
-            && !rules.JobTypes.Contains(ctx.JobTypeName, StringComparer.OrdinalIgnoreCase))
-            return false;
-
-        // CustomersDeny denylist
-        if (rules.CustomersDeny is { Count: > 0 } && ctx.CustomerName != null
-            && rules.CustomersDeny.Contains(ctx.CustomerName, StringComparer.OrdinalIgnoreCase))
-            return false;
-
-        // RequiresFlags allowlist — ALL listed flags must be active
-        if (rules.RequiresFlags is { Count: > 0 })
-        {
-            foreach (var flag in rules.RequiresFlags)
-            {
-                if (!ctx.ActiveFlags.Contains(flag)) return false;
-            }
-        }
-
-        return true;
-    }
-
     /// <summary>
     /// Loads nav items as a 2-level tree. When jobNavCtx is provided,
     /// filters items by visibility rules before building the tree.
@@ -350,7 +251,7 @@ public class NavRepository : INavRepository
         foreach (var root in roots)
         {
             // Apply visibility rules to L1 items — failure removes entire section
-            if (jobNavCtx != null && !PassesVisibilityRules(root.VisibilityRules, jobNavCtx))
+            if (jobNavCtx != null && !_visibilityEvaluator.Passes(root.VisibilityRules, jobNavCtx))
                 continue;
 
             var rootDto = new NavItemDto
@@ -370,7 +271,7 @@ public class NavRepository : INavRepository
             // Add children, filtering by visibility rules
             foreach (var child in children.Where(c => c.ParentNavItemId == root.NavItemId))
             {
-                if (jobNavCtx != null && !PassesVisibilityRules(child.VisibilityRules, jobNavCtx))
+                if (jobNavCtx != null && !_visibilityEvaluator.Passes(child.VisibilityRules, jobNavCtx))
                     continue;
 
                 rootDto.Children.Add(new NavItemDto

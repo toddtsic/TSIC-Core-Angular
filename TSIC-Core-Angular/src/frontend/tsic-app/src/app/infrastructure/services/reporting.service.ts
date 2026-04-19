@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
+import type { ReportCatalogueEntryDto, ReportCatalogueWriteDto, VerifyStoredProcedureDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class ReportingService {
@@ -9,9 +10,36 @@ export class ReportingService {
     private readonly apiUrl = environment.apiUrl;
 
     /**
-     * Downloads a report from the API as a blob.
-     * The action maps to the backend ReportingController endpoint name.
+     * Fetches the Type 2 (stored-proc-driven) report catalogue for the current job.
+     * Server has already applied visibility filtering — every row is runnable by the caller.
      */
+    getCatalogue(): Observable<ReportCatalogueEntryDto[]> {
+        return this.http.get<ReportCatalogueEntryDto[]>(`${this.apiUrl}/reporting/catalogue`);
+    }
+
+    // -------- SuperUser catalogue editor (Superuser-only endpoints) --------
+
+    getFullCatalogue(): Observable<ReportCatalogueEntryDto[]> {
+        return this.http.get<ReportCatalogueEntryDto[]>(`${this.apiUrl}/reporting/catalogue/all`);
+    }
+
+    createCatalogueEntry(dto: ReportCatalogueWriteDto): Observable<ReportCatalogueEntryDto> {
+        return this.http.post<ReportCatalogueEntryDto>(`${this.apiUrl}/reporting/catalogue`, dto);
+    }
+
+    updateCatalogueEntry(reportId: string, dto: ReportCatalogueWriteDto): Observable<ReportCatalogueEntryDto> {
+        return this.http.put<ReportCatalogueEntryDto>(`${this.apiUrl}/reporting/catalogue/${reportId}`, dto);
+    }
+
+    deleteCatalogueEntry(reportId: string): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/reporting/catalogue/${reportId}`);
+    }
+
+    verifyStoredProcedure(name: string): Observable<VerifyStoredProcedureDto> {
+        const encoded = encodeURIComponent(name);
+        return this.http.get<VerifyStoredProcedureDto>(`${this.apiUrl}/reporting/catalogue/verify-sp?name=${encoded}`);
+    }
+
     downloadReport(
         action: string,
         params?: Record<string, string>

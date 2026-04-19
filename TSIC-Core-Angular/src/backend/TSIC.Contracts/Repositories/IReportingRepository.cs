@@ -1,9 +1,59 @@
 using System.Data.Common;
+using TSIC.Contracts.Dtos;
 
 namespace TSIC.Contracts.Repositories;
 
 public interface IReportingRepository
 {
+    /// <summary>
+    /// Loads all <c>Active = 1</c> rows from <c>reporting.ReportCatalogue</c>,
+    /// ordered by SortOrder. Returns the VisibilityRules JSON so the service
+    /// layer can apply per-job gating.
+    /// </summary>
+    Task<List<ReportCatalogueEntryDto>> GetActiveCatalogueEntriesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads EVERY row (active + inactive) for the SuperUser editor.
+    /// </summary>
+    Task<List<ReportCatalogueEntryDto>> GetAllCatalogueEntriesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Inserts a new catalogue row. Sets <c>Modified = GETDATE()</c> and
+    /// <c>LebUserId</c> from the caller's identity.
+    /// </summary>
+    Task<ReportCatalogueEntryDto> CreateCatalogueEntryAsync(
+        ReportCatalogueWriteDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an existing catalogue row. Returns null if no row matches.
+    /// </summary>
+    Task<ReportCatalogueEntryDto?> UpdateCatalogueEntryAsync(
+        Guid reportId,
+        ReportCatalogueWriteDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hard-deletes a catalogue row. Returns false if no row matches.
+    /// </summary>
+    Task<bool> DeleteCatalogueEntryAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks <c>OBJECT_ID(@spName, 'P')</c>. Accepts schema-qualified names
+    /// (e.g. <c>reporting.RefAssignmentQA</c>). Used by the editor to warn
+    /// before saving a catalogue row pointing at a non-existent proc.
+    /// </summary>
+    Task<bool> StoredProcedureExistsAsync(
+        string spName,
+        CancellationToken cancellationToken = default);
+
+
     /// <summary>
     /// Executes a stored procedure and returns a DbDataReader for streaming results.
     /// Caller is responsible for closing the reader and connection.

@@ -49,11 +49,85 @@ public class ReportingController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────
+    // Type 2 Report Catalogue
+    // ──────────────────────────────────────────────────────────────
+
+    [HttpGet("catalogue")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<List<ReportCatalogueEntryDto>>> GetCatalogue(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return new List<ReportCatalogueEntryDto>();
+        }
+
+        var catalogue = await _reportingService.GetCatalogueForJobAsync(jobId.Value, cancellationToken);
+        return catalogue;
+    }
+
+    // -------- SuperUser catalogue editor --------
+
+    [HttpGet("catalogue/all")]
+    [Authorize(Roles = "Superuser")]
+    public async Task<ActionResult<List<ReportCatalogueEntryDto>>> GetFullCatalogue(CancellationToken cancellationToken)
+    {
+        var rows = await _reportingService.GetFullCatalogueAsync(cancellationToken);
+        return rows;
+    }
+
+    [HttpPost("catalogue")]
+    [Authorize(Roles = "Superuser")]
+    public async Task<ActionResult<ReportCatalogueEntryDto>> CreateCatalogueEntry(
+        [FromBody] ReportCatalogueWriteDto dto,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var created = await _reportingService.CreateCatalogueEntryAsync(dto, userId, cancellationToken);
+        return CreatedAtAction(nameof(GetFullCatalogue), new { }, created);
+    }
+
+    [HttpPut("catalogue/{reportId:guid}")]
+    [Authorize(Roles = "Superuser")]
+    public async Task<ActionResult<ReportCatalogueEntryDto>> UpdateCatalogueEntry(
+        Guid reportId,
+        [FromBody] ReportCatalogueWriteDto dto,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var updated = await _reportingService.UpdateCatalogueEntryAsync(reportId, dto, userId, cancellationToken);
+        if (updated == null) return NotFound();
+        return updated;
+    }
+
+    [HttpDelete("catalogue/{reportId:guid}")]
+    [Authorize(Roles = "Superuser")]
+    public async Task<ActionResult> DeleteCatalogueEntry(
+        Guid reportId,
+        CancellationToken cancellationToken)
+    {
+        var deleted = await _reportingService.DeleteCatalogueEntryAsync(reportId, cancellationToken);
+        if (!deleted) return NotFound();
+        return NoContent();
+    }
+
+    [HttpGet("catalogue/verify-sp")]
+    [Authorize(Roles = "Superuser")]
+    public async Task<ActionResult<VerifyStoredProcedureDto>> VerifyStoredProcedure(
+        [FromQuery] string name,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
+        var result = await _reportingService.VerifyStoredProcedureAsync(name, cancellationToken);
+        return result;
+    }
+
+    // ──────────────────────────────────────────────────────────────
     // Stored Procedure Excel Exports
     // ──────────────────────────────────────────────────────────────
 
     [HttpGet("export-sp")]
-    [Authorize]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult> ExportStoredProcedureResults(
         [FromQuery] string spName,
         [FromQuery] bool bUseJobId,

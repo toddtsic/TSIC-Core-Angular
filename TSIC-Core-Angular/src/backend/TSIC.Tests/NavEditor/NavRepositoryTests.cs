@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TSIC.Infrastructure.Repositories;
+using TSIC.Infrastructure.Services;
 using TSIC.Tests.Helpers;
 
 namespace TSIC.Tests.NavEditor;
@@ -36,7 +37,7 @@ public class NavRepositoryTests
         await b.SaveAsync();
 
         // Act — no override nav exists for this job
-        var repo   = new NavRepository(context);
+        var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
         var result = await repo.GetMergedNavAsync(Role, JobId);
 
         // Assert
@@ -72,7 +73,7 @@ public class NavRepositoryTests
         await b.SaveAsync();
 
         // Act
-        var repo   = new NavRepository(context);
+        var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
         var result = await repo.GetMergedNavAsync(Role, JobId);
 
         // Assert
@@ -110,7 +111,7 @@ public class NavRepositoryTests
         await b.SaveAsync();
 
         // Act
-        var repo   = new NavRepository(context);
+        var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
         var result = await repo.GetMergedNavAsync(Role, JobId);
 
         // Assert

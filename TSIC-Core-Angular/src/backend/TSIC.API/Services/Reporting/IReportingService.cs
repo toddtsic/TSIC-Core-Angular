@@ -5,6 +5,39 @@ namespace TSIC.API.Services.Reporting;
 public interface IReportingService
 {
     /// <summary>
+    /// Returns the Type 2 report catalogue visible to the given job — active rows
+    /// from <c>reporting.ReportCatalogue</c> that pass the shared visibility
+    /// evaluator against the job's sport / jobtype / customer / feature flags.
+    /// </summary>
+    Task<List<ReportCatalogueEntryDto>> GetCatalogueForJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    // -------- SuperUser catalogue editor --------
+
+    Task<List<ReportCatalogueEntryDto>> GetFullCatalogueAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<ReportCatalogueEntryDto> CreateCatalogueEntryAsync(
+        ReportCatalogueWriteDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<ReportCatalogueEntryDto?> UpdateCatalogueEntryAsync(
+        Guid reportId,
+        ReportCatalogueWriteDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteCatalogueEntryAsync(
+        Guid reportId,
+        CancellationToken cancellationToken = default);
+
+    Task<VerifyStoredProcedureDto> VerifyStoredProcedureAsync(
+        string spName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Proxies a Crystal Reports export request to the external CR service.
     /// JobId, RegId, and UserId are derived from JWT claims — never from client parameters.
     /// </summary>
