@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-19 09:00:31 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-19 11:47:45 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -124,6 +124,7 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Nav Editor', N'list', N'configure/nav-editor', 9, 0, 0, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widget Editor', N'grid', N'configure/widget-editor', 10, 0, 0, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 11, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 12, 0, 0, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
