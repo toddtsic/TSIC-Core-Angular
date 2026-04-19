@@ -156,7 +156,8 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                           Dueamt = ra.Dueamt,
                           DiscountCodeAi = ra.DiscountCodeAi,
                           PaymentMethodId = ra.PaymentMethodId,
-                          Comment = ra.Comment
+                          Comment = ra.Comment,
+                          AdnCc4 = ra.AdnCc4
                       }).ToListAsync(cancellationToken);
     }
 
@@ -178,7 +179,8 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                           Dueamt = ra.Dueamt,
                           DiscountCodeAi = ra.DiscountCodeAi,
                           PaymentMethodId = ra.PaymentMethodId,
-                          Comment = ra.Comment
+                          Comment = ra.Comment,
+                          AdnCc4 = ra.AdnCc4
                       }).ToListAsync(cancellationToken);
     }
 
@@ -317,7 +319,8 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                           Createdate = ra.Createdate,
                           Comment = ra.Comment,
                           DiscountCodeAi = ra.DiscountCodeAi,
-                          PaymentMethodId = ra.PaymentMethodId
+                          PaymentMethodId = ra.PaymentMethodId,
+                          AdnCc4 = ra.AdnCc4
                       }).ToListAsync(cancellationToken);
     }
 

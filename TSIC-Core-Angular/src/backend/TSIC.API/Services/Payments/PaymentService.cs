@@ -364,7 +364,7 @@ public class PaymentService : IPaymentService
         if (response.messages.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok)
         {
             UpdateRegistrationsForCharge(registrations, userId, charges);
-            AddAccountingEntries(registrations, request.PaymentOption, userId, response.transactionResponse.transId, request.IdempotencyKey, charges);
+            AddAccountingEntries(registrations, request.PaymentOption, userId, response.transactionResponse.transId, invoiceNumber, charges, Last4(cc.Number), FormatExpiry(cc.Expiry!));
             if (request.ViConfirmed == true && !string.IsNullOrWhiteSpace(request.ViPolicyNumber))
             {
                 foreach (var reg in registrations.Where(r => string.IsNullOrWhiteSpace(r.RegsaverPolicyId)))
@@ -601,7 +601,7 @@ public class PaymentService : IPaymentService
         reg.LebUserId = userId;
     }
 
-    private void AddAccountingEntries(IEnumerable<Registrations> registrations, PaymentOption option, string userId, string adnTransactionId, string? idempotencyKey, IReadOnlyDictionary<Guid, decimal> charges)
+    private void AddAccountingEntries(IEnumerable<Registrations> registrations, PaymentOption option, string userId, string adnTransactionId, string invoiceNumber, IReadOnlyDictionary<Guid, decimal> charges, string? adnCc4, string? adnCcExpDate)
     {
         foreach (var reg in registrations)
         {
@@ -619,10 +619,16 @@ public class PaymentService : IPaymentService
                 Modified = DateTime.Now,
                 LebUserId = userId,
                 AdnTransactionId = adnTransactionId,
-                AdnInvoiceNo = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey
+                AdnInvoiceNo = invoiceNumber,
+                AdnCc4 = adnCc4,
+                AdnCcexpDate = adnCcExpDate,
+                Comment = "Registration Payment"
             });
         }
     }
+
+    private static string? Last4(string? cardNumber) =>
+        string.IsNullOrEmpty(cardNumber) || cardNumber.Length < 4 ? null : cardNumber[^4..];
 
     // Build invoice number pattern: customerAI_jobAI_registrationAI (<=20 chars Authorize.Net limit).
     // Fallback strategy if length exceeds limit: jobAI_registrationAI, then registrationAI, then truncated.

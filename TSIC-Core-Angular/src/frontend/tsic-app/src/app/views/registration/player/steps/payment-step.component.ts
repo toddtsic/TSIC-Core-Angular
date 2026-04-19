@@ -14,6 +14,7 @@ import { InsuranceV2Service } from '../state/insurance-v2.service';
 import { IdempotencyService } from '@views/registration/shared/services/idempotency.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
 import { ViChargeConfirmModalComponent } from '@views/registration/shared/components/vi-charge-confirm-modal.component';
+import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import type { PaymentResponseDto, PaymentRequestDto } from '@core/api';
@@ -27,7 +28,7 @@ import type { LineItem } from '../state/payment-v2.service';
 @Component({
     selector: 'app-prw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, ViChargeConfirmModalComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, ViChargeConfirmModalComponent, InfoTooltipComponent],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -59,44 +60,110 @@ import type { LineItem } from '../state/payment-v2.service';
         <!-- Balance due + summary -->
         @if (paySvc.lineItems().length > 0) {
           <section class="payment-summary mb-4">
-            <div class="table-responsive">
-              <table class="table table-sm align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>Player</th>
-                    <th>Team</th>
-                    <th class="text-end">Base</th>
-                    <th class="text-end">Proc</th>
-                    <th class="text-end">DC</th>
-                    <th class="text-end">Adj</th>
-                    <th class="text-end">Total</th>
-                    <th class="text-end">Paid</th>
-                    <th class="text-end">Owed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (li of paySvc.lineItems(); track li.playerId) {
+            <header class="payment-summary-title">
+              <i class="bi bi-calculator me-2"></i>Accounting
+            </header>
+            @if (paySvc.isArbScenario()) {
+              <!-- ARB accounting table (under construction; building column-by-column) -->
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
                     <tr>
-                      <td>{{ li.playerName }}</td>
-                      <td>{{ li.teamName }}</td>
-                      <td class="text-end">{{ li.feeBase | currency }}</td>
-                      <td class="text-end">{{ li.feeProcessing | currency }}</td>
-                      <td class="text-end" [class.text-success]="li.feeDiscount > 0">{{ li.feeDiscount > 0 ? '-' : '' }}{{ li.feeDiscount | currency }}</td>
-                      <td class="text-end">{{ li.feeLateFee | currency }}</td>
-                      <td class="text-end">{{ li.feeTotal | currency }}</td>
-                      <td class="text-end">{{ li.paidTotal | currency }}</td>
-                      <td class="text-end fw-bold">{{ li.amount | currency }}</td>
+                      <th>Player</th>
+                      <th>Team</th>
+                      <th class="text-end">Fee-Base</th>
+                      <th class="text-end">Discount</th>
+                      <th class="text-end">
+                        Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip>
+                      </th>
+                      <th class="text-end">Fee-Total</th>
+                      <th>
+                        ARB<app-info-tooltip message="Automated Recurring Billing splits each player's registration fee into equal installments charged to your card on a recurring schedule. The number of payments and interval are the same for every player; the amount shown on each row is that player's fee divided by the number of installments."></app-info-tooltip>
+                      </th>
                     </tr>
-                  }
-                </tbody>
-                <tfoot>
-                  <tr class="table-primary due-now-row">
-                    <th colspan="8" class="text-end">Due Now</th>
-                    <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    @for (li of paySvc.lineItems(); track li.playerId) {
+                      <tr>
+                        <td>{{ li.playerName }}</td>
+                        <td>{{ li.teamName }}</td>
+                        <td class="text-end">{{ li.feeBase | currency }}</td>
+                        <td class="text-end" [class.text-success]="li.feeDiscount > 0">{{ li.feeDiscount > 0 ? '-' : '' }}{{ li.feeDiscount | currency }}</td>
+                        <td class="text-end">{{ li.feeLateFee | currency }}</td>
+                        <td class="text-end">{{ li.feeTotal | currency }}</td>
+                        <td class="arb-plan-cell">
+                          <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ perPlayerInstallment(li.feeTotal) | currency }}</div>
+                          <div class="arb-plan-cadence">
+                            @if (paySvc.arbIntervalLength() === 1) {
+                              billed once per month
+                            } @else {
+                              billed once every {{ paySvc.arbIntervalLength() }} months
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr class="table-primary due-now-row">
+                      <th colspan="5" class="text-end">Total Due</th>
+                      <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
+                      <th class="arb-plan-cell">
+                        <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }}</div>
+                        <div class="arb-plan-cadence">
+                          @if (paySvc.arbIntervalLength() === 1) {
+                            billed once per month
+                          } @else {
+                            billed once every {{ paySvc.arbIntervalLength() }} months
+                          }
+                        </div>
+                      </th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Player</th>
+                      <th>Team</th>
+                      <th class="text-end">Fee-Base</th>
+                      <th class="text-end">Fee-Proc</th>
+                      <th class="text-end">Discount</th>
+                      <th class="text-end">
+                        Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip>
+                      </th>
+                      <th class="text-end">Fee-Total</th>
+                      <th class="text-end">Paid</th>
+                      <th class="text-end">Owes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (li of paySvc.lineItems(); track li.playerId) {
+                      <tr>
+                        <td>{{ li.playerName }}</td>
+                        <td>{{ li.teamName }}</td>
+                        <td class="text-end">{{ li.feeBase | currency }}</td>
+                        <td class="text-end">{{ li.feeProcessing | currency }}</td>
+                        <td class="text-end" [class.text-success]="li.feeDiscount > 0">{{ li.feeDiscount > 0 ? '-' : '' }}{{ li.feeDiscount | currency }}</td>
+                        <td class="text-end">{{ li.feeLateFee | currency }}</td>
+                        <td class="text-end">{{ li.feeTotal | currency }}</td>
+                        <td class="text-end">{{ li.paidTotal | currency }}</td>
+                        <td class="text-end fw-bold">{{ li.amount | currency }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr class="table-primary due-now-row">
+                      <th colspan="8" class="text-end">Total Due</th>
+                      <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            }
           </section>
         }
 
@@ -112,19 +179,34 @@ import type { LineItem } from '../state/payment-v2.service';
           } @else {
             <section class="mb-3" role="radiogroup" aria-label="Payment Option">
               @if (paySvc.isArbScenario()) {
-                <div class="form-check mb-2">
-                  <input class="form-check-input" type="radio" name="payOpt" id="optArb" value="ARB"
-                         [checked]="paymentState.paymentOption() === 'ARB'"
-                         (change)="chooseOption('ARB')">
-                  <label class="form-check-label" for="optArb">
-                    Automated Recurring Billing ({{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }})
-                  </label>
-                </div>
-                <div class="form-check mb-2">
-                  <input class="form-check-input" type="radio" name="payOpt" id="optPif" value="PIF"
-                         [checked]="paymentState.paymentOption() === 'PIF'"
-                         (change)="chooseOption('PIF')">
-                  <label class="form-check-label" for="optPif">Pay In Full ({{ paySvc.totalAmount() | currency }})</label>
+                <div class="payment-plan-alert">
+                  <header class="payment-plan-header">
+                    <i class="bi bi-calendar-event me-2"></i>Choose a Payment Plan
+                  </header>
+                  <div class="payment-plan-options">
+                    <label class="payment-plan-option"
+                           [class.is-selected]="paymentState.paymentOption() === 'ARB'"
+                           for="optArb">
+                      <input class="form-check-input" type="radio" name="payOpt" id="optArb" value="ARB"
+                             [checked]="paymentState.paymentOption() === 'ARB'"
+                             (change)="chooseOption('ARB')">
+                      <span class="payment-plan-option-text">
+                        <span class="payment-plan-option-title">Automated Recurring Billing</span>
+                        <span class="payment-plan-option-detail">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }} &middot; billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
+                      </span>
+                    </label>
+                    <label class="payment-plan-option"
+                           [class.is-selected]="paymentState.paymentOption() === 'PIF'"
+                           for="optPif">
+                      <input class="form-check-input" type="radio" name="payOpt" id="optPif" value="PIF"
+                             [checked]="paymentState.paymentOption() === 'PIF'"
+                             (change)="chooseOption('PIF')">
+                      <span class="payment-plan-option-text">
+                        <span class="payment-plan-option-title">Pay In Full</span>
+                        <span class="payment-plan-option-detail">{{ paySvc.totalAmount() | currency }} charged today</span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
               } @else if (paySvc.isDepositScenario()) {
                 <div class="form-check mb-2">
@@ -342,6 +424,8 @@ import type { LineItem } from '../state/payment-v2.service';
                     [disabled]="!canSubmit() || submitting()">
               @if (submitting()) {
                 <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+              } @else if (paymentState.paymentOption() === 'ARB') {
+                <i class="bi bi-lock-fill me-2"></i>Start Recurring Billing &middot; {{ paySvc.arbOccurrences() }} × {{ paySvc.arbPerOccurrence() | currency }}
               } @else {
                 <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
               }
@@ -367,6 +451,86 @@ import type { LineItem } from '../state/payment-v2.service';
   `,
     styles: [`
       :host { display: block; }
+
+      .arb-plan-cell {
+        white-space: nowrap;
+      }
+      .arb-plan-cadence {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        font-weight: var(--font-weight-normal);
+      }
+      .payment-plan-alert {
+        padding: var(--space-3) var(--space-4);
+        border: 2px solid rgba(var(--bs-primary-rgb), 0.35);
+        border-radius: var(--radius-md);
+        background: rgba(var(--bs-primary-rgb), 0.04);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .payment-plan-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: var(--space-3);
+        padding-bottom: var(--space-2);
+        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+
+        i { color: var(--bs-primary); font-size: var(--font-size-lg); }
+      }
+
+      .payment-plan-options {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .payment-plan-option {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        margin-bottom: 0;
+
+        &:hover { border-color: var(--bs-primary); }
+
+        &.is-selected {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.06);
+          box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
+        }
+
+        input[type="radio"] {
+          flex-shrink: 0;
+          margin: 0;
+        }
+      }
+
+      .payment-plan-option-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .payment-plan-option-title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+      }
+
+      .payment-plan-option-detail {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text-muted);
+      }
 
       .discount-label {
         color: var(--bs-danger);
@@ -446,6 +610,13 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     readonly state = inject(PlayerWizardStateService);
     readonly paySvc = inject(PaymentV2Service);
+
+    /** Per-player installment amount, rounded to cents. Mirrors the family-level rounding in PaymentV2Service.arbPerOccurrence. */
+    perPlayerInstallment(playerFeeTotal: number): number {
+        const occ = this.paySvc.arbOccurrences();
+        return occ > 0 ? Math.round((playerFeeTotal / occ) * 100) / 100 : playerFeeTotal;
+    }
+
     readonly paymentState = inject(PaymentStateV2Service);
     readonly insuranceState = inject(InsuranceStateV2Service);
     readonly insuranceSvc = inject(InsuranceV2Service);

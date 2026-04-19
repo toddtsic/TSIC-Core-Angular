@@ -376,6 +376,30 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!F-COACHFULLTEAMNAMECHOICES"] = await BuildCoachFullTeamNameChoicesAsync(registrationId.Value, emailMode);
     }
 
+    /// <summary>
+    /// Renders the payment method cell with the CC last-4 digits appended when the payment is a credit card
+    /// and the last-4 was captured at charge time. Example: "Credit Card Payment (1234)".
+    /// </summary>
+    private static string FormatPaymentMethod(AccountingTransactionRow row, Guid paymentMethodCreditCardId)
+    {
+        return FormatPaymentMethod(row.PaymentMethod, row.PaymentMethodId, row.AdnCc4, paymentMethodCreditCardId);
+    }
+
+    private static string FormatPaymentMethod(TeamAccountingRow row, Guid paymentMethodCreditCardId)
+    {
+        return FormatPaymentMethod(row.PaymentMethod, row.PaymentMethodId, row.AdnCc4, paymentMethodCreditCardId);
+    }
+
+    private static string FormatPaymentMethod(string? paymentMethod, Guid paymentMethodId, string? adnCc4, Guid paymentMethodCreditCardId)
+    {
+        var method = paymentMethod ?? string.Empty;
+        if (paymentMethodId == paymentMethodCreditCardId && !string.IsNullOrEmpty(adnCc4))
+        {
+            return $"{method} ({adnCc4})";
+        }
+        return method;
+    }
+
     private async Task<string> BuildAccountingTableHtmlAsync(List<Guid> registrationIds, Guid paymentMethodCreditCardId, bool emailMode)
     {
         var rows = await _repo.GetAccountingTransactionsAsync(registrationIds);
@@ -397,7 +421,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             HtmlTableBuilder.AddRow(sb,
                 row.AId.ToString(),
                 WebUtility.HtmlEncode(row.RegistrantName ?? string.Empty),
-                row.PaymentMethod ?? string.Empty,
+                WebUtility.HtmlEncode(FormatPaymentMethod(row, paymentMethodCreditCardId)),
                 row.Createdate?.ToString("g") ?? string.Empty,
                 HtmlTableBuilder.FormatCurrency(paid));
         }
@@ -509,7 +533,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             HtmlTableBuilder.AddRow(sb,
                 r.AId.ToString(),
                 WebUtility.HtmlEncode(r.RegistrantName ?? string.Empty),
-                r.PaymentMethod ?? string.Empty,
+                WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                 HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                 HtmlTableBuilder.FormatCurrency(discount),
                 HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
@@ -565,7 +589,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
                     activeLabel,
                     r.AId.ToString(),
                     WebUtility.HtmlEncode(teamName),
-                    r.PaymentMethod ?? string.Empty,
+                    WebUtility.HtmlEncode(FormatPaymentMethod(r, paymentMethodCreditCardId)),
                     HtmlTableBuilder.FormatCurrency(r.Dueamt ?? 0m),
                     HtmlTableBuilder.FormatCurrency(r.Payamt ?? 0m),
                     r.Createdate?.ToString("g") ?? string.Empty,

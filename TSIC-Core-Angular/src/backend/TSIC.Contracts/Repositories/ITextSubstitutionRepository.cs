@@ -176,6 +176,7 @@ public record AccountingTransactionRow
     public int? DiscountCodeAi { get; init; }
     public required Guid PaymentMethodId { get; init; }
     public string? Comment { get; init; }
+    public string? AdnCc4 { get; init; }
 }
 
 /// <summary>
@@ -210,6 +211,7 @@ public record TeamAccountingRow
     public string? Comment { get; init; }
     public int? DiscountCodeAi { get; init; }
     public required Guid PaymentMethodId { get; init; }
+    public string? AdnCc4 { get; init; }
 }
 
 /// <summary>
