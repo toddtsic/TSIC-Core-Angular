@@ -876,5 +876,6 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A single clear path forward to the Choose Your Players screen
 - **What happened**: (1) "Return Home" button correctly goes to Choose Your Players screen — desired behavior, but label is misleading. (2) Continue buttons (top and bottom) do nothing when clicked. Recommend either: (a) rename "Return Home" to "Continue to Registration" and remove the non-functional Continue buttons, or (b) wire the Continue buttons to go to Choose Your Players and remove "Return Home".
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: (1) Review step now shows "Return to Job Home" (→ `/{jobPath}`) and "Continue to Player Registration" (→ player wizard) buttons in edit mode, always visible. (2) Shell Continue button on last step wired to `finish('register')`. (3) Player wizard no longer force-logs-out phase-1 tokens (no role) — family wizard → player wizard transition preserves auth. Family-check auto-advances for authenticated users regardless of role presence.
 

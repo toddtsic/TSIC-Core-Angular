@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { FamilyStateService } from '../state/family-state.service';
 import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
@@ -123,10 +122,8 @@ import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
         <!-- Edit mode: return buttons -->
         @if (state.mode() === 'edit') {
           <div class="d-flex gap-2 mt-3 justify-content-end">
-            <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return home</button>
-            @if (showReturnToRegistration) {
-              <button type="button" class="btn btn-primary" (click)="completed.emit('register')">Return to Player Registration</button>
-            }
+            <button type="button" class="btn btn-outline-secondary" (click)="completed.emit('home')">Return to Job Home</button>
+            <button type="button" class="btn btn-primary" (click)="completed.emit('register')">Continue to Player Registration</button>
           </div>
         }
 
@@ -190,14 +187,9 @@ export class ReviewStepComponent implements OnInit {
     readonly completed = output<'home' | 'register'>();
 
     private readonly jobService = inject(JobService);
-    private readonly route = inject(ActivatedRoute);
     readonly state = inject(FamilyStateService);
 
     private autoSaveAttempted = false;
-
-    get showReturnToRegistration(): boolean {
-        return this.route.snapshot.queryParamMap.get('next') === 'register-player';
-    }
 
     label1(): string {
         const l = this.jobService.currentJob()?.momLabel?.trim();

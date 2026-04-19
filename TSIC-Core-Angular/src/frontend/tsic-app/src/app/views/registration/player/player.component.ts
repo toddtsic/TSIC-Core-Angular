@@ -176,13 +176,15 @@ export class PlayerWizardV2Component implements OnInit {
     ngOnInit(): void {
         const jobPath = this.resolveJobPath();
 
-        // Start clean unless user already holds a Family/Player role for this job
+        // Start clean unless user already holds a Family/Player role for this job.
+        // Phase-1 tokens (no role) are harmless — don't log out, let family-check handle login.
         const user = this.authService.currentUser();
         const validRole = user?.role === 'Family' || user?.role === 'Player';
+        const noRole = !user?.role;
         const sameJob = user?.jobPath?.toLowerCase() === jobPath.toLowerCase();
-        if (!validRole || !sameJob) {
+        if (user && !noRole && (!validRole || !sameJob)) {
+            // Wrong role or wrong job — clear and start fresh
             this.authService.logoutLocal();
-            // Don't navigate away — wizard starts at family-check (login) step
         }
 
         // Always reset wizard state (clears stale errors from prior sessions)

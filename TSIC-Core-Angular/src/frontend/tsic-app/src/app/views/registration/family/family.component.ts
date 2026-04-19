@@ -130,6 +130,9 @@ export class FamilyWizardV2Component implements OnInit {
 
         if (this.currentIndex() < this.activeSteps().length - 1) {
             this.currentIndex.update(i => i + 1);
+        } else if (this.currentStepId() === 'review') {
+            // Review is the last step in edit mode — Continue goes to player registration
+            this.finish('register');
         }
     }
 
@@ -225,6 +228,13 @@ export class FamilyWizardV2Component implements OnInit {
     finish(action?: 'home' | 'register'): void {
         const ru = this.returnUrl;
 
+        // "Return to Job Home" — always go to job root, bypass returnUrl
+        if (action === 'home') {
+            const jobPath = this.jobService.getCurrentJob()?.jobPath ?? this.extractJobPathFromUrl(ru);
+            this.router.navigateByUrl(jobPath ? `/${jobPath}` : '/tsic/role-selection');
+            return;
+        }
+
         // Honor explicit returnUrl unless overridden
         if (ru && action !== 'register' && this.nextAction !== 'register-player') {
             try {
@@ -240,13 +250,8 @@ export class FamilyWizardV2Component implements OnInit {
             return;
         }
 
-        if (this.nextAction === 'register-player' && action !== 'home') {
-            this.router.navigateByUrl(`/${jobPath}/registration/player`);
-        } else if (action === 'register') {
-            this.router.navigateByUrl(`/${jobPath}/registration/player`);
-        } else {
-            this.router.navigateByUrl(`/${jobPath}`);
-        }
+        // 'home' already handled above — remaining cases go to player registration
+        this.router.navigateByUrl(`/${jobPath}/registration/player`);
     }
 
     private extractJobPathFromUrl(url: string | null): string | null {

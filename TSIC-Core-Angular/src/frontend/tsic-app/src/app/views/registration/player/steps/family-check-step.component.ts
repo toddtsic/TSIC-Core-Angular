@@ -111,7 +111,7 @@ import { LoginComponent } from '../../../auth/login/login.component';
               </button>
             </div>
           </div>
-        } @else if (auth.isAuthenticated()) {
+        } @else if (auth.isAuthenticated() && auth.getCurrentUser()?.role) {
           <div class="auth-banner">
             <span class="spinner-border spinner-border-sm text-primary"></span>
             <span>Loading player data for <strong>{{ auth.getCurrentUser()?.username }}</strong>...</span>
@@ -174,13 +174,10 @@ export class FamilyCheckStepComponent implements OnInit {
         this.loadError.set(null);
         this.wizardError.set(null);
 
-        // Parent wizard calls logoutLocal() on init for non-Family roles.
-        // Only auto-advance if still authenticated as Family/Player.
+        // Auto-advance if authenticated — works for both scoped tokens (Family/Player role)
+        // and phase-1 tokens (no role, e.g., arriving from family wizard edit flow).
         if (this.auth.isAuthenticated()) {
-            const role = this.auth.currentUser()?.role;
-            if (role === 'Family' || role === 'Player') {
-                this.onContinue();
-            }
+            this.onContinue();
         }
     }
 
