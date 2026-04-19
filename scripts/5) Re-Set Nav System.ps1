@@ -6,10 +6,15 @@
 # (JobId IS NOT NULL) are preserved.
 #
 # Model:
-#   Admin tier (Director / SuperDirector / SuperUser) — single manifest with
-#   per-role BIT flags. Structure mirrors legacy Jobs.JobMenu_Items grouping
-#   for Director familiarity at cutover (Configure mega-L1; Search; Reports;
-#   Scheduling; ARB).
+#   Admin tier (Director / SuperDirector / SuperUser) — strictly route-driven.
+#   Every L1 maps to an Angular controller (first path segment under :jobPath);
+#   every L2 maps to an action route under that controller. Per-role BIT flags
+#   mirror the route guards in app.routes.ts:
+#     requireAdmin       => Director=1, SuperDirector=1, SuperUser=1
+#     requireSuperUser   => Director=0, SuperDirector=0, SuperUser=1
+#   Consequence: Director and SuperDirector see identical menus today (both
+#   resolve to isAdmin() in the guard). Asymmetry only appears when a route
+#   adds an explicit per-role guard.
 #
 #   Narrow admin roles (RefAssignor, StoreAdmin) — single-purpose menus.
 #
@@ -92,52 +97,73 @@ $sectionRules = @{
     'ARB'        = $rulesAdnArb
 }
 
+# Route-strict admin manifest. Source of truth: app.routes.ts under :jobPath.
+# Every entry below corresponds to one Angular route guarded by requireAdmin
+# (D/SD/SU) or requireSuperUser (SU only). L1 = first path segment (controller),
+# L2 = second segment (action). Excluded by design:
+#   - parameterized routes (e.g. arb/update-cc/:registrationId)
+#   - the scheduling shell index (loads dashboard; not a discrete action)
+#   - public/anonymous routes (no admin guard)
 $adminManifest = @(
     # -- Search ------------------------------------------------------------
     (New-AdminItem 'Search' 'search' 1 'Registrations' 'people' 'search/registrations' 1 1 1 1)
     (New-AdminItem 'Search' 'search' 1 'Teams'         'shield' 'search/teams'         2 1 1 1)
 
-    # -- Configure (mega-L1 preserving legacy Director familiarity) --------
-    # Director-visible items (sort 1-19)
-    (New-AdminItem 'Configure' 'gear' 2 'Job Settings'      'briefcase'         'configure/job'                      1 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'        'sliders'           'configure/age-ranges'               2 1 1 1 $rulesTeamEligByAge)
-    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'    'tags'              'configure/discount-codes'           3 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'L-A-D-T'           'diagram-3'         'ladt/editor'                        4 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Rosters'           'arrow-left-right'  'ladt/roster-swapper'                5 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Pools'             'people'            'ladt/pool-assignment'               6 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Bulletins'         'megaphone'         'communications/bulletins'           7 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Email Log'         'envelope-open'     'communications/email-log'           8 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Push Notification' 'bell'              'communications/push-notification'   9 1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Configure' 'gear' 2 'Uniform Upload'    'upload'            'configure/uniform-upload'          10 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Store Admin'       'shop'              'store/admin'                       11 1 1 1 $rulesStoreEnabled)
-    (New-AdminItem 'Configure' 'gear' 2 'US Lax Tester'     'check-circle'      'tools/uslax-test'                  12 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'Configure' 'gear' 2 'US Lax Rankings'   'trophy'            'tools/uslax-rankings'              13 1 1 1 $rulesLacrosse)
+    # -- Configure ---------------------------------------------------------
+    (New-AdminItem 'Configure' 'gear' 2 'Job Settings'      'briefcase'    'configure/job'              1  1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'    'tags'         'configure/discount-codes'   2  1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'        'sliders'      'configure/age-ranges'       3  1 1 1 $rulesTeamEligByAge)
+    (New-AdminItem 'Configure' 'gear' 2 'Administrators'    'person-badge' 'configure/administrators'   4  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Customer Groups'   'people'       'configure/customer-groups'  5  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'  'list'         'configure/ddl-options'      6  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Customers'         'building'     'configure/customers'        7  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Theme'             'palette'      'configure/theme'            8  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Nav Editor'        'list'         'configure/nav-editor'       9  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Widget Editor'     'grid'         'configure/widget-editor'    10 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'         'configure/job-clone'        11 0 0 1)
 
-    # SuperUser-only items (sort 20+)
-    (New-AdminItem 'Configure' 'gear' 2 'Administrators'    'person-badge'      'configure/administrators'          20 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Customer Groups'   'people'            'configure/customer-groups'         21 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'  'list'              'configure/ddl-options'             22 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Customers'         'building'          'configure/customers'               23 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Theme'             'palette'           'configure/theme'                   24 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Menus'             'list'              'configure/nav-editor'              25 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Widgets'           'grid'              'configure/widget-editor'           26 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'              'configure/job-clone'               27 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Profile Migration' 'arrow-right'       'tools/profile-migration'           28 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'    'pencil-square'     'tools/profile-editor'              29 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Change Password'   'key'               'tools/change-password'             30 0 0 1)
+    # -- Communications ----------------------------------------------------
+    (New-AdminItem 'Communications' 'megaphone' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)
+    (New-AdminItem 'Communications' 'megaphone' 3 'Email Log'         'envelope-open' 'communications/email-log'         2 1 1 1)
+    (New-AdminItem 'Communications' 'megaphone' 3 'Push Notification' 'bell'          'communications/push-notification' 3 1 1 1 $rulesMobileEnabled)
 
-    # -- Reports (single leaf today → future Report Library; Customer Job Revenue SD+ only) --
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 3 'Report Library'       'collection' 'reports'                     1 1 1 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 3 'Customer Job Revenue' 'cash-stack' 'tools/customer-job-revenue'  2 0 1 1)
+    # -- LADT --------------------------------------------------------------
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Editor'          'pencil-square'    'ladt/editor'          1 1 1 1)
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Roster Swapper'  'arrow-left-right' 'ladt/roster-swapper'  2 1 1 1)
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'           'ladt/pool-assignment' 3 1 1 1)
 
-    # -- Scheduling (section-gated to Tournament/League via $sectionRules; Mobile Scorers adds mobileEnabled) --
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Schedule Hub'   'grid'         'scheduling/schedule-hub'   1 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'View Schedule'  'eye'          'scheduling/view-schedule'  2 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Rescheduler'    'arrow-repeat' 'scheduling/rescheduler'    3 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Mobile Scorers' 'phone'        'scheduling/mobile-scorers' 4 1 1 1 $rulesMobileEnabled)
+    # -- Scheduling (section-gated to Tournament/League via $sectionRules) -
+    (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'      'eye'             'scheduling/view-schedule'      1  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      2  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    3  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        4  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 5  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 6  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Calendar'   'calendar-week'   'scheduling/referee-calendar'   7  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     8  1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Fields'             'geo-alt'         'scheduling/fields'             9  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Pairings'           'arrows-collapse' 'scheduling/pairings'           10 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Timeslots'          'clock'           'scheduling/timeslots'          11 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'grid'            'scheduling/schedule-hub'       12 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'QA Results'         'check2-square'   'scheduling/qa-results'         13 1 1 1)
+
+    # -- Reports (L1 stub; reporting/% items reattached at step 13) --------
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Report Library' 'collection' 'reports' 1 1 1 1)
 
     # -- ARB (section-gated on adnArb flag via $sectionRules) -------------
-    (New-AdminItem 'ARB' 'credit-card' 5 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
+    (New-AdminItem 'ARB' 'credit-card' 7 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
+
+    # -- Store (single item; Store L1 inherits rulesStoreEnabled) ---------
+    (New-AdminItem 'Store' 'shop' 8 'Store Admin' 'speedometer2' 'store/admin' 1 1 1 1 $rulesStoreEnabled)
+
+    # -- Tools -------------------------------------------------------------
+    (New-AdminItem 'Tools' 'tools' 9 'US Lax Test'          'check-circle'  'tools/uslax-test'           1 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'Tools' 'tools' 9 'US Lax Rankings'      'trophy'        'tools/uslax-rankings'       2 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'Tools' 'tools' 9 'Uniform Upload'       'upload'        'tools/uniform-upload'       3 1 1 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Profile Migration'    'arrow-right'   'tools/profile-migration'    4 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       5 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      6 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 7 0 0 1)
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray
