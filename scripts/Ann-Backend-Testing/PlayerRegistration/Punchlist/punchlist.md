@@ -680,7 +680,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Feature to be evaluated against director preferences and legacy behavior before committing to it
 - **What happened**: Concerns: (1) directors may not want capacity visible to parents — especially when a high max default is in place, (2) Legacy did not expose this, (3) showing capacity may cause more issues than it solves. Recommend making this optional (director toggle) or removing entirely to match Legacy.
 - **Severity**: Question
-- **Status**: Reconsider
+- **Status**: Fixed
 - **Note**: No capacity indication visible in dropdown for Player Series Girls Summer Showcase 2026. Revisit whether this feature is active and whether it should be.
 
 ### SP-013: Profile migration from Legacy must preserve exact field order (follow-up to PL-022)
@@ -743,7 +743,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A more visually pleasing, polished layout for the confirmation page
 - **What happened**: Page still needs work to be more pleasing to the eye. Ann and Todd to review together and collaboratively improve the layout — tables, organization info, waiver section, and overall visual treatment.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Collaborative review session needed — Ann + Todd to walk through the page together and decide on improvements. Use the Complete Payment screen as the design reference — mirror that layout/styling for consistency.
 
 ### SP-020: Waiver confirmation still shows "BY CLICKING NEXT BELOW, I AGREE..." sentence — only partial fix applied (reopens PL-038)
@@ -788,7 +788,21 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each player's installment plan details visible — number of installments and amount per installment — either in the accounting table or above the payment summary
 - **What happened**: Only a combined payment total is shown. Parents need to see the per-player installment breakdown (how many payments, how much each) before committing. This is critical information — especially when players may have different fee amounts or installment structures.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Addressed as part of a broader ARB accounting-screen rework with Todd. Scope ended up covering SP-033 plus much of SP-043's "Legacy ARB layout differs" concern.
+  1. **Branched accounting table on `paySvc.isArbScenario()`.** Non-ARB table is unchanged (still has 9 columns + Total Due footer). ARB table is a separate column set purpose-built for ARB semantics.
+  2. **ARB columns** (narrower, ARB-relevant only): Player · Team · Fee-Base · Discount · Fee-Adj (with tooltip) · Fee-Total · **ARB**. Fee-Proc dropped — ARB sites typically don't surface per-line processing fees.
+  3. **Per-player ARB installment breakdown (the actual SP-033 fix).** Each row's ARB cell shows a two-line summary:
+     - Line 1 (primary): `{occurrences} payments of {perPlayerInstallment | currency}`
+     - Line 2 (muted): `billed once per month` or `billed once every N months` (N=1 uses the shorter form — we don't want "every 1 month" which reads stilted)
+     - Per-player installment = `li.feeTotal / arbOccurrences`, rounded to cents. Replaces the prior broken display that called `lineItems.find(playerId).feeBase` and showed only the first team's fee.
+  4. **ARB footer row** (`Total Due`) mirrors non-ARB footer styling. Fee-Total column shows `currentTotal()`; ARB column shows the family-level per-installment figure via `paySvc.arbPerOccurrence()`, so it matches the "Automated Recurring Billing" radio-label amount exactly.
+  5. **Column-label iteration** (negotiated with Todd): several rounds to settle on wrap-safe labels that read naturally to a parent. Landed on `Fee-Base / Discount / Fee-Adj / Fee-Total / ARB`. Title Case (uppercase dropped from `thead th` in `_utilities.scss`), `white-space: nowrap` on headers to kill mid-hyphen breaks, `font-size: 8pt` on `thead th / tbody td / .due-now-row th` to free horizontal room. `Due Now` renamed to `Total Due`. See SP-024 for the full non-ARB rework.
+  6. **Phrasing of the ARB cell** went through many iterations; final wording "4 payments of $725.00 / billed once per month" was chosen specifically to avoid the **panic reading** ("$725 four times every month = $2,900/mo!") that looser phrasings introduced. The bounded noun-phrase "4 payments of $725.00" plus "billed once per" locks the cadence as exactly-one-per-interval.
+  7. **"Choose a Payment Plan" alert** below the accounting card replaces the old plain radio list. Primary-tinted container (2px primary border, soft primary background, shadow), uppercase bold header with calendar icon, two selectable "option pills" each with a title + muted detail line. Selected pill gets primary border + tinted background. ARB label now includes `billing starts {date}` in its parens so the start-date signal stays visible to the parent (data source: `paySvc.arbStartDate()`).
+  8. **PIF option detail** rephrased from `($6,212.00)` to `$6,212.00 charged today` so the "now" semantics are explicit and the PIF alternative reads as a live choice, not a dry total.
+  9. **Shared `InfoTooltipComponent` rewritten earlier in this session** (see SP-024 note) — the ARB column header uses it with a verbose popover explaining the ARB model. The popover is `position: fixed` with `getBoundingClientRect()` coordinates so it escapes `overflow: hidden` on the accounting card and `overflow-x: auto` on `.table-responsive`, which were clipping/flashing it.
+  10. **Dead code audit**: removed `arbFrequencyLabel`, `arbTotalMonths`, `arbTotalMonthsLabel` from `PaymentV2Service` after they were superseded by the final cell phrasing; removed `.dot-sep`, `.arb-plan-primary` (no longer needed), and `.arb-start-note` (pill replaced by in-label text) from component styles.
 
 ### SP-032: Processing fees applied on payment screen even though disabled in Job Settings/Payment
 - **Area**: Registration Process Review
@@ -822,7 +836,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Payment method to include the last 4 digits of the card used (e.g., "Credit Card xx1234")
 - **What happened**: Method column shows generic "Credit Card Payment" — no card identification. Showing last 4 digits helps parents confirm which card was charged, especially families with multiple cards.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-028: CAC "Almost There!" screen — show Registration Fee per event, not combined per player
 - **Area**: Registration Process Review
@@ -885,7 +899,22 @@ Use these as a guide for what to walk through. You don't have to go in order.
   - Rename columns: "Team" → "Selected Team", "Base" → "Fee Base", "Proc" → "Processing Fee", "DC" → "Discount Code", "Total" → "Total Fee", "Owed" → "Owes"
   - "Adj" column — clarify purpose: is this a Correction Record amount? If so, relabel to "Fee Adjustment". Discuss with Todd.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Multi-part fix, delivered via iterative UX pass with Todd.
+  1. **Font size**: reduced to 8pt on `thead th`, `tbody td`, and `.due-now-row th` in `_utilities.scss` to buy horizontal space and let full-word headers fit. Data rows no longer wrap.
+  2. **Distinct card**: added `.payment-summary-title` strip — solid `var(--bs-primary)` background with white bold uppercase "ACCOUNTING" and calculator icon. Card border alpha bumped 0.2→0.35, shadow upgraded `--shadow-sm`→`--shadow-md`, explicit `background: var(--brand-surface)` so the card stops blending into the page wash. Chose a filled-primary header technique (different from the plain-white adjacent cards) since Todd wanted visual contrast but not a copy of the neighbors.
+  3. **Case**: dropped `text-transform: uppercase` from `.payment-summary thead th`; labels now render Title Case as written in the template. Letter-spacing and bold weight retained for scan-ability.
+  4. **No-wrap headers**: added `white-space: nowrap` on `thead th`. Root cause of header wrap was that the hyphen in "Fee-Base"/"Fee-Proc"/"Fee-Total" is a line-break opportunity for the browser, not a wrap-protector as I originally assumed.
+  5. **Column renames** (negotiated with Todd — Ann's wording adjusted where labels would wrap):
+     - PLAYER → Player, TEAM → Team (Todd kept unchanged per width/simplicity)
+     - BASE → Fee-Base, PROC → Fee-Proc, TOTAL → Fee-Total (hyphenated compounds)
+     - DC → Discount (column shows amount, not a code, so "Discount Code" is misleading anyway)
+     - ADJ → Fee-Adj (see #6)
+     - PAID → Paid, OWED → Owes (Owes reads more naturally since the row leads with a player name)
+  6. **Fee-Adj semantics + info popover**: confirmed with Todd that the ADJ column buckets both early-bird discount (negative) AND late fee (positive) — mutually exclusive at any moment. Kept "Fee-Adj" stub but added an `<app-info-tooltip>` beside the header. Copy: *"Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."* Field binds `li.feeLateFee` (legacy name; not renamed since that's a backend DTO refactor out of scope).
+  7. **Shared `InfoTooltipComponent` rewritten**: it was using `data-bs-toggle="tooltip"` but Bootstrap JS is not loaded in this app — only the native `title` attribute ever fired, flashing briefly on hover with no click behavior. Rewrote as a self-contained Angular click-popover: signal-backed open state, toggle on click, document-click and ESC close. Icon font-size changed to `inherit` so the icon scales with its parent text (was 1rem absolute, huge next to 8pt headers). Only caller today is the payment summary; existing API (`message` input) preserved.
+- **Still open** (tracked separately, not blocking the close-out):
+  - **Reg Date column**: deferred. `LineItem` DTO has no registration date today — requires backend DTO + query change before surfacing on the frontend. Opening as a follow-up item.
 
 ### SP-023: Review & Save screen — Continue buttons do nothing; "Return Home" label is misleading
 - **Area**: Family Account Creation
@@ -920,8 +949,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: ARB payment screen to match Legacy's ARB-specific layout, which differs from standard registration payment screens
 - **What happened**: The new system uses the same payment screen for ARB and non-ARB registrations. Legacy has a distinct ARB payment layout with different information and options. Ann has sent a copy of the Legacy ARB payment screen to Todd for collaborative review.
 - **Severity**: Question
-- **Status**: Open
-- **Note**: Awaiting Todd + Ann review session. Legacy ARB payment screenshot provided to Todd for reference.
+- **Status**: Fixed
+- **Note**: Superseded by the SP-033 ARB rework. The payment screen is no longer generic across ARB and non-ARB — the accounting table is branched on `paySvc.isArbScenario()` with ARB-specific columns and footer; the payment-plan selector is a primary-tinted alert with "option pill" radios specific to ARB (ARB / PIF); the submit button label adapts to the selected option (`Start Recurring Billing · 4 × $1,553.00` vs `Pay $6,212.00 Now`). Todd's call: the new ARB design is fresh rather than Legacy-parity, but satisfies Ann's "distinct ARB layout" requirement in spirit. If Ann wants Legacy pixel-match on review, a new punchlist item can capture specific deltas.
 
 ### SP-042: Review screen — rename Continue to "Submit Registration" with confirmation popup; rename "Almost There!" to "Review & Save"
 - **Area**: Registration Process Review
@@ -932,8 +961,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
   - (2) After clicking, show a green confirmation popup: "Your registration has been saved. Your player(s) are Inactive until payment is completed."
   - (3) Rename "Almost There!" heading to "Review & Save" — consider standardizing this heading across all registration review screens
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Legacy's Submit → green popup flow is very helpful for parents. Matches their expectation of a clear save point before payment.
+- **Status**: Fixed
+- **Note**: Two-part fix in `player.component.ts` (both top and bottom Continue buttons update via the shared `continueLabel` input on `wizard-shell`):
+  1. **Dynamic button label**: `continueLabel` returns "Submit Registration(s)" on the review step when any selected player is not yet registered (`hasNewRegistrations()` checks `p.selected && !p.registered`). Edit flows (all players already registered) keep "Continue".
+  2. **Legacy success toast**: immediately after `preSubmitRegistration()` succeeds at the Review → Payment boundary (and only when new registrations were created), fire a 10s success toast with Legacy's verbatim wording from `_Regform_Family_Scripts_Partial.cshtml` lines 1316-1326 ("Player registration data HAS BEEN SAVED SUCCESSFULLY. However, players not paid in full are marked INACTIVE..."). Matches Legacy's Submit-response toast behavior.
+  Heading rename ("Almost There!" → "Review & Save") deferred — Todd's current pass didn't request it. Reopen later if still desired.
 
 ### SP-041: Player Details — Height (in inches) should be a selection list, not free text
 - **Area**: Registration Process Review

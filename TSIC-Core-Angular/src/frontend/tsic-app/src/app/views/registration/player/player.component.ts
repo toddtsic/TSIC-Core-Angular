@@ -172,8 +172,16 @@ export class PlayerWizardV2Component implements OnInit {
 
     readonly continueLabel = computed(() => {
         if (this.currentStepId() === 'confirmation') return 'Finish';
+        if (this.currentStepId() === 'review' && this.hasNewRegistrations()) {
+            return 'Submit Registration(s)';
+        }
         return 'Continue';
     });
+
+    private hasNewRegistrations(): boolean {
+        return this.state.familyPlayers.familyPlayers()
+            .some(p => p.selected && !p.registered);
+    }
 
     private readonly authService = inject(AuthService);
 
@@ -277,6 +285,7 @@ export class PlayerWizardV2Component implements OnInit {
 
         // Phase 2: finalize at review -> payment (apply form values, validate, insurance)
         if (this.currentStepId() === 'review') {
+            const newRegs = this.hasNewRegistrations();
             try {
                 await this.state.preSubmitRegistration();
             } catch (err: unknown) {
@@ -292,6 +301,16 @@ export class PlayerWizardV2Component implements OnInit {
                 await this.state.familyPlayers.loadFamilyPlayersOnce(jobPath, apiBase);
             } catch (err: unknown) {
                 console.warn('[PlayerWizard] post-preSubmit reload failed', err);
+            }
+            // SP-042: Legacy success toast (verbatim) — only on new registration submit
+            if (newRegs) {
+                this.toast.show(
+                    'Player registration data HAS BEEN SAVED SUCCESSFULLY. '
+                    + 'However, players not paid in full are marked INACTIVE and will NOT be placed on rosters. '
+                    + 'Please be sure to pay for your players to ensure their registrations are activated '
+                    + 'and they are available to be placed on rosters.',
+                    'success', 10000,
+                );
             }
         }
 
