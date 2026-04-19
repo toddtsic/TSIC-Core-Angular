@@ -135,6 +135,8 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
               <span class="req-star">*</span>
             }
           </label>
+        } @else {
+          <div class="field-label" aria-hidden="true">&nbsp;</div>
         }
 
         @switch (getFieldType(field)) {
@@ -153,13 +155,13 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
             </select>
           }
           @case ('checkbox') {
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox"
+            <div class="field-check">
+              <input type="checkbox"
                      [id]="'field-' + pid + '-' + field.name"
                      [checked]="getFieldValue(pid, field.name) === true || getFieldValue(pid, field.name) === 'true'"
                      (change)="onCheckboxChange(pid, field.name, $event)"
                      [disabled]="isPlayerLocked(pid)">
-              <label class="form-check-label" [for]="'field-' + pid + '-' + field.name">
+              <label class="field-label" [for]="'field-' + pid + '-' + field.name">
                 {{ field.label }}
                 @if (field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)) {
                   <span class="req-star">*</span>
