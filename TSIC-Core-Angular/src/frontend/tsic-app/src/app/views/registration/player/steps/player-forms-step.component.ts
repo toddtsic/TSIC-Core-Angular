@@ -1,12 +1,28 @@
-import { ChangeDetectionStrategy, Component, inject, signal, output, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, output, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgTemplateOutlet } from '@angular/common';
 import { Subject } from 'rxjs';
 import { debounceTime, mergeMap, switchMap, takeUntil, filter } from 'rxjs/operators';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
+import { JobService } from '@infrastructure/services/job.service';
 import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/player-wizard.types';
+
+const JOB_TYPE_TOURNAMENT = 2;
+
+// PP20 canonical recruiting field order (lowercase schema name).
+// On tournament sites, these are hoisted into a single fieldset anchored at
+// the position of the first canonical field present in the editor schema.
+const RECRUITING_ORDER: readonly string[] = [
+    'gpa', 'classrank', 'act',
+    'satmath', 'satverbal', 'satwriting',
+    'weightlbs', 'heightinches',
+    'bcollegecommit', 'collegecommit',
+];
+
+type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSchema[] };
 
 /**
  * Player Forms step — renders dynamic form fields per player
@@ -15,7 +31,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 @Component({
     selector: 'app-prw-player-forms-step',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, NgTemplateOutlet],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -85,137 +101,22 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 
               <!-- Dynamic form fields -->
               <div class="field-grid">
-                @for (field of visibleFields(pid); track field.name) {
-                  <div class="field-row" [class.field-row--wide]="getFieldType(field) === 'textarea'">
-                    <label class="field-label" [for]="'field-' + pid + '-' + field.name">
-                      {{ field.label }}
-                      @if (field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)) {
-                        <span class="req-star">*</span>
-                      }
-                    </label>
-
-                    @switch (getFieldType(field)) {
-                      @case ('select') {
-                        <select class="field-input field-select"
-                                [id]="'field-' + pid + '-' + field.name"
-                                [ngModel]="getFieldValue(pid, field.name)"
-                                (ngModelChange)="setFieldValue(pid, field.name, $event)"
-                                [disabled]="isPlayerLocked(pid)"
-                                [class.is-empty]="!hasValue(pid, field.name)"
-                                [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
-                          <option value="">— Select —</option>
-                          @for (opt of field.options; track opt) {
-                            <option [value]="opt">{{ opt }}</option>
-                          }
-                        </select>
-                      }
-                      @case ('checkbox') {
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox"
-                                 [id]="'field-' + pid + '-' + field.name"
-                                 [checked]="getFieldValue(pid, field.name) === true || getFieldValue(pid, field.name) === 'true'"
-                                 (change)="onCheckboxChange(pid, field.name, $event)"
-                                 [disabled]="isPlayerLocked(pid)">
-                          <label class="form-check-label" [for]="'field-' + pid + '-' + field.name">
-                            {{ field.label }}
-                          </label>
-                        </div>
-                      }
-                      @case ('multiselect') {
-                        <div class="d-flex flex-wrap gap-2">
-                          @for (opt of field.options; track opt) {
-                            <div class="form-check">
-                              <input class="form-check-input" type="checkbox"
-                                     [id]="'field-' + pid + '-' + field.name + '-' + opt"
-                                     [checked]="isMultiOptionSelected(pid, field.name, opt)"
-                                     (change)="toggleMultiOption(pid, field.name, opt, $event)"
-                                     [disabled]="isPlayerLocked(pid)">
-                              <label class="form-check-label" [for]="'field-' + pid + '-' + field.name + '-' + opt">
-                                {{ opt }}
-                              </label>
-                            </div>
-                          }
-                        </div>
-                      }
-                      @case ('date') {
-                        <input type="date" class="field-input"
-                               [id]="'field-' + pid + '-' + field.name"
-                               [ngModel]="getFieldValue(pid, field.name)"
-                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
-                               [disabled]="isPlayerLocked(pid)"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
-                      }
-                      @case ('number') {
-                        <input type="number" class="field-input"
-                               [id]="'field-' + pid + '-' + field.name"
-                               [ngModel]="getFieldValue(pid, field.name)"
-                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
-                               [disabled]="isPlayerLocked(pid)"
-                               [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
-                      }
-                      @case ('email') {
-                        <input type="email" class="field-input"
-                               [id]="'field-' + pid + '-' + field.name"
-                               [ngModel]="getFieldValue(pid, field.name)"
-                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
-                               [disabled]="isPlayerLocked(pid)"
-                               [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
-                      }
-                      @case ('textarea') {
-                        <textarea class="field-input"
-                               [id]="'field-' + pid + '-' + field.name"
-                               [ngModel]="getFieldValue(pid, field.name)"
-                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
-                               [disabled]="isPlayerLocked(pid)"
-                               [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)"
-                               rows="5" style="resize: vertical;"></textarea>
-                      }
-                      @default {
-                        <input type="text" class="field-input"
-                               [id]="'field-' + pid + '-' + field.name"
-                               [ngModel]="getFieldValue(pid, field.name)"
-                               (ngModelChange)="setFieldValue(pid, field.name, $event)"
-                               [disabled]="isPlayerLocked(pid)"
-                               [attr.placeholder]="field.placeholder"
-                               [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
-                      }
-                    }
-
-                    @if (isValidating(pid, field)) {
-                      <div class="field-validating">
-                        <span class="spinner-border spinner-border-sm"></span>
-                        Validating membership…
+                @for (group of visibleFieldGroups(pid); track $index) {
+                  @if (group.kind === 'recruiting') {
+                    <fieldset class="recruiting-fieldset">
+                      <legend>College Recruiting</legend>
+                      <div class="recruiting-tip">Leave ANY field blank if unknown</div>
+                      <div class="fieldset-grid">
+                        @for (field of group.fields; track field.name) {
+                          <ng-container *ngTemplateOutlet="fieldRowTpl; context: { $implicit: field, pid: pid }"></ng-container>
+                        }
                       </div>
-                    } @else if (getFieldError(pid, field); as error) {
-                      @if (isHtmlError(error)) {
-                        <div class="field-error field-error-link">
-                          <i class="bi bi-exclamation-triangle-fill"></i>
-                          Validation failed —
-                          <a href="javascript:void(0)" (click)="openErrorPopup(pid, field.name, error)">see details</a>
-                        </div>
-                      } @else {
-                        <div class="field-error">{{ error }}</div>
-                      }
+                    </fieldset>
+                  } @else {
+                    @for (field of group.fields; track field.name) {
+                      <ng-container *ngTemplateOutlet="fieldRowTpl; context: { $implicit: field, pid: pid }"></ng-container>
                     }
-
-                    @if (errorPopupKey() === pid + ':' + field.name) {
-                      <div class="error-popup-overlay" (click)="closeErrorPopup()"></div>
-                      <div class="error-popup">
-                        <div class="error-popup-header">
-                          <span class="fw-semibold">{{ field.label }}</span>
-                          <button type="button" class="error-popup-close" (click)="closeErrorPopup()"
-                                  aria-label="Close">&times;</button>
-                        </div>
-                        <div class="error-popup-body" [innerHTML]="errorPopupContent()"></div>
-                      </div>
-                    }
-                    @if (field.helpText) {
-                      <div class="field-help">{{ field.helpText }}</div>
-                    }
-                  </div>
+                  }
                 }
               </div>
             </div>
@@ -223,6 +124,145 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
         </div>
       </div>
     </div>
+
+    <!-- Shared field-row template (used by both plain and recruiting groups) -->
+    <ng-template #fieldRowTpl let-field let-pid="pid">
+      <div class="field-row" [class.field-row--wide]="getFieldType(field) === 'textarea'">
+        @if (getFieldType(field) !== 'checkbox') {
+          <label class="field-label" [for]="'field-' + pid + '-' + field.name">
+            {{ field.label }}
+            @if (field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)) {
+              <span class="req-star">*</span>
+            }
+          </label>
+        }
+
+        @switch (getFieldType(field)) {
+          @case ('select') {
+            <select class="field-input field-select"
+                    [id]="'field-' + pid + '-' + field.name"
+                    [ngModel]="getFieldValue(pid, field.name)"
+                    (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                    [disabled]="isPlayerLocked(pid)"
+                    [class.is-empty]="!hasValue(pid, field.name)"
+                    [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+              <option value="">— Select —</option>
+              @for (opt of field.options; track opt) {
+                <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+          }
+          @case ('checkbox') {
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox"
+                     [id]="'field-' + pid + '-' + field.name"
+                     [checked]="getFieldValue(pid, field.name) === true || getFieldValue(pid, field.name) === 'true'"
+                     (change)="onCheckboxChange(pid, field.name, $event)"
+                     [disabled]="isPlayerLocked(pid)">
+              <label class="form-check-label" [for]="'field-' + pid + '-' + field.name">
+                {{ field.label }}
+                @if (field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)) {
+                  <span class="req-star">*</span>
+                }
+              </label>
+            </div>
+          }
+          @case ('multiselect') {
+            <div class="d-flex flex-wrap gap-2">
+              @for (opt of field.options; track opt) {
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox"
+                         [id]="'field-' + pid + '-' + field.name + '-' + opt"
+                         [checked]="isMultiOptionSelected(pid, field.name, opt)"
+                         (change)="toggleMultiOption(pid, field.name, opt, $event)"
+                         [disabled]="isPlayerLocked(pid)">
+                  <label class="form-check-label" [for]="'field-' + pid + '-' + field.name + '-' + opt">
+                    {{ opt }}
+                  </label>
+                </div>
+              }
+            </div>
+          }
+          @case ('date') {
+            <input type="date" class="field-input"
+                   [id]="'field-' + pid + '-' + field.name"
+                   [ngModel]="getFieldValue(pid, field.name)"
+                   (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                   [disabled]="isPlayerLocked(pid)"
+                   [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+          }
+          @case ('number') {
+            <input type="number" class="field-input"
+                   [id]="'field-' + pid + '-' + field.name"
+                   [ngModel]="getFieldValue(pid, field.name)"
+                   (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                   [disabled]="isPlayerLocked(pid)"
+                   [attr.placeholder]="field.placeholder"
+                   [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+          }
+          @case ('email') {
+            <input type="email" class="field-input"
+                   [id]="'field-' + pid + '-' + field.name"
+                   [ngModel]="getFieldValue(pid, field.name)"
+                   (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                   [disabled]="isPlayerLocked(pid)"
+                   [attr.placeholder]="field.placeholder"
+                   [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+          }
+          @case ('textarea') {
+            <textarea class="field-input"
+                   [id]="'field-' + pid + '-' + field.name"
+                   [ngModel]="getFieldValue(pid, field.name)"
+                   (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                   [disabled]="isPlayerLocked(pid)"
+                   [attr.placeholder]="field.placeholder"
+                   [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)"
+                   rows="5" style="resize: vertical;"></textarea>
+          }
+          @default {
+            <input type="text" class="field-input"
+                   [id]="'field-' + pid + '-' + field.name"
+                   [ngModel]="getFieldValue(pid, field.name)"
+                   (ngModelChange)="setFieldValue(pid, field.name, $event)"
+                   [disabled]="isPlayerLocked(pid)"
+                   [attr.placeholder]="field.placeholder"
+                   [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
+          }
+        }
+
+        @if (isValidating(pid, field)) {
+          <div class="field-validating">
+            <span class="spinner-border spinner-border-sm"></span>
+            Validating membership…
+          </div>
+        } @else if (getFieldError(pid, field); as error) {
+          @if (isHtmlError(error)) {
+            <div class="field-error field-error-link">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Validation failed —
+              <a href="javascript:void(0)" (click)="openErrorPopup(pid, field.name, error)">see details</a>
+            </div>
+          } @else {
+            <div class="field-error">{{ error }}</div>
+          }
+        }
+
+        @if (errorPopupKey() === pid + ':' + field.name) {
+          <div class="error-popup-overlay" (click)="closeErrorPopup()"></div>
+          <div class="error-popup">
+            <div class="error-popup-header">
+              <span class="fw-semibold">{{ field.label }}</span>
+              <button type="button" class="error-popup-close" (click)="closeErrorPopup()"
+                      aria-label="Close">&times;</button>
+            </div>
+            <div class="error-popup-body" [innerHTML]="errorPopupContent()"></div>
+          </div>
+        }
+        @if (field.helpText) {
+          <div class="field-help">{{ field.helpText }}</div>
+        }
+      </div>
+    </ng-template>
   `,
     styles: [`
       .wizard-tip-inline {
@@ -443,10 +483,48 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
         }
       }
 
+      /* Recruiting fieldset — spans both columns of .field-grid,
+         contains its own 2-column sub-grid for the canonical PP20 fields. */
+      .recruiting-fieldset {
+        grid-column: 1 / -1;
+        border: 1px solid var(--bs-primary);
+        border-radius: var(--radius-sm);
+        padding: var(--space-1) var(--space-3) var(--space-2);
+        margin: var(--space-2) 0;
+        background: var(--neutral-0);
+
+        legend {
+          float: none;
+          width: auto;
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-semibold);
+          color: var(--bs-primary);
+          padding: 0 var(--space-2);
+          margin-bottom: 0;
+        }
+      }
+
+      .recruiting-tip {
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        color: var(--brand-text-muted);
+        margin: 0 0 var(--space-2);
+      }
+
+      .fieldset-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-1) var(--space-4);
+      }
+
       @media (max-width: 575.98px) {
         .field-grid {
           grid-template-columns: 1fr;
           padding: var(--space-1) var(--space-2);
+        }
+
+        .fieldset-grid {
+          grid-template-columns: 1fr;
         }
 
         .player-header {
@@ -464,6 +542,8 @@ export class PlayerFormsStepComponent implements OnDestroy {
     readonly advance = output<void>();
     readonly state = inject(PlayerWizardStateService);
     private readonly usLaxService = inject(UsLaxValidationService);
+    private readonly jobService = inject(JobService);
+    readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
     private readonly usLaxTrigger$ = new Subject<{ playerId: string; value: string; field: PlayerProfileFieldSchema }>();
     private readonly destroy$ = new Subject<void>();
     private _autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -608,7 +688,48 @@ export class PlayerFormsStepComponent implements OnDestroy {
         const schemas = this.state.jobCtx.profileFieldSchemas();
         const wfn = this.state.jobCtx.waiverFieldNames();
         const tct = this.state.eligibility.teamConstraintType();
-        return schemas.filter(f => this.state.playerForms.isFieldVisibleForPlayer(playerId, f, wfn, tct));
+        const tournament = this.isTournament();
+        const recruitingGradYears = tournament ? this.state.jobCtx.recruitingGradYears() : [];
+        const eligValue = this.state.eligibility.getEligibilityForPlayer(playerId) ?? null;
+        const playerGradYear = tournament
+            ? this.state.playerForms.getPlayerGradYearFromState(playerId, schemas, tct, eligValue)
+            : null;
+        return schemas.filter(f => this.state.playerForms.isFieldVisibleForPlayer(
+            playerId, f, wfn, tct, tournament, recruitingGradYears, playerGradYear,
+        ));
+    }
+
+    /**
+     * SP-040: On tournament sites, hoist recruiting fields into a single fieldset.
+     * The fieldset is anchored at the position of the first canonical recruiting
+     * field (per PP20 order) that appears in the editor schema; its contents are
+     * rendered in canonical PP20 order regardless of editor order.
+     */
+    visibleFieldGroups(playerId: string): FieldGroup[] {
+        const visible = this.visibleFields(playerId);
+        if (!this.isTournament()) return [{ kind: 'plain', fields: visible }];
+
+        const visibleByLName = new Map<string, PlayerProfileFieldSchema>();
+        for (const f of visible) visibleByLName.set(f.name.toLowerCase(), f);
+
+        const recruitingPresent = RECRUITING_ORDER.filter(n => visibleByLName.has(n));
+        if (recruitingPresent.length === 0) return [{ kind: 'plain', fields: visible }];
+
+        const recruitingSet = new Set(recruitingPresent);
+        const anchorIndex = visible.findIndex(f => recruitingSet.has(f.name.toLowerCase()));
+        if (anchorIndex < 0) return [{ kind: 'plain', fields: visible }];
+
+        const recruitingFields = recruitingPresent.map(n => visibleByLName.get(n)!);
+        const beforeAnchor = visible.slice(0, anchorIndex)
+            .filter(f => !recruitingSet.has(f.name.toLowerCase()));
+        const afterAnchor = visible.slice(anchorIndex + 1)
+            .filter(f => !recruitingSet.has(f.name.toLowerCase()));
+
+        const groups: FieldGroup[] = [];
+        if (beforeAnchor.length) groups.push({ kind: 'plain', fields: beforeAnchor });
+        groups.push({ kind: 'recruiting', fields: recruitingFields });
+        if (afterAnchor.length) groups.push({ kind: 'plain', fields: afterAnchor });
+        return groups;
     }
 
     getFieldType(field: PlayerProfileFieldSchema): string {

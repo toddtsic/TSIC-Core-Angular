@@ -258,6 +258,40 @@ describe('PlayerFormsService', () => {
             service.setPlayerFieldValue('p1', 'hasAllergies', 'no');
             expect(service.isFieldVisibleForPlayer('p1', field, [], null)).toBe(false);
         });
+
+        // ── Recruiting field gating (SP-040) ─────────────────────────
+        // Tournament path: gated by jsonOptions.List_RecruitingGradYears (NCAA contact rules).
+        // Non-tournament path: always shown — clubs may use these on profile.
+        it('tournament: recruiting field hidden when recruitingGradYears is empty', () => {
+            const gpa = mkField({ name: 'gpa', label: 'GPA' });
+            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, true, [], '2026')).toBe(false);
+        });
+
+        it('tournament: recruiting field hidden when player grad year not in list', () => {
+            const gpa = mkField({ name: 'gpa', label: 'GPA' });
+            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, true, ['2024', '2025'], '2030')).toBe(false);
+        });
+
+        it('tournament: recruiting field visible when player grad year matches list', () => {
+            const gpa = mkField({ name: 'gpa', label: 'GPA' });
+            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, true, ['2024', '2025', '2026'], '2025')).toBe(true);
+        });
+
+        it('tournament: recruiting field hidden when player grad year is null', () => {
+            const sat = mkField({ name: 'satMath', label: 'SAT Math' });
+            expect(service.isFieldVisibleForPlayer('p1', sat, [], null, true, ['2024'], null)).toBe(false);
+        });
+
+        it('non-tournament: recruiting field always visible regardless of grad year list', () => {
+            const gpa = mkField({ name: 'gpa', label: 'GPA' });
+            // No recruiting list, no grad year, but isTournament=false → still shown
+            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, false, [], null)).toBe(true);
+        });
+
+        it('non-recruiting field unaffected by recruiting gating', () => {
+            const school = mkField({ name: 'schoolName', label: 'School' });
+            expect(service.isFieldVisibleForPlayer('p1', school, [], null, true, [], null)).toBe(true);
+        });
     });
 
     // ── 4. Form Seeding ──────────────────────────────────────────────

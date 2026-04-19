@@ -2,6 +2,17 @@ import { Injectable, signal } from '@angular/core';
 import type { PlayerProfileFieldSchema } from './registration-wizard.service';
 import type { RawProfileField, RawOptionItem } from '../../shared/types/wizard.types';
 
+// Canonical Height (Inches) fallback list when JsonOptions has no values configured.
+// Range 4-0 through 6-10 (45 entries: 12+12+11) in feet-dash-inches format.
+const HEIGHT_INCHES_FALLBACK: string[] = (() => {
+    const out: string[] = [];
+    for (let f = 4; f <= 6; f++) {
+        const maxIn = f === 6 ? 10 : 11;
+        for (let i = 0; i <= maxIn; i++) out.push(`${f}-${i}`);
+    }
+    return out;
+})();
+
 /**
  * FormSchemaService encapsulates player profile field schema & alias mapping state.
  * Extracted from RegistrationWizardService to reduce its surface area.
@@ -94,6 +105,8 @@ export class FormSchemaService {
                 }
                 const required = !!(f.required || f?.validation?.required || f?.validation?.requiredTrue);
                 const dsKey = String(pickCI(f, 'dataSource', 'optionsSource', 'optionSet') || '').trim();
+                const isHeightInchesField =
+                    name.toLowerCase() === 'heightinches' || (dbCol && dbCol.toLowerCase() === 'heightinches');
                 const options = (() => {
                     let mapped: string[] = [];
                     // When dataSource is set, the shared option set is authoritative — inline
@@ -113,12 +126,22 @@ export class FormSchemaService {
                         const setVal = key ? optionSets[key] : null;
                         if (Array.isArray(setVal)) mapped = setVal.map(v => String(v?.value ?? v?.Value ?? v));
                     }
+                    // SP-041: HeightInches fallback — when no options were provided anywhere,
+                    // emit canonical 4-0..6-10 list so the field renders as a dropdown.
+                    if (mapped.length === 0 && isHeightInchesField) {
+                        mapped = [...HEIGHT_INCHES_FALLBACK];
+                    }
                     // Sort numerically if all options are valid numbers (e.g., years of experience)
                     if (mapped.length > 1 && mapped.every(v => v !== '' && !isNaN(Number(v)))) {
                         mapped.sort((a, b) => Number(a) - Number(b));
                     }
                     return mapped;
                 })();
+                // SP-041: HeightInches with options must render as a dropdown even if metadata
+                // says 'text' (Legacy migration left it as text input).
+                if (isHeightInchesField && options.length > 0) {
+                    type = 'select';
+                }
                 const placeholder = typeof f.placeholder === 'string' && f.placeholder.trim() ? f.placeholder.trim() : null;
                 const helpText = f.helpText || f.help || null;
                 const val = f.validation as Record<string, unknown> | undefined;

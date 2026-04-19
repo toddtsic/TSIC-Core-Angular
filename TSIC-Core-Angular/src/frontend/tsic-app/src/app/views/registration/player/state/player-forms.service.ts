@@ -9,6 +9,17 @@ import type {
     Json,
 } from '../types/player-wizard.types';
 
+// Recruiting field names (lowercase, exact match on schema field name).
+// Canonical list = PP20.cshtml's `<div class="recruittinginfo">` block.
+// On tournament sites, gated by JsonOptions.List_RecruitingGradYears (NCAA).
+// On non-tournament sites, always shown (a club may still want these on profile).
+const RECRUITING_FIELD_NAMES = new Set<string>([
+    'gpa', 'classrank', 'act',
+    'satmath', 'satverbal', 'satwriting',
+    'weightlbs', 'heightinches',
+    'bcollegecommit', 'collegecommit',
+]);
+
 /**
  * Player Forms Service — owns per-player form values, validation,
  * server validation errors, and US Lax status.
@@ -313,12 +324,21 @@ export class PlayerFormsService {
     }
 
     // ── Visibility ────────────────────────────────────────────────────
-    /** Central visibility logic. waiverFieldNames + teamConstraintType come from JobContextService. */
+    /**
+     * Central visibility logic. waiverFieldNames + teamConstraintType come from JobContextService.
+     * Recruiting field gating (SP-040): on TOURNAMENT sites only, recruiting fields are
+     * shown only when player grad year ∈ recruitingGradYears (NCAA contact rules).
+     * On non-tournament sites the gating is bypassed — clubs may still want these fields
+     * on profile.
+     */
     isFieldVisibleForPlayer(
         playerId: string,
         field: PlayerProfileFieldSchema,
         waiverFieldNames: string[],
         teamConstraintType: string | null,
+        isTournament = false,
+        recruitingGradYears: string[] = [],
+        playerGradYear: string | null = null,
     ): boolean {
         if (field.visibility === 'hidden' || field.visibility === 'adminOnly') return false;
         if (waiverFieldNames.includes(field.name)) return false;
@@ -331,11 +351,39 @@ export class PlayerFormsService {
         if (tctype === 'BYAGEGROUP' && (hasAllParts(lname, ['age', 'group']) || hasAllParts(llabel, ['age', 'group']))) return false;
         if (tctype === 'BYAGERANGE' && (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range']))) return false;
         if (tctype === 'BYCLUBNAME' && (hasAllParts(lname, ['club']) || hasAllParts(llabel, ['club']))) return false;
+        if (RECRUITING_FIELD_NAMES.has(lname) && isTournament) {
+            if (recruitingGradYears.length === 0) return false;
+            if (!playerGradYear) return false;
+            return recruitingGradYears.includes(playerGradYear);
+        }
         if (!field.condition) return true;
         const otherVal = this.getPlayerFieldValue(playerId, field.condition.field);
         const op = (field.condition.operator || 'equals').toLowerCase();
         if (op === 'equals') return otherVal === field.condition.value;
         return otherVal === field.condition.value;
+    }
+
+    /**
+     * Resolves the player's grad year from state — eligibility first (when
+     * BYGRADYEAR), then the profile's grad-year form field.
+     */
+    getPlayerGradYearFromState(
+        playerId: string,
+        schemas: PlayerProfileFieldSchema[],
+        teamConstraintType: string | null,
+        eligibilityValue: string | null,
+    ): string | null {
+        if ((teamConstraintType || '').toUpperCase() === 'BYGRADYEAR' && eligibilityValue) {
+            const v = String(eligibilityValue).trim();
+            return v || null;
+        }
+        const gradField = schemas.find(s =>
+            hasAllParts(s.name.toLowerCase(), ['grad', 'year']) ||
+            hasAllParts(s.label.toLowerCase(), ['grad', 'year']),
+        );
+        if (!gradField) return null;
+        const v = this.getPlayerFieldValue(playerId, gradField.name);
+        return v != null && String(v).trim() !== '' ? String(v).trim() : null;
     }
 
     // ── PreSubmit form value builders ─────────────────────────────────

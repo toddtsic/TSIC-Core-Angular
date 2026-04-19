@@ -238,6 +238,31 @@ export class JobContextService {
         return Number.isNaN(d.getTime()) ? null : d;
     }
 
+    /**
+     * Recruiting grad years from JsonOptions.List_RecruitingGradYears.
+     * Empty array when not configured → recruiting fields hidden (per SP-040).
+     * Case-insensitive key lookup. Tolerates string array OR { Text/Value } objects.
+     */
+    recruitingGradYears(): string[] {
+        const opts = this.getJobOptionsObject() as Record<string, unknown> | null;
+        if (!opts) return [];
+        const key = Object.keys(opts).find(k => k.toLowerCase() === 'list_recruitinggradyears');
+        if (!key) return [];
+        const val = opts[key];
+        if (!Array.isArray(val)) return [];
+        return val
+            .map(v => {
+                if (typeof v === 'string' || typeof v === 'number') return String(v);
+                if (v && typeof v === 'object') {
+                    const o = v as Record<string, unknown>;
+                    return String(o['Text'] ?? o['text'] ?? o['Value'] ?? o['value'] ?? '');
+                }
+                return '';
+            })
+            .map(s => s.trim())
+            .filter(s => s !== '');
+    }
+
     private getJobOptionsObject(): Json | null {
         if (this.parsedJobOptions !== undefined) return this.parsedJobOptions;
         const raw = this._jobJsonOptions();

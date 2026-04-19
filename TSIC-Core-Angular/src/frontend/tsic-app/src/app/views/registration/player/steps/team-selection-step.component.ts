@@ -766,7 +766,14 @@ export class TeamSelectionStepComponent {
                 const da = a.startDate ? new Date(a.startDate).getTime() : Infinity;
                 const db = b.startDate ? new Date(b.startDate).getTime() : Infinity;
                 if (da !== db) return da - db;
-                return a.teamName.localeCompare(b.teamName);
+                return a.teamName.localeCompare(b.teamName, undefined, { numeric: true, sensitivity: 'base' });
+            });
+        } else {
+            // Non-CAC (tournament, season, etc.): natural alpha sort by club then team
+            const cmp = (x: string, y: string) => x.localeCompare(y, undefined, { numeric: true, sensitivity: 'base' });
+            filtered = [...filtered].sort((a, b) => {
+                const c = cmp(a.clubName?.trim() || '', b.clubName?.trim() || '');
+                return c !== 0 ? c : cmp(a.teamName, b.teamName);
             });
         }
 

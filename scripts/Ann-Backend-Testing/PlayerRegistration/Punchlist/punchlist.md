@@ -761,7 +761,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: After logging back in post-registration, menus and options to review or edit registration details — same as Legacy provides
 - **What happened**: Won't Fix is not acceptable here. Legacy provides this functionality and directors/parents use it heavily. Relying solely on bulletin links is not a substitute — parents need a proper post-login experience with menus for reviewing registrations, editing details, paying balances, etc. This is a Legacy parity gap that must be addressed.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Deferred
+- **Note**: Addressed via the broader role-default-menus / nav system initiative (`scripts/5) Re-Set Nav System.sql`). Same scope as SP-017.
 
 ### SP-022: Add Player button does nothing on New Family Account registration flow
 - **Area**: Family Account Creation
@@ -778,7 +779,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Choose Your Players screen to show "Registered - Inactive" in red next to each player, similar to how "Registered" is shown in green for active/paid players
 - **What happened**: No indication that these players have an incomplete/inactive registration. Parents need to see at a glance which players still need payment so they can resume the process.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: LI Yellow Jackets: Players 2026 (ARB site). The Inactive status is correctly saved on the backend — just not surfaced on the Choose Your Players screen.
 
 ### SP-033: ARB Complete Payment — show per-player installment details (number + amount) for multi-player registrations
@@ -924,7 +925,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A dropdown selection list for height, consistent with how it appears in other Player registration flows
 - **What happened**: Height field is free text input instead of a selection list. Should match the dropdown used in other Player registrations for consistency and data quality.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause is data: showcase had Height (Inches) values populated in JsonOptions → dropdown; tournament had "No values configured" → fell through to text input. Fix in form-schema.service.ts: when field's name or dbColumn equals `heightinches` (case-insensitive) AND no options were derived from JsonOptions/inline, auto-generate canonical fallback list `4-0` through `6-10` (45 entries) AND force `type = 'select'` so it renders as a dropdown. Per-job JsonOptions overrides still win — explicit data wins over fallback. Weight left as text per Todd's call (too many sensible values).
 
 ### SP-040: Player Details — College Recruiting fields show for all age groups; add placeholder text for optional fields
 - **Area**: Registration Process Review
@@ -932,7 +934,15 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: College Recruiting fields either hidden for young age groups, or at minimum clearly marked as optional with guidance
 - **What happened**: College Recruiting data fields appear even for the youngest age groups where they don't apply. Recommend adding placeholder text "Leave blank if unknown or doesn't apply" in these optional fields so parents aren't confused about whether they need to fill them in.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Restored Legacy `dRecruittingInfo_*` gating with NCAA-aware tournament scope:
+  1. `RECRUITING_FIELD_NAMES` = canonical PP20.cshtml recruiting div: gpa, classrank, act, satmath, satverbal, satwriting, weightlbs, heightinches, bcollegecommit, collegecommit. (10 fields.)
+  2. **Tournament sites only**: gated by `JsonOptions.List_RecruitingGradYears` (case-insensitive). Show iff player grad year ∈ list. Empty list → hide everywhere (NCAA-safe default).
+  3. **Non-tournament sites**: always show — clubs may factor these into player profiles. Bypass entirely.
+  4. `JobContextService.recruitingGradYears()` reads JsonOptions; `getPlayerGradYearFromState()` resolves player grad year (eligibility first, then form field).
+  5. Tournament check via `JobService.currentJob()?.jobTypeId === 2` in player-forms-step (mirrors LADT pattern).
+  6. Spec tests cover both tournament and non-tournament paths.
+  7. **Fieldset grouping (Option C)**: on tournament sites only, all canonical recruiting fields are hoisted into a single `<fieldset>` with legend "College Recruiting" and a one-line tip "Leave blank if unknown." The fieldset is anchored at the position of the first canonical recruiting field present in the editor schema; contents are rendered in PP20 canonical order regardless of editor order. Non-tournament sites render flat (unchanged).
 
 ### SP-038: Tournament Player Details — show Club Name before Team Name under player heading
 - **Area**: Registration Process Review
@@ -963,4 +973,13 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Severity**: UX
 - **Status**: Fixed
 - **Note**: Step bar label in player.component.ts changed from "Teams" to "Team" for all non-CAC flows. CAC still shows "Events". Ties to SP-037 (single-team enforcement).
+
+### SP-044: Assign Teams dropdown — teams not sorted alphabetically
+- **Area**: Registration Process Review
+- **What I did**: Opened the Assign Teams dropdown on a Tournament Self-Roster site (Daisy Duck, club "All American Aim") and saw teams in random order: 2035, 2031, 2034, S&S 2027, 2033 S&S, 2033, 2032 S&S, 2032, 2028, 2030.
+- **What I expected**: Alphabetical ordering so parents can find their team quickly
+- **What happened**: API order preserved as-is — no sort applied for non-CAC flows
+- **Severity**: UX
+- **Status**: Fixed
+- **Note**: `getAvailableTeams()` in team-selection-step.component.ts now sorts non-CAC results by `clubName` then `teamName` using `localeCompare(..., { numeric: true, sensitivity: 'base' })` so `2027 < 2028 < 2030 < … < 2035 < S&S 2027`. CAC tiebreaker also upgraded to natural sort.
 
