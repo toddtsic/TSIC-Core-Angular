@@ -16,7 +16,7 @@ import { TeamService } from '../services/team.service';
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
-      <h4 class="welcome-title"><i class="bi bi-bullseye welcome-icon"></i> Set Player {{ cardTitle() }}</h4>
+      <h4 class="welcome-title"><i class="bi bi-bullseye welcome-icon"></i> Choose Player {{ cardTitle() }}</h4>
       <p class="welcome-desc">
         <i class="bi bi-person-check me-1"></i>Choose {{ constraintLabel() }} per player
         <span class="desc-dot"></span>

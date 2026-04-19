@@ -5,6 +5,9 @@ import { DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService, type AvailableTeam } from '@views/registration/player/services/team.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
+import { JobService } from '@infrastructure/services/job.service';
+
+const JOB_TYPE_TOURNAMENT = 2;
 
 /**
  * Team Selection step — per-player team assignment via dropdowns.
@@ -667,17 +670,20 @@ import { colorClassForIndex } from '@views/registration/shared/utils/color-class
 export class TeamSelectionStepComponent {
     readonly state = inject(PlayerWizardStateService);
     readonly teamService = inject(TeamService);
+    private readonly jobService = inject(JobService);
     readonly advance = output<void>();
 
     readonly teamDdlFields = { text: 'text', value: 'value' };
     private readonly _campFilters = signal<Record<string, string>>({});
     readonly activePlayerTab = signal(0);
+    readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
     getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
+        const tournament = this.isTournament();
         return this.getAvailableTeams(playerId).map(team => {
             const clubPrefix = team.clubName?.trim() ? `${team.clubName.trim()}: ` : '';
             let label = clubPrefix + team.teamName;
-            if (team.divisionName) label += ` · ${team.divisionName}`;
+            if (!tournament && team.divisionName) label += ` · ${team.divisionName}`;
             if (team.effectiveFee != null && team.effectiveFee > 0) {
                 label += ` (${this.formatCurrency(team.effectiveFee)})`;
             }
@@ -740,9 +746,7 @@ export class TeamSelectionStepComponent {
     }
 
     isMultiTeamMode(): boolean {
-        if (this.state.jobCtx.isCacMode()) return true;
-        const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
-        return !ct || ct === 'BYCLUBNAME';
+        return this.state.jobCtx.isCacMode();
     }
 
     getAvailableTeams(playerId: string): AvailableTeam[] {

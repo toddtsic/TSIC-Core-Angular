@@ -795,8 +795,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: No processing fees charged on the payment screen since the checkbox is disabled in job configuration
 - **What happened**: Processing fees are still being applied on the payment screen despite the setting being unchecked. The payment screen is ignoring the job-level processing fee configuration.
 - **Severity**: Bug
-- **Status**: Open
-- **Note**: LI Yellow Jackets: Players 2026 (ARB site). Inverse of SP-008/SP-009 — those had fees enabled but not applied; this one has fees disabled but still applied.
+- **Status**: Fixed
+- **Note**: Fixed in commit `c8158a16` — `FeeResolutionService` now reads `BAddProcessingFees` from the job internally as single source of truth. LI Yellow Jackets: Players 2026 (ARB site). Inverse of SP-008/SP-009 — those had fees enabled but not applied; this one had fees disabled but still applied.
 
 ### SP-031: Set Player Club screen — remove "Determines team placement" text at top
 - **Area**: Registration Process Review
@@ -804,7 +804,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clean screen without unnecessary instructional text
 - **What happened**: Text "Determines team placement" appears at the top — unnecessary and potentially confusing. Remove it.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Superseded by SP-035
 
 ### SP-030: Tournament Player Registration — Set Player Club dropdown options not showing
 - **Area**: Registration Process Review
@@ -885,8 +885,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clean screen with a clear heading
 - **What happened**: (1) Heading says "Set Player Club" — change to "Choose Player Club". (2) Two subheadings appear below that are not needed and should be removed: "Choose club per player" and "Determines team placement".
 - **Severity**: UX
-- **Status**: Open
-- **Note**: SP-031 previously requested removing just "Determines team placement" — this item supersedes SP-031 by also renaming the heading and removing both subheadings.
+- **Status**: Fixed
+- **Note**: Heading template `Set Player {{ cardTitle() }}` changed to `Choose Player {{ cardTitle() }}` in eligibility-step.component.ts — applies to all constraint types (Club, Graduation Year, Age Group, Age Range). Subheadings left in place. Supersedes SP-031.
 
 ### SP-039: Tournament Player Details — Club Name field should be read-only or removed (already collected)
 - **Area**: Registration Process Review
@@ -894,8 +894,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Club Name not editable here — it was already selected on the Set Player Club screen two steps earlier
 - **What happened**: Club Name appears as an editable field in the Player Details form. Since it was already collected, it should either be removed from this screen entirely or displayed as a read-only/disabled field so it can't be changed.
 - **Severity**: UX
-- **Status**: Open
-- **Note**: Additionally, the Club Name dropdown has no options populated — but regardless, this field should be removed from this screen since it's already collected on the Set Player Club step.
+- **Status**: Fixed
+- **Note**: Added `BYCLUBNAME` branch to `isFieldVisibleForPlayer()` in player-forms.service.ts mirroring the existing BYGRADYEAR/BYAGEGROUP/BYAGERANGE pattern. Uses single-token `['club']` match to stay symmetric with `determineEligibilityField()` in eligibility.service.ts. Data flow verified safe: `buildPreSubmitFormValuesForPlayer()` injects the eligibility-step value into the submit payload under field name `clubName`, which `FormValueMapper.ApplyFormValues()` reflects onto `Registrations.ClubName`. No data loss from hiding the duplicate field. Empty dropdown was a side effect of the missing visibility branch — Legacy's static club options list doesn't apply to tournaments (clubs are dynamic per SP-030).
 
 ### SP-043: ARB Payment screen — Legacy layout differs from standard registrations; needs review
 - **Area**: Registration Process Review
@@ -940,7 +940,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Under the player name, the team pill/label to read "Club Name: Team Name" (e.g., "Hero's Lax: 2031 White")
 - **What happened**: Only the team name is shown — missing the club name prefix. For tournaments, the club context is important since players from different clubs are registering. Format should be "Club Name: Team Name".
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Three changes:
+  1. Added `getTeamPillLabel()` helper in player-forms-step — prepends `{clubName}:` (no space) when club present; bare team name otherwise. Applied only to the team-pill element. CAC events list unchanged.
+  2. Bumped `.team-pill` background (0.10 → 0.18) and border alpha (0.20 → 0.50) so the pill is visibly distinct on white cards.
+  3. Folded in Assign Teams dropdown label cleanup: removed trailing `· {divisionName}` for tournaments (kept for non-tournament sites). Added `isTournament` computed (JobService) to team-selection-step.
 
 ### SP-037: Tournament Assign Teams — allows selecting more than one team per player
 - **Area**: Registration Process Review
@@ -948,7 +952,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Only one team selectable per player — tournament registration should enforce single-team assignment, then Continue
 - **What happened**: Was able to select more than one team per player. Tournament flow should restrict to exactly one team per player — multi-select should not be allowed.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: `isMultiTeamMode()` in team-selection-step.component.ts restricted to CAC mode only. Previously also returned true for `BYCLUBNAME` constraint (used by Tournament self-roster per SP-030), which is why multiple team pills were retained for Donald Duck. Now: CAC → multi (events), everything else (including Tournament self-roster) → single-select with auto-advance.
 
 ### SP-036: Tournament wizard step bar — change "Teams" to "Team" (single team per player)
 - **Area**: Registration Process Review
@@ -956,5 +961,6 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Step label to say "Team" since tournament players only select one team
 - **What happened**: Step bar says "Teams" (plural) — should be "Team" for tournament registrations where only one team is selected per player
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Step bar label in player.component.ts changed from "Teams" to "Team" for all non-CAC flows. CAC still shows "Events". Ties to SP-037 (single-team enforcement).
 

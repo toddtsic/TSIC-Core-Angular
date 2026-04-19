@@ -76,7 +76,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
                   } @else {
                     <div class="team-pill-row">
                       @for (tid of getTeamIds(pid); track tid) {
-                        <span class="team-pill">{{ getTeamName(tid) }}</span>
+                        <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">{{ getTeamPillLabel(tid) }}</span>
                       }
                     </div>
                   }
@@ -321,11 +321,11 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
       .team-pill {
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
-        padding: 2px var(--space-2);
+        padding: 2px var(--space-3);
         border-radius: var(--radius-full);
-        background: rgba(var(--bs-primary-rgb), 0.1);
+        background: rgba(var(--bs-primary-rgb), 0.18);
         color: var(--bs-primary);
-        border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.5);
       }
 
       .reg-badge {
@@ -580,6 +580,13 @@ export class PlayerFormsStepComponent implements OnDestroy {
     getTeamName(teamId: string): string {
         const team = this.teamService.getTeamById(teamId);
         return team?.teamName || teamId;
+    }
+
+    getTeamPillLabel(teamId: string): string {
+        const team = this.teamService.getTeamById(teamId);
+        if (!team) return teamId;
+        const club = team.clubName?.trim();
+        return club ? `${club}:${team.teamName}` : team.teamName;
     }
 
     // ── CAC events expand/collapse ───────────────────────────────────

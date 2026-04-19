@@ -330,6 +330,7 @@ export class PlayerFormsService {
         if (tctype === 'BYGRADYEAR' && (hasAllParts(lname, ['grad', 'year']) || hasAllParts(llabel, ['grad', 'year']))) return false;
         if (tctype === 'BYAGEGROUP' && (hasAllParts(lname, ['age', 'group']) || hasAllParts(llabel, ['age', 'group']))) return false;
         if (tctype === 'BYAGERANGE' && (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range']))) return false;
+        if (tctype === 'BYCLUBNAME' && (hasAllParts(lname, ['club']) || hasAllParts(llabel, ['club']))) return false;
         if (!field.condition) return true;
         const otherVal = this.getPlayerFieldValue(playerId, field.condition.field);
         const op = (field.condition.operator || 'equals').toLowerCase();
