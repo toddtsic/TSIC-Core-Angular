@@ -129,7 +129,12 @@ export class PlayerWizardV2Component implements OnInit {
             case 'teams': {
                 const selected = this.state.familyPlayers.selectedPlayerIds();
                 const teams = this.state.eligibility.selectedTeams();
-                return selected.every(id => !!teams[id]);
+                const cac = this.state.jobCtx.isCacMode();
+                return selected.every(id => {
+                    const v = teams[id];
+                    if (cac) return Array.isArray(v) && v.length > 0;
+                    return !!v;
+                });
             }
             case 'forms': {
                 const schemas = this.state.jobCtx.profileFieldSchemas();

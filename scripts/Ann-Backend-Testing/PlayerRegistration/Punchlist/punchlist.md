@@ -830,7 +830,13 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Under Players and Teams, each event listed individually with its own Registration Fee (e.g., Event A — Registration Fee $100, Event B — Registration Fee $100) per player, since event fees can differ
 - **What happened**: Shows a single Registration Fee of $100 per player instead of breaking it out per event. The total of $400 is correct (2 players × 2 events × $100), but parents need to see the per-event fee breakdown to verify what they're paying for — especially when events have different prices.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Root cause: `getBaseFeeForPlayer()` did `lineItems().find(i => i.playerId === playerId)` — returning only the first team's fee even when the player had multiple events. The Family Total was correct because it sums all line items.
+  1. Added `getLineItemsForPlayer()` and `getPlayerTotal()` helpers on `ReviewStepComponent`.
+  2. CAC multi-event branch now renders each event as its own priced `<li>` (event name left, fee right) in `.review-events-list--priced`. Top-right "Registration Fee $N" block is hidden in this branch since fees moved into the list.
+  3. Per-player "Player Total" row added under the list — shown only when `selectedPlayers().length > 1` so single-player registrations don't duplicate the Family Total below.
+  4. Single-team and non-CAC flows unchanged (team pill + top-right fee preserved).
+  5. Bottom "Registration Fee Total" row left as-is per Todd.
 
 ### SP-027: CAC Player Details — replace "2 events selected" summary with bulleted list of chosen events
 - **Area**: Registration Process Review
@@ -838,7 +844,12 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A visible list of which events were selected, so I can verify my choices and go back to correct any mistakes
 - **What happened**: Screen only shows "2 events selected" (or similar count) — doesn't name the actual events. With many options available on CAC sites, it's easy to mis-select. Replace the count with a bulleted list of the chosen event names so parents can review and go Back if needed.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Reframed as expand-by-default rather than always-bulleted, to preserve vertical space when event counts are high.
+  1. Summary button hoisted into the player-name row (`.player-header-top`) with `margin-left: auto` so it flushes right on the same line as the player name. Saves one line per player.
+  2. Added state-aware hint "— click to expand" / "— click to collapse" to the summary (same primary link color, regular weight so the count still leads).
+  3. Expanded list defaults open when event count ≤ `EVENTS_EXPAND_THRESHOLD` (4). Explicit user toggles always win via `_expandedEvents` record. Above threshold, defaults collapsed to preserve vertical space.
+  4. Expanded `<ul class="events-list">` now `align-self: flex-end` and `padding-left: 0` so bullets stack directly under the toggle button at the right edge of the header.
 
 ### SP-026: CAC Select Events — enlarge/highlight instruction text "Check the camps or clinics for each player"
 - **Area**: Registration Process Review
@@ -846,7 +857,12 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Instruction text at the top to be prominent and easy to read — parents need to understand they're checking events per player
 - **What happened**: Instruction "Check the camps or clinics for each player" is too small and doesn't stand out. Needs larger font, possibly highlighted or bolded, so parents don't miss it.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Reframed — the original concern was parents missing the second player. Enlarging prose wouldn't solve that. Fix puts the imperative directly on the pill the parent is already looking at:
+  1. **Gate (bug fix)**: `canContinue` for the `teams` step previously used `!!teams[id]`; in CAC mode `teams[id]` is an array and `[]` is truthy, so a player with zero events satisfied the gate. Now requires `Array.isArray(v) && v.length > 0` per player in CAC mode. Non-CAC semantics unchanged.
+  2. **Pill CTA**: when a player has 0 selected events, the count bubble is replaced with a small italic "— select events" imperative inside the pill (amber color). When ≥1 events, the green count bubble appears. The pill itself carries the call-to-action.
+  3. **Amber pulse on incomplete pill**: a 0-count player-tab pulses with an amber border when at least one sibling has ≥1 selection and the tab isn't currently active. Respects `prefers-reduced-motion` (static amber outline, no animation).
+  Adaptive Continue-button label was tried and reverted — parents don't look at the wizard-shell footer when their attention is on the pill row.
 
 ### SP-025: Discount Code "Girls100" splits $100 across players instead of applying $100 per player
 - **Area**: Registration Process Review

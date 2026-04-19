@@ -55,12 +55,16 @@ const JOB_TYPE_TOURNAMENT = 2;
               @for (pid of selectedPlayerIds(); track pid; let i = $index) {
                 <button type="button" class="player-tab"
                         [class.is-active]="activePlayerTab() === i"
+                        [class.is-incomplete]="shouldPulsePlayerTab(pid, i)"
                         (click)="activePlayerTab.set(i)">
                   <span class="player-tab-name">{{ getPlayerName(pid) }}</span>
-                  <span class="player-tab-count"
-                        [class.has-selections]="getSelectedTeamIds(pid).length > 0">
-                    {{ getSelectedTeamIds(pid).length }}
-                  </span>
+                  @if (getSelectedTeamIds(pid).length > 0) {
+                    <span class="player-tab-count has-selections">
+                      {{ getSelectedTeamIds(pid).length }}
+                    </span>
+                  } @else {
+                    <span class="player-tab-cta">select events</span>
+                  }
                 </button>
               }
             </div>
@@ -281,6 +285,24 @@ const JOB_TYPE_TOURNAMENT = 2;
           font-weight: var(--font-weight-semibold);
           box-shadow: var(--shadow-sm);
         }
+
+        &.is-incomplete:not(.is-active) {
+          border-color: var(--bs-warning);
+          color: var(--brand-text);
+          animation: tab-pulse 1.8s ease-in-out infinite;
+        }
+      }
+
+      @keyframes tab-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(var(--bs-warning-rgb), 0.45); }
+        50%      { box-shadow: 0 0 0 6px rgba(var(--bs-warning-rgb), 0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .player-tab.is-incomplete:not(.is-active) {
+          animation: none;
+          box-shadow: 0 0 0 2px rgba(var(--bs-warning-rgb), 0.35);
+        }
       }
 
       .player-tab-name {
@@ -297,22 +319,30 @@ const JOB_TYPE_TOURNAMENT = 2;
         border-radius: var(--radius-full);
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-bold);
-        background: var(--neutral-200);
-        color: var(--neutral-500);
+        background: rgba(var(--bs-success-rgb), 0.2);
+        color: var(--bs-success);
 
-        &.has-selections {
-          background: rgba(var(--bs-success-rgb), 0.2);
-          color: var(--bs-success);
+        .is-active & {
+          background: rgba(255, 255, 255, 0.35);
+          color: var(--bs-light);
+        }
+      }
+
+      .player-tab-cta {
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        font-weight: var(--font-weight-medium);
+        color: var(--bs-warning);
+        text-transform: lowercase;
+
+        &::before {
+          content: '— ';
+          font-style: normal;
         }
 
         .is-active & {
-          background: rgba(255, 255, 255, 0.25);
           color: var(--bs-light);
-
-          &.has-selections {
-            background: rgba(255, 255, 255, 0.35);
-            color: var(--bs-light);
-          }
+          opacity: 0.9;
         }
       }
 
@@ -714,6 +744,20 @@ export class TeamSelectionStepComponent {
 
     selectedPlayerIds(): string[] {
         return this.state.familyPlayers.selectedPlayerIds();
+    }
+
+    shouldPulsePlayerTab(pid: string, idx: number): boolean {
+        if (this.activePlayerTab() === idx) return false;
+        const teams = this.state.eligibility.selectedTeams();
+        const mine = teams[pid];
+        const mineEmpty = !Array.isArray(mine) || mine.length === 0;
+        if (!mineEmpty) return false;
+        for (const other of this.selectedPlayerIds()) {
+            if (other === pid) continue;
+            const v = teams[other];
+            if (Array.isArray(v) && v.length > 0) return true;
+        }
+        return false;
     }
 
     getPlayerName(playerId: string): string {

@@ -60,21 +60,32 @@ import { JobService } from '@infrastructure/services/job.service';
                     </span>
                   }
                 </div>
-                <div class="review-player-amount">
-                  @if (getBaseFeeForPlayer(player.userId) !== null) {
-                    <span class="review-fee-label">Registration Fee</span>
-                    {{ getBaseFeeForPlayer(player.userId) | currency }}
-                  } @else {
-                    <span class="text-muted">&ndash;</span>
-                  }
-                </div>
+                @if (!(state.jobCtx.isCacMode() && getLineItemsForPlayer(player.userId).length > 1)) {
+                  <div class="review-player-amount">
+                    @if (getBaseFeeForPlayer(player.userId) !== null) {
+                      <span class="review-fee-label">Registration Fee</span>
+                      {{ getBaseFeeForPlayer(player.userId) | currency }}
+                    } @else {
+                      <span class="text-muted">&ndash;</span>
+                    }
+                  </div>
+                }
               </div>
-              @if (state.jobCtx.isCacMode() && getTeamsForPlayer(player.userId).length > 1) {
-                <ul class="review-events-list">
-                  @for (t of getTeamsForPlayer(player.userId); track t) {
-                    <li>{{ t }}</li>
+              @if (state.jobCtx.isCacMode() && getLineItemsForPlayer(player.userId).length > 1) {
+                <ul class="review-events-list review-events-list--priced">
+                  @for (li of getLineItemsForPlayer(player.userId); track li.teamId) {
+                    <li>
+                      <span class="event-name">{{ li.teamName }}</span>
+                      <span class="event-fee">{{ li.feeBase | currency }}</span>
+                    </li>
                   }
                 </ul>
+                @if (selectedPlayers().length > 1) {
+                  <div class="review-player-total-row">
+                    <span>Player Total</span>
+                    <span class="review-player-total-amount">{{ getPlayerTotal(player.userId) | currency }}</span>
+                  </div>
+                }
               } @else {
                 <div class="review-player-teams">
                   @for (t of getTeamsForPlayer(player.userId); track t) {
@@ -236,6 +247,42 @@ import { JobService } from '@infrastructure/services/job.service';
         }
       }
 
+      .review-events-list--priced {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+
+        li {
+          display: flex;
+          align-items: baseline;
+          gap: var(--space-2);
+          padding: 2px 0;
+        }
+
+        .event-name { flex: 1 1 auto; min-width: 0; }
+        .event-fee {
+          flex: 0 0 auto;
+          font-weight: var(--font-weight-semibold);
+          white-space: nowrap;
+        }
+      }
+
+      .review-player-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: var(--space-1);
+        padding: var(--space-1) 0 0 var(--space-4);
+        border-top: 1px dashed var(--border-color);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+      }
+
+      .review-player-total-amount {
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+      }
+
       .review-player-amount {
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
@@ -356,6 +403,14 @@ export class ReviewStepComponent {
     getBaseFeeForPlayer(playerId: string): number | null {
         const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
         return li ? li.feeBase : null;
+    }
+
+    getLineItemsForPlayer(playerId: string) {
+        return this.paySvc.lineItems().filter(i => i.playerId === playerId);
+    }
+
+    getPlayerTotal(playerId: string): number {
+        return this.getLineItemsForPlayer(playerId).reduce((sum, li) => sum + li.feeBase, 0);
     }
 
     baseFeeTotal(): number {

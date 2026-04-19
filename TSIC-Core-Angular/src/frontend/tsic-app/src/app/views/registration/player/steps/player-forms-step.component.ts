@@ -72,16 +72,19 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                   @if (isRegistered(pid)) {
                     <span class="reg-badge"><i class="bi bi-lock-fill me-1"></i>Registered</span>
                   }
-                </div>
-                @if (getTeamIds(pid).length) {
-                  @if (state.jobCtx.isCacMode() && getTeamIds(pid).length > 1) {
+                  @if (getTeamIds(pid).length && state.jobCtx.isCacMode() && getTeamIds(pid).length > 1) {
                     <button type="button" class="events-summary"
                             (click)="toggleEventsList(pid)">
                       <i class="bi me-1"
                          [class.bi-chevron-right]="!isEventsExpanded(pid)"
                          [class.bi-chevron-down]="isEventsExpanded(pid)"></i>
                       <i class="bi bi-calendar-event me-1"></i>{{ getTeamIds(pid).length }} events selected
+                      <span class="events-summary-hint">— click to {{ isEventsExpanded(pid) ? 'collapse' : 'expand' }}</span>
                     </button>
+                  }
+                </div>
+                @if (getTeamIds(pid).length) {
+                  @if (state.jobCtx.isCacMode() && getTeamIds(pid).length > 1) {
                     @if (isEventsExpanded(pid)) {
                       <ul class="events-list">
                         @for (tid of getTeamIds(pid); track tid) {
@@ -318,23 +321,29 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
       .events-summary {
         display: inline-flex;
         align-items: center;
+        margin-left: auto;
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-medium);
         color: var(--bs-primary);
-        padding-left: calc(var(--font-size-base) + var(--space-2));
         background: none;
         border: none;
         cursor: pointer;
-        padding-top: 0;
-        padding-bottom: 0;
+        padding: 0;
 
         &:hover { text-decoration: underline; }
       }
 
+      .events-summary-hint {
+        margin-left: var(--space-1);
+        font-weight: var(--font-weight-regular);
+        color: inherit;
+      }
+
       .events-list {
         list-style: none;
+        align-self: flex-end;
         margin: var(--space-1) 0 0;
-        padding-left: calc(var(--font-size-base) + var(--space-2) + var(--space-4));
+        padding-left: 0;
         font-size: var(--font-size-xs);
         color: var(--brand-text-muted);
 
@@ -672,16 +681,22 @@ export class PlayerFormsStepComponent implements OnDestroy {
     }
 
     // ── CAC events expand/collapse ───────────────────────────────────
+    // Default to expanded when event count <= threshold so parents can verify
+    // their selections without clicking. Above the threshold, default collapsed
+    // to preserve vertical space. Explicit user toggles always win.
+    private static readonly EVENTS_EXPAND_THRESHOLD = 4;
     private readonly _expandedEvents = signal<Record<string, boolean>>({});
 
     isEventsExpanded(playerId: string): boolean {
-        return !!this._expandedEvents()[playerId];
+        const rec = this._expandedEvents();
+        if (playerId in rec) return rec[playerId];
+        return this.getTeamIds(playerId).length <= PlayerFormsStepComponent.EVENTS_EXPAND_THRESHOLD;
     }
 
     toggleEventsList(playerId: string): void {
         this._expandedEvents.set({
             ...this._expandedEvents(),
-            [playerId]: !this._expandedEvents()[playerId],
+            [playerId]: !this.isEventsExpanded(playerId),
         });
     }
 
