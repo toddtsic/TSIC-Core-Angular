@@ -55,9 +55,7 @@ export class AuthService {
     const roles = user?.roles || (user?.role ? [user.role] : []);
     return roles.includes(Roles.Superuser)
         || roles.includes(Roles.Director)
-        || roles.includes(Roles.SuperDirector)
-        || roles.includes(Roles.RefAssignor)
-        || roles.includes(Roles.StoreAdmin);
+        || roles.includes(Roles.SuperDirector);
   });
 
   constructor() {

@@ -4,19 +4,17 @@ import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { Roles } from '../constants/roles.constants';
+import { Roles, type RoleName } from '../constants/roles.constants';
 
 /**
  * Unified authentication guard.
  *
- * Route data flags:
+ * Route data:
  *   allowAnonymous         – skip auth entirely (public pages, registration wizards)
  *   redirectAuthenticated  – bounce logged-in users away (login page, /tsic landing)
- *   requirePhase2          – full JWT with regId + jobPath required
- *   requireAdmin           – SuperUser, Director, or SuperDirector
- *   requireSuperUser       – SuperUser only
- *   requireClubRep         – ClubRep (or any admin role)
- *   (default)              – Phase 1 minimum (username in token)
+ *   roles: RoleName[]      – literal list of roles permitted on this route.
+ *                            Reading the route shows exactly who can reach it.
+ *                            Omit for any-authenticated-user access.
  *
  * Cold start (browser refresh / direct URL):
  *   Phase 1 tokens (no regId) are stale incomplete sessions.
@@ -35,11 +33,8 @@ export const authGuard: CanActivateFn = (route, state) => {
     const flags = {
         allowAnonymous: route.data['allowAnonymous'] === true,
         redirectAuthenticated: route.data['redirectAuthenticated'] === true,
-        requirePhase2: route.data['requirePhase2'] === true,
-        requireAdmin: route.data['requireAdmin'] === true,
-        requireSuperUser: route.data['requireSuperUser'] === true,
-        requireClubRep: route.data['requireClubRep'] === true,
     };
+    const allowedRoles = route.data['roles'] as RoleName[] | undefined;
 
     // ── Helpers ──────────────────────────────────────────────────────
     const jobPath = (): string =>
@@ -107,13 +102,7 @@ export const authGuard: CanActivateFn = (route, state) => {
 
         if (refreshToken) {
             return auth.refreshAccessToken(refreshToken, regId).pipe(
-                map(() => {
-                    const refreshed = auth.getCurrentUser();
-                    if (flags.requirePhase2 && (!refreshed?.regId || !refreshed?.jobPath)) {
-                        return toRoleSelection();
-                    }
-                    return true;
-                }),
+                map(() => true),
                 catchError(() => [toLogin()])
             );
         }
@@ -137,28 +126,17 @@ export const authGuard: CanActivateFn = (route, state) => {
         return toJob(user.jobPath);
     }
 
-    // ── Privilege escalation checks ──────────────────────────────────
-    if (flags.requirePhase2 && (!user.regId || !user.jobPath)) {
-        return toRoleSelection();
-    }
-
-    if (flags.requireAdmin && !auth.isAdmin()) {
-        toast.show('Access denied. Administrator privileges required.', 'danger');
-        return user.jobPath ? router.createUrlTree([`/${user.jobPath}`, 'home']) : toRoleSelection();
-    }
-
-    if (flags.requireSuperUser && !auth.isSuperuser()) {
-        toast.show('Access denied. SuperUser privileges required.', 'danger');
-        return user.jobPath ? router.createUrlTree([`/${user.jobPath}`, 'home']) : toRoleSelection();
-    }
-
-    if (flags.requireClubRep && user.role !== Roles.ClubRep && !auth.isAdmin()) {
-        toast.show('Access denied. Club Rep privileges required.', 'danger');
-        return user.jobPath ? router.createUrlTree([`/${user.jobPath}`, 'home']) : toRoleSelection();
-    }
-
-    if ((flags.requireAdmin || flags.requireSuperUser || flags.requireClubRep) && !user.jobPath) {
-        return toRoleSelection();
+    // ── Role-set gating ──────────────────────────────────────────────
+    // Route declares which concrete roles may access it via data.roles.
+    // No array → any authenticated user is fine.
+    if (allowedRoles && allowedRoles.length > 0) {
+        if (!user.jobPath) return toRoleSelection();
+        const userRoles = user.roles ?? (user.role ? [user.role] : []);
+        const ok = allowedRoles.some(r => userRoles.includes(r));
+        if (!ok) {
+            toast.show('Access denied.', 'danger');
+            return router.createUrlTree([`/${user.jobPath}`, 'home']);
+        }
     }
 
     return true;

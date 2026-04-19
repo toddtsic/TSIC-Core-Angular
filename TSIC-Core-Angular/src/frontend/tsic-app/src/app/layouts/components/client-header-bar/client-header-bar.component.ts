@@ -13,9 +13,6 @@ import { MenuStateService } from '../../services/menu-state.service';
 import { PalettePickerComponent } from '../palette-picker/palette-picker.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
-/** Admin roles that can customize dashboards */
-const ADMIN_ROLES = ['Superuser', 'Director', 'SuperDirector'];
-
 /** Single dropdown task-list entry derived from role + pulse. */
 interface TaskItem {
     readonly icon: string;
@@ -42,12 +39,7 @@ export class ClientHeaderBarComponent {
 
     readonly pulse = this.pulseService.pulse;
 
-    // Admin check for dashboard customization
-    readonly isAdmin = computed(() => {
-        const user = this.auth.currentUser();
-        const roles = user?.roles || (user?.role ? [user.role] : []);
-        return roles.some(r => ADMIN_ROLES.includes(r));
-    });
+    readonly isAdmin = this.auth.isAdmin;
 
     // Job-related signals
     jobLogoPath = computed(() => {
