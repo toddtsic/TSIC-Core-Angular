@@ -879,3 +879,82 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Status**: Fixed
 - **Note**: (1) Review step now shows "Return to Job Home" (→ `/{jobPath}`) and "Continue to Player Registration" (→ player wizard) buttons in edit mode, always visible. (2) Shell Continue button on last step wired to `finish('register')`. (3) Player wizard no longer force-logs-out phase-1 tokens (no role) — family wizard → player wizard transition preserves auth. Family-check auto-advances for authenticated users regardless of role presence.
 
+### SP-035: Set Player Club screen — rename heading and remove unnecessary subheadings
+- **Area**: Registration Process Review
+- **What I did**: Arrived at the Set Player Club screen during Tournament Player Self-Roster registration
+- **What I expected**: Clean screen with a clear heading
+- **What happened**: (1) Heading says "Set Player Club" — change to "Choose Player Club". (2) Two subheadings appear below that are not needed and should be removed: "Choose club per player" and "Determines team placement".
+- **Severity**: UX
+- **Status**: Open
+- **Note**: SP-031 previously requested removing just "Determines team placement" — this item supersedes SP-031 by also renaming the heading and removing both subheadings.
+
+### SP-039: Tournament Player Details — Club Name field should be read-only or removed (already collected)
+- **Area**: Registration Process Review
+- **What I did**: Reached the Player Details screen during Tournament Player Self-Roster registration
+- **What I expected**: Club Name not editable here — it was already selected on the Set Player Club screen two steps earlier
+- **What happened**: Club Name appears as an editable field in the Player Details form. Since it was already collected, it should either be removed from this screen entirely or displayed as a read-only/disabled field so it can't be changed.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Additionally, the Club Name dropdown has no options populated — but regardless, this field should be removed from this screen since it's already collected on the Set Player Club step.
+
+### SP-043: ARB Payment screen — Legacy layout differs from standard registrations; needs review
+- **Area**: Registration Process Review
+- **What I did**: Compared the ARB Payment screen in the new system to the Legacy ARB Payment screen
+- **What I expected**: ARB payment screen to match Legacy's ARB-specific layout, which differs from standard registration payment screens
+- **What happened**: The new system uses the same payment screen for ARB and non-ARB registrations. Legacy has a distinct ARB payment layout with different information and options. Ann has sent a copy of the Legacy ARB payment screen to Todd for collaborative review.
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Awaiting Todd + Ann review session. Legacy ARB payment screenshot provided to Todd for reference.
+
+### SP-042: Review screen — rename Continue to "Submit Registration" with confirmation popup; rename "Almost There!" to "Review & Save"
+- **Area**: Registration Process Review
+- **What I did**: Reached the review screen ("Almost There!") during Tournament Player Self-Roster registration and clicked Continue
+- **What I expected**: A clear moment where the registration is submitted — Legacy has a "Submit Registration" button that triggers a green popup confirming the registration is saved but Inactive until payment is made. Parents need to know their data was saved.
+- **What happened**: "Continue" button on the review screen doesn't convey that the registration is being submitted. No confirmation popup. Parents don't know at what point their data is actually saved. Recommendations:
+  - (1) Change the "Continue" button on the review screen to "Submit Registration"
+  - (2) After clicking, show a green confirmation popup: "Your registration has been saved. Your player(s) are Inactive until payment is completed."
+  - (3) Rename "Almost There!" heading to "Review & Save" — consider standardizing this heading across all registration review screens
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Legacy's Submit → green popup flow is very helpful for parents. Matches their expectation of a clear save point before payment.
+
+### SP-041: Player Details — Height (in inches) should be a selection list, not free text
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Height field on the Player Details form during Tournament registration
+- **What I expected**: A dropdown selection list for height, consistent with how it appears in other Player registration flows
+- **What happened**: Height field is free text input instead of a selection list. Should match the dropdown used in other Player registrations for consistency and data quality.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-040: Player Details — College Recruiting fields show for all age groups; add placeholder text for optional fields
+- **Area**: Registration Process Review
+- **What I did**: Looked at the Player Details form for younger age group players during Tournament registration
+- **What I expected**: College Recruiting fields either hidden for young age groups, or at minimum clearly marked as optional with guidance
+- **What happened**: College Recruiting data fields appear even for the youngest age groups where they don't apply. Recommend adding placeholder text "Leave blank if unknown or doesn't apply" in these optional fields so parents aren't confused about whether they need to fill them in.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-038: Tournament Player Details — show Club Name before Team Name under player heading
+- **Area**: Registration Process Review
+- **What I did**: Reached the Player Details screen during Tournament Player Self-Roster registration
+- **What I expected**: Under the player name, the team pill/label to read "Club Name: Team Name" (e.g., "Hero's Lax: 2031 White")
+- **What happened**: Only the team name is shown — missing the club name prefix. For tournaments, the club context is important since players from different clubs are registering. Format should be "Club Name: Team Name".
+- **Severity**: UX
+- **Status**: Open
+
+### SP-037: Tournament Assign Teams — allows selecting more than one team per player
+- **Area**: Registration Process Review
+- **What I did**: Reached the Assign Teams step during Tournament Player Self-Roster registration and selected teams for a player
+- **What I expected**: Only one team selectable per player — tournament registration should enforce single-team assignment, then Continue
+- **What happened**: Was able to select more than one team per player. Tournament flow should restrict to exactly one team per player — multi-select should not be allowed.
+- **Severity**: Bug
+- **Status**: Open
+
+### SP-036: Tournament wizard step bar — change "Teams" to "Team" (single team per player)
+- **Area**: Registration Process Review
+- **What I did**: Looked at the wizard step indicator bar at the top during Tournament Player Self-Roster registration
+- **What I expected**: Step label to say "Team" since tournament players only select one team
+- **What happened**: Step bar says "Teams" (plural) — should be "Team" for tournament registrations where only one team is selected per player
+- **Severity**: UX
+- **Status**: Open
+
