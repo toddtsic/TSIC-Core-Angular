@@ -261,6 +261,15 @@ foreach ($k in $roleGuids.Keys) {
 [void]$sql.AppendLine("")
 
 # 3. Preserve reporting items + visibility rules
+# Exclude any RouterLinks the admin manifest now owns — those are (re)inserted
+# in step 6, so preserving them causes duplicates on re-run.
+$adminReportingLinks = $adminManifest |
+    Where-Object { $_.RouterLink -like 'reporting/*' } |
+    ForEach-Object { "N'$(Esc $_.RouterLink)'" }
+$excludeClause = if ($adminReportingLinks) {
+    "  AND ni.RouterLink NOT IN ($($adminReportingLinks -join ', '))"
+} else { '' }
+
 [void]$sql.AppendLine("-- -- 3. Preserve reporting items + visibility rules ----------------------")
 [void]$sql.AppendLine(@"
 DECLARE @cnt INT;
@@ -276,7 +285,8 @@ INTO #ReportingItems
 FROM nav.NavItem ni
 JOIN nav.Nav n ON ni.NavId = n.NavId
 LEFT JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
-WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%';
+WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%'
+$excludeClause;
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
 

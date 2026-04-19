@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-19 11:47:45 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-19 16:45:50 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -68,7 +68,8 @@ INTO #ReportingItems
 FROM nav.NavItem ni
 JOIN nav.Nav n ON ni.NavId = n.NavId
 LEFT JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
-WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%';
+WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%'
+  AND ni.RouterLink NOT IN (N'reporting/report-catalogue-editor', N'reporting/reports-library');
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
 
