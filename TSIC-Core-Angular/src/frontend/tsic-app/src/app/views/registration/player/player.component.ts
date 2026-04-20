@@ -172,15 +172,20 @@ export class PlayerWizardV2Component implements OnInit {
 
     readonly continueLabel = computed(() => {
         if (this.currentStepId() === 'confirmation') return 'Finish';
-        if (this.currentStepId() === 'review' && this.hasNewRegistrations()) {
-            return 'Submit Registration(s)';
+        if (this.currentStepId() === 'review') {
+            const count = this.newRegistrationCount();
+            if (count > 0) return count === 1 ? 'Submit Registration' : 'Submit Registrations';
         }
         return 'Continue';
     });
 
-    private hasNewRegistrations(): boolean {
+    private newRegistrationCount(): number {
         return this.state.familyPlayers.familyPlayers()
-            .some(p => p.selected && !p.registered);
+            .filter(p => p.selected && !p.registered).length;
+    }
+
+    private hasNewRegistrations(): boolean {
+        return this.newRegistrationCount() > 0;
     }
 
     private readonly authService = inject(AuthService);
