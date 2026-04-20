@@ -1,169 +1,525 @@
-<div class="job-clone-container">
-	<h2 class="page-title">Job Clone</h2>
-	<p class="page-subtitle">Create a new season by cloning an existing job and its configuration.</p>
+<div class="jc-container">
 
-	<!-- Source Job Selector -->
-	<section class="form-section">
-		<h3 class="section-title">Source Job</h3>
-		@if (isLoadingSources()) {
-			<p class="loading-text">Loading jobs...</p>
-		} @else {
-			<div class="form-row">
-				<label class="form-label" for="sourceJob">Clone from</label>
-				<select id="sourceJob" class="form-select"
-					[ngModel]="selectedSourceId()"
-					(ngModelChange)="selectedSourceId.set($event); onSourceSelected()">
-					<option value="">— Select a job —</option>
-					@for (job of sourceJobs(); track job.jobId) {
-						<option [value]="job.jobId">
-							{{ job.jobName }} ({{ job.year }} {{ job.season }}) — {{ job.jobPath }}
-						</option>
-					}
-				</select>
-			</div>
-		}
-	</section>
+	@switch (mode()) {
 
-	@if (selectedSourceId()) {
-		<!-- Target Identity -->
-		<section class="form-section">
-			<h3 class="section-title">Target Job</h3>
-			<div class="form-grid">
-				<div class="form-row">
-					<label class="form-label" for="jobPath">Job Path</label>
-					<input id="jobPath" type="text" class="form-input" [(ngModel)]="jobPathTarget"
-						placeholder="e.g., lftc-summer-2026">
-				</div>
-				<div class="form-row">
-					<label class="form-label" for="jobName">Job Name</label>
-					<input id="jobName" type="text" class="form-input" [(ngModel)]="jobNameTarget"
-						placeholder="e.g., LFTC Summer 2026">
-				</div>
-				<div class="form-row">
-					<label class="form-label" for="year">Year</label>
-					<input id="year" type="text" class="form-input" [(ngModel)]="yearTarget"
-						placeholder="2026">
-				</div>
-				<div class="form-row">
-					<label class="form-label" for="season">Season</label>
-					<input id="season" type="text" class="form-input" [(ngModel)]="seasonTarget"
-						placeholder="Summer">
-				</div>
-				<div class="form-row">
-					<label class="form-label" for="displayName">Display Name</label>
-					<input id="displayName" type="text" class="form-input" [(ngModel)]="displayName">
-				</div>
-				<div class="form-row">
-					<label class="form-label" for="leagueName">League Name</label>
-					<input id="leagueName" type="text" class="form-input" [(ngModel)]="leagueNameTarget">
-				</div>
-			</div>
-		</section>
+	<!-- ══════════════════ LANDING ══════════════════ -->
+	@case ('landing') {
+		<header class="jc-header">
+			<h2>Job Setup</h2>
+			<p class="jc-subtitle">Clone an existing job, start a blank one for a new customer, or release a suspended job.</p>
+		</header>
 
-		<!-- Dates -->
-		<section class="form-section">
-			<h3 class="section-title">Expiry Dates</h3>
-			<div class="form-grid form-grid--two">
-				<div class="form-row">
-					<label class="form-label" for="expiryAdmin">Admin Expiry</label>
-					<input id="expiryAdmin" type="date" class="form-input" [(ngModel)]="expiryAdmin">
-				</div>
-				<div class="form-row">
-					<label class="form-label" for="expiryUsers">User Expiry</label>
-					<input id="expiryUsers" type="date" class="form-input" [(ngModel)]="expiryUsers">
-				</div>
-			</div>
-		</section>
-
-		<!-- Email -->
-		<section class="form-section">
-			<h3 class="section-title">Email</h3>
-			<div class="form-row">
-				<label class="form-label" for="regFormFrom">Registration From Email</label>
-				<input id="regFormFrom" type="email" class="form-input" [(ngModel)]="regFormFrom"
-					placeholder="Leave blank to copy from source">
-			</div>
-		</section>
-
-		<!-- Options -->
-		<section class="form-section">
-			<h3 class="section-title">Options</h3>
-			<div class="options-grid">
-				<label class="checkbox-label">
-					<input type="checkbox" [(ngModel)]="upAgegroupNamesByOne">
-					<span>Advance agegroup grad years by one</span>
-				</label>
-				<label class="checkbox-label">
-					<input type="checkbox" [(ngModel)]="setDirectorsToInactive">
-					<span>Set cloned Directors to inactive</span>
-				</label>
-				<label class="checkbox-label">
-					<input type="checkbox" [(ngModel)]="noParallaxSlide1">
-					<span>Remove parallax slide 1</span>
-				</label>
-			</div>
-		</section>
-
-		<!-- Clone Action -->
-		<section class="form-section action-section">
-			@if (error()) {
-				<div class="error-banner">{{ error() }}</div>
-			}
-
-			<button class="btn-clone" (click)="onClone()" [disabled]="isCloning()">
-				@if (isCloning()) {
-					<span class="spinner"></span> Cloning...
-				} @else {
-					Clone Job
-				}
+		<section class="jc-actions">
+			<button type="button" class="jc-action-btn" (click)="startClone()">
+				<span class="jc-action-title">Clone an existing job</span>
+				<span class="jc-action-sub">Copy last season's job as a starting point.</span>
+			</button>
+			<button type="button" class="jc-action-btn" (click)="startBlank()">
+				<span class="jc-action-title">Start blank</span>
+				<span class="jc-action-sub">Onboard a new customer from scratch.</span>
 			</button>
 		</section>
 
-		<!-- Result -->
-		@if (result(); as r) {
-			<section class="form-section result-section">
-				<h3 class="section-title result-title">Clone Complete</h3>
-				<div class="result-card">
-					<div class="result-header">
-						<strong>{{ r.newJobName }}</strong>
-						<span class="result-path">{{ r.newJobPath }}</span>
+		<section class="jc-panel">
+			<h3>Suspended jobs awaiting release</h3>
+			<p class="wizard-tip">
+				Every newly-cloned or blank-created job lands <strong>suspended</strong> (hidden from public)
+				with <strong>customer admins inactive</strong> until you release them.
+			</p>
+			@if (isLoadingSuspended()) {
+				<p class="loading-text">Loading…</p>
+			} @else if (suspendedJobs().length === 0) {
+				<p class="empty-text">No suspended jobs — everything is live.</p>
+			} @else {
+				<ul class="jc-suspended-list">
+					@for (job of suspendedJobs(); track trackJob($index, job)) {
+						<li>
+							<button type="button" class="jc-suspended-item" (click)="openRelease(job)">
+								<div>
+									<strong>{{ job.jobName }}</strong>
+									<span class="jc-suspended-meta">
+										{{ job.year }} {{ job.season }} · {{ job.jobPath }}
+									</span>
+								</div>
+								<span class="jc-suspended-badge">
+									{{ job.inactiveAdminCount }} admin{{ job.inactiveAdminCount === 1 ? '' : 's' }} to activate
+								</span>
+							</button>
+						</li>
+					}
+				</ul>
+			}
+		</section>
+	}
+
+	<!-- ══════════════════ WIZARD ══════════════════ -->
+	@case ('wizard') {
+		<header class="jc-header">
+			<button type="button" class="jc-back-link" (click)="goToLanding()">← Back to Job Setup</button>
+			<h2>
+				{{ flavor() === 'clone' ? 'Clone a job' : 'Start blank' }}
+				<span class="jc-step-label">Step {{ step() }} of {{ totalSteps }}</span>
+			</h2>
+		</header>
+
+		<!-- Stepper progress -->
+		<nav class="jc-stepper" aria-label="Wizard steps">
+			@for (n of [1,2,3,4,5,6,7]; track n) {
+				<button
+					type="button"
+					class="jc-step-chip"
+					[class.active]="step() === n"
+					[class.done]="step() > n"
+					(click)="goToStep(n)">
+					{{ n }}
+				</button>
+			}
+		</nav>
+
+		<div class="jc-step-body">
+			@switch (step()) {
+
+			<!-- STEP 1 — Start -->
+			@case (1) {
+				<h3>{{ flavor() === 'clone' ? 'Pick a source job' : 'Pick the customer and defaults' }}</h3>
+
+				@if (flavor() === 'clone') {
+					@if (isLoadingSources()) {
+						<p class="loading-text">Loading…</p>
+					} @else {
+						<label class="field-label" for="sourceJob">Source job</label>
+						<select id="sourceJob" class="field-select"
+							[ngModel]="selectedSource()?.jobId ?? ''"
+							(ngModelChange)="onSourceSelected($event)">
+							<option value="">— Select a job —</option>
+							@for (job of sourceJobs(); track job.jobId) {
+								<option [value]="job.jobId">
+									{{ job.jobName }} ({{ job.year }} {{ job.season }}) — {{ job.jobPath }}
+								</option>
+							}
+						</select>
+						<p class="field-help">
+							Only jobs from your own customer are listed. For a new customer, go back and pick <em>Start blank</em>.
+						</p>
+					}
+				} @else {
+					<label class="field-label" for="customerId">Customer ID</label>
+					<input id="customerId" type="text" class="field-input" [(ngModel)]="customerId"
+						placeholder="Customer GUID">
+
+					<label class="field-label" for="billingTypeId">Billing type</label>
+					<input id="billingTypeId" type="number" class="field-input" [(ngModel)]="billingTypeId"
+						placeholder="e.g., 1">
+
+					<label class="field-label" for="jobTypeId">Job type</label>
+					<input id="jobTypeId" type="number" class="field-input" [(ngModel)]="jobTypeId"
+						placeholder="e.g., 1">
+
+					<label class="field-label" for="sportId">Sport ID</label>
+					<input id="sportId" type="text" class="field-input" [(ngModel)]="sportId"
+						placeholder="Sport GUID">
+					<p class="field-help">
+						These fields default from your customer's primary sport during Phase D wizard polish.
+					</p>
+				}
+			}
+
+			<!-- STEP 2 — Identity -->
+			@case (2) {
+				<h3>Identity</h3>
+				<div class="jc-grid">
+					<div>
+						<label class="field-label" for="jobPath">Job path</label>
+						<input id="jobPath" type="text" class="field-input" [(ngModel)]="jobPathTarget"
+							placeholder="e.g., lftc-summer-2026">
 					</div>
-					<div class="result-summary">
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.bulletinsCloned }}</span>
-							<span class="summary-label">Bulletins</span>
+					<div>
+						<label class="field-label" for="jobName">Job name</label>
+						<input id="jobName" type="text" class="field-input" [(ngModel)]="jobNameTarget">
+					</div>
+					<div>
+						<label class="field-label" for="year">Year</label>
+						<input id="year" type="text" class="field-input" [(ngModel)]="yearTarget">
+					</div>
+					<div>
+						<label class="field-label" for="season">Season</label>
+						<input id="season" type="text" class="field-input" [(ngModel)]="seasonTarget"
+							placeholder="Spring / Summer / Fall / Winter">
+					</div>
+					<div>
+						<label class="field-label" for="displayName">Display name</label>
+						<input id="displayName" type="text" class="field-input" [(ngModel)]="displayName">
+					</div>
+					@if (flavor() === 'clone') {
+						<div>
+							<label class="field-label" for="leagueName">League name</label>
+							<input id="leagueName" type="text" class="field-input" [(ngModel)]="leagueNameTarget">
+							<p class="field-help">
+								The server infers separator + token order from the source league's name.
+							</p>
 						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.ageRangesCloned }}</span>
-							<span class="summary-label">Age Ranges</span>
-						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.menusCloned }}</span>
-							<span class="summary-label">Menus</span>
-						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.menuItemsCloned }}</span>
-							<span class="summary-label">Menu Items</span>
-						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.adminRegistrationsCloned }}</span>
-							<span class="summary-label">Admins</span>
-						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.leaguesCloned }}</span>
-							<span class="summary-label">Leagues</span>
-						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.agegroupsCloned }}</span>
-							<span class="summary-label">Agegroups</span>
-						</div>
-						<div class="summary-item">
-							<span class="summary-count">{{ r.summary.divisionsCloned }}</span>
-							<span class="summary-label">Divisions</span>
-						</div>
+					}
+				</div>
+			}
+
+			<!-- STEP 3 — Dates + Preview -->
+			@case (3) {
+				<h3>Dates &amp; shifts</h3>
+				<div class="jc-grid">
+					<div>
+						<label class="field-label" for="expiryAdmin">Admin expiry</label>
+						<input id="expiryAdmin" type="date" class="field-input" [(ngModel)]="expiryAdmin">
+					</div>
+					<div>
+						<label class="field-label" for="expiryUsers">User expiry</label>
+						<input id="expiryUsers" type="date" class="field-input" [(ngModel)]="expiryUsers">
 					</div>
 				</div>
+
+				@if (flavor() === 'clone') {
+					<section class="jc-preview">
+						<header>
+							<h4>Year-delta preview</h4>
+							<button type="button" class="jc-link-btn" (click)="refreshPreview()">Refresh</button>
+						</header>
+
+						@if (isLoadingPreview()) {
+							<p class="loading-text">Computing preview…</p>
+						} @else if (preview(); as p) {
+							<p class="wizard-tip">
+								Year delta: <strong>{{ p.yearDelta }}</strong> ·
+								League name will become: <strong>{{ p.inferredLeagueName }}</strong>
+							</p>
+
+							<dl class="jc-shift-list">
+								@if (p.eventStartShift) {
+									<dt>Event start</dt>
+									<dd>{{ formatShift(p.eventStartShift) }}</dd>
+								}
+								@if (p.eventEndShift) {
+									<dt>Event end</dt>
+									<dd>{{ formatShift(p.eventEndShift) }}</dd>
+								}
+								@if (p.adnArbStartShift) {
+									<dt>ARB start</dt>
+									<dd>{{ formatShift(p.adnArbStartShift) }}</dd>
+								}
+							</dl>
+
+							<p class="wizard-tip">
+								<strong>{{ p.adminsToDeactivate }}</strong> Director/SuperDirector reg(s) will land inactive.
+								<strong>{{ p.adminsPreserved }}</strong> Superuser reg(s) preserved.
+								Processing fee resets to <strong>{{ p.currentProcessingFeePercent }}%</strong>
+								(source was {{ p.sourceProcessingFeePercent ?? '—' }}%).
+							</p>
+
+							@if ((p.bulletins?.length ?? 0) > 0) {
+								<details>
+									<summary>{{ p.bulletins?.length }} bulletin(s) shift</summary>
+									<ul class="jc-preview-items">
+										@for (b of p.bulletins ?? []; track trackBulletin($index, b)) {
+											<li>
+												<strong>{{ b.title ?? '(untitled)' }}</strong>
+												<span>start {{ formatShift(b.startDate) }}</span>
+												<span>end {{ formatShift(b.endDate) }}</span>
+											</li>
+										}
+									</ul>
+								</details>
+							}
+
+							@if ((p.agegroups?.length ?? 0) > 0) {
+								<details>
+									<summary>{{ p.agegroups?.length }} agegroup(s)</summary>
+									<ul class="jc-preview-items">
+										@for (a of p.agegroups ?? []; track trackAgegroup($index, a)) {
+											<li>
+												<strong>{{ a.sourceName }} → {{ a.newName }}</strong>
+												@if (a.sourceGradYearMin !== a.newGradYearMin || a.sourceGradYearMax !== a.newGradYearMax) {
+													<span>grad {{ a.sourceGradYearMin }}–{{ a.sourceGradYearMax }} → {{ a.newGradYearMin }}–{{ a.newGradYearMax }}</span>
+												}
+												@if (a.dobMin) { <span>DOB min {{ formatShift(a.dobMin) }}</span> }
+												@if (a.dobMax) { <span>DOB max {{ formatShift(a.dobMax) }}</span> }
+												@if (a.discountFeeStart) { <span>early-bird start {{ formatShift(a.discountFeeStart) }}</span> }
+												@if (a.lateFeeStart) { <span>late-fee start {{ formatShift(a.lateFeeStart) }}</span> }
+											</li>
+										}
+									</ul>
+								</details>
+							}
+
+							@if ((p.feeModifiers?.length ?? 0) > 0) {
+								<details>
+									<summary>{{ p.feeModifiers?.length }} fee-modifier window(s)</summary>
+									<ul class="jc-preview-items">
+										@for (m of p.feeModifiers ?? []; track trackModifier($index, m)) {
+											<li>
+												<strong>{{ m.modifierType }}</strong> ${{ m.amount }}
+												<span>start {{ formatShift(m.startDate) }}</span>
+												<span>end {{ formatShift(m.endDate) }}</span>
+											</li>
+										}
+									</ul>
+								</details>
+							}
+						} @else {
+							<p class="empty-text">Preview not loaded.</p>
+						}
+					</section>
+				} @else {
+					<p class="wizard-tip">Blank mode: dates default from today; there's nothing to shift.</p>
+				}
+			}
+
+			<!-- STEP 4 — LADT scope -->
+			@case (4) {
+				<h3>LADT scope</h3>
+				<p class="wizard-tip">
+					How much of the League/Agegroup/Division/Team hierarchy to carry forward.
+				</p>
+				<div class="field-check-row">
+					<label class="field-check">
+						<input type="radio" name="ladt" value="none" [(ngModel)]="ladtScope">
+						<span><strong>None</strong> — no L/A/D/T records. Configure after release.</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="ladt" value="lad" [(ngModel)]="ladtScope">
+						<span><strong>LAD</strong> — clone League, Agegroups, Divisions. Teams re-register each season.</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="ladt" value="ladt" [(ngModel)]="ladtScope">
+						<span><strong>LADT</strong> — add Teams, filtered (exclude ClubRep-paid + WAITLIST/DROPPED).</span>
+					</label>
+				</div>
+				<p class="field-help">
+					LADT filtering happens server-side; team-scoped preview is added in a follow-up.
+				</p>
+			}
+
+			<!-- STEP 5 — Fees -->
+			@case (5) {
+				<h3>Fee defaults</h3>
+
+				@if (flavor() === 'clone' && preview()) {
+					<p class="wizard-tip">
+						Current floor: <strong>{{ preview()?.currentProcessingFeePercent }}%</strong>.
+						Source had: <strong>{{ preview()?.sourceProcessingFeePercent ?? '—' }}%</strong>.
+					</p>
+				}
+
+				<label class="field-label">Processing fee %</label>
+				<div class="field-check-row">
+					<label class="field-check">
+						<input type="radio" name="procFee" value="source" [(ngModel)]="processingFeeChoice">
+						<span>Copy source</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="procFee" value="current" [(ngModel)]="processingFeeChoice">
+						<span>Use current floor (recommended)</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="procFee" value="custom" [(ngModel)]="processingFeeChoice">
+						<span>Custom</span>
+					</label>
+				</div>
+				@if (processingFeeChoice === 'custom') {
+					<input type="number" step="0.1" class="field-input" [(ngModel)]="customProcessingFee">
+				}
+
+				<label class="field-label" style="margin-top: var(--space-3)">Store</label>
+				<div class="field-check-row">
+					<label class="field-check">
+						<input type="radio" name="store" value="keep" [(ngModel)]="storeChoice">
+						<span>Keep source setting</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="store" value="disable" [(ngModel)]="storeChoice">
+						<span>Disable (recommended — inventory never clones)</span>
+					</label>
+				</div>
+
+				<p class="field-help">
+					Fee-per-agegroup + fee modifiers are cloned with year-delta shift on windows (see Step 3 preview).
+				</p>
+			}
+
+			<!-- STEP 6 — People + options -->
+			@case (6) {
+				<h3>People &amp; options</h3>
+
+				<p class="wizard-tip">
+					Every cloned Director + SuperDirector registration lands <strong>inactive</strong>.
+					You'll activate them on the Release screen after reviewing the job.
+					Superuser registrations stay active so you can keep configuring.
+				</p>
+
+				<label class="field-check">
+					<input type="checkbox" [(ngModel)]="upAgegroupNamesByOne">
+					<span>Advance agegroup grad years + DOB windows by one year</span>
+				</label>
+				<label class="field-check">
+					<input type="checkbox" [(ngModel)]="noParallaxSlide1">
+					<span>Remove parallax slide 1</span>
+				</label>
+
+				<label class="field-label" for="regFormFrom" style="margin-top: var(--space-3)">
+					Registration from email (optional)
+				</label>
+				<input id="regFormFrom" type="email" class="field-input" [(ngModel)]="regFormFrom"
+					placeholder="Leave blank to copy from source">
+			}
+
+			<!-- STEP 7 — Review + Submit -->
+			@case (7) {
+				<h3>Review &amp; submit</h3>
+
+				<dl class="jc-shift-list">
+					<dt>Flavor</dt><dd>{{ flavor() }}</dd>
+					<dt>Job path</dt><dd>{{ jobPathTarget }}</dd>
+					<dt>Job name</dt><dd>{{ jobNameTarget }}</dd>
+					<dt>Year / Season</dt><dd>{{ yearTarget }} {{ seasonTarget }}</dd>
+					<dt>Display name</dt><dd>{{ displayName }}</dd>
+					@if (flavor() === 'clone') {
+						<dt>League name</dt><dd>{{ preview()?.inferredLeagueName ?? leagueNameTarget }}</dd>
+					}
+					<dt>LADT scope</dt><dd>{{ ladtScope | uppercase }}</dd>
+					<dt>Processing fee</dt><dd>{{ processingFeeChoice }}
+						@if (processingFeeChoice === 'custom') { — {{ customProcessingFee }}% }
+					</dd>
+					<dt>Store</dt><dd>{{ storeChoice }}</dd>
+					<dt>Advance agegroup years</dt><dd>{{ upAgegroupNamesByOne ? 'yes' : 'no' }}</dd>
+				</dl>
+
+				<p class="wizard-tip">
+					The new job lands <strong>suspended</strong> (hidden from public) with
+					<strong>customer admins inactive</strong>. Use the Release screen afterward
+					to flip each switch when ready.
+				</p>
+
+				<label class="field-check">
+					<input type="checkbox" [(ngModel)]="affirmationChecked">
+					<span>I've reviewed the above and want to create the job.</span>
+				</label>
+
+				@if (error()) {
+					<div class="error-banner">{{ error() }}</div>
+				}
+			}
+
+			}
+		</div>
+
+		<footer class="jc-wizard-footer">
+			<button type="button" class="jc-btn-ghost" (click)="goToLanding()">Cancel</button>
+			<div class="jc-nav-group">
+				@if (step() > 1) {
+					<button type="button" class="jc-btn-secondary" (click)="wizardBack()">Back</button>
+				}
+				@if (step() < totalSteps) {
+					<button type="button" class="jc-btn-primary" [disabled]="!canAdvance()" (click)="wizardNext()">
+						Next
+					</button>
+				} @else {
+					<button type="button" class="jc-btn-primary" [disabled]="!canAdvance() || isSubmitting()" (click)="onSubmit()">
+						@if (isSubmitting()) {
+							<span class="spinner"></span> Creating…
+						} @else {
+							Create job (suspended)
+						}
+					</button>
+				}
+			</div>
+		</footer>
+	}
+
+	<!-- ══════════════════ RELEASE ══════════════════ -->
+	@case ('release') {
+		<header class="jc-header">
+			<button type="button" class="jc-back-link" (click)="goToLanding()">← Back to Job Setup</button>
+			<h2>Release job</h2>
+		</header>
+
+		@if (releaseJobContext(); as ctx) {
+			<section class="jc-panel">
+				<h3>{{ ctx.jobName }}</h3>
+				<p class="jc-suspended-meta">{{ ctx.jobPath }}</p>
 			</section>
 		}
+
+		<!-- Release site -->
+		<section class="jc-panel">
+			<h3>1. Release site to public</h3>
+			<p class="wizard-tip">
+				Flips <code>BSuspendPublic = false</code>. Job becomes visible to everyone at its path.
+			</p>
+			@if (sitePublic() === true) {
+				<p class="success-banner">Site is live.</p>
+			} @else {
+				<button type="button" class="jc-btn-primary" [disabled]="isReleasingSite()" (click)="onReleaseSite()">
+					@if (isReleasingSite()) { <span class="spinner"></span> Releasing… }
+					@else { Release site }
+				</button>
+			}
+		</section>
+
+		<!-- Activate admins -->
+		<section class="jc-panel">
+			<h3>2. Activate admin registrations</h3>
+			<p class="wizard-tip">
+				Flips <code>BActive = true</code> on selected rows. Inactive admins can't log in until you activate them.
+				Superuser rows (TSIC-central) are already active — they aren't listed here unless they were cloned inactive.
+			</p>
+
+			@if (isLoadingAdmins()) {
+				<p class="loading-text">Loading admins…</p>
+			} @else if (inactiveAdmins().length === 0) {
+				<p class="empty-text">No inactive admins — nothing to activate.</p>
+			} @else {
+				<div class="jc-admin-controls">
+					<button type="button" class="jc-link-btn" (click)="selectAllInactive()">Select all</button>
+					<button type="button" class="jc-link-btn" (click)="clearAdminSelection()">Clear</button>
+					<span class="jc-selected-count">{{ selectedCount() }} selected</span>
+				</div>
+
+				<ul class="jc-admin-list">
+					@for (a of inactiveAdmins(); track trackAdmin($index, a)) {
+						<li>
+							<label class="field-check">
+								<input type="checkbox"
+									[checked]="releaseSelectedRegIds().has(a.registrationId)"
+									(change)="toggleAdminSelect(a.registrationId)">
+								<span>
+									<strong>{{ a.firstName }} {{ a.lastName }}</strong>
+									<span class="jc-admin-meta">{{ a.email }} · {{ a.roleName }}</span>
+								</span>
+							</label>
+						</li>
+					}
+				</ul>
+
+				<button type="button" class="jc-btn-primary"
+					[disabled]="selectedCount() === 0 || isActivatingAdmins()"
+					(click)="onActivateSelected()">
+					@if (isActivatingAdmins()) { <span class="spinner"></span> Activating… }
+					@else { Activate {{ selectedCount() }} admin(s) }
+				</button>
+			}
+
+			@if (activeAdmins().length > 0) {
+				<details style="margin-top: var(--space-3)">
+					<summary>{{ activeAdmins().length }} already-active admin(s)</summary>
+					<ul class="jc-admin-list">
+						@for (a of activeAdmins(); track trackAdmin($index, a)) {
+							<li>
+								<strong>{{ a.firstName }} {{ a.lastName }}</strong>
+								<span class="jc-admin-meta">{{ a.email }} · {{ a.roleName }}</span>
+							</li>
+						}
+					</ul>
+				</details>
+			}
+		</section>
+	}
+
 	}
 </div>
