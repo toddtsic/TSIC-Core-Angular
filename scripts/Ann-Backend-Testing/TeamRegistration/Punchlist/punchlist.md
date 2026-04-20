@@ -251,3 +251,117 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: Three changes needed: (1) Add "Let's Register Your Teams!" as the header on the Team Registration card, (2) On the Player Registration side, change "Family Account" to "Family Account Sign In", (3) Change the lowest button from "Create Club Rep Account" to "Create NEW Club Rep Account"
 - **Severity**: UX
 - **Status**: Fixed — all three changes applied; player tip restyled to match team wizard-tip
+
+---
+
+## Second Pass Items
+
+*Started 2026-04-20. Numbered independently (SP-001, SP-002, ...).*
+
+### SP-001: Team Library — need option to edit team names
+- **Area**: Team Selection
+- **What I did**: Looked at the combined library and registration screen (great improvement!)
+- **What I expected**: Ability to edit team names directly in the library — teams may need name corrections or updates across tournaments
+- **What happened**: No edit option available for team names in the library. Club reps need to be able to rename teams without deleting and re-adding them.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-002: Add Team popup — remove Level of Play (LOP) field (redundant, asked again at registration)
+- **Area**: Team Selection
+- **What I did**: Opened the Add Team popup to add a team to the library
+- **What I expected**: Only the fields needed at the library stage — LOP can wait until registration
+- **What happened**: LOP is included in the Add Team popup, but it's also asked again when registering the team. Removing LOP here eliminates redundancy and makes the popup much smaller (one line's worth of space saved).
+- **Severity**: UX
+- **Status**: Open
+
+### SP-003: Add Team and Register popups obscure the screen behind — users need to see that info
+- **Area**: Team Selection
+- **What I did**: Clicked Add Team and Register buttons during the registration process
+- **What I expected**: Popups positioned so the information on the screen behind remains visible — club reps need to reference that data while making selections
+- **What happened**: Popups block the view of the screens behind them. Consider: (1) making popups smaller/more compact, (2) positioning them to the side or bottom so the main content stays visible, or (3) using a slide-in panel instead of a centered modal.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-004: Consolidate two Register popups into one — only Grad Year and LOP needed
+- **Area**: Team Selection
+- **What I did**: Clicked Register on a team and had to go through two separate popups
+- **What I expected**: A single popup collecting everything needed to register
+- **What happened**: Registration requires two separate popups when only Grad Year and LOP need to be collected. Combine into one popup for a quicker process — fewer clicks, less time.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-011: New Club Rep first-time experience — "No teams registered yet" message assumes teams already exist in library
+- **Area**: Team Selection
+- **What I did**: Created a NEW Club Rep Account and landed on the Teams screen for the first time with an empty library
+- **What I expected**: Guidance to add teams to the library first, then register them
+- **What happened**: Screen shows "No teams registered yet" with "Tap Register next to a team below to get started" — but a brand new club rep has no teams in the library yet. The instruction is misleading since there are no teams to tap Register on. Should guide the user to Add Team first, or adjust the empty-state messaging to account for a fresh library.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Also change the instruction text from "Tap Register next to a team below to get started" to "Tap Register next to a team below to register for this event."
+
+### SP-013: "Proceed to Payment" button — clarify if this locks team spots; rename to "Submit Teams and Proceed to Payment"
+- **Area**: Team Selection
+- **What I did**: Looked at the "Proceed to Payment" button on the Teams screen
+- **What I expected**: Clear indication of what happens when clicking — specifically, is this when teams claim a spot against max team capacity?
+- **What happened**: Button just says "Proceed to Payment" — unclear whether clicking it submits/locks the team registrations. If this is the point where teams hold a spot in max teams, rename to "Submit Teams and Proceed to Payment" so club reps understand their teams are being committed, not just moving to a payment form.
+- **Severity**: Question
+- **Status**: Open
+
+### SP-012: Team Library section needs a heading — match "Registered" heading style
+- **Area**: Team Selection
+- **What I did**: Looked at the Teams screen with the library and registered sections
+- **What I expected**: A clear heading above the library section so it's visually distinct from the Registered section
+- **What happened**: The Registered section has a heading but the Library section has none. Add a "LIBRARY" (or similar) heading in blue caps, same font and style as the "REGISTERED" heading, so both sections are clearly labeled.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-010: Terms of Service popup on Create NEW Club Rep Account — too narrow; standardize width across all users
+- **Area**: Club Rep Login
+- **What I did**: Created a NEW Club Rep Account and the Terms of Service popup appeared
+- **What I expected**: A comfortably wide popup matching what other registration flows show
+- **What happened**: The ToS popup seems narrower than what I've seen on other screens (e.g., Family Account creation). Make it wider so the text is easier to read, and standardize the popup width for ToS across all user types (Family, Club Rep, etc.).
+- **Severity**: UX
+- **Status**: Open
+
+### SP-009: Review Team Registration confirmation screen — blocked until SP-008 payment error is resolved
+- **Area**: Confirmation
+- **What I did**: Attempted to complete a Team Registration payment to review the confirmation screen
+- **What I expected**: To see the confirmation page and email after a successful payment
+- **What happened**: Blocked by SP-008 ("One or more teams not found" payment error). Once SP-008 is fixed, need to review the confirmation screen for content, layout, and email — same level of scrutiny as PlayerRegistration confirmation.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Dependent on SP-008. Cannot test until payment succeeds.
+
+### SP-008: Payment Error "One or more teams not found" when submitting CC payment to Sandbox
+- **Area**: Payment
+- **What I did**: Registered 2 teams (2030 Test Blue and 2031 Blue), reached the Payment screen showing $828.00 Balance Due (2 × $400 fee + 2 × $14 processing fee). Filled in CC info and clicked "Pay $828.00 Now" to submit payment to Sandbox.
+- **What I expected**: Payment to process successfully through Sandbox
+- **What happened**: Payment Error displayed: "One or more teams not found". Payment could not be completed. Screenshot shows the error banner at top of the Payment screen with the summary table and CC form below it.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Both teams show correctly in the summary grid with fees, Proc Fee, CC Owed, and Reg Date. The error appears to be a backend lookup failure when the payment controller tries to resolve the team registrations.
+
+### SP-007: Payment screen header — rename "Payment" to "Complete Payment", center and bold for consistency
+- **Area**: Payment
+- **What I did**: Compared the Team Registration Payment screen header to the Player Registration Payment screen
+- **What I expected**: Consistent header styling across both registration flows
+- **What happened**: Team Payment screen header says "Payment" — should say "Complete Payment" to match the Player Registration flow. Also needs to be centered and bolder for visual consistency.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-006: Accounting Tables — review columns across both screens; LOP needs its own column
+- **Area**: Review Summary
+- **What I did**: Compared the two Accounting Tables (Teams step and Payment step) during Team Registration
+- **What I expected**: Consistent, informative columns across both tables — the first table has useful data that should carry forward to the second
+- **What happened**: The first accounting table has a lot of the info that should also appear on the payment screen. Additionally, LOP needs its own dedicated column instead of being embedded elsewhere. Challenge: lots of data to fit in a narrow field — may need layout adjustments (wider table, smaller font, horizontal scroll, or abbreviated headers). Needs collaborative review with Todd.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Related to PlayerRegistration SP-024 (similar accounting table column/label rework). Consider standardizing table layout approach across both Player and Team registration.
+
+### SP-005: Team Library — what happens to aged-out grad year teams? + team name editing (follow-up to PL-019)
+- **Area**: Team Selection
+- **What I did**: Reviewed the Team Library and considered the lifecycle of teams whose grad year has passed
+- **What I expected**: A plan for handling teams that are no longer active (e.g., grad year 2025 teams in 2026) — archive, hide, or allow deletion. Also, the ability to edit team names (reinforcing SP-001).
+- **What happened**: No visible mechanism to handle aged-out teams. The library will grow indefinitely with stale teams that no longer play. Questions: (1) Should aged-out teams be automatically hidden or archived? (2) Should club reps be able to manually archive/remove them? (3) Team name editing is still needed (see SP-001) — club reps must be able to rename teams without deleting and re-creating them.
+- **Severity**: Question
+- **Status**: Open
