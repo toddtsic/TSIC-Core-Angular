@@ -42,4 +42,22 @@ public interface IJobCloneRepository
     Task CommitTransactionAsync(CancellationToken ct = default);
     Task RollbackTransactionAsync(CancellationToken ct = default);
     Task<int> SaveChangesAsync(CancellationToken ct = default);
+
+    // ── Release ops ──
+    /// <summary>Returns the tracked Jobs entity for mutation (release-site toggle).</summary>
+    Task<Jobs?> GetJobForUpdateAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Returns tracked Registrations for the given job + regIds (for activation).</summary>
+    Task<List<Registrations>> GetRegistrationsForUpdateAsync(Guid jobId, IList<Guid> registrationIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns admin registrations for a job with person info joined.
+    /// Used by the Release screen's activation panel.
+    /// </summary>
+    Task<List<ReleasableAdminDto>> GetReleasableAdminsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns jobs currently BSuspendPublic=true. When customerId is supplied, filters to that customer.
+    /// </summary>
+    Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(Guid? customerId, CancellationToken ct = default);
 }
