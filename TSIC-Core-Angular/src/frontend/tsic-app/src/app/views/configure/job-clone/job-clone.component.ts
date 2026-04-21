@@ -205,16 +205,18 @@ export class JobCloneComponent implements OnInit {
 		this.selectedSource.set(source);
 		if (!source) return;
 
-		// Smart defaults: +1 year on identity
+		// Smart defaults: bump every 4-digit year token (20XX) in path + name. Mirrors
+		// the server-side IncrementYearsInName — so "...-2025-2026" becomes "...-2026-2027",
+		// not "...-2025-2027" (previous code used single-string replace which only
+		// touched the first occurrence).
 		const currentYear = source.year ?? '';
 		const nextYear = currentYear ? String(Number(currentYear) + 1) : '';
 
-		this.jobPathTarget = currentYear && nextYear
-			? source.jobPath.replace(currentYear, nextYear)
-			: `${source.jobPath}-copy`;
-		this.jobNameTarget = currentYear && nextYear
-			? (source.jobName ?? '').replace(currentYear, nextYear)
-			: `${source.jobName ?? ''} (Copy)`;
+		const bumpedPath = this.bumpYearTokens(source.jobPath);
+		const bumpedName = this.bumpYearTokens(source.jobName ?? '');
+		this.jobPathTarget = bumpedPath !== source.jobPath ? bumpedPath : `${source.jobPath}-copy`;
+		this.jobNameTarget = bumpedName !== (source.jobName ?? '') ? bumpedName : `${source.jobName ?? ''} (Copy)`;
+
 		this.yearTarget = nextYear || currentYear;
 		this.seasonTarget = source.season ?? '';
 		this.displayName = source.displayName ?? '';
@@ -224,6 +226,11 @@ export class JobCloneComponent implements OnInit {
 		oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
 		this.expiryAdmin = this.toDateInput(oneYearOut);
 		this.expiryUsers = this.toDateInput(oneYearOut);
+	}
+
+	private bumpYearTokens(s: string): string {
+		// Matches any 4-digit year in 2020–2039 as a standalone token; increments by 1.
+		return s.replace(/\b(20[2-3]\d)\b/g, y => String(Number(y) + 1));
 	}
 
 	// ══════════════════════════════════════════════════════════
