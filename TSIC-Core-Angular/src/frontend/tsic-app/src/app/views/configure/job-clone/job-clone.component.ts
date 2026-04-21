@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { JobCloneService } from './services/job-clone.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -39,6 +40,7 @@ interface ReleaseContext {
 export class JobCloneComponent implements OnInit {
 	private readonly cloneService = inject(JobCloneService);
 	private readonly jobContext = inject(JobContextService);
+	private readonly route = inject(ActivatedRoute);
 	private readonly toast = inject(ToastService);
 
 	readonly totalSteps = 7;
@@ -162,13 +164,35 @@ export class JobCloneComponent implements OnInit {
 	}
 
 	private tryAutoSelectCurrentJob(): void {
-		// Default the source picker to the job the user is currently on — matched by jobPath.
-		// Only auto-fills when the picker hasn't been set yet (user hasn't picked anything).
+		// Source = the current job (no dropdown). Match by jobPath taken from the
+		// ActivatedRoute (authoritative) with the singleton JobContextService as fallback.
 		if (this.selectedSource()) return;
-		const currentPath = this.jobContext.jobPath();
-		if (!currentPath) return;
-		const match = this.sourceJobs().find(j => j.jobPath === currentPath);
-		if (match) this.onSourceSelected(match.jobId);
+		const currentPath =
+			this.jobContext.resolveFromRoute(this.route)
+			|| this.jobContext.jobPath()
+			|| this.jobPathFromWindow();
+		if (!currentPath) {
+			console.warn('[job-clone] could not resolve current jobPath from route');
+			return;
+		}
+		const match = this.sourceJobs().find(
+			j => j.jobPath.toLowerCase() === currentPath.toLowerCase(),
+		);
+		if (match) {
+			this.onSourceSelected(match.jobId);
+		} else {
+			console.warn(
+				`[job-clone] jobPath "${currentPath}" not found in sources list (${this.sourceJobs().length} entries)`,
+			);
+		}
+	}
+
+	private jobPathFromWindow(): string | null {
+		// Last-resort fallback: parse the first URL segment. Works even when
+		// JobContextService hasn't been initialized for this route.
+		const path = globalThis.location?.pathname ?? '';
+		const first = path.split('/').filter(Boolean)[0] ?? '';
+		return first || null;
 	}
 
 	onSourceSelected(sourceId: string): void {
