@@ -44,28 +44,32 @@
 
 			<!-- STEP 1 — Start -->
 			@case (1) {
-				<h3>{{ flavor() === 'clone' ? 'Pick a source job' : 'Pick the customer and defaults' }}</h3>
-
 				@if (flavor() === 'clone') {
+					<h3>You're cloning this job</h3>
 					@if (isLoadingSources()) {
-						<p class="loading-text">Loading…</p>
-					} @else {
-						<label class="field-label" for="sourceJob">Source job</label>
-						<select id="sourceJob" class="field-select"
-							[ngModel]="selectedSource()?.jobId ?? ''"
-							(ngModelChange)="onSourceSelected($event)">
-							<option value="">— Select a job —</option>
-							@for (job of sourceJobs(); track job.jobId) {
-								<option [value]="job.jobId">
-									{{ job.jobName }} ({{ job.year }} {{ job.season }}) — {{ job.jobPath }}
-								</option>
-							}
-						</select>
+						<p class="loading-text">Loading current job…</p>
+					} @else if (selectedSource(); as src) {
+						<dl class="jc-shift-list">
+							<dt>Job name</dt><dd>{{ src.jobName }}</dd>
+							<dt>Job path</dt><dd>{{ src.jobPath }}</dd>
+							<dt>Year / Season</dt><dd>{{ src.year }} {{ src.season }}</dd>
+							@if (src.displayName) { <dt>Display name</dt><dd>{{ src.displayName }}</dd> }
+						</dl>
 						<p class="field-help">
-							Only jobs from your own customer are listed. For a new customer, go back and pick <em>Start blank</em>.
+							The source is always the job you're on. To create a job for a
+							<em>different</em> customer, switch to <strong>Start blank</strong> above.
+						</p>
+					} @else {
+						<p class="error-banner">
+							Could not resolve the current job. Navigate to the job you want to clone and open this tool from there.
 						</p>
 					}
 				} @else {
+					<h3>New customer &amp; job basics</h3>
+					<p class="field-help">
+						Use this flow when onboarding a customer that has no prior job to clone from.
+					</p>
+
 					<label class="field-label" for="customerId">Customer ID</label>
 					<input id="customerId" type="text" class="field-input" [(ngModel)]="customerId"
 						placeholder="Customer GUID">
@@ -81,9 +85,6 @@
 					<label class="field-label" for="sportId">Sport ID</label>
 					<input id="sportId" type="text" class="field-input" [(ngModel)]="sportId"
 						placeholder="Sport GUID">
-					<p class="field-help">
-						These fields default from your customer's primary sport during Phase D wizard polish.
-					</p>
 				}
 			}
 
