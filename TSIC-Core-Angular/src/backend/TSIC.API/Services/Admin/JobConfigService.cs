@@ -189,6 +189,7 @@ public class JobConfigService : IJobConfigService
         job.PlayerRegCovid19Waiver = req.PlayerRegCovid19Waiver;
         job.PlayerRegMultiPlayerDiscountMin = req.PlayerRegMultiPlayerDiscountMin;
         job.PlayerRegMultiPlayerDiscountPercent = req.PlayerRegMultiPlayerDiscountPercent;
+        job.UslaxNumberValidThroughDate = req.UslaxNumberValidThroughDate;
 
         // SuperUser-only
         if (isSuperUser)
@@ -600,6 +601,7 @@ public class JobConfigService : IJobConfigService
         PlayerRegCovid19Waiver = job.PlayerRegCovid19Waiver,
         PlayerRegMultiPlayerDiscountMin = job.PlayerRegMultiPlayerDiscountMin,
         PlayerRegMultiPlayerDiscountPercent = job.PlayerRegMultiPlayerDiscountPercent,
+        UslaxNumberValidThroughDate = job.UslaxNumberValidThroughDate,
         // SuperUser-only
         BOfferPlayerRegsaverInsurance = isSuperUser ? job.BOfferPlayerRegsaverInsurance : null,
         MomLabel = isSuperUser ? job.MomLabel : null,

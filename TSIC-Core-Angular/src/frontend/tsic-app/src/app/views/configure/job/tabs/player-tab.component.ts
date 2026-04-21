@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorAllModule } from '@syncfusion/ej2-angular-richtexteditor';
 import { JobConfigService } from '../job-config.service';
-import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT } from '../shared/rte-config';
+import { JOB_CONFIG_RTE_TOOLS, JOB_CONFIG_RTE_HEIGHT, toDateOnly } from '../shared/rte-config';
 import type { UpdateJobConfigPlayerRequest } from '@core/api';
 
 @Component({
@@ -31,6 +31,7 @@ export class PlayerTabComponent implements OnInit {
   playerRegCovid19Waiver = linkedSignal(() => this.svc.player()?.playerRegCovid19Waiver ?? null);
   playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? null);
   playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? null);
+  uslaxNumberValidThroughDate = linkedSignal(() => toDateOnly(this.svc.player()?.uslaxNumberValidThroughDate) ?? null);
 
   // SuperUser-only
   bOfferPlayerRegsaverInsurance = linkedSignal(() => this.svc.player()?.bOfferPlayerRegsaverInsurance ?? null);
@@ -53,6 +54,7 @@ export class PlayerTabComponent implements OnInit {
       playerRegCovid19Waiver: p.playerRegCovid19Waiver,
       playerRegMultiPlayerDiscountMin: p.playerRegMultiPlayerDiscountMin,
       playerRegMultiPlayerDiscountPercent: p.playerRegMultiPlayerDiscountPercent,
+      uslaxNumberValidThroughDate: toDateOnly(p.uslaxNumberValidThroughDate) ?? null,
     };
     if (this.svc.isSuperUser()) {
       req.bOfferPlayerRegsaverInsurance = p.bOfferPlayerRegsaverInsurance ?? null;
@@ -98,6 +100,7 @@ export class PlayerTabComponent implements OnInit {
       playerRegCovid19Waiver: this.playerRegCovid19Waiver(),
       playerRegMultiPlayerDiscountMin: this.playerRegMultiPlayerDiscountMin(),
       playerRegMultiPlayerDiscountPercent: this.playerRegMultiPlayerDiscountPercent(),
+      uslaxNumberValidThroughDate: this.uslaxNumberValidThroughDate(),
     };
     if (this.svc.isSuperUser()) {
       req.bOfferPlayerRegsaverInsurance = this.bOfferPlayerRegsaverInsurance();

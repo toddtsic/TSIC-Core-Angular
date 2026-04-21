@@ -42,29 +42,29 @@
       </div>
 
       <div class="row g-2">
-        <div class="col-md-4">
-          <label class="field-label">Registration Form Name</label>
-          <input type="text" class="field-input"
-            [ngModel]="regformNamePlayer()"
-            (ngModelChange)="regformNamePlayer.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="field-label">Core Registration Form</label>
+        <div class="col-md-6">
+          <label class="field-label">Registration Form</label>
           <input type="text" class="field-input"
             [ngModel]="coreRegformPlayer()"
             (ngModelChange)="coreRegformPlayer.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
           <label class="field-label">Multi-Player Min</label>
           <input type="number" class="field-input"
             [ngModel]="playerRegMultiPlayerDiscountMin()"
             (ngModelChange)="playerRegMultiPlayerDiscountMin.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
           <label class="field-label">Discount %</label>
           <input type="number" class="field-input" step="0.01"
             [ngModel]="playerRegMultiPlayerDiscountPercent()"
             (ngModelChange)="playerRegMultiPlayerDiscountPercent.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="field-label">USLax Membership Valid Through</label>
+          <input type="date" class="field-input"
+            [ngModel]="uslaxNumberValidThroughDate()"
+            (ngModelChange)="uslaxNumberValidThroughDate.set($event); onFieldChange()" />
         </div>
       </div>
     </div>

@@ -195,6 +195,7 @@ public record JobConfigPlayerDto
     public required string? PlayerRegCovid19Waiver { get; init; }
     public required int? PlayerRegMultiPlayerDiscountMin { get; init; }
     public required int? PlayerRegMultiPlayerDiscountPercent { get; init; }
+    public required DateTime? UslaxNumberValidThroughDate { get; init; }
 
     // SuperUser-only
     public bool? BOfferPlayerRegsaverInsurance { get; init; }
@@ -217,6 +218,7 @@ public record UpdateJobConfigPlayerRequest
     public required string? PlayerRegCovid19Waiver { get; init; }
     public required int? PlayerRegMultiPlayerDiscountMin { get; init; }
     public required int? PlayerRegMultiPlayerDiscountPercent { get; init; }
+    public required DateTime? UslaxNumberValidThroughDate { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
     public bool? BOfferPlayerRegsaverInsurance { get; init; }
