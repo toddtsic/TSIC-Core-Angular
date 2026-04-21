@@ -565,7 +565,8 @@ public class JobRepository : IJobRepository
             .Where(j => j.ExpiryUsers >= now && !j.BSuspendPublic && j.BScheduleAllowPublicAccess == true)
             .Select(j => new EventListingDto
             {
-                JobId = j.JobId, JobName = j.MobileJobName ?? j.JobName ?? "",
+                JobId = j.JobId,
+                JobName = j.MobileJobName ?? j.JobName ?? "",
                 JobLogoUrl = j.JobDisplayOptions != null ? j.JobDisplayOptions.LogoHeader : null,
                 City = j.Schedule.Where(s => s.Field != null && s.Field.City != null).Select(s => s.Field!.City).FirstOrDefault(),
                 State = j.Schedule.Where(s => s.Field != null && s.Field.State != null).Select(s => s.Field!.State).FirstOrDefault(),
@@ -580,10 +581,15 @@ public class JobRepository : IJobRepository
         return await _context.GameClockParams.AsNoTracking().Where(gc => gc.JobId == jobId)
             .Select(gc => new GameClockConfigDto
             {
-                UtcoffsetHours = gc.UtcoffsetHours, HalfMinutes = gc.HalfMinutes, HalfTimeMinutes = gc.HalfTimeMinutes,
-                QuarterMinutes = gc.QuarterMinutes, QuarterTimeMinutes = gc.QuarterTimeMinutes,
-                TransitionMinutes = gc.TransitionMinutes, PlayoffMinutes = gc.PlayoffMinutes,
-                PlayoffHalfMinutes = gc.PlayoffHalfMinutes, PlayoffHalfTimeMinutes = gc.PlayoffHalfTimeMinutes
+                UtcoffsetHours = gc.UtcoffsetHours,
+                HalfMinutes = gc.HalfMinutes,
+                HalfTimeMinutes = gc.HalfTimeMinutes,
+                QuarterMinutes = gc.QuarterMinutes,
+                QuarterTimeMinutes = gc.QuarterTimeMinutes,
+                TransitionMinutes = gc.TransitionMinutes,
+                PlayoffMinutes = gc.PlayoffMinutes,
+                PlayoffHalfMinutes = gc.PlayoffHalfMinutes,
+                PlayoffHalfTimeMinutes = gc.PlayoffHalfTimeMinutes
             }).FirstOrDefaultAsync(ct);
     }
 
@@ -696,8 +702,12 @@ public class JobRepository : IJobRepository
         return await _context.TeamDocs.AsNoTracking().Where(td => td.JobId == jobId).OrderBy(td => td.Label)
             .Select(td => new EventDocDto
             {
-                DocId = td.DocId, JobId = td.JobId, Label = td.Label ?? "", DocUrl = td.DocUrl ?? "",
-                User = td.User.FirstName + " " + td.User.LastName, CreateDate = td.CreateDate
+                DocId = td.DocId,
+                JobId = td.JobId,
+                Label = td.Label ?? "",
+                DocUrl = td.DocUrl ?? "",
+                User = td.User.FirstName + " " + td.User.LastName,
+                CreateDate = td.CreateDate
             }).ToListAsync(ct);
     }
 }
