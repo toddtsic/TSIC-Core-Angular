@@ -1,16 +1,21 @@
-# Job Setup — Admin Guide
+# Job Setup — SuperUser Guide
 
-Creating a new season with the **Job Setup** tool (routes: `/{jobPath}/configure/job-clone`).
+Creating a new season with the **Job Setup** tool. **SuperUser only** (the server enforces this; non-SuperUsers get a 403).
+
+Route: `/{jobPath}/configure/job-clone`. The component opens straight to the wizard — there is no separate landing hub.
 
 ## When to use what
 
-| Scenario | Flow |
+At the top of the wizard you toggle between two flavors:
+
+| Scenario | Flavor |
 |---|---|
-| New season for an existing customer — carry forward most config | **Clone an existing job** |
-| New customer with no prior job | **Start blank** |
-| Already-created suspended job that needs flipping live | **Release a suspended job** |
+| New season for an existing customer — carry forward most config | **Clone a job** |
+| New customer with no prior job to clone from | **Start blank** |
 
 Cross-customer cloning is disallowed by the server. Use Blank if a customer has no prior job.
+
+After the wizard submits, the component transitions into **Release mode** for the newly-created job — that's the only way to reach Release. Each new job is reached exactly once this way; after the two switches are flipped, the job behaves like any other job.
 
 ## The safety contract
 
@@ -58,11 +63,9 @@ After submit, the wizard transitions directly into **Release mode** for the new 
 
 These two switches are independent. You can release the site before or after activating admins, whichever matches the rollout plan for that season.
 
-The Landing screen always lists suspended jobs so you can return to Release mode at any time.
-
 ## Endpoints (for reference)
 
-Base route: `/api/job-clone` (SuperUser-only today; Phase D opens up to customer admins with a same-customer guard).
+Base route: `/api/job-clone`. **SuperUser only** — enforced by `[Authorize(Policy = "SuperUserOnly")]` on the controller.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -70,10 +73,11 @@ Base route: `/api/job-clone` (SuperUser-only today; Phase D opens up to customer
 | POST | `/` | Clone a source job |
 | POST | `/preview` | Dry-run transforms, no writes |
 | POST | `/blank` | Create a brand-new empty job |
-| GET | `/suspended` | List suspended jobs for Landing |
 | GET | `/{jobId}/admins` | Admin roster for Release screen |
 | POST | `/{jobId}/release-site` | Flip `BSuspendPublic = false` |
 | POST | `/{jobId}/release-admins` | Flip `BActive = true` on selected regs |
+
+(A `GET /suspended` endpoint also exists on the backend; currently unused by the frontend now that Landing has been dropped.)
 
 ## What this tool does NOT clone
 

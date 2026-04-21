@@ -70,89 +70,41 @@
 	}
 }
 
-// ══════════════ Landing ══════════════
+// ══════════════ Flavor toggle (clone / blank) ══════════════
 
-.jc-actions {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: var(--space-3);
-	margin-bottom: var(--space-4);
-}
-
-.jc-action-btn {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-1);
-	text-align: left;
-	padding: var(--space-3);
-	background: var(--bs-body-bg);
+.jc-flavor-toggle {
+	display: inline-flex;
+	gap: 0;
+	margin-bottom: var(--space-2);
 	border: 1px solid var(--bs-border-color);
 	border-radius: var(--bs-border-radius);
-	cursor: pointer;
-	color: var(--brand-text);
-	transition: border-color 0.15s, transform 0.15s;
-
-	&:hover { border-color: var(--bs-primary); transform: translateY(-1px); }
-	&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-
-	@media (prefers-reduced-motion: reduce) {
-		&:hover { transform: none; }
-		transition: none;
-	}
+	overflow: hidden;
 }
 
-.jc-action-title {
-	font-weight: 600;
-	font-size: 1rem;
-}
-
-.jc-action-sub {
-	font-size: 0.85rem;
+.jc-flavor-btn {
+	padding: var(--space-1) var(--space-3);
+	background: var(--bs-body-bg);
 	color: var(--brand-text-muted);
-}
-
-.jc-suspended-list {
-	list-style: none;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-2);
-}
-
-.jc-suspended-item {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: var(--space-2);
-	width: 100%;
-	padding: var(--space-2) var(--space-3);
-	background: var(--bs-body-bg);
-	border: 1px solid var(--bs-border-color);
-	border-radius: var(--bs-border-radius);
+	border: none;
 	cursor: pointer;
-	text-align: left;
-	color: var(--brand-text);
+	font-size: 0.85rem;
 
-	&:hover { border-color: var(--bs-primary); }
+	&.active {
+		background: var(--bs-primary);
+		color: var(--bs-white, #fff);
+	}
+
 	&:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+	& + & { border-left: 1px solid var(--bs-border-color); }
 }
 
+// Meta line style used in Release header
 .jc-suspended-meta {
 	display: block;
 	font-size: 0.8rem;
 	color: var(--brand-text-muted);
 	font-family: monospace;
 	margin-top: 2px;
-}
-
-.jc-suspended-badge {
-	font-size: 0.8rem;
-	padding: 2px var(--space-2);
-	background: var(--bs-warning-bg-subtle, rgba(255, 193, 7, 0.15));
-	color: var(--bs-warning-emphasis, #856404);
-	border-radius: var(--bs-border-radius-pill);
-	white-space: nowrap;
 }
 
 // ══════════════ Wizard stepper ══════════════

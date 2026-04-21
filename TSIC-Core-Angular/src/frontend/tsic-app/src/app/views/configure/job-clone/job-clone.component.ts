@@ -12,10 +12,9 @@ import type {
 	JobClonePreviewResponse,
 	JobCloneSourceDto,
 	ReleasableAdminDto,
-	SuspendedJobDto,
 } from '@core/api';
 
-type Mode = 'landing' | 'wizard' | 'release';
+type Mode = 'wizard' | 'release';
 type Flavor = 'clone' | 'blank';
 
 /**
@@ -43,13 +42,9 @@ export class JobCloneComponent implements OnInit {
 	readonly totalSteps = 7;
 
 	// ── Mode state ──
-	readonly mode = signal<Mode>('landing');
+	readonly mode = signal<Mode>('wizard');
 	readonly flavor = signal<Flavor>('clone');
 	readonly step = signal<number>(1);
-
-	// ── Landing ──
-	readonly suspendedJobs = signal<SuspendedJobDto[]>([]);
-	readonly isLoadingSuspended = signal(false);
 
 	// ── Source data (clone flavor) ──
 	readonly sourceJobs = signal<JobCloneSourceDto[]>([]);
@@ -118,60 +113,35 @@ export class JobCloneComponent implements OnInit {
 	readonly selectedCount = computed(() => this.releaseSelectedRegIds().size);
 
 	ngOnInit(): void {
-		this.loadLanding();
-	}
-
-	// ══════════════════════════════════════════════════════════
-	// Landing
-	// ══════════════════════════════════════════════════════════
-
-	private loadLanding(): void {
-		this.isLoadingSuspended.set(true);
-		this.cloneService.getSuspended().subscribe({
-			next: jobs => {
-				this.suspendedJobs.set(jobs);
-				this.isLoadingSuspended.set(false);
-			},
-			error: () => {
-				this.isLoadingSuspended.set(false);
-				this.toast.show('Failed to load suspended jobs', 'danger', 4000);
-			},
-		});
-	}
-
-	goToLanding(): void {
-		this.mode.set('landing');
-		this.resetWizard();
-		this.loadLanding();
+		// Component opens directly to the wizard — SuperUser-only tooling,
+		// source picker lists all cloneable jobs.
+		this.loadSources();
 	}
 
 	// ══════════════════════════════════════════════════════════
 	// Wizard entry points
 	// ══════════════════════════════════════════════════════════
 
-	startClone(): void {
-		this.flavor.set('clone');
+	switchFlavor(f: Flavor): void {
+		this.flavor.set(f);
 		this.step.set(1);
 		this.resetWizard();
-		this.mode.set('wizard');
-		this.loadSources();
+		if (f === 'blank') {
+			// Blank defaults: next year, today-based dates
+			const today = new Date();
+			const nextYear = String(today.getFullYear() + 1);
+			this.yearTarget = nextYear;
+			const oneYearOut = new Date();
+			oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+			this.expiryAdmin = this.toDateInput(oneYearOut);
+			this.expiryUsers = this.toDateInput(oneYearOut);
+		}
 	}
 
-	startBlank(): void {
-		this.flavor.set('blank');
-		this.step.set(1);
+	cancelWizard(): void {
+		// Fresh state — typically the user will route away afterwards.
 		this.resetWizard();
-
-		// Blank defaults: next year, today-based dates
-		const today = new Date();
-		const nextYear = String(today.getFullYear() + 1);
-		this.yearTarget = nextYear;
-		const oneYearOut = new Date();
-		oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
-		this.expiryAdmin = this.toDateInput(oneYearOut);
-		this.expiryUsers = this.toDateInput(oneYearOut);
-
-		this.mode.set('wizard');
+		this.flavor.set('clone');
 	}
 
 	private loadSources(): void {
@@ -362,12 +332,7 @@ export class JobCloneComponent implements OnInit {
 	// Release mode
 	// ══════════════════════════════════════════════════════════
 
-	openRelease(job: SuspendedJobDto | ReleaseContext): void {
-		const ctx: ReleaseContext = {
-			jobId: job.jobId,
-			jobPath: job.jobPath,
-			jobName: job.jobName,
-		};
+	openRelease(ctx: ReleaseContext): void {
 		this.releaseJobId.set(ctx.jobId);
 		this.releaseJobContext.set(ctx);
 		this.releaseSelectedRegIds.set(new Set());
@@ -461,7 +426,6 @@ export class JobCloneComponent implements OnInit {
 	trackBulletin = (_: number, b: BulletinShiftDto) => b.sourceBulletinId;
 	trackAgegroup = (_: number, a: AgegroupPreviewDto) => a.sourceAgegroupId;
 	trackModifier = (_: number, m: FeeModifierShiftDto) => m.sourceFeeModifierId;
-	trackJob = (_: number, j: SuspendedJobDto) => j.jobId;
 	trackAdmin = (_: number, a: ReleasableAdminDto) => a.registrationId;
 
 	private resetWizard(): void {

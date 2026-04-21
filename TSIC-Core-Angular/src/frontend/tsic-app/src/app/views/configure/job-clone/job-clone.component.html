@@ -2,64 +2,27 @@
 
 	@switch (mode()) {
 
-	<!-- ══════════════════ LANDING ══════════════════ -->
-	@case ('landing') {
-		<header class="jc-header">
-			<h2>Job Setup</h2>
-			<p class="jc-subtitle">Clone an existing job, start a blank one for a new customer, or release a suspended job.</p>
-		</header>
-
-		<section class="jc-actions">
-			<button type="button" class="jc-action-btn" (click)="startClone()">
-				<span class="jc-action-title">Clone an existing job</span>
-				<span class="jc-action-sub">Copy last season's job as a starting point.</span>
-			</button>
-			<button type="button" class="jc-action-btn" (click)="startBlank()">
-				<span class="jc-action-title">Start blank</span>
-				<span class="jc-action-sub">Onboard a new customer from scratch.</span>
-			</button>
-		</section>
-
-		<section class="jc-panel">
-			<h3>Suspended jobs awaiting release</h3>
-			<p class="wizard-tip">
-				Every newly-cloned or blank-created job lands <strong>suspended</strong> (hidden from public)
-				with <strong>customer admins inactive</strong> until you release them.
-			</p>
-			@if (isLoadingSuspended()) {
-				<p class="loading-text">Loading…</p>
-			} @else if (suspendedJobs().length === 0) {
-				<p class="empty-text">No suspended jobs — everything is live.</p>
-			} @else {
-				<ul class="jc-suspended-list">
-					@for (job of suspendedJobs(); track trackJob($index, job)) {
-						<li>
-							<button type="button" class="jc-suspended-item" (click)="openRelease(job)">
-								<div>
-									<strong>{{ job.jobName }}</strong>
-									<span class="jc-suspended-meta">
-										{{ job.year }} {{ job.season }} · {{ job.jobPath }}
-									</span>
-								</div>
-								<span class="jc-suspended-badge">
-									{{ job.inactiveAdminCount }} admin{{ job.inactiveAdminCount === 1 ? '' : 's' }} to activate
-								</span>
-							</button>
-						</li>
-					}
-				</ul>
-			}
-		</section>
-	}
-
 	<!-- ══════════════════ WIZARD ══════════════════ -->
 	@case ('wizard') {
 		<header class="jc-header">
-			<button type="button" class="jc-back-link" (click)="goToLanding()">← Back to Job Setup</button>
+			<div class="jc-flavor-toggle">
+				<button type="button"
+					class="jc-flavor-btn"
+					[class.active]="flavor() === 'clone'"
+					(click)="switchFlavor('clone')">Clone a job</button>
+				<button type="button"
+					class="jc-flavor-btn"
+					[class.active]="flavor() === 'blank'"
+					(click)="switchFlavor('blank')">Start blank (new customer)</button>
+			</div>
 			<h2>
 				{{ flavor() === 'clone' ? 'Clone a job' : 'Start blank' }}
 				<span class="jc-step-label">Step {{ step() }} of {{ totalSteps }}</span>
 			</h2>
+			<p class="jc-subtitle">
+				SuperUser only. New jobs land <strong>suspended</strong> with customer admins inactive
+				until you release them on the next screen.
+			</p>
 		</header>
 
 		<!-- Stepper progress -->
@@ -410,7 +373,7 @@
 		</div>
 
 		<footer class="jc-wizard-footer">
-			<button type="button" class="jc-btn-ghost" (click)="goToLanding()">Cancel</button>
+			<button type="button" class="jc-btn-ghost" (click)="cancelWizard()">Reset</button>
 			<div class="jc-nav-group">
 				@if (step() > 1) {
 					<button type="button" class="jc-btn-secondary" (click)="wizardBack()">Back</button>
@@ -435,8 +398,11 @@
 	<!-- ══════════════════ RELEASE ══════════════════ -->
 	@case ('release') {
 		<header class="jc-header">
-			<button type="button" class="jc-back-link" (click)="goToLanding()">← Back to Job Setup</button>
 			<h2>Release job</h2>
+			<p class="jc-subtitle">
+				Two independent switches — flip each when you're ready. The new job is <strong>suspended</strong>
+				(public can't see it) and customer admins are <strong>inactive</strong> (can't log in) until then.
+			</p>
 		</header>
 
 		@if (releaseJobContext(); as ctx) {
