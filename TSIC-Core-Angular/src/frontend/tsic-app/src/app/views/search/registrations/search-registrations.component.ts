@@ -8,6 +8,8 @@ import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } fro
 import { RegistrationSearchService } from './services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
+import { ROLE_ID_PLAYER, ROLE_ID_CLUBREP, type JobFlagsForTemplates } from './email-templates';
 import { RegistrationDetailPanelComponent } from './components/registration-detail-panel.component';
 import { RefundModalComponent } from './components/refund-modal.component';
 import { BatchEmailModalComponent } from './components/batch-email-modal.component';
@@ -61,11 +63,35 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   private readonly searchService = inject(RegistrationSearchService);
   private readonly toast = inject(ToastService);
   private readonly jobService = inject(JobService);
+  private readonly jobPulseService = inject(JobPulseService);
 
   /** True when the current job is a tournament — hides self-reported club filter */
   isTournament = computed(() =>
     this.jobService.currentJob()?.jobTypeName?.toLowerCase().includes('tournament') ?? false
   );
+
+  /** Job pulse — drives Vertical Insure section visibility + template availability */
+  readonly jobPulse = this.jobPulseService.pulse;
+  readonly showViSection = computed(() => {
+    const p = this.jobPulse();
+    return !!(p?.offerPlayerRegsaverInsurance || p?.offerTeamRegsaverInsurance);
+  });
+
+  /**
+   * Flags consumed by the template availability evaluator. Unified from pulse
+   * (VI flags) and JobMetadataResponse (adnArb) so templates don't need to
+   * know which DTO owns which flag.
+   */
+  readonly jobFlags = computed<JobFlagsForTemplates>(() => {
+    const p = this.jobPulse();
+    const m = this.jobService.currentJob();
+    return {
+      offerPlayerRegsaverInsurance: !!p?.offerPlayerRegsaverInsurance,
+      offerTeamRegsaverInsurance: !!p?.offerTeamRegsaverInsurance,
+      adnArb: !!m?.adnArb,
+      usLaxMembershipValidated: m?.sportName === 'Lacrosse' && !!m?.usLaxNumberValidThroughDate
+    };
+  });
 
   @ViewChild('grid') grid!: GridComponent;
   @ViewChild('ladtTreeRef') ladtTreeRef?: LadtTreeFilterComponent;
@@ -113,7 +139,11 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     regDateTo: undefined,
     rosterThreshold: undefined,
     rosterThresholdClubNames: [],
-    cadtTeamIds: []
+    cadtTeamIds: [],
+    hasVIPlayerInsurance: undefined,
+    hasVITeamInsurance: undefined,
+    arbHealthStatus: undefined,
+    usLaxMembershipStatus: undefined
   });
 
   searchResults = signal<RegistrationSearchResponse | null>(null);
@@ -212,6 +242,38 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (req.schoolName) chips.push({ category: 'School', label: req.schoolName, filterKey: 'schoolName', value: req.schoolName });
     if (req.regDateFrom) chips.push({ category: 'On or After', label: req.regDateFrom, filterKey: 'regDateFrom', value: req.regDateFrom });
     if (req.rosterThreshold != null) chips.push({ category: 'Rostered <=', label: String(req.rosterThreshold), filterKey: 'rosterThreshold', value: String(req.rosterThreshold) });
+    if (req.hasVIPlayerInsurance != null) {
+      chips.push({
+        category: 'Player Ins.',
+        label: req.hasVIPlayerInsurance ? 'Has Insurance' : 'Not Yet Accepted',
+        filterKey: 'hasVIPlayerInsurance',
+        value: String(req.hasVIPlayerInsurance)
+      });
+    }
+    if (req.hasVITeamInsurance != null) {
+      chips.push({
+        category: 'Team Ins.',
+        label: req.hasVITeamInsurance ? 'All Teams Covered' : 'At Least One Uncovered',
+        filterKey: 'hasVITeamInsurance',
+        value: String(req.hasVITeamInsurance)
+      });
+    }
+    if (req.arbHealthStatus) {
+      chips.push({
+        category: 'ARB Health',
+        label: this.arbHealthLabel(req.arbHealthStatus),
+        filterKey: 'arbHealthStatus',
+        value: req.arbHealthStatus
+      });
+    }
+    if (req.usLaxMembershipStatus) {
+      chips.push({
+        category: 'USLax',
+        label: this.usLaxStatusLabel(req.usLaxMembershipStatus),
+        filterKey: 'usLaxMembershipStatus',
+        value: req.usLaxMembershipStatus
+      });
+    }
     addArrayChips('For Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
 
     // CADT tree chips — highest-level checked ancestor only (same pattern as LADT)
@@ -376,7 +438,11 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       regDateTo: undefined,
       rosterThreshold: undefined,
       rosterThresholdClubNames: [],
-      cadtTeamIds: []
+      cadtTeamIds: [],
+      hasVIPlayerInsurance: undefined,
+      hasVITeamInsurance: undefined,
+      arbHealthStatus: undefined,
+      usLaxMembershipStatus: undefined
     });
     this.ladtCheckedIds.set(new Set());
     this.cadtCheckedIds.set(new Set());
@@ -407,6 +473,24 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   removeFilterChip(chip: FilterChip): void {
+    // Scoped-filter chips (VI / ARB) must go through their dedicated updaters
+    // so the auto-enacted side-effects (role auto-clear, etc.) stay consistent.
+    if (chip.filterKey === 'hasVIPlayerInsurance') {
+      this.applyViFilter('hasVIPlayerInsurance', undefined, ROLE_ID_PLAYER);
+      this.executeSearch();
+      return;
+    }
+    if (chip.filterKey === 'hasVITeamInsurance') {
+      this.applyViFilter('hasVITeamInsurance', undefined, ROLE_ID_CLUBREP);
+      this.executeSearch();
+      return;
+    }
+    if (chip.filterKey === 'arbHealthStatus') {
+      this.updateArbHealthFilter('');
+      this.executeSearch();
+      return;
+    }
+
     // CADT tree chips: uncheck the node and re-derive
     if (chip.filterKey === 'cadtTeamIds') {
       const updated = new Set(this.cadtCheckedIds());
@@ -758,6 +842,110 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.searchRequest.update(req => ({ ...req, rosterThreshold: num }));
   }
 
+  // ── Vertical Insure filters ──
+
+  readonly viPlayerFilterValue = computed(() => {
+    const v = this.searchRequest().hasVIPlayerInsurance;
+    return v == null ? '' : String(v);
+  });
+
+  readonly viTeamFilterValue = computed(() => {
+    const v = this.searchRequest().hasVITeamInsurance;
+    return v == null ? '' : String(v);
+  });
+
+  updateViPlayerFilter(value: string): void {
+    const parsed = value === '' ? undefined : value === 'true';
+    this.applyViFilter('hasVIPlayerInsurance', parsed, ROLE_ID_PLAYER);
+  }
+
+  updateViTeamFilter(value: string): void {
+    const parsed = value === '' ? undefined : value === 'true';
+    this.applyViFilter('hasVITeamInsurance', parsed, ROLE_ID_CLUBREP);
+  }
+
+  /**
+   * Set (or clear) a VI filter and auto-enact its implied state.
+   *   Enable : force roleIds=[impliedRole] and activeStatuses=['True'] (VI is active-only, role-scoped).
+   *   Disable: clear roleIds IFF it still equals exactly [impliedRole]. activeStatuses is left alone —
+   *            ['True'] is the baseline default, so no-op on disable.
+   */
+  private applyViFilter(
+    field: 'hasVIPlayerInsurance' | 'hasVITeamInsurance',
+    value: boolean | undefined,
+    impliedRoleId: string
+  ): void {
+    this.searchRequest.update(req => {
+      const update: Partial<RegistrationSearchRequest> = { [field]: value };
+      if (value !== undefined) {
+        update.roleIds = [impliedRoleId];
+        update.activeStatuses = ['True'];
+      } else {
+        const current = req.roleIds ?? [];
+        if (current.length === 1 && current[0]?.toUpperCase() === impliedRoleId.toUpperCase()) {
+          update.roleIds = [];
+        }
+      }
+      return { ...req, ...update };
+    });
+  }
+
+  // ── ARB Health filter ──
+
+  readonly arbHealthFilterValue = computed(() => this.searchRequest().arbHealthStatus ?? '');
+
+  readonly showArbSection = computed(() => this.jobService.currentJob()?.adnArb === true);
+
+  updateArbHealthFilter(value: string): void {
+    const parsed = value === '' ? undefined : value;
+    this.searchRequest.update(req => {
+      const update: Partial<RegistrationSearchRequest> = { arbHealthStatus: parsed };
+      if (parsed !== undefined) {
+        update.activeStatuses = ['True'];
+      }
+      return { ...req, ...update };
+    });
+  }
+
+  private arbHealthLabel(value: string): string {
+    switch (value) {
+      case 'behind-active': return 'Behind — Active/Suspended';
+      case 'behind-expired': return 'Behind — Expired/Terminated';
+      default: return value;
+    }
+  }
+
+  // ── USLax Membership filter ──
+
+  readonly usLaxStatusFilterValue = computed(() => this.searchRequest().usLaxMembershipStatus ?? '');
+
+  /** Shown only for Lacrosse jobs that have a USLax validation window configured. */
+  readonly showUsLaxSection = computed(() => this.jobFlags().usLaxMembershipValidated);
+
+  updateUsLaxStatusFilter(value: string): void {
+    const parsed = value === '' ? undefined : value;
+    this.searchRequest.update(req => {
+      const update: Partial<RegistrationSearchRequest> = { usLaxMembershipStatus: parsed };
+      if (parsed !== undefined) {
+        update.roleIds = [ROLE_ID_PLAYER];
+        update.activeStatuses = ['True'];
+      } else {
+        const current = req.roleIds ?? [];
+        if (current.length === 1 && current[0]?.toUpperCase() === ROLE_ID_PLAYER.toUpperCase()) {
+          update.roleIds = [];
+        }
+      }
+      return { ...req, ...update };
+    });
+  }
+
+  private usLaxStatusLabel(value: string): string {
+    switch (value) {
+      case 'expired': return 'Expired / Missing';
+      default: return value;
+    }
+  }
+
   // ── Multi-select update helpers ──
 
   updateMultiSelect(field: keyof RegistrationSearchRequest, values: string[]): void {
@@ -820,7 +1008,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       paymentTypes: clean(req.paymentTypes),
       rosterThreshold: req.rosterThreshold ?? undefined,
       rosterThresholdClubNames: clean(req.rosterThresholdClubNames),
-      cadtTeamIds: clean(req.cadtTeamIds)
+      cadtTeamIds: clean(req.cadtTeamIds),
+      arbHealthStatus: req.arbHealthStatus || undefined
     };
   }
 }

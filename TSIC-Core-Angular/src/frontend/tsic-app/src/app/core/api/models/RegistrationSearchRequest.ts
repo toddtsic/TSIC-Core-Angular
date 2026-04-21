@@ -28,5 +28,9 @@ export type RegistrationSearchRequest = {
     rosterThreshold?: number | null;
     rosterThresholdClubNames?: any[] | null;
     cadtTeamIds?: any[] | null;
+    hasVIPlayerInsurance?: boolean | null;
+    hasVITeamInsurance?: boolean | null;
+    arbHealthStatus?: string | null;
+    usLaxMembershipStatus?: string | null;
 };
 

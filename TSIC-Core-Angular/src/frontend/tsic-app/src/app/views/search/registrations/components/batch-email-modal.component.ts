@@ -1,14 +1,17 @@
 import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { BatchEmailResponse, JobOptionDto, FilterOption } from '@core/api';
+import type { BatchEmailResponse, JobOptionDto, FilterOption, RegistrationSearchRequest } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
 
 const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
   { token: '!EMAIL', description: 'Contact email address' },
+  { token: '!FAMILYUSERNAME', description: 'Recipient\'s login username' },
   { token: '!JOBNAME', description: 'League/Organization name' },
+  { token: '!JOBLINK', description: 'Link to the job page (as a clickable phrase)' },
   { token: '!AMTFEES', description: 'Total fees amount' },
   { token: '!AMTPAID', description: 'Amount paid' },
   { token: '!AMTOWED', description: 'Amount owed' },
@@ -19,6 +22,7 @@ const BASE_TOKENS = [
 ];
 
 const CLUBREP_INVITE_TOKEN = { token: '!CLUBREP_INVITE_LINK', description: 'Club rep team registration invitation link (requires target event selection)' };
+const USLAX_VALID_THROUGH_TOKEN = { token: '!USLAXVALIDTHROUGHDATE', description: 'USA Lacrosse membership must be valid through this date' };
 
 @Component({
   selector: 'app-batch-email-modal',
@@ -40,6 +44,10 @@ export class BatchEmailModalComponent implements OnInit {
   // Role context — used to conditionally show !CLUBREP_INVITE_LINK
   activeRoleIds = input<string[]>([]);
   roleOptions = input<FilterOption[] | null>(null);
+
+  // Full search context — drives template availability (VI filters, etc.)
+  searchRequest = input<RegistrationSearchRequest | null>(null);
+  jobFlags = input<JobFlagsForTemplates | null>(null);
 
   closed = output<void>();
   sent = output<BatchEmailResponse>();
@@ -69,9 +77,12 @@ export class BatchEmailModalComponent implements OnInit {
     return match?.text === 'Club Rep';
   });
 
-  readonly availableTokens = computed(() =>
-    this.isClubRepOnly() ? [...BASE_TOKENS, CLUBREP_INVITE_TOKEN] : BASE_TOKENS
-  );
+  readonly availableTokens = computed(() => {
+    const tokens = [...BASE_TOKENS];
+    if (this.isClubRepOnly()) tokens.push(CLUBREP_INVITE_TOKEN);
+    if (this.jobFlags()?.usLaxMembershipValidated) tokens.push(USLAX_VALID_THROUGH_TOKEN);
+    return tokens;
+  });
 
   readonly requiresInviteLink = computed(() => {
     const body = this.bodyTemplate();
@@ -81,6 +92,21 @@ export class BatchEmailModalComponent implements OnInit {
   readonly canSend = computed(() =>
     !this.requiresInviteLink() || this.selectedInviteTargetJobId() !== null
   );
+
+  /** Categories with at least one template whose availability rule passes. */
+  readonly availableTemplateCategories = computed(() => {
+    const req = this.searchRequest();
+    const flags = this.jobFlags();
+    if (!req) return [];
+    return EMAIL_TEMPLATE_CATEGORIES
+      .map(cat => ({
+        category: cat.category,
+        templates: cat.templates.filter(t => isTemplateAvailable(t, req, flags))
+      }))
+      .filter(cat => cat.templates.length > 0);
+  });
+
+  readonly hasAvailableTemplates = computed(() => this.availableTemplateCategories().length > 0);
 
   ngOnInit(): void {
     this.searchService.getInviteTargetJobs().subscribe({
@@ -99,6 +125,28 @@ export class BatchEmailModalComponent implements OnInit {
     if (body.includes('!CLUBREP_INVITE_LINK')) return this.clubRepInviteTargetJobs();
     return this.inviteTargetJobs();
   });
+
+  applyTemplate(template: EmailTemplate): void {
+    this.subject.set(template.subject);
+    this.bodyTemplate.set(template.body);
+  }
+
+  onTemplateSelected(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+    if (!value) return;
+    const [catName, label] = value.split('|');
+    const cat = this.availableTemplateCategories().find(c => c.category === catName);
+    const tmpl = cat?.templates.find(t => t.label === label);
+
+    // Reset immediately so re-selecting the same template re-applies, regardless of confirm outcome.
+    select.value = '';
+    if (!tmpl) return;
+
+    const hasDraft = this.subject().trim().length > 0 || this.bodyTemplate().trim().length > 0;
+    if (hasDraft && !confirm('Replace current subject and body with this template?')) return;
+    this.applyTemplate(tmpl);
+  }
 
   draftWithAi(): void {
     const prompt = this.aiPrompt().trim();

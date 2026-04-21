@@ -46,6 +46,24 @@ public record RegistrationSearchRequest
     // CADT tree filter — team IDs resolved from Club/Agegroup/Division/Team tree.
     // ANDed with all other filters (including LADT tree TeamIds/AgegroupIds/DivisionIds).
     public List<Guid>? CadtTeamIds { get; init; }
+
+    // Vertical Insure filters. Backend ignores each unless the job offers that VI product.
+    // false = filter to population without coverage (implicitly constrains role: Player / ClubRep).
+    // true  = filter to population with coverage.
+    public bool? HasVIPlayerInsurance { get; init; }
+    public bool? HasVITeamInsurance { get; init; }
+
+    // ARB Health filter. Backend ignores unless the job has ARB enabled.
+    //   "behind-active"  = subscription active or suspended, balance owed
+    //   "behind-expired" = subscription expired or terminated, balance owed
+    // Both implicitly restrict to active registrations.
+    public string? ArbHealthStatus { get; init; }
+
+    // USLax membership status. Backend ignores unless the job has
+    // UslaxNumberValidThroughDate set AND is a Lacrosse job.
+    //   "expired" = SportAssnIdexpDate is null OR < job's valid-through date
+    // Implicitly restricts to active Player registrations.
+    public string? UsLaxMembershipStatus { get; init; }
 }
 
 /// <summary>

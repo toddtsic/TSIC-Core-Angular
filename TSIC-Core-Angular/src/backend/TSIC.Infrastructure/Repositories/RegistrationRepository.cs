@@ -1189,6 +1189,121 @@ public class RegistrationRepository : IRegistrationRepository
             query = query.Where(r => r.AssignedTeamId != null
                 && request.CadtTeamIds.Contains(r.AssignedTeamId.Value));
 
+        // ── Vertical Insure filters ──
+        // Guarded by per-category job config so the filter is a no-op on jobs that
+        // don't offer that VI product (prevents returning "everyone" on non-VI jobs).
+        // Each filter implicitly constrains role (Player / ClubRep).
+        if (request.HasVIPlayerInsurance.HasValue || request.HasVITeamInsurance.HasValue)
+        {
+            var jobFlags = await _context.Jobs
+                .AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => new
+                {
+                    OffersPlayerVI = j.BOfferPlayerRegsaverInsurance ?? false,
+                    OffersTeamVI = j.BOfferTeamRegsaverInsurance ?? false
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (request.HasVIPlayerInsurance.HasValue && jobFlags?.OffersPlayerVI == true)
+            {
+                var wantAccepted = request.HasVIPlayerInsurance.Value;
+                query = query.Where(r =>
+                    r.RoleId == RoleConstants.Player
+                    && r.BActive == true
+                    && (wantAccepted ? r.RegsaverPolicyId != null : r.RegsaverPolicyId == null));
+            }
+
+            if (request.HasVITeamInsurance.HasValue && jobFlags?.OffersTeamVI == true)
+            {
+                var wantAccepted = request.HasVITeamInsurance.Value;
+                // Team VI is accepted-per-team. At the club rep level:
+                //   accepted = every active team owned by the rep has ViPolicyClubRepRegId set
+                //   not accepted = at least one active team owned by the rep is missing it
+                query = query.Where(r =>
+                    r.RoleId == RoleConstants.ClubRep
+                    && r.BActive == true
+                    && (wantAccepted
+                        ? !_context.Teams.Any(t =>
+                            t.JobId == jobId
+                            && t.ClubrepRegistrationid == r.RegistrationId
+                            && t.Active == true
+                            && t.ViPolicyClubRepRegId == null)
+                        : _context.Teams.Any(t =>
+                            t.JobId == jobId
+                            && t.ClubrepRegistrationid == r.RegistrationId
+                            && t.Active == true
+                            && t.ViPolicyClubRepRegId == null)));
+            }
+        }
+
+        // ── USLax Membership filter ──
+        // Targets active Player registrations whose USLax membership does not cover
+        // the job's validation window:
+        //   SportAssnIdexpDate IS NULL              → on-record expiry missing
+        //   SportAssnIdexpDate < UslaxNumberValidThroughDate → expires before job cutoff
+        // Guarded by: the job must be a Lacrosse job AND have UslaxNumberValidThroughDate set.
+        // If either guard fails, the filter is a no-op to avoid returning "everyone"
+        // on jobs that don't define a USLax validation window.
+        if (!string.IsNullOrEmpty(request.UsLaxMembershipStatus))
+        {
+            var usLaxGuard = await _context.Jobs
+                .AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => new
+                {
+                    ValidThrough = j.UslaxNumberValidThroughDate,
+                    IsLacrosse = j.Sport != null && j.Sport.SportName == "Lacrosse"
+                })
+                .FirstOrDefaultAsync(ct);
+
+            if (usLaxGuard?.ValidThrough != null && usLaxGuard.IsLacrosse
+                && request.UsLaxMembershipStatus == "expired")
+            {
+                var validThrough = usLaxGuard.ValidThrough.Value;
+                query = query.Where(r =>
+                    r.RoleId == RoleConstants.Player
+                    && r.BActive == true
+                    && (r.SportAssnIdexpDate == null || r.SportAssnIdexpDate < validThrough));
+            }
+        }
+
+        // ── ARB Health filter ──
+        // Targets registrations with an ARB subscription that is either:
+        //   "behind-active"  = subscription active or suspended, balance owed
+        //   "behind-expired" = subscription expired or terminated, balance owed
+        // Both are implicitly active-only to avoid reaching out to inactive registrants.
+        // Guarded by the job's ARB flag so a non-ARB job ignores the filter.
+        if (!string.IsNullOrEmpty(request.ArbHealthStatus))
+        {
+            var offersArb = await _context.Jobs
+                .AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => j.AdnArb ?? false)
+                .FirstOrDefaultAsync(ct);
+
+            if (offersArb)
+            {
+                var behindActive = new[] { "active", "suspended" };
+                var behindExpired = new[] { "expired", "terminated" };
+                var targetStatuses = request.ArbHealthStatus switch
+                {
+                    "behind-active" => behindActive,
+                    "behind-expired" => behindExpired,
+                    _ => Array.Empty<string>()
+                };
+
+                if (targetStatuses.Length > 0)
+                {
+                    query = query.Where(r =>
+                        r.BActive == true
+                        && r.OwedTotal > 0
+                        && r.AdnSubscriptionStatus != null
+                        && targetStatuses.Contains(r.AdnSubscriptionStatus));
+                }
+            }
+        }
+
         // Compute count + aggregates BEFORE paging
         var aggregates = await query
             .GroupBy(r => 1)

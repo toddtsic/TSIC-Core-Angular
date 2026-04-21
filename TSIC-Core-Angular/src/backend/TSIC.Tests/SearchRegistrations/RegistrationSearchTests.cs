@@ -546,4 +546,198 @@ public class RegistrationSearchTests
         result.TotalPaid.Should().Be(0);
         result.TotalOwed.Should().Be(0);
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  16. VERTICAL INSURE — PLAYER
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "HasVIPlayerInsurance=false →returns only active Players with null RegsaverPolicyId")]
+    public async Task VIPlayer_NotAccepted_FiltersCorrectly()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = b.AddJob();
+        job.BOfferPlayerRegsaverInsurance = true;
+        var repo = new RegistrationRepository(ctx);
+
+        var playerRole = b.AddRole(RoleConstants.Player, "Player");
+        var coachRole = b.AddRole("RoleCoach123", "Coach");
+
+        var uncovered = b.AddRegistration(job.JobId, b.AddUser("Alice", "A").Id, playerRole.Id);
+        var covered = b.AddRegistration(job.JobId, b.AddUser("Bob", "B").Id, playerRole.Id);
+        covered.RegsaverPolicyId = "POL-123";
+        b.AddRegistration(job.JobId, b.AddUser("Carol", "C").Id, playerRole.Id, active: false);
+        b.AddRegistration(job.JobId, b.AddUser("Dan", "D").Id, coachRole.Id);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(job.JobId, new RegistrationSearchRequest
+        {
+            HasVIPlayerInsurance = false
+        });
+
+        result.Count.Should().Be(1);
+        result.Result[0].RegistrationId.Should().Be(uncovered.RegistrationId);
+    }
+
+    [Fact(DisplayName = "HasVIPlayerInsurance=false on non-VI job →filter is ignored (no-op)")]
+    public async Task VIPlayer_JobDoesNotOfferVI_FilterIgnored()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = b.AddJob();
+        // NOTE: BOfferPlayerRegsaverInsurance NOT set → defaults null/false
+        var repo = new RegistrationRepository(ctx);
+
+        var playerRole = b.AddRole(RoleConstants.Player, "Player");
+        b.AddRegistration(job.JobId, b.AddUser("Alice", "A").Id, playerRole.Id);
+        b.AddRegistration(job.JobId, b.AddUser("Bob", "B").Id, playerRole.Id);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(job.JobId, new RegistrationSearchRequest
+        {
+            HasVIPlayerInsurance = false
+        });
+
+        // Filter is a no-op on non-VI jobs — all registrations returned
+        result.Count.Should().Be(2);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  17. VERTICAL INSURE — TEAM
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "HasVITeamInsurance=false →returns ClubReps with >=1 uncovered active team")]
+    public async Task VITeam_NotAccepted_FiltersCorrectly()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = b.AddJob();
+        job.BOfferTeamRegsaverInsurance = true;
+        var repo = new RegistrationRepository(ctx);
+
+        var clubRepRole = b.AddRole(RoleConstants.ClubRep, "Club Rep");
+        var playerRole = b.AddRole(RoleConstants.Player, "Player");
+
+        var league = b.AddLeague(job.JobId);
+        var ag = b.AddAgegroup(league.LeagueId);
+
+        var repUncovered = b.AddRegistration(job.JobId, b.AddUser("Alice", "A").Id, clubRepRole.Id);
+        var repFullyCovered = b.AddRegistration(job.JobId, b.AddUser("Bob", "B").Id, clubRepRole.Id);
+        b.AddRegistration(job.JobId, b.AddUser("Carl", "C").Id, playerRole.Id);
+
+        // repUncovered: one team covered, one team NOT covered → should match
+        var teamCovered1 = b.AddTeam(job.JobId, league.LeagueId, ag.AgegroupId, "T1", clubRepRegistrationId: repUncovered.RegistrationId);
+        teamCovered1.ViPolicyClubRepRegId = repUncovered.RegistrationId;
+        b.AddTeam(job.JobId, league.LeagueId, ag.AgegroupId, "T2", clubRepRegistrationId: repUncovered.RegistrationId);
+        // (ViPolicyClubRepRegId left null on T2)
+
+        // repFullyCovered: all teams covered → should NOT match
+        var teamCovered2 = b.AddTeam(job.JobId, league.LeagueId, ag.AgegroupId, "T3", clubRepRegistrationId: repFullyCovered.RegistrationId);
+        teamCovered2.ViPolicyClubRepRegId = repFullyCovered.RegistrationId;
+
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(job.JobId, new RegistrationSearchRequest
+        {
+            HasVITeamInsurance = false
+        });
+
+        result.Count.Should().Be(1);
+        result.Result[0].RegistrationId.Should().Be(repUncovered.RegistrationId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  18. ARB HEALTH
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "ArbHealthStatus='behind-active' →returns active/suspended subs with balance owed")]
+    public async Task ArbHealth_BehindActive_FiltersCorrectly()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = b.AddJob();
+        job.AdnArb = true;
+        var repo = new RegistrationRepository(ctx);
+
+        var role = b.AddRole(RoleConstants.Player, "Player");
+
+        var behindActive = b.AddRegistration(job.JobId, b.AddUser("Alice", "A").Id, role.Id, feeTotal: 100m, paidTotal: 20m);
+        behindActive.AdnSubscriptionStatus = "active";
+
+        var behindSuspended = b.AddRegistration(job.JobId, b.AddUser("Bob", "B").Id, role.Id, feeTotal: 100m, paidTotal: 30m);
+        behindSuspended.AdnSubscriptionStatus = "suspended";
+
+        var behindExpired = b.AddRegistration(job.JobId, b.AddUser("Carol", "C").Id, role.Id, feeTotal: 100m, paidTotal: 10m);
+        behindExpired.AdnSubscriptionStatus = "expired";
+
+        var paidActive = b.AddRegistration(job.JobId, b.AddUser("Dan", "D").Id, role.Id, feeTotal: 100m, paidTotal: 100m);
+        paidActive.AdnSubscriptionStatus = "active";
+
+        var activeButInactive = b.AddRegistration(job.JobId, b.AddUser("Eve", "E").Id, role.Id, feeTotal: 100m, paidTotal: 20m, active: false);
+        activeButInactive.AdnSubscriptionStatus = "active";
+
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(job.JobId, new RegistrationSearchRequest
+        {
+            ArbHealthStatus = "behind-active"
+        });
+
+        result.Count.Should().Be(2);
+        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo("Alice", "Bob");
+    }
+
+    [Fact(DisplayName = "ArbHealthStatus='behind-expired' →returns expired/terminated subs with balance owed")]
+    public async Task ArbHealth_BehindExpired_FiltersCorrectly()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = b.AddJob();
+        job.AdnArb = true;
+        var repo = new RegistrationRepository(ctx);
+
+        var role = b.AddRole(RoleConstants.Player, "Player");
+
+        var expired = b.AddRegistration(job.JobId, b.AddUser("Alice", "A").Id, role.Id, feeTotal: 100m, paidTotal: 20m);
+        expired.AdnSubscriptionStatus = "expired";
+
+        var terminated = b.AddRegistration(job.JobId, b.AddUser("Bob", "B").Id, role.Id, feeTotal: 100m, paidTotal: 30m);
+        terminated.AdnSubscriptionStatus = "terminated";
+
+        var active = b.AddRegistration(job.JobId, b.AddUser("Carol", "C").Id, role.Id, feeTotal: 100m, paidTotal: 10m);
+        active.AdnSubscriptionStatus = "active";
+
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(job.JobId, new RegistrationSearchRequest
+        {
+            ArbHealthStatus = "behind-expired"
+        });
+
+        result.Count.Should().Be(2);
+        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo("Alice", "Bob");
+    }
+
+    [Fact(DisplayName = "ArbHealthStatus on non-ARB job →filter ignored (no-op)")]
+    public async Task ArbHealth_JobHasNoArb_FilterIgnored()
+    {
+        var ctx = DbContextFactory.Create();
+        var b = new SearchDataBuilder(ctx);
+        var job = b.AddJob();
+        // NOTE: AdnArb NOT set → defaults null/false
+        var repo = new RegistrationRepository(ctx);
+
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        b.AddRegistration(job.JobId, b.AddUser("Alice", "A").Id, role.Id, feeTotal: 100m, paidTotal: 20m);
+        b.AddRegistration(job.JobId, b.AddUser("Bob", "B").Id, role.Id, feeTotal: 100m, paidTotal: 100m);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(job.JobId, new RegistrationSearchRequest
+        {
+            ArbHealthStatus = "behind-active"
+        });
+
+        // Filter is a no-op → all registrations returned
+        result.Count.Should().Be(2);
+    }
 }

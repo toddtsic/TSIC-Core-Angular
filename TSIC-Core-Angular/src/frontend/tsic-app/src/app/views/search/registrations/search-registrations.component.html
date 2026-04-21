@@ -394,6 +394,86 @@
         </div>
       </div>
 
+      <!-- Section: Vertical Insure -->
+      @if (showViSection()) {
+        <div class="section-card">
+          <div class="section-card-header">Vertical Insure</div>
+          <div class="section-card-body">
+            <div class="filter-row">
+              @if (jobPulse()?.offerPlayerRegsaverInsurance) {
+                <div class="form-group">
+                  <label for="filterViPlayer">Player Insurance</label>
+                  <select id="filterViPlayer" class="form-select"
+                    [ngModel]="viPlayerFilterValue()"
+                    (ngModelChange)="updateViPlayerFilter($event)">
+                    <option value="">-- Not Filtered --</option>
+                    <option value="true">Has Insurance</option>
+                    <option value="false">Not Yet Accepted</option>
+                  </select>
+                  <small class="form-text text-muted">Implies Role = Player, Active only.</small>
+                </div>
+              }
+              @if (jobPulse()?.offerTeamRegsaverInsurance) {
+                <div class="form-group">
+                  <label for="filterViTeam">Team Insurance (Club Reps)</label>
+                  <select id="filterViTeam" class="form-select"
+                    [ngModel]="viTeamFilterValue()"
+                    (ngModelChange)="updateViTeamFilter($event)">
+                    <option value="">-- Not Filtered --</option>
+                    <option value="true">All Teams Covered</option>
+                    <option value="false">At Least One Uncovered</option>
+                  </select>
+                  <small class="form-text text-muted">Implies Role = Club Rep, Active only.</small>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Section: ARB Health -->
+      @if (showArbSection()) {
+        <div class="section-card">
+          <div class="section-card-header">ARB</div>
+          <div class="section-card-body">
+            <div class="filter-row">
+              <div class="form-group">
+                <label for="filterArbHealth">ARB Health</label>
+                <select id="filterArbHealth" class="form-select"
+                  [ngModel]="arbHealthFilterValue()"
+                  (ngModelChange)="updateArbHealthFilter($event)">
+                  <option value="">-- Not Filtered --</option>
+                  <option value="behind-active">Behind — Active/Suspended</option>
+                  <option value="behind-expired">Behind — Expired/Terminated</option>
+                </select>
+                <small class="form-text text-muted">Active only.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Section: USLax Membership -->
+      @if (showUsLaxSection()) {
+        <div class="section-card">
+          <div class="section-card-header">USLax Membership</div>
+          <div class="section-card-body">
+            <div class="filter-row">
+              <div class="form-group">
+                <label for="filterUsLaxStatus">Membership Status</label>
+                <select id="filterUsLaxStatus" class="form-select"
+                  [ngModel]="usLaxStatusFilterValue()"
+                  (ngModelChange)="updateUsLaxStatusFilter($event)">
+                  <option value="">-- Not Filtered --</option>
+                  <option value="expired">Expired / Missing</option>
+                </select>
+                <small class="form-text text-muted">Active Players only.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Section: Roster Scan -->
       <div class="section-card">
         <div class="section-card-header">Roster Scan</div>
@@ -704,6 +784,8 @@
     [isOpen]="showBatchEmailModal()"
     [activeRoleIds]="searchRequest().roleIds ?? []"
     [roleOptions]="filterOptions()?.roles ?? null"
+    [searchRequest]="searchRequest()"
+    [jobFlags]="jobFlags()"
     (closed)="showBatchEmailModal.set(false)"
     (sent)="onBatchEmailComplete()"
   ></app-batch-email-modal>

@@ -25,6 +25,26 @@
           </div>
         </details>
 
+        <!-- Template picker (visible only when at least one template's availability rule passes) -->
+        @if (hasAvailableTemplates()) {
+          <div class="template-picker-section">
+            <label for="template-picker">Start from a template</label>
+            <select id="template-picker" class="form-select"
+              [disabled]="isSending()"
+              (change)="onTemplateSelected($event)">
+              <option value="">— Choose a template —</option>
+              @for (cat of availableTemplateCategories(); track cat.category) {
+                <optgroup [label]="cat.category">
+                  @for (tmpl of cat.templates; track tmpl.label) {
+                    <option [value]="cat.category + '|' + tmpl.label">{{ tmpl.label }}</option>
+                  }
+                </optgroup>
+              }
+            </select>
+            <small class="form-text text-muted">Selecting a template replaces the current subject and body.</small>
+          </div>
+        }
+
         <!-- AI Compose -->
         <div class="ai-compose-section">
           <label for="ai-prompt">Draft with AI</label>
