@@ -82,6 +82,9 @@ export class JobCloneComponent implements OnInit {
 	customProcessingFee = 3.5;
 	storeChoice: 'keep' | 'disable' = 'disable';
 
+	// Step 1 toggle — controls whether the year-bump logic runs when advancing to Step 2.
+	autoAdvanceYear = true;
+
 	// Step 6 people / options
 	upAgegroupNamesByOne = true;
 	noParallaxSlide1 = false;
@@ -200,37 +203,47 @@ export class JobCloneComponent implements OnInit {
 	}
 
 	onSourceSelected(sourceId: string): void {
+		// Only registers the current job as the source — no form population. Fields
+		// on Step 2 are populated when the user hits Next, based on the autoAdvanceYear
+		// toggle so the user can opt out of the +1-year smart defaults.
 		if (!sourceId) {
 			this.selectedSource.set(null);
 			return;
 		}
 		const source = this.sourceJobs().find(j => j.jobId === sourceId) ?? null;
 		this.selectedSource.set(source);
+	}
+
+	private populateStep2FromSource(): void {
+		const source = this.selectedSource();
 		if (!source) return;
 
-		// Smart defaults: bump every 4-digit year token (20XX) in path + name. Mirrors
-		// the server-side IncrementYearsInName — so "...-2025-2026" becomes "...-2026-2027",
-		// not "...-2025-2027" (previous code used single-string replace which only
-		// touched the first occurrence).
-		const currentYear = source.year ?? '';
-		const nextYear = currentYear ? String(Number(currentYear) + 1) : '';
+		const advance = this.autoAdvanceYear;
+		const sourceYear = source.year ?? '';
+		const targetYear = advance && sourceYear ? String(Number(sourceYear) + 1) : sourceYear;
 
-		const bumpedPath = this.bumpYearTokens(source.jobPath);
-		const bumpedName = this.bumpYearTokens(source.jobName ?? '');
-		this.jobPathTarget = bumpedPath !== source.jobPath ? bumpedPath : `${source.jobPath}-copy`;
-		this.jobNameTarget = bumpedName !== (source.jobName ?? '') ? bumpedName : `${source.jobName ?? ''} (Copy)`;
+		if (advance) {
+			// Bump every 4-digit year token (20XX) in path + name. Mirrors server-side
+			// IncrementYearsInName so "...-2025-2026" becomes "...-2026-2027".
+			const bumpedPath = this.bumpYearTokens(source.jobPath);
+			const bumpedName = this.bumpYearTokens(source.jobName ?? '');
+			this.jobPathTarget = bumpedPath !== source.jobPath ? bumpedPath : `${source.jobPath}-copy`;
+			this.jobNameTarget = bumpedName !== (source.jobName ?? '') ? bumpedName : `${source.jobName ?? ''} (Copy)`;
+		} else {
+			// Same year — user has to pick a different path/name. Seed with "-copy" variants.
+			this.jobPathTarget = `${source.jobPath}-copy`;
+			this.jobNameTarget = `${source.jobName ?? ''} (Copy)`;
+		}
 
-		this.yearTarget = nextYear || currentYear;
+		this.yearTarget = targetYear;
 		this.seasonTarget = source.season ?? '';
-		// Display name defaults to the (year-bumped) job name — the source's own
-		// displayName tends to hold the customer name, which isn't what authors want here.
 		this.displayName = this.jobNameTarget;
 		this.leagueNameTarget = this.jobNameTarget;
 
-		const oneYearOut = new Date();
-		oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
-		this.expiryAdmin = this.toDateInput(oneYearOut);
-		this.expiryUsers = this.toDateInput(oneYearOut);
+		const expiryTarget = new Date();
+		expiryTarget.setFullYear(expiryTarget.getFullYear() + 1);
+		this.expiryAdmin = this.toDateInput(expiryTarget);
+		this.expiryUsers = this.toDateInput(expiryTarget);
 	}
 
 	private bumpYearTokens(s: string): string {
@@ -246,6 +259,13 @@ export class JobCloneComponent implements OnInit {
 		if (!this.canAdvance()) return;
 		const next = this.step() + 1;
 		if (next > this.totalSteps) return;
+
+		// Transitioning Step 1 → 2 in Clone flavor: populate target fields from source,
+		// honoring the autoAdvanceYear toggle. Fresh each time so flipping the toggle
+		// on Step 1 and moving forward re-seeds Step 2 cleanly.
+		if (this.step() === 1 && next === 2 && this.flavor() === 'clone') {
+			this.populateStep2FromSource();
+		}
 
 		// Entering Step 3 (dates) — load preview for clone flavor.
 		if (next === 3 && this.flavor() === 'clone' && !this.preview()) {
