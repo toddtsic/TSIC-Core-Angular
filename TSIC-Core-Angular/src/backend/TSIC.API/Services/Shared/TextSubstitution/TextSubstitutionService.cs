@@ -255,7 +255,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         tokens["!SUBSCRIPTIONID"] = f.AdnSubscriptionId ?? string.Empty;
         tokens["!SUBSCRIPTIONSTATUS"] = f.AdnSubscriptionStatus ?? string.Empty;
         tokens["!JOBLINK"] = !string.IsNullOrEmpty(f.JobPath)
-            ? $"<a href='https://www.teamsportsinfo.com/{f.JobPath}' target='_blank'>click here</a>"
+            ? $"<a href='https://www.teamsportsinfo.com/{f.JobPath}' target='_blank'>{WebUtility.HtmlEncode(f.JobName ?? string.Empty)}</a>"
             : string.Empty;
     }
 

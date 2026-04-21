@@ -28,7 +28,7 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
                 '<p>One or more of your automatic payments for !JOBNAME for !PLAYER was declined.</p>' +
                 '<p>You can contact your credit card issuer to determine the reason if you need to.</p>' +
                 '<p>Then you can update your credit card information and process the current balance due (!OWEDNOW) all in one step.</p>' +
-                '<p>!JOBLINK</p>' +
+                '<p>To fix this, visit !JOBLINK, then:</p>' +
                 '<ol>' +
                 '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
                 '<li>Select your Player\'s role</li>' +
@@ -44,7 +44,7 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
                 '<p>One or more of your automatic payments for !JOBNAME for !PLAYER was declined.</p>' +
                 '<p>You can contact your credit card issuer to determine the reason if you need to.</p>' +
                 '<p>Then you can update your credit card information and process the current balance due (!OWEDNOW) all in one step.</p>' +
-                '<p>!JOBLINK</p>' +
+                '<p>To fix this, visit !JOBLINK, then:</p>' +
                 '<ol>' +
                 '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
                 '<li>Select your Player\'s role</li>' +
@@ -59,7 +59,7 @@ const TEMPLATES: Record<string, EmailTemplate[]> = {
             body:
                 '<h2>Credit Card Expiration Notice</h2>' +
                 '<p>The credit card on file for <strong>Automatic Recurrent Billing</strong> for !PLAYER is expiring this month.</p>' +
-                '<p>Please !JOBLINK to update your credit card information TO PREVENT YOUR NEXT PAYMENT FROM FAILING.</p>' +
+                '<p>Please visit !JOBLINK to update your credit card information TO PREVENT YOUR NEXT PAYMENT FROM FAILING.</p>' +
                 '<ol>' +
                 '<li>Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME</li>' +
                 '<li>Select your Player\'s role</li>' +

@@ -566,7 +566,7 @@ public class ArbDefensiveService : IArbDefensiveService
             .Replace("!OWEDNOW", $"<strong>{reg.CurrentlyOwes:C}</strong>")
             .Replace("!OWEDTOTAL", $"<strong>{reg.OwedTotal:C}</strong>")
             .Replace("!FAMILYUSERNAME", $"<strong>{reg.FamilyUsername}</strong>")
-            .Replace("!JOBLINK", $"<p>Please <a href='https://www.teamsportsinfo.com/{reg.JobPath}' target='_blank'><strong>click here</strong></a> then:</p>")
+            .Replace("!JOBLINK", $"<a href='https://www.teamsportsinfo.com/{reg.JobPath}' target='_blank'>{System.Net.WebUtility.HtmlEncode(reg.JobName ?? string.Empty)}</a>")
             .Replace("!JOBNAME", $"<strong>{reg.JobName}</strong>");
     }
 

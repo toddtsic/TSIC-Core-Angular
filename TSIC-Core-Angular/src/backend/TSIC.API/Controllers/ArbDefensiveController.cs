@@ -54,7 +54,7 @@ public class ArbDefensiveController : ControllerBase
             new() { Token = "!OWEDNOW", Label = "Amount owed as of today" },
             new() { Token = "!OWEDTOTAL", Label = "Total amount owed" },
             new() { Token = "!FAMILYUSERNAME", Label = "Player's family username" },
-            new() { Token = "!JOBLINK", Label = "Link back to job" },
+            new() { Token = "!JOBLINK", Label = "Job name as a clickable link" },
             new() { Token = "!JOBNAME", Label = "Job name" }
         };
         return Ok(variables);

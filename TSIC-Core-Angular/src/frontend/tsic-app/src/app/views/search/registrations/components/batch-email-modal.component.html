@@ -3,7 +3,12 @@
     <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>Send Batch Email</h3>
-        <button type="button" class="btn-close" (click)="close()" [disabled]="isSending()">&times;</button>
+        <button type="button" class="btn-close" (click)="close()" [disabled]="isSending()" aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
 
       <div class="modal-body">
@@ -25,52 +30,71 @@
           </div>
         </details>
 
-        <!-- Template picker (visible only when at least one template's availability rule passes) -->
-        @if (hasAvailableTemplates()) {
-          <div class="template-picker-section">
-            <label for="template-picker">Start from a template</label>
-            <select id="template-picker" class="form-select"
-              [disabled]="isSending()"
-              (change)="onTemplateSelected($event)">
-              <option value="">— Choose a template —</option>
-              @for (cat of availableTemplateCategories(); track cat.category) {
-                <optgroup [label]="cat.category">
-                  @for (tmpl of cat.templates; track tmpl.label) {
-                    <option [value]="cat.category + '|' + tmpl.label">{{ tmpl.label }}</option>
-                  }
-                </optgroup>
-              }
-            </select>
-            <small class="form-text text-muted">Selecting a template replaces the current subject and body.</small>
-          </div>
-        }
+        <!-- Starters: template picker + AI compose. Shown only when at least one template's availability rule passes
+             (so non-ARB/non-VI jobs don't see an empty template dropdown). -->
+        <section class="starters-group">
+          <h4 class="starters-heading">Need help composing your email?</h4>
 
-        <!-- AI Compose -->
-        <div class="ai-compose-section">
-          <label for="ai-prompt">Draft with AI</label>
-          <div class="ai-compose-row">
-            <input type="text" id="ai-prompt" class="form-control"
-              [ngModel]="aiPrompt()" (ngModelChange)="aiPrompt.set($event)"
-              (keydown.enter)="draftWithAi()"
-              placeholder="Describe the email you want to send..."
-              [disabled]="isDrafting() || isSending()" />
-            <button type="button" class="btn btn-ai" (click)="draftWithAi()"
-              [disabled]="isDrafting() || isSending() || !aiPrompt().trim()">
-              @if (isDrafting()) {
-                <span class="spinner"></span> Drafting...
-              } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          @if (hasAvailableTemplates()) {
+            <div class="template-picker-section starter-card">
+              <label for="template-picker">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="8" y1="13" x2="16" y2="13"/>
+                  <line x1="8" y1="17" x2="16" y2="17"/>
                 </svg>
-                Draft
-              }
-            </button>
+                Start from a template
+              </label>
+              <select id="template-picker" class="form-select"
+                [disabled]="isSending()"
+                (change)="onTemplateSelected($event)">
+                <option value=""></option>
+                @for (cat of availableTemplateCategories(); track cat.category) {
+                  <optgroup [label]="cat.category">
+                    @for (tmpl of cat.templates; track tmpl.label) {
+                      <option [value]="cat.category + '|' + tmpl.label">{{ tmpl.label }}</option>
+                    }
+                  </optgroup>
+                }
+              </select>
+              <small class="form-text text-muted">Selecting a template replaces the current subject and body.</small>
+            </div>
+          }
+
+          <div class="ai-compose-section starter-card">
+            <label for="ai-prompt">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+              Draft with AI
+            </label>
+            <div class="ai-compose-row">
+              <input type="text" id="ai-prompt" class="form-control"
+                [ngModel]="aiPrompt()" (ngModelChange)="aiPrompt.set($event)"
+                (keydown.enter)="draftWithAi()"
+                placeholder="Describe the email you want to send..."
+                [disabled]="isDrafting() || isSending()" />
+              <button type="button" class="btn btn-ai" (click)="draftWithAi()"
+                [disabled]="isDrafting() || isSending() || !aiPrompt().trim()">
+                @if (isDrafting()) {
+                  <span class="spinner"></span> Drafting...
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                  </svg>
+                  Draft
+                }
+              </button>
+            </div>
+            <small class="form-text text-muted">
+              e.g. "college recruiting meeting Thursday at 7pm" or "congratulations, you made it off the waitlist"
+            </small>
           </div>
-          <small class="form-text text-muted">
-            e.g. "college recruiting meeting Thursday at 7pm" or "congratulations, you made it off the waitlist"
-          </small>
-        </div>
+        </section>
 
         <div class="email-form">
           <div class="form-group">
@@ -98,7 +122,7 @@
                   [ngModel]="selectedInviteTargetJobId()"
                   (ngModelChange)="selectedInviteTargetJobId.set($event)"
                   [disabled]="isSending()">
-                  <option [value]="null">— Select target event —</option>
+                  <option [value]="null"></option>
                   @for (job of targetJobOptions(); track job.jobId) {
                     <option [value]="job.jobId">{{ job.jobName }}</option>
                   }
@@ -112,14 +136,21 @@
         </div>
 
         <div class="tokens-section">
-          <h4>Available Tokens</h4>
-          <p class="tokens-help">Click a token to insert it at cursor position</p>
+          <label class="tokens-label">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              <line x1="7" y1="7" x2="7.01" y2="7"/>
+            </svg>
+            Available tokens
+          </label>
           <div class="token-chips">
             @for (tokenInfo of availableTokens(); track tokenInfo.token) {
               <button type="button" class="token-chip" (click)="insertToken(tokenInfo.token, bodyTextarea)"
                 [disabled]="isSending()" [title]="tokenInfo.description">{{ tokenInfo.token }}</button>
             }
           </div>
+          <small class="form-text text-muted">Click a token to insert it at the cursor position.</small>
         </div>
 
         @if (sendResult(); as result) {

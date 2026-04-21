@@ -1,3 +1,4 @@
+// ── Overlay & Card ──────────────────────────────────────
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -26,6 +27,7 @@
   }
 }
 
+// ── Header ──────────────────────────────────────────────
 .modal-header {
   display: flex;
   align-items: center;
@@ -41,18 +43,26 @@
   }
 
   .btn-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
-    font-size: var(--font-size-2xl);
-    line-height: 1;
     color: var(--bs-body-color);
-    opacity: 0.5;
+    opacity: 0.55;
     cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    transition: opacity 0.15s ease, background-color 0.15s ease;
 
     &:hover:not(:disabled) {
+      opacity: 1;
+      background: var(--bs-secondary-bg);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
       opacity: 1;
     }
 
@@ -66,7 +76,7 @@
   padding: var(--space-4);
 }
 
-// ── Recipients List ──
+// ── Recipients list ─────────────────────────────────────
 .recipients-list {
   margin-bottom: var(--space-4);
   border: 1px solid var(--bs-border-color);
@@ -128,9 +138,66 @@
   font-style: italic;
 }
 
-// ── AI Compose ──
-// Styles moved to global _utilities.scss (.ai-compose-section, .ai-compose-row, .btn-ai)
+// ── Starters group: Template Picker + AI Compose ────────
+// Both cards share identical visual treatment (primary tint, primary label,
+// icon on the left). Icons alone differentiate them. Wrapped in a .starters-group
+// with a shared heading so it reads as one "help me start" section.
+.starters-group {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background: var(--bs-secondary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+}
 
+.starters-heading {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--bs-heading-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.starter-card {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--bs-primary) 5%, var(--bs-card-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 20%, var(--bs-border-color));
+  border-radius: var(--radius-md);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  > label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--bs-primary);
+
+    svg {
+      flex-shrink: 0;
+    }
+  }
+
+  .form-select,
+  .form-control {
+    width: 100%;
+  }
+
+  .form-text {
+    display: block;
+    margin-top: var(--space-1);
+  }
+}
+
+// ── Subject / Body / Invite target ──────────────────────
+// Uses Bootstrap .form-control / .form-select defaults; we only normalize
+// label styling and spacing.
 .email-form {
   margin-bottom: var(--space-4);
 
@@ -145,56 +212,39 @@
   label {
     display: block;
     margin-bottom: var(--space-2);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
     color: var(--bs-body-color);
   }
 
-  .form-control {
-    width: 100%;
-    padding: var(--space-2) var(--space-3);
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--radius-sm);
-    color: var(--bs-body-color);
-    font-size: var(--font-size-base);
-    font-family: inherit;
-
-    &:focus {
-      outline: none;
-      border-color: var(--bs-primary);
-      box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.1);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    &.email-body {
-      resize: vertical;
-      min-height: 150px;
-      font-family: monospace;
-    }
+  .email-body {
+    resize: vertical;
+    min-height: 150px;
+    font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
   }
 }
 
+// ── Available Tokens ────────────────────────────────────
 .tokens-section {
-  background: var(--bs-secondary-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
   margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background: var(--bs-secondary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
 
-  h4 {
-    margin: 0 0 var(--space-1) 0;
-    font-size: var(--font-size-base);
+  .tokens-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
     font-weight: 600;
-    color: var(--bs-heading-color);
-  }
-
-  .tokens-help {
-    margin: 0 0 var(--space-3) 0;
     font-size: var(--font-size-sm);
-    color: var(--bs-secondary-color);
+    color: var(--bs-body-color);
+
+    svg {
+      flex-shrink: 0;
+      color: var(--bs-secondary-color);
+    }
   }
 
   .token-chips {
@@ -211,9 +261,9 @@
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     font-weight: 600;
-    font-family: monospace;
+    font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.15s ease, transform 0.15s ease;
 
     &:hover:not(:disabled) {
       background: var(--bs-primary-hover);
@@ -224,13 +274,24 @@
       transform: translateY(0);
     }
 
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
   }
+
+  .form-text {
+    display: block;
+    margin-top: var(--space-2);
+  }
 }
 
+// ── Result section (after send) ─────────────────────────
 .result-section {
   background: var(--bs-success-bg-subtle);
   border: 1px solid var(--bs-success-border-subtle);
@@ -282,6 +343,12 @@
   }
 }
 
+// ── Confirm-send banner ─────────────────────────────────
+.confirm-send {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+// ── Footer ──────────────────────────────────────────────
 .modal-footer {
   display: flex;
   gap: var(--space-3);
@@ -295,14 +362,19 @@
     font-weight: 600;
     cursor: pointer;
     border: none;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    transition: all 0.2s ease;
+    transition: background-color 0.15s ease;
 
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
     }
   }
 
@@ -335,4 +407,15 @@
   }
 }
 
-// @keyframes spin moved to global _utilities.scss
+// ── Reduced motion ──────────────────────────────────────
+@media (prefers-reduced-motion: reduce) {
+  .token-chip,
+  .modal-footer .btn,
+  .modal-header .btn-close {
+    transition: none !important;
+  }
+
+  .token-chip:hover {
+    transform: none !important;
+  }
+}

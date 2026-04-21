@@ -33,6 +33,7 @@ describe('isTemplateAvailable', () => {
   const viPlayerTemplate = findTemplate('Player Insurance — Not Yet Accepted');
   const viTeamTemplate = findTemplate('Team Insurance — Not Yet Accepted (Club Reps)');
   const arbBehindActive = findTemplate('Update CC Info (Active/Suspended)');
+  const usLaxExpired = findTemplate('Expired / Missing Membership');
 
   it('templates without availability are always available', () => {
     const alwaysAvailable: EmailTemplate = { label: 'x', subject: 'y', body: 'z' };
@@ -47,8 +48,7 @@ describe('isTemplateAvailable', () => {
   it('returns false when a required job flag is not set', () => {
     const request: RegistrationSearchRequest = {
       hasVIPlayerInsurance: false,
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER]
+      activeStatuses: ['True']
     };
     expect(isTemplateAvailable(viPlayerTemplate, request, NO_FLAGS)).toBe(false);
     expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(true);
@@ -56,8 +56,7 @@ describe('isTemplateAvailable', () => {
 
   it('returns false when required filter is missing', () => {
     const request: RegistrationSearchRequest = {
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER]
+      activeStatuses: ['True']
     };
     expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(false);
   });
@@ -65,8 +64,7 @@ describe('isTemplateAvailable', () => {
   it('returns false when required filter value does not match', () => {
     const request: RegistrationSearchRequest = {
       hasVIPlayerInsurance: true,
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER]
+      activeStatuses: ['True']
     };
     expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(false);
   });
@@ -74,63 +72,35 @@ describe('isTemplateAvailable', () => {
   it('returns false when activeStatuses is not ["True"]', () => {
     const request: RegistrationSearchRequest = {
       hasVIPlayerInsurance: false,
-      activeStatuses: ['False'],
-      roleIds: [ROLE_ID_PLAYER]
+      activeStatuses: ['False']
     };
     expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(false);
   });
 
-  it('returns false when another unrelated filter is active', () => {
+  it('allows user-added narrowings (club, gender, agegroup, etc.) when required filters match', () => {
     const request: RegistrationSearchRequest = {
       hasVIPlayerInsurance: false,
       activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER],
-      clubNames: ['Any Club']
+      clubNames: ['Any Club'],
+      genders: ['F']
     };
-    expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(false);
+    expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(true);
   });
 
-  it('exempts roleIds that match impliedRoleIds (auto-enacted)', () => {
+  it('allows defaults baseline (genders pre-selected, active pre-selected) without blocking', () => {
     const request: RegistrationSearchRequest = {
       hasVIPlayerInsurance: false,
       activeStatuses: ['True'],
+      genders: ['F', 'M'],
       roleIds: [ROLE_ID_PLAYER]
     };
     expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(true);
   });
 
-  it('role-id comparison is case-insensitive', () => {
-    const request: RegistrationSearchRequest = {
-      hasVIPlayerInsurance: false,
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER.toLowerCase()]
-    };
-    expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(true);
-  });
-
-  it('does not exempt a DIFFERENT role from the implied set', () => {
-    const request: RegistrationSearchRequest = {
-      hasVIPlayerInsurance: false,
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_CLUBREP]
-    };
-    expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(false);
-  });
-
-  it('does not exempt a multi-role selection even if it contains the implied role', () => {
-    const request: RegistrationSearchRequest = {
-      hasVIPlayerInsurance: false,
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER, ROLE_ID_CLUBREP]
-    };
-    expect(isTemplateAvailable(viPlayerTemplate, request, VI_PLAYER_ONLY)).toBe(false);
-  });
-
-  it('VI Team template requires ClubRep role + offerTeamRegsaverInsurance', () => {
+  it('VI Team template requires offerTeamRegsaverInsurance flag', () => {
     const request: RegistrationSearchRequest = {
       hasVITeamInsurance: false,
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_CLUBREP]
+      activeStatuses: ['True']
     };
     expect(isTemplateAvailable(viTeamTemplate, request, VI_TEAM_ONLY)).toBe(true);
     expect(isTemplateAvailable(viTeamTemplate, request, VI_PLAYER_ONLY)).toBe(false);
@@ -150,20 +120,46 @@ describe('isTemplateAvailable', () => {
     expect(isTemplateAvailable(arbBehindActive, wrongValue, ARB_ONLY)).toBe(false);
   });
 
-  it('USLax expired template requires usLaxMembershipValidated flag + expired status + Player role', () => {
-    const usLaxExpired = findTemplate('Expired / Missing Membership');
+  it('Waitlist activation template requires Player role + Active', () => {
+    const waitlistActivation = findTemplate('Activation (Off the Waitlist)');
+
+    const goodRequest: RegistrationSearchRequest = {
+      roleIds: [ROLE_ID_PLAYER],
+      activeStatuses: ['True']
+    };
+    expect(isTemplateAvailable(waitlistActivation, goodRequest, NO_FLAGS)).toBe(true);
+
+    // Lowercase GUID (backend format) must still match
+    const lowercaseRoleRequest: RegistrationSearchRequest = {
+      roleIds: [ROLE_ID_PLAYER.toLowerCase()],
+      activeStatuses: ['True']
+    };
+    expect(isTemplateAvailable(waitlistActivation, lowercaseRoleRequest, NO_FLAGS)).toBe(true);
+
+    // Wrong role — blocks
+    const clubRepRequest: RegistrationSearchRequest = {
+      roleIds: [ROLE_ID_CLUBREP],
+      activeStatuses: ['True']
+    };
+    expect(isTemplateAvailable(waitlistActivation, clubRepRequest, NO_FLAGS)).toBe(false);
+
+    // Inactive — blocks
+    const inactiveRequest: RegistrationSearchRequest = {
+      roleIds: [ROLE_ID_PLAYER],
+      activeStatuses: ['False']
+    };
+    expect(isTemplateAvailable(waitlistActivation, inactiveRequest, NO_FLAGS)).toBe(false);
+  });
+
+  it('USLax expired template requires usLaxMembershipValidated flag + expired status', () => {
     const goodRequest: RegistrationSearchRequest = {
       usLaxMembershipStatus: 'expired',
-      activeStatuses: ['True'],
-      roleIds: [ROLE_ID_PLAYER]
+      activeStatuses: ['True']
     };
     expect(isTemplateAvailable(usLaxExpired, goodRequest, USLAX_ONLY)).toBe(true);
     expect(isTemplateAvailable(usLaxExpired, goodRequest, NO_FLAGS)).toBe(false);
 
-    const wrongRole: RegistrationSearchRequest = { ...goodRequest, roleIds: [ROLE_ID_CLUBREP] };
-    expect(isTemplateAvailable(usLaxExpired, wrongRole, USLAX_ONLY)).toBe(false);
-
-    const noStatus: RegistrationSearchRequest = { activeStatuses: ['True'], roleIds: [ROLE_ID_PLAYER] };
+    const noStatus: RegistrationSearchRequest = { activeStatuses: ['True'] };
     expect(isTemplateAvailable(usLaxExpired, noStatus, USLAX_ONLY)).toBe(false);
   });
 });

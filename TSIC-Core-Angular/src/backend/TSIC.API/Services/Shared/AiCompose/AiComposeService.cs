@@ -200,7 +200,7 @@ public class AiComposeService : IAiComposeService
             "  !SEASON — season name\n" +
             "  !SPORT — sport name\n" +
             "  !FAMILYUSERNAME — the family's login username\n" +
-            "  !JOBLINK — a link to the organization's website\n" +
+            "  !JOBLINK — the job name as a clickable link (e.g., write \"visit !JOBLINK\" — it renders as the hyperlinked job name)\n" +
             "- Only use tokens that are relevant to the message. Do not force tokens into every email.\n" +
             "- Use !PERSON at the start of the email as a greeting (e.g., \"Dear !PERSON,\") when appropriate.\n" +
             "- Return ONLY the JSON object. No markdown, no code fences, no explanation.";

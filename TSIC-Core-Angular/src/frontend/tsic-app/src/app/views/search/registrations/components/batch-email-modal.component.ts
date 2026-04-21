@@ -11,7 +11,7 @@ const BASE_TOKENS = [
   { token: '!EMAIL', description: 'Contact email address' },
   { token: '!FAMILYUSERNAME', description: 'Recipient\'s login username' },
   { token: '!JOBNAME', description: 'League/Organization name' },
-  { token: '!JOBLINK', description: 'Link to the job page (as a clickable phrase)' },
+  { token: '!JOBLINK', description: 'Job name as a clickable link (e.g., "visit !JOBLINK")' },
   { token: '!AMTFEES', description: 'Total fees amount' },
   { token: '!AMTPAID', description: 'Amount paid' },
   { token: '!AMTOWED', description: 'Amount owed' },
