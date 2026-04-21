@@ -130,6 +130,27 @@ public class JobCloneTransformsTests
     }
 
     [Fact]
+    public void IncrementYearsInName_TypicalAgegroupPattern_BumpsBothEnds()
+    {
+        JobCloneTransforms.IncrementYearsInName("Girls Elite Players 2025-2026")
+            .Should().Be("Girls Elite Players 2026-2027");
+    }
+
+    [Fact]
+    public void IncrementYearsInName_YearRangeWithSpaces_BumpsBothEnds()
+    {
+        JobCloneTransforms.IncrementYearsInName("Boys 2025 - 2026")
+            .Should().Be("Boys 2026 - 2027");
+    }
+
+    [Fact]
+    public void IncrementYearsInName_YearRangeWithSlash_BumpsBothEnds()
+    {
+        JobCloneTransforms.IncrementYearsInName("Boys 2025/2026")
+            .Should().Be("Boys 2026/2027");
+    }
+
+    [Fact]
     public void IncrementYearsInName_NonYearDigits_LeftAlone()
     {
         // 4-digit numbers outside 2020-2039 are not mangled

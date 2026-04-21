@@ -417,7 +417,7 @@ export class JobCloneComponent implements OnInit {
 			next: response => {
 				this.isReleasingSite.set(false);
 				this.sitePublic.set(!response.bSuspendPublic);
-				this.toast.show('Site released to public', 'success');
+				this.toast.show('Job is now visible to the public', 'success');
 			},
 			error: err => {
 				this.isReleasingSite.set(false);
@@ -435,7 +435,8 @@ export class JobCloneComponent implements OnInit {
 		this.cloneService.releaseAdmins(jobId, { registrationIds: ids }).subscribe({
 			next: response => {
 				this.isActivatingAdmins.set(false);
-				this.toast.show(`Activated ${response.adminsActivated} admin(s)`, 'success');
+				const n = response.adminsActivated;
+				this.toast.show(`${n} director${n === 1 ? '' : 's'} can now log in`, 'success');
 				this.releaseSelectedRegIds.set(new Set());
 				this.loadReleaseAdmins(jobId);
 			},

@@ -20,8 +20,9 @@
 				<span class="jc-step-label">Step {{ step() }} of {{ totalSteps }}</span>
 			</h2>
 			<p class="jc-subtitle">
-				SuperUser only. New jobs land <strong>suspended</strong> with customer admins inactive
-				until you release them on the next screen.
+				When you submit, the new job will be <strong>hidden from the public</strong>
+				and its <strong>directors won't be able to log in yet</strong>. You'll turn both of those
+				on afterwards, whenever you're ready.
 			</p>
 		</header>
 
@@ -355,9 +356,9 @@
 				</dl>
 
 				<p class="wizard-tip">
-					The new job lands <strong>suspended</strong> (hidden from public) with
-					<strong>customer admins inactive</strong>. Use the Release screen afterward
-					to flip each switch when ready.
+					After you submit, the new job will be <strong>hidden from the public</strong>
+					and its <strong>directors won't be able to log in</strong>. The next screen lets you
+					turn each of those on when you're ready.
 				</p>
 
 				<label class="field-check">
@@ -392,7 +393,7 @@
 						@if (isSubmitting()) {
 							<span class="spinner"></span> Creating…
 						} @else {
-							Create job (suspended)
+							Create job
 						}
 					</button>
 				}
@@ -403,10 +404,11 @@
 	<!-- ══════════════════ RELEASE ══════════════════ -->
 	@case ('release') {
 		<header class="jc-header">
-			<h2>Release job</h2>
+			<h2>Turn the new job on</h2>
 			<p class="jc-subtitle">
-				Two independent switches — flip each when you're ready. The new job is <strong>suspended</strong>
-				(public can't see it) and customer admins are <strong>inactive</strong> (can't log in) until then.
+				Two switches. Flip the first when you want the job visible to the public.
+				Flip the second when you want its directors to be able to log in.
+				You can do them in either order.
 			</p>
 		</header>
 
@@ -419,26 +421,27 @@
 
 		<!-- Release site -->
 		<section class="jc-panel">
-			<h3>1. Release site to public</h3>
+			<h3>1. Make the job visible to the public</h3>
 			<p class="wizard-tip">
-				Flips <code>BSuspendPublic = false</code>. Job becomes visible to everyone at its path.
+				Right now the job is hidden — anyone visiting its URL sees nothing. Click below when
+				you want the public to see it.
 			</p>
 			@if (sitePublic() === true) {
-				<p class="success-banner">Site is live.</p>
+				<p class="success-banner">The job is now visible to the public.</p>
 			} @else {
 				<button type="button" class="jc-btn-primary" [disabled]="isReleasingSite()" (click)="onReleaseSite()">
-					@if (isReleasingSite()) { <span class="spinner"></span> Releasing… }
-					@else { Release site }
+					@if (isReleasingSite()) { <span class="spinner"></span> Turning on… }
+					@else { Make visible to public }
 				</button>
 			}
 		</section>
 
 		<!-- Activate admins -->
 		<section class="jc-panel">
-			<h3>2. Activate admin registrations</h3>
+			<h3>2. Let directors log in</h3>
 			<p class="wizard-tip">
-				Flips <code>BActive = true</code> on selected rows. Inactive admins can't log in until you activate them.
-				Superuser rows (TSIC-central) are already active — they aren't listed here unless they were cloned inactive.
+				Directors cloned from the source job can't log in yet. Tick the ones you want to let in,
+				then click the button. Your own SuperUser access is already active — you won't see yourself listed.
 			</p>
 
 			@if (isLoadingAdmins()) {
@@ -471,14 +474,14 @@
 				<button type="button" class="jc-btn-primary"
 					[disabled]="selectedCount() === 0 || isActivatingAdmins()"
 					(click)="onActivateSelected()">
-					@if (isActivatingAdmins()) { <span class="spinner"></span> Activating… }
-					@else { Activate {{ selectedCount() }} admin(s) }
+					@if (isActivatingAdmins()) { <span class="spinner"></span> Letting them in… }
+					@else { Let {{ selectedCount() }} director(s) log in }
 				</button>
 			}
 
 			@if (activeAdmins().length > 0) {
 				<details style="margin-top: var(--space-3)">
-					<summary>{{ activeAdmins().length }} already-active admin(s)</summary>
+					<summary>{{ activeAdmins().length }} director(s) already allowed to log in</summary>
 					<ul class="jc-admin-list">
 						@for (a of activeAdmins(); track trackAdmin($index, a)) {
 							<li>
