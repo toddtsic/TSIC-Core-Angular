@@ -64,6 +64,13 @@ public record RegistrationSearchRequest
     //   "expired" = SportAssnIdexpDate is null OR < job's valid-through date
     // Implicitly restricts to active Player registrations.
     public string? UsLaxMembershipStatus { get; init; }
+
+    // Explicit registration ID list. When non-empty, the search constrains to exactly
+    // these registrations (AND-combined with any other filters the caller sends).
+    // Used by action-style lookups (e.g. ARB CC expiring this month) that pre-compute
+    // a candidate set from an external source (Authorize.net) and want the grid
+    // pipeline to render them with normal totals/aggregates.
+    public List<Guid>? RegistrationIds { get; init; }
 }
 
 /// <summary>

@@ -928,6 +928,14 @@ public class RegistrationRepository : IRegistrationRepository
             .AsNoTracking()
             .Where(r => r.JobId == jobId);
 
+        // Explicit registration ID list (action-lookup caller pre-computed the candidate set,
+        // e.g. ARB CC expiring this month). AND-combined with any other filter supplied.
+        if (request.RegistrationIds is { Count: > 0 })
+        {
+            var ids = request.RegistrationIds;
+            query = query.Where(r => ids.Contains(r.RegistrationId));
+        }
+
         // ── Multi-select status filters ──
 
         // Active status filter (multi-select: "True" / "False")
@@ -1703,7 +1711,14 @@ public class RegistrationRepository : IRegistrationRepository
             if (prop != null)
             {
                 var val = prop.GetValue(reg);
-                profileValues[propName] = val?.ToString();
+                // DateTime values must ship as ISO yyyy-MM-dd so HTML <input type="date">
+                // can round-trip them. Default DateTime.ToString() produces culture-local
+                // format (e.g. "9/30/2026 12:00:00 AM") which the date input silently rejects.
+                profileValues[propName] = val switch
+                {
+                    DateTime dt => dt.ToString("yyyy-MM-dd"),
+                    _ => val?.ToString()
+                };
             }
         }
 

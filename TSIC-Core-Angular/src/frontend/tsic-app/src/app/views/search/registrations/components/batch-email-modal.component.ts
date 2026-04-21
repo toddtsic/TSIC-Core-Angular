@@ -49,6 +49,10 @@ export class BatchEmailModalComponent implements OnInit {
   searchRequest = input<RegistrationSearchRequest | null>(null);
   jobFlags = input<JobFlagsForTemplates | null>(null);
 
+  /** Transient UI mode: true when the grid is showing Authorize.net
+   *  card-expiring-this-month lookup results. Gates the CC-Expiring template. */
+  isCardExpiringMode = input<boolean>(false);
+
   closed = output<void>();
   sent = output<BatchEmailResponse>();
 
@@ -97,11 +101,12 @@ export class BatchEmailModalComponent implements OnInit {
   readonly availableTemplateCategories = computed(() => {
     const req = this.searchRequest();
     const flags = this.jobFlags();
+    const modes = { cardExpiring: this.isCardExpiringMode() };
     if (!req) return [];
     return EMAIL_TEMPLATE_CATEGORIES
       .map(cat => ({
         category: cat.category,
-        templates: cat.templates.filter(t => isTemplateAvailable(t, req, flags))
+        templates: cat.templates.filter(t => isTemplateAvailable(t, req, flags, modes))
       }))
       .filter(cat => cat.templates.length > 0);
   });

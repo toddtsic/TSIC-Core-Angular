@@ -82,6 +82,12 @@ export class RegistrationSearchService {
 		return this.http.post<RegistrationSearchResponse>(`${this.apiUrl}/search`, request);
 	}
 
+	/** Action-style lookup: Authorize.net live query for cards expiring this month.
+	 *  Ignores filter state by design — returns full set (incl. inactive) for collection follow-up. */
+	arbCardExpiringLookup(): Observable<RegistrationSearchResponse> {
+		return this.http.post<RegistrationSearchResponse>(`${this.apiUrl}/arb-card-expiring-lookup`, null);
+	}
+
 	getFilterOptions(): Observable<RegistrationFilterOptionsDto> {
 		return this.http.get<RegistrationFilterOptionsDto>(`${this.apiUrl}/filter-options`);
 	}

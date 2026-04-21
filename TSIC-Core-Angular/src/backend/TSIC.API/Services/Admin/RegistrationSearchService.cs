@@ -23,6 +23,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IJobRepository _jobRepo;
     private readonly IDeviceRepository _deviceRepo;
     private readonly IAdnApiService _adnApi;
+    private readonly IArbSubscriptionRepository _arbRepo;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
@@ -40,6 +41,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IJobRepository jobRepo,
         IDeviceRepository deviceRepo,
         IAdnApiService adnApi,
+        IArbSubscriptionRepository arbRepo,
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
         IRegistrationFeeAdjustmentService feeAdjustment,
@@ -50,6 +52,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _jobRepo = jobRepo;
         _deviceRepo = deviceRepo;
         _adnApi = adnApi;
+        _arbRepo = arbRepo;
         _textSubstitution = textSubstitution;
         _emailService = emailService;
         _feeAdjustment = feeAdjustment;
@@ -61,6 +64,50 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     {
         return await _registrationRepo.SearchAsync(jobId, request, ct);
     }
+
+    public async Task<RegistrationSearchResponse> ArbCardExpiringLookupAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var env = _adnApi.GetADNEnvironment(bProdOnly: true);
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
+
+        var response = _adnApi.ARBGetSubscriptionListRequest(
+            env, creds.AdnLoginId!, creds.AdnTransactionKey!,
+            ARBGetSubscriptionListSearchTypeEnum.cardExpiringThisMonth);
+
+        if (response?.messages?.resultCode != messageTypeEnum.Ok
+            || response.subscriptionDetails == null)
+        {
+            return EmptySearchResponse();
+        }
+
+        var invoices = response.subscriptionDetails
+            .Where(s => !string.IsNullOrEmpty(s.invoice))
+            .Select(s => s.invoice)
+            .ToList();
+
+        if (invoices.Count == 0) return EmptySearchResponse();
+
+        var regs = await _arbRepo.GetRegistrationsByInvoiceNumbersAsync(invoices, jobId, ct);
+        var registrationIds = regs.Select(r => r.RegistrationId).Distinct().ToList();
+
+        if (registrationIds.Count == 0) return EmptySearchResponse();
+
+        // Route through the normal search pipeline with only the registration-id filter —
+        // no Active / Role / etc. gates, so dropped or otherwise out-of-scope registrations
+        // with owed balances still surface for collection follow-up.
+        var request = new RegistrationSearchRequest { RegistrationIds = registrationIds };
+        return await _registrationRepo.SearchAsync(jobId, request, ct);
+    }
+
+    private static RegistrationSearchResponse EmptySearchResponse() => new()
+    {
+        Result = [],
+        Count = 0,
+        TotalFees = 0m,
+        TotalPaid = 0m,
+        TotalOwed = 0m
+    };
 
     public async Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(
         Guid jobId, CancellationToken ct = default)

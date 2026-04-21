@@ -120,6 +120,25 @@ describe('isTemplateAvailable', () => {
     expect(isTemplateAvailable(arbBehindActive, wrongValue, ARB_ONLY)).toBe(false);
   });
 
+  it('CC Expiring template requires adnArb + cardExpiring mode, ignores filter state', () => {
+    const ccExpiring = findTemplate('Credit Card Expiring This Month');
+    const emptyRequest: RegistrationSearchRequest = {};
+
+    // Job flag required
+    expect(isTemplateAvailable(ccExpiring, emptyRequest, NO_FLAGS, { cardExpiring: true })).toBe(false);
+
+    // Mode flag required
+    expect(isTemplateAvailable(ccExpiring, emptyRequest, ARB_ONLY, { cardExpiring: false })).toBe(false);
+    expect(isTemplateAvailable(ccExpiring, emptyRequest, ARB_ONLY, {})).toBe(false);
+
+    // Both present → available
+    expect(isTemplateAvailable(ccExpiring, emptyRequest, ARB_ONLY, { cardExpiring: true })).toBe(true);
+
+    // Filter state is ignored — even with inactive-only it still shows
+    const inactiveOnly: RegistrationSearchRequest = { activeStatuses: ['False'] };
+    expect(isTemplateAvailable(ccExpiring, inactiveOnly, ARB_ONLY, { cardExpiring: true })).toBe(true);
+  });
+
   it('Waitlist activation template requires Player role + Active', () => {
     const waitlistActivation = findTemplate('Activation (Off the Waitlist)');
 

@@ -71,9 +71,10 @@ public class PlayerCheckTests
 
         var feeAdjustment = new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object);
 
+        var arbRepo = new Mock<IArbSubscriptionRepository>();
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, deviceRepo.Object,
-            adnApi.Object, textSub.Object, emailService.Object, feeAdjustment, logger.Object);
+            adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment, logger.Object);
 
         return (svc, builder, ctx, job.JobId);
     }

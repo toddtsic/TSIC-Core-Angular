@@ -32,5 +32,6 @@ export type RegistrationSearchRequest = {
     hasVITeamInsurance?: boolean | null;
     arbHealthStatus?: string | null;
     usLaxMembershipStatus?: string | null;
+    registrationIds?: any[] | null;
 };
 

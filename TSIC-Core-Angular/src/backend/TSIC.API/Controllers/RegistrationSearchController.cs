@@ -52,6 +52,24 @@ public class RegistrationSearchController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Action-style lookup: Authorize.net live query for subscriptions with cards
+    /// expiring this month for this job, returned via the standard search response
+    /// shape. Bypasses filter state by design — dropped registrations still need to
+    /// surface so admins can follow up on balances their next auto-bill would fail
+    /// to collect.
+    /// </summary>
+    [HttpPost("arb-card-expiring-lookup")]
+    public async Task<ActionResult<RegistrationSearchResponse>> ArbCardExpiringLookup(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = RegistrationContextRequired });
+
+        var result = await _searchService.ArbCardExpiringLookupAsync(jobId.Value, ct);
+        return Ok(result);
+    }
+
     [HttpGet("filter-options")]
     public async Task<ActionResult<RegistrationFilterOptionsDto>> GetFilterOptions(CancellationToken ct)
     {

@@ -718,6 +718,54 @@ public class RegistrationSearchTests
         result.Result.Select(r => r.FirstName).Should().BeEquivalentTo("Alice", "Bob");
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    //  19. REGISTRATION IDS (action-lookup input)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "RegistrationIds filter →returns only the listed IDs (incl. inactive)")]
+    public async Task RegistrationIds_ReturnsOnlyListedIncludingInactive()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+
+        var role = b.AddRole(RoleConstants.Player, "Player");
+
+        var alice = b.AddRegistration(jobId, b.AddUser("Alice", "A").Id, role.Id, feeTotal: 100m);
+        var bob = b.AddRegistration(jobId, b.AddUser("Bob", "B").Id, role.Id, feeTotal: 100m, active: false);
+        b.AddRegistration(jobId, b.AddUser("Carol", "C").Id, role.Id, feeTotal: 100m);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(jobId, new RegistrationSearchRequest
+        {
+            RegistrationIds = [alice.RegistrationId, bob.RegistrationId]
+        });
+
+        result.Count.Should().Be(2);
+        result.Result.Select(r => r.FirstName).Should().BeEquivalentTo("Alice", "Bob");
+        // Confirms that the filter does not secretly re-apply Active=true.
+        result.Result.Should().Contain(r => r.FirstName == "Bob" && !r.Active);
+    }
+
+    [Fact(DisplayName = "RegistrationIds filter →AND-combines with other filters when both provided")]
+    public async Task RegistrationIds_AndsWithOtherFilters()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+
+        var role = b.AddRole(RoleConstants.Player, "Player");
+
+        var alice = b.AddRegistration(jobId, b.AddUser("Alice", "A").Id, role.Id, feeTotal: 100m);
+        var bob = b.AddRegistration(jobId, b.AddUser("Bob", "B").Id, role.Id, feeTotal: 100m, active: false);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(jobId, new RegistrationSearchRequest
+        {
+            RegistrationIds = [alice.RegistrationId, bob.RegistrationId],
+            ActiveStatuses = ["True"]
+        });
+
+        result.Count.Should().Be(1);
+        result.Result[0].FirstName.Should().Be("Alice");
+    }
+
     [Fact(DisplayName = "ArbHealthStatus on non-ARB job →filter ignored (no-op)")]
     public async Task ArbHealth_JobHasNoArb_FilterIgnored()
     {

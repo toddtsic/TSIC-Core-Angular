@@ -20,10 +20,20 @@ export interface JobFlagsForTemplates {
   usLaxMembershipValidated: boolean;
 }
 
+/** Transient UI modes that gate template availability beyond search-request state.
+ *  Today there's only one: "cardExpiring" — set while the grid is showing results
+ *  from a live Authorize.net card-expiring-this-month lookup. */
+export type TemplateMode = 'cardExpiring';
+
+export interface TemplateModes {
+  cardExpiring?: boolean;
+}
+
 /**
  * Availability rule for a template. When present, the template is offered only if:
  *   - every flag in `requiresJobFlags` is true on the job flags object, AND
- *   - EVERY filter in `requiresFilters` matches the search request.
+ *   - EVERY filter in `requiresFilters` matches the search request, AND
+ *   - every mode in `requiresModes` is active in the current UI context.
  *
  * The model is: **defaults + required filters = baseline**. Additional user
  * narrowings (gender, club, agegroup, etc.) are allowed — the template's scope
@@ -33,6 +43,7 @@ export interface JobFlagsForTemplates {
 export interface TemplateAvailability {
   requiresJobFlags: readonly (keyof JobFlagsForTemplates)[];
   requiresFilters: readonly { key: keyof RegistrationSearchRequest; value: unknown }[];
+  requiresModes?: readonly TemplateMode[];
 }
 
 export interface EmailTemplate {
@@ -66,7 +77,8 @@ function stringCompareInsensitive(a: unknown, b: unknown): boolean {
 export function isTemplateAvailable(
   template: EmailTemplate,
   searchRequest: RegistrationSearchRequest,
-  jobFlags: JobFlagsForTemplates | null
+  jobFlags: JobFlagsForTemplates | null,
+  modes: TemplateModes = {}
 ): boolean {
   const rule = template.availability;
   if (!rule) return true;
@@ -80,6 +92,12 @@ export function isTemplateAvailable(
 
   for (const req of rule.requiresFilters) {
     if (!filterValueMatches(searchRequest[req.key], req.value)) return false;
+  }
+
+  if (rule.requiresModes && rule.requiresModes.length > 0) {
+    for (const mode of rule.requiresModes) {
+      if (!modes[mode]) return false;
+    }
   }
 
   return true;
@@ -137,6 +155,26 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
             { key: 'arbHealthStatus', value: 'behind-expired' },
             ACTIVE_ONLY
           ]
+        }
+      },
+      {
+        label: 'Credit Card Expiring This Month',
+        subject: 'Your Credit Card is Expiring — Action Required',
+        body:
+          'The credit card on file for your automatic recurring payments for !JOBNAME for !PERSON is expiring this month.\n\n' +
+          'If we cannot bill the new card before your next scheduled payment, your auto-pay will fail.\n\n' +
+          'To update your credit card, visit !JOBLINK, then:\n\n' +
+          '1. Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME\n' +
+          '2. Select your Player\'s role\n' +
+          '3. Under \'Player\' in the upper right, select \'Update CC Info (will also pay for failed auto-payments)\'\n' +
+          '4. Enter your credit card information and submit.',
+        availability: {
+          // Gated by mode: only offered when the grid is showing lookup results from
+          // the live Authorize.net card-expiring query. Dropped / inactive registrants
+          // can be recipients — no activeStatuses filter here by design.
+          requiresJobFlags: ['adnArb'],
+          requiresFilters: [],
+          requiresModes: ['cardExpiring']
         }
       }
     ]

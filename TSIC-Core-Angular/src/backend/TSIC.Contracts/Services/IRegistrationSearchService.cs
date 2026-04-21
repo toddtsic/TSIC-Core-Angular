@@ -10,6 +10,14 @@ namespace TSIC.Contracts.Services;
 public interface IRegistrationSearchService
 {
     Task<RegistrationSearchResponse> SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Action-style lookup: calls Authorize.net for subscriptions with cards expiring this month,
+    /// maps to registrations, and returns them via the normal search pipeline (so totals and row
+    /// shape match the grid). Ignores filter state on purpose — dropped/inactive registrants whose
+    /// next auto-bill would fail still need to surface for collection follow-up.
+    /// </summary>
+    Task<RegistrationSearchResponse> ArbCardExpiringLookupAsync(Guid jobId, CancellationToken ct = default);
     Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<CadtClubNode>> GetCadtTreeAsync(Guid jobId, CancellationToken ct = default);
     Task<RegistrationDetailDto?> GetRegistrationDetailAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);

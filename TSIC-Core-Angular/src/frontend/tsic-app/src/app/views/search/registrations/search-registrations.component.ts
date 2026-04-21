@@ -152,6 +152,12 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   searchResults = signal<RegistrationSearchResponse | null>(null);
   isSearching = signal(false);
 
+  // ── ARB CC Expiring This Month lookup ──
+  // Transient mode: true while the grid is showing results from the live Authorize.net
+  // lookup (not from the normal filter pipeline). Display-only; not part of searchRequest.
+  arbCardExpiringMode = signal(false);
+  isArbCardExpiringLoading = signal(false);
+
   // Filters fly-in panel state
   isFiltersPanelOpen = signal(false);
 
@@ -388,6 +394,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   executeSearch(): void {
     if (this.isSearching()) return; // Guard against double-fire (Enter bubbling + button click)
+    this.arbCardExpiringMode.set(false);
     this.isFiltersPanelOpen.set(false);
     this.isSearching.set(true);
     this.lastExecutedRequest.set(JSON.stringify(this.searchRequest()));
@@ -916,6 +923,37 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       case 'behind-expired': return 'Behind — Expired/Terminated';
       default: return value;
     }
+  }
+
+  /** Live lookup against Authorize.net for subscriptions with cards expiring this month.
+   *  Bypasses filter state — dropped/inactive registrants with expiring cards still
+   *  need to surface so admins can follow up before the next auto-bill fails. */
+  runArbCardExpiringLookup(): void {
+    if (this.isArbCardExpiringLoading()) return;
+    this.isArbCardExpiringLoading.set(true);
+    this.isFiltersPanelOpen.set(false);
+    this.searchService.arbCardExpiringLookup().subscribe({
+      next: (results) => {
+        this.searchResults.set(results);
+        this.selectedRegistrations.set(new Set());
+        this.arbCardExpiringMode.set(true);
+        this.isArbCardExpiringLoading.set(false);
+        if (results.count === 0) {
+          this.toast.show('No cards expiring this month for this job', 'info', 4000);
+        }
+      },
+      error: (err) => {
+        this.isArbCardExpiringLoading.set(false);
+        const msg = err?.error?.message ?? 'Authorize.net lookup failed';
+        this.toast.show(msg, 'danger', 5000);
+      }
+    });
+  }
+
+  /** Exit lookup mode and restore the normal search using whatever filters are set. */
+  clearArbCardExpiringMode(): void {
+    this.arbCardExpiringMode.set(false);
+    this.executeSearch();
   }
 
   // ── USLax Membership filter ──

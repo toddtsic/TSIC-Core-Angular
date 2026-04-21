@@ -446,8 +446,37 @@
                   <option value="behind-active">Behind — Active/Suspended</option>
                   <option value="behind-expired">Behind — Expired/Terminated</option>
                 </select>
-                <small class="form-text text-muted">Active only.</small>
+                <p class="wizard-tip">
+                  When set, results are auto-restricted to <strong>active</strong> registrants.
+                </p>
               </div>
+            </div>
+
+            <!-- Action: live Authorize.net lookup for cards expiring this month.
+                 Not a filter — runs its own search bypassing all filter state so
+                 dropped registrants with expiring cards still surface for collection. -->
+            <div class="filter-row arb-action-row">
+              <button type="button"
+                class="btn btn-outline-primary btn-arb-action"
+                (click)="runArbCardExpiringLookup()"
+                [disabled]="isArbCardExpiringLoading() || isSearching()">
+                @if (isArbCardExpiringLoading()) {
+                  <span class="spinner-border spinner-border-sm"></span>
+                  Looking up at Authorize.net…
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="2" y1="10" x2="22" y2="10"/>
+                  </svg>
+                  Look up CCs expiring this month
+                }
+              </button>
+              <p class="wizard-tip">
+                Live query to Authorize.net. Ignores filters — returns all matching registrants
+                for this job (<strong>active, dropped, any role</strong>) so balances can be collected
+                before the next auto-bill fails. Takes a few seconds.
+              </p>
             </div>
           </div>
         </div>
@@ -556,23 +585,38 @@
         }
       </button>
       <span class="chip-strip-label">Selected Filters</span>
-      @if (activeFilterChips().length === 0) {
-        <span class="chip-strip-empty">None &mdash; click the search icon to add filters</span>
-      }
-      @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
-        <span class="filter-chip">
-          <span class="chip-category">{{ chip.category }}:</span>
-          <span class="chip-label">{{ chip.label }}</span>
-          <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+      @if (arbCardExpiringMode()) {
+        <!-- Lookup mode: filter chips are hidden (they weren't applied for this result set).
+             User's filter state is preserved in the component; restores on ×. -->
+        <span class="filter-chip filter-chip-mode">
+          <span class="chip-category">ARB:</span>
+          <span class="chip-label">CCs Expiring This Month ({{ searchResults()?.count ?? 0 }})</span>
+          <button type="button" class="chip-remove" (click)="clearArbCardExpiringMode()" aria-label="Exit ARB card-expiring lookup">
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         </span>
-      }
-      @if (activeFilterChips().length > 0) {
-        <button type="button" class="chip-clear-all" (click)="clearFilters()">Reset</button>
+      } @else {
+        @if (activeFilterChips().length === 0) {
+          <span class="chip-strip-empty">None &mdash; click the search icon to add filters</span>
+        }
+        @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
+          <span class="filter-chip">
+            <span class="chip-category">{{ chip.category }}:</span>
+            <span class="chip-label">{{ chip.label }}</span>
+            <button type="button" class="chip-remove" (click)="removeFilterChip(chip)" aria-label="Remove filter">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </span>
+        }
+        @if (activeFilterChips().length > 0) {
+          <button type="button" class="chip-clear-all" (click)="clearFilters()">Reset</button>
+        }
       }
       <span class="chip-strip-spacer"></span>
       <button type="button"
@@ -786,6 +830,7 @@
     [roleOptions]="filterOptions()?.roles ?? null"
     [searchRequest]="searchRequest()"
     [jobFlags]="jobFlags()"
+    [isCardExpiringMode]="arbCardExpiringMode()"
     (closed)="showBatchEmailModal.set(false)"
     (sent)="onBatchEmailComplete()"
   ></app-batch-email-modal>
