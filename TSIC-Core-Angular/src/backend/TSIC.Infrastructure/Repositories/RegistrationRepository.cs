@@ -1242,29 +1242,25 @@ public class RegistrationRepository : IRegistrationRepository
         // the job's validation window:
         //   SportAssnIdexpDate IS NULL              → on-record expiry missing
         //   SportAssnIdexpDate < UslaxNumberValidThroughDate → expires before job cutoff
-        // Guarded by: the job must be a Lacrosse job AND have UslaxNumberValidThroughDate set.
-        // If either guard fails, the filter is a no-op to avoid returning "everyone"
-        // on jobs that don't define a USLax validation window.
+        // Guarded ONLY by the job having UslaxNumberValidThroughDate set — sport is
+        // intentionally not checked so non-Lacrosse jobs can opt into USLax-style
+        // validation by configuring the date. Filter is a no-op when the date is
+        // unset to avoid returning "everyone" on jobs that didn't opt in.
         if (!string.IsNullOrEmpty(request.UsLaxMembershipStatus))
         {
-            var usLaxGuard = await _context.Jobs
+            var validThrough = await _context.Jobs
                 .AsNoTracking()
                 .Where(j => j.JobId == jobId)
-                .Select(j => new
-                {
-                    ValidThrough = j.UslaxNumberValidThroughDate,
-                    IsLacrosse = j.Sport != null && j.Sport.SportName == "Lacrosse"
-                })
+                .Select(j => j.UslaxNumberValidThroughDate)
                 .FirstOrDefaultAsync(ct);
 
-            if (usLaxGuard?.ValidThrough != null && usLaxGuard.IsLacrosse
-                && request.UsLaxMembershipStatus == "expired")
+            if (validThrough.HasValue && request.UsLaxMembershipStatus == "expired")
             {
-                var validThrough = usLaxGuard.ValidThrough.Value;
+                var cutoff = validThrough.Value;
                 query = query.Where(r =>
                     r.RoleId == RoleConstants.Player
                     && r.BActive == true
-                    && (r.SportAssnIdexpDate == null || r.SportAssnIdexpDate < validThrough));
+                    && (r.SportAssnIdexpDate == null || r.SportAssnIdexpDate < cutoff));
             }
         }
 

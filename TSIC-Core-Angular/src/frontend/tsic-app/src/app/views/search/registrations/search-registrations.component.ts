@@ -89,7 +89,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       offerPlayerRegsaverInsurance: !!p?.offerPlayerRegsaverInsurance,
       offerTeamRegsaverInsurance: !!p?.offerTeamRegsaverInsurance,
       adnArb: !!m?.adnArb,
-      usLaxMembershipValidated: m?.sportName === 'Lacrosse' && !!m?.usLaxNumberValidThroughDate
+      // Gated purely on the admin having configured a USLax validation window.
+      // Sport is intentionally NOT checked — if a non-Lacrosse job later needs a
+      // USLax-style membership check, setting this date opts it in.
+      usLaxMembershipValidated: !!m?.usLaxNumberValidThroughDate
     };
   });
 

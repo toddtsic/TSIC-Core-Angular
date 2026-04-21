@@ -16,7 +16,7 @@ export interface JobFlagsForTemplates {
   offerPlayerRegsaverInsurance: boolean;
   offerTeamRegsaverInsurance: boolean;
   adnArb: boolean;
-  /** True for Lacrosse jobs that have a USLax membership-validation window configured. */
+  /** True when the job has a USLax membership-validation window configured (UslaxNumberValidThroughDate). */
   usLaxMembershipValidated: boolean;
 }
 
