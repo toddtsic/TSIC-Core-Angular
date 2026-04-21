@@ -12,11 +12,13 @@ public interface IWidgetDashboardService
     /// <summary>
     /// Get the merged widget dashboard for a given job and role.
     /// Accepts role name (from JWT claim); resolves to role GUID internally.
+    /// Pass roleName = null for the anonymous/public path — only public widgets
+    /// (WidgetDefault/JobWidget rows with RoleId IS NULL) are returned.
     /// When registrationId is provided, applies per-user customizations (3rd merge layer).
     /// </summary>
     Task<WidgetDashboardResponse> GetDashboardAsync(
         Guid jobId,
-        string roleName,
+        string? roleName,
         Guid? registrationId = null,
         CancellationToken ct = default);
 

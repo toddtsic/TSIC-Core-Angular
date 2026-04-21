@@ -20,12 +20,13 @@ public class WidgetRepository : IWidgetRepository
 
     public async Task<List<WidgetItemProjection>> GetDefaultsAsync(
         int jobTypeId,
-        string roleId,
+        string? roleId,
         CancellationToken ct = default)
     {
         return await _context.WidgetDefault
             .AsNoTracking()
-            .Where(wd => wd.JobTypeId == jobTypeId && wd.RoleId == roleId)
+            .Where(wd => wd.JobTypeId == jobTypeId
+                      && (wd.RoleId == null || wd.RoleId == roleId))
             .OrderBy(wd => wd.Category.Workspace)
             .ThenBy(wd => wd.Category.DefaultOrder)
             .ThenBy(wd => wd.DisplayOrder)
@@ -50,12 +51,13 @@ public class WidgetRepository : IWidgetRepository
 
     public async Task<List<WidgetItemProjection>> GetJobWidgetsAsync(
         Guid jobId,
-        string roleId,
+        string? roleId,
         CancellationToken ct = default)
     {
         return await _context.JobWidget
             .AsNoTracking()
-            .Where(jw => jw.JobId == jobId && jw.RoleId == roleId)
+            .Where(jw => jw.JobId == jobId
+                      && (jw.RoleId == null || jw.RoleId == roleId))
             .OrderBy(jw => jw.Category.Workspace)
             .ThenBy(jw => jw.Category.DefaultOrder)
             .ThenBy(jw => jw.DisplayOrder)

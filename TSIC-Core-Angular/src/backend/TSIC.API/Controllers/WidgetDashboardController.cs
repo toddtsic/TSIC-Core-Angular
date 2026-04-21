@@ -227,7 +227,8 @@ public class WidgetDashboardController : ControllerBase
 
     /// <summary>
     /// Get the public widget dashboard for anonymous visitors.
-    /// Returns widgets configured for the Anonymous role, grouped by workspace and category.
+    /// Returns widgets configured in the public workspace (WidgetDefault.RoleId IS NULL),
+    /// grouped by workspace and category.
     /// </summary>
     [AllowAnonymous]
     [HttpGet("public/{jobPath}")]
@@ -238,7 +239,7 @@ public class WidgetDashboardController : ControllerBase
         if (jobId == null)
             return NotFound(new { message = "Job not found" });
 
-        var result = await _dashboardService.GetDashboardAsync(jobId.Value, "Anonymous", ct: ct);
+        var result = await _dashboardService.GetDashboardAsync(jobId.Value, roleName: null, ct: ct);
         return Ok(result);
     }
 

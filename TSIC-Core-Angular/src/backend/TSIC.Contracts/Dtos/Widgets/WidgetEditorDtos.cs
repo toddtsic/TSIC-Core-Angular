@@ -86,11 +86,12 @@ public record UpdateWidgetRequest
 
 /// <summary>
 /// A single cell in the defaults matrix: (Widget, Role, Category) with ordering and config.
+/// RoleId is null for public-workspace widgets (apply to every user regardless of role).
 /// </summary>
 public record WidgetDefaultEntryDto
 {
     public required int WidgetId { get; init; }
-    public required string RoleId { get; init; }
+    public required string? RoleId { get; init; }
     public required int CategoryId { get; init; }
     public required int DisplayOrder { get; init; }
     public string? Config { get; init; }
@@ -120,11 +121,12 @@ public record SaveWidgetDefaultsRequest
 
 /// <summary>
 /// A single (JobType, Role) assignment for a widget.
+/// RoleId is null for public-workspace widgets (one assignment per JobType, no role dimension).
 /// </summary>
 public record WidgetAssignmentDto
 {
     public required int JobTypeId { get; init; }
-    public required string RoleId { get; init; }
+    public required string? RoleId { get; init; }
 }
 
 /// <summary>
@@ -164,11 +166,12 @@ public record JobRefDto
 /// <summary>
 /// A single cell in the per-job override matrix.
 /// Represents either an inherited default or an explicit JobWidget entry.
+/// RoleId is null for public-workspace widgets.
 /// </summary>
 public record JobWidgetEntryDto
 {
     public required int WidgetId { get; init; }
-    public required string RoleId { get; init; }
+    public required string? RoleId { get; init; }
     public required int CategoryId { get; init; }
     public required int DisplayOrder { get; init; }
     public string? Config { get; init; }

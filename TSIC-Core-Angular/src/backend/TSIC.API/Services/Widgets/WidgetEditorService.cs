@@ -360,7 +360,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
         sb.AppendLine("    CREATE TABLE [widgets].[WidgetDefault] (");
         sb.AppendLine("        [WidgetDefaultId] INT IDENTITY(1,1) NOT NULL,");
         sb.AppendLine("        [JobTypeId]       INT               NOT NULL,");
-        sb.AppendLine("        [RoleId]          NVARCHAR(450)     NOT NULL,");
+        sb.AppendLine("        [RoleId]          NVARCHAR(450)     NULL,");
         sb.AppendLine("        [WidgetId]        INT               NOT NULL,");
         sb.AppendLine("        [CategoryId]      INT               NOT NULL,");
         sb.AppendLine("        [DisplayOrder]    INT               NOT NULL DEFAULT 0,");
@@ -382,7 +382,7 @@ public sealed class WidgetEditorService : IWidgetEditorService
         sb.AppendLine("        [JobWidgetId]  INT IDENTITY(1,1)    NOT NULL,");
         sb.AppendLine("        [JobId]        UNIQUEIDENTIFIER     NOT NULL,");
         sb.AppendLine("        [WidgetId]     INT                  NOT NULL,");
-        sb.AppendLine("        [RoleId]       NVARCHAR(450)        NOT NULL,");
+        sb.AppendLine("        [RoleId]       NVARCHAR(450)        NULL,");
         sb.AppendLine("        [CategoryId]   INT                  NOT NULL,");
         sb.AppendLine("        [DisplayOrder] INT                  NOT NULL DEFAULT 0,");
         sb.AppendLine("        [IsEnabled]    BIT                  NOT NULL DEFAULT 1,");

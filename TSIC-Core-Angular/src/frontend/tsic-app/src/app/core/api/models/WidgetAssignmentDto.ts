@@ -4,6 +4,6 @@
 /* eslint-disable */
 export type WidgetAssignmentDto = {
     jobTypeId: number;
-    roleId: string;
+    roleId: string | null;
 };
 

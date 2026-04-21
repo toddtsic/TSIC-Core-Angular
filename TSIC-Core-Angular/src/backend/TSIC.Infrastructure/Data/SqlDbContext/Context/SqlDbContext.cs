@@ -4420,7 +4420,6 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.Role).WithMany(p => p.JobWidget)
                 .HasForeignKey(d => d.RoleId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_widgets_JobWidget_RoleId");
 
             entity.HasOne(d => d.Widget).WithMany(p => p.JobWidget)
@@ -7493,7 +7492,6 @@ public partial class SqlDbContext : DbContext
 
             entity.HasOne(d => d.Role).WithMany(p => p.WidgetDefault)
                 .HasForeignKey(d => d.RoleId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_widgets_WidgetDefault_RoleId");
 
             entity.HasOne(d => d.Widget).WithMany(p => p.WidgetDefault)

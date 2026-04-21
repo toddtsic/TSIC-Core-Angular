@@ -22,8 +22,8 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
     // Workspace ordering: public first, then dashboard
     private static readonly Dictionary<string, int> WorkspaceOrder = new()
     {
-        ["public"] = -1,
-        ["dashboard"] = 0,
+        [WidgetWorkspaces.Public] = -1,
+        [WidgetWorkspaces.Dashboard] = 0,
     };
 
     /// <summary>
@@ -61,13 +61,20 @@ public sealed class WidgetDashboardService : IWidgetDashboardService
     }
 
     public async Task<WidgetDashboardResponse> GetDashboardAsync(
-        Guid jobId, string roleName, Guid? registrationId = null, CancellationToken ct = default)
+        Guid jobId, string? roleName, Guid? registrationId = null, CancellationToken ct = default)
     {
-        // 1. Resolve role name to GUID
-        if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
+        // 1. Resolve role name to GUID.
+        // Null roleName = public path (anonymous): pass roleId = null so the repository
+        // returns only RoleId-IS-NULL rows. A supplied role returns public + role-specific.
+        string? roleId = null;
+        if (roleName != null)
         {
-            _logger.LogWarning("Widget dashboard: unknown role name '{RoleName}'", roleName);
-            return new WidgetDashboardResponse { Workspaces = [] };
+            if (!RoleNameToIdMap.TryGetValue(roleName, out var resolved))
+            {
+                _logger.LogWarning("Widget dashboard: unknown role name '{RoleName}'", roleName);
+                return new WidgetDashboardResponse { Workspaces = [] };
+            }
+            roleId = resolved;
         }
 
         // 2. Resolve job type

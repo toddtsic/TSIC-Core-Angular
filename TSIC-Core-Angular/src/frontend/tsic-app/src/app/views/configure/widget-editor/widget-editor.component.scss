@@ -92,6 +92,40 @@
 	}
 }
 
+// Public Widgets panel — rendered above the role × jobtype accordion.
+// Same card chrome as workspace-header but non-collapsible (no chevron, no click).
+.public-widgets-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-4);
+	background: rgba(var(--bs-primary-rgb), 0.06);
+	border-bottom: 1px solid var(--brand-border);
+
+	i {
+		font-size: 1.1rem;
+		color: var(--bs-primary);
+	}
+
+	.workspace-name {
+		font-weight: 600;
+		color: var(--brand-text);
+	}
+
+	.workspace-count {
+		font-size: var(--font-size-sm);
+		color: var(--bs-secondary-color);
+		margin-left: auto;
+	}
+}
+
+.public-widgets-table {
+	.col-public-toggle {
+		width: 6rem;
+		text-align: center;
+	}
+}
+
 .category-subheader {
 	padding: var(--space-2) var(--space-4);
 	font-size: var(--font-size-sm);

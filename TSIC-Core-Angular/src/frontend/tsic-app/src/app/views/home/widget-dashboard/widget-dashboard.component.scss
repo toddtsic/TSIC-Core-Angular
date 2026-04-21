@@ -66,6 +66,35 @@
     }
 }
 
+// Empty state when an admin's Role tab has no widgets configured.
+.empty-role-view {
+    text-align: center;
+    padding: var(--space-10) var(--space-6);
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+
+    i {
+        font-size: var(--font-size-4xl);
+        color: var(--text-muted);
+        margin-bottom: var(--space-3);
+        display: block;
+    }
+
+    h3 {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+        margin: 0 0 var(--space-2);
+    }
+
+    p {
+        margin: 0;
+        font-size: var(--font-size-sm);
+    }
+}
+
 // ═══════════════════════════════════════
 // DASHBOARD HERO — branded strip
 // ═══════════════════════════════════════

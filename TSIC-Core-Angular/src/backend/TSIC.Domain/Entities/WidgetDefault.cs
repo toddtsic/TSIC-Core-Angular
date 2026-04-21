@@ -9,7 +9,7 @@ public partial class WidgetDefault
 
     public int JobTypeId { get; set; }
 
-    public string RoleId { get; set; } = null!;
+    public string? RoleId { get; set; }
 
     public int WidgetId { get; set; }
 
@@ -23,7 +23,7 @@ public partial class WidgetDefault
 
     public virtual JobTypes JobType { get; set; } = null!;
 
-    public virtual AspNetRoles Role { get; set; } = null!;
+    public virtual AspNetRoles? Role { get; set; }
 
     public virtual Widget Widget { get; set; } = null!;
 }

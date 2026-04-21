@@ -11,7 +11,7 @@ public partial class JobWidget
 
     public int WidgetId { get; set; }
 
-    public string RoleId { get; set; } = null!;
+    public string? RoleId { get; set; }
 
     public int CategoryId { get; set; }
 
@@ -25,7 +25,7 @@ public partial class JobWidget
 
     public virtual Jobs Job { get; set; } = null!;
 
-    public virtual AspNetRoles Role { get; set; } = null!;
+    public virtual AspNetRoles? Role { get; set; }
 
     public virtual Widget Widget { get; set; } = null!;
 }

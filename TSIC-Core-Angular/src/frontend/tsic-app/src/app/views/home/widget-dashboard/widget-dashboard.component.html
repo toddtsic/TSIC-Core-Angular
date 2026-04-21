@@ -58,23 +58,24 @@
                 </div>
             </div>
 
-            <!-- ── Workspace tabs ── -->
+            <!-- ── Workspace tabs (admin trio only) ── -->
+            <!-- Order: Public first (general → specific). Default active = role view (primary use). -->
             @if (showTabs()) {
                 <ul class="workspace-tabs" role="tablist">
-                    <li role="presentation">
-                        <button class="workspace-tab" role="tab"
-                                [class.active]="activeTab() === 'dashboard'"
-                                [attr.aria-selected]="activeTab() === 'dashboard'"
-                                (click)="activeTab.set('dashboard')">
-                            <i class="bi bi-speedometer2 me-1"></i>{{ roleName() }} View
-                        </button>
-                    </li>
                     <li role="presentation">
                         <button class="workspace-tab" role="tab"
                                 [class.active]="activeTab() === 'public'"
                                 [attr.aria-selected]="activeTab() === 'public'"
                                 (click)="activeTab.set('public')">
                             <i class="bi bi-globe me-1"></i>Public View
+                        </button>
+                    </li>
+                    <li role="presentation">
+                        <button class="workspace-tab" role="tab"
+                                [class.active]="activeTab() === 'dashboard'"
+                                [attr.aria-selected]="activeTab() === 'dashboard'"
+                                (click)="activeTab.set('dashboard')">
+                            <i class="bi bi-speedometer2 me-1"></i>{{ roleName() }} View
                         </button>
                     </li>
                 </ul>
@@ -97,28 +98,36 @@
             }
 
             <!-- ── Dashboard workspace content (charts, bulletins) ── -->
-            @if (!showTabs() || activeTab() === 'dashboard') {
-                @for (category of hubCategories(); track category.categoryId) {
-                    @if (isChartCategory(category)) {
-                        <!-- Chart tiles: responsive grid -->
-                        <div class="content-widgets chart-tiles">
-                            @for (widget of category.widgets; track widget.widgetId) {
-                                <div class="chart-tile-wrapper" [class]="'ds-' + getDisplayStyle(widget)">
+            @if (showTabs() && activeTab() === 'dashboard') {
+                @if (hubCategories().length === 0) {
+                    <div class="empty-role-view">
+                        <i class="bi bi-sliders" aria-hidden="true"></i>
+                        <h3>No widgets configured yet</h3>
+                        <p>Click <strong>Customize</strong> in the header menu to add widgets to your {{ roleName() }} view.</p>
+                    </div>
+                } @else {
+                    @for (category of hubCategories(); track category.categoryId) {
+                        @if (isChartCategory(category)) {
+                            <!-- Chart tiles: responsive grid -->
+                            <div class="content-widgets chart-tiles">
+                                @for (widget of category.widgets; track widget.widgetId) {
+                                    <div class="chart-tile-wrapper" [class]="'ds-' + getDisplayStyle(widget)">
+                                        @if (resolveWidget(widget.componentKey); as cmp) {
+                                            <ng-container *ngComponentOutlet="cmp" />
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        } @else if (!isStatusCategory(category)) {
+                            <!-- Content widgets (e.g. bulletins) -->
+                            <div class="content-widgets">
+                                @for (widget of category.widgets; track widget.widgetId) {
                                     @if (resolveWidget(widget.componentKey); as cmp) {
                                         <ng-container *ngComponentOutlet="cmp" />
                                     }
-                                </div>
-                            }
-                        </div>
-                    } @else if (!isStatusCategory(category)) {
-                        <!-- Content widgets (e.g. bulletins) -->
-                        <div class="content-widgets">
-                            @for (widget of category.widgets; track widget.widgetId) {
-                                @if (resolveWidget(widget.componentKey); as cmp) {
-                                    <ng-container *ngComponentOutlet="cmp" />
                                 }
-                            }
-                        </div>
+                            </div>
+                        }
                     }
                 }
             }

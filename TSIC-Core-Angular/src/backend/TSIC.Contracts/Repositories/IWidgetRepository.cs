@@ -10,20 +10,24 @@ public interface IWidgetRepository
 {
     /// <summary>
     /// Get default widgets for a given job type and role.
+    /// Always returns public widgets (RoleId IS NULL) plus widgets matching the given role.
+    /// Pass roleId = null to get public widgets only (anonymous path).
     /// Projects Widget + Category navigations into flat WidgetItemProjection.
     /// </summary>
     Task<List<WidgetItemProjection>> GetDefaultsAsync(
         int jobTypeId,
-        string roleId,
+        string? roleId,
         CancellationToken ct = default);
 
     /// <summary>
     /// Get per-job widget overrides and additions for a given job and role.
+    /// Always returns public widgets (RoleId IS NULL) plus widgets matching the given role.
+    /// Pass roleId = null to get public widgets only (anonymous path).
     /// Projects Widget + Category navigations into flat WidgetItemProjection.
     /// </summary>
     Task<List<WidgetItemProjection>> GetJobWidgetsAsync(
         Guid jobId,
-        string roleId,
+        string? roleId,
         CancellationToken ct = default);
 
     /// <summary>

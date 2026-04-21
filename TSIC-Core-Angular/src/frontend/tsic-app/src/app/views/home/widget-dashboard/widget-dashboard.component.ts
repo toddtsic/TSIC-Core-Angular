@@ -3,6 +3,7 @@ import { NgComponentOutlet } from '@angular/common';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
 import { WIDGET_REGISTRY } from '@widgets/widget-registry';
+import { Workspaces } from '@widgets/workspace.constants';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -62,11 +63,16 @@ export class WidgetDashboardComponent {
 	readonly roleName = computed(() =>
 		this.mode() === 'public' ? '' : (this.auth.currentUser()?.role || ''));
 
-	/** Whether tabs should show — only when authenticated AND both workspaces have widgets */
-	readonly showTabs = computed(() => {
-		if (this.isPublic()) return false;
-		return this.hubCategories().length > 0 && this.publicCategories().length > 0;
-	});
+	/** Admin trio (Superuser / Director / SuperDirector) — mirrors the nav carve-out. */
+	readonly isAdmin = this.auth.isAdmin;
+
+	/**
+	 * Whether dashboard tabs should render.
+	 * Only admins (Superuser/Director/SuperDirector) see both tabs; everyone else
+	 * sees public content without a tab bar. Role tab stays visible for admins even
+	 * when empty — the empty state explains how to customize.
+	 */
+	readonly showTabs = computed(() => !this.isPublic() && this.isAdmin());
 
 	readonly username = computed(() =>
 		this.auth.currentUser()?.username || '');
@@ -144,14 +150,14 @@ export class WidgetDashboardComponent {
 	readonly dashboardWorkspace = computed(() => {
 		const db = this.dashboard();
 		if (!db) return null;
-		return db.workspaces.find(ws => ws.workspace === 'dashboard') ?? null;
+		return db.workspaces.find(ws => ws.workspace === Workspaces.Dashboard) ?? null;
 	});
 
 	/** The 'public' workspace from the API response (shown to authenticated users too) */
 	readonly publicCategories = computed(() => {
 		const db = this.dashboard();
 		if (!db) return [];
-		const ws = db.workspaces.find(w => w.workspace === 'public');
+		const ws = db.workspaces.find(w => w.workspace === Workspaces.Public);
 		return ws?.categories ?? [];
 	});
 

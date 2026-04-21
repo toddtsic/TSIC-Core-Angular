@@ -8,6 +8,7 @@ import { TeamTrendWidgetComponent } from '@widgets/registration/team-trend-widge
 import { AgegroupDistributionWidgetComponent } from '@widgets/registration/agegroup-distribution-widget/agegroup-distribution-widget.component';
 import { YearOverYearWidgetComponent } from '@widgets/scheduling/year-over-year-widget/year-over-year-widget.component';
 import { JobPulseWidgetComponent } from '@widgets/registration/job-pulse-widget/job-pulse-widget.component';
+import { Workspaces, type WorkspaceKey } from '@widgets/workspace.constants';
 
 // ════════════════════════════════════════════════════════════
 // Widget Manifest — Single Source of Truth
@@ -35,7 +36,7 @@ export interface WidgetManifestEntry {
 	/** Widget rendering shape */
 	widgetType: 'content' | 'chart-tile' | 'status-tile';
 	/** Natural workspace this belongs in */
-	workspace: string;
+	workspace: WorkspaceKey;
 	/** Short description */
 	description?: string;
 	/** Default displayStyle value */
@@ -51,7 +52,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:        'Client Banner',
 		icon:         'bi-image',
 		widgetType:   'content',
-		workspace:    'public',
+		workspace:    Workspaces.Public,
 		description:  'Job banner with logo and images',
 		displayStyle: 'banner',
 	},
@@ -60,7 +61,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:        'Bulletins',
 		icon:         'bi-megaphone',
 		widgetType:   'content',
-		workspace:    'public',
+		workspace:    Workspaces.Public,
 		description:  'Active job bulletins and announcements',
 		displayStyle: 'feed',
 	},
@@ -69,7 +70,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:        'Event Contact',
 		icon:         'bi-envelope',
 		widgetType:   'content',
-		workspace:    'public',
+		workspace:    Workspaces.Public,
 		description:  'Contact name and email for event inquiries',
 		displayStyle: 'block',
 	},
@@ -78,7 +79,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:        'Job Pulse',
 		icon:         'bi-activity',
 		widgetType:   'content',
-		workspace:    'public',
+		workspace:    Workspaces.Public,
 		description:  'Smart registration availability cards',
 		displayStyle: 'pulse',
 	},
@@ -90,7 +91,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:       'Player Registration Trend',
 		icon:        'bi-graph-up',
 		widgetType:  'chart-tile',
-		workspace:   'dashboard',
+		workspace:   Workspaces.Dashboard,
 		description: 'Daily player registration counts and cumulative revenue over time',
 	},
 	'team-trend-chart': {
@@ -98,7 +99,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:       'Team Registration Trend',
 		icon:        'bi-graph-up-arrow',
 		widgetType:  'chart-tile',
-		workspace:   'dashboard',
+		workspace:   Workspaces.Dashboard,
 		description: 'Daily team registration counts and cumulative revenue over time',
 	},
 	'agegroup-distribution': {
@@ -106,7 +107,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:       'Age Group Distribution',
 		icon:        'bi-bar-chart',
 		widgetType:  'chart-tile',
-		workspace:   'dashboard',
+		workspace:   Workspaces.Dashboard,
 		description: 'Player and team counts broken down by age group',
 	},
 	'year-over-year': {
@@ -114,7 +115,7 @@ export const WIDGET_MANIFEST: Record<string, WidgetManifestEntry> = {
 		label:       'Year-over-Year Comparison',
 		icon:        'bi-arrow-repeat',
 		widgetType:  'chart-tile',
-		workspace:   'dashboard',
+		workspace:   Workspaces.Dashboard,
 		description: 'Registration comparison between current and prior year',
 	},
 

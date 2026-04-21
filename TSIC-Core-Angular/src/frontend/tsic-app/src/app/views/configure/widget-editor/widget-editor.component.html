@@ -93,6 +93,43 @@
 
 	<!-- Matrix content -->
 	@if (selectedJobTypeId()) {
+		<!-- Public Widgets panel: one toggle per widget (role-agnostic, null-role rows). -->
+		@if (publicWidgetRows().length > 0) {
+			<div class="matrix-card public-widgets-card mb-3">
+				<div class="public-widgets-header">
+					<i class="bi bi-globe me-2"></i>
+					<span class="workspace-name">Public Widgets</span>
+					<span class="workspace-count">
+						{{ publicWidgetRows().length }} widget{{ publicWidgetRows().length !== 1 ? 's' : '' }}
+						— visible to every viewer on this job type
+					</span>
+				</div>
+				<table class="matrix-table public-widgets-table">
+					<thead>
+						<tr>
+							<th>Widget</th>
+							<th class="col-public-toggle">Enabled</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (widget of publicWidgetRows(); track widget.widgetId) {
+							<tr>
+								<td>
+									<span class="widget-name">{{ widget.name }}</span>
+								</td>
+								<td class="col-public-toggle">
+									<input type="checkbox" class="matrix-checkbox form-check-input"
+										[checked]="isPublicDefaultEnabled(widget.widgetId)"
+										(change)="togglePublicDefault(widget.widgetId, widget.categoryId)"
+										[title]="widget.name + ' — public (all roles)'" />
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+
 		@for (group of workspaceGroups(); track group.workspace) {
 			<div class="matrix-card mb-3">
 				<!-- Workspace accordion header -->
@@ -631,7 +668,11 @@
 								<div class="alert alert-info d-flex align-items-start gap-2 mt-2 mb-3 py-2 px-3"
 									style="font-size: 0.8rem;">
 									<i class="bi bi-info-circle-fill mt-1"></i>
-									<span>Select job types and roles so this widget appears on dashboards.</span>
+									@if (isPublicCategory()) {
+										<span>Select job types — this public widget will show to every user on those job types.</span>
+									} @else {
+										<span>Select job types and roles so this widget appears on dashboards.</span>
+									}
 								</div>
 							}
 
@@ -656,27 +697,40 @@
 								</div>
 							</div>
 
-							<div class="mb-2">
-								<label class="form-label fw-semibold mb-2">Roles</label>
-								<div class="d-flex flex-wrap gap-2">
-									@for (role of roles(); track role.roleId) {
-										<label class="assign-chip"
-											[class.active]="assignSelectedRoles().has(role.roleId)">
-											<input type="checkbox" class="d-none"
-												[checked]="assignSelectedRoles().has(role.roleId)"
-												(change)="toggleAssignRole(role.roleId)" />
-											{{ role.roleName }}
-										</label>
-									}
+							@if (!isPublicCategory()) {
+								<div class="mb-2">
+									<label class="form-label fw-semibold mb-2">Roles</label>
+									<div class="d-flex flex-wrap gap-2">
+										@for (role of roles(); track role.roleId) {
+											<label class="assign-chip"
+												[class.active]="assignSelectedRoles().has(role.roleId)">
+												<input type="checkbox" class="d-none"
+													[checked]="assignSelectedRoles().has(role.roleId)"
+													(change)="toggleAssignRole(role.roleId)" />
+												{{ role.roleName }}
+											</label>
+										}
+									</div>
 								</div>
-							</div>
+							} @else {
+								<div class="alert alert-secondary d-flex align-items-start gap-2 mb-2 py-2 px-3"
+									style="font-size: 0.8rem;">
+									<i class="bi bi-globe mt-1"></i>
+									<span>Public widgets apply to every role. Role selection is disabled.</span>
+								</div>
+							}
 
 							@if (assignmentCount() > 0) {
 								<div class="assign-summary">
 									<i class="bi bi-info-circle me-1"></i>
-									{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
-									({{ assignSelectedRoles().size }} role{{ assignSelectedRoles().size !== 1 ? 's' : '' }}
-									&times; {{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
+									@if (isPublicCategory()) {
+										{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
+										({{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
+									} @else {
+										{{ assignmentCount() }} assignment{{ assignmentCount() !== 1 ? 's' : '' }}
+										({{ assignSelectedRoles().size }} role{{ assignSelectedRoles().size !== 1 ? 's' : '' }}
+										&times; {{ assignSelectedJobTypes().size }} job type{{ assignSelectedJobTypes().size !== 1 ? 's' : '' }})
+									}
 								</div>
 							}
 						}

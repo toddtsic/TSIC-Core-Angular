@@ -4,7 +4,7 @@
 /* eslint-disable */
 export type WidgetDefaultEntryDto = {
     widgetId: number;
-    roleId: string;
+    roleId: string | null;
     categoryId: number;
     displayOrder: number;
     config?: string | null;

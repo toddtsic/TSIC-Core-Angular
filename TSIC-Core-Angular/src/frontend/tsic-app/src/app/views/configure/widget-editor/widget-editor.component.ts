@@ -6,6 +6,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { WIDGET_MANIFEST } from '@widgets/widget-registry';
+import { Workspaces } from '@widgets/workspace.constants';
 import type {
 	JobTypeRefDto,
 	RoleRefDto,
@@ -47,8 +48,8 @@ const ROLE_ABBREVIATIONS: Record<string, string> = {
 };
 
 const WORKSPACE_LABELS: Record<string, string> = {
-	'public': 'Public',
-	'dashboard': 'Dashboard',
+	[Workspaces.Public]: 'Public',
+	[Workspaces.Dashboard]: 'Dashboard',
 };
 
 @Component({
@@ -119,6 +120,17 @@ export class WidgetEditorComponent {
 	readonly assignSectionExpanded = signal(true);
 	readonly isLoadingAssignments = signal(false);
 
+	/**
+	 * True when the currently-selected form category belongs to the 'public' workspace.
+	 * Public widgets apply to every user regardless of role, so the Roles picker is
+	 * hidden and assignments are stored with RoleId = null.
+	 */
+	readonly isPublicCategory = computed(() => {
+		const catId = this.formCategoryId();
+		const cat = this.categories().find(c => c.categoryId === catId);
+		return cat?.workspace === Workspaces.Public;
+	});
+
 	// ── Job Override state ──
 	readonly overrideSelectedJobTypeId = signal<number>(0);
 	readonly overrideJobs = signal<JobRefDto[]>([]);
@@ -149,6 +161,8 @@ export class WidgetEditorComponent {
 	};
 
 	// ── Computed: workspace groups for matrix ──
+	// Public-workspace widgets are rendered in a dedicated panel above the accordion
+	// (see publicWidgetRows); they no longer appear here.
 	readonly workspaceGroups = computed<WorkspaceGroup[]>(() => {
 		const cats = this.categories();
 		const widgetList = this.widgets();
@@ -163,9 +177,10 @@ export class WidgetEditorComponent {
 			}
 		}
 
-		// Group categories by workspace
+		// Group categories by workspace (exclude public — rendered separately)
 		const wsMap = new Map<string, WidgetCategoryRefDto[]>();
 		for (const c of cats) {
+			if (c.workspace === Workspaces.Public) continue;
 			const existing = wsMap.get(c.workspace) || [];
 			existing.push(c);
 			wsMap.set(c.workspace, existing);
@@ -201,6 +216,20 @@ export class WidgetEditorComponent {
 		}
 
 		return groups;
+	});
+
+	/**
+	 * Public-workspace widgets shown in the dedicated panel above the role × jobtype
+	 * accordion. The matrix is scoped to one JobType, so each widget is a single
+	 * on/off toggle (presence of a null-role WidgetDefault row).
+	 */
+	readonly publicWidgetRows = computed(() => {
+		const publicCategoryIds = new Set(
+			this.categories().filter(c => c.workspace === Workspaces.Public).map(c => c.categoryId)
+		);
+		return this.widgets()
+			.filter(w => publicCategoryIds.has(w.categoryId))
+			.sort((a, b) => a.name.localeCompare(b.name));
 	});
 
 	// ── Computed: dirty detection ──
@@ -416,6 +445,11 @@ export class WidgetEditorComponent {
 		return this.matrixEntries().some(e => e.widgetId === widgetId && e.roleId === roleId);
 	}
 
+	/** True when a null-role (public) default exists for this widget in the loaded jobtype. */
+	isPublicDefaultEnabled(widgetId: number): boolean {
+		return this.matrixEntries().some(e => e.widgetId === widgetId && e.roleId == null);
+	}
+
 	toggleDefault(widgetId: number, roleId: string, categoryId: number): void {
 		const entries = [...this.matrixEntries()];
 		const idx = entries.findIndex(e => e.widgetId === widgetId && e.roleId === roleId);
@@ -432,6 +466,33 @@ export class WidgetEditorComponent {
 			entries.push({
 				widgetId,
 				roleId,
+				categoryId,
+				displayOrder: maxOrder + 1,
+				config: widget?.defaultConfig ?? undefined,
+			} as WidgetDefaultEntryDto);
+		}
+
+		this.matrixEntries.set(entries);
+	}
+
+	/**
+	 * Toggle a public widget on/off for the loaded jobtype. Adds or removes a
+	 * WidgetDefault row with RoleId = null (single row per jobtype for public widgets).
+	 */
+	togglePublicDefault(widgetId: number, categoryId: number): void {
+		const entries = [...this.matrixEntries()];
+		const idx = entries.findIndex(e => e.widgetId === widgetId && e.roleId == null);
+
+		if (idx >= 0) {
+			entries.splice(idx, 1);
+		} else {
+			const maxOrder = entries
+				.filter(e => e.categoryId === categoryId)
+				.reduce((max, e) => Math.max(max, e.displayOrder), -1);
+			const widget = this.widgets().find(w => w.widgetId === widgetId);
+			entries.push({
+				widgetId,
+				roleId: null,
 				categoryId,
 				displayOrder: maxOrder + 1,
 				config: widget?.defaultConfig ?? undefined,
@@ -618,7 +679,8 @@ export class WidgetEditorComponent {
 				const roles = new Set<string>();
 				const jobTypeIds = new Set<number>();
 				for (const a of response.assignments) {
-					roles.add(a.roleId);
+					// Public widgets store roleId = null; skip role chips for them.
+					if (a.roleId != null) roles.add(a.roleId);
 					jobTypeIds.add(a.jobTypeId);
 				}
 				this.assignSelectedRoles.set(roles);
@@ -729,23 +791,35 @@ export class WidgetEditorComponent {
 	private saveAssignmentsForWidget(widgetId: number, categoryId: number): void {
 		const roles = this.assignSelectedRoles();
 		const jobTypeIds = this.assignSelectedJobTypes();
+		const isPublic = this.isPublicCategory();
 		const verb = this.editingWidget() ? 'updated' : 'created';
 
-		// If no assignments selected, just close and reload
-		if (roles.size === 0 || jobTypeIds.size === 0) {
+		// Need at least one job type. Public widgets don't need roles (one row per
+		// jobType with RoleId = null); role-scoped widgets need both.
+		const missing = jobTypeIds.size === 0 || (!isPublic && roles.size === 0);
+		if (missing) {
 			this.toast.show(`Widget ${verb} successfully.`, 'success');
 			this.closeWidgetModal();
 			this.reloadWidgets();
 			return;
 		}
 
-		// Build cross-product assignments
+		// Public: one assignment per jobType, RoleId = null.
+		// Role-scoped: cross-product of roles × jobTypes.
 		const assignments: WidgetAssignmentDto[] = [];
 		for (const jobTypeId of jobTypeIds) {
-			for (const roleId of roles) {
-				assignments.push({ jobTypeId, roleId } as WidgetAssignmentDto);
+			if (isPublic) {
+				assignments.push({ jobTypeId, roleId: null });
+			} else {
+				for (const roleId of roles) {
+					assignments.push({ jobTypeId, roleId });
+				}
 			}
 		}
+
+		const successMsg = isPublic
+			? `Widget ${verb} and assigned to ${jobTypeIds.size} job type(s) (public — all roles).`
+			: `Widget ${verb} and assigned to ${roles.size} role(s) across ${jobTypeIds.size} job type(s).`;
 
 		this.editorService.saveWidgetAssignments({
 			widgetId,
@@ -753,10 +827,7 @@ export class WidgetEditorComponent {
 			assignments,
 		} as any).subscribe({
 			next: () => {
-				this.toast.show(
-					`Widget ${verb} and assigned to ${roles.size} role(s) across ${jobTypeIds.size} job type(s).`,
-					'success',
-				);
+				this.toast.show(successMsg, 'success');
 				this.closeWidgetModal();
 				this.reloadWidgets();
 				// Refresh matrix if viewing an affected job type
@@ -837,6 +908,7 @@ export class WidgetEditorComponent {
 	}
 
 	assignmentCount(): number {
+		if (this.isPublicCategory()) return this.assignSelectedJobTypes().size;
 		return this.assignSelectedRoles().size * this.assignSelectedJobTypes().size;
 	}
 
