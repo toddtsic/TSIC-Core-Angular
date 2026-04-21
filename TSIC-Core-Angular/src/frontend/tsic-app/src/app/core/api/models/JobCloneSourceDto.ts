@@ -10,5 +10,6 @@ export type JobCloneSourceDto = {
     season?: string | null;
     displayName?: string | null;
     customerId: string;
+    leagueName?: string | null;
 };
 
