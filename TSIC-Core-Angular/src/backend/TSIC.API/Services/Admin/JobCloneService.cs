@@ -422,14 +422,11 @@ public sealed class JobCloneService : IJobCloneService
 
         var yearDelta = ComputeYearDelta(sourceJob.Year, request.YearTarget);
 
-        // League name inference (same algorithm as the real clone).
+        // League name: use the author-entered value verbatim. The wizard seeds it from
+        // the source league name (year-bumped when auto-advance is on), so whatever
+        // reaches the server here is already what we want to persist.
         var sourceLeague = await _repo.GetSourceLeagueAsync(request.SourceJobId, ct);
-        var inferredLeagueName = InferLeagueName(
-            sourceLeague?.LeagueName,
-            newLeagueName: request.LeagueNameTarget,
-            seasonTarget: request.SeasonTarget,
-            yearTarget: request.YearTarget,
-            fallback: request.LeagueNameTarget);
+        var inferredLeagueName = request.LeagueNameTarget;
 
         // Bulletins — year-delta shifted.
         var sourceBulletins = await _repo.GetSourceBulletinsAsync(request.SourceJobId, ct);
@@ -1012,20 +1009,12 @@ public sealed class JobCloneService : IJobCloneService
     private static Leagues CloneLeague(
         Leagues source, Guid newLeagueId, JobCloneRequest req, string userId, DateTime now)
     {
-        // League name: infer from source's pattern (separator + token order),
-        // substitute author-entered leagueName/season/year. Falls back to verbatim
-        // LeagueNameTarget when source doesn't match a recognizable 3-token pattern.
-        var inferredName = InferLeagueName(
-            source.LeagueName,
-            newLeagueName: req.LeagueNameTarget,
-            seasonTarget: req.SeasonTarget,
-            yearTarget: req.YearTarget,
-            fallback: req.LeagueNameTarget);
-
+        // League name is author-entered on the wizard (seeded from source, year-bumped
+        // when auto-advance is on). Persist verbatim.
         return new Leagues
         {
             LeagueId = newLeagueId,
-            LeagueName = inferredName,
+            LeagueName = req.LeagueNameTarget,
             SportId = source.SportId,
             BAllowCoachScoreEntry = source.BAllowCoachScoreEntry,
             BHideContacts = source.BHideContacts,

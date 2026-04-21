@@ -238,7 +238,12 @@ export class JobCloneComponent implements OnInit {
 		this.yearTarget = targetYear;
 		this.seasonTarget = source.season ?? '';
 		this.displayName = this.jobNameTarget;
-		this.leagueNameTarget = this.jobNameTarget;
+
+		// League name defaults to the source league name (joined via JobLeagues on the
+		// server). Year-bump when auto-advance is on, verbatim otherwise. Cast until
+		// the regenerated JobCloneSourceDto includes leagueName.
+		const srcLeagueName = (source as { leagueName?: string | null }).leagueName ?? '';
+		this.leagueNameTarget = advance ? this.bumpYearTokens(srcLeagueName) : srcLeagueName;
 
 		const expiryTarget = new Date();
 		expiryTarget.setFullYear(expiryTarget.getFullYear() + 1);
