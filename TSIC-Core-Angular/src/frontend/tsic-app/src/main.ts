@@ -4,7 +4,7 @@ import { AppComponent } from './app/app.component';
 import { registerLicense } from '@syncfusion/ej2-base';
 
 // Register Syncfusion license
-registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF5cXGpCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWX1fdnVWRWFfWEFyW0RWYEs=');
+registerLicense('Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXtccHZUQ2JeWER2XERWYEo=');
 
 bootstrapApplication(AppComponent, appConfig)
   .catch((err) => console.error(err));
