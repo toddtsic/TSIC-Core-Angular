@@ -74,6 +74,13 @@ public record JobCloneSourceDto
     public string? Season { get; init; }
     public string? DisplayName { get; init; }
     public required Guid CustomerId { get; init; }
+
+    /// <summary>
+    /// Source league name (joined through JobLeagues). Null if the job has no league
+    /// association. The wizard uses this to seed the leagueNameTarget default — stripping
+    /// any year/season tokens so the author sees just the "name" portion to carry forward.
+    /// </summary>
+    public string? LeagueName { get; init; }
 }
 
 // ══════════════════════════════════════

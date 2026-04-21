@@ -114,6 +114,11 @@
 					<div>
 						<label class="field-label" for="displayName">Display name</label>
 						<input id="displayName" type="text" class="field-input" [(ngModel)]="displayName">
+						<p class="field-help">
+							Shows as the sender name on every registration confirmation email
+							(e.g. <em>{{ displayName || 'STEPS Fall 2026' }} &lt;regform&#64;yourdomain.com&gt;</em>).
+							Also labels the job on admin screens.
+						</p>
 					</div>
 					@if (flavor() === 'clone') {
 						<div>

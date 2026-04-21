@@ -133,6 +133,8 @@ public class JobCloneRepository : IJobCloneRepository
 
     public async Task<List<JobCloneSourceDto>> GetCloneableJobsAsync(CancellationToken ct = default)
     {
+        // Left-join JobLeagues → Leagues so the wizard can seed leagueNameTarget from
+        // the actual source league name. Job → League is via the JobLeagues link table.
         return await _context.Jobs
             .AsNoTracking()
             .OrderByDescending(j => j.Year)
@@ -146,6 +148,10 @@ public class JobCloneRepository : IJobCloneRepository
                 Season = j.Season,
                 DisplayName = j.DisplayName,
                 CustomerId = j.CustomerId,
+                LeagueName = _context.JobLeagues
+                    .Where(jl => jl.JobId == j.JobId)
+                    .Select(jl => jl.League.LeagueName)
+                    .FirstOrDefault(),
             })
             .ToListAsync(ct);
     }

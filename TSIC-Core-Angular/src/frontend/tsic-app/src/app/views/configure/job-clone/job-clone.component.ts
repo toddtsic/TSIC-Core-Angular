@@ -130,7 +130,10 @@ export class JobCloneComponent implements OnInit {
 		this.flavor.set(f);
 		this.step.set(1);
 		this.resetWizard();
-		if (f === 'blank') {
+		if (f === 'clone') {
+			// Re-run auto-select so the source stays wired to the current job.
+			this.tryAutoSelectCurrentJob();
+		} else {
 			// Blank defaults: next year, today-based dates
 			const today = new Date();
 			const nextYear = String(today.getFullYear() + 1);
@@ -255,12 +258,22 @@ export class JobCloneComponent implements OnInit {
 		const prev = this.step() - 1;
 		if (prev < 1) return;
 		this.step.set(prev);
+		this.ensureSourceOnStep1();
 	}
 
 	goToStep(target: number): void {
 		if (target < 1 || target > this.totalSteps) return;
 		if (target > this.step() && !this.canAdvance()) return;
 		this.step.set(target);
+		this.ensureSourceOnStep1();
+	}
+
+	private ensureSourceOnStep1(): void {
+		// When landing on Step 1 in Clone flavor, guarantee selectedSource is still
+		// the current job (guards against any path that clears it mid-wizard).
+		if (this.step() === 1 && this.flavor() === 'clone' && !this.selectedSource()) {
+			this.tryAutoSelectCurrentJob();
+		}
 	}
 
 	private validateCurrentStep(): boolean {
