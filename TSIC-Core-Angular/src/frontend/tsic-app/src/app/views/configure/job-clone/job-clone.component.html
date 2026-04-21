@@ -63,12 +63,13 @@
 
 						<label class="field-check" style="margin-top: var(--space-3)">
 							<input type="checkbox" [(ngModel)]="autoAdvanceYear">
-							<span>
-								<strong>Advance year by 1</strong> when moving to Step 2 — pre-fills path, name,
-								and year for next season (e.g. 2025 → 2026). Uncheck to keep the source year
-								(you'll need to pick a different job path yourself).
-							</span>
+							<span>Advance year by 1 for the new job</span>
 						</label>
+						<p class="field-help">
+							Pre-fills the next screen's path, name, and year for next season
+							(e.g. 2025&nbsp;→&nbsp;2026). Uncheck to keep the source year — you'll need
+							to pick a different job path yourself.
+						</p>
 					} @else {
 						<p class="error-banner">
 							Could not resolve the current job. Navigate to the job you want to clone and open this tool from there.
