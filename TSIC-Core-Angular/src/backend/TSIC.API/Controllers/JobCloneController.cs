@@ -126,6 +126,22 @@ public class JobCloneController : ControllerBase
     }
 
     /// <summary>
+    /// Step 2→3 uniqueness check — flags whether the proposed jobPath and/or jobName
+    /// already exist on another job. Returns { pathExists, nameExists }.
+    /// </summary>
+    [HttpGet("identity-exists")]
+    public async Task<ActionResult<IdentityExistsResponse>> IdentityExists(
+        [FromQuery] string path, [FromQuery] string name, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { message = "path and name are both required." });
+
+        var pathExists = await _cloneService.JobPathExistsAsync(path, ct);
+        var nameExists = await _cloneService.JobNameExistsAsync(name, ct);
+        return Ok(new IdentityExistsResponse { PathExists = pathExists, NameExists = nameExists });
+    }
+
+    /// <summary>
     /// List suspended (unreleased) jobs for the Landing screen.
     /// </summary>
     [HttpGet("suspended")]

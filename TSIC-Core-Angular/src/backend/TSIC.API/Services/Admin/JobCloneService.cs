@@ -643,6 +643,16 @@ public sealed class JobCloneService : IJobCloneService
         return _repo.GetSuspendedJobsAsync(authorCustomerId, ct);
     }
 
+    public Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default)
+    {
+        return _repo.JobPathExistsAsync(jobPath, ct);
+    }
+
+    public Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default)
+    {
+        return _repo.JobNameExistsAsync(jobName, ct);
+    }
+
     // ══════════════════════════════════════════════════════════
     // Private clone helpers
     // ══════════════════════════════════════════════════════════

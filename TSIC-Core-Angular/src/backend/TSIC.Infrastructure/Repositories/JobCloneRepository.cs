@@ -137,6 +137,13 @@ public class JobCloneRepository : IJobCloneRepository
             .AnyAsync(j => j.JobPath == jobPath, ct);
     }
 
+    public async Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .AnyAsync(j => j.JobName == jobName, ct);
+    }
+
     // ══════════════════════════════════════
     // Source picker list
     // ══════════════════════════════════════

@@ -20,6 +20,7 @@ public interface IJobCloneRepository
 
     // ── Validation ──
     Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default);
+    Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default);
 
     // ── Source picker list ──
     Task<List<JobCloneSourceDto>> GetCloneableJobsAsync(CancellationToken ct = default);

@@ -97,4 +97,16 @@ public interface IJobCloneService
     Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(
         Guid? authorCustomerId = null,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns true when a Job with the given jobPath already exists. Used by the Step 2→3
+    /// uniqueness check so authors aren't surprised at Submit.
+    /// </summary>
+    Task<bool> JobPathExistsAsync(string jobPath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns true when a Job with the given jobName already exists. Used by the Step 2→3
+    /// uniqueness check alongside JobPathExistsAsync.
+    /// </summary>
+    Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default);
 }

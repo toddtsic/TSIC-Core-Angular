@@ -83,6 +83,16 @@ public record JobCloneSourceDto
     public string? LeagueName { get; init; }
 }
 
+/// <summary>
+/// Response for the Step 2→3 identity uniqueness check — flags whether the proposed
+/// jobPath and/or jobName already exist on another job.
+/// </summary>
+public record IdentityExistsResponse
+{
+    public required bool PathExists { get; init; }
+    public required bool NameExists { get; init; }
+}
+
 // ══════════════════════════════════════
 // Blank-job creation (new-customer onboarding)
 // ══════════════════════════════════════
