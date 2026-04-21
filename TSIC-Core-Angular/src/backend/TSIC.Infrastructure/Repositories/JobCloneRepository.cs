@@ -89,11 +89,21 @@ public class JobCloneRepository : IJobCloneRepository
 
     public async Task<Leagues?> GetSourceLeagueAsync(Guid jobId, CancellationToken ct = default)
     {
+        // Prefer the primary league when a job has multiple JobLeagues entries.
         return await _context.JobLeagues
             .AsNoTracking()
             .Where(jl => jl.JobId == jobId)
+            .OrderByDescending(jl => jl.BIsPrimary)
             .Select(jl => jl.League)
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<JobLeagues?> GetSourceJobLeagueAsync(Guid jobId, Guid leagueId, CancellationToken ct = default)
+    {
+        // Per-league fee fields live on this link row (BaseFee, LateFee*, DiscountFee*).
+        return await _context.JobLeagues
+            .AsNoTracking()
+            .FirstOrDefaultAsync(jl => jl.JobId == jobId && jl.LeagueId == leagueId, ct);
     }
 
     public async Task<List<Agegroups>> GetSourceAgegroupsAsync(Guid leagueId, string? season, CancellationToken ct = default)

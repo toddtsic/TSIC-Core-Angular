@@ -150,13 +150,25 @@ public sealed class JobCloneService : IJobCloneService
                 _repo.AddLeague(clonedLeague);
                 summary.LeaguesCloned = 1;
 
-                // Step 10: Link Job ↔ League
+                // Step 10: Link Job ↔ League — carry forward per-league fee fields from the
+                // source JobLeagues row (BaseFee + discount/late windows), shifting window
+                // dates by year-delta so they don't land on last year's schedule.
+                var sourceJobLeague = await _repo.GetSourceJobLeagueAsync(
+                    request.SourceJobId, sourceLeague.LeagueId, ct);
+
                 var jobLeague = new JobLeagues
                 {
                     JobLeagueId = Guid.NewGuid(),
                     JobId = newJobId,
                     LeagueId = newLeagueId,
                     BIsPrimary = true,
+                    BaseFee = sourceJobLeague?.BaseFee,
+                    DiscountFee = sourceJobLeague?.DiscountFee,
+                    DiscountFeeStart = ShiftByYears(sourceJobLeague?.DiscountFeeStart, yearDelta),
+                    DiscountFeeEnd = ShiftByYears(sourceJobLeague?.DiscountFeeEnd, yearDelta),
+                    LateFee = sourceJobLeague?.LateFee,
+                    LateFeeStart = ShiftByYears(sourceJobLeague?.LateFeeStart, yearDelta),
+                    LateFeeEnd = ShiftByYears(sourceJobLeague?.LateFeeEnd, yearDelta),
                     LebUserId = superUserId,
                     Modified = now,
                 };
