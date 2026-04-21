@@ -219,7 +219,9 @@ export class JobCloneComponent implements OnInit {
 
 		this.yearTarget = nextYear || currentYear;
 		this.seasonTarget = source.season ?? '';
-		this.displayName = source.displayName ?? '';
+		// Display name defaults to the (year-bumped) job name — the source's own
+		// displayName tends to hold the customer name, which isn't what authors want here.
+		this.displayName = this.jobNameTarget;
 		this.leagueNameTarget = this.jobNameTarget;
 
 		const oneYearOut = new Date();
