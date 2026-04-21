@@ -374,7 +374,11 @@
 		</div>
 
 		<footer class="jc-wizard-footer">
-			<button type="button" class="jc-btn-ghost" (click)="cancelWizard()">Reset</button>
+			@if (step() > 1) {
+				<button type="button" class="jc-btn-ghost" (click)="cancelWizard()">Reset</button>
+			} @else {
+				<span></span>
+			}
 			<div class="jc-nav-group">
 				@if (step() > 1) {
 					<button type="button" class="jc-btn-secondary" (click)="wizardBack()">Back</button>

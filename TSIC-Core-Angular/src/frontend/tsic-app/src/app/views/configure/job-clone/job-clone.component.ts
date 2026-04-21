@@ -143,9 +143,10 @@ export class JobCloneComponent implements OnInit {
 	}
 
 	cancelWizard(): void {
-		// Fresh state — typically the user will route away afterwards.
+		// Wipe fields, return to step 1, preserve current flavor. For clone flavor
+		// re-run auto-select so the current job stays the source.
 		this.resetWizard();
-		this.flavor.set('clone');
+		if (this.flavor() === 'clone') this.tryAutoSelectCurrentJob();
 	}
 
 	private loadSources(): void {
