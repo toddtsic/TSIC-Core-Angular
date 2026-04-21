@@ -1,10 +1,11 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
 	BlankJobRequest,
 	BlankJobResponse,
+	IdentityExistsResponse,
 	JobClonePreviewResponse,
 	JobCloneRequest,
 	JobCloneResponse,
@@ -31,6 +32,11 @@ export class JobCloneService {
 
 	previewClone(request: JobCloneRequest): Observable<JobClonePreviewResponse> {
 		return this.http.post<JobClonePreviewResponse>(`${this.apiUrl}/preview`, request);
+	}
+
+	jobIdentityExists(path: string, name: string): Observable<IdentityExistsResponse> {
+		const params = new HttpParams().set('path', path).set('name', name);
+		return this.http.get<IdentityExistsResponse>(`${this.apiUrl}/identity-exists`, { params });
 	}
 
 	// ── Blank flow ──

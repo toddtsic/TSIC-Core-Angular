@@ -111,6 +111,11 @@ export class JobCloneComponent implements OnInit {
 	readonly isSubmitting = signal(false);
 	readonly error = signal<string | null>(null);
 
+	// ── Step 2→3 identity uniqueness check ──
+	readonly isCheckingIdentity = signal(false);
+	readonly pathCollision = signal(false);
+	readonly nameCollision = signal(false);
+
 	// ── Computed ──
 	readonly canAdvance = computed(() => this.validateCurrentStep());
 	readonly inactiveAdmins = computed(() =>
@@ -271,12 +276,43 @@ export class JobCloneComponent implements OnInit {
 			this.populateStep2FromSource();
 		}
 
+		// Step 2 → 3: server-check jobPath + jobName uniqueness before advancing so
+		// authors don't walk the remaining steps to hit a conflict throw at Submit.
+		if (this.step() === 2 && next === 3) {
+			this.checkIdentityAndAdvance(next);
+			return;
+		}
+
 		// Entering Step 3 (dates) — load preview for clone flavor.
 		if (next === 3 && this.flavor() === 'clone' && !this.preview()) {
 			this.loadPreview();
 		}
 		this.step.set(next);
 	}
+
+	private checkIdentityAndAdvance(next: number): void {
+		if (this.isCheckingIdentity()) return;
+		this.isCheckingIdentity.set(true);
+		this.pathCollision.set(false);
+		this.nameCollision.set(false);
+		this.cloneService.jobIdentityExists(this.jobPathTarget, this.jobNameTarget).subscribe({
+			next: res => {
+				this.isCheckingIdentity.set(false);
+				this.pathCollision.set(res.pathExists);
+				this.nameCollision.set(res.nameExists);
+				if (res.pathExists || res.nameExists) return;
+				if (this.flavor() === 'clone' && !this.preview()) this.loadPreview();
+				this.step.set(next);
+			},
+			error: err => {
+				this.isCheckingIdentity.set(false);
+				this.toast.show(err.error?.message ?? 'Uniqueness check failed', 'danger', 4000);
+			},
+		});
+	}
+
+	clearPathCollision(): void { this.pathCollision.set(false); }
+	clearNameCollision(): void { this.nameCollision.set(false); }
 
 	wizardBack(): void {
 		const prev = this.step() - 1;
@@ -532,6 +568,9 @@ export class JobCloneComponent implements OnInit {
 		this.billingTypeId = null;
 		this.jobTypeId = null;
 		this.sportId = '';
+		this.pathCollision.set(false);
+		this.nameCollision.set(false);
+		this.isCheckingIdentity.set(false);
 	}
 
 	private toDateInput(d: Date): string {

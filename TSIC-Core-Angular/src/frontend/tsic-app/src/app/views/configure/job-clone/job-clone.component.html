@@ -106,11 +106,19 @@
 					<div>
 						<label class="field-label" for="jobPath">Job path</label>
 						<input id="jobPath" type="text" class="field-input" [(ngModel)]="jobPathTarget"
+							(ngModelChange)="clearPathCollision()"
 							placeholder="e.g., lftc-summer-2026">
+						@if (pathCollision()) {
+							<p class="field-error">A job with this path already exists. Pick a different path.</p>
+						}
 					</div>
 					<div>
 						<label class="field-label" for="jobName">Job name</label>
-						<input id="jobName" type="text" class="field-input" [(ngModel)]="jobNameTarget">
+						<input id="jobName" type="text" class="field-input" [(ngModel)]="jobNameTarget"
+							(ngModelChange)="clearNameCollision()">
+						@if (nameCollision()) {
+							<p class="field-error">A job with this name already exists. Pick a different name.</p>
+						}
 					</div>
 					<div>
 						<label class="field-label" for="year">Year</label>
@@ -397,8 +405,14 @@
 					<button type="button" class="jc-btn-secondary" (click)="wizardBack()">Back</button>
 				}
 				@if (step() < totalSteps) {
-					<button type="button" class="jc-btn-primary" [disabled]="!canAdvance()" (click)="wizardNext()">
-						Next
+					<button type="button" class="jc-btn-primary"
+						[disabled]="!canAdvance() || isCheckingIdentity()"
+						(click)="wizardNext()">
+						@if (isCheckingIdentity()) {
+							<span class="spinner"></span> Checking…
+						} @else {
+							Next
+						}
 					</button>
 				} @else {
 					<button type="button" class="jc-btn-primary" [disabled]="!canAdvance() || isSubmitting()" (click)="onSubmit()">

@@ -285,6 +285,7 @@ export type { GameSummaryResponse } from './models/GameSummaryResponse';
 export type { GetChatMessagesRequest } from './models/GetChatMessagesRequest';
 export type { GetChatMessagesResponse } from './models/GetChatMessagesResponse';
 export type { GetConfirmationTextRequest } from './models/GetConfirmationTextRequest';
+export type { IdentityExistsResponse } from './models/IdentityExistsResponse';
 export type { IFormFile } from './models/IFormFile';
 export type { ImportLegacyMenuRequest } from './models/ImportLegacyMenuRequest';
 export type { ImportRankingsRequest } from './models/ImportRankingsRequest';
