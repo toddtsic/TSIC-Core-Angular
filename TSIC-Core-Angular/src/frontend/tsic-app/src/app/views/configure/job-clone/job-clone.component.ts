@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobCloneService } from './services/job-clone.service';
+import { JobContextService } from '@infrastructure/services/job-context.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type {
 	AgegroupPreviewDto,
@@ -37,6 +38,7 @@ interface ReleaseContext {
 })
 export class JobCloneComponent implements OnInit {
 	private readonly cloneService = inject(JobCloneService);
+	private readonly jobContext = inject(JobContextService);
 	private readonly toast = inject(ToastService);
 
 	readonly totalSteps = 7;
@@ -150,12 +152,23 @@ export class JobCloneComponent implements OnInit {
 			next: sources => {
 				this.sourceJobs.set(sources);
 				this.isLoadingSources.set(false);
+				this.tryAutoSelectCurrentJob();
 			},
 			error: () => {
 				this.isLoadingSources.set(false);
 				this.toast.show('Failed to load source jobs', 'danger', 4000);
 			},
 		});
+	}
+
+	private tryAutoSelectCurrentJob(): void {
+		// Default the source picker to the job the user is currently on — matched by jobPath.
+		// Only auto-fills when the picker hasn't been set yet (user hasn't picked anything).
+		if (this.selectedSource()) return;
+		const currentPath = this.jobContext.jobPath();
+		if (!currentPath) return;
+		const match = this.sourceJobs().find(j => j.jobPath === currentPath);
+		if (match) this.onSourceSelected(match.jobId);
 	}
 
 	onSourceSelected(sourceId: string): void {
