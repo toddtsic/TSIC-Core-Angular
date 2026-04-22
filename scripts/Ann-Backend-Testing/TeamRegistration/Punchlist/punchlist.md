@@ -280,7 +280,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Popups positioned so the information on the screen behind remains visible — club reps need to reference that data while making selections
 - **What happened**: Popups block the view of the screens behind them. Consider: (1) making popups smaller/more compact, (2) positioning them to the side or bottom so the main content stays visible, or (3) using a slide-in panel instead of a centered modal.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-004: Consolidate two Register popups into one — only Grad Year and LOP needed
 - **Area**: Team Selection
@@ -288,7 +288,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A single popup collecting everything needed to register
 - **What happened**: Registration requires two separate popups when only Grad Year and LOP need to be collected. Combine into one popup for a quicker process — fewer clicks, less time.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-011: New Club Rep first-time experience — "No teams registered yet" message assumes teams already exist in library
 - **Area**: Team Selection
@@ -321,7 +321,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A comfortably wide popup matching what other registration flows show
 - **What happened**: The ToS popup seems narrower than what I've seen on other screens (e.g., Family Account creation). Make it wider so the text is easier to read, and standardize the popup width for ToS across all user types (Family, Club Rep, etc.).
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-009: Review Team Registration confirmation screen — blocked until SP-008 payment error is resolved
 - **Area**: Confirmation
@@ -329,7 +329,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: To see the confirmation page and email after a successful payment
 - **What happened**: Blocked by SP-008 ("One or more teams not found" payment error). Once SP-008 is fixed, need to review the confirmation screen for content, layout, and email — same level of scrutiny as PlayerRegistration confirmation.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Dependent on SP-008. Cannot test until payment succeeds.
 
 ### SP-008: Payment Error "One or more teams not found" when submitting CC payment to Sandbox
@@ -338,7 +338,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Payment to process successfully through Sandbox
 - **What happened**: Payment Error displayed: "One or more teams not found". Payment could not be completed. Screenshot shows the error banner at top of the Payment screen with the summary table and CC form below it.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: Both teams show correctly in the summary grid with fees, Proc Fee, CC Owed, and Reg Date. The error appears to be a backend lookup failure when the payment controller tries to resolve the team registrations.
 
 ### SP-007: Payment screen header — rename "Payment" to "Complete Payment", center and bold for consistency
@@ -347,7 +347,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent header styling across both registration flows
 - **What happened**: Team Payment screen header says "Payment" — should say "Complete Payment" to match the Player Registration flow. Also needs to be centered and bolder for visual consistency.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — keeping "Payment" title (neutral in both paid and unpaid states; "Complete Payment" reads wrong when balance is already $0). Styling half (centered + bolder) can still apply if Player/Team diverge visually.
 
 ### SP-006: Accounting Tables — review columns across both screens; LOP needs its own column
 - **Area**: Review Summary
@@ -355,7 +355,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent, informative columns across both tables — the first table has useful data that should carry forward to the second
 - **What happened**: The first accounting table has a lot of the info that should also appear on the payment screen. Additionally, LOP needs its own dedicated column instead of being embedded elsewhere. Challenge: lots of data to fit in a narrow field — may need layout adjustments (wider table, smaller font, horizontal scroll, or abbreviated headers). Needs collaborative review with Todd.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: Related to PlayerRegistration SP-024 (similar accounting table column/label rework). Consider standardizing table layout approach across both Player and Team registration.
 
 ### SP-005: Team Library — what happens to aged-out grad year teams? + team name editing (follow-up to PL-019)
@@ -364,4 +364,4 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A plan for handling teams that are no longer active (e.g., grad year 2025 teams in 2026) — archive, hide, or allow deletion. Also, the ability to edit team names (reinforcing SP-001).
 - **What happened**: No visible mechanism to handle aged-out teams. The library will grow indefinitely with stale teams that no longer play. Questions: (1) Should aged-out teams be automatically hidden or archived? (2) Should club reps be able to manually archive/remove them? (3) Team name editing is still needed (see SP-001) — club reps must be able to rename teams without deleting and re-creating them.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed

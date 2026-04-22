@@ -106,15 +106,15 @@ interface AgePickerTeam {
 
         @if (activeLibraryTeams().length > 0) {
           <div class="wizard-tip library-tip">
-            Your library carries across all TeamSportsInfo events. Tap <strong>Register</strong> to enter a team, or <strong>Add Team</strong> if one's missing.
+            Your library is permanent — teams you add here carry to every TSIC event. Click <strong>Register</strong> next to a team to enter it in this event, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add Team</button> if the one you need isn't in the library yet.
           </div>
         }
 
         @if (activeLibraryTeams().length === 0 && archivedLibraryTeams().length === 0) {
           <div class="wizard-empty-state">
             <i class="bi bi-plus-circle-dotted"></i>
-            <strong>Your library is empty</strong>
-            <span>Every team your club fields should be added here.<br>They're saved permanently — add once, register in any event.</span>
+            <strong>Build your Team Library</strong>
+            <span>Add every team your club runs — they stay saved, so you add once and register in any event.</span>
             <button type="button" class="btn btn-primary btn-sm mt-2"
                     (click)="showAddModal.set(true)">
               <i class="bi bi-plus-circle me-1"></i>Add Your First Team
@@ -124,7 +124,7 @@ interface AgePickerTeam {
           <div class="wizard-empty-state">
             <i class="bi bi-archive"></i>
             <strong>All teams are archived</strong>
-            <span>Restore a team below, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add Team</button> to start fresh.</span>
+            <span>Restore a team below, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">add a new one</button> to start fresh.</span>
           </div>
         } @else {
           <div class="scroll-list">
