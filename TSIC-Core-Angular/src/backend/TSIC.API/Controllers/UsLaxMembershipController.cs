@@ -15,7 +15,7 @@ namespace TSIC.API.Controllers;
 /// Single-number validation (used during registration flow) lives in ValidationController.
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/uslax-membership")]
 [Authorize(Policy = "AdminOnly")]
 public class UsLaxMembershipController : ControllerBase
 {
