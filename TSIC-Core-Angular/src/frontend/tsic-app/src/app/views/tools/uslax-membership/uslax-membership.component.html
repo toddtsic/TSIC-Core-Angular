@@ -89,7 +89,7 @@
 @if (rows().length > 0) {
     <div class="d-flex align-items-center gap-2 mb-2">
         <button class="btn btn-outline-primary btn-sm"
-                [disabled]="recipientsWithEmail().length === 0"
+                [disabled]="recipientsWithEmail().length === 0 || showCompose()"
                 (click)="openCompose()"
                 [title]="emailDisabledReason() ?? 'Compose email for selected recipients'">
             <i class="bi bi-envelope me-1"></i>Email selected ({{ recipientsWithEmail().length }})
@@ -100,6 +100,82 @@
             </span>
         }
     </div>
+
+    @if (showCompose()) {
+        <section #composePanel class="compose-panel" aria-label="Compose USLax email">
+            <div class="compose-header">
+                <h3 class="mb-0">Compose email</h3>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button"
+                            (click)="loadDefaultTemplate()"
+                            [disabled]="isSending()">
+                        <i class="bi bi-file-earmark-text me-1"></i>Load default template
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button"
+                            (click)="clearCompose()"
+                            [disabled]="isSending()">
+                        Clear
+                    </button>
+                    <button class="btn btn-sm btn-link text-body-secondary" type="button"
+                            (click)="closeCompose()"
+                            [disabled]="isSending()"
+                            aria-label="Close compose panel">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="compose-recipients">
+                Sending to <strong>{{ recipientsWithEmail().length }}</strong>
+                {{ recipientsWithEmail().length === 1 ? 'recipient' : 'recipients' }}.
+                @if (selectedMissingEmail() > 0) {
+                    <span class="text-warning-emphasis">
+                        ({{ selectedMissingEmail() }} selected {{ selectedMissingEmail() === 1 ? 'row has' : 'rows have' }} no email and will be skipped.)
+                    </span>
+                }
+            </div>
+
+            <div class="compose-field">
+                <label for="uslaxSubject" class="form-label">Subject</label>
+                <input id="uslaxSubject" type="text" class="form-control form-control-sm"
+                       [ngModel]="subject()" (ngModelChange)="subject.set($event)"
+                       [disabled]="isSending()">
+            </div>
+
+            <div class="compose-field">
+                <label for="uslaxBody" class="form-label">Body (HTML supported)</label>
+                <textarea id="uslaxBody" class="form-control form-control-sm compose-body"
+                          rows="14"
+                          [ngModel]="body()" (ngModelChange)="body.set($event)"
+                          [disabled]="isSending()"></textarea>
+                <small class="text-body-secondary">
+                    Tokens substituted per recipient: <code>!PLAYER</code>, <code>!PLAYERDOB</code>,
+                    <code>!USLAXMEMBERID</code>, <code>!USLAXMEMBERSTATUSSTATUS</code>,
+                    <code>!USLAXAGEVERIFIED</code>, <code>!USLAXEXPIRY</code>, <code>!JOBNAME</code>, <code>!JOBLINK</code>.
+                </small>
+            </div>
+
+            <div class="compose-actions">
+                <button class="btn btn-primary btn-sm"
+                        [disabled]="!canSendEmail()"
+                        (click)="send()">
+                    @if (isSending()) {
+                        <span class="spinner-border spinner-border-sm me-1" role="status">
+                            <span class="visually-hidden">Sending...</span>
+                        </span>
+                        Sending
+                    } @else {
+                        <i class="bi bi-send me-1"></i>Send to {{ recipientsWithEmail().length }}
+                    }
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" type="button"
+                        (click)="closeCompose()"
+                        [disabled]="isSending()">
+                    Cancel
+                </button>
+            </div>
+        </section>
+    }
 }
 
 @if (isLoadingCandidates() && candidates().length === 0) {
@@ -205,78 +281,3 @@
     </div>
 }
 
-@if (showCompose()) {
-    <section class="compose-panel" aria-label="Compose USLax email">
-        <div class="compose-header">
-            <h3 class="mb-0">Compose email</h3>
-            <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary" type="button"
-                        (click)="loadDefaultTemplate()"
-                        [disabled]="isSending()">
-                    <i class="bi bi-file-earmark-text me-1"></i>Load default template
-                </button>
-                <button class="btn btn-sm btn-outline-secondary" type="button"
-                        (click)="clearCompose()"
-                        [disabled]="isSending()">
-                    Clear
-                </button>
-                <button class="btn btn-sm btn-link text-body-secondary" type="button"
-                        (click)="closeCompose()"
-                        [disabled]="isSending()"
-                        aria-label="Close compose panel">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-        </div>
-
-        <div class="compose-recipients">
-            Sending to <strong>{{ recipientsWithEmail().length }}</strong>
-            {{ recipientsWithEmail().length === 1 ? 'recipient' : 'recipients' }}.
-            @if (selectedMissingEmail() > 0) {
-                <span class="text-warning-emphasis">
-                    ({{ selectedMissingEmail() }} selected {{ selectedMissingEmail() === 1 ? 'row has' : 'rows have' }} no email and will be skipped.)
-                </span>
-            }
-        </div>
-
-        <div class="compose-field">
-            <label for="uslaxSubject" class="form-label">Subject</label>
-            <input id="uslaxSubject" type="text" class="form-control form-control-sm"
-                   [ngModel]="subject()" (ngModelChange)="subject.set($event)"
-                   [disabled]="isSending()">
-        </div>
-
-        <div class="compose-field">
-            <label for="uslaxBody" class="form-label">Body (HTML supported)</label>
-            <textarea id="uslaxBody" class="form-control form-control-sm compose-body"
-                      rows="14"
-                      [ngModel]="body()" (ngModelChange)="body.set($event)"
-                      [disabled]="isSending()"></textarea>
-            <small class="text-body-secondary">
-                Tokens substituted per recipient: <code>!PLAYER</code>, <code>!PLAYERDOB</code>,
-                <code>!USLAXMEMBERID</code>, <code>!USLAXMEMBERSTATUSSTATUS</code>,
-                <code>!USLAXAGEVERIFIED</code>, <code>!USLAXEXPIRY</code>, <code>!JOBNAME</code>, <code>!JOBLINK</code>.
-            </small>
-        </div>
-
-        <div class="compose-actions">
-            <button class="btn btn-primary btn-sm"
-                    [disabled]="!canSendEmail()"
-                    (click)="send()">
-                @if (isSending()) {
-                    <span class="spinner-border spinner-border-sm me-1" role="status">
-                        <span class="visually-hidden">Sending...</span>
-                    </span>
-                    Sending
-                } @else {
-                    <i class="bi bi-send me-1"></i>Send to {{ recipientsWithEmail().length }}
-                }
-            </button>
-            <button class="btn btn-outline-secondary btn-sm" type="button"
-                    (click)="closeCompose()"
-                    [disabled]="isSending()">
-                Cancel
-            </button>
-        </div>
-    </section>
-}

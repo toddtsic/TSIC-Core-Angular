@@ -228,6 +228,12 @@ export class UsLaxMembershipComponent implements OnInit {
 		if (this.recipientsWithEmail().length === 0) return;
 		if (!this.subject().trim() && !this.body().trim()) this.loadDefaultTemplate();
 		this.showCompose.set(true);
+		// After render, focus the subject field so the panel is visible and actionable.
+		setTimeout(() => {
+			const el = document.getElementById('uslaxSubject');
+			el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			(el as HTMLInputElement | null)?.focus({ preventScroll: true });
+		}, 0);
 	}
 
 	closeCompose(): void {
