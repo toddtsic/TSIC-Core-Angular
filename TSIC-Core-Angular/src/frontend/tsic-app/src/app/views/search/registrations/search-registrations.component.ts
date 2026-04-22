@@ -275,14 +275,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         value: req.arbHealthStatus
       });
     }
-    if (req.usLaxMembershipStatus) {
-      chips.push({
-        category: 'USLax',
-        label: this.usLaxStatusLabel(req.usLaxMembershipStatus),
-        filterKey: 'usLaxMembershipStatus',
-        value: req.usLaxMembershipStatus
-      });
-    }
     addArrayChips('For Club', 'rosterThresholdClubNames', req.rosterThresholdClubNames, opts?.clubRepClubs);
 
     // CADT tree chips — highest-level checked ancestor only (same pattern as LADT)
@@ -954,37 +946,6 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   clearArbCardExpiringMode(): void {
     this.arbCardExpiringMode.set(false);
     this.executeSearch();
-  }
-
-  // ── USLax Membership filter ──
-
-  readonly usLaxStatusFilterValue = computed(() => this.searchRequest().usLaxMembershipStatus ?? '');
-
-  /** Shown only for Lacrosse jobs that have a USLax validation window configured. */
-  readonly showUsLaxSection = computed(() => this.jobFlags().usLaxMembershipValidated);
-
-  updateUsLaxStatusFilter(value: string): void {
-    const parsed = value === '' ? undefined : value;
-    this.searchRequest.update(req => {
-      const update: Partial<RegistrationSearchRequest> = { usLaxMembershipStatus: parsed };
-      if (parsed !== undefined) {
-        update.roleIds = [ROLE_ID_PLAYER];
-        update.activeStatuses = ['True'];
-      } else {
-        const current = req.roleIds ?? [];
-        if (current.length === 1 && current[0]?.toUpperCase() === ROLE_ID_PLAYER.toUpperCase()) {
-          update.roleIds = [];
-        }
-      }
-      return { ...req, ...update };
-    });
-  }
-
-  private usLaxStatusLabel(value: string): string {
-    switch (value) {
-      case 'expired': return 'Expired / Missing';
-      default: return value;
-    }
   }
 
   // ── Multi-select update helpers ──

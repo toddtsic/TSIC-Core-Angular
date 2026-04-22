@@ -5,6 +5,7 @@ import type { RegistrationSearchRequest } from '@core/api';
 /** Role IDs — must match TSIC.Domain.Constants.RoleConstants. */
 export const ROLE_ID_PLAYER = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
 export const ROLE_ID_CLUBREP = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+export const ROLE_ID_UNASSIGNED_ADULT = 'C92D71A9-464D-40C5-BA35-DFD9111CC7EA';
 
 /**
  * Job-level feature flags the template availability evaluator cares about.
@@ -230,7 +231,7 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
     category: 'USLax Membership',
     templates: [
       {
-        label: 'Expired / Missing Membership',
+        label: 'Expired / Missing Membership (Players)',
         subject: 'USA Lacrosse Membership Needed for !JOBNAME',
         body:
           'Our records indicate that !PERSON\'s USA Lacrosse membership either has no expiration on file ' +
@@ -249,6 +250,32 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
           requiresJobFlags: ['usLaxMembershipValidated'],
           requiresFilters: [
             { key: 'usLaxMembershipStatus', value: 'expired' },
+            { key: 'roleIds', value: [ROLE_ID_PLAYER] },
+            ACTIVE_ONLY
+          ]
+        }
+      },
+      {
+        label: 'Expired / Missing Membership (Coaches)',
+        subject: 'Coach USA Lacrosse Membership Needed for !JOBNAME',
+        body:
+          'Our records indicate that !PERSON\'s USA Lacrosse membership either has no expiration on file ' +
+          'or expires before the date required for !JOBNAME (valid through !USLAXVALIDTHROUGHDATE).\n\n' +
+          'A current USA Lacrosse membership is required for coaches and team staff to participate.\n\n' +
+          'To renew or update your membership:\n\n' +
+          '1. Visit https://account.usalacrosse.com/login and renew through USA Lacrosse directly.\n' +
+          '2. Once renewed, visit !JOBLINK and login using your username: !FAMILYUSERNAME\n' +
+          '3. Select your role\n' +
+          '4. Confirm your USA Lacrosse number and expiration are up to date on your registration\n' +
+          '5. Submit to save changes\n\n' +
+          'If you believe this message is in error (for example, you have recently renewed), please update your ' +
+          'membership number on your registration — we will re-verify against USA Lacrosse.\n\n' +
+          'Questions about USA Lacrosse membership: membership@usalacrosse.com or 410-235-6882.',
+        availability: {
+          requiresJobFlags: ['usLaxMembershipValidated'],
+          requiresFilters: [
+            { key: 'usLaxMembershipStatus', value: 'expired' },
+            { key: 'roleIds', value: [ROLE_ID_UNASSIGNED_ADULT] },
             ACTIVE_ONLY
           ]
         }

@@ -1,6 +1,24 @@
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
     <h2 class="mb-0">USA Lacrosse Membership Reconciliation</h2>
     <div class="d-flex gap-2 flex-wrap">
+        <div class="btn-group role-toggle" role="group" aria-label="Membership role">
+            <button type="button"
+                    class="btn btn-sm"
+                    [class.btn-primary]="!isCoachRole()"
+                    [class.btn-outline-secondary]="isCoachRole()"
+                    [disabled]="isLoadingCandidates() || isReconciling()"
+                    (click)="setRole(MEMBERSHIP_ROLE.Player)">
+                Players
+            </button>
+            <button type="button"
+                    class="btn btn-sm"
+                    [class.btn-primary]="isCoachRole()"
+                    [class.btn-outline-secondary]="!isCoachRole()"
+                    [disabled]="isLoadingCandidates() || isReconciling()"
+                    (click)="setRole(MEMBERSHIP_ROLE.Coach)">
+                Coaches
+            </button>
+        </div>
         <button class="btn btn-outline-secondary btn-sm" (click)="loadCandidates()"
                 [disabled]="isLoadingCandidates() || isReconciling()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
@@ -38,9 +56,9 @@
             <i class="bi bi-people"></i>
         </div>
         <div class="stat-body">
-            <span class="stat-label">Eligible players</span>
+            <span class="stat-label">{{ eligibleLabel() }}</span>
             <span class="stat-value">{{ candidates().length }}</span>
-            <span class="stat-note">Active Lacrosse Players with a membership ID on file</span>
+            <span class="stat-note">{{ eligibleNote() }}</span>
         </div>
     </div>
 </section>
@@ -68,6 +86,22 @@
     </div>
 }
 
+@if (rows().length > 0) {
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <button class="btn btn-outline-primary btn-sm"
+                [disabled]="!canOpenEmail()"
+                (click)="openEmail()"
+                [title]="canOpenEmail() ? 'Compose email for selected recipients' : 'Select rows with an email address on file'">
+            <i class="bi bi-envelope me-1"></i>Email selected ({{ emailRecipientCount() }})
+        </button>
+        @if (selectedRows().length > emailRecipientCount()) {
+            <span class="text-body-secondary small">
+                {{ selectedRows().length - emailRecipientCount() }} selected without email on file
+            </span>
+        }
+    </div>
+}
+
 @if (isLoadingCandidates() && candidates().length === 0) {
     <div class="text-center py-5">
         <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -79,10 +113,14 @@
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
               [allowExcelExport]="true"
               [toolbar]="gridToolbar"
+              [selectionSettings]="selectionSettings"
+              (rowSelected)="onSelectionChanged()"
+              (rowDeselected)="onSelectionChanged()"
               (toolbarClick)="onGridToolbarClick($event, grid)"
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
               cssClass="tsic-grid-tight">
         <e-columns>
+            <e-column type="checkbox" width="40" [allowSorting]="false"></e-column>
             <e-column headerText="Name" minWidth="160">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">
@@ -145,11 +183,30 @@
     <div class="text-center py-5">
         <i class="bi bi-award fs-1 text-body-secondary"></i>
         <p class="mt-2 text-body-secondary">
-            No eligible Lacrosse players on this job. Reconciliation requires active Player registrations with a USA Lacrosse number and date of birth on file.
+            @if (isCoachRole()) {
+                No eligible coaches on this job. Reconciliation requires active unassigned-adult registrations with a USA Lacrosse number and date of birth on file.
+            } @else {
+                No eligible Lacrosse players on this job. Reconciliation requires active Player registrations with a USA Lacrosse number and date of birth on file.
+            }
         </p>
     </div>
 } @else if (!isReconciling() && rows().length === 0) {
     <div class="text-center py-4 text-body-secondary">
-        Press <strong>Reconcile</strong> to ping USA Lacrosse for each eligible player. Expiry dates will be updated automatically.
+        Press <strong>Reconcile</strong> to check USA Lacrosse for each eligible registrant. Expiry dates will be updated automatically.
     </div>
+}
+
+@if (showEmailModal()) {
+    <app-batch-email-modal
+        [registrationIds]="emailRegistrationIds()"
+        [recipientCount]="emailRecipientCount()"
+        [recipients]="emailRecipients()"
+        [isOpen]="showEmailModal()"
+        [activeRoleIds]="emailActiveRoleIds()"
+        [searchRequest]="emailSearchRequest()"
+        [jobFlags]="emailJobFlags()"
+        [initialTemplateLabel]="initialTemplateLabel()"
+        (closed)="closeEmail()"
+        (sent)="onEmailSent()"
+    ></app-batch-email-modal>
 }

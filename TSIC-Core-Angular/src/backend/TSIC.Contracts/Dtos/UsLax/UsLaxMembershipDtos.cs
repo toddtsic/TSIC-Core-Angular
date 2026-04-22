@@ -1,11 +1,19 @@
 namespace TSIC.Contracts.Dtos.UsLax;
 
+/// <summary>Audience scope for USLax membership reconciliation.</summary>
+public enum UsLaxMembershipRole
+{
+    Player = 0,
+    Coach = 1
+}
+
 /// <summary>Pre-ping candidate row — what the job has on file before reconciliation runs.</summary>
 public record UsLaxReconciliationCandidateDto
 {
     public required Guid RegistrationId { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
+    public string? Email { get; init; }
     public DateTime? Dob { get; init; }
     public required string MembershipId { get; init; }
     public DateTime? CurrentExpiryDate { get; init; }
@@ -21,6 +29,7 @@ public record UsLaxReconciliationRowDto
     public required Guid RegistrationId { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
+    public string? Email { get; init; }
     public required string MembershipId { get; init; }
     public string? TeamName { get; init; }
 
@@ -46,6 +55,9 @@ public record UsLaxReconciliationRowDto
 public record UsLaxReconciliationRequest
 {
     public List<Guid>? RegistrationIds { get; init; }
+
+    /// <summary>Which audience to reconcile. Defaults to Player to preserve original behavior.</summary>
+    public UsLaxMembershipRole Role { get; init; } = UsLaxMembershipRole.Player;
 }
 
 /// <summary>Batch reconciliation response. Rollup + per-row details.</summary>

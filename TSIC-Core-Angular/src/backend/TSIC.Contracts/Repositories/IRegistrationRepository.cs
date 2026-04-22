@@ -2,6 +2,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -452,7 +453,7 @@ public interface IRegistrationRepository
     /// non-null SportAssnId and a user DOB on file (USALax API needs DOB for age-verification).
     /// Restricted to Lacrosse sport to match legacy.
     /// </summary>
-    Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, UsLaxMembershipRole role, CancellationToken ct = default);
 
     /// <summary>
     /// Write a new SportAssnIdexpDate to a single registration. Used by USLax reconciliation
@@ -466,6 +467,7 @@ public record UsLaxReconciliationCandidateRow
     public required Guid RegistrationId { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
+    public string? Email { get; init; }
     public DateTime? Dob { get; init; }
     public required string SportAssnId { get; init; }
     public DateTime? SportAssnIdexpDate { get; init; }

@@ -482,27 +482,6 @@
         </div>
       }
 
-      <!-- Section: USLax Membership -->
-      @if (showUsLaxSection()) {
-        <div class="section-card">
-          <div class="section-card-header">USLax Membership</div>
-          <div class="section-card-body">
-            <div class="filter-row">
-              <div class="form-group">
-                <label for="filterUsLaxStatus">Membership Status</label>
-                <select id="filterUsLaxStatus" class="form-select"
-                  [ngModel]="usLaxStatusFilterValue()"
-                  (ngModelChange)="updateUsLaxStatusFilter($event)">
-                  <option value="">-- Not Filtered --</option>
-                  <option value="expired">Expired / Missing</option>
-                </select>
-                <small class="form-text text-muted">Active Players only.</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      }
-
       <!-- Section: Roster Scan -->
       <div class="section-card">
         <div class="section-card-header">Roster Scan</div>

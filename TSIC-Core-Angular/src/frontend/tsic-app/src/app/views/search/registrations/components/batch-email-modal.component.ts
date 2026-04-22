@@ -53,6 +53,11 @@ export class BatchEmailModalComponent implements OnInit {
    *  card-expiring-this-month lookup results. Gates the CC-Expiring template. */
   isCardExpiringMode = input<boolean>(false);
 
+  /** When set, the modal auto-applies the template with this label on open.
+   *  Useful for tool-launched flows (e.g. USLax reconcile page) that know
+   *  exactly which template the user wants before the modal appears. */
+  initialTemplateLabel = input<string | null>(null);
+
   closed = output<void>();
   sent = output<BatchEmailResponse>();
 
@@ -122,6 +127,14 @@ export class BatchEmailModalComponent implements OnInit {
       next: (jobs) => this.clubRepInviteTargetJobs.set(jobs),
       error: () => { /* non-critical */ }
     });
+
+    const initialLabel = this.initialTemplateLabel();
+    if (initialLabel) {
+      for (const cat of EMAIL_TEMPLATE_CATEGORIES) {
+        const tmpl = cat.templates.find(t => t.label === initialLabel);
+        if (tmpl) { this.applyTemplate(tmpl); break; }
+      }
+    }
   }
 
   /** Jobs shown in the target event dropdown — future-only for club rep invite, all for player invite */

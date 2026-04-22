@@ -29,12 +29,14 @@ public class UsLaxMembershipController : ControllerBase
     }
 
     [HttpGet("candidates")]
-    public async Task<ActionResult<IReadOnlyList<UsLaxReconciliationCandidateDto>>> GetCandidates(CancellationToken ct)
+    public async Task<ActionResult<IReadOnlyList<UsLaxReconciliationCandidateDto>>> GetCandidates(
+        [FromQuery] UsLaxMembershipRole role = UsLaxMembershipRole.Player,
+        CancellationToken ct = default)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null) return BadRequest(new { message = "Registration context required" });
 
-        var candidates = await _service.GetCandidatesAsync(jobId.Value, ct);
+        var candidates = await _service.GetCandidatesAsync(jobId.Value, role, ct);
         return Ok(candidates);
     }
 

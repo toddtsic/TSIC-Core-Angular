@@ -22,14 +22,15 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<UsLaxReconciliationCandidateDto>> GetCandidatesAsync(Guid jobId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<UsLaxReconciliationCandidateDto>> GetCandidatesAsync(Guid jobId, UsLaxMembershipRole role, CancellationToken ct = default)
     {
-        var rows = await _registrations.GetUsLaxReconciliationCandidatesAsync(jobId, ct);
+        var rows = await _registrations.GetUsLaxReconciliationCandidatesAsync(jobId, role, ct);
         return rows.Select(r => new UsLaxReconciliationCandidateDto
         {
             RegistrationId = r.RegistrationId,
             FirstName = r.FirstName,
             LastName = r.LastName,
+            Email = r.Email,
             Dob = r.Dob,
             MembershipId = r.SportAssnId,
             CurrentExpiryDate = r.SportAssnIdexpDate,
@@ -39,7 +40,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
 
     public async Task<UsLaxReconciliationResponse> ReconcileAsync(Guid jobId, UsLaxReconciliationRequest request, CancellationToken ct = default)
     {
-        var candidates = await _registrations.GetUsLaxReconciliationCandidatesAsync(jobId, ct);
+        var candidates = await _registrations.GetUsLaxReconciliationCandidatesAsync(jobId, request.Role, ct);
 
         if (request.RegistrationIds is { Count: > 0 })
         {
@@ -132,6 +133,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             RegistrationId = c.RegistrationId,
             FirstName = c.FirstName,
             LastName = c.LastName,
+            Email = c.Email,
             MembershipId = c.SportAssnId,
             TeamName = c.TeamName,
             StatusCode = statusCode,

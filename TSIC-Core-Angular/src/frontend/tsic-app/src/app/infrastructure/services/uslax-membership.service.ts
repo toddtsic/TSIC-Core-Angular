@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import type { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
+	UsLaxMembershipRole,
 	UsLaxReconciliationCandidateDto,
 	UsLaxReconciliationRequest,
 	UsLaxReconciliationResponse
@@ -13,8 +14,9 @@ export class UsLaxMembershipService {
 	private readonly http = inject(HttpClient);
 	private readonly apiUrl = environment.apiUrl;
 
-	getCandidates(): Observable<UsLaxReconciliationCandidateDto[]> {
-		return this.http.get<UsLaxReconciliationCandidateDto[]>(`${this.apiUrl}/uslax-membership/candidates`);
+	getCandidates(role: UsLaxMembershipRole): Observable<UsLaxReconciliationCandidateDto[]> {
+		const params = new HttpParams().set('role', role);
+		return this.http.get<UsLaxReconciliationCandidateDto[]>(`${this.apiUrl}/uslax-membership/candidates`, { params });
 	}
 
 	reconcile(request: UsLaxReconciliationRequest): Observable<UsLaxReconciliationResponse> {

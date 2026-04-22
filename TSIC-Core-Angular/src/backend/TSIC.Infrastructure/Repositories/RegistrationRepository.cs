@@ -4,6 +4,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -2239,14 +2240,16 @@ public class RegistrationRepository : IRegistrationRepository
         ).AsNoTracking().ToListAsync(ct);
     }
 
-    public async Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, CancellationToken ct = default)
+    public async Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, UsLaxMembershipRole role, CancellationToken ct = default)
     {
+        var roleId = role == UsLaxMembershipRole.Coach ? RoleConstants.UnassignedAdult : RoleConstants.Player;
+
         return await (
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
             join j in _context.Jobs on r.JobId equals j.JobId
             where r.JobId == jobId
-                  && r.RoleId == RoleConstants.Player
+                  && r.RoleId == roleId
                   && r.BActive == true
                   && r.SportAssnId != null
                   && u.Dob != null
@@ -2258,6 +2261,7 @@ public class RegistrationRepository : IRegistrationRepository
                 RegistrationId = r.RegistrationId,
                 FirstName = u.FirstName ?? string.Empty,
                 LastName = u.LastName ?? string.Empty,
+                Email = u.Email,
                 Dob = u.Dob,
                 SportAssnId = r.SportAssnId!,
                 SportAssnIdexpDate = r.SportAssnIdexpDate,
