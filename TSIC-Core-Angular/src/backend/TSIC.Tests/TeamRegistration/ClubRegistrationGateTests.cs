@@ -65,7 +65,8 @@ public class ClubRegistrationGateTests
 
     private static ClubRepRegistrationRequest MakeRequest(
         string clubName,
-        bool confirmedNewClub = false) => new()
+        bool confirmedNewClub = false,
+        bool acceptedTos = true) => new()
     {
         ClubName = clubName,
         FirstName = "Test",
@@ -78,7 +79,8 @@ public class ClubRegistrationGateTests
         State = "NC",
         PostalCode = "28205",
         Cellphone = "5551234567",
-        ConfirmedNewClub = confirmedNewClub
+        ConfirmedNewClub = confirmedNewClub,
+        AcceptedTos = acceptedTos
     };
 
     // ── Service factory ─────────────────────────────────────────────
@@ -114,10 +116,15 @@ public class ClubRegistrationGateTests
             It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(true);
 
+        var userRepo = new Mock<IUserRepository>();
+        userRepo.Setup(r => r.UpdateTosAcceptanceByUserIdAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         var cache = new MemoryCache(Options.Create(new MemoryCacheOptions()));
 
         var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object,
-            privilegeService.Object, cache);
+            userRepo.Object, privilegeService.Object, cache);
 
         return (svc, clubRepo);
     }

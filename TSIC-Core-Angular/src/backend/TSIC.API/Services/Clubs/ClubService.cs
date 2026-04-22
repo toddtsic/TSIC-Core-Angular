@@ -21,6 +21,7 @@ public sealed class ClubService : IClubService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IClubRepository _clubRepo;
     private readonly IClubRepRepository _clubRepRepo;
+    private readonly IUserRepository _userRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
     private readonly IMemoryCache _cache;
 
@@ -28,12 +29,14 @@ public sealed class ClubService : IClubService
         UserManager<ApplicationUser> userManager,
         IClubRepository clubRepo,
         IClubRepRepository clubRepRepo,
+        IUserRepository userRepo,
         IUserPrivilegeLevelService privilegeService,
         IMemoryCache cache)
     {
         _userManager = userManager;
         _clubRepo = clubRepo;
         _clubRepRepo = clubRepRepo;
+        _userRepo = userRepo;
         _privilegeService = privilegeService;
         _cache = cache;
     }
@@ -52,6 +55,11 @@ public sealed class ClubService : IClubService
             string.IsNullOrWhiteSpace(request.Password))
         {
             return new ClubRepRegistrationResponse { Success = false, ClubId = null, UserId = null, Message = "Club name, username, and password are required" };
+        }
+
+        if (!request.AcceptedTos)
+        {
+            return new ClubRepRegistrationResponse { Success = false, ClubId = null, UserId = null, Message = "You must accept the Terms of Service." };
         }
 
         // ── Validate user account ───────────────────────────────────────
@@ -160,6 +168,11 @@ public sealed class ClubService : IClubService
         {
             user = existingUser;
         }
+
+        // Persist ToS acceptance (bTSICWaiverSigned + TSICWaiverSigned_TS).
+        // Matches AdultRegistrationService pattern so any flow that checks
+        // RequiresTosSignatureAsync sees this rep as signed.
+        await _userRepo.UpdateTosAcceptanceByUserIdAsync(user.Id);
 
         if (clubId == 0)
         {

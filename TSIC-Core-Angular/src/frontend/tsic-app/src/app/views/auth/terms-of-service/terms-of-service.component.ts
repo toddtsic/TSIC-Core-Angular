@@ -4,11 +4,12 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { TosContentComponent } from '@views/registration/shared/components/tos-content.component';
 
 @Component({
     selector: 'app-terms-of-service',
     standalone: true,
-    imports: [FormsModule],
+    imports: [FormsModule, TosContentComponent],
     templateUrl: './terms-of-service.component.html',
     styleUrls: ['./terms-of-service.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush

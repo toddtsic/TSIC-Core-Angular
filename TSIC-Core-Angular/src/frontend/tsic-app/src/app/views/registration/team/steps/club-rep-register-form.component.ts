@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, OnInit, output, signal, computed } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, filter, switchMap, catchError } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { ClubService } from '@infrastructure/services/club.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { TosAcceptanceStepComponent } from '../../shared/components/tos-acceptance-step.component';
+import { TosContentComponent } from '../../shared/components/tos-content.component';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -35,7 +35,7 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 @Component({
     selector: 'app-club-rep-register-form',
     standalone: true,
-    imports: [ReactiveFormsModule, TsicDialogComponent, TosAcceptanceStepComponent],
+    imports: [ReactiveFormsModule, TsicDialogComponent, TosContentComponent],
     styles: [`
       /* ── Blocked panel (Tier 1: 85%+) ────────────────────── */
       .club-blocked-panel {
@@ -191,6 +191,63 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
         background: rgba(var(--bs-info-rgb), 0.1);
         color: var(--bs-info);
       }
+
+      /* ── ToS acceptance row (above Create Account) ─────── */
+      .tos-acceptance-row {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        margin-top: var(--space-2);
+        background: var(--brand-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        line-height: 1.4;
+      }
+      .tos-acceptance-row input[type="checkbox"] {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        margin-top: 1px;
+        accent-color: var(--bs-primary);
+        cursor: pointer;
+      }
+      .tos-acceptance-row label {
+        margin: 0;
+        cursor: pointer;
+        user-select: none;
+      }
+      .tos-link-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--bs-primary);
+        font: inherit;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .tos-link-btn:hover { text-decoration: none; }
+      .tos-link-btn:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-sm);
+      }
+
+      /* ── Inline collapsible ToS panel ─────────────────── */
+      .tos-inline-panel {
+        margin-top: var(--space-2);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        overflow: hidden;
+      }
+      .tos-inline-scroll {
+        max-height: 320px;
+        overflow-y: auto;
+        padding: var(--space-3) var(--space-4);
+      }
     `],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
@@ -206,20 +263,6 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
           <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          @if (registrationComplete()) {
-            <!-- ── SUCCESS + ToS ── -->
-            <div class="text-center py-3">
-              <i class="bi bi-check-circle-fill text-success" style="font-size: 2.5rem;"></i>
-              <h6 class="fw-bold mt-3 mb-2">Account Created!</h6>
-              <p class="small text-muted mb-0">
-                Please review and accept the Terms of Service to continue.
-              </p>
-            </div>
-            <app-tos-acceptance-step
-              [submitting]="tosSubmitting()"
-              [error]="tosError()"
-              (accepted)="onTosAccepted()" />
-          } @else {
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
               @if (!isEdit()) {
@@ -473,6 +516,31 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
                 <div class="alert alert-danger py-2 small mb-2">{{ errorMsg() }}</div>
               }
 
+              @if (!isEdit()) {
+                <div class="tos-acceptance-row">
+                  <input id="clubRepTosAccept" type="checkbox" formControlName="agreeToTos"
+                         [class.is-invalid]="submitted() && form.controls.agreeToTos.invalid" />
+                  <label for="clubRepTosAccept">
+                    I have read and agree to the
+                    <button type="button" class="tos-link-btn"
+                            [attr.aria-expanded]="tosExpanded()"
+                            aria-controls="clubRepTosPanel"
+                            (click)="tosExpanded.set(!tosExpanded())">
+                      Terms of Service<i class="bi ms-1"
+                        [class.bi-chevron-down]="!tosExpanded()"
+                        [class.bi-chevron-up]="tosExpanded()"></i>
+                    </button>.
+                  </label>
+                </div>
+                @if (tosExpanded()) {
+                  <div id="clubRepTosPanel" class="tos-inline-panel">
+                    <div class="tos-inline-scroll">
+                      <app-tos-content />
+                    </div>
+                  </div>
+                }
+              }
+
               <button type="submit" class="btn btn-primary w-100 fw-semibold mt-3"
                       [disabled]="saving() || (!isEdit() && !canSubmit())">
                 @if (saving()) {
@@ -487,7 +555,6 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
                 }
               </button>
             </form>
-          }
         </div>
       </div>
     </tsic-dialog>
@@ -519,12 +586,9 @@ export class ClubRepRegisterFormComponent implements OnInit {
     readonly submitted = signal(false);
     readonly saving = signal(false);
     readonly errorMsg = signal<string | null>(null);
-    readonly registrationComplete = signal(false);
-    readonly tosSubmitting = signal(false);
-    readonly tosError = signal<string | null>(null);
     readonly showPassword = signal(false);
     readonly showConfirm = signal(false);
-    private savedCredentials: { username: string; password: string } | null = null;
+    readonly tosExpanded = signal(false);
 
     // Club search state
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
@@ -557,6 +621,7 @@ export class ClubRepRegisterFormComponent implements OnInit {
         username: ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[A-Za-z0-9._-]+$/)]],
         password: ['', [Validators.required, Validators.minLength(6)]],
         confirmPassword: ['', Validators.required],
+        agreeToTos: [false, Validators.requiredTrue],
     });
 
     /** Cross-field: confirmPassword must match password */
@@ -567,15 +632,23 @@ export class ClubRepRegisterFormComponent implements OnInit {
     });
 
     constructor() {
-        // Debounced live search on club name input
+        // Live search with immediate stale-state clear.
+        // - tap() fires on every new value: clears panels before debounce so the
+        //   user never sees a prior match lingering while they type.
+        // - debounceTime/switchMap batches the actual HTTP call.
+        // - The final subscribe sets decision unambiguously from new results
+        //   (every prior-state transition is handled, not just some).
         this.form.controls.clubName.valueChanges.pipe(
-            debounceTime(300),
             distinctUntilChanged(),
+            tap(() => {
+                this.clubSearchResults.set([]);
+                this.clubDecision.set('pending');
+                this.clubSearchLoading.set(false);
+            }),
+            debounceTime(300),
             filter((v): v is string => !!v && v.trim().length >= 3),
             switchMap(name => {
                 this.clubSearchLoading.set(true);
-                this.clubDecision.set('pending');
-                this.clubSearchResults.set([]);
                 return this.clubService.searchClubs(name.trim()).pipe(
                     catchError(() => of([] as ClubSearchResult[]))
                 );
@@ -593,21 +666,11 @@ export class ClubRepRegisterFormComponent implements OnInit {
 
             if (hasBlocked) {
                 this.clubDecision.set('blocked');
-            } else if (!hasWarning) {
-                // No matches at all, or all below 65 — auto-clear
+            } else if (hasWarning) {
+                this.clubDecision.set('pending');
+            } else {
                 this.clubDecision.set('clear');
             }
-            // else: stays 'pending', user must confirm or abandon
-        });
-
-        // Reset when club name gets too short
-        this.form.controls.clubName.valueChanges.pipe(
-            filter(v => !v || v.trim().length < 3),
-            takeUntilDestroyed(this.destroyRef)
-        ).subscribe(() => {
-            this.clubSearchResults.set([]);
-            this.clubSearchLoading.set(false);
-            this.clubDecision.set('pending');
         });
     }
 
@@ -620,6 +683,7 @@ export class ClubRepRegisterFormComponent implements OnInit {
         this.form.controls.username.disable();
         this.form.controls.password.disable();
         this.form.controls.confirmPassword.disable();
+        this.form.controls.agreeToTos.disable();
 
         // canSubmit() gates on clubDecision; 'clear' skips the club-search gate entirely.
         this.clubDecision.set('clear');
@@ -666,10 +730,12 @@ export class ClubRepRegisterFormComponent implements OnInit {
         this.clubDecision.set('pending');
     }
 
-    /** Submit is allowed when: clear (no matches), or new (confirmed in warning band), and passwords match */
+    /** Submit is allowed when: clear (no matches), or new (confirmed in warning band), passwords match, and ToS accepted */
     canSubmit(): boolean {
         const decision = this.clubDecision();
-        return (decision === 'clear' || decision === 'new') && !this.passwordMismatch();
+        return (decision === 'clear' || decision === 'new')
+            && !this.passwordMismatch()
+            && this.form.controls.agreeToTos.value === true;
     }
 
     onSubmit(): void {
@@ -699,24 +765,26 @@ export class ClubRepRegisterFormComponent implements OnInit {
             username: v.username!.trim(),
             password: v.password!,
             confirmedNewClub: true,
+            acceptedTos: true,
         };
 
         this.clubService.registerClub(request)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (resp) => {
-                    this.saving.set(false);
                     if (resp.success) {
-                        this.registrationComplete.set(true);
-                        this.savedCredentials = { username: request.username, password: request.password };
-                        this.toast.show('Account created! Please accept the Terms of Service.', 'success', 3000);
+                        // Backend has already stamped bTSICWaiverSigned + timestamp.
+                        // Auto-login and emit registered — no separate ToS step.
+                        this.autoLoginAndEmit(request.username, request.password);
                     } else if (resp.similarClubs?.length) {
+                        this.saving.set(false);
                         // Backend gate caught something the frontend missed
                         this.clubSearchResults.set(resp.similarClubs as ClubSearchResult[]);
                         const hasBlocked = resp.similarClubs.some((c: ClubSearchResult) => (c.matchScore ?? 0) >= 85);
                         this.clubDecision.set(hasBlocked ? 'blocked' : 'pending');
                         this.errorMsg.set(resp.message || null);
                     } else {
+                        this.saving.set(false);
                         this.errorMsg.set(resp.message || 'Registration failed.');
                     }
                 },
@@ -724,6 +792,22 @@ export class ClubRepRegisterFormComponent implements OnInit {
                     this.saving.set(false);
                     const httpErr = err as { error?: { message?: string } };
                     this.errorMsg.set(httpErr?.error?.message || 'Request failed.');
+                },
+            });
+    }
+
+    /** After successful registration: sign the user in and emit `registered`. */
+    private autoLoginAndEmit(username: string, password: string): void {
+        this.auth.login({ username, password })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.saving.set(false);
+                    this.registered.emit({ username, password });
+                },
+                error: () => {
+                    this.saving.set(false);
+                    this.errorMsg.set('Account created, but sign-in failed. Please log in manually.');
                 },
             });
     }
@@ -760,36 +844,4 @@ export class ClubRepRegisterFormComponent implements OnInit {
             });
     }
 
-    /** Called by inline ToS after user accepts — auto-login, accept ToS, emit registered. */
-    onTosAccepted(): void {
-        if (!this.savedCredentials) return;
-        this.tosSubmitting.set(true);
-        this.tosError.set(null);
-
-        this.auth.login({
-            username: this.savedCredentials.username,
-            password: this.savedCredentials.password,
-        }).pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe({
-                next: () => {
-                    this.auth.acceptTos()
-                        .pipe(takeUntilDestroyed(this.destroyRef))
-                        .subscribe({
-                            next: () => {
-                                this.tosSubmitting.set(false);
-                                this.registered.emit(this.savedCredentials!);
-                            },
-                            error: (err: unknown) => {
-                                this.tosSubmitting.set(false);
-                                const httpErr = err as { error?: { message?: string } };
-                                this.tosError.set(httpErr?.error?.message ?? 'Failed to accept Terms of Service. Please try again.');
-                            },
-                        });
-                },
-                error: () => {
-                    this.tosSubmitting.set(false);
-                    this.tosError.set('Unable to sign in. Please try again.');
-                },
-            });
-    }
 }

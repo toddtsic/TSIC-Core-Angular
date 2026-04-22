@@ -63,47 +63,15 @@
 }
 
 // ── Scrollable TOS text ─────────────────────────────────
+// Typography (h4/p/ol/a) lives inside app-tos-content's own scoped styles.
 .tos-scroll {
   max-height: 420px;
   overflow-y: auto;
   padding: var(--space-5);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-relaxed);
-  color: var(--brand-text);
 
   @media (max-width: 575.98px) {
     max-height: 350px;
     padding: var(--space-3);
-  }
-
-  h4 {
-    color: var(--bs-primary);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-    margin-top: var(--space-5);
-    margin-bottom: var(--space-2);
-
-    &:first-child {
-      margin-top: 0;
-    }
-  }
-
-  p {
-    margin-bottom: var(--space-3);
-  }
-
-  ol {
-    padding-left: var(--space-5);
-    margin-bottom: var(--space-3);
-
-    li {
-      margin-bottom: var(--space-2);
-    }
-  }
-
-  a {
-    color: var(--bs-primary);
-    text-decoration: underline;
   }
 }
 

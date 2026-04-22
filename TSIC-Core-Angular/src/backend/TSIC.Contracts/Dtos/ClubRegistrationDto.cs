@@ -27,6 +27,13 @@ public record ClubRepRegistrationRequest
     /// Forces the caller to explicitly confirm "create new club" before we proceed.
     /// </summary>
     public bool ConfirmedNewClub { get; init; }
+
+    /// <summary>
+    /// True when the registrant has checked the Terms of Service acceptance box.
+    /// Required to be true at service time (mirrors adult registration pattern).
+    /// On success the service stamps AspNetUsers.bTSICWaiverSigned + TSICWaiverSigned_TS.
+    /// </summary>
+    public required bool AcceptedTos { get; init; }
 }
 
 public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegistrationRequest>

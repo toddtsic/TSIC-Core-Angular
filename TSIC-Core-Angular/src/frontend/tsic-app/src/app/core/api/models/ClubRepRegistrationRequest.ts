@@ -16,5 +16,6 @@ export type ClubRepRegistrationRequest = {
     cellphone: string;
     existingClubId?: number | null;
     confirmedNewClub?: boolean;
+    acceptedTos: boolean;
 };
 
