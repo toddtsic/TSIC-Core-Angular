@@ -305,7 +305,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear indication of what happens when clicking — specifically, is this when teams claim a spot against max team capacity?
 - **What happened**: Button just says "Proceed to Payment" — unclear whether clicking it submits/locks the team registrations. If this is the point where teams hold a spot in max teams, rename to "Submit Teams and Proceed to Payment" so club reps understand their teams are being committed, not just moving to a payment form.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed — dynamic, pluralization-aware label driven by count of teams with `paidTotal === 0`. 0 new → "Proceed to Payment"; 1 new → "Submit the 1 new team and Proceed to Payment"; N new → "Submit the N new teams and Proceed to Payment". Spot-claim semantics clarified via investigation: team registrations claim capacity immediately on Register-click (pre-submit), waitlist is always in effect (`BUseWaitlists` flag is player-reg only), and the WAITLIST agegroup/division mirror is find-or-create on demand — no admin pre-config required.
 
 ### SP-012: Team Library section needs a heading — match "Registered" heading style
 - **Area**: Team Selection
@@ -313,7 +313,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clear heading above the library section so it's visually distinct from the Registered section
 - **What happened**: The Registered section has a heading but the Library section has none. Add a "LIBRARY" (or similar) heading in blue caps, same font and style as the "REGISTERED" heading, so both sections are clearly labeled.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-010: Terms of Service popup on Create NEW Club Rep Account — too narrow; standardize width across all users
 - **Area**: Club Rep Login

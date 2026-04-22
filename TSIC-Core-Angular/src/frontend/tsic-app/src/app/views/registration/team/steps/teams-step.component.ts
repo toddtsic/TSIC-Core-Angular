@@ -77,7 +77,7 @@ interface AgePickerTeam {
             <span></span>
             <button type="button" class="btn btn-sm btn-success fw-semibold"
                     (click)="proceedToPayment.emit()">
-              Proceed to Payment <i class="bi bi-arrow-right ms-1"></i>
+              {{ proceedButtonLabel() }} <i class="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
         </div>
@@ -986,6 +986,16 @@ export class TeamTeamsStepComponent implements OnInit {
 
     readonly totalFee = computed(() => this._registeredTeams().reduce((s, t) => s + t.feeBase, 0));
     readonly totalOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
+
+    /** Count of teams not yet paid for — drives the Proceed-to-Payment label. */
+    readonly newTeamsCount = computed(() => this._registeredTeams().filter(t => t.paidTotal === 0).length);
+
+    readonly proceedButtonLabel = computed(() => {
+        const n = this.newTeamsCount();
+        if (n === 0) return 'Proceed to Payment';
+        const noun = n === 1 ? 'team' : 'teams';
+        return `Submit the ${n} new ${noun} and Proceed to Payment`;
+    });
 
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
