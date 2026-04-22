@@ -40,6 +40,77 @@ public sealed class UsLaxService : IUsLaxService
         return content;
     }
 
+    public async Task<UsLaxMemberPingResult?> GetMemberAsync(string membershipId, CancellationToken ct = default)
+    {
+        var json = await GetMemberRawJsonAsync(membershipId, ct);
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        return ParsePingResponse(json);
+    }
+
+    private static UsLaxMemberPingResult? ParsePingResponse(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var statusCode = root.TryGetProperty("status_code", out var sc) && sc.ValueKind == JsonValueKind.Number
+                ? sc.GetInt32()
+                : 0;
+
+            // On error the API nests either a string output or an object output w/ error_message.
+            if (statusCode != 200)
+            {
+                string? err = null;
+                if (root.TryGetProperty("output", out var errOut))
+                {
+                    err = errOut.ValueKind switch
+                    {
+                        JsonValueKind.String => errOut.GetString(),
+                        JsonValueKind.Object => errOut.TryGetProperty("error_message", out var em) ? em.GetString() : errOut.GetRawText(),
+                        _ => null
+                    };
+                }
+                return new UsLaxMemberPingResult { StatusCode = statusCode, ErrorMessage = err };
+            }
+
+            UsLaxMemberPingOutput? output = null;
+            if (root.TryGetProperty("output", out var outEl) && outEl.ValueKind == JsonValueKind.Object)
+            {
+                output = new UsLaxMemberPingOutput
+                {
+                    MembershipId = outEl.TryGetProperty("membership_id", out var mid) ? mid.GetString() : null,
+                    MemStatus = outEl.TryGetProperty("mem_status", out var ms) ? ms.GetString() : null,
+                    ExpDate = outEl.TryGetProperty("exp_date", out var ed) ? ed.GetString() : null,
+                    FirstName = outEl.TryGetProperty("firstname", out var fn) ? fn.GetString() : null,
+                    LastName = outEl.TryGetProperty("lastname", out var ln) ? ln.GetString() : null,
+                    AgeVerified = outEl.TryGetProperty("age_verified", out var av) ? av.GetString() : null,
+                    Involvement = ExtractInvolvement(outEl)
+                };
+            }
+
+            return new UsLaxMemberPingResult { StatusCode = statusCode, Output = output };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static IReadOnlyList<string>? ExtractInvolvement(JsonElement outEl)
+    {
+        if (!outEl.TryGetProperty("involvement", out var inv)) return null;
+        // USALax returns this as an array of strings in some versions, a single string in others.
+        return inv.ValueKind switch
+        {
+            JsonValueKind.Array => inv.EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString()!)
+                .ToList(),
+            JsonValueKind.String => inv.GetString() is { } s ? new[] { s } : null,
+            _ => null
+        };
+    }
+
     private async Task<string?> GetValidAccessTokenAsync(HttpClient client, CancellationToken ct)
     {
         if (_cache.TryGetValue<string>(AccessTokenCacheKey, out var token) &&

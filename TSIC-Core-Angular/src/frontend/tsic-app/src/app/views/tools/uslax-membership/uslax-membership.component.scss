@@ -1,0 +1,35 @@
+.context-panel {
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+}
+
+.context-label {
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+}
+
+.context-value {
+    color: var(--bs-body-color);
+}
+
+.summary-panel {
+    border: 1px solid var(--bs-info-border-subtle);
+    background: var(--bs-info-bg-subtle);
+    color: var(--bs-body-color);
+}
+
+.row-updated {
+    color: var(--bs-success-text-emphasis);
+}
+
+.row-inactive {
+    color: var(--bs-warning-text-emphasis);
+}
+
+.row-error {
+    color: var(--bs-danger-text-emphasis);
+}
+
+.updated-cell {
+    font-weight: 600;
+}

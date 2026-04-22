@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-19 16:45:50 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-22 06:38:31 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -150,11 +150,12 @@ INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 7, N'Health Check', N
 INSERT INTO #AdminManifest VALUES (N'Store', N'shop', 8, N'Store Admin', N'speedometer2', N'store/admin', 1, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}');
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Uniform Upload', N'upload', N'tools/uniform-upload', 3, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 4, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 5, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 6, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 7, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}');
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Uniform Upload', N'upload', N'tools/uniform-upload', 4, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 5, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 6, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 0, 1, NULL);
 
 -- Section-level rules applied to L1 independent of per-item aggregation
 IF OBJECT_ID('tempdb..#SectionRules') IS NOT NULL DROP TABLE #SectionRules;

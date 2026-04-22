@@ -269,6 +269,12 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/tools/uslax-test/uslax-test.component').then(m => m.UsLaxTestComponent)
 					},
 					{
+						path: 'uslax-membership',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						loadComponent: () => import('./views/tools/uslax-membership/uslax-membership.component').then(m => m.UsLaxMembershipComponent)
+					},
+					{
 						path: 'uslax-rankings',
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },

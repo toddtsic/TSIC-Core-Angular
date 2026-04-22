@@ -446,6 +446,30 @@ public interface IRegistrationRepository
     /// Joins Registrations → Users → Teams, filtered to Player role for the given job. AsNoTracking.
     /// </summary>
     Task<List<UniformTemplateRow>> GetPlayerRosterForTemplateAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// USA Lacrosse reconciliation candidate set for a job: active Player registrations with a
+    /// non-null SportAssnId and a user DOB on file (USALax API needs DOB for age-verification).
+    /// Restricted to Lacrosse sport to match legacy.
+    /// </summary>
+    Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Write a new SportAssnIdexpDate to a single registration. Used by USLax reconciliation
+    /// when a MemberPing returns an exp_date and the member is involved as a Player.
+    /// </summary>
+    Task UpdateSportAssnIdExpDateAsync(Guid registrationId, DateTime newExpiryDate, CancellationToken ct = default);
+}
+
+public record UsLaxReconciliationCandidateRow
+{
+    public required Guid RegistrationId { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public DateTime? Dob { get; init; }
+    public required string SportAssnId { get; init; }
+    public DateTime? SportAssnIdexpDate { get; init; }
+    public string? TeamName { get; init; }
 }
 
 public record RegistrationWithInvoiceData

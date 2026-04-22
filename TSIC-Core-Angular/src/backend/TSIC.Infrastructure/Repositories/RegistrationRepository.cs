@@ -2238,4 +2238,42 @@ public class RegistrationRepository : IRegistrationRepository
             }
         ).AsNoTracking().ToListAsync(ct);
     }
+
+    public async Task<List<UsLaxReconciliationCandidateRow>> GetUsLaxReconciliationCandidatesAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await (
+            from r in _context.Registrations
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            where r.JobId == jobId
+                  && r.RoleId == RoleConstants.Player
+                  && r.BActive == true
+                  && r.SportAssnId != null
+                  && u.Dob != null
+                  && j.Sport != null
+                  && j.Sport.SportName == "Lacrosse"
+            orderby u.LastName, u.FirstName
+            select new UsLaxReconciliationCandidateRow
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName ?? string.Empty,
+                LastName = u.LastName ?? string.Empty,
+                Dob = u.Dob,
+                SportAssnId = r.SportAssnId!,
+                SportAssnIdexpDate = r.SportAssnIdexpDate,
+                TeamName = r.AssignedTeam != null && r.AssignedTeam.Agegroup != null
+                    ? r.AssignedTeam.Agegroup.AgegroupName + ":" + r.AssignedTeam.TeamName
+                    : r.AssignedTeam != null ? r.AssignedTeam.TeamName : null
+            }
+        ).AsNoTracking().ToListAsync(ct);
+    }
+
+    public async Task UpdateSportAssnIdExpDateAsync(Guid registrationId, DateTime newExpiryDate, CancellationToken ct = default)
+    {
+        // ExecuteUpdate avoids loading the whole entity into the change tracker.
+        await _context.Registrations
+            .Where(r => r.RegistrationId == registrationId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(r => r.SportAssnIdexpDate, newExpiryDate), ct);
+    }
 }

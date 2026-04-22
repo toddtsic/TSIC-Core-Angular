@@ -160,11 +160,12 @@ $adminManifest = @(
     # -- Tools -------------------------------------------------------------
     (New-AdminItem 'Tools' 'tools' 9 'US Lax Test'          'check-circle'  'tools/uslax-test'           1 1 1 1 $rulesLacrosse)
     (New-AdminItem 'Tools' 'tools' 9 'US Lax Rankings'      'trophy'        'tools/uslax-rankings'       2 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'Tools' 'tools' 9 'Uniform Upload'       'upload'        'tools/uniform-upload'       3 1 1 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Profile Migration'    'arrow-right'   'tools/profile-migration'    4 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       5 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      6 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 7 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'US Lax Membership'    'people'        'tools/uslax-membership'     3 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'Tools' 'tools' 9 'Uniform Upload'       'upload'        'tools/uniform-upload'       4 1 1 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Profile Migration'    'arrow-right'   'tools/profile-migration'    5 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       6 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      7 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 8 0 0 1)
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray
