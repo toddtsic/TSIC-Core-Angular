@@ -38,13 +38,8 @@ interface AgePickerTeam {
       <div class="alert alert-danger">{{ error() }}</div>
     } @else {
 
-      <!-- Welcome hero -->
-      <div class="welcome-hero">
-        <h4 class="welcome-title"><i class="bi bi-trophy-fill welcome-icon"></i> {{ jobName() }}</h4>
-        <p class="hero-action">Register <span class="club-accent">{{ clubName() }}</span>'s teams for this event.</p>
-      </div>
-
-      <!-- Coach card — conditional based on library state -->
+      <!-- Coach card — only shown when library is empty; the populated-library
+           variant migrated to a wizard-tip inside the Library card header. -->
       @if (allLibraryTeams().length === 0) {
         <div class="coach-card coach-primary">
           <p class="coach-intro">Welcome! Your club's team library carries across all TeamSportsInfo events — enter your teams once, then register from the list at every future tournament.</p>
@@ -55,10 +50,6 @@ interface AgePickerTeam {
             </li>
           </ul>
         </div>
-      } @else {
-        <div class="coach-card coach-primary">
-          <p class="coach-intro">Your library carries across all TeamSportsInfo events. Tap <strong>Register</strong> to enter a team, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add Team</button> if one's missing.</p>
-        </div>
       }
 
       <!-- ── Registered for this event (top section) ── -->
@@ -66,7 +57,7 @@ interface AgePickerTeam {
         <div class="step-card step-card-registered">
           <div class="section-header section-registered">
             <i class="bi bi-check-circle-fill me-1"></i>
-            Registered ({{ enteredTeams().length }})
+            Registered Teams ({{ enteredTeams().length }})
             <span class="registered-total">{{ totalFee() | currency }}</span>
           </div>
 
@@ -103,17 +94,21 @@ interface AgePickerTeam {
       <!-- ── Team Library (bottom section) ── -->
       <div class="step-card step-card-library">
 
-        <!-- Library header with stats -->
-        <div class="lib-header">
-          <div class="lib-stats">
-            <span class="stat-number">{{ activeLibraryTeams().length }}</span>
-            <span class="stat-label">{{ activeLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
-          </div>
-          <button type="button" class="btn btn-outline-primary btn-sm"
+        <!-- Library header — mirrors Registered section banner -->
+        <div class="section-header section-library">
+          <i class="bi bi-collection-fill me-1"></i>
+          Library Teams ({{ activeLibraryTeams().length }})
+          <button type="button" class="btn btn-outline-primary btn-sm ms-auto section-action"
                   (click)="showAddModal.set(true)">
             <i class="bi bi-plus-circle me-1"></i>Add Team
           </button>
         </div>
+
+        @if (activeLibraryTeams().length > 0) {
+          <div class="wizard-tip library-tip">
+            Your library carries across all TeamSportsInfo events. Tap <strong>Register</strong> to enter a team, or <strong>Add Team</strong> if one's missing.
+          </div>
+        }
 
         @if (activeLibraryTeams().length === 0 && archivedLibraryTeams().length === 0) {
           <div class="wizard-empty-state">
@@ -148,11 +143,6 @@ interface AgePickerTeam {
                     }
                     <i class="bi bi-lock-fill lib-lock" title="Locked — this team has event history"></i>
                   } @else {
-                    <button type="button" class="lib-icon-btn" title="Edit team"
-                            [disabled]="actionInProgress()"
-                            (click)="openEditModal(team)">
-                      <i class="bi bi-pencil"></i>
-                    </button>
                     @if (!isEnteredTeam(team.clubTeamId)) {
                       <button type="button" class="lib-icon-btn lib-icon-danger" title="Delete team"
                               [disabled]="actionInProgress()"
@@ -160,6 +150,11 @@ interface AgePickerTeam {
                         <i class="bi bi-trash"></i>
                       </button>
                     }
+                    <button type="button" class="lib-icon-btn" title="Edit team"
+                            [disabled]="actionInProgress()"
+                            (click)="openEditModal(team)">
+                      <i class="bi bi-pencil"></i>
+                    </button>
                   }
                 </span>
                 @if (isEnteredTeam(team.clubTeamId)) {
@@ -342,47 +337,6 @@ interface AgePickerTeam {
 
       .coach-list li strong {
         color: var(--brand-text);
-      }
-
-      /* ── Library Header / Stats ──────────────────── */
-      .lib-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3);
-        padding: var(--space-2) var(--space-4);
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .lib-stats {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-      }
-
-      .stat-number {
-        font-size: var(--font-size-xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--bs-primary);
-        line-height: 1;
-      }
-
-      .stat-label {
-        font-weight: var(--font-weight-medium);
-        color: var(--brand-text);
-      }
-
-      .stat-divider {
-        width: 1px;
-        height: 16px;
-        background: var(--border-color);
-      }
-
-      .stat-registered {
-        color: var(--bs-success);
-        font-weight: var(--font-weight-semibold);
       }
 
       /* ── Year Group Headers ──────────────────────── */
@@ -647,7 +601,7 @@ interface AgePickerTeam {
 
       /* ── Card border distinction (Registered vs Library) ── */
       .step-card-registered { border-left: 4px solid var(--bs-success); }
-      .step-card-library    { border-left: 4px solid var(--neutral-300); }
+      .step-card-library    { border-left: 4px solid var(--bs-primary); }
 
       /* ── Archived sub-section ── */
       .archived-header {
@@ -745,6 +699,27 @@ interface AgePickerTeam {
         color: var(--bs-success);
         background: rgba(var(--bs-success-rgb), 0.06);
         border-bottom: 1px solid rgba(var(--bs-success-rgb), 0.12);
+      }
+
+      .section-library {
+        color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.06);
+        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.12);
+      }
+
+      /* Action button nested inside a .section-header banner — compact, matches banner height */
+      .section-action {
+        margin-left: auto;
+        padding: 2px var(--space-2);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      /* Library tip directly under the banner header */
+      .library-tip {
+        margin: var(--space-2) var(--space-3);
       }
 
       .section-available {
@@ -896,12 +871,6 @@ interface AgePickerTeam {
 
         .coach-card {
           padding: var(--space-2) var(--space-3);
-        }
-
-        .lib-header {
-          flex-wrap: wrap;
-          padding: var(--space-2) var(--space-3);
-          gap: var(--space-2);
         }
 
         .year-group-header {

@@ -16,92 +16,97 @@ import type { ClubTeamDto } from '@core/api';
     standalone: true,
     imports: [FormsModule, TsicDialogComponent],
     template: `
-    <tsic-dialog [open]="true" size="md" (requestClose)="closed.emit()">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
+    <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
+      <div class="modal-content form-modal">
+
+        <!-- Hero banner — matches register picker styling -->
+        <div class="form-hero">
+          <h5 class="form-hero-title mb-0">
             @if (isEdit()) {
-              <i class="bi bi-pencil-square me-2"></i>Edit Team in <span class="club-accent">{{ clubName }}</span>'s Library
+              <i class="bi bi-pencil-square me-1"></i>Edit Team
             } @else {
-              <i class="bi bi-plus-circle me-2"></i>Add Team to <span class="club-accent">{{ clubName }}</span>'s Library
+              <i class="bi bi-plus-circle me-1"></i>Add Team
             }
           </h5>
-          <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
+          <button type="button" class="form-hero-close" (click)="closed.emit()" aria-label="Close">
+            <i class="bi bi-x-lg"></i>
+          </button>
         </div>
-        <div class="modal-body p-0">
-          <div class="bg-surface-alt">
-            <!-- Team Name -->
-            <div class="px-4 pt-3 pb-3">
-              <label for="tf-name" class="form-label fw-medium mb-1">Team Name <span class="text-danger">*</span></label>
-              <div class="form-text mt-0 mb-2">
-                Do <strong>NOT</strong> include your club name — schedules already display it.<br>
-                <span class="text-danger"><i class="bi bi-x-lg me-1"></i><s>{{ clubName }} 2028 Blue</s></span>
-                <span class="ms-3 text-success"><i class="bi bi-check-lg me-1"></i>2028 Blue</span>
-              </div>
-              <input id="tf-name" type="text" class="form-control"
-                     [value]="teamName()" (input)="teamName.set($any($event.target).value)"
-                     placeholder="e.g. 2028 Blue"
-                     [class.is-required]="!teamName().trim()"
-                     [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub())" />
-              @if (submitted() && !teamName().trim()) {
-                <div class="invalid-feedback">Required</div>
-              }
-              @if (submitted() && teamName().trim() && nameContainsClub()) {
-                <div class="invalid-feedback d-block">Remove your club name from the team name.</div>
-              }
-              @if (!submitted() && nameContainsClub()) {
-                <div class="form-text text-warning mt-1">
-                  <i class="bi bi-exclamation-triangle me-1"></i>Contains your club name — please remove it.
-                </div>
-              }
-            </div>
 
-            <!-- Grad Year + Level of Play -->
-            <div class="row g-0 border-top" style="border-color: var(--border-color) !important">
-              <div class="col-6 px-4 py-3 border-end" style="border-color: var(--border-color) !important">
-                <label for="tf-year" class="form-label fw-medium mb-1">Grad Year <span class="text-danger">*</span></label>
-                <div class="form-text mt-0 mb-1">Majority of team players</div>
-                <select id="tf-year" class="form-select"
-                        [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
-                        [class.is-required]="!gradYear()"
-                        [class.is-invalid]="submitted() && !gradYear()">
-                  <option value="">Select</option>
-                  @for (yr of gradYearOptions; track yr) {
-                    <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
-                  }
-                </select>
-                @if (submitted() && !gradYear()) {
-                  <div class="invalid-feedback">Required</div>
-                }
-              </div>
-              <div class="col-6 px-4 py-3">
-                <label for="tf-lop" class="form-label fw-medium mb-1">Level of Play <span class="text-danger">*</span></label>
-                <div class="form-text mt-0 mb-1">&nbsp;</div>
-                <select id="tf-lop" class="form-select"
-                        [ngModel]="levelOfPlay()" (ngModelChange)="levelOfPlay.set($event)"
-                        [class.is-required]="!levelOfPlay()"
-                        [class.is-invalid]="submitted() && !levelOfPlay()">
-                  <option value="">Select</option>
-                  <option value="1">1 (lowest)</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5 (highest)</option>
-                </select>
-                @if (submitted() && !levelOfPlay()) {
-                  <div class="invalid-feedback">Required</div>
-                }
-              </div>
+        <!-- Form body -->
+        <div class="form-body">
+
+          <!-- Team Name -->
+          <div class="form-row">
+            <label for="tf-name" class="field-label">Team Name</label>
+            <input id="tf-name" type="text" class="field-input"
+                   [value]="teamName()" (input)="teamName.set($any($event.target).value)"
+                   placeholder="e.g. 2028 Blue"
+                   [class.is-required]="!teamName().trim()"
+                   [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub())" />
+            <div class="wizard-tip">
+              Instead of entering <span class="text-danger fw-semibold">{{ clubName }} 2028 Blue</span>,
+              enter <span class="text-success fw-semibold">2028 Blue</span> — schedules already display your club name.
             </div>
+            @if (submitted() && !teamName().trim()) {
+              <div class="field-error">Required</div>
+            }
+            @if (submitted() && teamName().trim() && nameContainsClub()) {
+              <div class="field-error">Remove your club name from the team name.</div>
+            }
+            @if (!submitted() && nameContainsClub()) {
+              <div class="field-error" style="color: var(--bs-warning)">
+                <i class="bi bi-exclamation-triangle me-1"></i>Contains your club name — please remove it.
+              </div>
+            }
+          </div>
+
+          <!-- Grad Year -->
+          <div class="form-row">
+            <label for="tf-year" class="field-label">Grad Year</label>
+            <select id="tf-year" class="field-select"
+                    [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
+                    [class.is-required]="!gradYear()"
+                    [class.is-invalid]="submitted() && !gradYear()">
+              <option value="">Select</option>
+              @for (yr of gradYearOptions; track yr) {
+                <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
+              }
+            </select>
+            @if (submitted() && !gradYear()) {
+              <div class="field-error">Required</div>
+            }
+          </div>
+
+          <!-- Level of Play — pill selector matching picker modal -->
+          <div class="form-row">
+            <label class="field-label">Level of Play</label>
+            <div class="lop-pills" role="radiogroup" aria-label="Level of play">
+              @for (lop of lopChoices; track lop.value) {
+                <button type="button" class="lop-pill" role="radio"
+                        [class.active]="levelOfPlay() === lop.value"
+                        [class.is-invalid]="submitted() && !levelOfPlay()"
+                        [attr.aria-checked]="levelOfPlay() === lop.value"
+                        (click)="levelOfPlay.set(lop.value)">
+                  {{ lop.label }}
+                </button>
+              }
+            </div>
+            <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
+            @if (submitted() && !levelOfPlay()) {
+              <div class="field-error">Required</div>
+            }
           </div>
 
           @if (errorMsg()) {
-            <div class="alert alert-danger rounded-0 border-start-0 border-end-0 border-bottom-0 py-2 px-4 mb-0 small">{{ errorMsg() }}</div>
+            <div class="alert alert-danger rounded-0 border-0 py-2 px-3 mb-0 small">{{ errorMsg() }}</div>
           }
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" (click)="closed.emit()">Cancel</button>
-          <button type="button" class="btn btn-primary fw-semibold" (click)="save()" [disabled]="saving()">
+
+        <!-- Footer -->
+        <div class="form-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closed.emit()">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary fw-semibold" (click)="save()" [disabled]="saving()">
             @if (saving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>{{ isEdit() ? 'Saving...' : 'Adding...' }}
             } @else if (isEdit()) {
@@ -114,6 +119,94 @@ import type { ClubTeamDto } from '@core/api';
       </div>
     </tsic-dialog>
   `,
+    styles: [`
+      /* ── Hero Banner — matches picker-hero ── */
+      .form-hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.08) 0%, rgba(var(--bs-primary-rgb), 0.02) 100%);
+        border-bottom: 2px solid rgba(var(--bs-primary-rgb), 0.12);
+      }
+
+      .form-hero-title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+
+        i { color: var(--bs-primary); }
+      }
+
+      .form-hero-close {
+        border: none;
+        background: transparent;
+        color: var(--brand-text-muted);
+        padding: var(--space-1) var(--space-2);
+        line-height: 1;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+      }
+
+      .form-hero-close:hover { color: var(--brand-text); background: rgba(var(--bs-body-color-rgb), 0.05); }
+      .form-hero-close:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+      /* ── Body ── */
+      .form-body { padding: var(--space-2) var(--space-3) var(--space-1); }
+
+      .form-row + .form-row { margin-top: var(--space-2); }
+
+      /* ── LOP Pills (copy of picker's .lop-pill) ── */
+      .lop-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+      }
+
+      .lop-pill {
+        flex: 1 1 0;
+        min-width: 44px;
+        padding: var(--space-1) var(--space-2);
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-full);
+        background: var(--brand-surface);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: all 0.12s ease;
+        text-align: center;
+
+        &:hover { border-color: var(--bs-primary); }
+
+        &.active {
+          border-color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.1);
+          color: var(--bs-primary);
+          font-weight: var(--font-weight-semibold);
+        }
+
+        &.is-invalid:not(.active) {
+          border-color: rgba(var(--bs-danger-rgb), 0.5);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+      }
+
+      /* ── Footer ── */
+      .form-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-top: 1px solid var(--border-color);
+      }
+    `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamFormModalComponent implements OnInit {
@@ -136,6 +229,15 @@ export class TeamFormModalComponent implements OnInit {
         years.push('Adult');
         return years;
     })();
+
+    /** Level-of-play pill choices. Endpoints get friendly labels; middle values are terse. */
+    readonly lopChoices: ReadonlyArray<{ value: string; label: string }> = [
+        { value: '1', label: '1 (weakest)' },
+        { value: '2', label: '2' },
+        { value: '3', label: '3' },
+        { value: '4', label: '4' },
+        { value: '5', label: '5 (strongest)' },
+    ];
 
     readonly teamName = signal('');
     readonly gradYear = signal('');

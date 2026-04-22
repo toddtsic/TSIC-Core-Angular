@@ -71,7 +71,7 @@ export interface LoginStepResult {
             <div>
               Signed in as <strong>{{ auth.getCurrentUser()?.username }}</strong>.
               <button type="button" class="btn btn-sm btn-primary ms-3" (click)="continueWithLogin()">
-                Continue to Teams
+                Continue
               </button>
             </div>
           </div>

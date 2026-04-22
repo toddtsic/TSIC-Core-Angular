@@ -264,7 +264,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Ability to edit team names directly in the library — teams may need name corrections or updates across tournaments
 - **What happened**: No edit option available for team names in the library. Club reps need to be able to rename teams without deleting and re-adding them.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — commit `4b721667` added edit/delete/archive for unscheduled library teams. Pencil icon on each library row opens the form modal in edit mode, pre-filled with name/grad year/LOP; save calls PUT `updateClubTeam`. Backend gates edits on `bHasBeenScheduled=false`. Also covers the rename half of SP-005.
 
 ### SP-002: Add Team popup — remove Level of Play (LOP) field (redundant, asked again at registration)
 - **Area**: Team Selection
@@ -272,7 +272,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Only the fields needed at the library stage — LOP can wait until registration
 - **What happened**: LOP is included in the Add Team popup, but it's also asked again when registering the team. Removing LOP here eliminates redundancy and makes the popup much smaller (one line's worth of space saved).
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — LOP kept on library (enables cross-event team performance analysis), but a `wizard-tip` caption under the field now frames it as an *overall* assessment that can be adjusted per tournament. Also brought the whole modal up to project UI standards (`.field-label` / `.field-input` / `.field-select` / `.wizard-tip` / `.field-error`) and rewrote the Team Name guidance as a single fluent "Instead of entering X, enter Y" sentence (strikethrough + icons dropped).
 
 ### SP-003: Add Team and Register popups obscure the screen behind — users need to see that info
 - **Area**: Team Selection

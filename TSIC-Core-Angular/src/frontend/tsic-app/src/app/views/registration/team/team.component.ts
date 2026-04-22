@@ -30,6 +30,12 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
         TeamReviewStepComponent,
     ],
     template: `
+    @if (jobName()) {
+      <h1 class="job-context">
+        <i class="bi bi-trophy-fill job-context-icon"></i>
+        <span>{{ jobName() }}</span>
+      </h1>
+    }
     <app-wizard-shell
       [steps]="steps()"
       [currentIndex]="currentIndex()"
@@ -66,7 +72,36 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       }
     </app-wizard-shell>
   `,
-    styles: [`:host { display: block; }`],
+    styles: [`
+    :host { display: block; }
+
+    .job-context {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      margin: 0 auto var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      max-width: 720px;
+      font-size: var(--font-size-2xl);
+      font-weight: var(--font-weight-bold);
+      color: var(--brand-text);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .job-context-icon {
+      color: var(--bs-primary);
+      font-size: 1.1em;
+    }
+
+    @media (max-width: 575.98px) {
+      .job-context {
+        font-size: var(--font-size-xl);
+        margin-bottom: var(--space-2);
+      }
+    }
+  `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamWizardV2Component implements OnInit {
@@ -102,11 +137,18 @@ export class TeamWizardV2Component implements OnInit {
         return idx >= 0 ? idx : 0;
     });
 
-    readonly shellConfig = computed<WizardShellConfig>(() => ({
-        title: 'Team Registration',
-        theme: 'team',
-        badge: this.state.clubRep.selectedClub(),
-    }));
+    readonly shellConfig = computed<WizardShellConfig>(() => {
+        const club = this.state.clubRep.selectedClub();
+        return {
+            title: club ? 'Team Registration for' : 'Team Registration',
+            theme: 'team',
+            titleAccent: club,
+            badge: null,
+        };
+    });
+
+    /** Event name displayed as page-top context across every step. */
+    readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? '');
 
     // ── canContinue ─────────────────────────────────────────────────
     readonly canContinue = computed(() => {

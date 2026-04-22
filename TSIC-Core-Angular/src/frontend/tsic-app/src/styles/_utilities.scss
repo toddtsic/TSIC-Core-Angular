@@ -517,18 +517,6 @@ mark {
     color: var(--bs-primary);
 }
 
-/* Hero action line — commanding instruction under the welcome title */
-.hero-action {
-    margin: var(--space-2) 0 0;
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: #1a1a1a;
-    background: yellow;
-    padding: var(--space-1) var(--space-2);
-    border-radius: 3px;
-    display: inline-block;
-}
-
 .welcome-desc {
     margin: var(--space-2) 0 0;
     font-size: var(--font-size-xs);

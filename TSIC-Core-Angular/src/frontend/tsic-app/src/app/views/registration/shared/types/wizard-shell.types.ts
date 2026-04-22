@@ -25,4 +25,8 @@ export interface WizardShellConfig {
     theme: 'player' | 'team' | 'family' | 'adult';
     /** Optional badge text next to the title (e.g. family last name). */
     badge?: string | null;
+    /** Optional accent rendered inline after the title in the brand primary color
+     *  (e.g. club name appended to "Team Registration for"). When set, the badge
+     *  pill below the title is typically left null so the identity isn't duplicated. */
+    titleAccent?: string | null;
 }

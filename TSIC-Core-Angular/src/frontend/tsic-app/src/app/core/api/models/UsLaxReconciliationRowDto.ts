@@ -6,6 +6,7 @@ export type UsLaxReconciliationRowDto = {
     registrationId: string;
     firstName: string;
     lastName: string;
+    email?: string | null;
     membershipId: string;
     teamName?: string | null;
     statusCode: number;

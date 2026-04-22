@@ -678,6 +678,7 @@ export type { UserContactInfoDto } from './models/UserContactInfoDto';
 export type { UserDemographicsDto } from './models/UserDemographicsDto';
 export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { UserWidgetEntryDto } from './models/UserWidgetEntryDto';
+export type { UsLaxMembershipRole } from './models/UsLaxMembershipRole';
 export type { UsLaxReconciliationCandidateDto } from './models/UsLaxReconciliationCandidateDto';
 export type { UsLaxReconciliationRequest } from './models/UsLaxReconciliationRequest';
 export type { UsLaxReconciliationResponse } from './models/UsLaxReconciliationResponse';

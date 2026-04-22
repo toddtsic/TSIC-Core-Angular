@@ -6,6 +6,7 @@ export type UsLaxReconciliationCandidateDto = {
     registrationId: string;
     firstName: string;
     lastName: string;
+    email?: string | null;
     dob?: string | null;
     membershipId: string;
     currentExpiryDate?: string | null;
