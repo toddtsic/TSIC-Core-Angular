@@ -67,6 +67,11 @@ export class BatchEmailModalComponent implements OnInit {
   sendResult = signal<BatchEmailResponse | null>(null);
   showConfirm = signal<boolean>(false);
 
+  /** Snapshot of subject/body set by the most recent template apply. When the
+   *  live values still match, the draft is "clean" and swapping templates
+   *  doesn't need a confirm prompt. */
+  private lastAppliedTemplate = signal<{ subject: string; body: string } | null>(null);
+
   // AI compose
   aiPrompt = signal<string>('');
   isDrafting = signal<boolean>(false);
@@ -147,6 +152,16 @@ export class BatchEmailModalComponent implements OnInit {
   applyTemplate(template: EmailTemplate): void {
     this.subject.set(template.subject);
     this.bodyTemplate.set(template.body);
+    this.lastAppliedTemplate.set({ subject: template.subject, body: template.body });
+  }
+
+  /** True when the user has edited the subject or body since the last template apply. */
+  private hasUserEdits(): boolean {
+    const applied = this.lastAppliedTemplate();
+    const subj = this.subject();
+    const body = this.bodyTemplate();
+    if (!applied) return subj.trim().length > 0 || body.trim().length > 0;
+    return subj !== applied.subject || body !== applied.body;
   }
 
   onTemplateSelected(event: Event): void {
@@ -161,8 +176,7 @@ export class BatchEmailModalComponent implements OnInit {
     select.value = '';
     if (!tmpl) return;
 
-    const hasDraft = this.subject().trim().length > 0 || this.bodyTemplate().trim().length > 0;
-    if (hasDraft && !confirm('Replace current subject and body with this template?')) return;
+    if (this.hasUserEdits() && !confirm('Replace current subject and body with this template?')) return;
     this.applyTemplate(tmpl);
   }
 
@@ -234,6 +248,7 @@ export class BatchEmailModalComponent implements OnInit {
   private resetForm(): void {
     this.subject.set('');
     this.bodyTemplate.set('');
+    this.lastAppliedTemplate.set(null);
     this.isSending.set(false);
     this.sendResult.set(null);
     this.showConfirm.set(false);
