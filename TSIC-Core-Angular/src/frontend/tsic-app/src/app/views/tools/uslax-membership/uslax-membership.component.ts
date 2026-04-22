@@ -222,9 +222,14 @@ export class UsLaxMembershipComponent implements OnInit {
 		return inv.filter((x): x is string => typeof x === 'string');
 	}
 
-	padMembershipId(id: string | null | undefined): string {
-		if (!id) return '';
-		return id.padStart(12, '0');
+	padMembershipId(id: string | number | null | undefined): string {
+		if (id == null) return '';
+		// Strip whitespace + any non-digit noise the DB may have accumulated
+		// (e.g. stray CR/LF). padStart only pads when length < 12, so any hidden
+		// chars inflate length and silently skip padding.
+		const digits = String(id).replace(/\D/g, '');
+		if (!digits) return '';
+		return digits.padStart(12, '0');
 	}
 
 	ageVerifiedDisplay(row: UsLaxReconciliationRowDto): string {
