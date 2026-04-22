@@ -283,10 +283,20 @@ export class TeamWizardV2Component implements OnInit {
         }
     }
 
-    /** Advance to whichever step follows login — waivers if gated-enabled, else teams. */
+    /**
+     * Advance to the first step after login — skipping any already-completed step.
+     * A returning club rep with BWaiverSigned3=true skips straight past waivers to teams;
+     * the step itself stays visible in the indicator and can be revisited via Back or
+     * the step indicator (it renders read-only in that state).
+     */
     private advancePastLogin(): void {
         const active = this.activeSteps();
-        if (active.length > 1) this._currentStepId.set(active[1].id);
+        if (active.length <= 1) return;
+        let nextIdx = 1;
+        if (active[nextIdx]?.id === 'waivers' && this.state.waiverAccepted() && nextIdx + 1 < active.length) {
+            nextIdx += 1;
+        }
+        this._currentStepId.set(active[nextIdx].id);
     }
 
     finish(): void {

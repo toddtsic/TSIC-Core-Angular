@@ -30,10 +30,14 @@ import { ToastService } from '@shared-ui/toast.service';
           <input id="acceptRefund" type="checkbox"
                  class="form-check-input"
                  [checked]="isAccepted()"
-                 [disabled]="saving()"
+                 [disabled]="saving() || isAccepted()"
                  (change)="onToggle($any($event.target).checked)" />
           <label for="acceptRefund" class="acceptance-label">
-            I have read and agree to the Refund Terms and Conditions
+            @if (isAccepted()) {
+              Refund Terms and Conditions accepted
+            } @else {
+              I have read and agree to the Refund Terms and Conditions
+            }
           </label>
         </div>
 
@@ -88,11 +92,9 @@ export class TeamWaiversStepComponent {
     readonly error = signal<string | null>(null);
 
     onToggle(checked: boolean): void {
-        if (checked && !this.state.waiverAccepted()) {
-            this.recordAcceptance();
-        } else if (!checked) {
-            this.state.setWaiverAccepted(false);
-        }
+        // Acceptance is one-way: once signed, never allow unsign.
+        if (this.state.waiverAccepted()) return;
+        if (checked) this.recordAcceptance();
     }
 
     private recordAcceptance(): void {
