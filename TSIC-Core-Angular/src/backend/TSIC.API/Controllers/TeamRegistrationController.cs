@@ -380,6 +380,129 @@ public class TeamRegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Update a ClubTeam in the caller's club library.
+    /// Rejected with 400 if the team has ever appeared on a schedule.
+    /// </summary>
+    [HttpPut("club-team/{clubTeamId:int}")]
+    [ProducesResponseType(typeof(ClubTeamDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> UpdateClubTeam(int clubTeamId, [FromBody] UpdateClubTeamRequest request)
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            var result = await _teamRegistrationService.UpdateClubTeamAsync(userId, clubTeamId, request);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete a ClubTeam from the caller's club library.
+    /// Rejected with 400 if the team has ever been scheduled or is still event-registered.
+    /// </summary>
+    [HttpDelete("club-team/{clubTeamId:int}")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> DeleteClubTeam(int clubTeamId)
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            await _teamRegistrationService.DeleteClubTeamAsync(userId, clubTeamId);
+            return Ok(new { Success = true });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Archive a ClubTeam (retire from visible library, retain history).
+    /// Rejected with 400 if the team has never been scheduled — those should be deleted instead.
+    /// </summary>
+    [HttpPost("club-team/{clubTeamId:int}/archive")]
+    [ProducesResponseType(typeof(ClubTeamDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> ArchiveClubTeam(int clubTeamId)
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            var result = await _teamRegistrationService.ArchiveClubTeamAsync(userId, clubTeamId);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Restore an archived ClubTeam to the visible library.
+    /// </summary>
+    [HttpPost("club-team/{clubTeamId:int}/unarchive")]
+    [ProducesResponseType(typeof(ClubTeamDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<IActionResult> UnarchiveClubTeam(int clubTeamId)
+    {
+        if (!IsClubRepRole())
+            return StatusCode(403, new { Message = NotClubRepMessage });
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        try
+        {
+            var result = await _teamRegistrationService.UnarchiveClubTeamAsync(userId, clubTeamId);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Add a club to the current user's rep account.
     /// </summary>
     [HttpPost("add-club")]

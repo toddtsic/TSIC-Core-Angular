@@ -58,6 +58,38 @@ public class ClubTeamRepository : IClubTeamRepository
         _context.ClubTeams.Add(clubTeam);
     }
 
+    public void Remove(ClubTeams clubTeam)
+    {
+        _context.ClubTeams.Remove(clubTeam);
+    }
+
+    public async Task<HashSet<int>> GetScheduledClubTeamIdsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default)
+    {
+        var idList = clubTeamIds.ToList();
+        if (idList.Count == 0) return new HashSet<int>();
+
+        var scheduled = await (
+            from t in _context.Teams.AsNoTracking()
+            where t.ClubTeamId != null
+                && idList.Contains(t.ClubTeamId.Value)
+                && _context.Schedule.Any(s => s.T1Id == t.TeamId || s.T2Id == t.TeamId)
+            select t.ClubTeamId!.Value
+        ).Distinct().ToListAsync(cancellationToken);
+
+        return scheduled.ToHashSet();
+    }
+
+    public async Task<bool> HasAnyTeamRegistrationsAsync(
+        int clubTeamId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .AnyAsync(t => t.ClubTeamId == clubTeamId, cancellationToken);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return await _context.SaveChangesAsync(cancellationToken);

@@ -104,6 +104,12 @@ public sealed record ClubTeamDto
     public required string ClubTeamName { get; init; }
     public required string ClubTeamGradYear { get; init; }
     public required string ClubTeamLevelOfPlay { get; init; }
+    // True if this ClubTeam has ever appeared on a schedule (any job). When true,
+    // name/gradYear/LOP are locked to protect the team's historical performance record.
+    public required bool BHasBeenScheduled { get; init; }
+    // True when the rep has retired the team from their visible library. Archived rows
+    // still reserve (name, gradYear) so historical performance records stay attributable.
+    public required bool BArchived { get; init; }
 }
 
 public sealed record CreateClubTeamRequest
@@ -111,6 +117,13 @@ public sealed record CreateClubTeamRequest
     public required string ClubTeamName { get; init; }
     public required string ClubTeamGradYear { get; init; }
     public string? LevelOfPlay { get; init; }
+}
+
+public sealed record UpdateClubTeamRequest
+{
+    public required string ClubTeamName { get; init; }
+    public required string ClubTeamGradYear { get; init; }
+    public required string ClubTeamLevelOfPlay { get; init; }
 }
 
 public sealed record SuggestedTeamNameDto
@@ -128,6 +141,9 @@ public sealed record RegisteredTeamDto
     public required string AgeGroupName { get; init; }
     public required string? LevelOfPlay { get; init; }
     public int? ClubTeamId { get; init; }
+    // Mirrors ClubTeamDto.BHasBeenScheduled — true if the team's ClubTeamId has ever
+    // appeared on a schedule. Used client-side to gate the edit pencil on entered rows.
+    public required bool BHasBeenScheduled { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeTotal { get; init; }

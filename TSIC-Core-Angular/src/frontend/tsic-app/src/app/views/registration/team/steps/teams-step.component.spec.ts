@@ -31,6 +31,8 @@ describe('TeamTeamsStepComponent — register response handling', () => {
         clubTeamName: 'Storm U12',
         clubTeamGradYear: '2030',
         clubTeamLevelOfPlay: 'A',
+        bHasBeenScheduled: false,
+        bArchived: false,
     };
 
     beforeEach(() => {

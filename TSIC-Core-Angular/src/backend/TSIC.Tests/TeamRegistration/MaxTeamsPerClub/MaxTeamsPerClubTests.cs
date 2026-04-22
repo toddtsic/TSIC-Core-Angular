@@ -96,6 +96,17 @@ public class MaxTeamsPerClubTests
             .Setup(j => j.GetJobFeeSettingsAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { PaymentMethodsAllowedCode = 1 });
 
+        // 2b. GetTeamCapabilitiesAsync → job allows team registration + club-rep add
+        jobs
+            .Setup(j => j.GetTeamCapabilitiesAsync(TestJobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobTeamCapabilities
+            {
+                TeamRegistrationOpen = true,
+                ClubRepAllowAdd = true,
+                ClubRepAllowEdit = true,
+                ClubRepAllowDelete = true,
+            });
+
         // 3. GetEffectiveProcessingRateAsync → return 0 (no processing fees)
         feeService
             .Setup(f => f.GetEffectiveProcessingRateAsync(TestJobId, It.IsAny<CancellationToken>()))

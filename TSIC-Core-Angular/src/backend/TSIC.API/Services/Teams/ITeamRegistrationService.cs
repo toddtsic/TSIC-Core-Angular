@@ -73,6 +73,29 @@ public interface ITeamRegistrationService
     Task<ClubTeamDto> CreateClubTeamAsync(string userId, CreateClubTeamRequest request);
 
     /// <summary>
+    /// Update a ClubTeam in the caller's club library.
+    /// Refuses if the team has ever appeared on a schedule (protects historical performance).
+    /// </summary>
+    Task<ClubTeamDto> UpdateClubTeamAsync(string userId, int clubTeamId, UpdateClubTeamRequest request);
+
+    /// <summary>
+    /// Delete a ClubTeam from the caller's club library.
+    /// Refuses if the team has ever appeared on a schedule, or if any Teams row still references it.
+    /// </summary>
+    Task DeleteClubTeamAsync(string userId, int clubTeamId);
+
+    /// <summary>
+    /// Archive a ClubTeam (hide from visible library, retain identity + history).
+    /// Only permitted for teams that have been scheduled — unscheduled teams should be deleted.
+    /// </summary>
+    Task<ClubTeamDto> ArchiveClubTeamAsync(string userId, int clubTeamId);
+
+    /// <summary>
+    /// Restore an archived ClubTeam back to the visible library.
+    /// </summary>
+    Task<ClubTeamDto> UnarchiveClubTeamAsync(string userId, int clubTeamId);
+
+    /// <summary>
     /// Recalculate team fees for all teams in a job or a specific team.
     /// Triggered by director flag changes or after moving a team to a different age group.
     /// Filters out teams in WAITLIST/DROPPED age groups.

@@ -660,19 +660,21 @@ CREATE TABLE #UniqueIdentities (
     TeamCount INT NOT NULL
 );
 
+-- Identity is (ClubId, ClubTeamName, ClubTeamGradYear) — matches the app's uniqueness rule.
+-- When the same identity appears at multiple LOPs across source events, highest LOP wins.
+-- (MAX ignores NULL, so a real value always beats a missing one.)
 INSERT INTO #UniqueIdentities (ClubId, ClubTeamName, ClubTeamGradYear, LevelOfPlay, TeamCount)
-SELECT 
+SELECT
     ClubId,
     ClubTeamName,
     ClubTeamGradYear,
-    NormalizedLevelOfPlay AS LevelOfPlay,
+    MAX(NormalizedLevelOfPlay) AS LevelOfPlay,
     COUNT(*) AS TeamCount
 FROM #TeamIdentities
-GROUP BY 
+GROUP BY
     ClubId,
     ClubTeamName,
-    ClubTeamGradYear,
-    NormalizedLevelOfPlay;
+    ClubTeamGradYear;
 
 DECLARE @UniqueIdentitiesCount INT = @@ROWCOUNT;
 PRINT '  ✓ Found ' + CAST(@UniqueIdentitiesCount AS VARCHAR) + ' unique club team identities';
@@ -710,7 +712,7 @@ BEGIN TRY
         ClubTeamName NVARCHAR(255) NOT NULL,
         ClubTeamGradYear NVARCHAR(50) NOT NULL,
         ClubTeamLevelOfPlay NVARCHAR(50) NULL,
-        UNIQUE (ClubId, ClubTeamName, ClubTeamGradYear, ClubTeamLevelOfPlay)
+        UNIQUE (ClubId, ClubTeamName, ClubTeamGradYear)
     );
 
     -- Insert into ClubTeams (without OUTPUT - Gender not in ClubTeams table)
@@ -726,15 +728,13 @@ BEGIN TRY
         @Now
     FROM #UniqueIdentities ui
     WHERE NOT EXISTS (
-        SELECT 1 
-        FROM Clubs.ClubTeams ct 
-        WHERE ct.ClubId = ui.ClubId 
-          AND ct.ClubTeamName = ui.ClubTeamName 
+        -- 3-dim match: LOP is intentionally excluded so the same team entered at
+        -- different LOPs across events collapses to a single ClubTeams row.
+        SELECT 1
+        FROM Clubs.ClubTeams ct
+        WHERE ct.ClubId = ui.ClubId
+          AND ct.ClubTeamName = ui.ClubTeamName
           AND ct.ClubTeamGradYear = ui.ClubTeamGradYear
-          AND (ct.ClubTeamLevelOfPlay = ui.LevelOfPlay 
-               OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay IS NULL)
-               OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay = '')
-               OR (ct.ClubTeamLevelOfPlay = '' AND ui.LevelOfPlay IS NULL))
     );
 
     DECLARE @NewClubTeamsInserted INT = @@ROWCOUNT;
@@ -742,34 +742,31 @@ BEGIN TRY
     -- Populate #NewClubTeams by matching back (includes both newly created AND pre-existing)
     -- Use nested ROW_NUMBER to handle both duplicate ClubTeams AND duplicate matches
     WITH AllMatches AS (
-        SELECT 
+        SELECT
             ct.ClubTeamId,
             ct.ClubId,
             ct.ClubTeamName,
             ct.ClubTeamGradYear,
-            ct.ClubTeamLevelOfPlay,
-            ui.LevelOfPlay AS UILevelOfPlay
+            ct.ClubTeamLevelOfPlay
         FROM #UniqueIdentities ui
-        INNER JOIN Clubs.ClubTeams ct 
+        INNER JOIN Clubs.ClubTeams ct
             ON ct.ClubId = ui.ClubId
             AND ct.ClubTeamName = ui.ClubTeamName
             AND ct.ClubTeamGradYear = ui.ClubTeamGradYear
-            AND (ct.ClubTeamLevelOfPlay = ui.LevelOfPlay 
-                 OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay IS NULL)
-                 OR (ct.ClubTeamLevelOfPlay IS NULL AND ui.LevelOfPlay = '')
-                 OR (ct.ClubTeamLevelOfPlay = '' AND ui.LevelOfPlay IS NULL))
     ),
-    -- Deduplicate by actual ClubTeam identity (not by source identity)
+    -- When the DB has pre-existing rows from an older LOP-dimensioned seed,
+    -- multiple rows may share the 3-dim identity. Pick the highest-LOP row as canonical
+    -- (real value beats NULL/empty; ClubTeamId is the tie-breaker).
     RankedByIdentity AS (
-        SELECT 
+        SELECT
             ClubTeamId,
             ClubId,
             ClubTeamName,
             ClubTeamGradYear,
             ClubTeamLevelOfPlay,
             ROW_NUMBER() OVER (
-                PARTITION BY ClubId, ClubTeamName, ClubTeamGradYear, ISNULL(ClubTeamLevelOfPlay, '')
-                ORDER BY ClubTeamId
+                PARTITION BY ClubId, ClubTeamName, ClubTeamGradYear
+                ORDER BY ISNULL(ClubTeamLevelOfPlay, '') DESC, ClubTeamId
             ) AS rn
         FROM AllMatches
     )
@@ -896,14 +893,10 @@ BEGIN TRY
         t.LebUserId = @LebUserId
     FROM Leagues.Teams t
     INNER JOIN #TeamIdentities ti ON t.TeamId = ti.TeamId
-    INNER JOIN #NewClubTeams nct 
+    INNER JOIN #NewClubTeams nct
         ON ti.ClubId = nct.ClubId
         AND ti.ClubTeamName = nct.ClubTeamName
         AND ti.ClubTeamGradYear = nct.ClubTeamGradYear
-        AND (ti.NormalizedLevelOfPlay = nct.ClubTeamLevelOfPlay
-             OR (ti.NormalizedLevelOfPlay IS NULL AND nct.ClubTeamLevelOfPlay IS NULL)
-             OR (ti.NormalizedLevelOfPlay IS NULL AND nct.ClubTeamLevelOfPlay = '')
-             OR (ti.NormalizedLevelOfPlay = '' AND nct.ClubTeamLevelOfPlay IS NULL))
     WHERE t.ClubTeamId IS NULL;  -- Only update teams that don't have ClubTeamId yet
 
     SET @TeamsUpdated = @@ROWCOUNT;

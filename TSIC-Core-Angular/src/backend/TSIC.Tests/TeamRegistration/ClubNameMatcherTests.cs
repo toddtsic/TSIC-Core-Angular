@@ -294,17 +294,20 @@ public class ClubNameMatcherTests
     }
 
     /// <summary>
-    /// SCENARIO: Name with extra abbreviation suffix ("Charlotte Fury" vs "Charlotte Fury LC")
-    /// EXPECTED: After normalization "LC" expands to "lacrosse club" (3 words vs 5),
-    ///   so score drops. Token match = 2/4 = 50%. This is expected -- these ARE
-    ///   different enough to be different clubs (a fury vs a fury lacrosse club).
+    /// SCENARIO: Name with an "LC" (Lacrosse Club) suffix ("Charlotte Fury" vs "Charlotte Fury LC")
+    /// EXPECTED: "LC" expands to "lacrosse club"; both are filler words, so after
+    ///   normalization both sides reduce to "charlotte fury" — identical → 100.
+    /// WHY IT MATTERS: Distinct chapters of a mega-club use STATE suffixes ("Aacme - CA",
+    ///   "Aacme - NC") and are handled by mega-club root extraction. An "LC" suffix is
+    ///   industry boilerplate, not a chapter marker — every lacrosse club could write
+    ///   itself with or without it. Treating the two forms as different would split
+    ///   team libraries and win-loss records across duplicate club records.
     /// </summary>
-    [Fact(DisplayName = "Tier boundary: name + abbreviation suffix scores proportionally")]
-    public void TierBoundary_WithSuffix_ScoresProportionally()
+    [Fact(DisplayName = "Tier boundary: 'LC' suffix is filler — same club, hard block")]
+    public void TierBoundary_WithSuffix_BlocksAsDuplicate()
     {
-        var score = ClubNameMatcher.CalculateCompositeScore("Charlotte Fury", "Charlotte Fury LC");
-        score.Should().BeGreaterThanOrEqualTo(40, "partial token overlap expected")
-            .And.BeLessThan(85, "different enough to not be a hard block");
+        ClubNameMatcher.CalculateCompositeScore("Charlotte Fury", "Charlotte Fury LC")
+            .Should().BeGreaterThanOrEqualTo(85, "'LC' is sport-industry boilerplate — this is the same club");
     }
 
     /// <summary>

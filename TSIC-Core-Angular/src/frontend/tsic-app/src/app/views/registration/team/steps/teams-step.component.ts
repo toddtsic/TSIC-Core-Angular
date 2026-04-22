@@ -63,7 +63,7 @@ interface AgePickerTeam {
 
       <!-- ── Registered for this event (top section) ── -->
       @if (enteredTeams().length > 0) {
-        <div class="step-card">
+        <div class="step-card step-card-registered">
           <div class="section-header section-registered">
             <i class="bi bi-check-circle-fill me-1"></i>
             Registered ({{ enteredTeams().length }})
@@ -101,13 +101,13 @@ interface AgePickerTeam {
       }
 
       <!-- ── Team Library (bottom section) ── -->
-      <div class="step-card">
+      <div class="step-card step-card-library">
 
         <!-- Library header with stats -->
         <div class="lib-header">
           <div class="lib-stats">
-            <span class="stat-number">{{ allLibraryTeams().length }}</span>
-            <span class="stat-label">{{ allLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
+            <span class="stat-number">{{ activeLibraryTeams().length }}</span>
+            <span class="stat-label">{{ activeLibraryTeams().length === 1 ? 'team' : 'teams' }} in library</span>
           </div>
           <button type="button" class="btn btn-outline-primary btn-sm"
                   (click)="showAddModal.set(true)">
@@ -115,7 +115,7 @@ interface AgePickerTeam {
           </button>
         </div>
 
-        @if (allLibraryTeams().length === 0) {
+        @if (activeLibraryTeams().length === 0 && archivedLibraryTeams().length === 0) {
           <div class="wizard-empty-state">
             <i class="bi bi-plus-circle-dotted"></i>
             <strong>Your library is empty</strong>
@@ -125,12 +125,43 @@ interface AgePickerTeam {
               <i class="bi bi-plus-circle me-1"></i>Add Your First Team
             </button>
           </div>
+        } @else if (activeLibraryTeams().length === 0) {
+          <div class="wizard-empty-state">
+            <i class="bi bi-archive"></i>
+            <strong>All teams are archived</strong>
+            <span>Restore a team below, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add Team</button> to start fresh.</span>
+          </div>
         } @else {
           <div class="scroll-list">
-            @for (team of allLibraryTeamsSorted(); track team.clubTeamId) {
+            @for (team of activeLibraryTeams(); track team.clubTeamId) {
               <div class="lib-row" [class.lib-row-registered]="isEnteredTeam(team.clubTeamId)">
                 <i class="bi bi-people-fill lib-icon"></i>
                 <span class="lib-name">{{ team.clubTeamName }}</span>
+                <span class="lib-actions">
+                  @if (team.bHasBeenScheduled) {
+                    @if (!isEnteredTeam(team.clubTeamId)) {
+                      <button type="button" class="lib-icon-btn" title="Archive — hide from library, keep history"
+                              [disabled]="actionInProgress()"
+                              (click)="askArchiveTeam(team)">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                      </button>
+                    }
+                    <i class="bi bi-lock-fill lib-lock" title="Locked — this team has event history"></i>
+                  } @else {
+                    <button type="button" class="lib-icon-btn" title="Edit team"
+                            [disabled]="actionInProgress()"
+                            (click)="openEditModal(team)">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    @if (!isEnteredTeam(team.clubTeamId)) {
+                      <button type="button" class="lib-icon-btn lib-icon-danger" title="Delete team"
+                              [disabled]="actionInProgress()"
+                              (click)="askDeleteTeam(team)">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    }
+                  }
+                </span>
                 @if (isEnteredTeam(team.clubTeamId)) {
                   <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
                 } @else if (canRegisterTeam()) {
@@ -147,6 +178,35 @@ interface AgePickerTeam {
           </div>
         }
 
+        <!-- ── Archived sub-section (collapsible) ── -->
+        @if (archivedLibraryTeams().length > 0) {
+          <button type="button" class="archived-header" (click)="showArchived.set(!showArchived())">
+            <i class="bi" [class.bi-chevron-right]="!showArchived()" [class.bi-chevron-down]="showArchived()"></i>
+            <i class="bi bi-archive-fill"></i>
+            Archived ({{ archivedLibraryTeams().length }})
+            <span class="archived-hint">teams hidden from registration</span>
+          </button>
+          @if (showArchived()) {
+            <div class="scroll-list archived-list">
+              @for (team of archivedLibraryTeams(); track team.clubTeamId) {
+                <div class="lib-row lib-row-archived">
+                  <i class="bi bi-archive-fill lib-icon"></i>
+                  <span class="lib-name">{{ team.clubTeamName }}</span>
+                  <span class="lib-actions">
+                    <i class="bi bi-lock-fill lib-lock" title="Locked — archived team retains event history"></i>
+                    <button type="button" class="lib-icon-btn" title="Restore to library"
+                            [disabled]="actionInProgress()"
+                            (click)="askRestoreTeam(team)">
+                      <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                  </span>
+                  <span class="lib-badge lib-badge-muted"><i class="bi bi-archive me-1"></i>Archived</span>
+                </div>
+              }
+            </div>
+          }
+        }
+
         <div class="step-card-footer">
           <span class="footer-hint">
             <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
@@ -161,6 +221,14 @@ interface AgePickerTeam {
         [clubName]="clubName()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
+    }
+
+    @if (editingTeam(); as editing) {
+      <app-team-form-modal
+        [clubName]="clubName()"
+        [editingTeam]="editing"
+        (saved)="onTeamEdited()"
+        (closed)="editingTeam.set(null)" />
     }
 
     @if (agePickerTeam(); as pickerTeam) {
@@ -184,6 +252,36 @@ interface AgePickerTeam {
         confirmVariant="danger"
         (confirmed)="confirmRemove()"
         (cancelled)="cancelRemove()" />
+    }
+
+    @if (pendingDelete()) {
+      <confirm-dialog
+        title="Delete Team"
+        [message]="'Permanently delete <strong>' + pendingDelete()!.clubTeamName + '</strong> from your library? This cannot be undone.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="confirmDelete()"
+        (cancelled)="cancelDelete()" />
+    }
+
+    @if (pendingArchive()) {
+      <confirm-dialog
+        title="Archive Team"
+        [message]="'Archive <strong>' + pendingArchive()!.clubTeamName + '</strong>? It will disappear from your library but keep its event history. You can restore it from the Archived section.'"
+        confirmLabel="Archive"
+        confirmVariant="primary"
+        (confirmed)="confirmArchive()"
+        (cancelled)="cancelArchive()" />
+    }
+
+    @if (pendingRestore()) {
+      <confirm-dialog
+        title="Restore Team"
+        [message]="'Restore <strong>' + pendingRestore()!.clubTeamName + '</strong> to your active library?'"
+        confirmLabel="Restore"
+        confirmVariant="primary"
+        (confirmed)="confirmRestore()"
+        (cancelled)="cancelRestore()" />
     }
 
   `,
@@ -469,6 +567,10 @@ interface AgePickerTeam {
       }
 
       .lib-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 96px;
         font-size: 10px;
         font-weight: var(--font-weight-semibold);
         padding: 2px var(--space-2);
@@ -477,7 +579,6 @@ interface AgePickerTeam {
         color: var(--bs-success);
         white-space: nowrap;
         flex-shrink: 0;
-        margin-left: auto;
       }
 
       .lib-badge-muted {
@@ -485,11 +586,124 @@ interface AgePickerTeam {
         color: var(--brand-text-muted);
       }
 
+      /* ── Library row actions (edit / delete / archive / lock) ──
+         Fixed width so that rows with only a lock align column-wise with rows
+         that also have an archive or edit/delete. Lock pins to the right. */
+      .lib-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 2px;
+        width: 64px;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+
+      .lib-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+
+        &:hover:not(:disabled) {
+          background: rgba(var(--bs-primary-rgb), 0.08);
+          border-color: rgba(var(--bs-primary-rgb), 0.2);
+          color: var(--bs-primary);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:disabled { opacity: 0.3; cursor: default; }
+      }
+
+      .lib-icon-danger:hover:not(:disabled) {
+        background: rgba(var(--bs-danger-rgb), 0.08);
+        border-color: rgba(var(--bs-danger-rgb), 0.25);
+        color: var(--bs-danger);
+      }
+
+      .lib-lock {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        opacity: 0.55;
+      }
+
+      /* ── Card border distinction (Registered vs Library) ── */
+      .step-card-registered { border-left: 4px solid var(--bs-success); }
+      .step-card-library    { border-left: 4px solid var(--neutral-300); }
+
+      /* ── Archived sub-section ── */
+      .archived-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        width: 100%;
+        padding: var(--space-2) var(--space-3);
+        background: rgba(var(--bs-dark-rgb), 0.03);
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+
+        &:hover { background: rgba(var(--bs-dark-rgb), 0.05); }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+      }
+
+      .archived-hint {
+        margin-left: auto;
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: var(--font-weight-normal);
+        font-size: 11px;
+        opacity: 0.75;
+      }
+
+      .archived-list {
+        background: rgba(var(--bs-dark-rgb), 0.015);
+      }
+
+      .lib-row-archived {
+        opacity: 0.75;
+        .lib-name { color: var(--brand-text-muted); font-style: italic; }
+        .lib-icon { color: var(--brand-text-muted); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .lib-icon-btn { transition: none; }
+      }
+
       /* ── Register button (library rows) ── */
       .btn-register {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        min-width: 96px;
         padding: var(--space-1) var(--space-3);
         border: 1.5px solid rgba(var(--bs-primary-rgb), 0.3);
         border-radius: var(--radius-sm);
@@ -499,7 +713,6 @@ interface AgePickerTeam {
         font-weight: var(--font-weight-semibold);
         cursor: pointer;
         flex-shrink: 0;
-        margin-left: auto;
         white-space: nowrap;
         transition: background-color 0.1s ease, border-color 0.1s ease;
 
@@ -740,6 +953,16 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly lopOptions = signal<string[]>([]);
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
+    /** When set, the edit modal is open for this team. */
+    readonly editingTeam = signal<ClubTeamDto | null>(null);
+    /** When set, the delete-confirm dialog is open for this team. */
+    readonly pendingDelete = signal<ClubTeamDto | null>(null);
+    /** When set, the archive-confirm dialog is open for this team. */
+    readonly pendingArchive = signal<ClubTeamDto | null>(null);
+    /** When set, the restore-confirm dialog is open for this team. */
+    readonly pendingRestore = signal<ClubTeamDto | null>(null);
+    /** Collapsible archived sub-section. Default collapsed. */
+    readonly showArchived = signal(false);
 
     /** Conditional column visibility based on job config. */
     readonly showDepositColumns = signal(false);
@@ -756,7 +979,6 @@ export class TeamTeamsStepComponent implements OnInit {
         const available = this._clubTeams();
         const entered = this._registeredTeams();
 
-        // Build pseudo-ClubTeamDto entries for entered teams that have a clubTeamId
         const enteredAsLibrary: ClubTeamDto[] = entered
             .filter(r => r.clubTeamId)
             .map(r => ({
@@ -764,6 +986,9 @@ export class TeamTeamsStepComponent implements OnInit {
                 clubTeamName: r.teamName,
                 clubTeamGradYear: r.ageGroupName,
                 clubTeamLevelOfPlay: r.levelOfPlay ?? '',
+                bHasBeenScheduled: r.bHasBeenScheduled,
+                // Registered-for-this-event rows are by definition not archived on display.
+                bArchived: false,
             }));
 
         // Merge: available first, then entered (deduplicated)
@@ -773,9 +998,18 @@ export class TeamTeamsStepComponent implements OnInit {
         return [...available, ...enteredOnly];
     });
 
-    /** Library teams sorted alphabetically (flat, no year grouping). */
-    readonly allLibraryTeamsSorted = computed(() =>
-        [...this.allLibraryTeams()].sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName)),
+    /** Active (non-archived) library teams, sorted alphabetically. */
+    readonly activeLibraryTeams = computed(() =>
+        this.allLibraryTeams()
+            .filter(t => !t.bArchived)
+            .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName)),
+    );
+
+    /** Archived library teams, sorted alphabetically. */
+    readonly archivedLibraryTeams = computed(() =>
+        this.allLibraryTeams()
+            .filter(t => t.bArchived)
+            .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName)),
     );
 
     /** Entered teams (registered for this event). */
@@ -806,12 +1040,15 @@ export class TeamTeamsStepComponent implements OnInit {
     onModalAgeGroupSelected(pickerTeam: AgePickerTeam, selection: AgeGroupSelection): void {
         this.agePickerTeam.set(null);
 
-        // Build a ClubTeamDto-compatible object with the modal-selected LOP
+        // Build a ClubTeamDto-compatible object with the modal-selected LOP.
+        // bHasBeenScheduled / bArchived are irrelevant here (registration path, not edit/delete).
         const team: ClubTeamDto = {
             clubTeamId: pickerTeam.clubTeamId,
             clubTeamName: pickerTeam.clubTeamName,
             clubTeamGradYear: pickerTeam.gradYear,
             clubTeamLevelOfPlay: selection.levelOfPlay || pickerTeam.levelOfPlay,
+            bHasBeenScheduled: false,
+            bArchived: false,
         };
         this.onSelectAgeGroup(team, selection.ageGroupId);
     }
@@ -874,6 +1111,110 @@ export class TeamTeamsStepComponent implements OnInit {
     onTeamAdded(): void {
         this.showAddModal.set(false);
         this.loadTeamsMetadata();
+    }
+
+    /** Open the shared modal in edit mode for a library team. */
+    openEditModal(team: ClubTeamDto): void {
+        if (team.bHasBeenScheduled) return;
+        this.editingTeam.set(team);
+    }
+
+    onTeamEdited(): void {
+        this.editingTeam.set(null);
+        this.loadTeamsMetadata();
+    }
+
+    askDeleteTeam(team: ClubTeamDto): void {
+        if (team.bHasBeenScheduled) return;
+        this.pendingDelete.set(team);
+    }
+
+    confirmDelete(): void {
+        const team = this.pendingDelete();
+        if (!team) return;
+        this.pendingDelete.set(null);
+        this.actionInProgress.set(true);
+
+        this.teamReg.deleteClubTeam(team.clubTeamId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.actionInProgress.set(false);
+                    this.toast.show(`${team.clubTeamName} deleted from library.`, 'success', 3000);
+                    this.loadTeamsMetadata();
+                },
+                error: (err: unknown) => {
+                    this.actionInProgress.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.toast.show(httpErr?.error?.message || 'Failed to delete team.', 'danger', 5000);
+                },
+            });
+    }
+
+    cancelDelete(): void {
+        this.pendingDelete.set(null);
+    }
+
+    askArchiveTeam(team: ClubTeamDto): void {
+        if (!team.bHasBeenScheduled || this.isEnteredTeam(team.clubTeamId)) return;
+        this.pendingArchive.set(team);
+    }
+
+    confirmArchive(): void {
+        const team = this.pendingArchive();
+        if (!team) return;
+        this.pendingArchive.set(null);
+        this.actionInProgress.set(true);
+
+        this.teamReg.archiveClubTeam(team.clubTeamId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.actionInProgress.set(false);
+                    this.toast.show(`${team.clubTeamName} archived.`, 'success', 3000);
+                    this.loadTeamsMetadata();
+                },
+                error: (err: unknown) => {
+                    this.actionInProgress.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.toast.show(httpErr?.error?.message || 'Failed to archive team.', 'danger', 5000);
+                },
+            });
+    }
+
+    cancelArchive(): void {
+        this.pendingArchive.set(null);
+    }
+
+    askRestoreTeam(team: ClubTeamDto): void {
+        if (!team.bArchived) return;
+        this.pendingRestore.set(team);
+    }
+
+    confirmRestore(): void {
+        const team = this.pendingRestore();
+        if (!team) return;
+        this.pendingRestore.set(null);
+        this.actionInProgress.set(true);
+
+        this.teamReg.unarchiveClubTeam(team.clubTeamId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: () => {
+                    this.actionInProgress.set(false);
+                    this.toast.show(`${team.clubTeamName} restored.`, 'success', 3000);
+                    this.loadTeamsMetadata();
+                },
+                error: (err: unknown) => {
+                    this.actionInProgress.set(false);
+                    const httpErr = err as { error?: { message?: string } };
+                    this.toast.show(httpErr?.error?.message || 'Failed to restore team.', 'danger', 5000);
+                },
+            });
+    }
+
+    cancelRestore(): void {
+        this.pendingRestore.set(null);
     }
 
     pendingRemove = signal<RegisteredTeamDto | null>(null);

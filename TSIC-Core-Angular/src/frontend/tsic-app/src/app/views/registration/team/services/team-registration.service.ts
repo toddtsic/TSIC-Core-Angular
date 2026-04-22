@@ -13,13 +13,8 @@ import {
     ClubRepClubDto,
     ClubTeamDto,
     CheckExistingRegistrationsResponse,
+    UpdateClubTeamRequest,
 } from '@core/api';
-/** Stub type — backend endpoint not yet implemented. */
-export interface UpdateClubTeamRequest {
-    clubTeamId: number;
-    teamName?: string;
-    ageGroupId?: number;
-}
 
 /**
  * Team Registration Service
@@ -238,39 +233,34 @@ export class TeamRegistrationService {
         return this.http.post<ClubTeamDto>(`${this.apiUrl}/create-club-team`, request);
     }
 
-    // --- Club Team Management stubs ---
-    // Backend endpoints not yet implemented. These stubs prevent runtime crashes
-    // and show a user-facing message. Replace with real HTTP calls once backend is ready.
-
-    updateClubTeam(
-        request: UpdateClubTeamRequest,
-        onSuccess: (response: { message: string }) => void,
-        onError: (error: string) => void,
-    ): void {
-        onError('Club team editing is not yet available. This feature is coming soon.');
+    /**
+     * Update a ClubTeam in the caller's club library.
+     * Rejected by the backend if the team has ever appeared on a schedule.
+     */
+    updateClubTeam(clubTeamId: number, request: UpdateClubTeamRequest): Observable<ClubTeamDto> {
+        return this.http.put<ClubTeamDto>(`${this.apiUrl}/club-team/${clubTeamId}`, request);
     }
 
-    inactivateClubTeam(
-        clubTeamId: number,
-        onSuccess: (response: { message: string }) => void,
-        onError: (error: string) => void,
-    ): void {
-        onError('Club team inactivation is not yet available. This feature is coming soon.');
+    /**
+     * Delete a ClubTeam from the caller's club library.
+     * Rejected by the backend if the team has ever been scheduled or is still event-registered.
+     */
+    deleteClubTeam(clubTeamId: number): Observable<void> {
+        return this.http.delete<void>(`${this.apiUrl}/club-team/${clubTeamId}`);
     }
 
-    activateClubTeam(
-        clubTeamId: number,
-        onSuccess: (response: { message: string }) => void,
-        onError: (error: string) => void,
-    ): void {
-        onError('Club team activation is not yet available. This feature is coming soon.');
+    /**
+     * Archive a ClubTeam (retire from visible library, retain history).
+     * Only permitted by the backend for teams that have been scheduled.
+     */
+    archiveClubTeam(clubTeamId: number): Observable<ClubTeamDto> {
+        return this.http.post<ClubTeamDto>(`${this.apiUrl}/club-team/${clubTeamId}/archive`, {});
     }
 
-    deleteClubTeam(
-        clubTeamId: number,
-        onSuccess: (response: { message: string }) => void,
-        onError: (error: string) => void,
-    ): void {
-        onError('Club team deletion is not yet available. This feature is coming soon.');
+    /**
+     * Restore an archived ClubTeam back to the visible library.
+     */
+    unarchiveClubTeam(clubTeamId: number): Observable<ClubTeamDto> {
+        return this.http.post<ClubTeamDto>(`${this.apiUrl}/club-team/${clubTeamId}/unarchive`, {});
     }
 }

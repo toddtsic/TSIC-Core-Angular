@@ -9,6 +9,7 @@ export type RegisteredTeamDto = {
     ageGroupName: string;
     levelOfPlay: string | null;
     clubTeamId?: number | null;
+    bHasBeenScheduled: boolean;
     feeBase: number;
     feeProcessing: number;
     feeTotal: number;

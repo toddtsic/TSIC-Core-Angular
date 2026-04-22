@@ -2,12 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ClubTeamDto = {
-    clubTeamId: number;
+export type UpdateClubTeamRequest = {
     clubTeamName: string;
     clubTeamGradYear: string;
     clubTeamLevelOfPlay: string;
-    bHasBeenScheduled: boolean;
-    bArchived: boolean;
 };
 

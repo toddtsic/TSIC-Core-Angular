@@ -633,6 +633,7 @@ export type { UpdateBracketSeedRequest } from './models/UpdateBracketSeedRequest
 export type { UpdateBulletinRequest } from './models/UpdateBulletinRequest';
 export type { UpdateCartQuantityRequest } from './models/UpdateCartQuantityRequest';
 export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';
+export type { UpdateClubTeamRequest } from './models/UpdateClubTeamRequest';
 export type { UpdateCurrentJobProfileConfigRequest } from './models/UpdateCurrentJobProfileConfigRequest';
 export type { UpdateCustomerRequest } from './models/UpdateCustomerRequest';
 export type { UpdateDiscountCodeRequest } from './models/UpdateDiscountCodeRequest';

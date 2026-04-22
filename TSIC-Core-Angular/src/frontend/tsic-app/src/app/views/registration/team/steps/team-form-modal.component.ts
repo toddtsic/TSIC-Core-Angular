@@ -1,12 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, Input, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, Input, inject, OnInit, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
+import type { ClubTeamDto } from '@core/api';
 
 /**
- * Modal for adding a new ClubTeam to the club library.
+ * Modal for adding a new ClubTeam to the club library, or editing an existing one
+ * (when `editingTeam` is supplied). Edit mode is only ever opened for teams whose
+ * `bHasBeenScheduled` is false — the library UI enforces that upstream.
  */
 @Component({
     selector: 'app-team-form-modal',
@@ -16,7 +19,13 @@ import { ToastService } from '@shared-ui/toast.service';
     <tsic-dialog [open]="true" size="md" (requestClose)="closed.emit()">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add Team to <span class="club-accent">{{ clubName }}</span>'s Library</h5>
+          <h5 class="modal-title">
+            @if (isEdit()) {
+              <i class="bi bi-pencil-square me-2"></i>Edit Team in <span class="club-accent">{{ clubName }}</span>'s Library
+            } @else {
+              <i class="bi bi-plus-circle me-2"></i>Add Team to <span class="club-accent">{{ clubName }}</span>'s Library
+            }
+          </h5>
           <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
         </div>
         <div class="modal-body p-0">
@@ -94,7 +103,9 @@ import { ToastService } from '@shared-ui/toast.service';
           <button type="button" class="btn btn-outline-secondary" (click)="closed.emit()">Cancel</button>
           <button type="button" class="btn btn-primary fw-semibold" (click)="save()" [disabled]="saving()">
             @if (saving()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>Adding...
+              <span class="spinner-border spinner-border-sm me-1"></span>{{ isEdit() ? 'Saving...' : 'Adding...' }}
+            } @else if (isEdit()) {
+              <i class="bi bi-check-lg me-1"></i>Save Changes
             } @else {
               <i class="bi bi-plus-circle me-1"></i>Add Team
             }
@@ -105,8 +116,10 @@ import { ToastService } from '@shared-ui/toast.service';
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TeamFormModalComponent {
+export class TeamFormModalComponent implements OnInit {
     @Input() clubName = '';
+    /** When supplied, the modal is in edit mode and updates this team instead of creating. */
+    @Input() editingTeam: ClubTeamDto | null = null;
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -131,12 +144,22 @@ export class TeamFormModalComponent {
     readonly saving = signal(false);
     readonly errorMsg = signal<string | null>(null);
 
+    readonly isEdit = computed(() => this.editingTeam != null);
+
     /** True when the team name contains the club name (case-insensitive). */
     readonly nameContainsClub = computed(() => {
         const club = this.clubName.trim().toLowerCase();
         const name = this.teamName().trim().toLowerCase();
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
+
+    ngOnInit(): void {
+        if (this.editingTeam) {
+            this.teamName.set(this.editingTeam.clubTeamName);
+            this.gradYear.set(this.editingTeam.clubTeamGradYear);
+            this.levelOfPlay.set(this.editingTeam.clubTeamLevelOfPlay);
+        }
+    }
 
     save(): void {
         this.submitted.set(true);
@@ -145,6 +168,29 @@ export class TeamFormModalComponent {
 
         this.saving.set(true);
         this.errorMsg.set(null);
+
+        const editing = this.editingTeam;
+        if (editing) {
+            this.teamReg.updateClubTeam(editing.clubTeamId, {
+                clubTeamName: this.teamName().trim(),
+                clubTeamGradYear: this.gradYear(),
+                clubTeamLevelOfPlay: this.levelOfPlay().trim(),
+            })
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe({
+                    next: () => {
+                        this.saving.set(false);
+                        this.toast.show('Team updated.', 'success', 2000);
+                        this.saved.emit();
+                    },
+                    error: (err: unknown) => {
+                        this.saving.set(false);
+                        const httpErr = err as { error?: { message?: string } };
+                        this.errorMsg.set(httpErr?.error?.message || 'Failed to update team.');
+                    },
+                });
+            return;
+        }
 
         this.teamReg.createClubTeam({
             clubTeamName: this.teamName().trim(),

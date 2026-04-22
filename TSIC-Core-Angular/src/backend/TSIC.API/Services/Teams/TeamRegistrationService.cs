@@ -301,7 +301,9 @@ public class TeamRegistrationService : ITeamRegistrationService
         var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
         var effectiveClubId = club?.ClubId ?? 0;
 
-        var registeredTeams = await GetRegisteredTeamsForJobAsync(jobId, userId);
+        // Load the raw registered-teams data first so we can include its ClubTeamIds in
+        // the single batched scheduled-lookup below. Shaped into DTOs after the flag is known.
+        var rawRegistered = await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId);
         var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
         var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
 
@@ -310,11 +312,18 @@ public class TeamRegistrationService : ITeamRegistrationService
             ? await _clubTeams.GetByClubIdAsync(effectiveClubId)
             : new List<Domain.Entities.ClubTeams>();
 
-        var registeredClubTeamIds = registeredTeams
+        var registeredClubTeamIds = rawRegistered
             .Select(t => t.ClubTeamId)
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
             .ToHashSet();
+
+        // One batched schedule lookup covering BOTH library and currently-registered teams.
+        // The flag is needed on both DTO types so the UI can gate edit/delete consistently.
+        var allCandidateIds = allClubTeams.Select(ct => ct.ClubTeamId).Concat(registeredClubTeamIds).Distinct();
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
+
+        var registeredTeams = ShapeRegisteredTeams(rawRegistered, scheduledIds);
 
         var availableClubTeams = allClubTeams
             .Where(ct => !registeredClubTeamIds.Contains(ct.ClubTeamId))
@@ -323,7 +332,9 @@ public class TeamRegistrationService : ITeamRegistrationService
                 ClubTeamId = ct.ClubTeamId,
                 ClubTeamName = ct.ClubTeamName,
                 ClubTeamGradYear = ct.ClubTeamGradYear,
-                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay ?? string.Empty
+                ClubTeamLevelOfPlay = ct.ClubTeamLevelOfPlay ?? string.Empty,
+                BHasBeenScheduled = scheduledIds.Contains(ct.ClubTeamId),
+                BArchived = !ct.Active,
             })
             .OrderBy(ct => ct.ClubTeamName)
             .ToList();
@@ -398,11 +409,11 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    private async Task<List<RegisteredTeamDto>> GetRegisteredTeamsForJobAsync(Guid jobId, string userId)
+    private static List<RegisteredTeamDto> ShapeRegisteredTeams(
+        IEnumerable<Contracts.Repositories.RegisteredTeamInfo> rawRegistered,
+        HashSet<int> scheduledClubTeamIds)
     {
-        var registeredTeams = await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId);
-
-        return registeredTeams.Select(t => new RegisteredTeamDto
+        return rawRegistered.Select(t => new RegisteredTeamDto
         {
             TeamId = t.TeamId,
             TeamName = t.TeamName,
@@ -420,7 +431,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             BWaiverSigned3 = t.BWaiverSigned3,
             CcOwedTotal = t.OwedTotal,
             CkOwedTotal = t.FeeBase - t.PaidTotal,
-            ClubTeamId = t.ClubTeamId
+            ClubTeamId = t.ClubTeamId,
+            BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
         }).ToList();
     }
 
@@ -805,11 +817,18 @@ public class TeamRegistrationService : ITeamRegistrationService
         var gradYear = request.ClubTeamGradYear.Trim();
         var lop = request.LevelOfPlay?.Trim();
 
-        // Check for existing team with same identity (name + grad year) — single SQL query
+        // Check for existing team with same identity (name + grad year) — single SQL query.
+        // FindByIdentityAsync sees active AND archived rows; the archived check below uses that.
         var match = await _clubTeams.FindByIdentityAsync(club.ClubId, name, gradYear);
 
         if (match != null)
         {
+            // Archived rows reserve the name — reuse is blocked to preserve the historical
+            // performance attribution tied to the original ClubTeamId.
+            if (!match.Active)
+                throw new InvalidOperationException(
+                    $"'{match.ClubTeamName} {match.ClubTeamGradYear}' is archived. Restore it from the archived section instead of creating a new one.");
+
             // Update LOP if the new value is higher
             if (!string.IsNullOrEmpty(lop) &&
                 string.Compare(lop, match.ClubTeamLevelOfPlay ?? "", StringComparison.OrdinalIgnoreCase) > 0)
@@ -823,12 +842,15 @@ public class TeamRegistrationService : ITeamRegistrationService
                 }
             }
 
+            var scheduledMatch = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { match.ClubTeamId });
             return new ClubTeamDto
             {
                 ClubTeamId = match.ClubTeamId,
                 ClubTeamName = match.ClubTeamName,
                 ClubTeamGradYear = match.ClubTeamGradYear,
                 ClubTeamLevelOfPlay = match.ClubTeamLevelOfPlay ?? string.Empty,
+                BHasBeenScheduled = scheduledMatch.Contains(match.ClubTeamId),
+                BArchived = false,
             };
         }
 
@@ -851,7 +873,156 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamName = entity.ClubTeamName,
             ClubTeamGradYear = entity.ClubTeamGradYear,
             ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
+            BHasBeenScheduled = false,
+            BArchived = false,
         };
+    }
+
+    public async Task<ClubTeamDto> UpdateClubTeamAsync(string userId, int clubTeamId, UpdateClubTeamRequest request)
+    {
+        var entity = await _clubTeams.GetByIdAsync(clubTeamId)
+            ?? throw new InvalidOperationException("Team not found.");
+
+        // Authorization: ClubTeam must belong to a club the caller reps.
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+
+        // Lock if ever scheduled.
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        if (scheduledIds.Contains(clubTeamId))
+            throw new InvalidOperationException("This team has appeared on a schedule and can no longer be edited.");
+
+        var name = request.ClubTeamName.Trim();
+        var gradYear = request.ClubTeamGradYear.Trim();
+        var lop = request.ClubTeamLevelOfPlay.Trim();
+
+        if (string.IsNullOrEmpty(name)) throw new InvalidOperationException("Team name is required.");
+        if (string.IsNullOrEmpty(gradYear)) throw new InvalidOperationException("Grad year is required.");
+
+        // Name-collision guard: if (name, gradYear) changed, another row in the same club
+        // must not already own it — active OR archived. Self-matches are ignored.
+        var identityChanged = !string.Equals(entity.ClubTeamName, name, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(entity.ClubTeamGradYear, gradYear, StringComparison.OrdinalIgnoreCase);
+        if (identityChanged)
+        {
+            var collision = await _clubTeams.FindByIdentityAsync(entity.ClubId, name, gradYear);
+            if (collision != null && collision.ClubTeamId != clubTeamId)
+            {
+                throw new InvalidOperationException(collision.Active
+                    ? $"Another team already uses '{name} {gradYear}'."
+                    : $"'{name} {gradYear}' is archived and cannot be reused. Restore the archived team instead.");
+            }
+        }
+
+        entity.ClubTeamName = name;
+        entity.ClubTeamGradYear = gradYear;
+        entity.ClubTeamLevelOfPlay = lop;
+        entity.Modified = DateTime.UtcNow;
+        entity.LebUserId = userId;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Updated ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        return new ClubTeamDto
+        {
+            ClubTeamId = entity.ClubTeamId,
+            ClubTeamName = entity.ClubTeamName,
+            ClubTeamGradYear = entity.ClubTeamGradYear,
+            ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
+            BHasBeenScheduled = false,
+            BArchived = !entity.Active,
+        };
+    }
+
+    public async Task<ClubTeamDto> ArchiveClubTeamAsync(string userId, int clubTeamId)
+    {
+        var entity = await _clubTeams.GetByIdAsync(clubTeamId)
+            ?? throw new InvalidOperationException("Team not found.");
+
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+
+        // Archive is the retirement path for teams with history. Unscheduled teams should be deleted.
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        if (!scheduledIds.Contains(clubTeamId))
+            throw new InvalidOperationException("Only teams with schedule history can be archived. Delete this team instead.");
+
+        if (!entity.Active)
+            throw new InvalidOperationException("This team is already archived.");
+
+        entity.Active = false;
+        entity.Modified = DateTime.UtcNow;
+        entity.LebUserId = userId;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Archived ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        return new ClubTeamDto
+        {
+            ClubTeamId = entity.ClubTeamId,
+            ClubTeamName = entity.ClubTeamName,
+            ClubTeamGradYear = entity.ClubTeamGradYear,
+            ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
+            BHasBeenScheduled = true,
+            BArchived = true,
+        };
+    }
+
+    public async Task<ClubTeamDto> UnarchiveClubTeamAsync(string userId, int clubTeamId)
+    {
+        var entity = await _clubTeams.GetByIdAsync(clubTeamId)
+            ?? throw new InvalidOperationException("Team not found.");
+
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+
+        if (entity.Active)
+            throw new InvalidOperationException("This team is not archived.");
+
+        entity.Active = true;
+        entity.Modified = DateTime.UtcNow;
+        entity.LebUserId = userId;
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Unarchived ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
+
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        return new ClubTeamDto
+        {
+            ClubTeamId = entity.ClubTeamId,
+            ClubTeamName = entity.ClubTeamName,
+            ClubTeamGradYear = entity.ClubTeamGradYear,
+            ClubTeamLevelOfPlay = entity.ClubTeamLevelOfPlay ?? string.Empty,
+            BHasBeenScheduled = scheduledIds.Contains(clubTeamId),
+            BArchived = false,
+        };
+    }
+
+    public async Task DeleteClubTeamAsync(string userId, int clubTeamId)
+    {
+        var entity = await _clubTeams.GetByIdAsync(clubTeamId)
+            ?? throw new InvalidOperationException("Team not found.");
+
+        var myClubs = await _clubReps.GetClubsForUserAsync(userId);
+        if (!myClubs.Any(c => c.ClubId == entity.ClubId))
+            throw new UnauthorizedAccessException("You do not have access to this team.");
+
+        var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(new[] { clubTeamId });
+        if (scheduledIds.Contains(clubTeamId))
+            throw new InvalidOperationException("This team has appeared on a schedule and can no longer be deleted.");
+
+        // Block deletion while any Teams row still references the ClubTeam —
+        // forces the rep to unregister from the current event first.
+        if (await _clubTeams.HasAnyTeamRegistrationsAsync(clubTeamId))
+            throw new InvalidOperationException("This team is still registered for an event. Remove it from the event before deleting.");
+
+        _clubTeams.Remove(entity);
+        await _clubTeams.SaveChangesAsync();
+
+        _logger.LogInformation("Deleted ClubTeam {ClubTeamId} for user {UserId}", clubTeamId, userId);
     }
 
     public async Task<AddClubToRepResponse> AddClubToRepAsync(string userId, string clubName)
