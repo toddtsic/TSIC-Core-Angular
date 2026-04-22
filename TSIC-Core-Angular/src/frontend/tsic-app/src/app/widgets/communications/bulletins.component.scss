@@ -144,9 +144,23 @@
             }
 
             img {
-                max-width: 100%;
+                max-width: min(100%, 450px);
+                max-height: 400px;
                 height: auto;
+                object-fit: contain;
             }
+
+            // Legacy inline-style → class mappings (see translate-legacy-urls.pipe).
+            // Bulletins authored with inline font-size / color lose their styling
+            // through Angular's sanitizer; the pipe rewrites a curated allowlist
+            // of values to these classes. Colors map to palette vars for
+            // light/dark responsiveness.
+            .bl-fs-14 { font-size: 14px; }
+            .bl-fs-18 { font-size: 18px; }
+            .bl-fs-22 { font-size: 22px; }
+            .bl-c-blue  { color: var(--bs-primary); }
+            .bl-c-red   { color: var(--bs-danger); }
+            .bl-c-black { color: var(--brand-text); }
         }
     }
 }
