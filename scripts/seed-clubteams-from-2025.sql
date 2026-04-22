@@ -609,19 +609,23 @@ DROP TABLE #Phase2;
 DECLARE @StagedCount INT = @@ROWCOUNT;
 PRINT '  ✓ Staged ' + CAST(@StagedCount AS VARCHAR) + ' Teams records with resolved ClubId';
 
--- Phase 4: Infer grad year from team name when GradYear is "N.A."
--- This MUST happen before #UniqueIdentities is created to avoid mismatches
+-- Phase 4: Prefer the year embedded in the team name over the agegroup-derived year.
+-- Agegroup placement is variable (teams play up/down) and agegroup names aren't
+-- standardized across events, so the name is the canonical carrier of identity.
+-- A team named "2028 Blue" is a 2028 team regardless of which bracket it entered.
+-- This MUST happen before #UniqueIdentities is created so identity grouping collapses
+-- cross-agegroup appearances of the same team.
 UPDATE ti
 SET ti.ClubTeamGradYear = LEFT(ti.ClubTeamName, 4)
 FROM #TeamIdentities ti
-WHERE ti.ClubTeamGradYear = 'N.A.'
-  AND LEN(ti.ClubTeamName) >= 4
+WHERE LEN(ti.ClubTeamName) >= 4
   AND ISNUMERIC(LEFT(ti.ClubTeamName, 4)) = 1
-  AND LEFT(ti.ClubTeamName, 4) BETWEEN '2020' AND '2040';
+  AND LEFT(ti.ClubTeamName, 4) BETWEEN '2020' AND '2040'
+  AND ti.ClubTeamGradYear <> LEFT(ti.ClubTeamName, 4);
 
 DECLARE @InferredFromNameEarly INT = @@ROWCOUNT;
 IF @InferredFromNameEarly > 0
-    PRINT '  ✓ Inferred grad year from team name for ' + CAST(@InferredFromNameEarly AS VARCHAR) + ' teams';
+    PRINT '  ✓ Overrode agegroup-derived grad year with name-embedded year for ' + CAST(@InferredFromNameEarly AS VARCHAR) + ' teams';
 
 -- Show sample of staging data
 PRINT '';
