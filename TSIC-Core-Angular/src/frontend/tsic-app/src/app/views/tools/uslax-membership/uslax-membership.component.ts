@@ -228,6 +228,25 @@ export class UsLaxMembershipComponent implements OnInit {
 		return v.toString().toLowerCase() === 'true' ? 'Yes' : 'No';
 	}
 
+	/** Stamp row numbers after data binds or after a sort/page action reshuffles the view.
+	 *  Tagged via customAttributes.class on the # column so we don't collide with the
+	 *  checkbox column, which also carries class `e-rowcell`. */
+	refreshRowNumbers(grid: GridComponent): void {
+		this.gridRef = grid;
+		const gridEl = grid.element;
+		if (!gridEl) return;
+		grid.getRows().forEach((row, i) => {
+			const cell = row.querySelector('td.row-number-cell');
+			if (cell) cell.textContent = String(i + 1);
+		});
+	}
+
+	onActionComplete(args: { requestType?: string }, grid: GridComponent): void {
+		if (args.requestType === 'sorting' || args.requestType === 'paging' || args.requestType === 'refresh') {
+			this.refreshRowNumbers(grid);
+		}
+	}
+
 	onGridToolbarClick(args: { item?: { id?: string } }, grid: GridComponent): void {
 		if (args.item?.id?.endsWith('_excelexport')) {
 			const roleWord = this.isCoachRole() ? 'Coaches' : 'Players';
@@ -238,6 +257,13 @@ export class UsLaxMembershipComponent implements OnInit {
 	onExcelQueryCellInfo(args: { column: { headerText: string }; data: UsLaxReconciliationRowDto; value: unknown }): void {
 		const d = args.data;
 		switch (args.column.headerText) {
+			case '#': {
+				// Excel export runs in current sort order — look up this row's
+				// displayed position via the grid's current view records.
+				const view = (this.gridRef?.getCurrentViewRecords() as UsLaxReconciliationRowDto[]) ?? this.rows();
+				args.value = view.findIndex(r => r.registrationId === d.registrationId) + 1;
+				break;
+			}
 			case 'Name':
 				args.value = `${d.lastName}, ${d.firstName}`;
 				break;

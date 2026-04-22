@@ -116,11 +116,16 @@
               [selectionSettings]="selectionSettings"
               (rowSelected)="onSelectionChanged(grid)"
               (rowDeselected)="onSelectionChanged(grid)"
+              (dataBound)="refreshRowNumbers(grid)"
+              (actionComplete)="onActionComplete($event, grid)"
               (toolbarClick)="onGridToolbarClick($event, grid)"
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
               cssClass="tsic-grid-tight">
         <e-columns>
             <e-column type="checkbox" width="40" [allowSorting]="false"></e-column>
+            <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
+            <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
+                      [customAttributes]="{ class: 'row-number-cell' }"></e-column>
             <e-column headerText="Name" minWidth="160">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">
