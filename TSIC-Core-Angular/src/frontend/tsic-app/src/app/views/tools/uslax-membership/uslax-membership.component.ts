@@ -213,8 +213,13 @@ export class UsLaxMembershipComponent implements OnInit {
 
 	onSelectionChanged(grid: GridComponent): void {
 		this.gridRef = grid;
-		const selected = (grid.getSelectedRecords() as UsLaxReconciliationRowDto[]) ?? [];
-		this.selectedRows.set([...selected]);
+		// Defer to next microtask — Syncfusion's `rowSelected`/`rowDeselected` fire before
+		// `getSelectedRecords()` reflects the new state, especially for header select-all
+		// which batches. Reading after the microtask gives the settled selection set.
+		Promise.resolve().then(() => {
+			const selected = (grid.getSelectedRecords() as UsLaxReconciliationRowDto[]) ?? [];
+			this.selectedRows.set([...selected]);
+		});
 	}
 
 	// Compose panel --------------------------------------------------------------------

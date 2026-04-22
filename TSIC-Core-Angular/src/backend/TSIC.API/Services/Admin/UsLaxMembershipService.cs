@@ -66,7 +66,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         foreach (var c in candidates)
         {
             ct.ThrowIfCancellationRequested();
-            var row = await ReconcileOneAsync(c, ct);
+            var row = await ReconcileOneAsync(c, request.Role, ct);
             rows.Add(row);
             if (row.ExpiryDateUpdated) datesUpdated++;
             if (row.StatusCode != 200) failed++;
@@ -81,7 +81,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         };
     }
 
-    private async Task<UsLaxReconciliationRowDto> ReconcileOneAsync(UsLaxReconciliationCandidateRow c, CancellationToken ct)
+    private async Task<UsLaxReconciliationRowDto> ReconcileOneAsync(UsLaxReconciliationCandidateRow c, UsLaxMembershipRole role, CancellationToken ct)
     {
         UsLaxMemberPingResult? ping;
         try
@@ -108,10 +108,22 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         DateTime? newExpiry = null;
         var updated = false;
 
-        // Legacy rule: write back when USALax returns an exp_date AND involvement includes "Player".
+        // Gate the DB write on involvement so we don't cross-contaminate roles:
+        //   - Player mode: only write if USLax says this member plays as a Player (legacy rule).
+        //   - Coach  mode: write if USLax says they're staff in any capacity (Coach/Official/Referee).
+        // A USLax member has one expiry per membership regardless of involvement, but the gate
+        // protects against a registration mis-keyed to a membership that belongs to someone else.
         // Skip no-op writes when the new date matches what's already on file.
-        var isPlayer = output.Involvement?.Any(s => s.Equals("Player", StringComparison.OrdinalIgnoreCase)) == true;
-        if (isPlayer && DateTime.TryParse(output.ExpDate, out var parsed))
+        var involvement = output.Involvement;
+        var eligibleForWrite = role switch
+        {
+            UsLaxMembershipRole.Coach => involvement?.Any(s =>
+                s.Equals("Coach", StringComparison.OrdinalIgnoreCase) ||
+                s.Equals("Official", StringComparison.OrdinalIgnoreCase) ||
+                s.Equals("Referee", StringComparison.OrdinalIgnoreCase)) == true,
+            _ /* Player */ => involvement?.Any(s => s.Equals("Player", StringComparison.OrdinalIgnoreCase)) == true
+        };
+        if (eligibleForWrite && DateTime.TryParse(output.ExpDate, out var parsed))
         {
             newExpiry = parsed.Date;
             if (c.SportAssnIdexpDate?.Date != newExpiry)
