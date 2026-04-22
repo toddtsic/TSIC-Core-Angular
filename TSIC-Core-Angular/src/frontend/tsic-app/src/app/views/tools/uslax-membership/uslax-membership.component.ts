@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
-import { GridAllModule } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
+import type { ToolbarItems } from '@syncfusion/ej2-angular-grids';
 import { UsLaxMembershipService } from '@infrastructure/services/uslax-membership.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -35,6 +36,8 @@ export class UsLaxMembershipComponent implements OnInit {
 
 	readonly canReconcile = computed(() => this.candidates().length > 0 && !this.isReconciling());
 
+	readonly gridToolbar: ToolbarItems[] = ['ExcelExport'];
+
 	ngOnInit(): void {
 		this.loadCandidates();
 	}
@@ -68,7 +71,12 @@ export class UsLaxMembershipComponent implements OnInit {
 					failed: response.failed
 				});
 				this.isReconciling.set(false);
-				const msg = `Reconciled ${response.totalPinged}. ${response.datesUpdated} expiry date(s) updated. ${response.failed} failed.`;
+				const memberWord = response.totalPinged === 1 ? 'membership' : 'memberships';
+				const dateWord = response.datesUpdated === 1 ? 'expiry date' : 'expiry dates';
+				const failedNote = response.failed > 0
+					? `, ${response.failed} ${response.failed === 1 ? 'check' : 'checks'} failed`
+					: '';
+				const msg = `Checked ${response.totalPinged} ${memberWord}. ${response.datesUpdated} ${dateWord} updated${failedNote}.`;
 				this.toast.show(msg, response.failed > 0 ? 'warning' : 'success', 5000);
 				// Refresh candidate set so the current-expiry column reflects writes.
 				this.loadCandidates();
@@ -97,5 +105,43 @@ export class UsLaxMembershipComponent implements OnInit {
 		const v = row.ageVerified;
 		if (v == null) return '';
 		return v.toString().toLowerCase() === 'true' ? 'Yes' : 'No';
+	}
+
+	onGridToolbarClick(args: { item?: { id?: string } }, grid: GridComponent): void {
+		if (args.item?.id?.endsWith('_excelexport')) {
+			grid.excelExport({ fileName: 'USLaxMembershipReconciliation.xlsx' });
+		}
+	}
+
+	/**
+	 * Template-only columns (Name, Status, Age Verified, Involvement, dates, Details)
+	 * have no `field` attribute so Syncfusion can't auto-export them. Fill the cell
+	 * values explicitly per column header at export time.
+	 */
+	onExcelQueryCellInfo(args: { column: { headerText: string }; data: UsLaxReconciliationRowDto; value: unknown }): void {
+		const d = args.data;
+		switch (args.column.headerText) {
+			case 'Name':
+				args.value = `${d.lastName}, ${d.firstName}`;
+				break;
+			case 'Status':
+				args.value = d.statusCode !== 200 ? 'API error' : (d.memStatus ?? 'Unknown');
+				break;
+			case 'Age Verified':
+				args.value = this.ageVerifiedDisplay(d);
+				break;
+			case 'Involvement':
+				args.value = this.involvementBadges(d).join(', ');
+				break;
+			case 'Previous Expiry':
+				args.value = d.previousExpiryDate ? new Date(d.previousExpiryDate).toLocaleDateString() : '';
+				break;
+			case 'New Expiry':
+				args.value = d.newExpiryDate ? new Date(d.newExpiryDate).toLocaleDateString() : '';
+				break;
+			case 'Details':
+				args.value = d.errorMessage ?? '';
+				break;
+		}
 	}
 }

@@ -55,10 +55,14 @@
 @if (summary(); as s) {
     <div class="alert alert-info summary-panel" role="status">
         <div class="d-flex flex-wrap gap-3">
-            <span><strong>{{ s.totalPinged }}</strong> pinged</span>
-            <span class="text-success"><strong>{{ s.datesUpdated }}</strong> expiry date(s) updated</span>
+            <span><strong>{{ s.totalPinged }}</strong> {{ s.totalPinged === 1 ? 'membership' : 'memberships' }} checked with USA Lacrosse</span>
+            <span class="text-success">
+                <strong>{{ s.datesUpdated }}</strong> {{ s.datesUpdated === 1 ? 'expiry date updated' : 'expiry dates updated' }}
+            </span>
             @if (s.failed > 0) {
-                <span class="text-danger"><strong>{{ s.failed }}</strong> failed</span>
+                <span class="text-danger">
+                    <strong>{{ s.failed }}</strong> {{ s.failed === 1 ? 'check failed' : 'checks failed' }}
+                </span>
             }
         </div>
     </div>
@@ -71,8 +75,12 @@
         </div>
     </div>
 } @else if (rows().length > 0) {
-    <ejs-grid [dataSource]="rows()" [allowSorting]="true"
+    <ejs-grid #grid [dataSource]="rows()" [allowSorting]="true"
               [sortSettings]="{ columns: [{ field: 'lastName', direction: 'Ascending' }] }"
+              [allowExcelExport]="true"
+              [toolbar]="gridToolbar"
+              (toolbarClick)="onGridToolbarClick($event, grid)"
+              (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
               cssClass="tsic-grid-tight">
         <e-columns>
             <e-column headerText="Name" minWidth="160">
