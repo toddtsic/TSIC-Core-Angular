@@ -126,7 +126,7 @@
             <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
-            <e-column headerText="Name" minWidth="160">
+            <e-column field="lastName" headerText="Name" minWidth="160">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">
                         {{ data.lastName }}, {{ data.firstName }}
@@ -135,7 +135,7 @@
             </e-column>
             <e-column field="membershipId" headerText="Member ID" width="120"></e-column>
             <e-column field="teamName" headerText="Team" minWidth="160"></e-column>
-            <e-column headerText="Status" width="110" textAlign="Center">
+            <e-column field="memStatus" headerText="Status" width="110" textAlign="Center">
                 <ng-template #template let-data>
                     @if (data.statusCode !== 200) {
                         <span class="badge bg-danger-subtle text-danger-emphasis">API error</span>
@@ -148,24 +148,24 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column headerText="Age Verified" width="110" textAlign="Center">
+            <e-column field="ageVerified" headerText="Age Verified" width="110" textAlign="Center">
                 <ng-template #template let-data>
                     {{ ageVerifiedDisplay(data) }}
                 </ng-template>
             </e-column>
-            <e-column headerText="Involvement" minWidth="140">
+            <e-column headerText="Involvement" minWidth="140" [allowSorting]="false">
                 <ng-template #template let-data>
                     @for (role of involvementBadges(data); track role) {
                         <span class="badge bg-primary-subtle text-primary-emphasis me-1">{{ role }}</span>
                     }
                 </ng-template>
             </e-column>
-            <e-column headerText="Previous Expiry" width="130">
+            <e-column field="previousExpiryDate" headerText="Previous Expiry" width="130" type="date" format="MMM d, y">
                 <ng-template #template let-data>
                     {{ data.previousExpiryDate ? (data.previousExpiryDate | date:'mediumDate') : '—' }}
                 </ng-template>
             </e-column>
-            <e-column headerText="New Expiry" width="130">
+            <e-column field="newExpiryDate" headerText="New Expiry" width="130" type="date" format="MMM d, y">
                 <ng-template #template let-data>
                     <span [class.updated-cell]="data.expiryDateUpdated">
                         {{ data.newExpiryDate ? (data.newExpiryDate | date:'mediumDate') : '—' }}
@@ -175,7 +175,7 @@
                     </span>
                 </ng-template>
             </e-column>
-            <e-column headerText="Details" minWidth="180">
+            <e-column field="errorMessage" headerText="Details" minWidth="180">
                 <ng-template #template let-data>
                     @if (data.errorMessage) {
                         <span class="text-danger">{{ data.errorMessage }}</span>
