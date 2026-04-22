@@ -222,6 +222,11 @@ export class UsLaxMembershipComponent implements OnInit {
 		return inv.filter((x): x is string => typeof x === 'string');
 	}
 
+	padMembershipId(id: string | null | undefined): string {
+		if (!id) return '';
+		return id.padStart(12, '0');
+	}
+
 	ageVerifiedDisplay(row: UsLaxReconciliationRowDto): string {
 		const v = row.ageVerified;
 		if (v == null) return '';
@@ -266,6 +271,9 @@ export class UsLaxMembershipComponent implements OnInit {
 			}
 			case 'Name':
 				args.value = `${d.lastName}, ${d.firstName}`;
+				break;
+			case 'Member ID':
+				args.value = this.padMembershipId(d.membershipId);
 				break;
 			case 'Status':
 				args.value = d.statusCode !== 200 ? 'API error' : (d.memStatus ?? 'Unknown');

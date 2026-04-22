@@ -133,7 +133,11 @@
                     </span>
                 </ng-template>
             </e-column>
-            <e-column field="membershipId" headerText="Member ID" width="120"></e-column>
+            <e-column field="membershipId" headerText="Member ID" width="120">
+                <ng-template #template let-data>
+                    {{ padMembershipId(data.membershipId) }}
+                </ng-template>
+            </e-column>
             <e-column field="teamName" headerText="Team" minWidth="160"></e-column>
             <e-column field="memStatus" headerText="Status" width="110" textAlign="Center">
                 <ng-template #template let-data>
