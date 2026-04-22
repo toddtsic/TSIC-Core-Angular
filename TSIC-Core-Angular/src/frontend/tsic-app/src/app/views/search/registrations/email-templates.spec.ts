@@ -4,7 +4,6 @@ import {
   isTemplateAvailable,
   ROLE_ID_PLAYER,
   ROLE_ID_CLUBREP,
-  ROLE_ID_UNASSIGNED_ADULT,
   type EmailTemplate,
   type JobFlagsForTemplates
 } from './email-templates';
@@ -18,7 +17,6 @@ const NO_FLAGS: JobFlagsForTemplates = {
 const VI_PLAYER_ONLY: JobFlagsForTemplates = { ...NO_FLAGS, offerPlayerRegsaverInsurance: true };
 const VI_TEAM_ONLY: JobFlagsForTemplates = { ...NO_FLAGS, offerTeamRegsaverInsurance: true };
 const ARB_ONLY: JobFlagsForTemplates = { ...NO_FLAGS, adnArb: true };
-const USLAX_ONLY: JobFlagsForTemplates = { ...NO_FLAGS, usLaxMembershipValidated: true };
 
 const EMPTY_REQUEST: RegistrationSearchRequest = {};
 
@@ -34,9 +32,6 @@ describe('isTemplateAvailable', () => {
   const viPlayerTemplate = findTemplate('Player Insurance — Not Yet Accepted');
   const viTeamTemplate = findTemplate('Team Insurance — Not Yet Accepted (Club Reps)');
   const arbBehindActive = findTemplate('Update CC Info (Active/Suspended)');
-  const usLaxExpiredPlayers = findTemplate('Expired / Missing Membership (Players)');
-  const usLaxExpiredCoaches = findTemplate('Expired / Missing Membership (Coaches)');
-
   it('templates without availability are always available', () => {
     const alwaysAvailable: EmailTemplate = { label: 'x', subject: 'y', body: 'z' };
     expect(isTemplateAvailable(alwaysAvailable, EMPTY_REQUEST, NO_FLAGS)).toBe(true);
@@ -172,53 +167,4 @@ describe('isTemplateAvailable', () => {
     expect(isTemplateAvailable(waitlistActivation, inactiveRequest, NO_FLAGS)).toBe(false);
   });
 
-  it('USLax expired Player template requires flag + expired + Player role', () => {
-    const playerRequest: RegistrationSearchRequest = {
-      usLaxMembershipStatus: 'expired',
-      roleIds: [ROLE_ID_PLAYER],
-      activeStatuses: ['True']
-    };
-    expect(isTemplateAvailable(usLaxExpiredPlayers, playerRequest, USLAX_ONLY)).toBe(true);
-    expect(isTemplateAvailable(usLaxExpiredPlayers, playerRequest, NO_FLAGS)).toBe(false);
-
-    // Coach role — blocks Player template
-    const coachRequest: RegistrationSearchRequest = {
-      usLaxMembershipStatus: 'expired',
-      roleIds: [ROLE_ID_UNASSIGNED_ADULT],
-      activeStatuses: ['True']
-    };
-    expect(isTemplateAvailable(usLaxExpiredPlayers, coachRequest, USLAX_ONLY)).toBe(false);
-
-    // No role filter — blocks (template requires explicit Player)
-    const noRole: RegistrationSearchRequest = {
-      usLaxMembershipStatus: 'expired',
-      activeStatuses: ['True']
-    };
-    expect(isTemplateAvailable(usLaxExpiredPlayers, noRole, USLAX_ONLY)).toBe(false);
-
-    // No status — blocks
-    const noStatus: RegistrationSearchRequest = {
-      roleIds: [ROLE_ID_PLAYER],
-      activeStatuses: ['True']
-    };
-    expect(isTemplateAvailable(usLaxExpiredPlayers, noStatus, USLAX_ONLY)).toBe(false);
-  });
-
-  it('USLax expired Coach template requires flag + expired + UnassignedAdult role', () => {
-    const coachRequest: RegistrationSearchRequest = {
-      usLaxMembershipStatus: 'expired',
-      roleIds: [ROLE_ID_UNASSIGNED_ADULT],
-      activeStatuses: ['True']
-    };
-    expect(isTemplateAvailable(usLaxExpiredCoaches, coachRequest, USLAX_ONLY)).toBe(true);
-    expect(isTemplateAvailable(usLaxExpiredCoaches, coachRequest, NO_FLAGS)).toBe(false);
-
-    // Player role — blocks Coach template
-    const playerRequest: RegistrationSearchRequest = {
-      usLaxMembershipStatus: 'expired',
-      roleIds: [ROLE_ID_PLAYER],
-      activeStatuses: ['True']
-    };
-    expect(isTemplateAvailable(usLaxExpiredCoaches, playerRequest, USLAX_ONLY)).toBe(false);
-  });
 });

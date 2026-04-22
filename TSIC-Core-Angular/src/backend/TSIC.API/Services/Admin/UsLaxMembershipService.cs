@@ -1,8 +1,10 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
 
@@ -10,15 +12,24 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
 {
     private readonly IRegistrationRepository _registrations;
     private readonly IUsLaxService _usLax;
+    private readonly IJobRepository _jobs;
+    private readonly IEmailService _emailService;
+    private readonly IEmailLogRepository _emailLogs;
     private readonly ILogger<UsLaxMembershipService> _logger;
 
     public UsLaxMembershipService(
         IRegistrationRepository registrations,
         IUsLaxService usLax,
+        IJobRepository jobs,
+        IEmailService emailService,
+        IEmailLogRepository emailLogs,
         ILogger<UsLaxMembershipService> logger)
     {
         _registrations = registrations;
         _usLax = usLax;
+        _jobs = jobs;
+        _emailService = emailService;
+        _emailLogs = emailLogs;
         _logger = logger;
     }
 
@@ -118,6 +129,117 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         }
 
         return BuildRow(c, statusCode: 200, errorMessage: null, newExpiry: newExpiry, updated: updated, output: output);
+    }
+
+    public async Task<UsLaxEmailResponse> SendEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default)
+    {
+        var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId, ct);
+        var jobName = jobInfo?.JobName ?? string.Empty;
+        var jobPath = jobInfo?.JobPath ?? string.Empty;
+        var jobLinkHtml = BuildJobLinkHtml(jobPath, jobName);
+
+        var sent = 0;
+        var failed = 0;
+        var missingEmail = 0;
+        var failedAddresses = new List<string>();
+        var sentAddresses = new List<string>();
+
+        foreach (var r in request.Recipients)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(r.Email))
+            {
+                missingEmail++;
+                continue;
+            }
+
+            var subject = SubstituteRowTokens(request.Subject, r, jobName, jobLinkHtml);
+            var body = SubstituteRowTokens(request.Body, r, jobName, jobLinkHtml);
+
+            var message = new EmailMessageDto
+            {
+                FromName = jobName,
+                Subject = subject,
+                HtmlBody = body,
+                ToAddresses = new List<string> { r.Email }
+            };
+
+            try
+            {
+                var ok = await _emailService.SendAsync(message, cancellationToken: ct);
+                if (ok) { sent++; sentAddresses.Add(r.Email); }
+                else { failed++; failedAddresses.Add(r.Email); }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "USLax email send failed for registration {RegistrationId}", r.RegistrationId);
+                failed++;
+                failedAddresses.Add(r.Email);
+            }
+        }
+
+        // Audit: one EmailLogs row for the batch (matches legacy USLaxMembershipController pattern).
+        try
+        {
+            await _emailLogs.LogAsync(new EmailLogs
+            {
+                JobId = jobId,
+                Count = sent,
+                Subject = request.Subject,
+                Msg = request.Body,
+                SendTo = string.Join(";", sentAddresses),
+                SendFrom = null,
+                SenderUserId = senderUserId,
+                SendTs = DateTime.UtcNow
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "USLax email log write failed for job {JobId}", jobId);
+        }
+
+        return new UsLaxEmailResponse
+        {
+            Sent = sent,
+            Failed = failed,
+            MissingEmail = missingEmail,
+            FailedAddresses = failedAddresses
+        };
+    }
+
+    /// <summary>
+    /// Per-recipient token substitution matching the legacy USLaxMembershipController.
+    /// Token names (incl. the doubled <c>!USLAXMEMBERSTATUSSTATUS</c>) are kept verbatim
+    /// so admin muscle memory still works.
+    /// </summary>
+    private static string SubstituteRowTokens(string template, UsLaxEmailRecipientDto r, string jobName, string jobLinkHtml)
+    {
+        var person = $"{r.FirstName} {r.LastName}".Trim();
+        var dob = r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture) ?? string.Empty;
+        var expiry = r.ExpiryDate?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture) ?? string.Empty;
+        var paddedId = string.IsNullOrWhiteSpace(r.MembershipId)
+            ? string.Empty
+            : new string(r.MembershipId.Where(char.IsDigit).ToArray()).PadLeft(12, '0');
+
+        return template
+            .Replace("!PLAYER", person, StringComparison.Ordinal)
+            .Replace("!PLAYERDOB", dob, StringComparison.Ordinal)
+            .Replace("!USLAXMEMBERID", paddedId, StringComparison.Ordinal)
+            .Replace("!USLAXMEMBERSTATUSSTATUS", r.MemStatus ?? string.Empty, StringComparison.Ordinal)
+            .Replace("!USLAXMEMBERSTATUS", r.MemStatus ?? string.Empty, StringComparison.Ordinal)
+            .Replace("!USLAXAGEVERIFIED", r.AgeVerified ?? string.Empty, StringComparison.Ordinal)
+            .Replace("!USLAXEXPIRY", expiry, StringComparison.Ordinal)
+            .Replace("!JOBLINK", jobLinkHtml, StringComparison.Ordinal)
+            .Replace("!JOBNAME", jobName, StringComparison.Ordinal);
+    }
+
+    private static string BuildJobLinkHtml(string jobPath, string jobName)
+    {
+        if (string.IsNullOrWhiteSpace(jobPath)) return System.Net.WebUtility.HtmlEncode(jobName);
+        var url = $"https://www.teamsportsinfo.com/{jobPath}";
+        var label = string.IsNullOrWhiteSpace(jobName) ? url : jobName;
+        return $"<a href=\"{url}\">{System.Net.WebUtility.HtmlEncode(label)}</a>";
     }
 
     private static UsLaxReconciliationRowDto BuildRow(

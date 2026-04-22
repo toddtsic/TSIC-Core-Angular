@@ -3,6 +3,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import type { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
+	UsLaxEmailRequest,
+	UsLaxEmailResponse,
 	UsLaxMembershipRole,
 	UsLaxReconciliationCandidateDto,
 	UsLaxReconciliationRequest,
@@ -21,5 +23,9 @@ export class UsLaxMembershipService {
 
 	reconcile(request: UsLaxReconciliationRequest): Observable<UsLaxReconciliationResponse> {
 		return this.http.post<UsLaxReconciliationResponse>(`${this.apiUrl}/uslax-membership/reconcile`, request);
+	}
+
+	sendEmail(request: UsLaxEmailRequest): Observable<UsLaxEmailResponse> {
+		return this.http.post<UsLaxEmailResponse>(`${this.apiUrl}/uslax-membership/email`, request);
 	}
 }

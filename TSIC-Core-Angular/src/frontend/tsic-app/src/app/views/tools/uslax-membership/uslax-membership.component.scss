@@ -118,3 +118,48 @@
     padding: 0.25rem 0.75rem;
 }
 
+.compose-panel {
+    margin-top: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    background: var(--brand-surface);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--bs-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.compose-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.compose-recipients {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+}
+
+.compose-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.compose-body {
+    font-family: var(--font-family-monospace, ui-monospace, "SFMono-Regular", Menlo, monospace);
+    font-size: var(--font-size-sm);
+    line-height: 1.45;
+}
+
+.compose-actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+}
+
+

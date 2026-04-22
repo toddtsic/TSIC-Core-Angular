@@ -14,4 +14,12 @@ public interface IUsLaxMembershipService
     /// response includes a new exp_date and involvement contains "Player".
     /// </summary>
     Task<UsLaxReconciliationResponse> ReconcileAsync(Guid jobId, UsLaxReconciliationRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Send the legacy-style USA Lacrosse "action required" email to the supplied recipients.
+    /// Tokens (<c>!PLAYER</c>, <c>!PLAYERDOB</c>, <c>!USLAXMEMBERID</c>, <c>!USLAXMEMBERSTATUSSTATUS</c>,
+    /// <c>!USLAXAGEVERIFIED</c>, <c>!USLAXEXPIRY</c>, <c>!JOBNAME</c>, <c>!JOBLINK</c>) are substituted
+    /// per-recipient from the payload snapshots. Body is sent as HTML.
+    /// </summary>
+    Task<UsLaxEmailResponse> SendEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default);
 }

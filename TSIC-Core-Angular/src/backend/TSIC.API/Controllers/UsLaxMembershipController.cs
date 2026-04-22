@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
@@ -49,6 +50,26 @@ public class UsLaxMembershipController : ControllerBase
         if (jobId == null) return BadRequest(new { message = "Registration context required" });
 
         var response = await _service.ReconcileAsync(jobId.Value, request ?? new UsLaxReconciliationRequest(), ct);
+        return Ok(response);
+    }
+
+    [HttpPost("email")]
+    public async Task<ActionResult<UsLaxEmailResponse>> SendEmail(
+        [FromBody] UsLaxEmailRequest request,
+        CancellationToken ct)
+    {
+        if (request is null || request.Recipients is null || request.Recipients.Count == 0)
+            return BadRequest(new { message = "At least one recipient is required" });
+        if (string.IsNullOrWhiteSpace(request.Subject))
+            return BadRequest(new { message = "Subject is required" });
+        if (string.IsNullOrWhiteSpace(request.Body))
+            return BadRequest(new { message = "Body is required" });
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest(new { message = "Registration context required" });
+
+        var senderUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var response = await _service.SendEmailAsync(jobId.Value, senderUserId, request, ct);
         return Ok(response);
     }
 }

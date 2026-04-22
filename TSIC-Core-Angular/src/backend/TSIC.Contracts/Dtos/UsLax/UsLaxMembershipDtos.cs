@@ -68,3 +68,39 @@ public record UsLaxReconciliationResponse
     public required int Failed { get; init; }
     public required IReadOnlyList<UsLaxReconciliationRowDto> Rows { get; init; }
 }
+
+/// <summary>
+/// Per-recipient snapshot used by the inline USLax email send. The caller (admin UI)
+/// forwards the reconciliation row data so the server can substitute row-level tokens
+/// (<c>!PLAYER</c>, <c>!USLAXMEMBERID</c>, <c>!USLAXEXPIRY</c>, etc.) without a second
+/// USA Lacrosse ping. Matches the legacy USLaxMembershipController email flow.
+/// </summary>
+public record UsLaxEmailRecipientDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public string? Email { get; init; }
+    public DateTime? Dob { get; init; }
+    public required string MembershipId { get; init; }
+    public string? MemStatus { get; init; }
+    public string? AgeVerified { get; init; }
+    public DateTime? ExpiryDate { get; init; }
+}
+
+/// <summary>Inline email send request — subject + body template plus the recipient snapshots.</summary>
+public record UsLaxEmailRequest
+{
+    public required string Subject { get; init; }
+    public required string Body { get; init; }
+    public required List<UsLaxEmailRecipientDto> Recipients { get; init; }
+}
+
+/// <summary>Inline email send response — sent/failed rollup.</summary>
+public record UsLaxEmailResponse
+{
+    public required int Sent { get; init; }
+    public required int Failed { get; init; }
+    public required int MissingEmail { get; init; }
+    public required IReadOnlyList<string> FailedAddresses { get; init; }
+}
