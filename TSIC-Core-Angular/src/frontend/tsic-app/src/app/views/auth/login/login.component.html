@@ -42,7 +42,11 @@
             </div>
             @if (submitted() && form.get('password')?.invalid) {
             <div class="invalid-feedback d-block">
-              Password is required
+              @if (form.get('password')?.errors?.['required']) {
+                Password is required
+              } @else if (form.get('password')?.errors?.['minlength']) {
+                Password must be at least 6 characters
+              }
             </div>
             }
           </div>

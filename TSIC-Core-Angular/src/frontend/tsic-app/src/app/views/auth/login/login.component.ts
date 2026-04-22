@@ -54,7 +54,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     const savedUsername = this.authService.currentUser()?.username || '';
     this.form = this.fb.group({
       username: [savedUsername, [Validators.required]],
-      password: ['', [Validators.required]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
     });
   }
 
