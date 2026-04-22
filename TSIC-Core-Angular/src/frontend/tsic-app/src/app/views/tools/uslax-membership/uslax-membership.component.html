@@ -18,25 +18,32 @@
     </div>
 </div>
 
-<div class="context-panel card shadow-sm mb-3">
-    <div class="card-body d-flex flex-column flex-md-row gap-3 gap-md-4">
-        <div>
-            <span class="context-label">Job valid through:</span>
-            <span class="context-value fw-medium ms-1">
-                @if (jobValidThrough(); as d) {
-                    {{ d | date:'mediumDate' }}
-                } @else {
-                    <span class="text-body-secondary">Not set</span>
-                }
-            </span>
+<section class="context-panel" aria-label="Job and eligibility context">
+    <div class="context-stat">
+        <div class="stat-icon" aria-hidden="true">
+            <i class="bi bi-calendar-event"></i>
         </div>
-        <div>
-            <span class="context-label">Eligible players:</span>
-            <span class="context-value fw-medium ms-1">{{ candidates().length }}</span>
-            <span class="text-body-secondary ms-1">(active Lacrosse Players with a membership ID on file)</span>
+        <div class="stat-body">
+            <span class="stat-label">Job valid through</span>
+            @if (jobValidThrough(); as d) {
+                <span class="stat-value">{{ d | date:'mediumDate' }}</span>
+            } @else {
+                <span class="stat-value stat-value-muted">Not set</span>
+            }
         </div>
     </div>
-</div>
+    <div class="stat-divider" aria-hidden="true"></div>
+    <div class="context-stat">
+        <div class="stat-icon" aria-hidden="true">
+            <i class="bi bi-people"></i>
+        </div>
+        <div class="stat-body">
+            <span class="stat-label">Eligible players</span>
+            <span class="stat-value">{{ candidates().length }}</span>
+            <span class="stat-note">Active Lacrosse Players with a membership ID on file</span>
+        </div>
+    </div>
+</section>
 
 @if (errorMessage()) {
     <div class="alert alert-danger d-flex align-items-center" role="alert">
