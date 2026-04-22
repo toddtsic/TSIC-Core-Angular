@@ -91,7 +91,7 @@
         <button class="btn btn-outline-primary btn-sm"
                 [disabled]="!canOpenEmail()"
                 (click)="openEmail()"
-                [title]="canOpenEmail() ? 'Compose email for selected recipients' : 'Select rows with an email address on file'">
+                [title]="emailDisabledReason() ?? 'Compose email for selected recipients'">
             <i class="bi bi-envelope me-1"></i>Email selected ({{ emailRecipientCount() }})
         </button>
         @if (selectedRows().length > emailRecipientCount()) {
@@ -114,8 +114,8 @@
               [allowExcelExport]="true"
               [toolbar]="gridToolbar"
               [selectionSettings]="selectionSettings"
-              (rowSelected)="onSelectionChanged()"
-              (rowDeselected)="onSelectionChanged()"
+              (rowSelected)="onSelectionChanged(grid)"
+              (rowDeselected)="onSelectionChanged(grid)"
               (toolbarClick)="onGridToolbarClick($event, grid)"
               (excelQueryCellInfo)="onExcelQueryCellInfo($event)"
               cssClass="tsic-grid-tight">

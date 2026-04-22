@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, ViewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { ToolbarItems } from '@syncfusion/ej2-angular-grids';
@@ -43,7 +43,7 @@ export class UsLaxMembershipComponent implements OnInit {
 	readonly selectedRows = signal<UsLaxReconciliationRowDto[]>([]);
 	readonly showEmailModal = signal(false);
 
-	@ViewChild('grid') private grid?: GridComponent;
+	private gridRef?: GridComponent;
 
 	readonly jobValidThrough = computed(() => {
 		const raw = this.jobService.currentJob()?.usLaxNumberValidThroughDate;
@@ -64,7 +64,7 @@ export class UsLaxMembershipComponent implements OnInit {
 	);
 
 	readonly gridToolbar: ToolbarItems[] = ['ExcelExport'];
-	readonly selectionSettings = { type: 'Multiple' as const, checkboxOnly: true, persistSelection: true };
+	readonly selectionSettings = { type: 'Multiple' as const, checkboxOnly: true };
 
 	// Inputs for the BatchEmailModal ---------------------------------------------------
 
@@ -108,9 +108,13 @@ export class UsLaxMembershipComponent implements OnInit {
 		usLaxMembershipValidated: !!this.jobService.currentJob()?.usLaxNumberValidThroughDate
 	}));
 
-	readonly canOpenEmail = computed(() =>
-		this.emailRecipients().length > 0 && this.emailJobFlags().usLaxMembershipValidated
-	);
+	readonly canOpenEmail = computed(() => this.emailRecipients().length > 0);
+
+	readonly emailDisabledReason = computed(() => {
+		if (this.selectedRows().length === 0) return 'Select one or more rows to email.';
+		if (this.emailRecipients().length === 0) return 'Selected rows have no email address on file.';
+		return null;
+	});
 
 	// Lifecycle ------------------------------------------------------------------------
 
@@ -177,9 +181,12 @@ export class UsLaxMembershipComponent implements OnInit {
 
 	// Grid selection -------------------------------------------------------------------
 
-	onSelectionChanged(): void {
-		if (!this.grid) return;
-		const selected = (this.grid.getSelectedRecords() as UsLaxReconciliationRowDto[]) ?? [];
+	/** Called from rowSelected / rowDeselected — the grid instance is passed
+	 *  through from the template (#grid local ref) since the grid is inside an
+	 *  @if block and ViewChild can resolve late. */
+	onSelectionChanged(grid: GridComponent): void {
+		this.gridRef = grid;
+		const selected = (grid.getSelectedRecords() as UsLaxReconciliationRowDto[]) ?? [];
 		this.selectedRows.set([...selected]);
 	}
 
@@ -197,7 +204,7 @@ export class UsLaxMembershipComponent implements OnInit {
 	onEmailSent(): void {
 		this.showEmailModal.set(false);
 		this.selectedRows.set([]);
-		this.grid?.clearSelection();
+		this.gridRef?.clearSelection();
 	}
 
 	// Grid formatting helpers ---------------------------------------------------------
