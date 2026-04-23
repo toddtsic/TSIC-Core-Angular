@@ -36,14 +36,20 @@ import type { RegisteredTeamDto } from '@core/api';
                   </button>
                 }
                 <span class="fw-semibold">{{ data.teamName }}</span>
-                @if (data.levelOfPlay) {
-                  <span class="select-lop ms-1">LOP {{ data.levelOfPlay }}</span>
-                }
               </span>
             </ng-template>
           </e-column>
           <e-column field="ageGroupName" headerText="Age Group" width="95"></e-column>
-          <e-column field="feeBase" headerText="Fee" width="90" textAlign="Right" format="C2"></e-column>
+          <e-column field="levelOfPlay" headerText="LOP" width="60" [visible]="showLop()"></e-column>
+          <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"
+                    [visible]="showRegDate()"></e-column>
+          <e-column field="depositDue" headerText="Deposit Due" width="110" textAlign="Right" format="C2"
+                    [visible]="showDeposit()"></e-column>
+          <e-column field="additionalDue" headerText="Bal Due" width="90" textAlign="Right" format="C2"
+                    [visible]="showDeposit()"></e-column>
+          <e-column field="feeBase" headerText="Total Fee" width="95" textAlign="Right" format="C2"></e-column>
+          <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
+                    [visible]="showProcessing()"></e-column>
           <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
@@ -52,12 +58,6 @@ import type { RegisteredTeamDto } from '@core/api';
               </span>
             </ng-template>
           </e-column>
-          <e-column field="depositDue" headerText="Deposit Due" width="110" textAlign="Right" format="C2"
-                    [visible]="showDeposit()"></e-column>
-          <e-column field="additionalDue" headerText="Additional Due" width="120" textAlign="Right" format="C2"
-                    [visible]="showDeposit()"></e-column>
-          <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
-                    [visible]="showProcessing()"></e-column>
           <e-column field="ccOwedTotal" headerText="CC Owed" width="90" textAlign="Right"
                     [visible]="showCcOwed()">
             <ng-template #template let-data>
@@ -74,7 +74,6 @@ import type { RegisteredTeamDto } from '@core/api';
               </span>
             </ng-template>
           </e-column>
-          <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"></e-column>
         </e-columns>
         <e-aggregates>
           <e-aggregate>
@@ -170,6 +169,8 @@ export class RegisteredTeamsGridComponent {
     readonly showPaid = input(true);
     readonly showCcOwed = input(true);
     readonly showCkOwed = input(true);
+    readonly showLop = input(false);
+    readonly showRegDate = input(true);
     readonly showRemove = input(false);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);

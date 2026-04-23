@@ -62,8 +62,11 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [teams]="registeredTeams()"
               [showProcessing]="showProcessing()"
               [showCcOwed]="allowsCc()"
-              [showCkOwed]="allowsCheck()"
+              [showCkOwed]="showProcessing()"
+              [showLop]="true"
+              [showDeposit]="true"
               [frozenTeamCol]="true"
+              [teamColWidth]="120"
               [pageSize]="10" />
           </section>
 

@@ -430,7 +430,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             RegistrationTs = t.RegistrationTs,
             BWaiverSigned3 = t.BWaiverSigned3,
             CcOwedTotal = t.OwedTotal,
-            CkOwedTotal = t.FeeBase - t.PaidTotal,
+            CkOwedTotal = Math.Max(0m, t.FeeBase - t.PaidTotal),
             ClubTeamId = t.ClubTeamId,
             BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
         }).ToList();

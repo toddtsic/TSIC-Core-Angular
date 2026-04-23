@@ -296,7 +296,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Guidance to add teams to the library first, then register them
 - **What happened**: Screen shows "No teams registered yet" with "Tap Register next to a team below to get started" — but a brand new club rep has no teams in the library yet. The instruction is misleading since there are no teams to tap Register on. Should guide the user to Add Team first, or adjust the empty-state messaging to account for a fresh library.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Also change the instruction text from "Tap Register next to a team below to get started" to "Tap Register next to a team below to register for this event."
 
 ### SP-013: "Proceed to Payment" button — clarify if this locks team spots; rename to "Submit Teams and Proceed to Payment"
@@ -338,7 +338,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Payment to process successfully through Sandbox
 - **What happened**: Payment Error displayed: "One or more teams not found". Payment could not be completed. Screenshot shows the error banner at top of the Payment screen with the summary table and CC form below it.
 - **Severity**: Bug
-- **Status**: Deferred
+- **Status**: Fixed — can't reproduce
 - **Note**: Both teams show correctly in the summary grid with fees, Proc Fee, CC Owed, and Reg Date. The error appears to be a backend lookup failure when the payment controller tries to resolve the team registrations.
 
 ### SP-007: Payment screen header — rename "Payment" to "Complete Payment", center and bold for consistency

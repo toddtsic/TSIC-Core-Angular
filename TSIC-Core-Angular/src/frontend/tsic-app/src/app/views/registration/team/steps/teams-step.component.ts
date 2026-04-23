@@ -64,12 +64,15 @@ interface AgePickerTeam {
           <div style="padding: var(--space-2) var(--space-3)">
             <app-registered-teams-grid
               [teams]="enteredTeams()"
-              [showDeposit]="showDepositColumns()"
+              [showDeposit]="true"
               [showProcessing]="showProcessingColumn()"
+              [showCcOwed]="allowsCc()"
+              [showCkOwed]="showProcessingColumn()"
+              [showLop]="true"
               [showRemove]="canRemoveTeam()"
               [actionInProgress]="actionInProgress()"
               [frozenTeamCol]="true"
-              [teamColWidth]="180"
+              [teamColWidth]="140"
               (removeTeam)="onRemoveTeam($event)" />
           </div>
 
@@ -934,8 +937,11 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly showArchived = signal(false);
 
     /** Conditional column visibility based on job config. */
-    readonly showDepositColumns = signal(false);
     readonly showProcessingColumn = signal(false);
+
+    // paymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only
+    readonly allowsCc = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() !== 3);
+    readonly allowsCheck = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() >= 2);
 
     /** Which team's age picker modal is open (null = closed). */
     readonly agePickerTeam = signal<AgePickerTeam | null>(null);
@@ -1249,7 +1255,6 @@ export class TeamTeamsStepComponent implements OnInit {
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.lopOptions.set(meta.lopOptions || []);
-                    this.showDepositColumns.set(!(meta.bTeamsFullPaymentRequired ?? false));
                     this.showProcessingColumn.set(meta.bAddProcessingFees ?? false);
                     this.state.applyTeamsMetadata(meta);
                 },
