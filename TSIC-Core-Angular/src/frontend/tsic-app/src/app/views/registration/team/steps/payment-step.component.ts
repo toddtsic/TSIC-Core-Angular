@@ -67,7 +67,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [showDeposit]="true"
               [frozenTeamCol]="true"
               [teamColWidth]="120"
-              [pageSize]="10" />
+              [gridHeight]="180" />
           </section>
 
           <!-- Discount code -->

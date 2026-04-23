@@ -19,6 +19,7 @@ import type { RegisteredTeamDto } from '@core/api';
                 [allowTextWrap]="true"
                 [textWrapSettings]="{ wrapMode: 'Header' }"
                 [rowHeight]="30"
+                [height]="gridHeight()"
                 [allowPaging]="pageSize() > 0"
                 [pageSettings]="{ pageSize: pageSize() || 50 }"
                 cssClass="tsic-grid-compact">
@@ -176,6 +177,7 @@ export class RegisteredTeamsGridComponent {
     readonly frozenTeamCol = input(false);
     readonly teamColWidth = input(160);
     readonly pageSize = input(0);
+    readonly gridHeight = input<string | number>('auto');
 
     // Events
     readonly removeTeam = output<RegisteredTeamDto>();

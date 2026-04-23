@@ -73,6 +73,7 @@ interface AgePickerTeam {
               [actionInProgress]="actionInProgress()"
               [frozenTeamCol]="true"
               [teamColWidth]="140"
+              [gridHeight]="180"
               (removeTeam)="onRemoveTeam($event)" />
           </div>
 
