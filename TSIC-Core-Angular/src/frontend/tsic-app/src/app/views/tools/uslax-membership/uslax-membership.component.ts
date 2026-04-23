@@ -18,8 +18,10 @@ const MEMBERSHIP_ROLE = { Player: 0, Coach: 1 } as const satisfies Record<'Playe
 
 /**
  * Default email subject/body for the USLax reconciliation page. Tokens are substituted
- * server-side per recipient using their reconcile row data. !NAME is the canonical
- * person token; !PLAYER still works as a silent alias so older saved bodies don't break.
+ * server-side per recipient through the global TextSubstitutionService engine (same
+ * engine as search/registrations email and the confirmation flows). !PERSON is the
+ * canonical person token; !PLAYER still works as a legacy alias so older saved bodies
+ * don't break.
  *
  * Copy deliberately REPORTS status rather than asserting a problem — this lets the
  * same body make sense for any recipient status. Guidance sections are headed by
@@ -31,7 +33,7 @@ const DEFAULT_SUBJECT = '!JOBNAME: Your USA Lacrosse Membership Status';
 
 const USLAX_DETAILS_BLOCK = `<p>The USA Lacrosse Membership on file for your !JOBNAME registration:</p>
 <ul>
-  <li>Name: !NAME</li>
+  <li>Name: !PERSON</li>
   <li>Date of Birth: !PLAYERDOB</li>
   <li>Membership ID: !USLAXMEMBERID</li>
   <li>Membership Status: !USLAXMEMBERSTATUSSTATUS</li>
@@ -54,14 +56,14 @@ const USLAX_COMMON_GUIDANCE = `<p>Your membership must be <strong>Active</strong
   <li>Go to <a href="https://account.usalacrosse.com/login">https://account.usalacrosse.com/login</a> to renew or update your membership.</li>
 </ul>`;
 
-const DEFAULT_PLAYER_BODY = `<p>Hello !NAME,</p>
+const DEFAULT_PLAYER_BODY = `<p>Hello !PERSON,</p>
 ${USLAX_DETAILS_BLOCK}
 ${USLAX_COMMON_GUIDANCE}
 <p><strong>If your status is ACTIVE but the Name or DOB above is wrong</strong></p>
 <p>The DOB and Last Name on your TeamSportsInfo.com registration must match what USA Lacrosse has on file, and your USA Lacrosse membership must include a <em>Player</em> involvement.</p>
 <ol>
   <li>Login to !JOBLINK</li>
-  <li>Select your !NAME registration for !JOBNAME</li>
+  <li>Select your !PERSON registration for !JOBNAME</li>
   <li>Select 'Player Registration' from the 'Player' dropdown at the top right</li>
   <li>Click 'Next' to review/edit Last Name, DOB, and USA Lacrosse number</li>
   <li>Click 'Submit Registration(s)' to save changes</li>
@@ -69,7 +71,7 @@ ${USLAX_COMMON_GUIDANCE}
 <p>If the data on the USA Lacrosse membership itself is incorrect, contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882.</p>
 <p>Thank you!</p>`;
 
-const DEFAULT_COACH_BODY = `<p>Hello !NAME,</p>
+const DEFAULT_COACH_BODY = `<p>Hello !PERSON,</p>
 ${USLAX_DETAILS_BLOCK}
 ${USLAX_COMMON_GUIDANCE}
 <p><strong>If your status is ACTIVE but the Name or DOB above is wrong</strong></p>

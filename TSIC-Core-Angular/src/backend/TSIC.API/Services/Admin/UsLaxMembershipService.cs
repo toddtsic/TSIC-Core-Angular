@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
@@ -10,11 +11,16 @@ namespace TSIC.API.Services.Admin;
 
 public sealed class UsLaxMembershipService : IUsLaxMembershipService
 {
+    // Mirrors the CC payment-method GUID used across the codebase. Accounting tokens are
+    // not expected in USLax templates, but the engine parameter is required.
+    private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+
     private readonly IRegistrationRepository _registrations;
     private readonly IUsLaxService _usLax;
     private readonly IJobRepository _jobs;
     private readonly IEmailService _emailService;
     private readonly IEmailLogRepository _emailLogs;
+    private readonly ITextSubstitutionService _textSubstitution;
     private readonly ILogger<UsLaxMembershipService> _logger;
 
     public UsLaxMembershipService(
@@ -23,6 +29,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         IJobRepository jobs,
         IEmailService emailService,
         IEmailLogRepository emailLogs,
+        ITextSubstitutionService textSubstitution,
         ILogger<UsLaxMembershipService> logger)
     {
         _registrations = registrations;
@@ -30,6 +37,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         _jobs = jobs;
         _emailService = emailService;
         _emailLogs = emailLogs;
+        _textSubstitution = textSubstitution;
         _logger = logger;
     }
 
@@ -149,7 +157,6 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var jobName = jobInfo?.JobName ?? string.Empty;
         var jobPath = jobInfo?.JobPath ?? string.Empty;
         var jobValidThrough = jobInfo?.UsLaxNumberValidThroughDate;
-        var jobLinkHtml = BuildJobLinkHtml(jobPath, jobName);
 
         var sent = 0;
         var failed = 0;
@@ -180,8 +187,25 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                 continue;
             }
 
-            var subject = SubstituteRowTokens(request.Subject, r, jobName, jobLinkHtml);
-            var body = SubstituteRowTokens(request.Body, r, jobName, jobLinkHtml);
+            var extras = BuildUsLaxExtras(r);
+            var subject = await _textSubstitution.SubstituteAsync(
+                jobSegment: jobPath,
+                jobId: jobId,
+                paymentMethodCreditCardId: CcPaymentMethodId,
+                registrationId: r.RegistrationId,
+                familyUserId: string.Empty,
+                template: request.Subject,
+                inviteTargetJobPath: null,
+                extraTokens: extras);
+            var body = await _textSubstitution.SubstituteAsync(
+                jobSegment: jobPath,
+                jobId: jobId,
+                paymentMethodCreditCardId: CcPaymentMethodId,
+                registrationId: r.RegistrationId,
+                familyUserId: string.Empty,
+                template: request.Body,
+                inviteTargetJobPath: null,
+                extraTokens: extras);
 
             var message = new EmailMessageDto
             {
@@ -256,11 +280,20 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     }
 
     /// <summary>
-    /// Per-recipient token substitution matching the legacy USLaxMembershipController.
-    /// Token names (incl. the doubled <c>!USLAXMEMBERSTATUSSTATUS</c>) are kept verbatim
-    /// so admin muscle memory still works.
+    /// Per-recipient tokens specific to USLax reconciliation — data that comes from the
+    /// USA Lacrosse ping response (DOB, padded membership ID, status, age-verified, expiry),
+    /// not from the database. These are merged into the global TextSubstitutionService
+    /// dictionary so shared tokens (<c>!PERSON</c>, <c>!JOBNAME</c>, <c>!JOBLINK</c>,
+    /// <c>!USLAXVALIDTHROUGHDATE</c>, <c>!UNSUBSCRIBE</c>, etc.) resolve through the same
+    /// engine every other email in the system uses — one dialect, one ordering discipline
+    /// (TokenReplacer sorts by descending key length before replacing, so e.g.
+    /// <c>!PLAYERDOB</c> wins over <c>!PLAYER</c> automatically).
+    ///
+    /// <c>!PLAYER</c> is kept as a legacy alias for <c>!PERSON</c> so already-saved
+    /// bodies keep working. <c>!USLAXMEMBERSTATUSSTATUS</c> (doubled by the legacy
+    /// controller) is preserved verbatim.
     /// </summary>
-    private static string SubstituteRowTokens(string template, UsLaxEmailRecipientDto r, string jobName, string jobLinkHtml)
+    private static IReadOnlyDictionary<string, string> BuildUsLaxExtras(UsLaxEmailRecipientDto r)
     {
         var person = $"{r.FirstName} {r.LastName}".Trim();
         var dob = r.Dob?.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture) ?? string.Empty;
@@ -268,31 +301,18 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var paddedId = string.IsNullOrWhiteSpace(r.MembershipId)
             ? string.Empty
             : new string(r.MembershipId.Where(char.IsDigit).ToArray()).PadLeft(12, '0');
+        var status = r.MemStatus ?? string.Empty;
 
-        // Order matters: resolve the more-specific tokens before shorter prefixes.
-        // e.g. !PLAYERDOB before !PLAYER, !USLAXMEMBERSTATUSSTATUS before !USLAXMEMBERSTATUS.
-        return template
-            .Replace("!PLAYERDOB", dob, StringComparison.Ordinal)
-            .Replace("!USLAXMEMBERSTATUSSTATUS", r.MemStatus ?? string.Empty, StringComparison.Ordinal)
-            .Replace("!USLAXMEMBERSTATUS", r.MemStatus ?? string.Empty, StringComparison.Ordinal)
-            .Replace("!USLAXMEMBERID", paddedId, StringComparison.Ordinal)
-            .Replace("!USLAXAGEVERIFIED", r.AgeVerified ?? string.Empty, StringComparison.Ordinal)
-            .Replace("!USLAXEXPIRY", expiry, StringComparison.Ordinal)
-            .Replace("!JOBLINK", jobLinkHtml, StringComparison.Ordinal)
-            .Replace("!JOBNAME", jobName, StringComparison.Ordinal)
-            // !NAME is the canonical person token. !PLAYER is retained as a silent
-            // alias so legacy / already-saved bodies keep working — substituted LAST
-            // so !PLAYERDOB above is not accidentally corrupted by a !PLAYER pass.
-            .Replace("!NAME", person, StringComparison.Ordinal)
-            .Replace("!PLAYER", person, StringComparison.Ordinal);
-    }
-
-    private static string BuildJobLinkHtml(string jobPath, string jobName)
-    {
-        if (string.IsNullOrWhiteSpace(jobPath)) return System.Net.WebUtility.HtmlEncode(jobName);
-        var url = $"https://www.teamsportsinfo.com/{jobPath}";
-        var label = string.IsNullOrWhiteSpace(jobName) ? url : jobName;
-        return $"<a href=\"{url}\">{System.Net.WebUtility.HtmlEncode(label)}</a>";
+        return new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["!PLAYERDOB"] = dob,
+            ["!USLAXMEMBERSTATUSSTATUS"] = status,
+            ["!USLAXMEMBERSTATUS"] = status,
+            ["!USLAXMEMBERID"] = paddedId,
+            ["!USLAXAGEVERIFIED"] = r.AgeVerified ?? string.Empty,
+            ["!USLAXEXPIRY"] = expiry,
+            ["!PLAYER"] = person
+        };
     }
 
     private static UsLaxReconciliationRowDto BuildRow(

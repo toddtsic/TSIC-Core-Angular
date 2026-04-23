@@ -103,7 +103,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         Guid? registrationId,
         string familyUserId,
         string template,
-        string? inviteTargetJobPath = null)
+        string? inviteTargetJobPath = null,
+        IReadOnlyDictionary<string, string>? extraTokens = null)
     {
         if (string.IsNullOrWhiteSpace(template)) return template;
 
@@ -115,16 +116,30 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         }
 
         var fixedFieldList = await LoadFixedFieldsAsync(jobId, registrationId, familyUserId);
-        if (fixedFieldList.Count == 0) return template; // No data to substitute
 
-        var first = fixedFieldList[0];
-
-        // Build token dictionary (simple tokens + complex HTML sections)
+        // Build token dictionary (simple tokens + complex HTML sections).
+        // When we have no DB-backed fixed fields (e.g. the caller operates on out-of-band data
+        // such as the USLax ping response), we still want caller-supplied extras to apply.
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        AddSimpleTokens(tokens, first, jobSegment);
-        await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template, emailMode, inviteTargetJobPath);
+        if (fixedFieldList.Count > 0)
+        {
+            var first = fixedFieldList[0];
+            AddSimpleTokens(tokens, first, jobSegment);
+            await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template, emailMode, inviteTargetJobPath);
+        }
 
-        // Perform replacements
+        // Caller-supplied tokens win on collision — they are per-call context (e.g. per-recipient
+        // USLax ping data) that the engine has no other way to know about.
+        if (extraTokens != null)
+        {
+            foreach (var kvp in extraTokens)
+            {
+                tokens[kvp.Key] = kvp.Value;
+            }
+        }
+
+        if (tokens.Count == 0) return template;
+
         var result = TokenReplacer.ReplaceTokens(template, tokens);
         return result;
     }

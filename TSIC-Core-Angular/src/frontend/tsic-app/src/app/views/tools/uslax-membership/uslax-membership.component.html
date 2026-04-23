@@ -160,9 +160,10 @@
                           [ngModel]="body()" (ngModelChange)="body.set($event)"
                           [disabled]="isSending()"></textarea>
                 <small class="text-body-secondary">
-                    Tokens substituted per recipient: <code>!NAME</code>, <code>!PLAYERDOB</code>,
-                    <code>!USLAXMEMBERID</code>, <code>!USLAXMEMBERSTATUSSTATUS</code>,
-                    <code>!USLAXAGEVERIFIED</code>, <code>!USLAXEXPIRY</code>, <code>!JOBNAME</code>, <code>!JOBLINK</code>.
+                    All standard email tokens work here (<code>!PERSON</code>, <code>!JOBNAME</code>,
+                    <code>!JOBLINK</code>, <code>!USLAXVALIDTHROUGHDATE</code>, <code>!UNSUBSCRIBE</code>, &hellip;).
+                    Per-recipient USLax tokens: <code>!PLAYERDOB</code>, <code>!USLAXMEMBERID</code>,
+                    <code>!USLAXMEMBERSTATUS</code>, <code>!USLAXAGEVERIFIED</code>, <code>!USLAXEXPIRY</code>.
                 </small>
             </div>
 
