@@ -127,7 +127,7 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
           'To fix this, visit !JOBLINK, then:\n\n' +
           '1. Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME\n' +
           '2. Select your Player\'s role\n' +
-          '3. Under \'Player\' in the upper right, select \'Update CC Info (will also pay for failed auto-payments)\'\n' +
+          '3. Open the avatar menu in the upper right and select \'Update CC Info\'\n' +
           '4. Enter your credit card information and you will see the amount due at the bottom of the screen.\n' +
           '5. Click Submit to make the payment and reactivate your future automatic payments.',
         availability: {
@@ -166,7 +166,7 @@ export const EMAIL_TEMPLATE_CATEGORIES: EmailTemplateCategory[] = [
           'To update your credit card, visit !JOBLINK, then:\n\n' +
           '1. Login in the upper right corner using the username you used to register initially: !FAMILYUSERNAME\n' +
           '2. Select your Player\'s role\n' +
-          '3. Under \'Player\' in the upper right, select \'Update CC Info (will also pay for failed auto-payments)\'\n' +
+          '3. Open the avatar menu in the upper right and select \'Update CC Info\'\n' +
           '4. Enter your credit card information and submit.',
         availability: {
           // Gated by mode: only offered when the grid is showing lookup results from

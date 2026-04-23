@@ -35,6 +35,12 @@ public record JobPulseDto
     public Guid? MyAssignedTeamId { get; init; }
     public decimal? MyRegistrationOwedTotal { get; init; }
     public bool? MyHasPurchasedPlayerRegsaver { get; init; }
+    /// <summary>
+    /// Authorize.net ARB subscription id for this registration, if one exists.
+    /// Gates the Family/Player "Update CC Info" dropdown item — non-null = ARB user
+    /// whose stored card can fail and needs self-service update.
+    /// </summary>
+    public string? MyAdnSubscriptionId { get; init; }
 
     // ClubRep context. Null when user is not a ClubRep in this job.
     public int? MyClubRepTeamCount { get; init; }
@@ -57,6 +63,7 @@ public record JobPulseUserContext
     public Guid? AssignedTeamId { get; init; }
     public decimal? RegistrationOwedTotal { get; init; }
     public bool? HasPurchasedPlayerRegsaver { get; init; }
+    public string? AdnSubscriptionId { get; init; }
 
     // ClubRep
     public int? ClubRepTeamCount { get; init; }

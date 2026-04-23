@@ -481,7 +481,7 @@ public class JobRepository : IJobRepository
         var reg = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.RegistrationId == regId)
-            .Select(r => new { r.AssignedTeamId, r.OwedTotal, r.RegsaverPolicyId })
+            .Select(r => new { r.AssignedTeamId, r.OwedTotal, r.RegsaverPolicyId, r.AdnSubscriptionId })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (reg == null)
@@ -498,6 +498,7 @@ public class JobRepository : IJobRepository
             AssignedTeamId = reg.AssignedTeamId,
             RegistrationOwedTotal = reg.OwedTotal,
             HasPurchasedPlayerRegsaver = reg.RegsaverPolicyId != null,
+            AdnSubscriptionId = reg.AdnSubscriptionId,
             FirstName = nameInfo?.FirstName,
             LastName = nameInfo?.LastName
         };

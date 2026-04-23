@@ -140,6 +140,10 @@ export class ClientHeaderBarComponent {
             if (pulse.offerPlayerRegsaverInsurance && pulse.myHasPurchasedPlayerRegsaver === false) {
                 items.push({ icon: 'bi-shield-check', label: 'Buy Regsaver', route: 'PlayerVIUpdate' });
             }
+            // ARB-only: non-null subscription id = stored card that can fail and needs self-service update.
+            if (pulse.myAdnSubscriptionId && user.regId) {
+                items.push({ icon: 'bi-credit-card', label: 'Update CC Info', route: `arb/update-cc/${user.regId}` });
+            }
         } else if (role === Roles.Staff) {
             items.push({ icon: 'bi-person-gear', label: 'My Registration', route: 'registration/adult?step=profile' });
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0) {
