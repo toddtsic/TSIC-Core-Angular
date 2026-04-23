@@ -214,6 +214,12 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
 						loadComponent: () => import('./views/communications/push-notification/push-notification.component').then(m => m.PushNotificationComponent)
+					},
+					{
+						path: 'team-links',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						loadComponent: () => import('./views/communications/team-links/team-links.component').then(m => m.TeamLinksComponent)
 					}
 				]
 			},

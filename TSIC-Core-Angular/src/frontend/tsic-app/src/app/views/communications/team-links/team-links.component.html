@@ -1,0 +1,94 @@
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between mb-3 gap-2">
+    <h2 class="mb-0">Team Links</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm" (click)="loadLinks()" [disabled]="isLoading()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Team Link
+        </button>
+    </div>
+</div>
+
+@if (errorMessage()) {
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ errorMessage() }}
+    </div>
+}
+
+@if (isLoading()) {
+    <div class="text-center py-5">
+        <div class="spinner-border spinner-border-sm text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+
+@if (!isLoading() && !errorMessage() && links().length === 0) {
+    <div class="text-center py-5">
+        <i class="bi bi-link-45deg fs-1 text-body-secondary"></i>
+        <p class="mt-2 text-body-secondary">No team links yet. Add one to surface a labeled URL in the mobile app.</p>
+        <button class="btn btn-primary btn-sm" (click)="openAdd()">
+            <i class="bi bi-plus-lg me-1"></i>Add Team Link
+        </button>
+    </div>
+}
+
+@if (!isLoading() && links().length > 0) {
+    <ejs-grid [dataSource]="links()" [allowSorting]="true"
+              [sortSettings]="{ columns: [{ field: 'teamDisplay', direction: 'Ascending' }] }"
+              cssClass="tsic-grid-tight">
+        <e-columns>
+            <e-column field="teamDisplay" headerText="Team" minWidth="200"></e-column>
+            <e-column field="label" headerText="Label" minWidth="180"></e-column>
+            <e-column field="docUrl" headerText="URL" minWidth="240">
+                <ng-template #template let-data>
+                    <a [href]="data.docUrl" target="_blank" rel="noopener noreferrer">{{ data.docUrl }}</a>
+                </ng-template>
+            </e-column>
+            <e-column headerText="Actions" width="110" [allowSorting]="false" textAlign="Center">
+                <ng-template #template let-data>
+                    <div class="action-buttons">
+                        <button class="icon-btn" (click)="openEdit(data)" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="icon-btn icon-btn-danger" (click)="confirmDelete(data)" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </ng-template>
+            </e-column>
+        </e-columns>
+    </ejs-grid>
+}
+
+@if (showAddModal()) {
+    <team-link-form-modal
+        mode="add"
+        [availableTeams]="availableTeams()"
+        (close)="showAddModal.set(false)"
+        (saved)="onFormSaved($event)">
+    </team-link-form-modal>
+}
+
+@if (showEditModal()) {
+    <team-link-form-modal
+        mode="edit"
+        [availableTeams]="availableTeams()"
+        [editLink]="editTarget()"
+        (close)="showEditModal.set(false); editTarget.set(null)"
+        (saved)="onFormSaved($event)">
+    </team-link-form-modal>
+}
+
+@if (showDeleteConfirm()) {
+    <confirm-dialog
+        title="Delete Team Link"
+        [message]="'Remove the link &quot;' + (deleteTarget()?.label ?? '') + '&quot;? If this link applies to multiple teams, all entries with the same label and URL will be deleted.'"
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="showDeleteConfirm.set(false); deleteTarget.set(null)">
+    </confirm-dialog>
+}

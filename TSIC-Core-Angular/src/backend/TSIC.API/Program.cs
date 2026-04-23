@@ -142,6 +142,7 @@ builder.Services.AddScoped<IStoreRepository, StoreRepository>();
 builder.Services.AddScoped<IChangePasswordRepository, ChangePasswordRepository>();
 builder.Services.AddScoped<ICustomerJobRevenueRepository, CustomerJobRevenueRepository>();
 builder.Services.AddScoped<IPushNotificationRepository, PushNotificationRepository>();
+builder.Services.AddScoped<ITeamLinkRepository, TeamLinkRepository>();
 // Fees
 builder.Services.AddScoped<IFeeRepository, FeeRepository>();
 
@@ -267,6 +268,8 @@ builder.Services.AddScoped<IChangePasswordService, ChangePasswordService>();
 // Push Notifications (Admin — Firebase Cloud Messaging)
 builder.Services.AddSingleton<IFirebasePushService, FirebasePushService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+// Team Links (Admin — communications/team-links page; legacy MobileTeamLinks port)
+builder.Services.AddScoped<ITeamLinkService, TeamLinkService>();
 // Mobile API — Device Management, Event Browse, Team Management
 builder.Services.AddScoped<IDeviceManagementService, DeviceManagementService>();
 builder.Services.AddScoped<IEventBrowseService, EventBrowseService>();
