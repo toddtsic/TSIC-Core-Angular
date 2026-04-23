@@ -58,6 +58,10 @@ export class TeamPaymentService {
     readonly appliedDiscountResponse = this._appliedDiscountResponse.asReadonly();
     readonly discountMessage = this._discountMessage.asReadonly();
     readonly discountApplying = this._discountApplying.asReadonly();
+    readonly discountAppliedOk = computed(() => {
+        const resp = this._appliedDiscountResponse();
+        return !!resp?.success && resp.successCount > 0;
+    });
 
     // Controlled mutators
     setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }

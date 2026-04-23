@@ -264,8 +264,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
     {
         if (jobEnablesProcessingFees && reg.FeeBase > 0m)
         {
-            var adjustedBase = Math.Max(reg.FeeBase - ctx.NonCcPayments, 0m);
-            reg.FeeProcessing = _playerFeeCalc.GetDefaultProcessing(adjustedBase, processingRate);
+            // Processing % is taken on the net billable amount — discount reduces it, late fee adds to it.
+            var netBase = Math.Max(reg.FeeBase - reg.FeeDiscount + reg.FeeLatefee - ctx.NonCcPayments, 0m);
+            reg.FeeProcessing = _playerFeeCalc.GetDefaultProcessing(netBase, processingRate);
         }
         else
         {
@@ -280,22 +281,28 @@ public sealed class FeeResolutionService : IFeeResolutionService
         TeamsEntity team, decimal feeBase, decimal deposit, decimal balanceDue,
         TeamFeeApplicationContext ctx)
     {
+        // Processing is charged on the net billable amount. Discount reduces it; late fee adds to it.
+        var discount = team.FeeDiscount ?? 0m;
+        var lateFee = team.FeeLatefee ?? 0m;
+
         decimal feeProcessing = 0m;
         if (ctx.AddProcessingFees)
         {
             var percent = ctx.ProcessingFeePercent;
+            decimal netBase;
             if (ctx.IsFullPaymentRequired)
             {
-                feeProcessing = ctx.ApplyProcessingFeesToDeposit
-                    ? feeBase * percent          // full amount
-                    : balanceDue * percent;       // balance-due only
+                netBase = ctx.ApplyProcessingFeesToDeposit
+                    ? Math.Max(feeBase - discount + lateFee, 0m)      // full amount
+                    : Math.Max(balanceDue - discount + lateFee, 0m);   // balance-due only
             }
             else
             {
-                feeProcessing = ctx.ApplyProcessingFeesToDeposit
-                    ? deposit * percent           // deposit
-                    : 0m;                         // no processing in deposit phase
+                netBase = ctx.ApplyProcessingFeesToDeposit
+                    ? Math.Max(deposit - discount + lateFee, 0m)       // deposit
+                    : 0m;                                              // no processing in deposit phase
             }
+            feeProcessing = netBase * percent;
         }
 
         team.FeeProcessing = feeProcessing;

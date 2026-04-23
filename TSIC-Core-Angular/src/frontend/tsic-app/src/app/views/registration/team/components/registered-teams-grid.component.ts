@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { CurrencyPipe } from '@angular/common';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
+import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tooltip.component';
 
 /**
  * Reusable registered-teams summary grid.
@@ -13,7 +14,7 @@ import type { RegisteredTeamDto } from '@core/api';
 @Component({
     selector: 'app-registered-teams-grid',
     standalone: true,
-    imports: [CurrencyPipe, GridAllModule],
+    imports: [CurrencyPipe, GridAllModule, InfoTooltipComponent],
     template: `
       <ejs-grid [dataSource]="teams()" [allowSorting]="true"
                 [allowTextWrap]="true"
@@ -51,6 +52,20 @@ import type { RegisteredTeamDto } from '@core/api';
           <e-column field="feeBase" headerText="Total Fee" width="95" textAlign="Right" format="C2"></e-column>
           <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
                     [visible]="showProcessing()"></e-column>
+          <e-column field="feeDiscount" headerText="Discount" width="90" textAlign="Right" format="C2"
+                    [visible]="showDiscount()">
+            <ng-template #template let-data>
+              <span [class.text-success]="data.feeDiscount > 0">
+                {{ data.feeDiscount > 0 ? '-' : '' }}{{ data.feeDiscount | currency }}
+              </span>
+            </ng-template>
+          </e-column>
+          <e-column field="feeLatefee" headerText="Fee-Adj" width="90" textAlign="Right" format="C2"
+                    [visible]="showFeeAdj()">
+            <ng-template #headerTemplate>
+              <span>Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip></span>
+            </ng-template>
+          </e-column>
           <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
@@ -107,6 +122,18 @@ import type { RegisteredTeamDto } from '@core/api';
               <e-column field="feeProcessing" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value">{{ sumProcessing() | currency }}</div>
+                </ng-template>
+              </e-column>
+              <e-column field="feeDiscount" type="Sum" format="C2">
+                <ng-template #footerTemplate let-data>
+                  <div class="aggregate-value" [class.text-success]="sumDiscount() > 0">
+                    {{ sumDiscount() > 0 ? '-' : '' }}{{ sumDiscount() | currency }}
+                  </div>
+                </ng-template>
+              </e-column>
+              <e-column field="feeLatefee" type="Sum" format="C2">
+                <ng-template #footerTemplate let-data>
+                  <div class="aggregate-value">{{ sumFeeAdj() | currency }}</div>
                 </ng-template>
               </e-column>
               <e-column field="ccOwedTotal" type="Sum" format="C2">
@@ -182,12 +209,18 @@ export class RegisteredTeamsGridComponent {
     // Events
     readonly removeTeam = output<RegisteredTeamDto>();
 
+    // Conditional column visibility — only surface Discount / Fee-Adj when any team has non-zero value
+    readonly showDiscount = computed(() => this.teams().some(t => (t.feeDiscount ?? 0) > 0));
+    readonly showFeeAdj = computed(() => this.teams().some(t => (t.feeLatefee ?? 0) > 0));
+
     // Aggregates
     readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeBase, 0));
     readonly sumPaid = computed(() => this.teams().reduce((s, t) => s + t.paidTotal, 0));
     readonly sumDepositDue = computed(() => this.teams().reduce((s, t) => s + t.depositDue, 0));
     readonly sumAdditionalDue = computed(() => this.teams().reduce((s, t) => s + t.additionalDue, 0));
     readonly sumProcessing = computed(() => this.teams().reduce((s, t) => s + (t.feeProcessing ?? 0), 0));
+    readonly sumDiscount = computed(() => this.teams().reduce((s, t) => s + (t.feeDiscount ?? 0), 0));
+    readonly sumFeeAdj = computed(() => this.teams().reduce((s, t) => s + (t.feeLatefee ?? 0), 0));
     readonly sumCcOwed = computed(() => this.teams().reduce((s, t) => s + t.ccOwedTotal, 0));
     readonly sumCkOwed = computed(() => this.teams().reduce((s, t) => s + t.ckOwedTotal, 0));
 }

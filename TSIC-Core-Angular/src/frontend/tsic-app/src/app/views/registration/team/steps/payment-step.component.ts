@@ -7,6 +7,7 @@ import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
+import { TeamRegistrationService } from '../services/team-registration.service';
 import { IdempotencyService } from '@views/registration/shared/services/idempotency.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -74,16 +75,25 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
           @if (state.hasActiveDiscountCodes()) {
             <div class="d-flex gap-2 mb-3 align-items-end">
               <div class="flex-grow-1">
-                <label for="discountCode" class="form-label small mb-1">Discount Code</label>
-                <input type="text" class="form-control form-control-sm" id="discountCode"
+                <label for="discountCode" class="field-label discount-label">Discount Code</label>
+                <input type="text" class="field-input discount-input" id="discountCode"
                        [ngModel]="discountCode()"
                        (ngModelChange)="discountCode.set($event)"
                        placeholder="Enter code">
               </div>
-              <button type="button" class="btn btn-sm btn-outline-primary" (click)="applyDiscount()">
-                Apply
+              <button type="button" class="btn btn-sm btn-outline-primary"
+                      [disabled]="state.teamPayment.discountApplying()"
+                      (click)="applyDiscount()">
+                {{ state.teamPayment.discountApplying() ? 'Applying...' : 'Apply' }}
               </button>
             </div>
+            @if (state.teamPayment.discountMessage()) {
+              <div class="small mb-3"
+                   [class.text-success]="state.teamPayment.discountAppliedOk()"
+                   [class.text-danger]="!state.teamPayment.discountAppliedOk()">
+                {{ state.teamPayment.discountMessage() }}
+              </div>
+            }
           }
 
           <!-- ═══ PAYMENT METHOD SELECTOR (CC or Check) ═══ -->
@@ -183,6 +193,17 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
     </div>
   `,
     styles: [`
+      .discount-label {
+        color: var(--bs-danger);
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-base);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .discount-input {
+        background-color: var(--neutral-0);
+      }
+
       .method-selector .method-btn {
         flex: 1;
         display: flex;
@@ -246,6 +267,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 export class TeamPaymentStepV2Component {
     readonly submitted = output<void>();
     readonly state = inject(TeamWizardStateService);
+    private readonly teamReg = inject(TeamRegistrationService);
     private readonly idemSvc = inject(IdempotencyService);
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
@@ -314,7 +336,15 @@ export class TeamPaymentStepV2Component {
         this.state.teamPayment.applyDiscount(code, teamIds)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
-                error: () => this.toast.show('Failed to apply discount code.', 'danger', 4000),
+                next: resp => {
+                    if (resp?.success && resp.successCount > 0) {
+                        this.teamReg.getTeamsMetadata()
+                            .pipe(takeUntilDestroyed(this.destroyRef))
+                            .subscribe({
+                                next: meta => this.state.applyTeamsMetadata(meta),
+                            });
+                    }
+                },
             });
     }
 

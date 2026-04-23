@@ -12,6 +12,8 @@ export type RegisteredTeamDto = {
     bHasBeenScheduled: boolean;
     feeBase: number;
     feeProcessing: number;
+    feeDiscount: number;
+    feeLatefee: number;
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;

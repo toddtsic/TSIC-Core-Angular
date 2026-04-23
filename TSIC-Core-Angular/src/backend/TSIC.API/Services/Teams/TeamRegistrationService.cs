@@ -422,6 +422,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             LevelOfPlay = t.LevelOfPlay,
             FeeBase = t.FeeBase,
             FeeProcessing = t.FeeProcessing,
+            FeeDiscount = t.FeeDiscount,
+            FeeLatefee = t.FeeLatefee,
             FeeTotal = t.FeeTotal,
             PaidTotal = t.PaidTotal,
             OwedTotal = t.OwedTotal,
@@ -430,7 +432,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             RegistrationTs = t.RegistrationTs,
             BWaiverSigned3 = t.BWaiverSigned3,
             CcOwedTotal = t.OwedTotal,
-            CkOwedTotal = Math.Max(0m, t.FeeBase - t.PaidTotal),
+            // Check payment drops the CC processing fee only — Discount and LateFee are
+            // already baked into OwedTotal via RecalcTotals.
+            CkOwedTotal = Math.Max(0m, t.OwedTotal - t.FeeProcessing),
             ClubTeamId = t.ClubTeamId,
             BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
         }).ToList();
@@ -609,35 +613,6 @@ public class TeamRegistrationService : ITeamRegistrationService
             }
         }
 
-        // Resolve fees from new fee schema
-        var resolved = await _feeService.ResolveFeeForAgegroupAsync(
-            jobId, RoleConstants.ClubRep, request.AgeGroupId);
-        var deposit = resolved?.EffectiveDeposit ?? 0m;
-        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
-        var feeBase = (jobSettings.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
-
-        // Evaluate modifiers for new registration
-        var modifiers = await _feeService.EvaluateModifiersAsync(
-            jobId, RoleConstants.ClubRep, request.AgeGroupId, Guid.Empty, DateTime.UtcNow);
-
-        // Calculate processing fee
-        decimal feeProcessing = 0m;
-        if (jobSettings.BAddProcessingFees ?? false)
-        {
-            if (jobSettings.BTeamsFullPaymentRequired ?? false)
-            {
-                feeProcessing = (jobSettings.BApplyProcessingFeesToTeamDeposit ?? false)
-                    ? feeBase * processingRate
-                    : balanceDue * processingRate;
-            }
-            else
-            {
-                feeProcessing = (jobSettings.BApplyProcessingFeesToTeamDeposit ?? false)
-                    ? deposit * processingRate
-                    : 0m;
-            }
-        }
-
         // Resolve or create ClubTeam
         int clubTeamId;
         string teamName;
@@ -708,15 +683,10 @@ public class TeamRegistrationService : ITeamRegistrationService
             };
         }
 
-        // Waitlisted teams have zero fees — fees apply when promoted to the real agegroup
-        if (placement.IsWaitlisted)
-        {
-            feeBase = 0;
-            feeProcessing = 0;
-            modifiers = new ResolvedModifiers(); // zero discount/late fee
-        }
-
-        // Create team registration
+        // Create team registration. Fee fields start at zero; non-waitlisted teams get
+        // the full Team → Agegroup → Job cascade (including modifiers + net-base processing
+        // fee) applied by ApplyNewTeamFeesAsync below. Waitlisted teams stay at zero until
+        // promoted to a real agegroup.
         var team = new Domain.Entities.Teams
         {
             TeamId = Guid.NewGuid(),
@@ -727,25 +697,38 @@ public class TeamRegistrationService : ITeamRegistrationService
             TeamName = teamName,
             LevelOfPlay = levelOfPlay,
             ClubTeamId = clubTeamId,
-            ClubrepRegistrationid = clubRepRegistration.RegistrationId,  // Track which club rep registered this team
-            FeeBase = feeBase,
-            FeeProcessing = feeProcessing,
-            FeeDiscount = modifiers.TotalDiscount,
-            FeeLatefee = modifiers.TotalLateFee,
+            ClubrepRegistrationid = clubRepRegistration.RegistrationId,
+            FeeBase = 0,
+            FeeProcessing = 0,
+            FeeDiscount = 0,
+            FeeLatefee = 0,
             FeeDonation = 0,
-            FeeTotal = feeBase + feeProcessing - modifiers.TotalDiscount + modifiers.TotalLateFee,
-            OwedTotal = feeBase + feeProcessing - modifiers.TotalDiscount + modifiers.TotalLateFee,
+            FeeTotal = 0,
+            OwedTotal = 0,
             PaidTotal = 0,
             Active = true,
             Createdate = DateTime.UtcNow,
             Modified = DateTime.UtcNow,
-            LebUserId = userId  // CRITICAL: Set audit field
+            LebUserId = userId
         };
         _teams.Add(team);
+
+        if (!placement.IsWaitlisted)
+        {
+            var feeCtx = new TeamFeeApplicationContext
+            {
+                IsFullPaymentRequired = jobSettings.BTeamsFullPaymentRequired ?? false,
+                AddProcessingFees = jobSettings.BAddProcessingFees ?? false,
+                ApplyProcessingFeesToDeposit = jobSettings.BApplyProcessingFeesToTeamDeposit ?? false,
+                ProcessingFeePercent = processingRate
+            };
+            await _feeService.ApplyNewTeamFeesAsync(team, jobId, placement.AgegroupId, feeCtx);
+        }
+
         await _teams.SaveChangesAsync();
 
         _logger.LogInformation("Team registered successfully. TeamId: {TeamId}, TeamName: {TeamName}, ClubTeamId: {ClubTeamId}, FeeBase: {FeeBase}, FeeProcessing: {FeeProcessing}",
-            team.TeamId, teamName, clubTeamId, feeBase, feeProcessing);
+            team.TeamId, teamName, clubTeamId, team.FeeBase, team.FeeProcessing);
 
         return new RegisterTeamResponse
         {

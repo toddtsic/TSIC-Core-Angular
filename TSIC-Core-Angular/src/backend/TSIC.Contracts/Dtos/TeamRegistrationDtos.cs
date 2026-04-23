@@ -146,6 +146,8 @@ public sealed record RegisteredTeamDto
     public required bool BHasBeenScheduled { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
+    public required decimal FeeDiscount { get; init; }
+    public required decimal FeeLatefee { get; init; }
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }

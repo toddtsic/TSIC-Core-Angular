@@ -75,9 +75,13 @@ public class TeamRepository : ITeamRepository
                 LevelOfPlay = tr.Team.LevelOfPlay,
                 FeeBase = tr.Team.FeeBase ?? 0,
                 FeeProcessing = tr.Team.FeeProcessing ?? 0,
-                FeeTotal = (tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0),
+                FeeDiscount = tr.Team.FeeDiscount ?? 0,
+                FeeLatefee = tr.Team.FeeLatefee ?? 0,
+                // Use stored totals — RecalcTotals keeps them in sync on every fee mutation.
+                // Rebuilding the formula here would silently diverge when Discount/LateFee are non-zero.
+                FeeTotal = tr.Team.FeeTotal ?? 0,
                 PaidTotal = tr.Team.PaidTotal ?? 0,
-                OwedTotal = ((tr.Team.FeeBase ?? 0) + (tr.Team.FeeProcessing ?? 0)) - (tr.Team.PaidTotal ?? 0),
+                OwedTotal = tr.Team.OwedTotal ?? 0,
                 // DepositDue: RosterFee - PaidTotal (0 if already paid deposit)
                 DepositDue = (tr.Team.PaidTotal >= tr.Team.Agegroup.RosterFee) ? 0 : (tr.Team.Agegroup.RosterFee ?? 0) - (tr.Team.PaidTotal ?? 0),
                 // AdditionalDue: TeamFee (0 if already fully paid or if full payment required upfront)
@@ -215,6 +219,8 @@ public class TeamRepository : ITeamRepository
                 LevelOfPlay = t.LevelOfPlay,
                 FeeBase = t.FeeBase ?? 0,
                 FeeProcessing = t.FeeProcessing ?? 0,
+                FeeDiscount = t.FeeDiscount ?? 0,
+                FeeLatefee = t.FeeLatefee ?? 0,
                 FeeTotal = t.FeeTotal ?? 0,
                 PaidTotal = t.PaidTotal ?? 0,
                 OwedTotal = t.OwedTotal ?? 0,
@@ -257,9 +263,12 @@ public class TeamRepository : ITeamRepository
                           LevelOfPlay = t.LevelOfPlay,
                           FeeBase = t.FeeBase ?? 0,
                           FeeProcessing = t.FeeProcessing ?? 0,
-                          FeeTotal = (t.FeeBase ?? 0) + (t.FeeProcessing ?? 0),
+                          FeeDiscount = t.FeeDiscount ?? 0,
+                          FeeLatefee = t.FeeLatefee ?? 0,
+                          // Use stored totals — RecalcTotals keeps them in sync across every fee mutation.
+                          FeeTotal = t.FeeTotal ?? 0,
                           PaidTotal = t.PaidTotal ?? 0,
-                          OwedTotal = ((t.FeeBase ?? 0) + (t.FeeProcessing ?? 0)) - (t.PaidTotal ?? 0),
+                          OwedTotal = t.OwedTotal ?? 0,
                           DepositDue = (t.PaidTotal >= ag.RosterFee) ? 0 : (ag.RosterFee ?? 0) - (t.PaidTotal ?? 0),
                           AdditionalDue = (t.OwedTotal == 0 && (j.BTeamsFullPaymentRequired ?? false)) ? 0 : (ag.TeamFee ?? 0),
                           RegistrationTs = t.Createdate,
