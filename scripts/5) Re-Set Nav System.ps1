@@ -87,6 +87,7 @@ $rulesMobileEnabled      = '{"requiresFlags":["mobileEnabled"]}'
 $rulesTeamEligByAge      = '{"requiresFlags":["teamEligibilityByAge"]}'
 $rulesAdnArb             = '{"requiresFlags":["adnArb"]}'
 $rulesLacrosse           = '{"sports":["Lacrosse"]}'
+$rulesPlayerSite         = '{"requiresFlags":["playerSiteOnly"]}'
 
 # Section-level rules keyed by Controller name. These override any value inferred
 # from per-item aggregation and land on the L1 section parent. Use this when the
@@ -127,6 +128,7 @@ $adminManifest = @(
     (New-AdminItem 'Communications' 'megaphone' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 3 'Email Log'         'envelope-open' 'communications/email-log'         2 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 3 'Push Notification' 'bell'          'communications/push-notification' 3 1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Communications' 'megaphone' 3 'Team Links'        'link-45deg'    'communications/team-links'        4 1 1 1 $rulesPlayerSite)
 
     # -- LADT --------------------------------------------------------------
     (New-AdminItem 'LADT' 'diagram-3' 4 'Editor'          'pencil-square'    'ladt/editor'          1 1 1 1)

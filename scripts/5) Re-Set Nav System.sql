@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-22 06:38:31 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-23 06:54:25 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -129,6 +129,7 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue'
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Links', N'link-45deg', N'communications/team-links', 4, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}');
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL);
