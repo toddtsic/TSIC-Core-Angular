@@ -21,6 +21,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IFamiliesRepository _familiesRepo;
     private readonly IDeviceRepository _deviceRepo;
     private readonly IAdnApiService _adnApi;
     private readonly IArbSubscriptionRepository _arbRepo;
@@ -39,6 +40,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IRegistrationRepository registrationRepo,
         IRegistrationAccountingRepository accountingRepo,
         IJobRepository jobRepo,
+        IFamiliesRepository familiesRepo,
         IDeviceRepository deviceRepo,
         IAdnApiService adnApi,
         IArbSubscriptionRepository arbRepo,
@@ -50,6 +52,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _registrationRepo = registrationRepo;
         _accountingRepo = accountingRepo;
         _jobRepo = jobRepo;
+        _familiesRepo = familiesRepo;
         _deviceRepo = deviceRepo;
         _adnApi = adnApi;
         _arbRepo = arbRepo;
@@ -682,13 +685,34 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
             try
             {
-                // Get email
-                var regWithUser = await _registrationRepo.GetByJobAndFamilyWithUsersAsync(
-                    jobId, reg.FamilyUserId ?? "", cancellationToken: ct);
-                var thisReg = regWithUser.FirstOrDefault(r => r.RegistrationId == reg.RegistrationId);
-                var email = thisReg?.User?.Email;
+                // Resolve recipients. Player's own User.Email is OPTIONAL (child accounts often
+                // have none), so Player rows route to mom+dad from the Families row AND the
+                // player's own email when valued — distinct, case-insensitive. Other roles
+                // (ClubRep, Staff, Ref, ...) have mandatory adult emails — use User.Email only.
+                List<string> toAddresses;
+                if (reg.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(reg.FamilyUserId))
+                {
+                    var family = await _familiesRepo.GetByFamilyUserIdAsync(reg.FamilyUserId, ct);
+                    var regWithUser = await _registrationRepo.GetByJobAndFamilyWithUsersAsync(
+                        jobId, reg.FamilyUserId, cancellationToken: ct);
+                    var playerEmail = regWithUser.FirstOrDefault(r => r.RegistrationId == reg.RegistrationId)?.User?.Email;
 
-                if (string.IsNullOrWhiteSpace(email))
+                    var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (!string.IsNullOrWhiteSpace(family?.MomEmail)) set.Add(family!.MomEmail!.Trim());
+                    if (!string.IsNullOrWhiteSpace(family?.DadEmail)) set.Add(family!.DadEmail!.Trim());
+                    if (!string.IsNullOrWhiteSpace(playerEmail)) set.Add(playerEmail.Trim());
+                    toAddresses = set.ToList();
+                }
+                else
+                {
+                    var regWithUser = await _registrationRepo.GetByJobAndFamilyWithUsersAsync(
+                        jobId, reg.FamilyUserId ?? "", cancellationToken: ct);
+                    var thisReg = regWithUser.FirstOrDefault(r => r.RegistrationId == reg.RegistrationId);
+                    var userEmail = thisReg?.User?.Email;
+                    toAddresses = string.IsNullOrWhiteSpace(userEmail) ? new List<string>() : new List<string> { userEmail };
+                }
+
+                if (toAddresses.Count == 0)
                 {
                     failed++;
                     failedAddresses.Add($"(no email for RegistrationAi #{reg.RegistrationAi})");
@@ -715,12 +739,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     FromAddress = jobConfirmation?.JobName,
                     Subject = renderedSubject,
                     HtmlBody = renderedBody,
-                    ToAddresses = new List<string> { email }
+                    ToAddresses = toAddresses
                 };
 
                 var success = await _emailService.SendAsync(emailMsg, cancellationToken: ct);
                 if (success) sent++;
-                else { failed++; failedAddresses.Add(email); }
+                else { failed++; failedAddresses.AddRange(toAddresses); }
             }
             catch (Exception ex)
             {
