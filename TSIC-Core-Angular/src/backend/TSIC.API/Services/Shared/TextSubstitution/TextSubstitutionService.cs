@@ -128,12 +128,20 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, template, emailMode, inviteTargetJobPath);
         }
 
-        // Caller-supplied tokens win on collision — they are per-call context (e.g. per-recipient
-        // USLax ping data) that the engine has no other way to know about.
+        // Engine owns its token namespace; extras are strictly additive. A collision means
+        // two sources of truth exist for the same token — that is always a bug, so fail
+        // loudly rather than silently picking a winner. Callers with per-call data (e.g.
+        // USLax per-recipient ping results) supply tokens the engine does not produce.
         if (extraTokens != null)
         {
             foreach (var kvp in extraTokens)
             {
+                if (tokens.ContainsKey(kvp.Key))
+                {
+                    throw new InvalidOperationException(
+                        $"extraTokens collision: '{kvp.Key}' is already produced by TextSubstitutionService. " +
+                        $"Remove it from extras and rely on the engine, or rename if it is genuinely different data.");
+                }
                 tokens[kvp.Key] = kvp.Value;
             }
         }
