@@ -9,6 +9,13 @@ import { environment } from '@environments/environment';
 interface InviteGuardConfig {
     /** Pulse field indicating registration is open (e.g. 'playerRegistrationOpen') */
     registrationOpenKey: string;
+    /**
+     * Optional pulse field indicating at least one team is currently within its
+     * registration-availability window. Player flow sets this to
+     * 'playerTeamsAvailableForRegistration'. When present, closure on EITHER flag
+     * is treated as "not open".
+     */
+    teamsAvailableKey?: string;
     /** Pulse field indicating invite token is required (e.g. 'playerRegRequiresToken') */
     requiresTokenKey: string;
     /** API endpoint prefix for invite validation (e.g. 'player-invite') */
@@ -53,7 +60,8 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
         // existing teams, pay balances, and use any capabilities the job config still allows.
         // The wizard consults per-action pulse flags (ClubRepAllowAdd/Edit/Delete, etc.) to
         // gate UI, and the corresponding endpoints enforce those flags server-side.
-        if (!pulse[config.registrationOpenKey]) {
+        const teamsBlocked = !!config.teamsAvailableKey && !pulse[config.teamsAvailableKey];
+        if (!pulse[config.registrationOpenKey] || teamsBlocked) {
             if (auth.isAuthenticated()) {
                 return true;
             }
@@ -109,6 +117,7 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
 
 export const playerInviteGuard = createRegistrationInviteGuard({
     registrationOpenKey: 'playerRegistrationOpen',
+    teamsAvailableKey: 'playerTeamsAvailableForRegistration',
     requiresTokenKey: 'playerRegRequiresToken',
     validateEndpoint: 'player-invite',
     registrationType: 'Player',

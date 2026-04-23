@@ -118,6 +118,7 @@ public class BulletinsController : ControllerBase
             Pulse = new JobPulseDto
             {
                 PlayerRegistrationOpen = true,
+                PlayerTeamsAvailableForRegistration = true,
                 PlayerRegRequiresToken = false,
                 TeamRegistrationOpen = true,
                 TeamRegRequiresToken = false,

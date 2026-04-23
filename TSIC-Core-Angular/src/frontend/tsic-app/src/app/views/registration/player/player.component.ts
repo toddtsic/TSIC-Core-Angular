@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from './state/player-wizard-state.service';
 import { PaymentV2Service } from './state/payment-v2.service';
@@ -34,29 +35,48 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
         ConfirmationStepComponent,
     ],
     template: `
-    <app-wizard-shell
-      [steps]="steps()"
-      [currentIndex]="currentIndex()"
-      [config]="shellConfig()"
-      [canContinue]="canContinue()"
-      [showBack]="showBack()"
-      [showContinue]="showContinue()"
-      [continueLabel]="continueLabel()"
-      (back)="back()"
-      (continue)="next()"
-      (goToStep)="goToStep($event)">
-      @switch (currentStepId()) {
-        @case ('family-check') { <app-prw-family-check-step (advance)="next()" /> }
-        @case ('players') { <app-prw-player-selection-step (advance)="next()" /> }
-        @case ('eligibility') { <app-prw-eligibility-step (advance)="next()" /> }
-        @case ('teams') { <app-prw-team-selection-step (advance)="next()" /> }
-        @case ('forms') { <app-prw-player-forms-step (advance)="next()" /> }
-        @case ('waivers') { <app-prw-waivers-step (advance)="next()" /> }
-        @case ('review') { <app-prw-review-step (advance)="next()" /> }
-        @case ('payment') { <app-prw-payment-step (advance)="next()" /> }
-        @case ('confirmation') { <app-prw-confirmation-step (finished)="finish()" /> }
-      }
-    </app-wizard-shell>
+    @if (registrationClosed()) {
+      <div class="reg-closed-wrap">
+        <div class="card shadow border-0 card-rounded reg-closed-card">
+          <div class="card-body text-center py-5 px-4">
+            <i class="bi bi-calendar-x reg-closed-icon" aria-hidden="true"></i>
+            <h3 class="reg-closed-title">Player Registration Not Currently Open</h3>
+            <p class="reg-closed-body">
+              This event isn't currently accepting new player signups.
+              You can still review or complete your existing registrations
+              from the event home page.
+            </p>
+            <button type="button" class="btn btn-primary" (click)="goToJobHome()">
+              <i class="bi bi-arrow-left me-1"></i> Return to Event Home
+            </button>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <app-wizard-shell
+        [steps]="steps()"
+        [currentIndex]="currentIndex()"
+        [config]="shellConfig()"
+        [canContinue]="canContinue()"
+        [showBack]="showBack()"
+        [showContinue]="showContinue()"
+        [continueLabel]="continueLabel()"
+        (back)="back()"
+        (continue)="next()"
+        (goToStep)="goToStep($event)">
+        @switch (currentStepId()) {
+          @case ('family-check') { <app-prw-family-check-step (advance)="next()" /> }
+          @case ('players') { <app-prw-player-selection-step (advance)="next()" /> }
+          @case ('eligibility') { <app-prw-eligibility-step (advance)="next()" /> }
+          @case ('teams') { <app-prw-team-selection-step (advance)="next()" /> }
+          @case ('forms') { <app-prw-player-forms-step (advance)="next()" /> }
+          @case ('waivers') { <app-prw-waivers-step (advance)="next()" /> }
+          @case ('review') { <app-prw-review-step (advance)="next()" /> }
+          @case ('payment') { <app-prw-payment-step (advance)="next()" /> }
+          @case ('confirmation') { <app-prw-confirmation-step (finished)="finish()" /> }
+        }
+      </app-wizard-shell>
+    }
   `,
     styleUrls: ['./player.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,7 +88,25 @@ export class PlayerWizardV2Component implements OnInit {
     private readonly toast = inject(ToastService);
     private readonly teamService = inject(TeamService);
     private readonly paySvc = inject(PaymentV2Service);
+    private readonly jobPulseService = inject(JobPulseService);
     readonly state = inject(PlayerWizardStateService);
+
+    /**
+     * True when the job's pulse says player registration is effectively closed:
+     * either the admin toggle is off, or no team is currently within its
+     * registration-availability window. Null pulse (not yet loaded) is not
+     * treated as closed — we render the wizard optimistically and swap to the
+     * closed panel if the pulse later confirms closure.
+     */
+    readonly registrationClosed = computed(() => {
+        const p = this.jobPulseService.pulse();
+        if (!p) return false;
+        return !p.playerRegistrationOpen || !p.playerTeamsAvailableForRegistration;
+    });
+
+    goToJobHome(): void {
+        this.router.navigate([`/${this.resolveJobPath()}`]);
+    }
 
     private readonly _currentIndex = signal(0);
     readonly currentIndex = this._currentIndex.asReadonly();

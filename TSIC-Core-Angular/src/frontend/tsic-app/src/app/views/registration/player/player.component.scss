@@ -3,3 +3,34 @@
  * All heavy lifting done by global wizard styles.
  * This file only adds shell-specific overrides if needed.
  */
+
+.reg-closed-wrap {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-10) var(--space-4);
+}
+
+.reg-closed-card {
+    max-width: 560px;
+    width: 100%;
+    background: var(--brand-surface);
+}
+
+.reg-closed-icon {
+    font-size: 3rem;
+    color: var(--bs-warning);
+    line-height: 1;
+}
+
+.reg-closed-title {
+    margin-top: var(--space-3);
+    margin-bottom: var(--space-2);
+    color: var(--brand-text);
+    font-weight: var(--font-weight-semibold);
+}
+
+.reg-closed-body {
+    color: var(--brand-text-muted);
+    margin-bottom: var(--space-4);
+    line-height: var(--line-height-relaxed);
+}

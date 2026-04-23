@@ -213,6 +213,15 @@ export class EligibilityStepComponent {
             )].sort();
             return clubs;
         }
+        if (ct === 'BYAGEGROUP') {
+            const teams = this.teamService.allTeams();
+            if (!teams) return [];
+            return [...new Set(
+                teams
+                    .filter(t => t.agegroupAllowsSelfRostering === true && !!t.agegroupName)
+                    .map(t => t.agegroupName!.trim())
+            )].sort();
+        }
         const schemas = this.state.jobCtx.profileFieldSchemas();
         const eligField = this.state.eligibility.determineEligibilityField(schemas);
         if (!eligField) return [];

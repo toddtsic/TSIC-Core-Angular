@@ -9,6 +9,16 @@ namespace TSIC.Contracts.Dtos;
 public record JobPulseDto
 {
     public required bool PlayerRegistrationOpen { get; init; }
+
+    /// <summary>
+    /// Computed: true when the job has at least one team currently within its
+    /// registration-availability window (Effectiveasofdate/Expireondate) AND
+    /// allowing self-rostering (team- or agegroup-level). Independent of the
+    /// admin toggle PlayerRegistrationOpen — both must be true for a family
+    /// to actually register a player.
+    /// </summary>
+    public required bool PlayerTeamsAvailableForRegistration { get; init; }
+
     public required bool PlayerRegRequiresToken { get; init; }
     public required bool TeamRegistrationOpen { get; init; }
     public required bool TeamRegRequiresToken { get; init; }
