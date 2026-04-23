@@ -17,63 +17,64 @@ import type {
 const MEMBERSHIP_ROLE = { Player: 0, Coach: 1 } as const satisfies Record<'Player' | 'Coach', UsLaxMembershipRole>;
 
 /**
- * Default email subject/body ported verbatim from legacy USLaxMembershipController.Index (BRunAll=true).
- * Tokens (!PLAYER, !PLAYERDOB, !USLAXMEMBERID, !USLAXMEMBERSTATUSSTATUS, !USLAXAGEVERIFIED,
- * !USLAXEXPIRY, !JOBNAME, !JOBLINK) are substituted server-side per recipient.
+ * Default email subject/body for the USLax reconciliation page. Tokens are substituted
+ * server-side per recipient using their reconcile row data. !NAME is the canonical
+ * person token; !PLAYER still works as a silent alias so older saved bodies don't break.
+ *
+ * Copy deliberately REPORTS status rather than asserting a problem — this lets the
+ * same body make sense for any recipient status. Guidance sections are headed by
+ * "If your status is X" so recipients self-route. The server also skips sending to
+ * members already in good standing, so even if the admin force-selects them they
+ * don't get a message (see UsLaxMembershipService.NeedsAction).
  */
-const DEFAULT_SUBJECT = '!JOBNAME: USA Lacrosse Membership Status';
+const DEFAULT_SUBJECT = '!JOBNAME: Your USA Lacrosse Membership Status';
 
-const DEFAULT_PLAYER_BODY = `<p>According to our records, the USA Lacrosse Membership for !PLAYER does not currently meet the validation requirements for !JOBNAME.</p>
-<p>USA Lacrosse Membership Details for !PLAYER (!PLAYERDOB):</p>
+const USLAX_DETAILS_BLOCK = `<p>The USA Lacrosse Membership on file for your !JOBNAME registration:</p>
 <ul>
+  <li>Name: !NAME</li>
+  <li>Date of Birth: !PLAYERDOB</li>
   <li>Membership ID: !USLAXMEMBERID</li>
   <li>Membership Status: !USLAXMEMBERSTATUSSTATUS</li>
   <li>Age Verification Status: !USLAXAGEVERIFIED</li>
-  <li>Membership Expiration Date: !USLAXEXPIRY</li>
-</ul>
-<p>If your membership is <strong>PENDING</strong> or <strong>SUSPENDED</strong>:</p>
-<p>This is most likely due to USA Lacrosse's Age Verification requirements as of 7/1/25. For more information, go to <a href="https://www.usalacrosse.com/age-verification">https://www.usalacrosse.com/age-verification</a>.</p>
+  <li>Expiration Date: !USLAXEXPIRY</li>
+</ul>`;
+
+const USLAX_COMMON_GUIDANCE = `<p>Your membership must be <strong>Active</strong> and valid through the dates required for !JOBNAME. If the information above is not correct, or your status is anything other than Active, follow the guidance below for your situation.</p>
+<hr>
+<p><strong>If your status is PENDING or SUSPENDED</strong></p>
+<p>This is usually related to USA Lacrosse's Age Verification requirements. See <a href="https://www.usalacrosse.com/age-verification">https://www.usalacrosse.com/age-verification</a> for details.</p>
 <ul>
-  <li>If your Age Verification status is 'Not Initiated' please follow the steps in the link above.</li>
-  <li>Once documentation has been submitted, your Age Verification status will be 'Pending Review' until it is verified by USA Lacrosse.</li>
-  <li>If your Age Verification status indicates your uploaded document Failed Verification, please resubmit documentation.</li>
-  <li>Once documentation is submitted, please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882 with any questions about timelines for verification.</li>
+  <li>If Age Verification shows <em>Not Initiated</em>, follow the steps at the link above.</li>
+  <li>If Age Verification shows <em>Pending Review</em>, USA Lacrosse is reviewing your documentation.</li>
+  <li>If Age Verification shows <em>Failed Verification</em>, please resubmit documentation.</li>
+  <li>Questions: <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or 410-235-6882.</li>
 </ul>
-<p>If your membership is <strong>ACTIVE</strong>:</p>
-<p>The DOB and Last Name spelling on your TeamSportsInfo.com registration must match what USA Lacrosse has on file, and the membership type must be for a Player. To review your registration and correct any discrepancies:</p>
+<p><strong>If your status is INACTIVE or your membership is expired</strong></p>
+<ul>
+  <li>Go to <a href="https://account.usalacrosse.com/login">https://account.usalacrosse.com/login</a> to renew or update your membership.</li>
+</ul>`;
+
+const DEFAULT_PLAYER_BODY = `<p>Hello !NAME,</p>
+${USLAX_DETAILS_BLOCK}
+${USLAX_COMMON_GUIDANCE}
+<p><strong>If your status is ACTIVE but the Name or DOB above is wrong</strong></p>
+<p>The DOB and Last Name on your TeamSportsInfo.com registration must match what USA Lacrosse has on file, and your USA Lacrosse membership must include a <em>Player</em> involvement.</p>
 <ol>
   <li>Login to !JOBLINK</li>
-  <li>Select the role !JOBNAME for !PLAYER</li>
-  <li>Select 'Player Registration' from the 'Player' dropdown menu at the top right</li>
-  <li>Click 'Next' to review/edit Player Last Name, DOB, and/or USA Lacrosse number on the Registration page</li>
-  <li>Click 'Submit Registration(s)' at the bottom of the page to submit any changes</li>
+  <li>Select your !NAME registration for !JOBNAME</li>
+  <li>Select 'Player Registration' from the 'Player' dropdown at the top right</li>
+  <li>Click 'Next' to review/edit Last Name, DOB, and USA Lacrosse number</li>
+  <li>Click 'Submit Registration(s)' to save changes</li>
 </ol>
-<p>If the data on the USA Lacrosse membership is incorrect, please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882.</p>
-<p>Note: the membership must be valid through the dates required for !JOBNAME. If your membership does not meet these requirements, go to <a href="https://account.usalacrosse.com/login">https://account.usalacrosse.com/login</a> to renew and/or update your membership.</p>
-<p>If your membership is <strong>INACTIVE</strong>:</p>
-<ul>
-  <li>Go to <a href="https://account.usalacrosse.com/login">https://account.usalacrosse.com/login</a> to renew and/or update your membership.</li>
-</ul>
-<p>For assistance, please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882.</p>
+<p>If the data on the USA Lacrosse membership itself is incorrect, contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882.</p>
 <p>Thank you!</p>`;
 
-const DEFAULT_COACH_BODY = `<p>According to our records, the USA Lacrosse Membership for !PLAYER does not currently meet the coach/staff validation requirements for !JOBNAME.</p>
-<p>USA Lacrosse Membership Details for !PLAYER (!PLAYERDOB):</p>
-<ul>
-  <li>Membership ID: !USLAXMEMBERID</li>
-  <li>Membership Status: !USLAXMEMBERSTATUSSTATUS</li>
-  <li>Age Verification Status: !USLAXAGEVERIFIED</li>
-  <li>Membership Expiration Date: !USLAXEXPIRY</li>
-</ul>
-<p>If your membership is <strong>PENDING</strong> or <strong>SUSPENDED</strong>:</p>
-<p>This is most likely due to USA Lacrosse's Age Verification / background-check requirements. For more information, go to <a href="https://www.usalacrosse.com/age-verification">https://www.usalacrosse.com/age-verification</a>.</p>
-<p>If your membership is <strong>ACTIVE</strong>:</p>
-<p>Please confirm the DOB and Last Name on your TeamSportsInfo.com registration match what USA Lacrosse has on file. Login to !JOBLINK, open your registration, and correct any discrepancies.</p>
-<p>If your membership is <strong>INACTIVE</strong>:</p>
-<ul>
-  <li>Go to <a href="https://account.usalacrosse.com/login">https://account.usalacrosse.com/login</a> to renew and/or update your membership.</li>
-</ul>
-<p>For assistance, please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882.</p>
+const DEFAULT_COACH_BODY = `<p>Hello !NAME,</p>
+${USLAX_DETAILS_BLOCK}
+${USLAX_COMMON_GUIDANCE}
+<p><strong>If your status is ACTIVE but the Name or DOB above is wrong</strong></p>
+<p>The DOB and Last Name on your TeamSportsInfo.com registration must match what USA Lacrosse has on file. Login to !JOBLINK, open your !JOBNAME registration, and correct any discrepancies on the Registration form.</p>
+<p>If the data on the USA Lacrosse membership itself is incorrect, contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call 410-235-6882.</p>
 <p>Thank you!</p>`;
 
 @Component({
@@ -130,12 +131,26 @@ export class UsLaxMembershipComponent implements OnInit {
 	readonly gridToolbar: ToolbarItems[] = ['ExcelExport'];
 	readonly selectionSettings = { type: 'Multiple' as const, checkboxOnly: true };
 
+	/** Rows whose USLax state warrants action — mirrors server-side NeedsAction. */
+	readonly rowsNeedingAction = computed(() =>
+		this.rows().filter(r => this.needsAction(r))
+	);
+
 	readonly recipientsWithEmail = computed(() => this.selectedRows().filter(r => !!r.email));
 	readonly selectedMissingEmail = computed(() => this.selectedRows().length - this.recipientsWithEmail().length);
+	/** Selected rows that the server will skip because they're already in good standing. */
+	readonly selectedHealthy = computed(() =>
+		this.selectedRows().filter(r => !this.needsAction(r))
+	);
+	/** Selected rows that actually will get an email (selected AND has email AND needs action). */
+	readonly effectiveRecipientCount = computed(() =>
+		this.recipientsWithEmail().filter(r => this.needsAction(r)).length
+	);
 
 	readonly emailDisabledReason = computed(() => {
 		if (this.selectedRows().length === 0) return 'Select one or more rows to email.';
 		if (this.recipientsWithEmail().length === 0) return 'Selected rows have no email address on file.';
+		if (this.effectiveRecipientCount() === 0) return 'All selected rows are already in good standing — nothing to send.';
 		return null;
 	});
 
@@ -252,17 +267,24 @@ export class UsLaxMembershipComponent implements OnInit {
 
 	send(): void {
 		if (!this.canSendEmail()) return;
-		const recipients: UsLaxEmailRecipientDto[] = this.recipientsWithEmail().map(r => ({
-			registrationId: r.registrationId,
-			firstName: r.firstName,
-			lastName: r.lastName,
-			email: r.email,
-			dob: null,
-			membershipId: r.membershipId,
-			memStatus: r.memStatus ?? null,
-			ageVerified: r.ageVerified ?? null,
-			expiryDate: r.newExpiryDate ?? r.previousExpiryDate ?? null
-		}));
+		const recipients: UsLaxEmailRecipientDto[] = this.recipientsWithEmail()
+			.filter(r => this.needsAction(r))
+			.map(r => ({
+				registrationId: r.registrationId,
+				firstName: r.firstName,
+				lastName: r.lastName,
+				email: r.email,
+				dob: null,
+				membershipId: r.membershipId,
+				memStatus: r.memStatus ?? null,
+				ageVerified: r.ageVerified ?? null,
+				expiryDate: r.newExpiryDate ?? r.previousExpiryDate ?? null
+			}));
+
+		if (recipients.length === 0) {
+			this.toast.show('No recipients need action — all selected rows are in good standing.', 'warning', 4000);
+			return;
+		}
 
 		const confirmMsg = `Send this email to ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}?`;
 		if (!confirm(confirmMsg)) return;
@@ -275,10 +297,16 @@ export class UsLaxMembershipComponent implements OnInit {
 		}).subscribe({
 			next: response => {
 				this.isSending.set(false);
-				const missingNote = response.missingEmail > 0 ? `, ${response.missingEmail} had no email` : '';
-				const failedNote = response.failed > 0 ? `, ${response.failed} failed` : '';
-				const msg = `Sent ${response.sent} of ${recipients.length}${failedNote}${missingNote}.`;
-				this.toast.show(msg, response.failed > 0 ? 'warning' : 'success', 5000);
+				const parts: string[] = [`Sent ${response.sent} of ${recipients.length}`];
+				if (response.failed > 0) parts.push(`${response.failed} failed`);
+				if (response.missingEmail > 0) parts.push(`${response.missingEmail} had no email`);
+				if (response.skippedHealthy > 0) {
+					parts.push(`${response.skippedHealthy} skipped (already in good standing)`);
+				}
+				const msg = parts.join(', ') + '.';
+				const level: 'success' | 'warning' =
+					response.failed > 0 || response.skippedHealthy > 0 ? 'warning' : 'success';
+				this.toast.show(msg, level, 6000);
 				this.showCompose.set(false);
 				this.gridRef?.clearSelection();
 				this.selectedRows.set([]);
@@ -287,6 +315,48 @@ export class UsLaxMembershipComponent implements OnInit {
 				this.isSending.set(false);
 				this.toast.show(`Email send failed: ${err?.error?.message || 'Unknown error'}`, 'danger', 5000);
 			}
+		});
+	}
+
+	// Needs-action evaluator ----------------------------------------------------------
+
+	/**
+	 * Mirrors the server-side `NeedsAction` check. A row warrants an email when:
+	 *   - the USLax ping errored, OR
+	 *   - status is anything other than Active, OR
+	 *   - no expiry on file, OR
+	 *   - expiry is before the job's USLax-valid-through cutoff (when set).
+	 * Keep this logic in sync with `UsLaxMembershipService.NeedsAction` on the server.
+	 */
+	needsAction(row: UsLaxReconciliationRowDto): boolean {
+		if (row.statusCode !== 200) return true;
+		const status = (row.memStatus ?? '').trim();
+		if (status === '' || status.toLowerCase() !== 'active') return true;
+		const expiryRaw = row.newExpiryDate ?? row.previousExpiryDate;
+		if (!expiryRaw) return true;
+		const cutoff = this.jobValidThrough();
+		if (cutoff) {
+			const expiryDate = new Date(expiryRaw);
+			if (!isNaN(expiryDate.getTime()) && expiryDate < cutoff) return true;
+		}
+		return false;
+	}
+
+	// Quick-select ---------------------------------------------------------------------
+
+	selectRowsNeedingAction(): void {
+		const grid = this.gridRef;
+		if (!grid) return;
+		const view = (grid.getCurrentViewRecords() as UsLaxReconciliationRowDto[]) ?? [];
+		const indices = view
+			.map((row, i) => this.needsAction(row) ? i : -1)
+			.filter(i => i >= 0);
+		grid.clearSelection();
+		if (indices.length > 0) grid.selectRows(indices);
+		// Sync our mirror after selection settles.
+		Promise.resolve().then(() => {
+			const selected = (grid.getSelectedRecords() as UsLaxReconciliationRowDto[]) ?? [];
+			this.selectedRows.set([...selected]);
 		});
 	}
 
@@ -350,6 +420,9 @@ export class UsLaxMembershipComponent implements OnInit {
 				args.value = view.findIndex(r => r.registrationId === d.registrationId) + 1;
 				break;
 			}
+			case 'Action':
+				args.value = this.needsAction(d) ? 'Needs action' : 'OK';
+				break;
 			case 'Name':
 				args.value = `${d.lastName}, ${d.firstName}`;
 				break;

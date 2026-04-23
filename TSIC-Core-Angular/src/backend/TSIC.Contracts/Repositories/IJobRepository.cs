@@ -305,6 +305,11 @@ public record JobConfirmationEmailInfo
     public required string JobPath { get; init; }
     public bool? AdnArb { get; init; }
     public string? PlayerRegConfirmationEmail { get; init; }
+    /// <summary>
+    /// Date the USA Lacrosse membership must be valid through for this job, if any.
+    /// Used by the USLax reconciliation tool to decide whether a given row needs action.
+    /// </summary>
+    public DateTime? UsLaxNumberValidThroughDate { get; init; }
 }
 
 public record AdultConfirmationInfo

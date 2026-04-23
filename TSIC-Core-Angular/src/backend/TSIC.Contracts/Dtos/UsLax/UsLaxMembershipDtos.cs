@@ -96,11 +96,18 @@ public record UsLaxEmailRequest
     public required List<UsLaxEmailRecipientDto> Recipients { get; init; }
 }
 
-/// <summary>Inline email send response — sent/failed rollup.</summary>
+/// <summary>Inline email send response — sent/skipped/failed rollup.</summary>
 public record UsLaxEmailResponse
 {
     public required int Sent { get; init; }
     public required int Failed { get; init; }
     public required int MissingEmail { get; init; }
+    /// <summary>
+    /// Recipients whose membership was evaluated as already in good standing for the job
+    /// (Active + expiry past the job's valid-through date) and were therefore not emailed.
+    /// Prevents false-alarm messages to valid members even if an admin selected them.
+    /// </summary>
+    public required int SkippedHealthy { get; init; }
     public required IReadOnlyList<string> FailedAddresses { get; init; }
+    public required IReadOnlyList<string> SkippedNames { get; init; }
 }

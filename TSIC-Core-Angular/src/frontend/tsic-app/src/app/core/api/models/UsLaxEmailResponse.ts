@@ -6,6 +6,8 @@ export type UsLaxEmailResponse = {
     sent: number;
     failed: number;
     missingEmail: number;
+    skippedHealthy: number;
     failedAddresses: Array<string>;
+    skippedNames: Array<string>;
 };
 

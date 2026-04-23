@@ -184,7 +184,7 @@ public class JobRepository : IJobRepository
         var result = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail })
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail, j.UslaxNumberValidThroughDate })
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
@@ -194,7 +194,8 @@ public class JobRepository : IJobRepository
                 JobName = result.JobName,
                 JobPath = result.JobPath!,
                 AdnArb = result.AdnArb,
-                PlayerRegConfirmationEmail = result.PlayerRegConfirmationEmail
+                PlayerRegConfirmationEmail = result.PlayerRegConfirmationEmail,
+                UsLaxNumberValidThroughDate = result.UslaxNumberValidThroughDate
             }
             : null;
     }

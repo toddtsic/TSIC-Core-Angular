@@ -87,13 +87,24 @@
 }
 
 @if (rows().length > 0) {
-    <div class="d-flex align-items-center gap-2 mb-2">
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm"
+                [disabled]="rowsNeedingAction().length === 0 || showCompose()"
+                (click)="selectRowsNeedingAction()"
+                title="Check the rows flagged 'Needs action'">
+            <i class="bi bi-check2-square me-1"></i>Select rows needing action ({{ rowsNeedingAction().length }})
+        </button>
         <button class="btn btn-outline-primary btn-sm"
-                [disabled]="recipientsWithEmail().length === 0 || showCompose()"
+                [disabled]="effectiveRecipientCount() === 0 || showCompose()"
                 (click)="openCompose()"
                 [title]="emailDisabledReason() ?? 'Compose email for selected recipients'">
-            <i class="bi bi-envelope me-1"></i>Email selected ({{ recipientsWithEmail().length }})
+            <i class="bi bi-envelope me-1"></i>Email selected ({{ effectiveRecipientCount() }})
         </button>
+        @if (selectedHealthy().length > 0 && selectedRows().length > 0) {
+            <span class="text-body-secondary small">
+                {{ selectedHealthy().length }} selected in good standing (will be skipped)
+            </span>
+        }
         @if (selectedMissingEmail() > 0) {
             <span class="text-body-secondary small">
                 {{ selectedMissingEmail() }} selected without email on file
@@ -149,7 +160,7 @@
                           [ngModel]="body()" (ngModelChange)="body.set($event)"
                           [disabled]="isSending()"></textarea>
                 <small class="text-body-secondary">
-                    Tokens substituted per recipient: <code>!PLAYER</code>, <code>!PLAYERDOB</code>,
+                    Tokens substituted per recipient: <code>!NAME</code>, <code>!PLAYERDOB</code>,
                     <code>!USLAXMEMBERID</code>, <code>!USLAXMEMBERSTATUSSTATUS</code>,
                     <code>!USLAXAGEVERIFIED</code>, <code>!USLAXEXPIRY</code>, <code>!JOBNAME</code>, <code>!JOBLINK</code>.
                 </small>
@@ -202,6 +213,19 @@
             <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"
                       [customAttributes]="{ class: 'row-number-cell' }"></e-column>
+            <e-column headerText="Action" width="110" textAlign="Center" [allowSorting]="false">
+                <ng-template #template let-data>
+                    @if (needsAction(data)) {
+                        <span class="badge bg-warning-subtle text-warning-emphasis" title="Status, expiry, or job-cutoff check warrants follow-up">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Needs action
+                        </span>
+                    } @else {
+                        <span class="badge bg-success-subtle text-success-emphasis" title="Active membership, expiry past the job's valid-through date">
+                            <i class="bi bi-check2 me-1"></i>OK
+                        </span>
+                    }
+                </ng-template>
+            </e-column>
             <e-column field="lastName" headerText="Name" minWidth="160">
                 <ng-template #template let-data>
                     <span class="fw-semibold" [ngClass]="rowClass(data)">

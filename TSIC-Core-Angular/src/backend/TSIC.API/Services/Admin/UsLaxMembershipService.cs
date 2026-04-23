@@ -148,17 +148,31 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId, ct);
         var jobName = jobInfo?.JobName ?? string.Empty;
         var jobPath = jobInfo?.JobPath ?? string.Empty;
+        var jobValidThrough = jobInfo?.UsLaxNumberValidThroughDate;
         var jobLinkHtml = BuildJobLinkHtml(jobPath, jobName);
 
         var sent = 0;
         var failed = 0;
         var missingEmail = 0;
+        var skippedHealthy = 0;
         var failedAddresses = new List<string>();
+        var skippedNames = new List<string>();
         var sentAddresses = new List<string>();
 
         foreach (var r in request.Recipients)
         {
             ct.ThrowIfCancellationRequested();
+
+            // Guard: never send the "action required" style email to someone whose
+            // membership already meets the job's requirements. Client UI should keep
+            // these unselected, but this is the authoritative check — an admin could
+            // still force-select them in the grid.
+            if (!NeedsAction(r, jobValidThrough))
+            {
+                skippedHealthy++;
+                skippedNames.Add($"{r.FirstName} {r.LastName}".Trim());
+                continue;
+            }
 
             if (string.IsNullOrWhiteSpace(r.Email))
             {
@@ -216,8 +230,29 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             Sent = sent,
             Failed = failed,
             MissingEmail = missingEmail,
-            FailedAddresses = failedAddresses
+            SkippedHealthy = skippedHealthy,
+            FailedAddresses = failedAddresses,
+            SkippedNames = skippedNames
         };
+    }
+
+    /// <summary>
+    /// A recipient needs action (and therefore warrants the email) when:
+    ///   - USLax did not return a membership status (no ping / API error), OR
+    ///   - status is anything other than "Active" (PENDING / SUSPENDED / INACTIVE / …), OR
+    ///   - no expiry date on file, OR
+    ///   - expiry is before the job's USLax-valid-through date (when the job has one).
+    /// When the job has no valid-through date configured we skip the date comparison —
+    /// there's no cutoff to fail against.
+    /// </summary>
+    private static bool NeedsAction(UsLaxEmailRecipientDto r, DateTime? jobValidThrough)
+    {
+        var status = r.MemStatus?.Trim();
+        if (string.IsNullOrEmpty(status)) return true;
+        if (!string.Equals(status, "Active", StringComparison.OrdinalIgnoreCase)) return true;
+        if (r.ExpiryDate is null) return true;
+        if (jobValidThrough.HasValue && r.ExpiryDate.Value.Date < jobValidThrough.Value.Date) return true;
+        return false;
     }
 
     /// <summary>
@@ -234,16 +269,22 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             ? string.Empty
             : new string(r.MembershipId.Where(char.IsDigit).ToArray()).PadLeft(12, '0');
 
+        // Order matters: resolve the more-specific tokens before shorter prefixes.
+        // e.g. !PLAYERDOB before !PLAYER, !USLAXMEMBERSTATUSSTATUS before !USLAXMEMBERSTATUS.
         return template
-            .Replace("!PLAYER", person, StringComparison.Ordinal)
             .Replace("!PLAYERDOB", dob, StringComparison.Ordinal)
-            .Replace("!USLAXMEMBERID", paddedId, StringComparison.Ordinal)
             .Replace("!USLAXMEMBERSTATUSSTATUS", r.MemStatus ?? string.Empty, StringComparison.Ordinal)
             .Replace("!USLAXMEMBERSTATUS", r.MemStatus ?? string.Empty, StringComparison.Ordinal)
+            .Replace("!USLAXMEMBERID", paddedId, StringComparison.Ordinal)
             .Replace("!USLAXAGEVERIFIED", r.AgeVerified ?? string.Empty, StringComparison.Ordinal)
             .Replace("!USLAXEXPIRY", expiry, StringComparison.Ordinal)
             .Replace("!JOBLINK", jobLinkHtml, StringComparison.Ordinal)
-            .Replace("!JOBNAME", jobName, StringComparison.Ordinal);
+            .Replace("!JOBNAME", jobName, StringComparison.Ordinal)
+            // !NAME is the canonical person token. !PLAYER is retained as a silent
+            // alias so legacy / already-saved bodies keep working — substituted LAST
+            // so !PLAYERDOB above is not accidentally corrupted by a !PLAYER pass.
+            .Replace("!NAME", person, StringComparison.Ordinal)
+            .Replace("!PLAYER", person, StringComparison.Ordinal);
     }
 
     private static string BuildJobLinkHtml(string jobPath, string jobName)
