@@ -16,28 +16,29 @@
             (ngModelChange)="regFormFrom.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="field-label">CC Addresses</label>
+          <label class="field-label">CC Email List</label>
+          <span class="field-help">(semi-colon between emails, no spaces)</span>
           <input type="text" class="field-input"
             [ngModel]="regFormCcs()"
             (ngModelChange)="regFormCcs.set($event); onFieldChange()" />
-          <span class="field-help">semi-colon delimited, no spaces</span>
         </div>
         <div class="col-md-6">
-          <label class="field-label">BCC Addresses</label>
+          <label class="field-label">BCC Email List</label>
+          <span class="field-help">(semi-colon between emails, no spaces)</span>
           <input type="text" class="field-input"
             [ngModel]="regFormBccs()"
             (ngModelChange)="regFormBccs.set($event); onFieldChange()" />
-          <span class="field-help">semi-colon delimited, no spaces</span>
         </div>
         <div class="col-md-6">
           <label class="field-label">Reschedule Email List</label>
+          <span class="field-help">(semi-colon between emails, no spaces)</span>
           <input type="text" class="field-input"
             [ngModel]="rescheduleemaillist()"
             (ngModelChange)="rescheduleemaillist.set($event); onFieldChange()" />
-          <span class="field-help">semi-colon delimited, no spaces</span>
         </div>
         <div class="col-md-6">
           <label class="field-label">Always Copy Email List</label>
+          <span class="field-help">(semi-colon between emails, no spaces)</span>
           <input type="text" class="field-input"
             [ngModel]="alwayscopyemaillist()"
             (ngModelChange)="alwayscopyemaillist.set($event); onFieldChange()" />
@@ -47,7 +48,7 @@
             <input type="checkbox"
               [ngModel]="bDisallowCcplayerConfirmations()"
               (ngModelChange)="bDisallowCcplayerConfirmations.set($event); onFieldChange()" />
-            <span class="field-label">Disallow CC Player Confirmations</span>
+            <span class="field-label">TURN OFF Player &amp; Staff Confirmations (CC &amp; BCC) for tournaments</span>
           </label>
         </div>
       </div>

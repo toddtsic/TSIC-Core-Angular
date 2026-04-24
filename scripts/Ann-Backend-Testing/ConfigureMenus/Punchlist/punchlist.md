@@ -38,6 +38,448 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-051: Accessibility — `<label class="field-label">` elements across Configure not linked to their inputs (WCAG / S6853)
+- **Area**: Accessibility / shared `field-*` form classes across all Configure tabs
+- **What I did**: Surfaced during PL-050 edits on the Comms tab — IDE reported 6 × `Web:S6853` warnings ("A form label must be associated with a control and have accessible text") on every `<label class="field-label">` on that file
+- **What I expected**: Every label linked to its input either via `<label for="x">` + `<input id="x">` or by wrapping the input inside the label
+- **What happened**: Pre-existing issue across the Configure surface — the shared `field-label` pattern renders labels as free-standing text with no association to the nearby input. Screen readers can't announce the label when the input gains focus; clicking the label doesn't focus the input.
+- **Severity**: Accessibility (WCAG 1.3.1 / 3.3.2) / pre-existing
+- **Status**: Open
+- **Note**: Not caused by PL-050's edits — PL-050 just shifted line numbers so the linter re-reported them. The pattern affects six labels on the Comms tab alone and almost certainly every other tab in Job Configuration (General, Player, Teams, Coaches, Payment, Scheduling, Branding, Mobile & Store) plus any other `.field-label` usage across the app.
+  - **Fix shape** — for each label/input pair:
+    1. Add `id="<fieldName>"` to the input (most don't have one today).
+    2. Add `for="<fieldName>"` to the label.
+    3. Input IDs need to be unique per page; the linkedSignal names (`regFormCcs`, `displayName`, etc.) are already unique within a tab and work as ID candidates.
+  - **Scope options**:
+    - **A. Sweep all Configure tabs in one pass** — one PR, one pattern, one shared test. Largest PR but guarantees consistency.
+    - **B. Sweep just Job Configuration (10 tabs)** — narrower but misses Administrators, Customers, Discount Codes, Age Ranges, Customer Groups.
+    - **C. Sweep all uses of `field-label` in the app** — safest for accessibility-wide compliance. Largest change set but the `field-*` system is the right abstraction to update once.
+    - **D. Introduce a shared `<tsic-form-field>` component** that renders a label+input with the `for`/`id` link automatic. Biggest refactor but every future form gets accessibility for free; future-proof.
+    - **E. File-by-file as they're touched** — no sweep; accessibility improves opportunistically. Risk: gaps persist for untouched files.
+  - **Recommendation**: C or D — both address the whole problem, but D is the more durable long-term answer. Decision for Todd based on how much refactor appetite there is.
+  - **Todd, FYI**: Ann opted for a tracked PL rather than a silent patch on the Comms tab so the decision is explicit and consistent across the codebase.
+
+### PL-050: Job Settings / Communications — consolidate field-help tip beneath all four email-list fields; reword
+- **Area**: Menu Display / Job Settings → Communications tab
+- **What I did**: Reviewed the "semi-colon delimited, no spaces" tip repeated beneath three of the four email-list fields
+- **What I expected**: One tip after all four fields with clearer wording; in parentheses
+- **What happened**: CC, BCC, and Reschedule each carried a separate tip ("semi-colon delimited, no spaces"); Always Copy Email List had no tip at all
+- **Severity**: UX
+- **Status**: Fixed
+- **Note**: Applied on 2026-04-24 (revised after initial consolidation):
+  - Removed the three per-field `field-help` tips with old wording from CC, BCC, and Reschedule rows.
+  - Added the tip `(semi-colon between emails, no spaces)` directly after each of the four email-list labels (CC, BCC, Reschedule, Always Copy) — see [communications-tab.component.html:19-44](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L19-L44).
+  - UI-only; no DB/DTO/service change.
+
+### PL-049: Job Settings / Communications — rename CC/BCC Addresses to CC/BCC Email List for label parallelism
+- **Area**: Menu Display / Job Settings → Communications tab
+- **What I did**: Reviewed the four email-list fields on the Comms tab
+- **What I expected**: Parallel "… Email List" naming across all four related fields so the section reads as a cohesive email-list configuration area
+- **What happened**: Two used "Addresses" (CC Addresses, BCC Addresses) and two used "Email List" (Reschedule Email List, Always Copy Email List) — inconsistent terminology for the same kind of field
+- **Severity**: UX
+- **Status**: Fixed
+- **Note**: Renamed on 2026-04-24:
+  - "CC Addresses" → "CC Email List" ([communications-tab.component.html:19](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L19))
+  - "BCC Addresses" → "BCC Email List" ([communications-tab.component.html:26](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L26))
+  - No DB/DTO/service change — UI-only. Four Comms email-list fields now consistent.
+
+### PL-048: Job Settings / Communications — rename "Disallow CC Player Confirmations" checkbox; consider tournament-only visibility
+- **Area**: Menu Display / Job Settings → Communications tab
+- **What I did**: Looked at the "Disallow CC Player Confirmations" checkbox on the Comms tab
+- **What I expected**: Label that clearly states both the action (turn off) and the recipients (Player & Staff) and the scope (tournaments)
+- **What happened**: Current label read "Disallow CC Player Confirmations" ([communications-tab.component.html:50](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L50)) — said nothing about BCCs, nothing about Staff, nothing about tournaments
+- **Severity**: UX
+- **Status**: Fixed (label); follow-up flagged below for visibility gate
+- **Note**:
+  - **Label rename** — updated to "TURN OFF Player & Staff Confirmations (CC & BCC) for tournaments" on 2026-04-24. Backing field stays `bDisallowCcplayerConfirmations` — no DB/DTO/service change.
+  - **Visibility gate (still Open)** — new label says "for tournaments." If the setting only applies to tournament jobs, wrap the checkbox in `@if (jobTypeId === JobTypeTournament)` so it doesn't render on player/league/other sites. **Verify first**: does the backend actually gate the CC/BCC suppression on job type, or does it apply to any job with the flag set? If the latter, either tighten backend behavior to match the label, or drop "for tournaments" from the label. Open question for Todd.
+
+### PL-047: Job Settings / Communications — swap order: Always Copy Email List should come before Reschedule Email List
+- **Area**: Menu Display / Job Settings → Communications tab
+- **What I did**: Reviewed the order of the email-list fields on the Comms tab
+- **What I expected**: Always Copy Email List (general-purpose CC-on-every-email) before Reschedule Email List (narrower reschedule flow)
+- **What happened**: Reschedule Email List appears first at [communications-tab.component.html:33-37](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L33-L37); Always Copy Email List at [line 40+](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L40)
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Swap the two `<div class="col-md-6">` blocks in the html. No model/DTO/service change — UI-only reordering.
+
+### PL-046: Job Settings / Payment — Check/Mail-In/Balance section cleanup: TFPR move, two vestigial flags
+- **Refs**: PL-042 (Teams Full Payment Required restructure)
+- **Area**: Menu Display / Job Settings → Payment tab (Check / Mail-in / Balance section)
+- **What I did**: Reviewed the three checkboxes at the bottom of Check/Mail-In/Balance: Teams Full Payment Required, Refunds in Prior Months, Allow Credit All
+- **What I expected**: Each to be either actively used or removed; clear Director-facing explanation of what each does
+- **What happened**: TFPR's placement is superseded by PL-042's restructure. The other two (`BAllowRefundsInPriorMonths`, `BAllowCreditAll`) appear to be **vestigial** — stored and edited, never consulted by runtime code
+- **Severity**: Bug (zombie settings) + UX cleanup
+- **Status**: Open
+- **Note**: Findings from walkthrough on 2026-04-24:
+  - **Teams Full Payment Required (TFPR)** — move per PL-042. Reference only; no separate action here.
+  - **Refunds in Prior Months (`BAllowRefundsInPriorMonths`)** — no consumer found. Grep confirms the field lives only in: `Jobs` entity, `JobConfigDtos`, `JobConfigService` (CRUD), `JobCloneService` (carry-forward), `PaymentFeeRecalcTests` (pass-through property), and the Payment tab UI. Nothing in the new backend branches on it. **Legacy has real consumers** in `JobController.cs` / `Job_ViewModels.cs` — so the feature existed in Legacy but wasn't wired into the new system.
+    - **Inferred Legacy semantic**: whether refunds/credits can be posted against prior/closed accounting periods (close March at month-end → can you later backdate a refund credit to March, or must it land in the current month?).
+    - **Decision needed with Todd**: rewire the consumer (port Legacy refund-posting logic into the new accounting service and consult the flag) or remove the checkbox + DB column entirely.
+  - **Allow Credit All (`BAllowCreditAll`)** — same story. No consumer in the new codebase; Legacy has references in `JobController.cs`, `Job_ViewModels.cs`, and `TSICHeader.cs`.
+    - **Inferred Legacy semantic**: Director permission to zero-out an outstanding balance via a "credit all" action on an accounting row/registration.
+    - **Decision needed with Todd**: same — rewire or remove.
+  - **Zombie-setting risk**: Directors see the checkboxes and assume toggling them changes behavior. They don't. Leaving them in the UI as-is is actively misleading. Options:
+    - **A. Remove from UI now** (keep DB columns for Legacy data, but strip from the Payment tab + DTOs + service). Safe; preserves migration history.
+    - **B. Remove UI + DB columns** via migration. Cleanest but destructive.
+    - **C. Keep UI, port Legacy behavior** into the new accounting service so the flags do something again. Most work, but matches Legacy parity if the features are still needed.
+  - **Recommendation**: A for the immediate release (kill the misleading UI), then decide B vs C with Todd once the accounting rework scope is clearer.
+
+### PL-045: Job Settings / Payment — clarify Balance Due % and Mail-in Payment Warning (gating, confirmations, Director help text)
+- **Refs**: PL-042 (Teams Full Payment Required restructure — Balance Due % is only meaningful in deposit mode)
+- **Area**: Menu Display / Job Settings → Payment tab (Check / Mail-in / Balance section)
+- **What I did**: Reviewed the Check / Mail-in / Balance section and asked what Balance Due % and Mail-in Payment Warning actually do, when they apply, and whether they affect confirmations
+- **What I expected**: Clear per-field semantics, consistent gating on payment method (CC Only vs CC or Check vs Check Only), verified downstream rendering in confirmations, and Director-facing help copy
+- **What happened**: Current behavior is underspecified and at least one gap looks like a bug
+- **Severity**: UX / Bug
+- **Status**: Open — needs joint review with Todd
+- **Note**: Findings from walkthrough on 2026-04-24:
+  - **Balance Due %** (`Balancedueaspercent`): percent-as-string on `Jobs` ([Jobs.cs:30](TSIC-Core-Angular/src/backend/TSIC.Domain/Entities/Jobs.cs#L30)). Influences team fee calculation (`PaymentFeeRecalcTests`). Semantically, the portion collected as deposit at registration — remainder becomes the balance. **Only meaningful when `bTeamsFullPaymentRequired = false`**. Odd storage type (string vs decimal) worth questioning separately.
+  - **Mail-in Payment Warning** (`MailinPaymentWarning`): free-text rendered as `alert-warning` banner on the team payment step ([payment-step.component.ts:174-177](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/steps/payment-step.component.ts#L174-L177)) and wired into player payment state ([payment-v2.service.ts:150](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/state/payment-v2.service.ts#L150)). **Rendered unconditionally today** — no guard for Allowed Methods. If the job is CC Only, the warning still shows when it shouldn't.
+  - **Gap #1 (Bug)**: Mail-in Payment Warning should be suppressed unless Allowed Methods allows check (`paymentMethodsAllowedCode` ∈ {2 CC-or-Check, 3 Check-Only}). Fix: `@if (mailinPaymentWarning() && allowsCheck())` where `allowsCheck` checks the job's payment method.
+  - **Gap #2 (Verify)**: do these values flow into **confirmation emails** and **on-screen confirmation** screens? No grep hit found in email templates — needs a check of `RegistrationConfirmation` / `TeamRegConfirmation` templates and on-screen Registration Complete pages.
+  - **Gap #3 (UX)**: no Director-facing help text on either field. Proposed `.field-help` copy:
+    - **Balance Due %** — *"Percentage of the total team fee collected as a deposit at registration. The remaining balance is invoiced/collected later. Only applies when 'Teams Full Payment Required' is unchecked."*
+    - **Mail-in Payment Warning** — *"Message shown to parents/teams on the payment screen when they choose to pay by check. Only displayed if 'Allowed Methods' includes check."*
+  - **Also worth a hint**: gray out / disable Balance Due % when `bTeamsFullPaymentRequired = true` (parallels its effective-no-op state).
+  - **Next step**: joint review with Todd to confirm semantics, lock down the gating rule (payment method + deposit/full-pay), audit confirmation templates, and land the help copy.
+
+### PL-044: Job Settings / Payment — move Refund Policy to Payment tab; show Player / Club Rep by job type
+- **Area**: Menu Display / Job Settings → Payment (and Player, Coaches tabs)
+- **What I did**: Reviewed where refund policies live today and proposed consolidating them under Payment
+- **What I expected**: Refund policy editing under the Payment header, with job-type-aware visibility — Player Refund Policy for player sites; Club Rep / Team Refund Policy for tournament sites; both for league sites
+- **What happened**: Today refund policies live on two separate tabs away from Payment — `PlayerRegRefundPolicy` on the Player tab, `AdultRegRefundPolicy` on the Coaches tab ([coaches-tab.component.html:41-48](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L41-L48))
+- **Severity**: UX
+- **Status**: Open — needs job-type mapping confirmation
+- **Note**: Migration plan:
+  - **Move** Player Refund Policy editor out of Player tab and Adult/Club Rep Refund Policy editor out of Coaches tab; both land in a new "Refund Policy" fieldset under the Payment tab.
+  - **Visibility by `Jobs.JobTypeId`**:
+    - **Player sites** — definition TBC: which JobTypeIds map here? Candidates: Camp (4), Club (1), some combination, or driven by a `CoreRegform` flag rather than JobTypeId. Confirm with Todd before implementation.
+    - **Tournament (JobTypeId=2)** — show Club Rep / Team Refund Policy only.
+    - **League (JobTypeId=3)** — show both.
+  - **Field labels**: the underlying DB field is `AdultRegRefundPolicy` (shared by coach/club-rep flows since they all register via the adult path). Rename UI label to **"Club Rep / Team Refund Policy"** without changing the DB column.
+  - **Downstream tab effects**:
+    - **Player tab** — loses its Refund Policy field (audit the remaining content on that tab).
+    - **Coaches tab** — loses its Refund Policy field; today that field is one of the main sections of the tab, so Coaches will read as thinner. Consider whether Coaches still earns its own tab after this move or consolidates elsewhere.
+  - **Store Refund Policy** (`StoreRefundPolicy` on Mobile & Store tab) stays where it is — separate concern, not in scope.
+  - **Decision points**:
+    1. Confirm the JobTypeId mapping for "player sites."
+    2. Confirm the "Club Rep / Team" label is preferred over existing "Adult" wording.
+    3. Confirm Coaches tab survives after losing the refund field, or whether its other content should merge into an adjacent tab.
+
+### PL-043: Job Settings / Payment — hide Processing Fee fieldset entirely for non-SuperUsers
+- **Refs**: PL-039 (Branding tab SuperUser-only), PL-041 (Per-Unit Charges SuperUser-only) — same pattern on the same tab
+- **Area**: Menu Display / Job Settings → Payment tab
+- **What I did**: Looked at the Processing Fee fieldset under Payment & Processing as a Director
+- **What I expected**: The whole Processing Fee block to be absent for non-SuperUsers — platform-level pricing decisions shouldn't even be visible to Directors
+- **What happened**: The fieldset renders for everyone with a lock icon on the legend and `[disabled]="!svc.isSuperUser()"` on every input ([payment-tab.component.html:32-66](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L32-L66)) — Directors see "Processing Fee: Add Fee, %, Apply to Team Deposit" greyed out but readable
+- **Severity**: UX / role visibility
+- **Status**: Open
+- **Note**: Today's lock+disabled approach gives Directors visibility into platform pricing levers without edit access — Ann prefers they don't see it at all. Two ways to land the change:
+  - **A. Wrap the Processing Fee fieldset** in `@if (svc.isSuperUser()) { ... }`. Non-SuperUsers see only Allowed Methods on that row. Simplest.
+  - **B. Move Processing Fee into a dedicated "SuperUser Only" subsection** at the bottom of the Payment tab alongside Per-Unit Charges (per PL-041). Clusters SuperUser-only Payment controls in one place.
+  - **Layout consideration**: the row containing Processing Fee also contains Allowed Methods at `col-md-6`. If Processing Fee disappears, Allowed Methods would stretch or the column layout needs adjusting so the surviving field still reads cleanly.
+  - **Backend hardening**: already gated correctly — `JobConfigService` applies the processing-fee field updates inside its `if (isSuperUser)` block, so API-level protection is in place. This PL is about frontend visibility only.
+  - **Recommendation**: B — bundles with PL-041 into a single "SuperUser payment controls" subsection on the Payment tab. Cleaner than scattered `@if` blocks, consistent with how General handles SuperUser-only fields.
+
+### PL-042: Job Settings / Payment — restructure "Teams Full Payment Required" as a Teams subsection with two radio options
+- **Area**: Menu Display / Job Settings → Payment tab
+- **What I did**: Reviewed the current "Teams Full Payment Required" checkbox under Payment and proposed a restructure
+- **What I expected**: A **Teams** subheading under **Payment & Processing** presenting the full/deposit/balance options as a clear two-way choice instead of a single binary checkbox
+- **What happened**: Today it's a single checkbox ([payment-tab.component.html:128-131](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L128-L131)) — `bTeamsFullPaymentRequired` true → full pay at reg; false → deposit-only + later balance. A radio pair expresses the either/or choice more clearly than a checkbox whose "off" state isn't self-explanatory.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Proposed structure:
+  - New subheading **Teams** inside the existing **Payment & Processing** section.
+  - **Two radio options** (mutually exclusive):
+    1. **"Collect deposit ONLY now"** — maps to current `bTeamsFullPaymentRequired = false` (deposit at reg, balance later via reminders/invoice).
+    2. **"Collect total due now (balance due amount will be added)"** — maps to current `bTeamsFullPaymentRequired = true` (no deposit/balance split — one full payment).
+  - **No model change required** — the existing `bTeamsFullPaymentRequired` boolean covers both options; only the UI shape changes.
+  - **Downstream behavior unchanged**: `JobConfigService` fee-recalc ([JobConfigService.cs:133-146](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobConfigService.cs#L133-L146)) and `PaymentFeeRecalcTests` continue to work against the same boolean.
+  - **Next step**: joint design review with Todd on UI copy and placement within Payment & Processing; low-risk since no DB/API change.
+
+### PL-041: Job Settings / Payment — Per-Unit Charges section must be SuperUser-only
+- **Refs**: PL-039 (parallel tab-level SuperUser-only gate for Branding); General tab's SuperUser Only section ([general-tab.component.html:58](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L58)) is the precedent pattern
+- **Area**: Menu Display / Job Settings → Payment tab
+- **What I did**: Logged in as Director and opened Job Settings → Payment
+- **What I expected**: Per-Unit Charges (Per Player / Per Team / Per Month) to be SuperUser-only — these are platform-level pricing inputs Directors shouldn't see or edit
+- **What happened**: Section renders unconditionally for all roles ([payment-tab.component.html:70-93](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L70-L93)) — no role gate at all, even though sibling fields on the same tab already use `[disabled]="!svc.isSuperUser()"` on line 61
+- **Severity**: Bug (role visibility + edit access)
+- **Status**: Open
+- **Note**: Two-layer fix required:
+  - **Frontend options**:
+    - **A. Hide the section from non-SuperUsers** — wrap the `<!-- Per-Unit Charges -->` block in `@if (svc.isSuperUser()) { ... }`. Matches the ask literally, one-line diff.
+    - **B. Show fields disabled** to Directors — transparent but adds clutter.
+    - **C. Move into a dedicated "SuperUser Only" subsection** under Payment, mirroring the General tab's SuperUser block. Cleanest if more payment fields go SuperUser-only later.
+  - **Backend hardening** (required regardless of frontend choice): the Payment PUT endpoint must reject Director attempts to set `perPlayerCharge` / `perTeamCharge` / `perMonthCharge` — either via `if (isSuperUser) { ... }` guard in the service (the pattern `JobConfigService.General` already uses) or a per-field role check.
+  - **Recommendation**: A now, then promote to C if more payment fields need the gate.
+  - **Broader audit**: this gap on Per-Unit Charges suggests other "platform pricing" surfaces may also be missing role checks — sweep the Payment tab and adjacent tabs for any fields only SuperUsers should touch.
+
+### PL-040: Branding — review overall with Todd re: fit with Widget menu, banner/bulletins display and sizing
+- **Refs**: PL-039 (Branding tab SuperUser-only); Widget Editor lives at Configure → Widget Editor and overlaps conceptually
+- **Area**: Menu Display / Branding / Widget Editor / Bulletins
+- **What I did**: Reviewed the Branding tab and noted that banner rendering on the public-facing site isn't showing the entire image to users
+- **What I expected**: Full banner image visible to users; clear separation of responsibilities between Branding (current Job Configuration tab) and Widget Editor (separate Configure menu item that manages home/dashboard widgets)
+- **What happened**: Banner image is being clipped / cropped — users don't see the entire image. Broader question: how do Branding and Widget Editor fit together conceptually, and should their responsibilities be reorganized?
+- **Severity**: Bug (clipping) + Question (architecture)
+- **Status**: Open
+- **Note**: Three threads to work through with Todd:
+  1. **Banner display bug** — Branding tab captures Banner Background (max 1920px wide) and Banner Overlay (max 800px wide) separately ([branding-tab.component.ts:43, 57](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/branding-tab.component.ts#L43)). Rendering on public pages likely uses `background-size: cover` or `object-fit: cover` which crops to fit the container aspect ratio — that's why the whole image isn't showing. Options: switch to `contain` (shows full image with letterboxing), pick a fixed display aspect and document the crop expectation in the upload UI, or support multiple banner variants (desktop/mobile/tablet) so the right aspect ratio is delivered per viewport. Needs a look at the rendering component (likely header/hero on public job landing pages), not just the config tab.
+  2. **Branding vs Widget Editor responsibilities** — both live under Configure, both affect what public users see. Today they're separate: Branding owns banner + color/brand assets; Widget Editor owns home/dashboard widgets. Question for Todd: is that split intuitive to Directors, or should some overlap be consolidated? (E.g., if banner is actually a "widget," does it belong in Widget Editor? Or should Widget Editor stay focused on data widgets and Branding stay focused on chrome?)
+  3. **Bulletins display** — Ann suspects the bulletins rendering may also need rework to fit alongside banners more cleanly on the public site. Low-confidence observation from this pass; flag for side-by-side review when Branding display is tackled.
+  - **Next step**: joint review with Todd before scoping any of the three threads into implementation.
+
+### PL-039: Job Settings / Branding — remove from Director (and all non-SuperUser) menus; SuperUser only
+- **Area**: Menu Editor / Job Settings tab visibility
+- **What I did**: Looked at the Branding tab under Job Configuration
+- **What I expected**: Branding to appear only for SuperUsers — Directors and other roles shouldn't see or access it
+- **What happened**: Branding is unconditionally included in the tabs array ([job-config.component.ts:50](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.component.ts#L50)) — every user with Job Configuration access sees it
+- **Severity**: Bug (role visibility)
+- **Status**: Open
+- **Note**: Two-layer fix required — hiding the tab without server-side gates leaves the API reachable via URL by anyone who knows the path:
+  - **Frontend** — filter the `tabs` array so Branding is only emitted when `svc.isSuperUser()` is true. The service already exposes `isSuperUser` ([job-config.service.ts:57](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.service.ts#L57)), so it's a one-line conditional during `tabs` construction (or a computed signal that includes/excludes `branding` based on role).
+  - **Backend** — audit and harden the three Branding endpoints currently consumed by the frontend:
+    - `PUT /job-config/branding` (via `saveBranding`)
+    - `POST /job-config/branding/images/{conventionName}` (via `uploadBrandingImage`)
+    - `DELETE /job-config/branding/images/{conventionName}` (via `deleteBrandingImage`)
+    Each should require the Superuser role via `[Authorize(Roles = "Superuser")]` (or whatever role-guard convention `JobConfigController` uses today). Directors hitting these URLs with a JWT should get 403, not 200.
+  - **Also review**: whether similar tab-visibility gaps exist on other "SuperUser-intent" surfaces in Job Configuration — if Branding was missing the gate, others might be too.
+
+### PL-038: Job Settings / General — Duplicate Job Path under SuperUser Only as an editable field
+- **Area**: Menu Display / Job Settings → General
+- **What I did**: Noted that Job Path is readonly on the General tab for everyone, including SuperUsers
+- **What I expected**: SuperUsers able to edit Job Path from the SuperUser Only section for cases like typo fixes or rebrand re-slugging
+- **What happened**: No edit path in the UI — SuperUser has to change Job Path via direct SQL today
+- **Severity**: Feature
+- **Status**: Open
+- **Note**: Job Path is load-bearing — it's not just a label, so "make it editable" isn't a one-line UI change. Safety analysis:
+  - **Primary URL segment**: `/:jobPath/...` is the top-level route prefix for every job-scoped screen ([app.routes.ts](TSIC-Core-Angular/src/frontend/tsic-app/src/app/app.routes.ts)).
+  - **JWT claim**: per CLAUDE.md, jobPath is validated on every request — renaming invalidates every issued token.
+  - **External links break**: confirmation/reschedule/waiver emails, QR codes, marketing materials, bookmarks — anything with the old URL printed or stored.
+  - **In-flight registrations**: anyone mid-wizard gets booted.
+  - **Uniqueness**: `JobCloneService` enforces jobPath+jobName uniqueness ([job-clone.component.ts:298](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job-clone/job-clone.component.ts#L298)) — same check must fire on rename.
+  - **Implementation options**:
+    - **A. Plain editable field (SuperUser only)** — matches ask literally. Minimal UI, maximum risk. Minimum guardrails: confirmation dialog, uniqueness check, session-token invalidation.
+    - **B. Editable only when the job has no registrations yet** (`jobCount === 0` or similar "draft" signal) — "fix a typo" mode. Disables itself once the job has any real traffic. Covers the common case without shipping a footgun.
+    - **C. "Rename Job Path" wizard** — separate action that suspends the job, updates path, invalidates sessions, notifies Directors, optionally sets up an old→new redirect, reactivates. Safe for live jobs; heavier build.
+    - **D. Keep readonly; renames continue via SQL** for rare cases. Zero cost, conservative.
+  - **Recommendation**: B — matches Ann's ask, bounded by a draft-only gate so live jobs don't break. Escalate to C if live-job renames become frequent enough to justify the wizard.
+
+### PL-037: Job Settings / General — Admin Expiry should land visually directly below User Expiry in the narrowed layout
+- **Refs**: PL-022 (narrow workspace), PL-036 (Job Configuration tighter display), PL-031 (confirmed the two-field Expiry split is intentional)
+- **Area**: Menu Display / Job Settings → General
+- **What I did**: Noted that User Expiry (all users) lives in row 1 of Job Properties and Admin Expiry (SuperUser-only) lives in a separate section further down the page
+- **What I expected**: Once the workspace is narrowed (PL-022), the two expiry fields read as a pair — Admin Expiry directly beneath User Expiry visually
+- **What happened**: Today they're in two separate sections with unrelated grids, so at any width Admin Expiry doesn't align below User Expiry even though they're semantically the same concept split by role
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Possible implementations (decide during the PL-022 workspace pass):
+  - **A. Group both into one "Expiry" micro-section** at the end of Job Properties — User Expiry always visible, Admin Expiry rendered inside the same section behind an `@if (svc.isSuperUser())` guard. Always paired regardless of viewport width. Cleanest; drops the one-field-only SuperUser section.
+  - **B. Keep the SuperUser Only section** but position Admin Expiry in the same grid column as User Expiry above. Requires matching column layouts between the two sections so they align at every breakpoint — brittle if either row changes.
+  - **C. Move Admin Expiry out of the generic SuperUser block** into a small labeled "Expiry (SuperUser override)" subsection that sits immediately below the Job Properties section. Less ambiguous about grouping, costs a little vertical chrome.
+  - **Recommendation**: A — simpler markup, guaranteed alignment, and kills the "SuperUser Only" section's single-field appearance if Admin Expiry is the only SuperUser-specific expiry concern. Other SuperUser-only fields (Job Code, QBP Name, Sport, Job Type, Customer, Billing Type) stay in the SuperUser block as a group.
+
+### PL-036: Job Configuration (all tabs) — overall display needs to be much tighter; defer to PL-022
+- **Refs**: PL-022 (umbrella "all Configure pages adopt Nav Editor's narrow centered workspace")
+- **Area**: Menu Display / Job Settings (all tabs: General, Player, Teams, Coaches, Payment, Scheduling, Branding, Communications, Mobile & Store, Dropdown Options)
+- **What I did**: Reviewed the Job Configuration surface top-to-bottom during the walkthrough
+- **What I expected**: Consistently tight, narrow-workspace presentation across every tab so Directors don't feel the page sprawl
+- **What happened**: Overall density feels loose — same "full-viewport width + Bootstrap h2 default" issues called out elsewhere under Configure. Individual PL items have captured specific points (PL-033 Description height, PL-034 Sport dropdown, PL-035 QBP Name fallback), but the big-picture density is the PL-022 problem at Job Configuration scale.
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Defer to PL-022 — when the Nav Editor–style `.configure-page` workspace pattern lands, apply it to every Job Configuration tab (or to the shared `job-config.component` shell so all tabs inherit automatically). Pair with the PL-007 heading-size standard (Customer Groups' 1.5rem/700) and the PL-023 altrow contrast tune so Job Configuration reads as part of the same refreshed Configure family rather than a separate surface.
+
+### PL-035: Job Settings / General — Confirm QBP Name is an override whose default is Event Name; wire up fallback if so
+- **Area**: Menu Display / Job Settings → General (SuperUser section)
+- **What I did**: Looked at the "QBP Name" field in the SuperUser section of General and asked whether it's an override with Event Name as the implicit default
+- **What I expected**: Confirmation of the semantic, plus automatic fallback in consumers so that when QBP Name is blank, downstream code uses the Event Name
+- **What happened**: The field exists and is editable/persisted, but **no fallback logic exists anywhere in the new codebase**. If `JobNameQbp` is null/empty, any consumer gets null/empty — not the Event Name.
+- **Severity**: Question / possible Bug
+- **Status**: Open
+- **Note**: Findings from walkthrough on 2026-04-24:
+  - **Persistence**: `Jobs.JobNameQbp` → SQL column `jobName_QBP` ([Jobs.cs:114](TSIC-Core-Angular/src/backend/TSIC.Domain/Entities/Jobs.cs#L114)). Editable on SuperUser section of General ([general-tab.component.html:77-82](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L77-L82)). Carried forward on job clone ([JobCloneService.cs:735](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobCloneService.cs#L735)).
+  - **Legacy evidence of intended default**: [HomeController.cs:178](reference/TSIC-Unify-2024/TSIC-Unify/Controllers/HomeController.cs#L178) populates the LastMonth_JobInvoice view model with `JobNameQbp = j.JobName` — Event Name substitutes for QBP Name in at least one reporting surface. Consistent with override-with-Event-Name-default semantic.
+  - **Follow-ups if semantic confirmed**:
+    1. **Audit downstream consumers** — currently only `JobConfigService` and `JobCloneService` reference `JobNameQbp` in the new code. Anything that exports to QuickBooks / generates invoices / sends billing communications needs to apply `JobNameQbp ?? JobName` (or a shared helper).
+    2. **Central fallback**: add `Jobs.EffectiveQbpName => JobNameQbp ?? JobName` as a computed accessor (or a service-layer helper like `JobNamingService.GetQbpName(job)`) so every call site gets the fallback automatically.
+    3. **UI copy**: "QBP Name" label gives no hint about override semantic. Add placeholder text like "Leave blank to use Event Name" or a `.field-help` paragraph beneath the field.
+  - **Decision needed with Todd**: confirm the override-with-Event-Name-default semantic, then pick scope: minimal (UI copy only), full (UI copy + central fallback helper + downstream audit), or status-quo (document that QBP Name must always be set when needed).
+
+### PL-034: Job Settings / General — Sport dropdown needs the same whitelist + title-case cleanup as LADT
+- **Refs**: LADT PL-007 (Sport dropdown cleanup shipped there via `LadtService.GetSportsAsync`)
+- **Area**: Menu Display / Job Settings → General (SuperUser section)
+- **What I did**: Opened the Sport dropdown in the SuperUser section of the General tab
+- **What I expected**: The clean 12-sport whitelist (title-cased, sorted) that LADT already uses per PL-007
+- **What happened**: General's Sport dropdown pulls from a different code path and shows the full unfiltered `Sports` table — stale/irrelevant entries, no title-casing
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Two code paths surface Sports today:
+  - **LADT** — `LadtService.GetSportsAsync` ([LadtService.cs:200-225](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L200-L225)) filters to whitelist (lacrosse, soccer, football, hockey, field hockey, basketball, baseball, softball, volleyball, wrestling, rugby, cheerleading) + title-cases + sorts.
+  - **Job Config General** — `JobConfigService.BuildReferenceDataAsync` ([JobConfigService.cs:351](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobConfigService.cs#L351)) calls `_repo.GetSportsAsync(ct)` with no filter or casing.
+  - **Fix options**:
+    - **A. Duplicate** the whitelist + filter/title-case into `JobConfigService.BuildReferenceDataAsync`. Self-contained; creates a second copy of the whitelist.
+    - **B. Extract a shared helper** (`SportListHelper` / `ISportOptionProvider`) used by both services. One source of truth, no repo-layer presentation concerns.
+    - **C. Push the filter into the repo** — every caller gets the clean list automatically. Most centralized but bakes presentation (title-case) into the repo.
+  - **Recommendation**: B — right-sized DRY, keeps title-case out of the repo.
+  - **Scope bonus**: audit any other Sport-pulling code paths (job clone wizard, customer-setup, reports) and route them through the same helper so no future surface drifts back to the raw table.
+
+### PL-033: Job Settings / General — Description field height doesn't match sibling inputs on the same row
+- **Area**: Menu Display / Job Settings → General
+- **What I did**: Looked at the second row of Job Properties on the General tab — Job ID, Job Path, Description
+- **What I expected**: All three fields the same visible height so the row reads as a single aligned band
+- **What happened**: Description is a `<textarea rows="2">` while Job ID and Job Path are single-line `<input type="text">` — Description is visibly taller ([general-tab.component.html:40-53](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L40-L53))
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Two ways to align:
+  - **A. Drop `rows="2"`** — make Description a single-line `<input>` (or `<textarea rows="1">`). Shortest, matches siblings. Loses multi-line editing for longer descriptions — probably fine since the field is short-form metadata.
+  - **B. Keep multi-line but auto-grow** — `<textarea>` with a `min-height` matching the input line-height; let it expand as the user types. Preserves editing headroom without the default 2-row gap.
+  - Recommendation: A if Description is truly short-form; B if Directors are expected to enter a paragraph. Check live data to see how long typical descriptions are.
+
+### PL-032: Job Settings / General — Display Name: is it needed, and it's edited in two places
+- **Area**: Menu Display / Job Settings → General (and Communications)
+- **What I did**: Looked at the Display Name field on the General tab
+- **What I expected**: Understand what Display Name is for and confirm it's not a duplicate of Customer Name
+- **What happened**: Display Name on the jobs I viewed reads like the Customer Name — unclear whether the field is redundant
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Findings from walkthrough on 2026-04-24:
+  - **Not the same as Customer Name.** `Jobs.DisplayName` is a separate persisted column on the Jobs table, editable per-job. Existing rows may coincidentally equal the customer name because Legacy migration or Directors typed the company name — but the field is independent.
+  - **Main downstream use**: `FromName` on ARB recurring-billing reminder emails ([ArbDefensiveService.cs:196-199, 257-260](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/ArbDefensiveService.cs#L196-L199)). Recipients see "DisplayName <adn@tsic.com>" as the email sender.
+  - **Double-edit smell**: same `DisplayName` field is on BOTH General tab and Communications tab ([general-tab.component.ts:25](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.ts#L25) and [communications-tab.component.ts:17,29,57](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.ts#L17)). Two entry points for the same value — risk of confusion and save-order bugs.
+  - **Decisions needed with Todd**:
+    1. Keep or remove? If its only real job is the ARB FromName, consider collapsing into Communications tab only (where it's already visible) and dropping from General.
+    2. If kept on both, label it consistently with a tooltip explaining what it's used for ("Sender name on ARB billing emails and page headers — defaults to your job name if blank").
+    3. Audit whether anything else on the platform renders `Jobs.DisplayName` (page headers, public-facing pages) so the copy above is accurate.
+  - **Recommendation going in**: remove from General, keep in Communications with a usage tooltip — single source of truth for what is essentially an email-branding field.
+
+### PL-031: Job Settings / General — Legacy fields Administrators and JobAi not carried forward; Expiration confirmation
+- **Area**: Menu Display / Job Settings → General
+- **What I did**: Compared the new General tab against Legacy to see what's missing
+- **What I expected**: Parity or a deliberate decision per field
+- **What happened**: Three items to resolve — Expiration (already present, split), Administrators (separate page), JobAi (not surfaced)
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Findings from walkthrough on 2026-04-24:
+  - **Expiration** — **already present, split into two fields**. User Expiry (visible to all, row 1 of Job Properties) controls public site lifecycle; Admin Expiry (SuperUser-only section) controls admin access lifecycle ([general-tab.component.html:32-37, 65-70](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L32-L37)). The split is intentional — different lifecycles. **Confirm with Todd that the split satisfies Legacy parity**; no action otherwise.
+  - **Administrators** — not in General tab by design. Full feature lives at Configure → Administrators (a whole grid with add/remove/star/activate/role-picker). Options: (A) leave as-is; (B) add a small read-only "X Administrators" summary on General with a link to the full page. Recommendation: B — convenience without duplicating functionality.
+  - **JobAi** — not surfaced today. `Jobs.JobAi` exists as the auto-increment integer identifier, used extensively on the backend (payments, reconciliation, search) but not exposed on the General tab. The General tab shows only Job ID (GUID) and Job Path (URL slug) as identifiers. Adding it is cheap — one more disabled/readonly field alongside Job ID in the Job Properties row, SuperUser-only (Directors don't need it). Requires surfacing `jobAi` on `JobConfigGeneralDto` from the backend.
+  - **Recommendation bundle**: do JobAi (useful for SuperUser debugging) + Administrators summary link (nice convenience); leave Expiration as-is.
+
+### PL-030: Dropdown Options — make value chips drag-reorderable so users can fix order without delete/re-add
+- **Area**: Menu Display / Dropdown Options
+- **What I did**: Looked at the value chips for categories under Configure → Dropdown Options (e.g. Jersey Sizes, Shorts Sizes) and noticed the values aren't in the order Ann wants
+- **What I expected**: Ability to drag a chip to a new position and have the order persist
+- **What happened**: No reorder mechanism — values render in insertion order, and the only mutations available are add (appends to end) and remove
+- **Severity**: UX / Feature
+- **Status**: Open
+- **Note**: Backend + data model already support ordered arrays — no schema change needed.
+  - **Current plumbing**: `JobDdlOptionsDto` carries each category as a `string[]`; `GET`/`PUT` preserve array order; new values are appended via `existing.push(val)` ([ddl-options.component.ts:152](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/ddl-options/ddl-options.component.ts#L152)). Dirty detection compares JSON, so an array-order change already triggers the Save bar.
+  - **Precedent in-repo**: `@angular/cdk@21.0.5` already a dep; `cdkDrag` / `cdkDropList` already used in widget-editor, profile-editor, options-panel, and schedule build-order-tab. Proven pattern.
+  - **Implementation sketch**:
+    1. Add `DragDropModule` to component imports.
+    2. `.chip-list` container → `cdkDropList` + `(cdkDropListDropped)="onChipReorder(cat.key, $event)"`.
+    3. Each `.chip` → `cdkDrag`.
+    4. `onChipReorder(key, event)`: clone array, call `moveItemInArray(arr, event.previousIndex, event.currentIndex)`, `this.options.set({...current, [key]: arr})`. Existing PUT already persists.
+    5. Cursor cue (`cursor: grab; &:active { cursor: grabbing; }`) + `cdkDragPreview`/`cdkDragPlaceholder` to match profile-editor's drag ghost.
+    6. Touch support is free with CDK.
+  - **Optional quick-action to pair with drag**: per-category **"Alphabetize"** button — one click for common cases. Still need drag for custom orders (jersey sizes XS/S/M/L/XL/XXL isn't alphabetical).
+
+### PL-028: Discount Codes — Expiry and Status columns both say "Active"; expired codes can still read "Active" in Status
+- **Area**: Menu Display / Discount Codes
+- **What I did**: Looked at the Expiry and Status columns on Configure → Discount Codes
+- **What I expected**: Each column to say something semantically distinct, and an expired code to never read as "Active" anywhere on the row
+- **What happened**: Collision — both columns use the word "Active" with different meanings, and an expired code can display **Expiry: "Expired"** and **Status: "Active"** simultaneously when the enable toggle is on
+- **Severity**: UX / Bug
+- **Status**: Open
+- **Note**: Column logic today ([discount-codes.component.ts:147-156](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/discount-codes/discount-codes.component.ts#L147-L156)):
+  - **Expiry** (via `getExpirationText`): "Expired" when `isExpired`, "Nd left" within 7 days, else **"Active"**.
+  - **Status** (via `isActive`): **"Active"** when toggle on, else "Inactive".
+  - Two problems: (1) word collision — happy-case row reads "Active … Active"; (2) stale Status — an expired code stays "Active" in Status until someone manually flips the toggle.
+  - **Ann's proposal**: Expiry stays date-based but non-"Active" word in happy case; Status auto-derives to "Inactive" once expired.
+  - **Options**:
+    - **A. Both changes together** — (a) rename Expiry's happy-case "Active" to a date-based word ("In date" / "Valid" / or show the end date itself) and (b) make Status a computed value: `isExpired ? 'Inactive' : (isActive ? 'Active' : 'Inactive')`. Expiry answers "when"; Status answers "working now." Cleanest semantics.
+    - **B. Status-only fix** — derive Status from `isExpired || !isActive`. Expired rows look right; word collision remains in the happy case.
+    - **C. Expiry-only rename** — "Valid" / "Expired" / "Nd left" in Expiry; Status still purely toggle. Kills collision but an expired code can still read "Active" in Status.
+  - **Recommendation**: A.
+  - **Backend check before shipping**: confirm no downstream code treats `isActive === true` as "code is usable right now" without also checking `isExpired` — if any such code exists, either tighten those call sites or surface the same `!isExpired && isActive` derivation on the backend DTO.
+
+### PL-027: Discount Codes date range — zero-pad month/day so dates align in the table
+- **Area**: Menu Display / Discount Codes
+- **What I did**: Looked at the "Dates" column on Configure → Discount Codes — e.g. on The Players Series: Girls Summer Showcase 2026
+- **What I expected**: Month and day zero-padded (`04/07/2026 – 04/22/2026`) so every row's start/end lines up vertically at a glance
+- **What happened**: Dates render unpadded (`4/7/2026 – 4/22/2026`) because [discount-codes.component.html:73-79](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/discount-codes/discount-codes.component.html#L73-L79) uses Angular's `'shortDate'` pipe. Columns don't align between rows with single- vs double-digit months/days
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Fix: swap `| date:'shortDate'` → `| date:'MM/dd/yyyy'` (or a shared format token) for both start and end. Worth sweeping other Configure tables rendering dates to keep the format consistent app-wide — candidates: Customers' Registered column (admin grid), Administrators' Registered column, any other table using `shortDate`.
+
+### PL-026: Replace hidden trash can with lock icon + explanatory tooltip when delete is blocked
+- **Area**: Menu Display / all Configure tables with conditional delete
+- **What I did**: On Configure → Discount Codes (e.g. The Players Series: Girls Summer Showcase 2026 — code `Girls2026`), noticed no trash icon on a row because the code has been used
+- **What I expected**: Some indication of *why* the row can't be deleted — a lock icon where the trash would go, with a hover tooltip "Cannot remove because the code has been used"
+- **What happened**: Trash icon is simply omitted when `usageCount > 0` ([discount-codes.component.html:102-106](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/discount-codes/discount-codes.component.html#L102-L106)); user sees an empty action slot and has no explanation
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Same pattern exists on other Configure surfaces — this should be a consistent app-wide treatment, not a one-off:
+  - Discount Codes — trash hidden when `usageCount > 0`
+  - Customers — trash hidden when `jobCount > 0` ([customer-configure.component.html:69-73](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customers/customer-configure.component.html#L69-L73))
+  - Administrators — similar guard pattern worth auditing
+  - **Proposed markup**:
+    ```html
+    @if (canDelete) {
+        <button class="icon-btn icon-btn-danger" (click)="confirmDelete(data)" title="Delete">
+            <i class="bi bi-trash"></i>
+        </button>
+    } @else {
+        <span class="icon-btn icon-btn-locked" aria-disabled="true"
+              title="Cannot remove because the code has been used">
+            <i class="bi bi-lock"></i>
+        </span>
+    }
+    ```
+  - Tooltip wording tailored per surface (code used / customer has jobs / admin has active assignments / etc.)
+  - Scope decision needed:
+    - **A. Discount Codes only** (as originally described) — smaller PR; follow-up sweep for sibling tables later
+    - **B. Sweep all Configure delete-guards in one pass** — one shared `.icon-btn-locked` CSS token and consistent tooltips
+    - **Recommendation**: B — consistency matters for a repeated interaction pattern; one PR lands the whole rule.
+
+### PL-025: Nav Editor shows flag-gated items (e.g. Age Ranges) in "This Job" tree even when they'd be hidden at render time
+- **Refs**: PL-008 (Age Ranges is flag-gated via `requiresFlags: ["teamEligibilityByAge"]` and hidden at runtime for jobs without `BYAGERANGE`)
+- **Area**: Nav Editor
+- **What I did**: Opened Nav Editor → This Job → "The Players series: Girls Summer Showcase 2026" → Director → Configure and saw **Age Ranges** listed there
+- **What I expected**: Age Ranges hidden in the Nav Editor tree for any job that doesn't use age-range team eligibility — consistent with PL-008's runtime behavior
+- **What happened**: Item is visible in the editor tree even though it would be filtered out of the Director's actual nav at render time
+- **Severity**: UX / possible Bug
+- **Status**: Open
+- **Note**: Findings from walkthrough on 2026-04-24 — this is an editor-preview gap, not a live-menu bug.
+  - **Architecture**: Nav Editor has two tabs, both showing **raw configuration** (not runtime-resolved nav):
+    - Platform Defaults: `GetAllDefaultsAsync()` — every item in every role's default nav.
+    - This Job: `GetJobOverridesAsync(jobId)` — job-specific override rows layered over the platform defaults.
+  - **Runtime gating happens elsewhere**: `VisibilityRulesEvaluator` ([VisibilityRulesEvaluator.cs:62-64](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Services/VisibilityRulesEvaluator.cs#L62-L64)) only sets `teamEligibilityByAge` when the job's `CoreRegformPlayer` has `BYAGERANGE`. The Nav Editor doesn't run this resolution — it shows what's in config.
+  - **Impact**: the live Director on Girls Summer Showcase 2026 still wouldn't see Age Ranges (assuming the job doesn't have BYAGERANGE — matches Ann's expectation). But the editor doesn't distinguish "this item is live for this job" from "this item exists in config but will be hidden at render because of `requiresFlags` / `jobTypes` / `sports` / `customersDeny`."
+  - **Options**:
+    1. **Visual cue** — render flag-gated-and-wouldn't-match items muted/italic/strikethrough with a "hidden by flag" badge. Preserves editability; adds clarity.
+    2. **Filter out** when rules don't match. Cleanest view but loses in-context editing.
+    3. **"Preview as rendered" toggle** on the This Job tab — flips between "show all config" vs "show only what this job sees."
+    4. **Info tooltip/legend** explaining the tree shows config, not runtime resolution. Doc-only.
+  - **Recommendation going in**: 1 or 3 — 1 is lower effort, 3 is more explicit for previewing. Both preserve the ability to edit hidden items.
+
+### PL-024: Dropdown Options for Directors — should they see it under Configure, and how is it added?
+- **Refs**: PL-019 (proposes removing the root-level Dropdown Options entry — but if Directors need a direct shortcut, that decision needs to change)
+- **Area**: Menu Editor / Nav Editor
+- **What I did**: Reviewed the new Nav Editor and asked whether Directors should have access to Dropdown Options under the root Configure section
+- **What I expected**: Clear understanding of whether Directors need a direct root-level shortcut or the existing tab path is sufficient
+- **What happened**: Today Dropdown Options is accessible to Directors **only** via Job Settings → Dropdown Options tab ([5) Re-Set Nav System.sql:122](scripts/5%29%20Re-Set%20Nav%20System.sql#L122) root entry is SuperUser-only at `0,0`; Job Settings at [line 117](scripts/5%29%20Re-Set%20Nav%20System.sql#L117) is Director-visible at `1,1` and carries the embedded tab). Need a product decision on whether to surface a direct root-level shortcut for Directors.
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Decision needed with Todd:
+  - **Is a direct root-level shortcut needed for Directors?** — today Directors reach Dropdown Options through Job Settings → tab. Extra click, but contextually correct (dropdown options are job-scoped).
+  - **How it would be added** (if yes):
+    1. **SQL flip** — change the existing entry's visibility flags from `0,0` → `1,1` in `5) Re-Set Nav System.sql:122`, re-run the nav reset. Cheapest.
+    2. **Nav Editor "Platform Defaults" tab** — same effect as #1 but through the new UI, no SQL touch.
+    3. **Nav Editor "This Job" tab** — add a job-specific entry for Directors of one particular job. More surgical; useful if only certain clients need the shortcut.
+  - **Interaction with PL-019**: PL-019 currently recommends removing the root entry entirely. If Directors need a root-level shortcut, PL-019's resolution changes from "delete" to "keep + flip Director-visible." The two items must be decided together.
+  - **Recommendation going in**: resolve PL-019 first. If keeping access through Job Settings tab is acceptable for Directors (likely — it's contextually correct), remove the root entry per PL-019 and this item becomes moot. If Directors genuinely need the shortcut, flip visibility instead of removing.
+
 ### PL-023: Alternating row color contrast too subtle across all tsic-grid tables
 - **Refs**: PL-003 (alternating rows shipped via SF grid migration, but contrast not strong enough)
 - **Area**: Menu Display
