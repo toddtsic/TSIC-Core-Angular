@@ -1,22 +1,16 @@
-# Pre-Release Email to Directors
-
-Working document for the pre-launch announcement. Iterate freely — the short email body is the thing that gets sent; the appendix is a reference we can link from the email or paste below the sign-off.
-
----
-
-## Email Body
-
-**Subject:** The next-generation TeamSportsInfo.com is almost here — come kick the tires
+**Subject:** TSIC--The Next Generation!
 
 Hi Directors!
 
-**It's here.** The next-generation TeamSportsInfo.com — **rebuilt from the ground up**, developed in deep partnership with **Claude**, Anthropic's frontier AI. A genuine architectural reset — not a port, not a reskin. And yet you'll feel at home the moment you log in. **Zero training required.** The navigation is where you expect it. The workflows run the way they always have. Every feature you rely on today is there — preserved, sharpened, and verified to the penny against the legacy system.
+**It's almost here.** The next-generation TeamSportsInfo.com — **rebuilt from the ground up**, developed in deep partnership with **Claude**, Anthropic's frontier AI. A genuine architectural reset — not a port, not a reskin. And yet you'll feel at home the moment you log in. **Zero training required.** The navigation is where you expect it. The workflows run the way they always have. Every feature you rely on today is there — preserved, sharpened, and verified to the penny against the legacy system.
 
-**And one thing to be absolutely clear about: this release affects the director-facing web application *only*. TSIC-Events — the tournament mobile app your parents, coaches, and players rely on — is completely unchanged and unaffected.** It runs exactly as it does today, straight through the cutover and beyond. Live tournaments, score updates, the on-site mobile experience your attendees count on — all untouched.
+**This release affects the web application *only*.** TSIC-Events — the tournament mobile app your parents, coaches, and players rely on — is completely unchanged and unaffected. It runs exactly as it does today, straight through the cutover and beyond. Live tournaments, score updates, the on-site mobile experience your attendees count on — all untouched.
 
-What's new is the product itself. The polish. The speed. And **AI woven right into the product**: a completely rebuilt scheduling engine with **autoscheduling that learns from your prior years' patterns**, **AI-assisted email composition** in search/registrations, **AI-assisted national rankings capture**. Alongside those, a set of brand-new capabilities you'll want to explore: a **completely reimagined Club Teams library**, **early-bird and late-fee modifiers on both player and team registrations**, **discount codes for team registrations**, bulk updating of USA Lacrosse Number expiration dates for your players — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
+What's new is the product itself. The polish. The speed. And **AI woven right into the product**: a **dramatically expanded scheduling engine** with **autoscheduling that learns from your prior years' patterns**, **AI-assisted email composition** in search/registrations, **AI-assisted national rankings capture**.
 
-**End of May** is the target to flip the switch. Before we do, **I'd like to invite you into the dev environment** — come explore, try things, push it around at your own pace. Your input between now and go-live will directly shape what ships. If something feels off, or you'd like to see a workflow behave differently, I'd love to hear about it while there's still room to act.
+Alongside those, a set of brand-new capabilities you'll want to explore: a **completely reimagined Club Teams library**, **early-bird and late-fee modifiers on both player and team registrations**, **discount codes for team registrations** — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
+
+**End of May** is the target to flip the switch. That way users will already know their way around by the time they re-up for tournaments the day after this summer's events close. Before we do, **I'd like to invite you into the dev environment** — come explore, try things, push it around at your own pace. Your input between now and go-live will directly shape what ships — and even when it ships, if necessary. If something feels off, or you'd like to see a workflow behave differently, I'd love to hear about it while there's still room to act. **The first half of May is when feedback has the most room to land — after that, we're in polish-and-ship mode.**
 
 **Where to go:** [dev.teamsportsinfo.com](https://dev.teamsportsinfo.com)
 
@@ -39,22 +33,17 @@ Todd
 
 ---
 
-## Appendix: What's New / What's Preserved
+## Highlights
 
-### Familiar ground — preserved from legacy
+### Everything you already know, you'll still know
 
-If you've been running tournaments on TSIC, these won't surprise you. The behavior matches legacy on purpose — in many cases the legacy system *is* the spec.
+**None of what's new asks you to learn a new way to work.** Your navigation, your registration wizards, your reports, your email flows — all of it is where you left it and behaves the way you remember. Fees, discount codes, modifiers, refunds, ARB, waivers, email tokens, admin roles, the login flow — match legacy to the penny.
 
-- **Navigation layout** — the admin nav structure follows the same grouping you're used to.
-- **Money behavior** — fee calculations, discount codes, early-bird / late-fee modifiers, processing fees, refunds, and waiver handling all match legacy math to the penny.
-- **ARB (recurring billing)** — subscription creation, CC updates, and expiration tracking work the way they always have.
-- **Email tokens** — `!NAME`, `!PERSON`, `!JOBLINK`, and the rest of the token library resolve the same way in templates and broadcasts.
-- **Admin roles** — Superuser, Director, and SuperDirector are the same three admin tiers with the same permissions.
-- **Login / job selection flow** — pick your role, pick your job, you're in.
+The new capabilities — autoscheduling, AI-composed emails, the Club Teams library, fly-in search panels — sit **on top** of the product you already know. Nothing you rely on has been moved, renamed, or retired.
 
-### Scheduling — completely rebuilt
+### Scheduling — vastly extended
 
-The entire scheduling process has been overhauled from the ground up. The headline capability: **autoscheduling that learns from your prior years' patterns** — the system studies how you've scheduled before and drafts this year's schedule for you. You get a starting point that reflects how *you* run your tournaments. Tweak, adjust, publish.
+The entire scheduling process has been enhanced — the flow is the same, but the capabilities have been vastly extended. The headline capability: **autoscheduling that learns from your prior years' patterns** — the system studies how you've scheduled before and drafts this year's schedule for you. You get a starting point that reflects how *you* run your tournaments. Tweak, adjust, publish.
 
 ### Club Teams library — completely reimagined
 
@@ -68,10 +57,10 @@ A real structural leap, not a UI tweak. Club reps now build a **persistent, club
 
 ### AI in the product (not just behind it)
 
-Claude didn't just help build TSIC. AI is now baked into the workflows you run every day:
+**AI isn't just behind the scenes — it's baked into the workflows you run every day:**
 
 - **Autoscheduling** — learns from your historical schedules to draft new ones (see above).
-- **AI-assisted email composition** — in search/registrations batch email, Claude helps you draft the message you want to send. Tell it what you mean; it gives you copy you can refine and send.
+- **AI-assisted email composition** — in search/registrations batch email, the assistant helps you draft the message you want to send. Tell it what you mean; it gives you copy you can refine and send.
 - **AI-assisted national rankings capture** — pull external rankings data into your tournament workflows without hand-entry.
 
 More AI-powered features will land as we hear what would actually help. This is just the start.
@@ -83,49 +72,20 @@ The rest of the pieces that weren't in legacy, or that got a meaningful rework:
 **Registration wizards**
 - **Early-bird and late-fee modifiers on both player *and* team registrations** — set the windows, set the amounts, the system handles the rest.
 - **Discount codes for team registrations** — apply targeted pricing adjustments without hand-tweaking fees per team.
-- Player wizard blocks cleanly when registration is closed, and surfaces BYAGEGROUP eligibility correctly.
-- Club Rep registration has **inline Terms of Service acceptance** — no separate popup.
-- "Proceed to Payment" button label now reflects exactly how many new teams you're paying for.
 
-**Updating USA Lacrosse Number expirations** (new admin page)
-- Pull your roster and bulk-update USA Lacrosse Number expiration dates for your players in one pass; export to Excel.
-- Sortable columns, stable row numbers that survive sorting and export.
-- Inline batch email for fixing membership issues — role-neutral templates, skips healthy members so you're not crying wolf.
+**Search / Registrations and Search / Teams**
 
-**Search / Registrations**
-- ARB credit cards expiring this month — dedicated lookup + email template.
-- Batch email improvements: expanded template library, Waitlist template, smarter routing (Player rows go to mom/dad/player as appropriate).
+Both search surfaces got a major UX overhaul built around **fly-in panels** — a major day-to-day quality-of-life upgrade:
 
-**Communications**
-- Team Links admin (ported from the mobile legacy tool, now web-first).
-- Unified email token engine — one code path, consistent behavior across all senders.
-- Bulletin inline styles preserved exactly as authored.
+- **Filters fly in from the side.** Dial in exactly the query you want without shrinking or crowding the results grid. Open it when you need it, tuck it away when you don't.
+- **Row details fly in from the side.** Click any player or team and the full record slides in alongside — no page jump, no scroll reset, no loss of context. Close it and you're right back where you were in the list.
+- The result: you scan faster, read more, and stay oriented even in lists of hundreds of rows.
 
-**Workspace dashboard**
-- Typed workspace constants, role-aware widgets, cleaner editor.
-- More polish coming based on what directors actually want pinned.
+**In Search / Registrations specifically**, email work got a major lift:
 
----
+**Private invite links into closed registrations.** New `!CLUBREP_INVITE_LINK` and `!INVITE_LINK` tokens generate recipient-specific registration links that work **even when public registration is closed**. The classic use case: pull up last year's tournament, filter to the club reps (or players) you want to re-invite, target this year's event as the destination, and batch-send. Every recipient gets a unique, one-click path straight into *your* event — early access for your loyal customers, without the public rush.
 
-## Drafting Notes (scratch area)
-
-Open threads we can tighten in later passes:
-
-- Subject line currently generic ("come kick the tires"). Worth teasing a specific feature instead? **"Autoscheduling is here — come see the new TSIC"** might land harder given how much that changes a director's life.
-- Worth adding a short "what's NOT changing for your end users (parents, coaches)?" paragraph? Directors will get asked this.
-- Do we want a one-line mention of the go-live cutover plan (data migration, downtime window) or save that for a second email closer to the date?
-- Feature list ordering in the appendix — Scheduling and AI-in-product are now top billing above "New capability." Good. Could also promote them into more prominent opener bullets if we want.
-- **Autoscheduling claim — reality check.** The email pitches "learns from your prior years' patterns." Confirm the implementation actually does this (vs. a simpler heuristic). If it's forward-looking / in-progress, we should either soften the copy or clearly flag it as coming-this-season.
-- **AI email composition claim — reality check.** Same question: is this shipped in the search/registrations batch email flow today, or coming? Pitching capability that isn't yet live will burn trust fast.
-- **National rankings capture claim — reality check.** Same. What does "capture" mean concretely — ingestion from a specific external source? Worth tightening the copy once we know.
-- "No real payments" language — double-check this is true for *all* payment paths (registration fees, ARB setup, ARB renewals, refunds). If any path is live-ish, flag it.
-- Consider a PS with a direct Calendly/phone link for directors who'd rather talk than type.
-- Consider naming two or three directors as "early eyes" in the email to set expectations for a feedback cadence.
-- **AI angle calibration** — current opener names Claude/Anthropic directly. Dial up (add a short "How I built this with AI" sidebar) or dial down (just "modernized with AI") based on audience reaction. Some directors may find the AI framing exciting; others may find it unsettling. Worth A/B'ing a line with one or two people before the full send.
-- Related: an honest line about what AI *doesn't* do might strengthen trust — something like "every line was reviewed before it shipped; Claude accelerated the work, it didn't replace the judgment."
-
-Sections we haven't written yet but might want:
-
-- Known rough edges (things that work but aren't pretty yet) — honesty builds trust.
-- Explicit list of what's deferred to a post-launch release (if anything director-facing is).
-- Screenshots / short screencast links inline.
+Plus:
+- **AI-assisted email composition** — tell it what you want to say; it drafts copy you can refine and send.
+- **Expanded library of canned templates** — ready-to-send messaging for the jobs you run constantly: Waitlist, ARB cards expiring this month, and more.
+- **Smarter routing** — Player rows automatically fan out to mom, dad, and player addresses; no manual list-wrangling.
