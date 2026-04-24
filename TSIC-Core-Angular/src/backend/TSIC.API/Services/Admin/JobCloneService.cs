@@ -443,6 +443,19 @@ public sealed class JobCloneService : IJobCloneService
                 : null,
         }).ToList();
 
+        // Load source fees once; build per-agegroup modifier lookup for the agegroup preview
+        // hints (early-bird / late-fee window under each agegroup). Scope matches legacy:
+        // Player role, agegroup-scoped (TeamId IS NULL). Picks the first EarlyBird-or-Discount
+        // modifier for the discount hint and the first LateFee modifier for the late-fee hint —
+        // the full list (all roles, all scopes) is surfaced separately in feeModifierShifts.
+        var sourceFees = await _feeRepo.GetJobFeesByJobAsync(request.SourceJobId, ct);
+        var agegroupModifiers = sourceFees
+            .Where(f => f.RoleId == RoleConstants.Player && f.TeamId == null && f.AgegroupId.HasValue)
+            .GroupBy(f => f.AgegroupId!.Value)
+            .ToDictionary(
+                g => g.Key,
+                g => g.SelectMany(f => f.FeeModifiers ?? Enumerable.Empty<FeeModifiers>()).ToList());
+
         // Agegroups — name/grad-year bumps (when UpAgegroupNamesByOne), DOB + fee-window shifts.
         var agegroupPreviews = new List<AgegroupPreviewDto>();
         var sourceAgegroupIds = new List<Guid>();
@@ -469,6 +482,12 @@ public sealed class JobCloneService : IJobCloneService
                     newDobMax = ShiftByYears(newDobMax, 1);
                 }
 
+                var mods = agegroupModifiers.TryGetValue(ag.AgegroupId, out var m) ? m : new List<FeeModifiers>();
+                var earlyBird = mods.FirstOrDefault(x =>
+                    x.ModifierType == FeeConstants.ModifierEarlyBird
+                    || x.ModifierType == FeeConstants.ModifierDiscount);
+                var lateFee = mods.FirstOrDefault(x => x.ModifierType == FeeConstants.ModifierLateFee);
+
                 agegroupPreviews.Add(new AgegroupPreviewDto
                 {
                     SourceAgegroupId = ag.AgegroupId,
@@ -480,17 +499,16 @@ public sealed class JobCloneService : IJobCloneService
                     NewGradYearMax = newGradMax,
                     DobMin = DateOnlyShift(ag.DobMin, newDobMin),
                     DobMax = DateOnlyShift(ag.DobMax, newDobMax),
-                    DiscountFeeStart = ShiftDto(ag.DiscountFeeStart, yearDelta),
-                    DiscountFeeEnd = ShiftDto(ag.DiscountFeeEnd, yearDelta),
-                    LateFeeStart = ShiftDto(ag.LateFeeStart, yearDelta),
-                    LateFeeEnd = ShiftDto(ag.LateFeeEnd, yearDelta),
+                    DiscountFeeStart = ShiftDto(earlyBird?.StartDate, yearDelta),
+                    DiscountFeeEnd = ShiftDto(earlyBird?.EndDate, yearDelta),
+                    LateFeeStart = ShiftDto(lateFee?.StartDate, yearDelta),
+                    LateFeeEnd = ShiftDto(lateFee?.EndDate, yearDelta),
                 });
             }
         }
 
         // FeeModifier windows — year-delta shifted.
         var feeModifierShifts = new List<FeeModifierShiftDto>();
-        var sourceFees = await _feeRepo.GetJobFeesByJobAsync(request.SourceJobId, ct);
         foreach (var fee in sourceFees)
         {
             if (fee.FeeModifiers == null) continue;
