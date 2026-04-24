@@ -94,6 +94,7 @@ public class JobsController : ControllerBase
             PlayerRegRefundPolicy = TextSubstitutionService.StripClickingConsentSentences(jobMetadata.PlayerRegRefundPolicy ?? string.Empty),
             OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance,
             OfferTeamRegsaverInsurance = jobMetadata.BOfferTeamRegsaverInsurance,
+            AllowPif = jobMetadata.AllowPif,
             AdnArb = jobMetadata.AdnArb,
             AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,

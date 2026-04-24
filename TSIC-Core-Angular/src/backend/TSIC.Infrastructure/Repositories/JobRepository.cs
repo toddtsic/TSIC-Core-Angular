@@ -27,7 +27,8 @@ public class JobRepository : IJobRepository
             {
                 PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
-                CoreRegformPlayer = j.CoreRegformPlayer
+                CoreRegformPlayer = j.CoreRegformPlayer,
+                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF")
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -42,7 +43,8 @@ public class JobRepository : IJobRepository
                 AdnArb = j.AdnArb,
                 AdnArbbillingOccurences = j.AdnArbbillingOccurences,
                 AdnArbintervalLength = j.AdnArbintervalLength,
-                AdnArbstartDate = j.AdnArbstartDate
+                AdnArbstartDate = j.AdnArbstartDate,
+                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF")
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -140,7 +142,8 @@ public class JobRepository : IJobRepository
                 BAddProcessingFees = jdo.Job.BAddProcessingFees,
                 PayTo = jdo.Job.PayTo,
                 MailTo = jdo.Job.MailTo,
-                MailinPaymentWarning = jdo.Job.MailinPaymentWarning
+                MailinPaymentWarning = jdo.Job.MailinPaymentWarning,
+                AllowPif = jdo.Job.CoreRegformPlayer != null && jdo.Job.CoreRegformPlayer.Contains("ALLOWPIF")
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

@@ -11,6 +11,7 @@ import { PaymentV2Service } from '../state/payment-v2.service';
 import { PaymentStateV2Service } from '../state/payment-state-v2.service';
 import { InsuranceStateV2Service } from '../state/insurance-state-v2.service';
 import { InsuranceV2Service } from '../state/insurance-v2.service';
+import { JobContextService } from '../state/job-context.service';
 import { IdempotencyService } from '@views/registration/shared/services/idempotency.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
 import { ViChargeConfirmModalComponent } from '@views/registration/shared/components/vi-charge-confirm-modal.component';
@@ -181,7 +182,8 @@ import type { LineItem } from '../state/payment-v2.service';
               @if (paySvc.isArbScenario()) {
                 <div class="payment-plan-alert">
                   <header class="payment-plan-header">
-                    <i class="bi bi-calendar-event me-2"></i>Choose a Payment Plan
+                    <i class="bi bi-calendar-event me-2"></i>
+                    @if (jobCtx.allowPif()) { Choose a Payment Plan } @else { Payment Plan }
                   </header>
                   <div class="payment-plan-options">
                     <label class="payment-plan-option"
@@ -195,32 +197,40 @@ import type { LineItem } from '../state/payment-v2.service';
                         <span class="payment-plan-option-detail">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }} &middot; billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
                       </span>
                     </label>
-                    <label class="payment-plan-option"
-                           [class.is-selected]="paymentState.paymentOption() === 'PIF'"
-                           for="optPif">
-                      <input class="form-check-input" type="radio" name="payOpt" id="optPif" value="PIF"
-                             [checked]="paymentState.paymentOption() === 'PIF'"
-                             (change)="chooseOption('PIF')">
-                      <span class="payment-plan-option-text">
-                        <span class="payment-plan-option-title">Pay In Full</span>
-                        <span class="payment-plan-option-detail">{{ paySvc.totalAmount() | currency }} charged today</span>
-                      </span>
-                    </label>
+                    @if (jobCtx.allowPif()) {
+                      <label class="payment-plan-option"
+                             [class.is-selected]="paymentState.paymentOption() === 'PIF'"
+                             for="optPif">
+                        <input class="form-check-input" type="radio" name="payOpt" id="optPif" value="PIF"
+                               [checked]="paymentState.paymentOption() === 'PIF'"
+                               (change)="chooseOption('PIF')">
+                        <span class="payment-plan-option-text">
+                          <span class="payment-plan-option-title">Pay In Full</span>
+                          <span class="payment-plan-option-detail">{{ paySvc.totalAmount() | currency }} charged today</span>
+                        </span>
+                      </label>
+                    }
                   </div>
                 </div>
               } @else if (paySvc.isDepositScenario()) {
-                <div class="form-check mb-2">
-                  <input class="form-check-input" type="radio" name="payOpt" id="optDep" value="Deposit"
-                         [checked]="paymentState.paymentOption() === 'Deposit'"
-                         (change)="chooseOption('Deposit')">
-                  <label class="form-check-label" for="optDep">Deposit Only ({{ paySvc.depositTotal() | currency }})</label>
-                </div>
-                <div class="form-check mb-2">
-                  <input class="form-check-input" type="radio" name="payOpt" id="optPif2" value="PIF"
-                         [checked]="paymentState.paymentOption() === 'PIF'"
-                         (change)="chooseOption('PIF')">
-                  <label class="form-check-label" for="optPif2">Pay In Full ({{ paySvc.totalAmount() | currency }})</label>
-                </div>
+                @if (jobCtx.allowPif()) {
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="payOpt" id="optDep" value="Deposit"
+                           [checked]="paymentState.paymentOption() === 'Deposit'"
+                           (change)="chooseOption('Deposit')">
+                    <label class="form-check-label" for="optDep">Deposit Only ({{ paySvc.depositTotal() | currency }})</label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="payOpt" id="optPif2" value="PIF"
+                           [checked]="paymentState.paymentOption() === 'PIF'"
+                           (change)="chooseOption('PIF')">
+                    <label class="form-check-label" for="optPif2">Pay In Full ({{ paySvc.totalAmount() | currency }})</label>
+                  </div>
+                } @else {
+                  <div class="alert alert-info border-0 mb-0" role="status">
+                    <strong>Deposit due today:</strong> {{ paySvc.depositTotal() | currency }}. The remaining balance will be billed separately.
+                  </div>
+                }
               }
 
             </section>
@@ -610,6 +620,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     readonly state = inject(PlayerWizardStateService);
     readonly paySvc = inject(PaymentV2Service);
+    readonly jobCtx = inject(JobContextService);
 
     /** Per-player installment amount, rounded to cents. Mirrors the family-level rounding in PaymentV2Service.arbPerOccurrence. */
     perPlayerInstallment(playerFeeTotal: number): number {

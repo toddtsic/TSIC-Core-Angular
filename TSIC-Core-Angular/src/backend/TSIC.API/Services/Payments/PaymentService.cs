@@ -24,7 +24,7 @@ public class PaymentService : IPaymentService
     private readonly IFamiliesRepository _families;
     private readonly IRegistrationAccountingRepository _acct;
 
-    private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate);
+    private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif);
 
     public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
     {
@@ -255,6 +255,10 @@ public class PaymentService : IPaymentService
         await NormalizeFeesAsync(registrations, jobId);
         if (request.PaymentOption == PaymentOption.ARB)
             return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
+        // PIF chosen → re-stamp registrations with full amount (Deposit + BalanceDue)
+        // before computing charges. Validation above already verified ALLOWPIF.
+        if (request.PaymentOption == PaymentOption.PIF)
+            await UpgradeRegistrationsToPifAsync(registrations, jobId);
         var charges = await ComputeChargesAsync(registrations, request.PaymentOption);
         var total = charges.Values.Sum();
         if (total <= 0m) return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
@@ -270,9 +274,10 @@ public class PaymentService : IPaymentService
         if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
         var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
         if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
-        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate);
+        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif);
         var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
         if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
+        if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
         if (request.PaymentOption == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null);
         if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
         var cc = request.CreditCard;
@@ -409,17 +414,34 @@ public class PaymentService : IPaymentService
 
     private async Task NormalizeFeesAsync(IEnumerable<Registrations> registrations, Guid jobId)
     {
+        // Idempotent cleanup for registrations that never got a fee stamp.
+        // Default is the deposit phase (Deposit when configured, else BalanceDue).
+        // Does NOT force-overwrite a non-zero FeeBase — a PIF-upgraded registration
+        // must retain its Deposit + BalanceDue stamp through this call.
         foreach (var reg in registrations)
         {
             if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
             var resolved = await _feeService.ResolveFeeAsync(
                 jobId, Domain.Constants.RoleConstants.Player,
                 reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value);
-            var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+            var deposit = resolved?.EffectiveDeposit ?? 0m;
+            var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+            var baseFee = deposit > 0m ? deposit : balanceDue;
             if (baseFee <= 0) continue;
-            if (reg.FeeBase != baseFee) reg.FeeBase = baseFee;
-            if (reg.FeeTotal <= 0) reg.FeeTotal = baseFee;
+            if (reg.FeeBase <= 0) reg.FeeBase = baseFee;
+            if (reg.FeeTotal <= 0) reg.FeeTotal = reg.FeeBase;
             if (reg.OwedTotal <= 0 && reg.PaidTotal <= 0) reg.OwedTotal = reg.FeeTotal;
+        }
+    }
+
+    private async Task UpgradeRegistrationsToPifAsync(IEnumerable<Registrations> registrations, Guid jobId)
+    {
+        foreach (var reg in registrations)
+        {
+            if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
+            await _feeService.ApplyPifUpgradeAsync(
+                reg, jobId, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value,
+                new FeeApplicationContext { AddProcessingFees = true });
         }
     }
 

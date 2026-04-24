@@ -24,6 +24,7 @@ export type JobMetadataResponse = {
     playerRegRefundPolicy?: string | null;
     offerPlayerRegsaverInsurance?: boolean;
     offerTeamRegsaverInsurance?: boolean;
+    allowPif?: boolean;
     adnArb?: boolean | null;
     adnArbBillingOccurences?: number | null;
     adnArbIntervalLength?: number | null;

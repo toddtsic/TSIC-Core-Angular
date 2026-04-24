@@ -117,6 +117,18 @@ public interface IFeeResolutionService
         FeeApplicationContext ctx,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Upgrades a registration from deposit phase to Pay In Full.
+    /// Re-stamps FeeBase = Deposit + BalanceDue and recomputes FeeProcessing
+    /// on the new base (proportional net-billable rule). Modifiers are PRESERVED.
+    /// Caller MUST verify the job has ALLOWPIF before invoking — this method
+    /// does not re-check that policy gate.
+    /// </summary>
+    Task ApplyPifUpgradeAsync(
+        Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
+        FeeApplicationContext ctx,
+        CancellationToken ct = default);
+
     // ── Application (Team entities) ─────────────────────────────
 
     /// <summary>
@@ -150,6 +162,9 @@ public record ResolvedModifiers
 
 /// <summary>
 /// Context for player fee application — controls processing fee behavior.
+/// Phase (deposit vs PIF) is NOT an input; it is determined by which method
+/// is called. Use ApplyNewRegistrationFeesAsync for the default deposit phase
+/// and ApplyPifUpgradeAsync for the explicit PIF upgrade at checkout.
 /// </summary>
 public record FeeApplicationContext
 {
@@ -158,13 +173,6 @@ public record FeeApplicationContext
 
     /// <summary>Sum of non-credit-card payments for processing fee basis adjustment.</summary>
     public decimal NonCcPayments { get; init; }
-
-    /// <summary>
-    /// True when the player is paying in full (PIF) — FeeBase = Deposit + BalanceDue.
-    /// False (default) = deposit-only phase; FeeBase = Deposit when configured, else BalanceDue.
-    /// Controlled by |ALLOWPIF in Jobs.CoreRegformPlayer + player's checkout choice.
-    /// </summary>
-    public bool IsFullPayment { get; init; }
 }
 
 /// <summary>

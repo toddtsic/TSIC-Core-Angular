@@ -52,10 +52,13 @@ export class JobContextService {
     private readonly _adnArbBillingOccurences = signal<number | null>(null);
     private readonly _adnArbIntervalLength = signal<number | null>(null);
     private readonly _adnArbStartDate = signal<string | null>(null);
+    private readonly _allowPif = signal(false);
     readonly adnArb = this._adnArb.asReadonly();
     readonly adnArbBillingOccurences = this._adnArbBillingOccurences.asReadonly();
     readonly adnArbIntervalLength = this._adnArbIntervalLength.asReadonly();
     readonly adnArbStartDate = this._adnArbStartDate.asReadonly();
+    /** True when Jobs.CoreRegformPlayer contains |ALLOWPIF — gates the Pay In Full option at checkout. */
+    readonly allowPif = this._allowPif.asReadonly();
 
     // ── Payment method restrictions (1=CC only, 2=CC or Check, 3=Check only) ──
     private readonly _paymentMethodsAllowedCode = signal<number>(1);
@@ -157,11 +160,13 @@ export class JobContextService {
                     const occ = getPropertyCI<number>(m, 'adnArbBillingOccurences') ?? null;
                     const intLen = getPropertyCI<number>(m, 'adnArbIntervalLength') ?? null;
                     const start = getPropertyCI<string>(m, 'adnArbStartDate') ?? null;
+                    const allowPif = getPropertyCI<boolean>(m, 'allowPif') ?? false;
                     this._adnArb.set(!!arb);
                     this._adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
                     this._adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
                     this._adnArbStartDate.set(start ? String(start) : null);
-                    this._paymentOption.set(this._adnArb() ? 'ARB' : 'PIF');
+                    this._allowPif.set(!!allowPif);
+                    this._paymentOption.set(this._adnArb() ? 'ARB' : (allowPif ? 'PIF' : 'Deposit'));
 
                     // Payment method restrictions
                     const pmCode = getPropertyCI<number>(m, 'paymentMethodsAllowedCode');
@@ -330,6 +335,7 @@ export class JobContextService {
         this._adnArbBillingOccurences.set(null);
         this._adnArbIntervalLength.set(null);
         this._adnArbStartDate.set(null);
+        this._allowPif.set(false);
         this._paymentMethodsAllowedCode.set(1);
         this._bAddProcessingFees.set(false);
         this._payTo.set(null);

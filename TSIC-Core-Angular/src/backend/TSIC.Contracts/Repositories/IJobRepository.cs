@@ -7,6 +7,12 @@ public record JobPreSubmitMetadata
     public string? PlayerProfileMetadataJson { get; init; }
     public string? JsonOptions { get; init; }
     public string? CoreRegformPlayer { get; init; }
+
+    /// <summary>
+    /// True when Jobs.CoreRegformPlayer contains the ALLOWPIF token.
+    /// Gates whether the player checkout exposes the Pay In Full option.
+    /// </summary>
+    public bool AllowPif { get; init; }
 }
 
 public record JobPaymentInfo
@@ -15,6 +21,12 @@ public record JobPaymentInfo
     public int? AdnArbbillingOccurences { get; init; }
     public int? AdnArbintervalLength { get; init; }
     public DateTime? AdnArbstartDate { get; init; }
+
+    /// <summary>
+    /// True when Jobs.CoreRegformPlayer contains the ALLOWPIF token.
+    /// Gates whether the payment service accepts PaymentOption.PIF.
+    /// </summary>
+    public bool AllowPif { get; init; }
 }
 
 public record JobMetadata
@@ -66,6 +78,12 @@ public record JobMetadataDto
     public string? PayTo { get; init; }
     public string? MailTo { get; init; }
     public string? MailinPaymentWarning { get; init; }
+
+    /// <summary>
+    /// True when Jobs.CoreRegformPlayer contains the ALLOWPIF token.
+    /// Gates whether the player checkout exposes the Pay In Full option.
+    /// </summary>
+    public required bool AllowPif { get; init; }
 }
 
 public record JobRegistrationStatus

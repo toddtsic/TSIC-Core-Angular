@@ -151,6 +151,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     // ── Player Registration: New ────────────────────────────────
 
+    /// <summary>
+    /// Initial fee stamp at team-reservation time. Always defaults to the
+    /// deposit phase — FeeBase = Deposit when configured, else BalanceDue.
+    /// PIF is never applied here, even if the job has ALLOWPIF — that is an
+    /// explicit upgrade at checkout via ApplyPifUpgradeAsync.
+    /// </summary>
     public async Task ApplyNewRegistrationFeesAsync(
         Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
         FeeApplicationContext ctx,
@@ -160,19 +166,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        decimal baseFee;
-        if (ctx.IsFullPayment)
-        {
-            baseFee = deposit + balanceDue;
-        }
-        else if (deposit > 0m)
-        {
-            baseFee = deposit;
-        }
-        else
-        {
-            baseFee = balanceDue;
-        }
+        var baseFee = deposit > 0m ? deposit : balanceDue;
 
         var modifiers = await EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agegroupId, teamId, DateTime.Now, ct);
@@ -186,21 +180,49 @@ public sealed class FeeResolutionService : IFeeResolutionService
         ApplyProcessingAndTotals(reg, ctx, rate, enabled);
     }
 
+    // ── Player Registration: PIF Upgrade (checkout) ─────────────
+
+    /// <summary>
+    /// Explicit upgrade from deposit phase to Pay In Full at checkout.
+    /// Re-stamps FeeBase = Deposit + BalanceDue. Modifiers are PRESERVED —
+    /// caller is responsible for verifying the ALLOWPIF policy gate.
+    /// </summary>
+    public async Task ApplyPifUpgradeAsync(
+        Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
+        FeeApplicationContext ctx,
+        CancellationToken ct = default)
+    {
+        var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, agegroupId, teamId, ct);
+        var deposit = resolved?.EffectiveDeposit ?? 0m;
+        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+
+        reg.FeeBase = deposit + balanceDue;
+        // FeeDiscount / FeeLatefee / FeeDonation preserved from initial stamp
+
+        var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
+    }
+
     // ── Player Registration: Swap ───────────────────────────────
 
+    /// <summary>
+    /// Re-stamps FeeBase to the new team's deposit-phase amount
+    /// (Deposit when configured, else BalanceDue). Modifiers are FROZEN
+    /// from the original registration. If the player was in PIF before the
+    /// swap, they will need to re-opt at checkout — the swap does not
+    /// preserve PIF phase across teams.
+    /// </summary>
     public async Task ApplySwapFeesAsync(
         Registrations reg, Guid jobId, Guid targetAgegroupId, Guid targetTeamId,
         FeeApplicationContext ctx,
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, targetAgegroupId, targetTeamId, ct);
-        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+        var deposit = resolved?.EffectiveDeposit ?? 0m;
+        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        // Only FeeBase changes — modifiers are FROZEN from original registration
-        reg.FeeBase = baseFee;
-        // FeeDiscount — KEPT
-        // FeeLatefee  — KEPT
-        // FeeDonation — KEPT
+        reg.FeeBase = deposit > 0m ? deposit : balanceDue;
+        // FeeDiscount / FeeLatefee / FeeDonation preserved
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
         ApplyProcessingAndTotals(reg, ctx, rate, enabled);

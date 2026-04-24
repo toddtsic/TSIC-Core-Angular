@@ -24,7 +24,11 @@ public class JobMetadataResponse
     public string? PlayerRegRefundPolicy { get; set; }
     public bool OfferPlayerRegsaverInsurance { get; set; }
     public bool OfferTeamRegsaverInsurance { get; set; }
-    // Payment schedule (ALLOWPIF removed; UI derives options from scenarios)
+    // Pay-In-Full gate: Jobs.CoreRegformPlayer contains "|ALLOWPIF".
+    // When false, the checkout does not expose a Pay In Full option — the
+    // player is locked into the configured phase (deposit or ARB schedule).
+    public bool AllowPif { get; set; }
+    // Payment schedule (ARB)
     public bool? AdnArb { get; set; }
     public int? AdnArbBillingOccurences { get; set; }
     public int? AdnArbIntervalLength { get; set; }
