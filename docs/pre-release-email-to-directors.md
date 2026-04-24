@@ -12,7 +12,9 @@ Hi Directors!
 
 **It's here.** The next-generation TeamSportsInfo.com — **rebuilt from the ground up**, developed in deep partnership with **Claude**, Anthropic's frontier AI. A genuine architectural reset — not a port, not a reskin. And yet you'll feel at home the moment you log in. **Zero training required.** The navigation is where you expect it. The workflows run the way they always have. Every feature you rely on today is there — preserved, sharpened, and verified to the penny against the legacy system.
 
-What's new is the product itself. The polish. The speed. And **AI woven right into the product**: a completely rebuilt scheduling engine with **autoscheduling that learns from your prior years' patterns**, **AI-assisted email composition** in search/registrations, **AI-assisted national rankings capture**. Alongside those, a set of brand-new capabilities you'll want to explore: **discount codes and modifiers on team registration**, **bulk updating of USA Lacrosse Number expiration dates for your players**, an overhauled workspace dashboard — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
+**And one thing to be absolutely clear about: this release affects the director-facing web application *only*. TSIC-Events — the tournament mobile app your parents, coaches, and players rely on — is completely unchanged and unaffected.** It runs exactly as it does today, straight through the cutover and beyond. Live tournaments, score updates, the on-site mobile experience your attendees count on — all untouched.
+
+What's new is the product itself. The polish. The speed. And **AI woven right into the product**: a completely rebuilt scheduling engine with **autoscheduling that learns from your prior years' patterns**, **AI-assisted email composition** in search/registrations, **AI-assisted national rankings capture**. Alongside those, a set of brand-new capabilities you'll want to explore: a **completely reimagined Club Teams library**, **early-bird and late-fee modifiers on both player and team registrations**, **discount codes for team registrations**, bulk updating of USA Lacrosse Number expiration dates for your players — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
 
 **End of May** is the target to flip the switch. Before we do, **I'd like to invite you into the dev environment** — come explore, try things, push it around at your own pace. Your input between now and go-live will directly shape what ships. If something feels off, or you'd like to see a workflow behave differently, I'd love to hear about it while there's still room to act.
 
@@ -52,9 +54,17 @@ If you've been running tournaments on TSIC, these won't surprise you. The behavi
 
 ### Scheduling — completely rebuilt
 
-The entire scheduling process has been overhauled from the ground up. The headline capability: **autoscheduling that learns from your prior years' patterns** — instead of starting from scratch each year, the system studies how you've scheduled before and drafts this year's schedule for you. You get a starting point that reflects how *you* run your tournaments. Tweak, adjust, publish.
+The entire scheduling process has been overhauled from the ground up. The headline capability: **autoscheduling that learns from your prior years' patterns** — the system studies how you've scheduled before and drafts this year's schedule for you. You get a starting point that reflects how *you* run your tournaments. Tweak, adjust, publish.
 
-This is the single biggest workflow upgrade in the release. If you've ever spent a weekend wrangling a schedule into shape, this is going to change your life.
+### Club Teams library — completely reimagined
+
+A real structural leap, not a UI tweak. Club reps now build a **persistent, club-owned roster of teams** once, and reuse those entries across every tournament they register for — instead of re-typing the same team name, grad year, and level of play at every event.
+
+**What it means for you:**
+
+1. **Registration friction drops dramatically for your club reps.** Set up a team in the library once; from then on, registering that team into any tournament is effectively a single click. Cleaner data in, fewer duplicate teams, faster setup for every event on your calendar.
+
+2. **Team identity persists across the ecosystem.** Each library team carries a stable, protected identity. Once that team appears on a schedule, its core attributes lock down automatically to preserve historical accuracy. **TSIC can now track the same team across every tournament it plays** — the foundation for cross-tournament stats, club profiles, and recruiting-friendly team pages is in this release.
 
 ### AI in the product (not just behind it)
 
@@ -71,7 +81,8 @@ More AI-powered features will land as we hear what would actually help. This is 
 The rest of the pieces that weren't in legacy, or that got a meaningful rework:
 
 **Registration wizards**
-- Team wizard now supports **discount codes** plus early-bird and late-fee modifiers at the team level.
+- **Early-bird and late-fee modifiers on both player *and* team registrations** — set the windows, set the amounts, the system handles the rest.
+- **Discount codes for team registrations** — apply targeted pricing adjustments without hand-tweaking fees per team.
 - Player wizard blocks cleanly when registration is closed, and surfaces BYAGEGROUP eligibility correctly.
 - Club Rep registration has **inline Terms of Service acceptance** — no separate popup.
 - "Proceed to Payment" button label now reflects exactly how many new teams you're paying for.
@@ -84,10 +95,6 @@ The rest of the pieces that weren't in legacy, or that got a meaningful rework:
 **Search / Registrations**
 - ARB credit cards expiring this month — dedicated lookup + email template.
 - Batch email improvements: expanded template library, Waitlist template, smarter routing (Player rows go to mom/dad/player as appropriate).
-
-**Club Teams library**
-- Edit, delete, and archive unscheduled library teams.
-- 3-dimensional identity (club + agegroup + year) prevents accidental collisions.
 
 **Communications**
 - Team Links admin (ported from the mobile legacy tool, now web-first).
