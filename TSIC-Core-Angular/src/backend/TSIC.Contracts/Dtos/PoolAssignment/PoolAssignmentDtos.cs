@@ -12,8 +12,6 @@ public record PoolDivisionOptionDto
     public required int TeamCount { get; init; }
     public required int MaxTeams { get; init; }
     public required bool IsDroppedTeams { get; init; }
-    public required decimal? TeamFee { get; init; }
-    public required decimal? RosterFee { get; init; }
     public string? AgegroupColor { get; init; }
     public required int PlayerCount { get; init; }
 }

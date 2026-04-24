@@ -8,25 +8,12 @@ namespace TSIC.Contracts.Repositories;
 public interface IAgeGroupRepository
 {
     /// <summary>
-    /// Get fee information (TeamFee and RosterFee) for an age group
-    /// </summary>
-    Task<(decimal? TeamFee, decimal? RosterFee)?> GetFeeInfoAsync(Guid ageGroupId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Get age groups by league ID and season, filtered by MaxTeams > 0.
     /// Returns age groups with their IDs, names, and MaxTeams for registration UI.
     /// </summary>
     Task<List<AgeGroupForRegistration>> GetByLeagueAndSeasonAsync(
         Guid leagueId,
         string season,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get age group by ID for validation.
-    /// Returns age group info including MaxTeams for capacity checks.
-    /// </summary>
-    Task<AgeGroupValidationInfo?> GetForValidationAsync(
-        Guid ageGroupId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -68,15 +55,5 @@ public record AgeGroupForRegistration
     public required Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
     public required int MaxTeams { get; init; }
-    public decimal? TeamFee { get; init; }
-    public decimal? RosterFee { get; init; }
 }
 
-public record AgeGroupValidationInfo
-{
-    public required Guid AgegroupId { get; init; }
-    public string? AgegroupName { get; init; }
-    public required int MaxTeams { get; init; }
-    public decimal? TeamFee { get; init; }
-    public decimal? RosterFee { get; init; }
-}

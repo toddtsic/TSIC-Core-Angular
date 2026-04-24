@@ -73,8 +73,6 @@ public class DivisionRepository : IDivisionRepository
                 d.Agegroup.AgegroupId,
                 AgegroupName = d.Agegroup.AgegroupName ?? "",
                 d.Agegroup.MaxTeams,
-                d.Agegroup.TeamFee,
-                d.Agegroup.RosterFee,
                 AgegroupColor = d.Agegroup.Color,
                 TeamCount = _context.Teams.Count(t => t.DivId == d.DivId && t.JobId == jobId),
                 PlayerCount = _context.Registrations
@@ -94,8 +92,6 @@ public class DivisionRepository : IDivisionRepository
             MaxTeams = d.MaxTeams,
             IsDroppedTeams = d.AgegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase)
                           || d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase),
-            TeamFee = d.TeamFee,
-            RosterFee = d.RosterFee,
             AgegroupColor = d.AgegroupColor,
             PlayerCount = d.PlayerCount
         }).ToList();

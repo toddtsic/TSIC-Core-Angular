@@ -323,7 +323,11 @@ public class TeamRegistrationService : ITeamRegistrationService
         var allCandidateIds = allClubTeams.Select(ct => ct.ClubTeamId).Concat(registeredClubTeamIds).Distinct();
         var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
 
-        var registeredTeams = ShapeRegisteredTeams(rawRegistered, scheduledIds);
+        var teamIds = rawRegistered.Select(t => t.TeamId).ToList();
+        var feesByTeamId = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, RoleConstants.ClubRep, teamIds);
+        var registeredTeams = ShapeRegisteredTeams(
+            rawRegistered, scheduledIds, feesByTeamId, job.BTeamsFullPaymentRequired ?? false);
 
         var availableClubTeams = allClubTeams
             .Where(ct => !registeredClubTeamIds.Contains(ct.ClubTeamId))
@@ -411,32 +415,43 @@ public class TeamRegistrationService : ITeamRegistrationService
 
     private static List<RegisteredTeamDto> ShapeRegisteredTeams(
         IEnumerable<Contracts.Repositories.RegisteredTeamInfo> rawRegistered,
-        HashSet<int> scheduledClubTeamIds)
+        HashSet<int> scheduledClubTeamIds,
+        Dictionary<Guid, Contracts.Repositories.ResolvedFee> feesByTeamId,
+        bool bTeamsFullPaymentRequired)
     {
-        return rawRegistered.Select(t => new RegisteredTeamDto
+        return rawRegistered.Select(t =>
         {
-            TeamId = t.TeamId,
-            TeamName = t.TeamName,
-            AgeGroupId = t.AgeGroupId,
-            AgeGroupName = t.AgeGroupName,
-            LevelOfPlay = t.LevelOfPlay,
-            FeeBase = t.FeeBase,
-            FeeProcessing = t.FeeProcessing,
-            FeeDiscount = t.FeeDiscount,
-            FeeLatefee = t.FeeLatefee,
-            FeeTotal = t.FeeTotal,
-            PaidTotal = t.PaidTotal,
-            OwedTotal = t.OwedTotal,
-            DepositDue = t.DepositDue,
-            AdditionalDue = t.AdditionalDue,
-            RegistrationTs = t.RegistrationTs,
-            BWaiverSigned3 = t.BWaiverSigned3,
-            CcOwedTotal = t.OwedTotal,
-            // Check payment drops the CC processing fee only — Discount and LateFee are
-            // already baked into OwedTotal via RecalcTotals.
-            CkOwedTotal = Math.Max(0m, t.OwedTotal - t.FeeProcessing),
-            ClubTeamId = t.ClubTeamId,
-            BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
+            var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
+            var deposit = resolved?.Deposit ?? 0m;
+            var balanceDue = resolved?.BalanceDue ?? 0m;
+            var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
+            var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
+
+            return new RegisteredTeamDto
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName,
+                AgeGroupId = t.AgeGroupId,
+                AgeGroupName = t.AgeGroupName,
+                LevelOfPlay = t.LevelOfPlay,
+                FeeBase = t.FeeBase,
+                FeeProcessing = t.FeeProcessing,
+                FeeDiscount = t.FeeDiscount,
+                FeeLatefee = t.FeeLatefee,
+                FeeTotal = t.FeeTotal,
+                PaidTotal = t.PaidTotal,
+                OwedTotal = t.OwedTotal,
+                DepositDue = depositDue,
+                AdditionalDue = additionalDue,
+                RegistrationTs = t.RegistrationTs,
+                BWaiverSigned3 = t.BWaiverSigned3,
+                CcOwedTotal = t.OwedTotal,
+                // Check payment drops the CC processing fee only — Discount and LateFee are
+                // already baked into OwedTotal via RecalcTotals.
+                CkOwedTotal = Math.Max(0m, t.OwedTotal - t.FeeProcessing),
+                ClubTeamId = t.ClubTeamId,
+                BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
+            };
         }).ToList();
     }
 

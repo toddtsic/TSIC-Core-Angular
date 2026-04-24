@@ -53,46 +53,6 @@ public class TeamRepository : ITeamRepository
             : (data.FeeBase, data.PerRegistrantFee);
     }
 
-    public async Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForClubAndJobAsync(
-        Guid jobId,
-        int clubId,
-        CancellationToken cancellationToken = default)
-    {
-        // Join Teams → Registrations → ClubReps to filter by ClubId
-        return await _context.Teams
-            .Where(t => t.JobId == jobId && t.ClubrepRegistrationid != null)
-            .Join(_context.Registrations,
-                t => t.ClubrepRegistrationid,
-                reg => reg.RegistrationId,
-                (t, reg) => new { Team = t, Registration = reg })
-            .Where(tr => _context.ClubReps.Any(cr => cr.ClubRepUserId == tr.Registration.UserId && cr.ClubId == clubId))
-            .Select(tr => new RegisteredTeamInfo
-            {
-                TeamId = tr.Team.TeamId,
-                TeamName = tr.Team.TeamName ?? string.Empty,
-                AgeGroupId = tr.Team.AgegroupId,
-                AgeGroupName = tr.Team.Agegroup!.AgegroupName ?? string.Empty,
-                LevelOfPlay = tr.Team.LevelOfPlay,
-                FeeBase = tr.Team.FeeBase ?? 0,
-                FeeProcessing = tr.Team.FeeProcessing ?? 0,
-                FeeDiscount = tr.Team.FeeDiscount ?? 0,
-                FeeLatefee = tr.Team.FeeLatefee ?? 0,
-                // Use stored totals — RecalcTotals keeps them in sync on every fee mutation.
-                // Rebuilding the formula here would silently diverge when Discount/LateFee are non-zero.
-                FeeTotal = tr.Team.FeeTotal ?? 0,
-                PaidTotal = tr.Team.PaidTotal ?? 0,
-                OwedTotal = tr.Team.OwedTotal ?? 0,
-                // DepositDue: RosterFee - PaidTotal (0 if already paid deposit)
-                DepositDue = (tr.Team.PaidTotal >= tr.Team.Agegroup.RosterFee) ? 0 : (tr.Team.Agegroup.RosterFee ?? 0) - (tr.Team.PaidTotal ?? 0),
-                // AdditionalDue: TeamFee (0 if already fully paid or if full payment required upfront)
-                AdditionalDue = (tr.Team.OwedTotal == 0 && (tr.Team.Job.BTeamsFullPaymentRequired ?? false)) ? 0 : (tr.Team.Agegroup.TeamFee ?? 0),
-                RegistrationTs = tr.Team.Createdate,
-                BWaiverSigned3 = tr.Registration.BWaiverSigned3
-            })
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<int> GetRegisteredCountForAgegroupAsync(
         Guid jobId,
         Guid agegroupId,
@@ -224,10 +184,6 @@ public class TeamRepository : ITeamRepository
                 FeeTotal = t.FeeTotal ?? 0,
                 PaidTotal = t.PaidTotal ?? 0,
                 OwedTotal = t.OwedTotal ?? 0,
-                // DepositDue: RosterFee - PaidTotal (0 if already paid deposit)
-                DepositDue = (t.PaidTotal >= t.Agegroup.RosterFee) ? 0 : (t.Agegroup.RosterFee ?? 0) - (t.PaidTotal ?? 0),
-                // AdditionalDue: TeamFee (0 if already fully paid or if full payment required upfront)
-                AdditionalDue = (t.OwedTotal == 0 && (t.Job.BTeamsFullPaymentRequired ?? false)) ? 0 : (t.Agegroup.TeamFee ?? 0),
                 RegistrationTs = t.Createdate,
                 BWaiverSigned3 = t.ClubrepRegistration != null && t.ClubrepRegistration.BWaiverSigned3
             })
@@ -249,7 +205,6 @@ public class TeamRepository : ITeamRepository
         return await (from t in _context.Teams
                       join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
                       join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
-                      join j in _context.Jobs on t.JobId equals j.JobId
                       where t.JobId == jobId && reg.UserId == userId
                             && t.Active == true
                             && !ag.AgegroupName!.Contains("DROPPED")
@@ -269,8 +224,6 @@ public class TeamRepository : ITeamRepository
                           FeeTotal = t.FeeTotal ?? 0,
                           PaidTotal = t.PaidTotal ?? 0,
                           OwedTotal = t.OwedTotal ?? 0,
-                          DepositDue = (t.PaidTotal >= ag.RosterFee) ? 0 : (ag.RosterFee ?? 0) - (t.PaidTotal ?? 0),
-                          AdditionalDue = (t.OwedTotal == 0 && (j.BTeamsFullPaymentRequired ?? false)) ? 0 : (ag.TeamFee ?? 0),
                           RegistrationTs = t.Createdate,
                           BWaiverSigned3 = reg.BWaiverSigned3,
                           ClubTeamId = t.ClubTeamId

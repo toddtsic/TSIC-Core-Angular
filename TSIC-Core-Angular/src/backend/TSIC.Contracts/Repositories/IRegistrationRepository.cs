@@ -489,7 +489,6 @@ public record EligibleInsuranceRegistration
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
     public decimal? PerRegistrantFee { get; init; }
-    public decimal? TeamFee { get; init; }
     public required decimal FeeTotal { get; init; }
 }
 

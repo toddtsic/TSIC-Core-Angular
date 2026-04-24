@@ -110,7 +110,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
 
         var modifiers = await EvaluateModifiersAsync(
-            jobId, RoleConstants.Staff, agegroupId, teamId, DateTime.UtcNow, ct);
+            jobId, RoleConstants.Staff, agegroupId, teamId, DateTime.Now, ct);
 
         reg.FeeBase = baseFee;
         reg.FeeDiscount = modifiers.TotalDiscount;
@@ -132,7 +132,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
         // Evaluate job-level modifiers only (no agegroup/team)
         var modifiers = await _feeRepo.GetActiveModifiersForJobLevelAsync(
-            jobId, roleId, DateTime.UtcNow, ct);
+            jobId, roleId, DateTime.Now, ct);
 
         var totalDiscount = modifiers
             .Where(m => m.ModifierType == FeeConstants.ModifierDiscount || m.ModifierType == FeeConstants.ModifierEarlyBird)
@@ -160,7 +160,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
 
         var modifiers = await EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agegroupId, teamId, DateTime.UtcNow, ct);
+            jobId, RoleConstants.Player, agegroupId, teamId, DateTime.Now, ct);
 
         reg.FeeBase = baseFee;
         reg.FeeDiscount = modifiers.TotalDiscount;
@@ -218,7 +218,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         }
 
         var modifiers = await EvaluateModifiersAsync(
-            jobId, RoleConstants.ClubRep, agegroupId, team.TeamId, DateTime.UtcNow, ct);
+            jobId, RoleConstants.ClubRep, agegroupId, team.TeamId, DateTime.Now, ct);
 
         team.FeeBase = feeBase;
         team.FeeDiscount = modifiers.TotalDiscount;

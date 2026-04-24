@@ -286,7 +286,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         {
             // Centralized fee resolution for insurable amount: prefer per-registrant fee from resolver; fallback to fee total.
             var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(r.AssignedTeamId);
-            var insurable = InsurableAmountCalculator.ComputeInsurableAmountFromCentralized(fee, r.PerRegistrantFee, r.TeamFee, r.FeeTotal);
+            var insurable = InsurableAmountCalculator.ComputeInsurableAmountFromCentralized(fee, r.PerRegistrantFee, r.FeeTotal);
             var product = new VIPlayerProductDto
             {
                 Customer = new VICustomerDto

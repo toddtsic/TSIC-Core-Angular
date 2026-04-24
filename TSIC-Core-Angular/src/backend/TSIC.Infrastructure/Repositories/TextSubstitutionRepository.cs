@@ -206,13 +206,13 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
         if (primaryContactId != null)
         {
             var explicitContact = await (from r in _context.Registrations
-                          join u in _context.AspNetUsers on r.UserId equals u.Id
-                          where r.RegistrationId == primaryContactId && r.BActive == true
-                          select new DirectorContactData
-                          {
-                              Name = u.FirstName + " " + u.LastName,
-                              Email = u.Email ?? string.Empty
-                          }).FirstOrDefaultAsync(cancellationToken);
+                                         join u in _context.AspNetUsers on r.UserId equals u.Id
+                                         where r.RegistrationId == primaryContactId && r.BActive == true
+                                         select new DirectorContactData
+                                         {
+                                             Name = u.FirstName + " " + u.LastName,
+                                             Email = u.Email ?? string.Empty
+                                         }).FirstOrDefaultAsync(cancellationToken);
 
             if (explicitContact != null)
                 return explicitContact;
@@ -334,14 +334,14 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                             && t.TeamName != "Club Teams"
                       select new TeamSummaryRow
                       {
+                          TeamId = t.TeamId,
+                          JobId = t.JobId,
                           TeamName = ag.AgegroupName + " " + t.TeamName,
                           FeeTotal = t.FeeTotal,
                           PaidTotal = t.PaidTotal,
                           OwedTotal = t.OwedTotal,
                           Dow = t.Dow,
                           ProcessingFees = t.FeeProcessing,
-                          RosterFee = ag.RosterFee,
-                          AdditionalFees = ag.TeamFee,
                           ClubName = r.ClubName
                       }).ToListAsync(cancellationToken);
     }

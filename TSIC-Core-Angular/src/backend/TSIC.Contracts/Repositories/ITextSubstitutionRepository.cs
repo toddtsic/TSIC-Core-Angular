@@ -219,14 +219,14 @@ public record TeamAccountingRow
 /// </summary>
 public record TeamSummaryRow
 {
+    public required Guid TeamId { get; init; }
+    public required Guid JobId { get; init; }
     public required string TeamName { get; init; }
     public decimal? FeeTotal { get; init; }
     public decimal? PaidTotal { get; init; }
     public decimal? OwedTotal { get; init; }
     public string? Dow { get; init; }
     public decimal? ProcessingFees { get; init; }
-    public decimal? RosterFee { get; init; }
-    public decimal? AdditionalFees { get; init; }
     public string? ClubName { get; init; }
 }
 

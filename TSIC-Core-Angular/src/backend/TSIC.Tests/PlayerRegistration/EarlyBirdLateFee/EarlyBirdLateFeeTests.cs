@@ -609,6 +609,8 @@ public class EarlyBirdLateFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
+        jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobFeeSettings { BAddProcessingFees = true, PaymentMethodsAllowedCode = 0 });
         var feeCalc = new PlayerFeeCalculator();
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
 
@@ -644,8 +646,10 @@ public class EarlyBirdLateFeeTests
         // FeeBase stays $200 (same job-level fee for both teams)
         reg.FeeBase.Should().Be(200m);
 
-        // FeeTotal recalculated: 200 + 7 - 25 + 0 + 0 = 182
-        reg.FeeTotal.Should().Be(182m);
+        // Processing tracks net billable: (200 - 25) × 3.5% = 6.125 → 6.13
+        // FeeTotal = 200 + 6.13 - 25 = 181.13
+        reg.FeeProcessing.Should().Be(6.13m, "proportional: (200 - 25) × 3.5%");
+        reg.FeeTotal.Should().Be(181.13m);
     }
 
     [Fact(DisplayName = "Team swap to different-fee team updates FeeBase but keeps modifiers")]
@@ -674,6 +678,8 @@ public class EarlyBirdLateFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
+        jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobFeeSettings { BAddProcessingFees = true, PaymentMethodsAllowedCode = 0 });
         var feeCalc = new PlayerFeeCalculator();
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
 
@@ -702,8 +708,8 @@ public class EarlyBirdLateFeeTests
         reg.FeeBase.Should().Be(300m, "team B has $300 override");
         reg.FeeDiscount.Should().Be(25m, "early bird discount preserved from original");
         reg.FeeLatefee.Should().Be(0m, "no late fee from original");
-        reg.FeeProcessing.Should().Be(10.50m, "300 × 3.5%");
-        reg.FeeTotal.Should().Be(285.50m, "300 + 10.50 - 25 + 0 + 0");
+        reg.FeeProcessing.Should().Be(9.63m, "proportional: (300 - 25) × 3.5% = 9.625 → 9.63");
+        reg.FeeTotal.Should().Be(284.63m, "300 + 9.63 - 25 + 0 + 0");
     }
 
     // ════════════════════════════════════════════════════════════

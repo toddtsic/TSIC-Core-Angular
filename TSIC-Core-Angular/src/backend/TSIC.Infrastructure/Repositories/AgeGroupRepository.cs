@@ -18,17 +18,6 @@ public class AgeGroupRepository : IAgeGroupRepository
         _context = context;
     }
 
-    public async Task<(decimal? TeamFee, decimal? RosterFee)?> GetFeeInfoAsync(Guid ageGroupId, CancellationToken cancellationToken = default)
-    {
-        var result = await _context.Agegroups
-            .AsNoTracking()
-            .Where(a => a.AgegroupId == ageGroupId)
-            .Select(a => new { a.TeamFee, a.RosterFee })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return result != null ? (result.TeamFee, result.RosterFee) : null;
-    }
-
     public async Task<List<AgeGroupForRegistration>> GetByLeagueAndSeasonAsync(
         Guid leagueId,
         string season,
@@ -44,29 +33,9 @@ public class AgeGroupRepository : IAgeGroupRepository
             {
                 AgegroupId = ag.AgegroupId,
                 AgegroupName = ag.AgegroupName ?? string.Empty,
-                MaxTeams = ag.MaxTeams,
-                TeamFee = ag.TeamFee,
-                RosterFee = ag.RosterFee
+                MaxTeams = ag.MaxTeams
             })
             .ToListAsync(cancellationToken);
-    }
-
-    public async Task<AgeGroupValidationInfo?> GetForValidationAsync(
-        Guid ageGroupId,
-        CancellationToken cancellationToken = default)
-    {
-        return await _context.Agegroups
-            .AsNoTracking()
-            .Where(ag => ag.AgegroupId == ageGroupId)
-            .Select(ag => new AgeGroupValidationInfo
-            {
-                AgegroupId = ag.AgegroupId,
-                AgegroupName = ag.AgegroupName,
-                MaxTeams = ag.MaxTeams,
-                TeamFee = ag.TeamFee,
-                RosterFee = ag.RosterFee
-            })
-            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<Agegroups?> GetByIdAsync(Guid ageGroupId, CancellationToken cancellationToken = default)

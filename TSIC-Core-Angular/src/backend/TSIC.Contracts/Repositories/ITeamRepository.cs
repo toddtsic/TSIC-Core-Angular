@@ -21,8 +21,6 @@ public record RegisteredTeamInfo
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
-    public required decimal DepositDue { get; init; }
-    public required decimal AdditionalDue { get; init; }
     public required DateTime RegistrationTs { get; init; }
     public required bool BWaiverSigned3 { get; init; }
     public int? ClubTeamId { get; init; }
@@ -118,14 +116,6 @@ public interface ITeamRepository
     /// Get fee-related information for a single team.
     /// </summary>
     Task<(decimal? FeeBase, decimal? PerRegistrantFee)> GetTeamFeeInfoAsync(Guid teamId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get registered teams for a club and job with full details.
-    /// </summary>
-    Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForClubAndJobAsync(
-        Guid jobId,
-        int clubId,
-        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get count of registered teams for a specific agegroup and job.

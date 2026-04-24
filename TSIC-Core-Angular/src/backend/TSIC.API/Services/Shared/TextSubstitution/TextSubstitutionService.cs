@@ -75,11 +75,16 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
 
     private readonly ITextSubstitutionRepository _repo;
     private readonly IDiscountCodeEvaluator _discountEvaluator;
+    private readonly TSIC.Contracts.Services.IFeeResolutionService _feeService;
 
-    public TextSubstitutionService(ITextSubstitutionRepository repo, IDiscountCodeEvaluator discountEvaluator)
+    public TextSubstitutionService(
+        ITextSubstitutionRepository repo,
+        IDiscountCodeEvaluator discountEvaluator,
+        TSIC.Contracts.Services.IFeeResolutionService feeService)
     {
         _repo = repo;
         _discountEvaluator = discountEvaluator;
+        _feeService = feeService;
     }
 
     public async Task<string> SubstituteJobTokensAsync(string jobPath, string template)
@@ -629,6 +634,14 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         var teams = await _repo.GetTeamsSummaryAsync(registrationId);
         if (teams.Count == 0) return string.Empty;
+
+        // Batch-resolve ClubRep fees from fees.JobFees for all teams in this summary.
+        // All rows share the same JobId (one clubrep registration = one job).
+        var jobId = teams[0].JobId;
+        var teamIds = teams.Select(t => t.TeamId).ToList();
+        var feesByTeamId = await _feeService.ResolveFeesByTeamIdsAsync(
+            jobId, RoleConstants.ClubRep, teamIds);
+
         var sb = new StringBuilder();
         HtmlTableBuilder.StartTable(sb, emailMode);
         HtmlTableBuilder.AddCaption(sb,
@@ -643,17 +656,21 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         decimal sumOwed = 0m; decimal sumPaid = 0m; decimal sumDeposit = 0m; decimal sumAdditional = 0m; decimal sumProcessing = 0m;
         foreach (var t in teams)
         {
-            var owedRow = (t.OwedTotal == 0 && (t.PaidTotal >= (t.RosterFee + t.AdditionalFees))) ? 0m : ((t.RosterFee ?? 0m) + (t.AdditionalFees ?? 0m) + (t.ProcessingFees ?? 0m) - (t.PaidTotal ?? 0m));
+            var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
+            var deposit = resolved?.Deposit ?? 0m;
+            var additional = resolved?.BalanceDue ?? 0m;
+
+            var owedRow = (t.OwedTotal == 0 && (t.PaidTotal >= (deposit + additional))) ? 0m : (deposit + additional + (t.ProcessingFees ?? 0m) - (t.PaidTotal ?? 0m));
             sumOwed += owedRow;
             sumPaid += (t.PaidTotal ?? 0m);
-            sumDeposit += (t.RosterFee ?? 0m);
-            sumAdditional += (t.AdditionalFees ?? 0m);
+            sumDeposit += deposit;
+            sumAdditional += additional;
             sumProcessing += (t.ProcessingFees ?? 0m);
             HtmlTableBuilder.AddRow(sb,
                 i++.ToString(),
                 WebUtility.HtmlEncode(t.TeamName),
-                HtmlTableBuilder.FormatCurrency(t.RosterFee ?? 0m),
-                HtmlTableBuilder.FormatCurrency(t.AdditionalFees ?? 0m),
+                HtmlTableBuilder.FormatCurrency(deposit),
+                HtmlTableBuilder.FormatCurrency(additional),
                 HtmlTableBuilder.FormatCurrency(t.ProcessingFees ?? 0m),
                 HtmlTableBuilder.FormatCurrency(t.PaidTotal ?? 0m),
                 HtmlTableBuilder.FormatCurrency(owedRow));

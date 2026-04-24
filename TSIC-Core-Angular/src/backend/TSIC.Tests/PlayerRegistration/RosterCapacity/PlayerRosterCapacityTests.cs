@@ -81,6 +81,10 @@ public class PlayerRosterCapacityTests
             .Setup(r => r.GetFamilyRegistrationsForPlayersAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations>());
+        regRepo
+            .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations>());
 
         // Default: SaveChangesAsync succeeds
         regRepo
