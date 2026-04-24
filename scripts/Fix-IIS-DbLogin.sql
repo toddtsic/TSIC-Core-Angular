@@ -14,17 +14,17 @@
 USE [TSICV5];
 
 -- Create server login if it doesn't exist
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
-    CREATE LOGIN [IIS APPPOOL\TSIC.Api] FROM WINDOWS;
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'IIS APPPOOL\dev-api')
+    CREATE LOGIN [IIS APPPOOL\dev-api] FROM WINDOWS;
 
 -- Create or re-map database user
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
-    CREATE USER [IIS APPPOOL\TSIC.Api] FOR LOGIN [IIS APPPOOL\TSIC.Api];
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'IIS APPPOOL\dev-api')
+    CREATE USER [IIS APPPOOL\dev-api] FOR LOGIN [IIS APPPOOL\dev-api];
 ELSE
-    ALTER USER [IIS APPPOOL\TSIC.Api] WITH LOGIN = [IIS APPPOOL\TSIC.Api];
+    ALTER USER [IIS APPPOOL\dev-api] WITH LOGIN = [IIS APPPOOL\dev-api];
 
 -- Grant read/write access
-ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\TSIC.Api];
-ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\TSIC.Api];
+ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\dev-api];
+ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\dev-api];
 
-PRINT 'IIS APPPOOL\TSIC.Api login fixed for TSICV5.';
+PRINT 'IIS APPPOOL\dev-api login fixed for TSICV5.';

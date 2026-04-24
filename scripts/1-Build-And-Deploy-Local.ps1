@@ -3,10 +3,10 @@
 # Skips iDrive packaging - use 1-Build-And-Package.ps1 for remote deployment
 
 param(
-    [string]$ApiTarget = "C:\Websites\TSIC.Api",
-    [string]$AngularTarget = "C:\Websites\TSIC.App",
-    [string]$ApiSiteName = "TSIC.Api",
-    [string]$AngularSiteName = "TSIC.App"
+    [string]$ApiTarget = "C:\Websites\dev-api",
+    [string]$AngularTarget = "C:\Websites\dev-app",
+    [string]$ApiSiteName = "dev-api",
+    [string]$AngularSiteName = "dev-app"
 )
 
 Write-Host "========================================" -ForegroundColor Cyan
