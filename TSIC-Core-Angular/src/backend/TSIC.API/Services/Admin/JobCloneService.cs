@@ -1094,13 +1094,8 @@ public sealed class JobCloneService : IJobCloneService
                 BChampionsByDivision = ag.BChampionsByDivision,
                 BHideStandings = ag.BHideStandings,
                 BAllowApiRosterAccess = ag.BAllowApiRosterAccess,
-                // Legacy per-agegroup fee fields — copy amounts; autoadvance window dates by year-delta.
-                // (Current fee model is fees.JobFees; these Agegroups columns remain for backward compat.)
-                TeamFee = ag.TeamFee,
-                TeamFeeLabel = ag.TeamFeeLabel,
-                RosterFee = ag.RosterFee,
-                RosterFeeLabel = ag.RosterFeeLabel,
-                PlayerFeeOverride = ag.PlayerFeeOverride,
+                // Legacy per-agegroup fee-window fields — copy amounts; autoadvance window dates by year-delta.
+                // (Current fee model is fees.JobFees; TeamFee/RosterFee/label/PlayerFeeOverride dropped — no runtime readers.)
                 LateFee = ag.LateFee,
                 LateFeeStart = ShiftByYears(ag.LateFeeStart, yearDelta),
                 LateFeeEnd = ShiftByYears(ag.LateFeeEnd, yearDelta),
