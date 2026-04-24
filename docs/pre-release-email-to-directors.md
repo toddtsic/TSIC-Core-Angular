@@ -88,4 +88,3 @@ Both search surfaces got a major UX overhaul built around **fly-in panels** — 
 Plus:
 - **AI-assisted email composition** — tell it what you want to say; it drafts copy you can refine and send.
 - **Expanded library of canned templates** — ready-to-send messaging for the jobs you run constantly: Waitlist, ARB cards expiring this month, and more.
-- **Smarter routing** — Player rows automatically fan out to mom, dad, and player addresses; no manual list-wrangling.
