@@ -1094,14 +1094,6 @@ public sealed class JobCloneService : IJobCloneService
                 BChampionsByDivision = ag.BChampionsByDivision,
                 BHideStandings = ag.BHideStandings,
                 BAllowApiRosterAccess = ag.BAllowApiRosterAccess,
-                // Legacy per-agegroup fee-window fields — copy amounts; autoadvance window dates by year-delta.
-                // (Current fee model is fees.JobFees; TeamFee/RosterFee/label/PlayerFeeOverride dropped — no runtime readers.)
-                LateFee = ag.LateFee,
-                LateFeeStart = ShiftByYears(ag.LateFeeStart, yearDelta),
-                LateFeeEnd = ShiftByYears(ag.LateFeeEnd, yearDelta),
-                DiscountFee = ag.DiscountFee,
-                DiscountFeeStart = ShiftByYears(ag.DiscountFeeStart, yearDelta),
-                DiscountFeeEnd = ShiftByYears(ag.DiscountFeeEnd, yearDelta),
                 LebUserId = userId,
                 Modified = now,
             };
