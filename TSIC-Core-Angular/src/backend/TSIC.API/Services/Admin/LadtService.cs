@@ -457,18 +457,6 @@ public sealed class LadtService : ILadtService
             clone.Color = source.Color;
         }
 
-        if (request.CopyFees)
-        {
-            // Entity-level fee windows + override live alongside JobFees rows.
-            clone.LateFee = source.LateFee;
-            clone.LateFeeStart = source.LateFeeStart;
-            clone.LateFeeEnd = source.LateFeeEnd;
-            clone.DiscountFee = source.DiscountFee;
-            clone.DiscountFeeStart = source.DiscountFeeStart;
-            clone.DiscountFeeEnd = source.DiscountFeeEnd;
-            clone.PlayerFeeOverride = source.PlayerFeeOverride;
-        }
-
         _agegroupRepo.Add(clone);
 
         // Agegroup-scoped JobFees (+ modifiers): fresh ids, repoint to new AgegroupId.
