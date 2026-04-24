@@ -1031,3 +1031,66 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Status**: Fixed
 - **Note**: `getAvailableTeams()` in team-selection-step.component.ts now sorts non-CAC results by `clubName` then `teamName` using `localeCompare(..., { numeric: true, sensitivity: 'base' })` so `2027 < 2028 < 2030 < … < 2035 < S&S 2027`. CAC tiebreaker also upgraded to natural sort.
 
+### SP-045: UM Summer Camps Assign Teams dropdown — amount per option is wrong (shows base minus deposit, no processing fee)
+- **Area**: Registration Process Review / Assign Teams
+- **What I did**: Opened the UM Summer Camps registration (PIF + deposit/balance-due site — believed to be the only client configured this way) and clicked the Assign Teams dropdown
+- **What I expected**: Each camp option to display the full Pay-In-Full amount with processing fees added — Commuter **$527.85** ($510 + $17.85 PF) and Overnight **$646.88** ($625 + $21.88 PF)
+- **What happened**: Options show the base fee **minus the deposit** and with **no processing fee** — e.g. "UM COMMUTER Camp 1: JUNE 22–24 · A ($310)" and "UM OVERNIGHT Camp 1: JUNE 22–24 · A ($425)"
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Dropdown label should reflect the PIF total (fee + PF) the parent will actually be charged if they pay in full, not the remaining balance after deposit. Confirm the amount-building logic handles both payment modes cleanly (PIF vs. deposit/balance-due) without confusing the "(${amount})" suffix. Only known site using deposit+balance today, but fix should generalize.
+
+### SP-046: UM Summer Camps Player Details — "Med Form Uploaded" is only a checkbox; needs real file upload like Legacy
+- **Area**: Registration Process Review / Player Details
+- **What I did**: Opened the UM Summer Camps Player Details screen and saw a "MED FORM UPLOADED" checkbox alongside the other player fields (School, Position, Club info, Roommate Request, etc.)
+- **What I expected**: A real file-upload control matching Legacy — a "Drop files here to upload" drop zone with the instructional text *"Upload your SIGNED AND COMPLETED MEDICAL WAIVER FORM (must be pdf)"* — so the parent actually delivers the signed medical waiver PDF as part of registration
+- **What happened**: Only a plain boolean checkbox is shown. No file picker / drop zone, no PDF constraint, no file stored — parent has no way to submit the signed waiver through the form
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Needs a product + storage decision with Todd before implementation:
+  1. **UI**: replace the checkbox with a PDF-only drop zone + file picker, reusing (or creating) a shared upload component for future file-bearing fields on other sites.
+  2. **Backend**: where does the PDF live? S3 / blob storage path + reference on the registration row; virus-scan + size cap; retention policy.
+  3. **Gating**: is a signed med form *required* to complete registration for camp sites, or optional at submit time with back-office follow-up (Legacy parity)?
+  4. **Admin visibility**: staff need to view/download each player's uploaded waiver from the registration admin screens.
+  5. **Migration**: any existing UM waivers on Legacy that should be carried forward, or does each new season start clean?
+
+### SP-047: UM Summer Camps Complete Payment — missing Deposit vs PIF choice; currently charges full amount on a deposit-configured site
+- **Area**: Registration Process Review / Complete Payment
+- **What I did**: Reached the Complete Payment screen on the UM Summer Camps registration (site is configured for deposit + balance-due, with PIF also allowed)
+- **What I expected**: An explicit choice at payment time — **Pay Deposit Only** or **Pay In Full** — applied to **all players in the family** in one action, with processing fees calculated against whichever option is chosen
+- **What happened**: No deposit/PIF toggle is offered. The screen presents the full amount due for every player as the only option, effectively bypassing the site's deposit model
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Processing fees are applied on this screen, so the PF calculation must follow the selected option (deposit-PF vs PIF-PF) and must match the amount shown in the Assign Teams dropdown once SP-045 is fixed. Design considerations:
+  1. **Scope**: selection is per-family (all players pay the same way in one transaction), not per-player. Confirm with Todd.
+  2. **Default**: deposit or PIF — which is the intended default for UM Summer Camps?
+  3. **Accounting rows**: a deposit payment must leave a balance-due record so the parent can return later and pay the remainder (ties into whatever post-registration payment surface SP-021 / SP-017 land on for Player role).
+  4. **Refund Protection / discount codes**: confirm those interact correctly with whichever amount is being collected now vs. later.
+  5. **Only known deposit-enabled site today** (per SP-045), but the UI should be generic — any future deposit site should inherit the same toggle.
+
+### SP-048: ISP 2025-2026 Pay by Check — Check Payment Instructions missing payee info; revisit "Save $X in processing fees" message
+- **Area**: Registration Process Review / Complete Payment / Pay by Check
+- **What I did**: Walked the ISP 2025-2026 registration end-to-end (flow on the registration side is correct), reached Complete Payment, and selected **Pay by Check**
+- **What I expected**: The "Check Payment Instructions" card to give the parent everything they need to actually mail the check — payee name ("Make check payable to…"), mailing address, memo-line guidance, any reference/registration ID to include
+- **What happened**: The Check Payment Instructions box only shows Amount ($650.00) and a single pending-receipt note. No payee, no mailing address, no memo instructions. Above it a green "Save $22.76 in processing fees by paying with check" banner is shown
+- **Severity**: Question / UX
+- **Status**: Open
+- **Note**: Two separate decisions here:
+  1. **Payee info**: confirm with Todd what the source of truth is (per-job config? per-client config?) and render it on the Check Payment Instructions card. Without it, the parent has no way to complete the payment. Should apply to every site that enables Pay by Check, not just ISP.
+  2. **"Save $X" banner**: decide whether we want to actively nudge parents away from credit card. The dollar figure is correct (it's the PF they'd avoid), but the framing may cannibalize CC revenue for clients where PF is retained. Consider making the banner a per-job opt-in or removing it entirely.
+  3. **Reminder**: accounting on ISP 2025-2026 (deferral/deposit behavior, PF routing when paid by check, reconciliation entries) still needs to be tested end-to-end — call out as a follow-up test pass after fields above are settled.
+
+### SP-049: ISP 2025-2026 Pay by Check — verify Inactive (pending-check) players hold their roster spot against max-per-team
+- **Area**: Registration Process Review / Capacity & Rostering
+- **What I did**: Continued walking ISP 2025-2026 registrations that elected **Pay by Check** (registration is held pending receipt of payment, so these players land in an Inactive state)
+- **What I expected**: Clear, documented behavior for whether an Inactive/pending-check player counts against a team's **max players** cap — Legacy parity is that the spot is reserved the moment registration is submitted, regardless of payment state, so another family can't claim it while the check is in transit
+- **What happened**: Unverified — need to confirm whether the capacity/availability check in the new system includes Inactive pending-check registrations or filters them out (which would over-sell the team)
+- **Severity**: Question / possible Bug
+- **Status**: Open
+- **Note**: Specific checks needed:
+  1. **Team availability query**: does the Assign Teams dropdown's "current count vs max" math include Inactive pending-check rows, or only Active/paid?
+  2. **Dropdown state**: once a team hits max including pending-check rows, does the option disappear / get disabled in Assign Teams for subsequent families?
+  3. **Timeout policy**: how long is a pending-check spot held before it's auto-released? Legacy behavior + Todd's preference needed — otherwise an unpaid check can block a paying family indefinitely.
+  4. **Status transitions**: when the check arrives and staff mark the registration paid, no roster change should occur (spot was already held). When a pending-check registration is cancelled/expired, the spot must free up and the team availability counts must refresh.
+  5. Applies to any site that enables Pay by Check, not just ISP.
+
