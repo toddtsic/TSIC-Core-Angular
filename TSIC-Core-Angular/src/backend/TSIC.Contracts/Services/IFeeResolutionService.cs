@@ -158,6 +158,13 @@ public record FeeApplicationContext
 
     /// <summary>Sum of non-credit-card payments for processing fee basis adjustment.</summary>
     public decimal NonCcPayments { get; init; }
+
+    /// <summary>
+    /// True when the player is paying in full (PIF) — FeeBase = Deposit + BalanceDue.
+    /// False (default) = deposit-only phase; FeeBase = Deposit when configured, else BalanceDue.
+    /// Controlled by |ALLOWPIF in Jobs.CoreRegformPlayer + player's checkout choice.
+    /// </summary>
+    public bool IsFullPayment { get; init; }
 }
 
 /// <summary>

@@ -157,7 +157,22 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, agegroupId, teamId, ct);
-        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+        var deposit = resolved?.EffectiveDeposit ?? 0m;
+        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+
+        decimal baseFee;
+        if (ctx.IsFullPayment)
+        {
+            baseFee = deposit + balanceDue;
+        }
+        else if (deposit > 0m)
+        {
+            baseFee = deposit;
+        }
+        else
+        {
+            baseFee = balanceDue;
+        }
 
         var modifiers = await EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agegroupId, teamId, DateTime.Now, ct);
