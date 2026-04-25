@@ -45,6 +45,8 @@ The new capabilities — autoscheduling, AI-composed emails, the Club Teams libr
 
 The entire scheduling process has been enhanced — the flow is the same, but the capabilities have been vastly extended. The headline capability: **autoscheduling that learns from your prior years' patterns** — the system studies how you've scheduled before and drafts this year's schedule for you. You get a starting point that reflects how *you* run your tournaments. Tweak, adjust, publish.
 
+A viewer upgrade worth calling out: **the game clock is now inline.** It's visible directly on the schedule view at all times — no more popup modal, no more clicking through to check the timer.
+
 ### Club Teams library — completely reimagined
 
 A real structural leap, not a UI tweak. Club reps now build a **persistent, club-owned roster of teams** once, and reuse those entries across every tournament they register for — instead of re-typing the same team name, grad year, and level of play at every event.
