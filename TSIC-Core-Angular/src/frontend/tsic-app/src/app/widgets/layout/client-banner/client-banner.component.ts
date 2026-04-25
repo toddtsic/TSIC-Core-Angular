@@ -35,7 +35,7 @@ export class ClientBannerComponent {
         if (!bannerPath) return null;
         let url = buildAssetUrl(bannerPath);
         // Fallback: if PDF, try JPG version instead
-        if (url && url.toLowerCase().endsWith('.pdf')) {
+        if (url?.toLowerCase().endsWith('.pdf')) {
             url = url.slice(0, -4) + '.jpg';
         }
         return url;
@@ -90,18 +90,18 @@ export class ClientBannerComponent {
         let clean = textarea.value;
 
         // Step 2: Convert <br> tags to newlines (normalize)
-        clean = clean.replace(/<br\s*\/?>/gi, '\n');
+        clean = clean.replaceAll(/<br\s*\/?>/gi, '\n');
 
         // Step 3: Strip all remaining HTML tags (legacy <span>, <i>, etc.)
-        clean = clean.replace(/<[^>]+>/g, '');
+        clean = clean.replaceAll(/<[^>]+>/g, '');
 
         // Step 4: Clean up &nbsp; remnants
-        clean = clean.replace(/\u00A0/g, ' ');
+        clean = clean.replaceAll(/\u00A0/g, ' ');
 
-        // Step 5: Trim lines, drop leading/trailing blanks
-        const lines = clean.split('\n').map(l => l.trim());
-        while (lines.length > 0 && lines[0] === '') lines.shift();
-        while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+        // Step 5: Trim lines, drop ALL blanks (including bare \r isolated by `<br />\r\n` patterns)
+        const lines = clean.split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length > 0);
 
         // Step 6: Convert newlines back to <br> for [innerHTML]
         return lines.join('<br>');

@@ -495,14 +495,13 @@ public class JobConfigService : IJobConfigService
         // Collapse &nbsp; remnants
         text = text.Replace("\u00A0", " ");
 
-        // Trim each line, remove blank-only lines at start/end
+        // Trim each line and drop ALL blank lines.
+        // Drops the bare \r isolated by `<br />\r\n` patterns that survive Windows-line-ending splits,
+        // plus any other blank middle lines from legacy data.
         var lines = text.Split('\n')
             .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
             .ToList();
-
-        // Remove leading/trailing empty lines
-        while (lines.Count > 0 && lines[0].Length == 0) lines.RemoveAt(0);
-        while (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
 
         var result = string.Join("\n", lines);
         return result.Length > 0 ? result : null;

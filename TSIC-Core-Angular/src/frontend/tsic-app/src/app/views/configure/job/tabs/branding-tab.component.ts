@@ -40,7 +40,7 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
           <h6 class="section-title">
             <i class="bi bi-image me-2"></i>Banner Background
           </h6>
-          <p class="text-muted small mb-2">Full-width background image. Resized to max 1920px wide.</p>
+          <p class="text-muted small mb-2">Upload at 1920 &times; 422 pixels (50:11 aspect) so the full image fits without cropping.</p>
           <app-image-upload
             label="Banner Background"
             [imageUrl]="bannerBgUrl()"
@@ -66,7 +66,7 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
             <div class="col-md-6">
               <label class="field-label">Overlay Headline</label>
               <textarea
-                rows="2"
+                rows="4"
                 class="field-input"
                 placeholder="Banner headline text"
                 [ngModel]="overlayText1()"
@@ -75,7 +75,7 @@ import type { UpdateJobConfigBrandingRequest } from '@core/api';
             <div class="col-md-6">
               <label class="field-label">Overlay Subheadline</label>
               <textarea
-                rows="2"
+                rows="4"
                 class="field-input"
                 placeholder="Banner subheadline text"
                 [ngModel]="overlayText2()"

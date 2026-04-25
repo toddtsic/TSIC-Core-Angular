@@ -38,6 +38,24 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-052: Two-banner architecture — `client-banner` widget vs `dashboard-hero` inline; standardize or keep distinct
+- **Refs**: PL-040 (broader Branding ↔ Widget Editor architecture review); inline aspect-ratio fix shipped on `client-banner` 2026-04-25
+- **Area**: Branding / widget-dashboard / client-banner widget
+- **What I did**: Standardized `client-banner` on `aspect-ratio: 50 / 11` (TSIC-prepared 2000×440 source) on 2026-04-25 to fix the cropping issue Ann reported on Girls Summer Showcase 2026. While verifying, discovered logged-in users see a different, narrower banner that's untouched by the fix.
+- **What I expected**: One banner system rendering the same Banner Background image consistently
+- **What happened**: There are **two separate banner components** sharing the same `bannerBackgroundImage` source:
+  - **`client-banner`** ([widgets/layout/client-banner/](TSIC-Core-Angular/src/frontend/tsic-app/src/app/widgets/layout/client-banner/)) — registered as a widget; renders on the public-facing site and on the Public View tab (when logged in) **only if a job's widget config places it**. Now uses `aspect-ratio: 50 / 11`, no height cap.
+  - **`dashboard-hero`** (inline in [widget-dashboard.component.html:40-59](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/widget-dashboard/widget-dashboard.component.html#L40-L59)) — renders on the Director/SuperUser View tab; height driven by content + padding (~200-260px tall), image as `position: absolute` background with a dark gradient overlay for text readability. Explicitly **skips the client-banner widget** when in admin view (per [line 89](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/home/widget-dashboard/widget-dashboard.component.html#L89) comment "Skip client-banner (hero already renders it)").
+- **Severity**: Question (architecture)
+- **Status**: Open
+- **Note**: Decision needed with Todd — three reasonable shapes:
+  - **A. Keep them distinct** — admin view needs vertical density to surface dashboard content; public site benefits from a tall image-driven hero. Both are correct for their context. Document the split so future Branding work doesn't fight it.
+  - **B. Standardize on the new aspect-ratio** — apply `aspect-ratio: 50 / 11` (or whatever TSIC's banner spec lands at) to `dashboard-hero` too. Pros: visual consistency, single banner spec for SuperUsers to design against. Cons: admin view loses screen real estate to a taller banner.
+  - **C. Merge into one component** — one `JobBanner` everywhere with conditional inner content (admin context strip vs public hero text). Larger refactor, but kills the dual-source-of-truth and dovetails with PL-040's "review Branding architecture" thread.
+  - **Recommendation going in**: B as the smallest move that fixes the visual inconsistency Ann discovered. C is the cleanest long-term answer if Todd has refactor appetite. A is fine if Todd believes admin vs public truly need different banner shapes.
+  - **Tied to PL-039**: if Branding becomes SuperUser-only, the spec discipline gets easier — TSIC controls every banner shape. Worth deciding A/B/C alongside the SuperUser-only gate.
+  - **Verification path**: to confirm the client-banner fix actually works on the public side, view the public-facing URL for Girls Summer Showcase 2026 (no login). Public View tab inside the dashboard only shows client-banner if it's placed in that job's widget config — absence there isn't the same as the fix being broken.
+
 ### PL-051: Accessibility — `<label class="field-label">` elements across Configure not linked to their inputs (WCAG / S6853)
 - **Area**: Accessibility / shared `field-*` form classes across all Configure tabs
 - **What I did**: Surfaced during PL-050 edits on the Comms tab — IDE reported 6 × `Web:S6853` warnings ("A form label must be associated with a control and have accessible text") on every `<label class="field-label">` on that file
