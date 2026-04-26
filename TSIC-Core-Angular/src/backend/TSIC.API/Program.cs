@@ -27,6 +27,7 @@ using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Configuration;
+using TSIC.API.Services.Shared.Files;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.Email;
@@ -150,6 +151,7 @@ builder.Services.AddScoped<IFeeRepository, FeeRepository>();
 builder.Services.Configure<FileStorageOptions>(
     builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.AddScoped<IJobImageService, JobImageService>();
+builder.Services.AddScoped<IMedFormService, MedFormService>();
 
 // TsicSettings (default customer for ADN credential defaults)
 builder.Services.Configure<TsicSettings>(

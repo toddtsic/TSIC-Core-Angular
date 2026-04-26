@@ -81,6 +81,7 @@ export class FormSchemaService {
                     case 'multiselect': case 'multi-select': return 'multiselect';
                     case 'checkbox': case 'bool': case 'boolean': return 'checkbox';
                     case 'textarea': return 'textarea';
+                    case 'upload': case 'file': return 'upload';
                     default: return 'text';
                 }
             };
@@ -97,6 +98,12 @@ export class FormSchemaService {
                 if (isUsLaxField) {
                     type = 'text';
                     label = 'USA Lacrosse Number';
+                }
+                // bUploadedMedForm always renders as the upload control regardless of
+                // stored inputType — the field name is canonical and the legacy
+                // checkbox UI was client-asserted (insecure) and is being replaced.
+                if (name.toLowerCase() === 'buploadedmedform') {
+                    type = 'upload';
                 }
                 // Infer numeric type from known DB column names when metadata says 'text'
                 if (type === 'text' && dbCol) {

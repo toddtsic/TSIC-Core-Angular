@@ -8,6 +8,7 @@ import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
 import { JobService } from '@infrastructure/services/job.service';
+import { MedFormUploadComponent } from '../components/medform-upload.component';
 import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/player-wizard.types';
 
 const JOB_TYPE_TOURNAMENT = 2;
@@ -31,7 +32,7 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
 @Component({
     selector: 'app-prw-player-forms-step',
     standalone: true,
-    imports: [FormsModule, NgTemplateOutlet],
+    imports: [FormsModule, NgTemplateOutlet, MedFormUploadComponent],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -130,7 +131,7 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
 
     <!-- Shared field-row template (used by both plain and recruiting groups) -->
     <ng-template #fieldRowTpl let-field let-pid="pid">
-      <div class="field-row" [class.field-row--wide]="getFieldType(field) === 'textarea'">
+      <div class="field-row" [class.field-row--wide]="getFieldType(field) === 'textarea' || getFieldType(field) === 'upload'">
         @if (getFieldType(field) !== 'checkbox') {
           <label class="field-label" [for]="'field-' + pid + '-' + field.name">
             {{ field.label }}
@@ -223,6 +224,9 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                    [attr.placeholder]="field.placeholder"
                    [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)"
                    rows="5" style="resize: vertical;"></textarea>
+          }
+          @case ('upload') {
+            <app-medform-upload [playerUserId]="pid"></app-medform-upload>
           }
           @default {
             <input type="text" class="field-input"
@@ -755,6 +759,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
         if (t === 'checkbox') return 'checkbox';
         if (t === 'multiselect' || t === 'multi-select') return 'multiselect';
         if (t === 'textarea') return 'textarea';
+        if (t === 'upload' || t === 'file') return 'upload';
         if (t === 'date') return 'date';
         if (t === 'number' || t === 'numeric') return 'number';
         if (t === 'text') {

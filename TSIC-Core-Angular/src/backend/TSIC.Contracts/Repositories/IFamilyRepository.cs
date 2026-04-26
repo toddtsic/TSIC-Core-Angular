@@ -33,6 +33,17 @@ public interface IFamilyRepository
     /// Get family contact information for insurance purposes.
     /// </summary>
     Task<FamilyContactInfo?> GetFamilyContactAsync(string familyUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True iff the caller and the named player belong to the same family group.
+    /// Either party may be the family-account holder (FamilyMembers.FamilyUserId)
+    /// or a member (FamilyMembers.FamilyMemberUserId). Used by med-form upload/
+    /// download/delete to verify ownership before granting access.
+    /// </summary>
+    Task<bool> IsPlayerInFamilyAsync(
+        string callerUserId,
+        string playerUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public record FamilyContactInfo

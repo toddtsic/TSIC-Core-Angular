@@ -37,7 +37,7 @@ export type PlayerFormFieldValue = string | number | boolean | null | string[];
 export interface PlayerProfileFieldSchema {
     name: string;
     label: string;
-    type: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'textarea';
+    type: 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'textarea' | 'upload';
     required: boolean;
     options: string[];
     placeholder: string | null;

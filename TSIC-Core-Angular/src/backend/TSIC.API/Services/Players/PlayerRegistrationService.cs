@@ -22,6 +22,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     private readonly ITeamRepository _teams;
     private readonly IJobRepository _jobs;
     private readonly ITeamPlacementService _placement;
+    private readonly IMedFormService _medForms;
 
     private sealed class PreSubmitContext
     {
@@ -47,7 +48,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         IRegistrationRepository registrations,
         ITeamRepository teams,
         IJobRepository jobs,
-        ITeamPlacementService placement)
+        ITeamPlacementService placement,
+        IMedFormService medForms)
     {
         _logger = logger;
         _feeService = feeService;
@@ -58,6 +60,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _teams = teams;
         _jobs = jobs;
         _placement = placement;
+        _medForms = medForms;
     }
 
     public async Task<ReserveTeamsResponseDto> ReserveTeamsAsync(Guid jobId, string familyUserId, ReserveTeamsRequestDto request, string callerUserId)
@@ -456,6 +459,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             }
+            newReg.BUploadedMedForm = _medForms.Exists(playerId);
             await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
@@ -491,6 +495,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         }
+        reg.BUploadedMedForm = _medForms.Exists(playerId);
         await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);

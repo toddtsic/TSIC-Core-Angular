@@ -100,7 +100,8 @@ public class PlayerRosterCapacityTests
             regRepo.Object,
             teamRepo.Object,
             jobRepo.Object,
-            placement.Object);
+            placement.Object,
+            new Mock<IMedFormService>().Object);
 
         return (svc, regRepo, teamRepo, placement, feeService);
     }

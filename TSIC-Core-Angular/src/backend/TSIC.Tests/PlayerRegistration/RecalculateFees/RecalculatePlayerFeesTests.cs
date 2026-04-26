@@ -111,7 +111,8 @@ public class RecalculatePlayerFeesTests
             regRepo.Object,
             new Mock<ITeamRepository>().Object,
             jobRepo.Object,
-            new Mock<ITeamPlacementService>().Object);
+            new Mock<ITeamPlacementService>().Object,
+            new Mock<IMedFormService>().Object);
 
         await svc.RecalculatePlayerFeesAsync(jobId, "test-user");
 

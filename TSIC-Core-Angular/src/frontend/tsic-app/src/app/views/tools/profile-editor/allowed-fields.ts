@@ -3,7 +3,7 @@ export type AllowedVisibility = 'public' | 'adminOnly' | 'hidden';
 export interface AllowedField {
     name: string;
     displayName: string;
-    inputType: 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN';
+    inputType: 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN' | 'UPLOAD';
     visibility?: AllowedVisibility; // default 'public'
     dbColumn?: string; // default = name
     dataSource?: string; // optional for SELECT fields
@@ -18,7 +18,7 @@ export const ALLOWED_PROFILE_FIELDS: AllowedField[] = [
     { name: 'amtPaidToDate', displayName: 'Amt Paid To Date', inputType: 'HIDDEN', visibility: 'hidden' },
     { name: 'bAddProcessingFees', displayName: 'Add Processing Fees', inputType: 'HIDDEN', visibility: 'hidden' },
     { name: 'bCollegeCommit', displayName: 'College Commit', inputType: 'CHECKBOX', visibility: 'public' },
-    { name: 'bUploadedMedForm', displayName: 'Uploaded Medical Form', inputType: 'CHECKBOX', visibility: 'public' },
+    { name: 'bUploadedMedForm', displayName: 'Uploaded Medical Form', inputType: 'UPLOAD', visibility: 'public' },
     { name: 'bWaiverSigned1', displayName: 'Waiver Signed 1', inputType: 'CHECKBOX', visibility: 'public' },
     { name: 'bWaiverSigned2', displayName: 'Waiver Signed 2', inputType: 'CHECKBOX', visibility: 'public' },
     { name: 'bWaiverSigned3', displayName: 'Waiver Signed 3', inputType: 'CHECKBOX', visibility: 'public' },

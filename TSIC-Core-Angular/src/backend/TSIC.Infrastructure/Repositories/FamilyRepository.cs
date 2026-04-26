@@ -51,6 +51,47 @@ public class FamilyRepository : IFamilyRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<bool> IsPlayerInFamilyAsync(
+        string callerUserId,
+        string playerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(callerUserId) || string.IsNullOrWhiteSpace(playerUserId))
+            return false;
+
+        // Self always passes — a player is "in" their own family.
+        if (string.Equals(callerUserId, playerUserId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Find the family-account holder for the player. Holder = FamilyUserId
+        // when the player IS the holder; otherwise FamilyUserId from the
+        // FamilyMembers row that has this player as FamilyMemberUserId.
+        var playerFamilyUserId = await _context.Families
+            .AsNoTracking()
+            .Where(f => f.FamilyUserId == playerUserId)
+            .Select(f => f.FamilyUserId)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? await _context.FamilyMembers
+                .AsNoTracking()
+                .Where(fm => fm.FamilyMemberUserId == playerUserId)
+                .Select(fm => fm.FamilyUserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        if (string.IsNullOrEmpty(playerFamilyUserId)) return false;
+
+        // Caller is in the same family if they ARE the holder OR they appear
+        // on a FamilyMembers row under the same FamilyUserId.
+        if (string.Equals(callerUserId, playerFamilyUserId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return await _context.FamilyMembers
+            .AsNoTracking()
+            .AnyAsync(
+                fm => fm.FamilyUserId == playerFamilyUserId
+                   && fm.FamilyMemberUserId == callerUserId,
+                cancellationToken);
+    }
+
     public async Task<FamilyContactInfo?> GetFamilyContactAsync(
         string familyUserId,
         CancellationToken cancellationToken = default)

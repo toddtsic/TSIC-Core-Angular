@@ -11,7 +11,7 @@ import { OptionsPanelComponent } from './options-panel/options-panel.component';
 import { ALLOWED_PROFILE_FIELDS, AllowedField } from './allowed-fields';
 import { AuthService } from '@infrastructure/services/auth.service';
 
-type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN';
+type FieldType = 'TEXT' | 'TEXTAREA' | 'EMAIL' | 'NUMBER' | 'TEL' | 'DATE' | 'DATETIME' | 'CHECKBOX' | 'SELECT' | 'RADIO' | 'HIDDEN' | 'UPLOAD';
 
 @Component({
     selector: 'app-profile-editor',
@@ -73,7 +73,7 @@ export class ProfileEditorComponent implements OnInit {
     isTesting = signal(false);
 
     // Field type options
-    fieldTypeOptions: FieldType[] = ['TEXT', 'TEXTAREA', 'EMAIL', 'NUMBER', 'TEL', 'DATE', 'DATETIME', 'CHECKBOX', 'SELECT', 'RADIO'];
+    fieldTypeOptions: FieldType[] = ['TEXT', 'TEXTAREA', 'EMAIL', 'NUMBER', 'TEL', 'DATE', 'DATETIME', 'CHECKBOX', 'SELECT', 'RADIO', 'UPLOAD'];
 
     // Computed values
     hasUnsavedChanges = computed(() => {
