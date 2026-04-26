@@ -79,10 +79,25 @@ public record JobConfigPaymentDto
     public required bool BAddProcessingFees { get; init; }
     public required decimal? ProcessingFeePercent { get; init; }
     /// <summary>
-    /// Effective minimum processing fee rate (percentage). Read-only — surfaced so
+    /// Effective minimum CC processing fee rate (percentage). Read-only — surfaced so
     /// the UI can display it as a placeholder when ProcessingFeePercent is NULL.
     /// </summary>
     public required decimal MinProcessingFeePercent { get; init; }
+    /// <summary>
+    /// Maximum CC processing fee rate (percentage). Safety ceiling — UI enforces
+    /// as max attribute; backend rejects out-of-range saves.
+    /// </summary>
+    public required decimal MaxProcessingFeePercent { get; init; }
+    public required bool BEnableEcheck { get; init; }
+    public required decimal? EcprocessingFeePercent { get; init; }
+    /// <summary>
+    /// Minimum eCheck processing fee rate (percentage). Read-only — UI placeholder.
+    /// </summary>
+    public required decimal MinEcprocessingFeePercent { get; init; }
+    /// <summary>
+    /// Maximum eCheck processing fee rate (percentage). Safety ceiling.
+    /// </summary>
+    public required decimal MaxEcprocessingFeePercent { get; init; }
     public required bool? BApplyProcessingFeesToTeamDeposit { get; init; }
     public required decimal? PerPlayerCharge { get; init; }
     public required decimal? PerTeamCharge { get; init; }
@@ -92,6 +107,7 @@ public record JobConfigPaymentDto
     public required string? MailinPaymentWarning { get; init; }
     public required string? Balancedueaspercent { get; init; }
     public required bool? BTeamsFullPaymentRequired { get; init; }
+    public required bool BPlayersFullPaymentRequired { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
 
@@ -111,6 +127,8 @@ public record UpdateJobConfigPaymentRequest
     public required int PaymentMethodsAllowedCode { get; init; }
     public required bool BAddProcessingFees { get; init; }
     public required decimal? ProcessingFeePercent { get; init; }
+    public required bool BEnableEcheck { get; init; }
+    public required decimal? EcprocessingFeePercent { get; init; }
     public required bool? BApplyProcessingFeesToTeamDeposit { get; init; }
     public required decimal? PerPlayerCharge { get; init; }
     public required decimal? PerTeamCharge { get; init; }
@@ -120,6 +138,7 @@ public record UpdateJobConfigPaymentRequest
     public required string? MailinPaymentWarning { get; init; }
     public required string? Balancedueaspercent { get; init; }
     public required bool? BTeamsFullPaymentRequired { get; init; }
+    public required bool BPlayersFullPaymentRequired { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
 

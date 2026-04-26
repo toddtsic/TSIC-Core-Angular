@@ -233,6 +233,12 @@ public partial class Jobs
 
     public bool BAllowStoreWalkup { get; set; }
 
+    public decimal? EcprocessingFeePercent { get; set; }
+
+    public bool BEnableEcheck { get; set; }
+
+    public bool BPlayersFullPaymentRequired { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

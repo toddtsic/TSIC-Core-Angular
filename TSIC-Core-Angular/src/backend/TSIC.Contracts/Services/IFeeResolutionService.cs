@@ -20,11 +20,18 @@ public interface IFeeResolutionService
     // ── Processing Fee Rate ─────────────────────────────────────
 
     /// <summary>
-    /// Returns the effective processing fee rate as a decimal multiplier (e.g. 0.035 for 3.5%).
-    /// Business rule: Math.Max(Jobs.ProcessingFeePercent ?? 3.5, 3.5) / 100.
-    /// Floor of 3.5% — jobs can only override upward.
+    /// Returns the effective CC processing fee rate as a decimal multiplier (e.g. 0.035 for 3.5%).
+    /// Business rule: Math.Clamp(Jobs.ProcessingFeePercent ?? 3.5, 3.5, 4.0) / 100.
+    /// Floor of 3.5% (jobs can only override upward), ceiling of 4.0% (typo guard).
     /// </summary>
     Task<decimal> GetEffectiveProcessingRateAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the effective eCheck processing fee rate as a decimal multiplier (e.g. 0.015 for 1.5%).
+    /// Business rule: Math.Clamp(Jobs.EcprocessingFeePercent ?? 1.5, 1.5, 2.0) / 100.
+    /// Floor of 1.5%, ceiling of 2.0%.
+    /// </summary>
+    Task<decimal> GetEffectiveEcheckProcessingRateAsync(Guid jobId, CancellationToken ct = default);
 
     // ── Resolution ──────────────────────────────────────────────
 
@@ -161,13 +168,21 @@ public record ResolvedModifiers
 }
 
 /// <summary>
-/// Context for player fee application — controls processing fee behavior.
-/// Phase (deposit vs PIF) is NOT an input; it is determined by which method
-/// is called. Use ApplyNewRegistrationFeesAsync for the default deposit phase
-/// and ApplyPifUpgradeAsync for the explicit PIF upgrade at checkout.
+/// Context for player fee application — controls phase and processing fee behavior.
+/// IsFullPaymentRequired is sourced from Jobs.BPlayersFullPaymentRequired (job-level
+/// phase flag, director-controlled). When true, FeeBase = Deposit + BalanceDue;
+/// when false, FeeBase = Deposit (deposit phase). ApplyPifUpgradeAsync remains the
+/// per-registration "parent voluntarily pays in full at checkout" path.
 /// </summary>
 public record FeeApplicationContext
 {
+    /// <summary>
+    /// Job-level phase: true = full-payment phase, false = deposit phase.
+    /// Defaults to false (deposit phase); callers MUST populate from
+    /// Jobs.BPlayersFullPaymentRequired.
+    /// </summary>
+    public bool IsFullPaymentRequired { get; init; }
+
     /// <summary>Whether to apply CC processing fees (from job BAddProcessingFees flag).</summary>
     public bool AddProcessingFees { get; init; } = true;
 

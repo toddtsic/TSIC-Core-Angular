@@ -53,12 +53,16 @@ export class JobContextService {
     private readonly _adnArbIntervalLength = signal<number | null>(null);
     private readonly _adnArbStartDate = signal<string | null>(null);
     private readonly _allowPif = signal(false);
+    private readonly _bPlayersFullPaymentRequired = signal(false);
     readonly adnArb = this._adnArb.asReadonly();
     readonly adnArbBillingOccurences = this._adnArbBillingOccurences.asReadonly();
     readonly adnArbIntervalLength = this._adnArbIntervalLength.asReadonly();
     readonly adnArbStartDate = this._adnArbStartDate.asReadonly();
     /** True when Jobs.CoreRegformPlayer contains |ALLOWPIF — gates the Pay In Full option at checkout. */
     readonly allowPif = this._allowPif.asReadonly();
+    /** Job-level phase flag (Jobs.bPlayersFullPaymentRequired). When true, every active
+     *  player registration owes the full amount (FeeBase = Deposit + BalanceDue). */
+    readonly bPlayersFullPaymentRequired = this._bPlayersFullPaymentRequired.asReadonly();
 
     // ── Payment method restrictions (1=CC only, 2=CC or Check, 3=Check only) ──
     private readonly _paymentMethodsAllowedCode = signal<number>(1);
@@ -161,12 +165,16 @@ export class JobContextService {
                     const intLen = getPropertyCI<number>(m, 'adnArbIntervalLength') ?? null;
                     const start = getPropertyCI<string>(m, 'adnArbStartDate') ?? null;
                     const allowPif = getPropertyCI<boolean>(m, 'allowPif') ?? false;
+                    const playersFullPay = getPropertyCI<boolean>(m, 'bPlayersFullPaymentRequired') ?? false;
                     this._adnArb.set(!!arb);
                     this._adnArbBillingOccurences.set(typeof occ === 'number' ? occ : null);
                     this._adnArbIntervalLength.set(typeof intLen === 'number' ? intLen : null);
                     this._adnArbStartDate.set(start ? String(start) : null);
                     this._allowPif.set(!!allowPif);
-                    this._paymentOption.set(this._adnArb() ? 'ARB' : (allowPif ? 'PIF' : 'Deposit'));
+                    this._bPlayersFullPaymentRequired.set(!!playersFullPay);
+                    // Phase precedence: ARB > job-level full-pay flag > Deposit.
+                    // ALLOWPIF only makes PIF *available* — it is not the default.
+                    this._paymentOption.set(arb ? 'ARB' : (playersFullPay ? 'PIF' : 'Deposit'));
 
                     // Payment method restrictions
                     const pmCode = getPropertyCI<number>(m, 'paymentMethodsAllowedCode');
@@ -336,6 +344,7 @@ export class JobContextService {
         this._adnArbIntervalLength.set(null);
         this._adnArbStartDate.set(null);
         this._allowPif.set(false);
+        this._bPlayersFullPaymentRequired.set(false);
         this._paymentMethodsAllowedCode.set(1);
         this._bAddProcessingFees.set(false);
         this._payTo.set(null);

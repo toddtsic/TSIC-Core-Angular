@@ -95,6 +95,7 @@ public class JobsController : ControllerBase
             OfferPlayerRegsaverInsurance = jobMetadata.OfferPlayerRegsaverInsurance,
             OfferTeamRegsaverInsurance = jobMetadata.BOfferTeamRegsaverInsurance,
             AllowPif = jobMetadata.AllowPif,
+            BPlayersFullPaymentRequired = jobMetadata.BPlayersFullPaymentRequired,
             AdnArb = jobMetadata.AdnArb,
             AdnArbBillingOccurences = jobMetadata.AdnArbBillingOccurences,
             AdnArbIntervalLength = jobMetadata.AdnArbIntervalLength,

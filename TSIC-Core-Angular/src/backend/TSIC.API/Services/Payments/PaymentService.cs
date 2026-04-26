@@ -24,7 +24,7 @@ public class PaymentService : IPaymentService
     private readonly IFamiliesRepository _families;
     private readonly IRegistrationAccountingRepository _acct;
 
-    private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif);
+    private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif, bool BPlayersFullPaymentRequired);
 
     public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
     {
@@ -274,10 +274,13 @@ public class PaymentService : IPaymentService
         if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
         var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
         if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
-        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif);
+        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif, jobPaymentInfo.BPlayersFullPaymentRequired);
         var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
         if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
-        if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
+        // PIF allowed when ALLOWPIF token is set (parent-voluntary path) OR job is in
+        // full-payment phase (BPlayersFullPaymentRequired — every reg owes the full
+        // amount anyway, so PaymentOption.PIF is the natural checkout mode).
+        if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
         if (request.PaymentOption == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null);
         if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
         var cc = request.CreditCard;

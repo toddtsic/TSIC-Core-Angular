@@ -91,8 +91,15 @@ public class JobConfigController : ControllerBase
         if (jobId is null)
             return NotFound(new { message = "Job not found for current user." });
 
-        await _configService.UpdatePaymentAsync(jobId.Value, request, IsSuperUser, ct);
-        return NoContent();
+        try
+        {
+            await _configService.UpdatePaymentAsync(jobId.Value, request, IsSuperUser, ct);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>Update Communications tab fields.</summary>

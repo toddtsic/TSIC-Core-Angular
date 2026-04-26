@@ -124,8 +124,12 @@ import type { LineItem } from '../state/payment-v2.service';
                 </table>
               </div>
             } @else {
+              <!-- Routine accounting table — used for both single-payment AND
+                   two-phase deposit jobs. li.feeBase / li.feeProcessing /
+                   li.feeTotal / li.amount swap dynamically with the parent's
+                   chosen radio (Deposit vs PIF) via the lineItem computation. -->
               <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 accounting-table">
                   <thead class="table-light">
                     <tr>
                       <th>Player</th>
@@ -165,81 +169,104 @@ import type { LineItem } from '../state/payment-v2.service';
                 </table>
               </div>
             }
+
+            <!-- Payment option selector — lives inside the accounting card so the
+                 radios are visually attached to the table they affect. -->
+            @if (currentTotal() > 0) {
+              @if (arbHideAllOptions()) {
+                <div class="payment-summary-options">
+                  <div class="alert alert-success border-0 mb-0" role="status">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge bg-success">Paid in Full</span>
+                      <div>All registrations have an active recurring billing subscription.</div>
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="payment-summary-options" role="radiogroup" aria-label="Payment Option">
+                  @if (paySvc.isArbScenario()) {
+                    <div class="payment-plan-alert">
+                      <header class="payment-plan-header">
+                        <i class="bi bi-calendar-event me-2"></i>
+                        @if (jobCtx.allowPif()) { Choose a Payment Plan } @else { Payment Plan }
+                      </header>
+                      <div class="payment-plan-options">
+                        <label class="payment-plan-option"
+                               [class.is-selected]="paymentState.paymentOption() === 'ARB'"
+                               for="optArb">
+                          <input class="form-check-input" type="radio" name="payOpt" id="optArb" value="ARB"
+                                 [checked]="paymentState.paymentOption() === 'ARB'"
+                                 (change)="chooseOption('ARB')">
+                          <span class="payment-plan-option-text">
+                            <span class="payment-plan-option-title">Automated Recurring Billing</span>
+                            <span class="payment-plan-option-detail">{{ paySvc.arbOccurrences() }} payments of <span class="payment-plan-option-amount">{{ paySvc.arbPerOccurrence() | currency }}</span> &middot; billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
+                          </span>
+                        </label>
+                        @if (jobCtx.allowPif()) {
+                          <label class="payment-plan-option"
+                                 [class.is-selected]="paymentState.paymentOption() === 'PIF'"
+                                 for="optPif">
+                            <input class="form-check-input" type="radio" name="payOpt" id="optPif" value="PIF"
+                                   [checked]="paymentState.paymentOption() === 'PIF'"
+                                   (change)="chooseOption('PIF')">
+                            <span class="payment-plan-option-text">
+                              <span class="payment-plan-option-title">Pay In Full</span>
+                              <span class="payment-plan-option-detail"><span class="payment-plan-option-amount">{{ paySvc.totalAmount() | currency }}</span> charged today</span>
+                            </span>
+                          </label>
+                        }
+                      </div>
+                    </div>
+                  } @else if (paySvc.isDepositScenario()) {
+                    @if (jobCtx.allowPif()) {
+                      <header class="payment-plan-header mb-2">
+                        <i class="bi bi-wallet2 me-2"></i>Choose a Payment Option
+                      </header>
+                      <div class="payment-plan-options">
+                        <label class="payment-plan-option"
+                               [class.is-selected]="paymentState.paymentOption() === 'Deposit'"
+                               for="optDep">
+                          <input class="form-check-input" type="radio" name="payOpt" id="optDep" value="Deposit"
+                                 [checked]="paymentState.paymentOption() === 'Deposit'"
+                                 (change)="chooseOption('Deposit')">
+                          <span class="payment-plan-option-text">
+                            <span class="payment-plan-option-title">Deposit Only</span>
+                            <span class="payment-plan-option-detail"><span class="payment-plan-option-amount">{{ paySvc.depositOptionTotal() | currency }}</span> charged today &middot; <span class="payment-plan-option-amount">{{ paySvc.depositOptionRemainder() | currency }}</span> due later</span>
+                          </span>
+                        </label>
+                        <label class="payment-plan-option"
+                               [class.is-selected]="paymentState.paymentOption() === 'PIF'"
+                               for="optPif2">
+                          <input class="form-check-input" type="radio" name="payOpt" id="optPif2" value="PIF"
+                                 [checked]="paymentState.paymentOption() === 'PIF'"
+                                 (change)="chooseOption('PIF')">
+                          <span class="payment-plan-option-text">
+                            <span class="payment-plan-option-title">Pay In Full</span>
+                            <span class="payment-plan-option-detail"><span class="payment-plan-option-amount">{{ paySvc.pifOptionTotal() | currency }}</span> charged today</span>
+                          </span>
+                        </label>
+                      </div>
+                    } @else {
+                      <div class="alert alert-info border-0 mb-0" role="status">
+                        <strong>Deposit due today:</strong> {{ paySvc.depositTotal() | currency }}. The remaining balance will be billed separately.
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            }
           </section>
         }
 
-        <!-- Payment option selector -->
-        @if (currentTotal() > 0) {
-          @if (arbHideAllOptions()) {
-            <div class="alert alert-success border-0" role="status">
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-success">Paid in Full</span>
-                <div>All registrations have an active recurring billing subscription.</div>
-              </div>
-            </div>
-          } @else {
-            <section class="mb-3" role="radiogroup" aria-label="Payment Option">
-              @if (paySvc.isArbScenario()) {
-                <div class="payment-plan-alert">
-                  <header class="payment-plan-header">
-                    <i class="bi bi-calendar-event me-2"></i>
-                    @if (jobCtx.allowPif()) { Choose a Payment Plan } @else { Payment Plan }
-                  </header>
-                  <div class="payment-plan-options">
-                    <label class="payment-plan-option"
-                           [class.is-selected]="paymentState.paymentOption() === 'ARB'"
-                           for="optArb">
-                      <input class="form-check-input" type="radio" name="payOpt" id="optArb" value="ARB"
-                             [checked]="paymentState.paymentOption() === 'ARB'"
-                             (change)="chooseOption('ARB')">
-                      <span class="payment-plan-option-text">
-                        <span class="payment-plan-option-title">Automated Recurring Billing</span>
-                        <span class="payment-plan-option-detail">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }} &middot; billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
-                      </span>
-                    </label>
-                    @if (jobCtx.allowPif()) {
-                      <label class="payment-plan-option"
-                             [class.is-selected]="paymentState.paymentOption() === 'PIF'"
-                             for="optPif">
-                        <input class="form-check-input" type="radio" name="payOpt" id="optPif" value="PIF"
-                               [checked]="paymentState.paymentOption() === 'PIF'"
-                               (change)="chooseOption('PIF')">
-                        <span class="payment-plan-option-text">
-                          <span class="payment-plan-option-title">Pay In Full</span>
-                          <span class="payment-plan-option-detail">{{ paySvc.totalAmount() | currency }} charged today</span>
-                        </span>
-                      </label>
-                    }
-                  </div>
-                </div>
-              } @else if (paySvc.isDepositScenario()) {
-                @if (jobCtx.allowPif()) {
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="payOpt" id="optDep" value="Deposit"
-                           [checked]="paymentState.paymentOption() === 'Deposit'"
-                           (change)="chooseOption('Deposit')">
-                    <label class="form-check-label" for="optDep">Deposit Only ({{ paySvc.depositTotal() | currency }})</label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="payOpt" id="optPif2" value="PIF"
-                           [checked]="paymentState.paymentOption() === 'PIF'"
-                           (change)="chooseOption('PIF')">
-                    <label class="form-check-label" for="optPif2">Pay In Full ({{ paySvc.totalAmount() | currency }})</label>
-                  </div>
-                } @else {
-                  <div class="alert alert-info border-0 mb-0" role="status">
-                    <strong>Deposit due today:</strong> {{ paySvc.depositTotal() | currency }}. The remaining balance will be billed separately.
-                  </div>
-                }
-              }
-
-            </section>
-          }
-        }
-
-        <!-- VerticalInsure / RegSaver region -->
+        <!-- VerticalInsure / RegSaver region — card styling lives on the same
+             wrapper that previously held the widget so we don't introduce an
+             extra ancestor between #dVIOffer and the page (the widget script
+             targets #dVIOffer by id and clipping/positioning ancestors break it). -->
         @if (insuranceState.offerPlayerRegSaver()) {
-          <div class="mb-3">
+          <div class="insurance-wrapper mb-4">
+            <header class="insurance-card-title">
+              <i class="bi bi-shield-check me-2"></i>Registration Insurance
+            </header>
             <div #viOffer id="dVIOffer" class="text-center vi-container">
               @if (!insuranceSvc.widgetInitialized()) {
                 <div class="py-4">
@@ -251,7 +278,7 @@ import type { LineItem } from '../state/payment-v2.service';
               }
             </div>
             @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
-              <div class="alert alert-secondary border-0 py-2 small" role="alert">
+              <div class="alert alert-secondary border-0 py-2 small mb-0 mt-2" role="alert">
                 Insurance is optional. Please indicate your interest in registration insurance for each player listed.
               </div>
             }
@@ -540,6 +567,48 @@ import type { LineItem } from '../state/payment-v2.service';
       .payment-plan-option-detail {
         font-size: var(--font-size-sm);
         color: var(--brand-text-muted);
+      }
+
+      .payment-plan-option-amount {
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-primary);
+        font-variant-numeric: tabular-nums;
+      }
+
+
+      /* Payment-options block lives inside the accounting card and is visually
+         separated from the table above by a top border + padding. */
+      .payment-summary-options {
+        padding: var(--space-3) var(--space-4) var(--space-4);
+        border-top: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+        background: rgba(var(--bs-primary-rgb), 0.02);
+      }
+
+      /* Insurance / RegSaver wrapper — card-like delineation applied to the
+         same div that holds #dVIOffer, no extra ancestor introduced.
+         NOTE: never apply overflow:hidden here — the VI widget can render
+         absolutely-positioned popups/tooltips that must escape this box. */
+      .insurance-wrapper {
+        border: 2px solid rgba(var(--bs-primary-rgb), 0.35);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        box-shadow: var(--shadow-md);
+        padding: 0 var(--space-4) var(--space-3);
+      }
+
+      .insurance-card-title {
+        display: flex;
+        align-items: center;
+        margin: 0 calc(var(--space-4) * -1) var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-top-left-radius: calc(var(--radius-md) - 2px);
+        border-top-right-radius: calc(var(--radius-md) - 2px);
       }
 
       .discount-label {

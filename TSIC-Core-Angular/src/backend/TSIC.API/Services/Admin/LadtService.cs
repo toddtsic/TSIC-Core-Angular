@@ -1379,6 +1379,11 @@ public sealed class LadtService : ILadtService
         var regIds = registrations.Select(r => r.RegistrationId).ToList();
         var payments = await _regAcctRepo.GetPaymentSummariesAsync(regIds, cancellationToken);
 
+        // Job-level phase: drives whether FeeBase stamps as Deposit (deposit phase) or
+        // Deposit+BalanceDue (full-payment phase) inside ApplySwapFeesAsync.
+        var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, cancellationToken);
+        var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
+
         var updated = 0;
         foreach (var reg in registrations)
         {
@@ -1400,6 +1405,7 @@ public sealed class LadtService : ILadtService
                 reg, jobId, reg.AssignedAgegroupId ?? Guid.Empty, reg.AssignedTeamId.Value,
                 new FeeApplicationContext
                 {
+                    IsFullPaymentRequired = isFullPaymentRequired,
                     NonCcPayments = summary?.NonCcPayments ?? 0m
                 }, cancellationToken);
 

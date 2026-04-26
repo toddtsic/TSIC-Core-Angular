@@ -18,12 +18,18 @@ public class JobConfigService : IJobConfigService
 {
     private readonly IJobConfigRepository _repo;
     private readonly ITeamRegistrationService _teamRegService;
+    private readonly IPlayerRegistrationService _playerRegService;
     private readonly ILogger<JobConfigService> _logger;
 
-    public JobConfigService(IJobConfigRepository repo, ITeamRegistrationService teamRegService, ILogger<JobConfigService> logger)
+    public JobConfigService(
+        IJobConfigRepository repo,
+        ITeamRegistrationService teamRegService,
+        IPlayerRegistrationService playerRegService,
+        ILogger<JobConfigService> logger)
     {
         _repo = repo;
         _teamRegService = teamRegService;
+        _playerRegService = playerRegService;
         _logger = logger;
     }
 
@@ -94,8 +100,28 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        // Validate processing-fee ranges (defense in depth — frontend already enforces via min/max attrs)
+        if (req.ProcessingFeePercent.HasValue
+            && (req.ProcessingFeePercent.Value < FeeConstants.MinProcessingFeePercent
+                || req.ProcessingFeePercent.Value > FeeConstants.MaxProcessingFeePercent))
+        {
+            throw new ArgumentException(
+                $"ProcessingFeePercent must be between {FeeConstants.MinProcessingFeePercent} and {FeeConstants.MaxProcessingFeePercent}.",
+                nameof(req));
+        }
+
+        if (req.EcprocessingFeePercent.HasValue
+            && (req.EcprocessingFeePercent.Value < FeeConstants.MinEcprocessingFeePercent
+                || req.EcprocessingFeePercent.Value > FeeConstants.MaxEcprocessingFeePercent))
+        {
+            throw new ArgumentException(
+                $"EcprocessingFeePercent must be between {FeeConstants.MinEcprocessingFeePercent} and {FeeConstants.MaxEcprocessingFeePercent}.",
+                nameof(req));
+        }
+
         // Snapshot fee-affecting flags before update
         var prevFullPayReq = job.BTeamsFullPaymentRequired ?? false;
+        var prevPlayersFullPayReq = job.BPlayersFullPaymentRequired;
         var prevAddProcessing = job.BAddProcessingFees;
         var prevApplyProcToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false;
         var prevProcessingRate = job.ProcessingFeePercent;
@@ -104,6 +130,8 @@ public class JobConfigService : IJobConfigService
         job.PaymentMethodsAllowedCode = req.PaymentMethodsAllowedCode;
         job.BAddProcessingFees = req.BAddProcessingFees;
         job.ProcessingFeePercent = req.ProcessingFeePercent;
+        job.BEnableEcheck = req.BEnableEcheck;
+        job.EcprocessingFeePercent = req.EcprocessingFeePercent;
         job.BApplyProcessingFeesToTeamDeposit = req.BApplyProcessingFeesToTeamDeposit;
         job.PerPlayerCharge = req.PerPlayerCharge;
         job.PerTeamCharge = req.PerTeamCharge;
@@ -113,6 +141,7 @@ public class JobConfigService : IJobConfigService
         job.MailinPaymentWarning = req.MailinPaymentWarning;
         job.Balancedueaspercent = req.Balancedueaspercent;
         job.BTeamsFullPaymentRequired = req.BTeamsFullPaymentRequired;
+        job.BPlayersFullPaymentRequired = req.BPlayersFullPaymentRequired;
         job.BAllowRefundsInPriorMonths = req.BAllowRefundsInPriorMonths;
         job.BAllowCreditAll = req.BAllowCreditAll;
 
@@ -129,14 +158,14 @@ public class JobConfigService : IJobConfigService
         job.Modified = DateTime.UtcNow;
         await _repo.SaveChangesAsync(ct);
 
-        // Auto-recalculate team fees if any fee-affecting flag changed
-        var feeConfigChanged =
+        // Auto-recalculate team fees if any team-fee-affecting flag changed
+        var teamFeeConfigChanged =
             prevFullPayReq != req.BTeamsFullPaymentRequired ||
             prevAddProcessing != req.BAddProcessingFees ||
             prevApplyProcToDeposit != req.BApplyProcessingFeesToTeamDeposit ||
             prevProcessingRate != req.ProcessingFeePercent;
 
-        if (feeConfigChanged)
+        if (teamFeeConfigChanged)
         {
             _logger.LogInformation(
                 "Fee-affecting config changed for Job {JobId} — auto-recalculating team fees. " +
@@ -151,6 +180,28 @@ public class JobConfigService : IJobConfigService
                 "system:job-config-auto-recalc");
 
             _logger.LogInformation("Auto-recalculated {Count} team fees for Job {JobId}", result.UpdatedCount, jobId);
+        }
+
+        // Auto-recalculate player fees when the player phase flag flips. Processing-fee
+        // changes also affect player FeeProcessing — same trigger conditions apply.
+        var playerFeeConfigChanged =
+            prevPlayersFullPayReq != req.BPlayersFullPaymentRequired ||
+            prevAddProcessing != req.BAddProcessingFees ||
+            prevProcessingRate != req.ProcessingFeePercent;
+
+        if (playerFeeConfigChanged)
+        {
+            _logger.LogInformation(
+                "Player-fee-affecting config changed for Job {JobId} — auto-recalculating player fees. " +
+                "PlayersFullPayReq: {Prev}→{New}, AddProcessing: {PrevP}→{NewP}",
+                jobId,
+                prevPlayersFullPayReq, req.BPlayersFullPaymentRequired,
+                prevAddProcessing, req.BAddProcessingFees);
+
+            var playerCount = await _playerRegService.RecalculatePlayerFeesAsync(
+                jobId, "system:job-config-auto-recalc", ct);
+
+            _logger.LogInformation("Auto-recalculated {Count} player fees for Job {JobId}", playerCount, jobId);
         }
     }
 
@@ -546,6 +597,11 @@ public class JobConfigService : IJobConfigService
         BAddProcessingFees = job.BAddProcessingFees,
         ProcessingFeePercent = job.ProcessingFeePercent,
         MinProcessingFeePercent = FeeConstants.MinProcessingFeePercent,
+        MaxProcessingFeePercent = FeeConstants.MaxProcessingFeePercent,
+        BEnableEcheck = job.BEnableEcheck,
+        EcprocessingFeePercent = job.EcprocessingFeePercent,
+        MinEcprocessingFeePercent = FeeConstants.MinEcprocessingFeePercent,
+        MaxEcprocessingFeePercent = FeeConstants.MaxEcprocessingFeePercent,
         BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit,
         PerPlayerCharge = job.PerPlayerCharge,
         PerTeamCharge = job.PerTeamCharge,
@@ -555,6 +611,7 @@ public class JobConfigService : IJobConfigService
         MailinPaymentWarning = job.MailinPaymentWarning,
         Balancedueaspercent = job.Balancedueaspercent,
         BTeamsFullPaymentRequired = job.BTeamsFullPaymentRequired,
+        BPlayersFullPaymentRequired = job.BPlayersFullPaymentRequired,
         BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
         BAllowCreditAll = job.BAllowCreditAll,
         // SuperUser-only — ARB

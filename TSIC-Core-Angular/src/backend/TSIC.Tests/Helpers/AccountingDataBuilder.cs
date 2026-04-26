@@ -22,6 +22,7 @@ public class AccountingDataBuilder
     public static readonly Guid CcCreditMethodId = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
     public static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
     public static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
+    public static readonly Guid EcheckMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
 
     public AccountingDataBuilder(SqlDbContext ctx)
     {
@@ -29,14 +30,15 @@ public class AccountingDataBuilder
         SeedPaymentMethods();
     }
 
-    /// <summary>Seed the 4 standard payment methods (required for joins in accounting queries).</summary>
+    /// <summary>Seed the standard payment methods (required for joins in accounting queries).</summary>
     private void SeedPaymentMethods()
     {
         _ctx.AccountingPaymentMethods.AddRange(
             new AccountingPaymentMethods { PaymentMethodId = CcPaymentMethodId, PaymentMethod = "Credit Card Payment By Client", Modified = DateTime.UtcNow },
             new AccountingPaymentMethods { PaymentMethodId = CcCreditMethodId, PaymentMethod = "Credit Card Credit", Modified = DateTime.UtcNow },
             new AccountingPaymentMethods { PaymentMethodId = CheckMethodId, PaymentMethod = "Check Payment By Client", Modified = DateTime.UtcNow },
-            new AccountingPaymentMethods { PaymentMethodId = CorrectionMethodId, PaymentMethod = "Correction", Modified = DateTime.UtcNow }
+            new AccountingPaymentMethods { PaymentMethodId = CorrectionMethodId, PaymentMethod = "Correction", Modified = DateTime.UtcNow },
+            new AccountingPaymentMethods { PaymentMethodId = EcheckMethodId, PaymentMethod = "E-Check Payment", Modified = DateTime.UtcNow }
         );
     }
 
@@ -46,7 +48,8 @@ public class AccountingDataBuilder
         decimal? processingFeePercent = null,
         bool bAddProcessingFees = false,
         bool bApplyProcessingFeesToTeamDeposit = false,
-        bool bTeamsFullPaymentRequired = false)
+        bool bTeamsFullPaymentRequired = false,
+        bool bPlayersFullPaymentRequired = false)
     {
         var job = new Jobs
         {
@@ -60,6 +63,7 @@ public class AccountingDataBuilder
             BAddProcessingFees = bAddProcessingFees,
             BApplyProcessingFeesToTeamDeposit = bApplyProcessingFeesToTeamDeposit,
             BTeamsFullPaymentRequired = bTeamsFullPaymentRequired,
+            BPlayersFullPaymentRequired = bPlayersFullPaymentRequired,
             Modified = DateTime.UtcNow
         };
         _ctx.Jobs.Add(job);

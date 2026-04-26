@@ -4511,6 +4511,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValue(false)
                 .HasColumnName("bClubRepAllowEdit");
             entity.Property(e => e.BDisallowCcplayerConfirmations).HasColumnName("bDisallowCCPlayerConfirmations");
+            entity.Property(e => e.BEnableEcheck).HasColumnName("bEnableECheck");
             entity.Property(e => e.BEnableMobileRsvp)
                 .HasDefaultValue(false)
                 .HasColumnName("bEnableMobileRsvp");
@@ -4527,6 +4528,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValue(false)
                 .HasColumnName("bOfferPlayerRegsaverInsurance");
             entity.Property(e => e.BOfferTeamRegsaverInsurance).HasColumnName("bOfferTeamRegsaverInsurance");
+            entity.Property(e => e.BPlayersFullPaymentRequired).HasColumnName("bPlayersFullPaymentRequired");
             entity.Property(e => e.BRegistrationAllowPlayer)
                 .HasDefaultValue(false)
                 .HasColumnName("bRegistrationAllowPlayer");
@@ -4559,6 +4561,9 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.CustomerId).HasColumnName("customerID");
             entity.Property(e => e.DadLabel).IsUnicode(false);
             entity.Property(e => e.DisplayName).IsUnicode(false);
+            entity.Property(e => e.EcprocessingFeePercent)
+                .HasColumnType("decimal(4, 2)")
+                .HasColumnName("ECProcessingFeePercent");
             entity.Property(e => e.EventEndDate).HasColumnType("datetime");
             entity.Property(e => e.EventStartDate).HasColumnType("datetime");
             entity.Property(e => e.ExpiryAdmin).HasDefaultValueSql("(getdate())", "DF__Jobs__ExpiryAdmi__2962141D");

@@ -312,6 +312,15 @@
     min-width: 0;
     text-align: center;
     line-height: 1.15;
+    cursor: pointer;
+    background: none;
+    border: none;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus, 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25));
+        border-radius: var(--radius-sm);
+    }
 
     .mobile-jn-line1 {
         display: block;
@@ -626,11 +635,16 @@
     border-radius: var(--radius-md);
     border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    cursor: default;
+    cursor: pointer;
     user-select: none;
     transition: all 0.2s ease;
     min-width: 0;
     overflow: hidden;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus, 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25));
+    }
 
     &:hover {
         background: linear-gradient(135deg,

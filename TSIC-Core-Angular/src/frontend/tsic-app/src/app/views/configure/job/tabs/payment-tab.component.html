@@ -11,19 +11,19 @@
               <label class="field-check">
                 <input type="radio" name="payMethod"
                   [checked]="paymentMethodsAllowedCode() === 1"
-                  (change)="paymentMethodsAllowedCode.set(1); onFieldChange()" />
+                  (change)="setPaymentMethodsAllowedCode(1)" />
                 <span class="field-label mb-0">CC Only</span>
               </label>
               <label class="field-check">
                 <input type="radio" name="payMethod"
                   [checked]="paymentMethodsAllowedCode() === 2"
-                  (change)="paymentMethodsAllowedCode.set(2); onFieldChange()" />
+                  (change)="setPaymentMethodsAllowedCode(2)" />
                 <span class="field-label mb-0">CC or Check</span>
               </label>
               <label class="field-check">
                 <input type="radio" name="payMethod"
                   [checked]="paymentMethodsAllowedCode() === 3"
-                  (change)="paymentMethodsAllowedCode.set(3); onFieldChange()" />
+                  (change)="setPaymentMethodsAllowedCode(3)" />
                 <span class="field-label mb-0">Check Only</span>
               </label>
             </div>
@@ -50,6 +50,7 @@
                   [placeholder]="minProcessingFeePercent() !== null ? (minProcessingFeePercent() + '%') : '%'"
                   style="max-width: 70px"
                   [min]="minProcessingFeePercent()"
+                  [max]="maxProcessingFeePercent()"
                   [ngModel]="processingFeePercent()"
                   (ngModelChange)="onProcessingFeeChange($event)"
                   [disabled]="!bAddProcessingFees() || !svc.isSuperUser()" />
@@ -61,6 +62,38 @@
                   [disabled]="!svc.isSuperUser()" />
                 <span class="field-label mb-0">Apply to Team Deposit</span>
               </label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-12">
+          <fieldset class="config-fieldset">
+            <legend class="field-label">
+              eCheck Processing Fee
+              @if (!svc.isSuperUser()) {
+                <i class="bi bi-lock-fill ms-1 text-muted" title="SuperUser only"></i>
+              }
+            </legend>
+            <div class="field-check-row">
+              <div class="d-flex align-items-center gap-2"
+                   [title]="!echeckCheckboxAllowed() ? 'Enable Check first (set Allowed Methods to CC or Check, or Check Only) to use eCheck' : ''">
+                <label class="field-check">
+                  <input type="checkbox"
+                    [ngModel]="bEnableEcheck()"
+                    (ngModelChange)="bEnableEcheck.set($event); onFieldChange()"
+                    [disabled]="!echeckCheckboxAllowed() || !svc.isSuperUser()" />
+                  <span class="field-label mb-0">Enable eCheck</span>
+                </label>
+                <input type="number" class="field-input" step="0.01"
+                  [placeholder]="minEcprocessingFeePercent() !== null ? (minEcprocessingFeePercent() + '%') : '%'"
+                  style="max-width: 70px"
+                  [min]="minEcprocessingFeePercent()"
+                  [max]="maxEcprocessingFeePercent()"
+                  [ngModel]="ecprocessingFeePercent()"
+                  (ngModelChange)="onEcprocessingFeeChange($event)"
+                  [disabled]="!bEnableEcheck() || !echeckCheckboxAllowed() || !svc.isSuperUser()" />
+              </div>
             </div>
           </fieldset>
         </div>
@@ -129,6 +162,12 @@
             [ngModel]="bTeamsFullPaymentRequired()"
             (ngModelChange)="bTeamsFullPaymentRequired.set($event); onFieldChange()" />
           <span class="field-label mb-0">Teams Full Payment Required</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bPlayersFullPaymentRequired()"
+            (ngModelChange)="bPlayersFullPaymentRequired.set($event); onFieldChange()" />
+          <span class="field-label mb-0">Players Full Payment Required</span>
         </label>
         <label class="field-check">
           <input type="checkbox"

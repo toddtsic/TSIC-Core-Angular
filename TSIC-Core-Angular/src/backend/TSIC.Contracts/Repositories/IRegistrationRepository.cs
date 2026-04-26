@@ -304,6 +304,15 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get every active player registration in a job. Returns tracked entities
+    /// for in-place fee recalculation when the job-level phase flag flips.
+    /// Filters by RoleId = Player; excludes registrations without an AssignedTeamId.
+    /// </summary>
+    Task<List<Registrations>> GetActivePlayerRegistrationsByJobAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Zero out all fee fields for registrations assigned to a team.
     /// Used when dropping a team to the "Dropped Teams" agegroup.
     /// Returns the number of registrations affected.

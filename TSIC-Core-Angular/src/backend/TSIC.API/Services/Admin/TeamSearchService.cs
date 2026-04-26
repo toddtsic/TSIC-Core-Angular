@@ -38,6 +38,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private static readonly Guid CcCreditMethodId = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
+    private static readonly Guid EcheckMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
 
     public TeamSearchService(
         ITeamRepository teamRepo,
@@ -552,7 +553,10 @@ public sealed class TeamSearchService : ITeamSearchService
         try
         {
             var isCheck = string.Equals(request.PaymentType, "Check", StringComparison.OrdinalIgnoreCase);
-            var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
+            var isEcheck = string.Equals(request.PaymentType, "ECheck", StringComparison.OrdinalIgnoreCase);
+            var paymentMethodId = isCheck ? CheckMethodId
+                : isEcheck ? EcheckMethodId
+                : CorrectionMethodId;
 
             // Load club rep registration (tracked via FindAsync for in-place mutation)
             var clubRep = await _registrationRepo.GetByIdAsync(request.ClubRepRegistrationId, ct);
@@ -567,6 +571,12 @@ public sealed class TeamSearchService : ITeamSearchService
             var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
             var bAddProcessingFees = feeSettings?.BAddProcessingFees ?? false;
             var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
+
+            // For eCheck, the customer still incurs the eCheck rate, so refund only the DIFFERENCE
+            // between the CC rate (baked into FeeProcessing originally) and the eCheck rate.
+            // baseOwed below stays at processingRate (CC) because that's what FeeProcessing was sized at.
+            var ecRate = isEcheck ? await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId, ct) : 0m;
+            var reductionRate = isEcheck ? Math.Max(0m, processingRate - ecRate) : processingRate;
 
             // Get teams — single or all club teams
             var clubTeams = await _teamRepo.GetActiveClubTeamsOrderedByOwedAsync(jobId, request.ClubRepRegistrationId, ct);
@@ -591,12 +601,13 @@ public sealed class TeamSearchService : ITeamSearchService
                 var calculatedTeamCheckAmount = Math.Min(baseOwed, remainingBalance);
                 if (calculatedTeamCheckAmount <= 0) continue;
 
-                // Step 3: Fee reduction = allocation × rate (same as player path)
+                // Step 3: Fee reduction = allocation × rate (same as player path).
+                // For eCheck, rate is (CC − EC) since eCheck still incurs its own processing fee.
                 decimal processingFeeReduction = 0;
-                if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
+                if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0 && reductionRate > 0)
                 {
                     processingFeeReduction = decimal.Round(
-                        calculatedTeamCheckAmount * processingRate,
+                        calculatedTeamCheckAmount * reductionRate,
                         2, MidpointRounding.AwayFromZero);
 
                     team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;

@@ -13,6 +13,13 @@ public record JobPreSubmitMetadata
     /// Gates whether the player checkout exposes the Pay In Full option.
     /// </summary>
     public bool AllowPif { get; init; }
+
+    /// <summary>
+    /// Job-level phase flag. When true, every active player registration's FeeBase
+    /// is stamped at Deposit + BalanceDue (full payment phase). When false, FeeBase
+    /// is stamped at Deposit (deposit phase). Director-controlled.
+    /// </summary>
+    public bool BPlayersFullPaymentRequired { get; init; }
 }
 
 public record JobPaymentInfo
@@ -27,6 +34,13 @@ public record JobPaymentInfo
     /// Gates whether the payment service accepts PaymentOption.PIF.
     /// </summary>
     public bool AllowPif { get; init; }
+
+    /// <summary>
+    /// Job-level phase flag. When true, every active player registration's FeeBase
+    /// is stamped at Deposit + BalanceDue (full payment phase). PaymentService also
+    /// accepts PaymentOption.PIF when this flag is true, regardless of AllowPif.
+    /// </summary>
+    public bool BPlayersFullPaymentRequired { get; init; }
 }
 
 public record JobMetadata
@@ -84,6 +98,13 @@ public record JobMetadataDto
     /// Gates whether the player checkout exposes the Pay In Full option.
     /// </summary>
     public required bool AllowPif { get; init; }
+
+    /// <summary>
+    /// Job-level phase flag. When true, every active player registration's FeeBase
+    /// is stamped at Deposit + BalanceDue (full payment phase). Drives wizard display
+    /// defaults and director-controlled balance-due workflow.
+    /// </summary>
+    public required bool BPlayersFullPaymentRequired { get; init; }
 }
 
 public record JobRegistrationStatus
@@ -199,9 +220,14 @@ public interface IJobRepository
     Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get processing fee percent for a job.
+    /// Get CC processing fee percent for a job.
     /// </summary>
     Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get eCheck processing fee percent for a job.
+    /// </summary>
+    Task<decimal?> GetEcprocessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get adult/team confirmation template for on-screen display.

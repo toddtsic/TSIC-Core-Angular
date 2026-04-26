@@ -20,17 +20,20 @@ public sealed class RosterSwapperService : IRosterSwapperService
     private readonly ITeamRepository _teamRepo;
     private readonly IDeviceRepository _deviceRepo;
     private readonly IFeeResolutionService _feeService;
+    private readonly IJobRepository _jobRepo;
 
     public RosterSwapperService(
         IRegistrationRepository registrationRepo,
         ITeamRepository teamRepo,
         IDeviceRepository deviceRepo,
-        IFeeResolutionService feeService)
+        IFeeResolutionService feeService,
+        IJobRepository jobRepo)
     {
         _registrationRepo = registrationRepo;
         _teamRepo = teamRepo;
         _deviceRepo = deviceRepo;
         _feeService = feeService;
+        _jobRepo = jobRepo;
     }
 
     public async Task<List<SwapperPoolOptionDto>> GetPoolOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -337,6 +340,9 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 throw new InvalidOperationException(
                     $"Target team capacity exceeded. Current: {currentCount}/{targetTeam.MaxCount}, attempting to add {registrations.Count}.");
 
+            var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(targetTeam.JobId, ct);
+            var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
+
             foreach (var reg in registrations)
             {
                 var roleName = reg.Role?.Name ?? "";
@@ -361,7 +367,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     // FLOW 1: Player → Team (fee recalc via new fee resolution service)
                     await _feeService.ApplySwapFeesAsync(
                         reg, targetTeam.JobId, targetTeam.AgegroupId, targetTeam.TeamId,
-                        new FeeApplicationContext(), ct);
+                        new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired }, ct);
 
                     // Entity is already tracked — EF detects property changes automatically
                     playersTransferred++;

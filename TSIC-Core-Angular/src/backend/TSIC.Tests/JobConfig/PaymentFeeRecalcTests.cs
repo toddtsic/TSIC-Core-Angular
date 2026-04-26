@@ -112,6 +112,89 @@ public class PaymentFeeRecalcTests
 
     // ── Service Factory ─────────────────────────────────────────────
 
+    /// <summary>
+     /// Player-flag scenario factory: builds a job + JobConfigService and returns the
+     /// Mock&lt;IPlayerRegistrationService&gt; so tests can verify whether
+     /// <c>RecalculatePlayerFeesAsync</c> is invoked under the change-detection branch.
+     /// </summary>
+    private static async Task<(
+        JobConfigService configService,
+        SqlDbContext ctx,
+        Guid jobId,
+        Mock<IPlayerRegistrationService> playerRegMock)>
+        CreatePlayerScenarioAsync(
+            bool bPlayersFullPaymentRequired = false,
+            bool bAddProcessingFees = false,
+            decimal processingFeePercent = 3.5m,
+            int recalcReturnCount = 0)
+    {
+        var ctx = DbContextFactory.Create();
+        var builder = new AccountingDataBuilder(ctx);
+
+        var job = builder.AddJob(
+            processingFeePercent: processingFeePercent,
+            bAddProcessingFees: bAddProcessingFees,
+            bPlayersFullPaymentRequired: bPlayersFullPaymentRequired);
+
+        await builder.SaveAsync();
+
+        var configRepo = new JobConfigRepository(ctx);
+
+        // Minimal team-side mocks: processing-rate change also triggers the team recalc
+        // path (regardless of player flag), so we wire just enough to let that path
+        // complete with zero teams. Nothing here affects the player-recalc verification.
+        var jobRepo = new Mock<IJobRepository>();
+        jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobFeeSettings
+            {
+                BTeamsFullPaymentRequired = false,
+                BAddProcessingFees = false,
+                BApplyProcessingFeesToTeamDeposit = false,
+                PaymentMethodsAllowedCode = 1,
+            });
+
+        var teamRepo = new Mock<ITeamRepository>();
+        teamRepo.Setup(t => t.GetTeamsWithDetailsForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Teams>());
+
+        var feeServiceMock = new Mock<IFeeResolutionService>();
+        feeServiceMock.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingRate);
+
+        var teamRegService = new TeamRegistrationService(
+            new Mock<ILogger<TeamRegistrationService>>().Object,
+            new Mock<IClubRepRepository>().Object,
+            new Mock<IClubRepository>().Object,
+            jobRepo.Object,
+            new Mock<IJobLeagueRepository>().Object,
+            new Mock<IAgeGroupRepository>().Object,
+            teamRepo.Object,
+            new Mock<IRegistrationRepository>().Object,
+            new Mock<IUserRepository>().Object,
+            new Mock<ITokenService>().Object,
+            MockUserManager(),
+            feeServiceMock.Object,
+            new Mock<ITextSubstitutionService>().Object,
+            new Mock<IEmailService>().Object,
+            new Mock<IJobDiscountCodeRepository>().Object,
+            new Mock<IClubTeamRepository>().Object,
+            new Mock<ITeamPlacementService>().Object);
+
+        var playerMock = new Mock<IPlayerRegistrationService>();
+        playerMock
+            .Setup(p => p.RecalculatePlayerFeesAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(recalcReturnCount);
+
+        var configService = new JobConfigService(
+            configRepo,
+            teamRegService,
+            playerMock.Object,
+            new Mock<ILogger<JobConfigService>>().Object);
+
+        return (configService, ctx, job.JobId, playerMock);
+    }
+
     private static async Task<(
         JobConfigService configService,
         SqlDbContext ctx,
@@ -241,6 +324,7 @@ public class PaymentFeeRecalcTests
         var configService = new JobConfigService(
             configRepo,
             teamRegService,
+            new Mock<IPlayerRegistrationService>().Object,
             new Mock<ILogger<JobConfigService>>().Object);
 
         return (configService, ctx, job.JobId, teams);
@@ -253,7 +337,8 @@ public class PaymentFeeRecalcTests
         bool? bApplyProcessingFeesToTeamDeposit = null,
         decimal? processingFeePercent = null,
         string? payTo = null,
-        string? mailTo = null)
+        string? mailTo = null,
+        bool? bPlayersFullPaymentRequired = null)
     {
         var job = ctx.Jobs.First(j => j.JobId == jobId);
         return new UpdateJobConfigPaymentRequest
@@ -261,8 +346,11 @@ public class PaymentFeeRecalcTests
             PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
             BAddProcessingFees = bAddProcessingFees ?? job.BAddProcessingFees,
             ProcessingFeePercent = processingFeePercent ?? job.ProcessingFeePercent,
+            BEnableEcheck = job.BEnableEcheck,
+            EcprocessingFeePercent = job.EcprocessingFeePercent,
             BApplyProcessingFeesToTeamDeposit = bApplyProcessingFeesToTeamDeposit ?? job.BApplyProcessingFeesToTeamDeposit,
             BTeamsFullPaymentRequired = bTeamsFullPaymentRequired ?? job.BTeamsFullPaymentRequired,
+            BPlayersFullPaymentRequired = bPlayersFullPaymentRequired ?? job.BPlayersFullPaymentRequired,
             BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
             BAllowCreditAll = job.BAllowCreditAll,
             PerPlayerCharge = job.PerPlayerCharge,
@@ -651,8 +739,8 @@ public class PaymentFeeRecalcTests
     [Fact]
     public async Task ProcessingRate_Changed_RecalculatesProcessingFees()
     {
-        PrintScenario("Processing Rate Changed: 3.5% → 5.0%",
-            "Director changes processing fee rate. Existing teams should be recalculated.");
+        PrintScenario("Processing Rate Changed: 3.5% → 3.99%",
+            "Director changes processing fee rate within allowed [3.5, 4.0] range. Teams recalculated.");
 
         var (svc, ctx, jobId, _) = await CreateServiceAsync(
             bAddProcessingFees: true, bApplyProcessingFeesToTeamDeposit: true,
@@ -663,10 +751,10 @@ public class PaymentFeeRecalcTests
         var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("BEFORE", before);
 
-        var req = BuildRequest(ctx, jobId, processingFeePercent: 5.0m);
+        var req = BuildRequest(ctx, jobId, processingFeePercent: 3.99m);
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
-        PrintJobConfig("AFTER", fullPayReq: false, addProcessing: true, procOnDeposit: true, rate: 5.0m);
+        PrintJobConfig("AFTER", fullPayReq: false, addProcessing: true, procOnDeposit: true, rate: 3.99m);
         var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
         PrintTeamTable("AFTER", after);
 
@@ -674,5 +762,108 @@ public class PaymentFeeRecalcTests
             t.FeeProcessing.Should().NotBeNull("processing fee should be recalculated"));
 
         PrintResult("Recalculation triggered by rate change. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLAYER-FLAG TESTS — verify the BPlayersFullPaymentRequired
+    // change-detection branch in JobConfigService.UpdatePaymentAsync
+    // invokes IPlayerRegistrationService.RecalculatePlayerFeesAsync.
+    //
+    // Mirror of the team-flag tests above. Fee correctness for the
+    // recalc itself is owned by FeeResolutionService unit tests; these
+    // tests verify the trigger contract.
+    // ═══════════════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLAYER 1: BPlayersFullPaymentRequired OFF → ON triggers recalc
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PlayersFullPayRequired_TurnedOn_TriggersPlayerRecalc()
+    {
+        PrintScenario("Players Full Pay Required: OFF → ON",
+            "Director enables player balance due. RecalculatePlayerFeesAsync must be called once.");
+
+        var (svc, ctx, jobId, playerMock) = await CreatePlayerScenarioAsync(
+            bPlayersFullPaymentRequired: false, recalcReturnCount: 3);
+
+        var req = BuildRequest(ctx, jobId, bPlayersFullPaymentRequired: true);
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
+            jobId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        PrintResult("Player recalc triggered by flag flip OFF→ON. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLAYER 2: BPlayersFullPaymentRequired ON → OFF triggers recalc
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PlayersFullPayRequired_TurnedOff_TriggersPlayerRecalc()
+    {
+        PrintScenario("Players Full Pay Required: ON → OFF",
+            "Director reverts to deposit phase for players. Recalc must run again.");
+
+        var (svc, ctx, jobId, playerMock) = await CreatePlayerScenarioAsync(
+            bPlayersFullPaymentRequired: true, recalcReturnCount: 3);
+
+        var req = BuildRequest(ctx, jobId, bPlayersFullPaymentRequired: false);
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
+            jobId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        PrintResult("Player recalc triggered by flag flip ON→OFF. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLAYER 3: Processing-rate change ALSO triggers player recalc
+    //   (FeeProcessing depends on rate; players need re-stamping too.)
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PlayersFlagUnchanged_ProcessingRateChanged_TriggersPlayerRecalc()
+    {
+        PrintScenario("Players Flag Unchanged, Processing Rate Changed: 3.5% → 3.99%",
+            "Player phase flag stays the same; rate changes within allowed [3.5, 4.0]. " +
+            "Player FeeProcessing depends on rate, so RecalculatePlayerFeesAsync must run.");
+
+        var (svc, ctx, jobId, playerMock) = await CreatePlayerScenarioAsync(
+            bPlayersFullPaymentRequired: false,
+            bAddProcessingFees: true,
+            processingFeePercent: 3.5m);
+
+        var req = BuildRequest(ctx, jobId, processingFeePercent: 3.99m);
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
+            jobId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        PrintResult("Player recalc triggered by rate change. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLAYER 4: Non-fee fields changed → player recalc NOT called
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PlayersNonFeeFields_Changed_PlayerRecalcNotCalled()
+    {
+        PrintScenario("Players Non-Fee Fields Only",
+            "Director changes PayTo/MailTo. No player-fee-affecting fields. " +
+            "RecalculatePlayerFeesAsync must NOT be invoked.");
+
+        var (svc, ctx, jobId, playerMock) = await CreatePlayerScenarioAsync(
+            bPlayersFullPaymentRequired: false);
+
+        var req = BuildRequest(ctx, jobId, payTo: "New Pay To", mailTo: "New Mail To");
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        PrintResult("Player recalc skipped when no fee-affecting fields change. PASS");
     }
 }

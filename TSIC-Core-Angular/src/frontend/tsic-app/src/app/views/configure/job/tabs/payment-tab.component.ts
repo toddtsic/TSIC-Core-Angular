@@ -20,7 +20,17 @@ export class PaymentTabComponent implements OnInit {
   paymentMethodsAllowedCode = linkedSignal(() => this.svc.payment()?.paymentMethodsAllowedCode ?? 1);
   bAddProcessingFees = linkedSignal(() => this.svc.payment()?.bAddProcessingFees ?? false);
   processingFeePercent = linkedSignal(() => this.svc.payment()?.processingFeePercent ?? null);
+  bEnableEcheck = linkedSignal(() => this.svc.payment()?.bEnableEcheck ?? false);
+  ecprocessingFeePercent = linkedSignal(() => this.svc.payment()?.ecprocessingFeePercent ?? null);
   minProcessingFeePercent = computed(() => this.svc.payment()?.minProcessingFeePercent ?? null);
+  maxProcessingFeePercent = computed(() => this.svc.payment()?.maxProcessingFeePercent ?? null);
+  minEcprocessingFeePercent = computed(() => this.svc.payment()?.minEcprocessingFeePercent ?? null);
+  maxEcprocessingFeePercent = computed(() => this.svc.payment()?.maxEcprocessingFeePercent ?? null);
+  /** eCheck checkbox is only enabled when check is allowed (code 2 or 3). */
+  echeckCheckboxAllowed = computed(() => {
+    const code = this.paymentMethodsAllowedCode();
+    return code === 2 || code === 3;
+  });
   bApplyProcessingFeesToTeamDeposit = linkedSignal(() => this.svc.payment()?.bApplyProcessingFeesToTeamDeposit ?? null);
   perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? null);
   perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? null);
@@ -30,6 +40,7 @@ export class PaymentTabComponent implements OnInit {
   mailinPaymentWarning = linkedSignal(() => this.svc.payment()?.mailinPaymentWarning ?? null);
   balancedueaspercent = linkedSignal(() => this.svc.payment()?.balancedueaspercent ?? null);
   bTeamsFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bTeamsFullPaymentRequired ?? null);
+  bPlayersFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bPlayersFullPaymentRequired ?? false);
   bAllowRefundsInPriorMonths = linkedSignal(() => this.svc.payment()?.bAllowRefundsInPriorMonths ?? null);
   bAllowCreditAll = linkedSignal(() => this.svc.payment()?.bAllowCreditAll ?? null);
 
@@ -47,6 +58,8 @@ export class PaymentTabComponent implements OnInit {
       paymentMethodsAllowedCode: p.paymentMethodsAllowedCode,
       bAddProcessingFees: p.bAddProcessingFees,
       processingFeePercent: p.processingFeePercent,
+      bEnableEcheck: p.bEnableEcheck,
+      ecprocessingFeePercent: p.ecprocessingFeePercent,
       bApplyProcessingFeesToTeamDeposit: p.bApplyProcessingFeesToTeamDeposit,
       perPlayerCharge: p.perPlayerCharge,
       perTeamCharge: p.perTeamCharge,
@@ -56,6 +69,7 @@ export class PaymentTabComponent implements OnInit {
       mailinPaymentWarning: p.mailinPaymentWarning,
       balancedueaspercent: p.balancedueaspercent,
       bTeamsFullPaymentRequired: p.bTeamsFullPaymentRequired,
+      bPlayersFullPaymentRequired: p.bPlayersFullPaymentRequired,
       bAllowRefundsInPriorMonths: p.bAllowRefundsInPriorMonths,
       bAllowCreditAll: p.bAllowCreditAll,
     };
@@ -81,11 +95,33 @@ export class PaymentTabComponent implements OnInit {
     }
   }
 
-  onProcessingFeeChange(value: number | null): void {
-    const min = this.minProcessingFeePercent();
-    const clamped = (value !== null && min !== null && value < min) ? min : value;
-    this.processingFeePercent.set(clamped);
+  /**
+   * Handles Allowed Methods radio change. Auto-clears bEnableEcheck when code
+   * transitions to 1 (CC only) — eCheck depends on check being enabled.
+   */
+  setPaymentMethodsAllowedCode(code: number): void {
+    this.paymentMethodsAllowedCode.set(code);
+    if (code === 1 && this.bEnableEcheck()) {
+      this.bEnableEcheck.set(false);
+    }
     this.onFieldChange();
+  }
+
+  onProcessingFeeChange(value: number | null): void {
+    this.processingFeePercent.set(this.clampPercent(value, this.minProcessingFeePercent(), this.maxProcessingFeePercent()));
+    this.onFieldChange();
+  }
+
+  onEcprocessingFeeChange(value: number | null): void {
+    this.ecprocessingFeePercent.set(this.clampPercent(value, this.minEcprocessingFeePercent(), this.maxEcprocessingFeePercent()));
+    this.onFieldChange();
+  }
+
+  private clampPercent(value: number | null, min: number | null, max: number | null): number | null {
+    if (value === null) return null;
+    if (min !== null && value < min) return min;
+    if (max !== null && value > max) return max;
+    return value;
   }
 
   save(): void {
@@ -97,6 +133,8 @@ export class PaymentTabComponent implements OnInit {
       paymentMethodsAllowedCode: this.paymentMethodsAllowedCode(),
       bAddProcessingFees: this.bAddProcessingFees(),
       processingFeePercent: this.processingFeePercent(),
+      bEnableEcheck: this.bEnableEcheck(),
+      ecprocessingFeePercent: this.ecprocessingFeePercent(),
       bApplyProcessingFeesToTeamDeposit: this.bApplyProcessingFeesToTeamDeposit(),
       perPlayerCharge: this.perPlayerCharge(),
       perTeamCharge: this.perTeamCharge(),
@@ -106,6 +144,7 @@ export class PaymentTabComponent implements OnInit {
       mailinPaymentWarning: this.mailinPaymentWarning(),
       balancedueaspercent: this.balancedueaspercent(),
       bTeamsFullPaymentRequired: this.bTeamsFullPaymentRequired(),
+      bPlayersFullPaymentRequired: this.bPlayersFullPaymentRequired(),
       bAllowRefundsInPriorMonths: this.bAllowRefundsInPriorMonths(),
       bAllowCreditAll: this.bAllowCreditAll(),
     };

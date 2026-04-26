@@ -714,8 +714,15 @@ export class TeamSelectionStepComponent {
             const clubPrefix = team.clubName?.trim() ? `${team.clubName.trim()}: ` : '';
             let label = clubPrefix + team.teamName;
             if (!tournament && team.divisionName) label += ` · ${team.divisionName}`;
-            if (team.effectiveFee != null && team.effectiveFee > 0) {
-                label += ` (${this.formatCurrency(team.effectiveFee)})`;
+            // Two-phase jobs: lead with all-in total, hint at deposit so parent knows
+            // a payment plan exists. Single-phase: lone price. Backend collapses
+            // deposit==fee → deposit=0 so checking deposit > 0 is sufficient.
+            const deposit = Number(team.deposit ?? 0) || 0;
+            const fee = Number(team.effectiveFee ?? 0) || 0;
+            if (fee > 0 && deposit > 0 && deposit !== fee) {
+                label += ` · ${this.formatCurrency(deposit + fee)} (${this.formatCurrency(deposit)} deposit)`;
+            } else if (fee > 0) {
+                label += ` (${this.formatCurrency(fee)})`;
             }
 
             let status = '';

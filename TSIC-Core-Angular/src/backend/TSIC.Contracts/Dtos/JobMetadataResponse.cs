@@ -28,6 +28,10 @@ public class JobMetadataResponse
     // When false, the checkout does not expose a Pay In Full option — the
     // player is locked into the configured phase (deposit or ARB schedule).
     public bool AllowPif { get; set; }
+    // Job-level phase flag: Jobs.bPlayersFullPaymentRequired.
+    // When true, every active player registration owes the full amount
+    // (FeeBase = Deposit + BalanceDue) regardless of ALLOWPIF. Director-controlled.
+    public bool BPlayersFullPaymentRequired { get; set; }
     // Payment schedule (ARB)
     public bool? AdnArb { get; set; }
     public int? AdnArbBillingOccurences { get; set; }

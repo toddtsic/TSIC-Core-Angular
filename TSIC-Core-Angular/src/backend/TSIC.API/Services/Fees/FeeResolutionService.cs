@@ -33,7 +33,15 @@ public sealed class FeeResolutionService : IFeeResolutionService
     public async Task<decimal> GetEffectiveProcessingRateAsync(Guid jobId, CancellationToken ct = default)
     {
         var jobPercent = await _jobRepo.GetProcessingFeePercentAsync(jobId, ct);
-        return Math.Max(jobPercent ?? FeeConstants.MinProcessingFeePercent, FeeConstants.MinProcessingFeePercent) / 100m;
+        var raw = jobPercent ?? FeeConstants.MinProcessingFeePercent;
+        return Math.Clamp(raw, FeeConstants.MinProcessingFeePercent, FeeConstants.MaxProcessingFeePercent) / 100m;
+    }
+
+    public async Task<decimal> GetEffectiveEcheckProcessingRateAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var jobPercent = await _jobRepo.GetEcprocessingFeePercentAsync(jobId, ct);
+        var raw = jobPercent ?? FeeConstants.MinEcprocessingFeePercent;
+        return Math.Clamp(raw, FeeConstants.MinEcprocessingFeePercent, FeeConstants.MaxEcprocessingFeePercent) / 100m;
     }
 
     /// <summary>
@@ -152,10 +160,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
     // ── Player Registration: New ────────────────────────────────
 
     /// <summary>
-    /// Initial fee stamp at team-reservation time. Always defaults to the
-    /// deposit phase — FeeBase = Deposit when configured, else BalanceDue.
-    /// PIF is never applied here, even if the job has ALLOWPIF — that is an
-    /// explicit upgrade at checkout via ApplyPifUpgradeAsync.
+    /// Initial fee stamp at team-reservation time. Phase is driven by
+    /// ctx.IsFullPaymentRequired (sourced from Jobs.BPlayersFullPaymentRequired):
+    /// deposit phase → FeeBase = Deposit (or BalanceDue when no deposit configured);
+    /// full-payment phase → FeeBase = Deposit + BalanceDue.
+    /// The parent's voluntary PIF choice at checkout uses ApplyPifUpgradeAsync;
+    /// this method handles the job-level default at submit time.
     /// </summary>
     public async Task ApplyNewRegistrationFeesAsync(
         Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
@@ -166,7 +176,15 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        var baseFee = deposit > 0m ? deposit : balanceDue;
+        decimal baseFee;
+        if (ctx.IsFullPaymentRequired)
+        {
+            baseFee = deposit + balanceDue;
+        }
+        else
+        {
+            baseFee = deposit > 0m ? deposit : balanceDue;
+        }
 
         var modifiers = await EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agegroupId, teamId, DateTime.Now, ct);
@@ -206,11 +224,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
     // ── Player Registration: Swap ───────────────────────────────
 
     /// <summary>
-    /// Re-stamps FeeBase to the new team's deposit-phase amount
-    /// (Deposit when configured, else BalanceDue). Modifiers are FROZEN
-    /// from the original registration. If the player was in PIF before the
-    /// swap, they will need to re-opt at checkout — the swap does not
-    /// preserve PIF phase across teams.
+    /// Re-stamps FeeBase to the target team's resolved fee for the current phase.
+    /// Phase is driven by ctx.IsFullPaymentRequired (sourced from
+    /// Jobs.BPlayersFullPaymentRequired): deposit phase → FeeBase = Deposit
+    /// (or BalanceDue when no deposit configured); full-payment phase →
+    /// FeeBase = Deposit + BalanceDue. Modifiers are FROZEN from the original
+    /// registration. Used by team swaps and the director's bulk recalc on flag flip.
     /// </summary>
     public async Task ApplySwapFeesAsync(
         Registrations reg, Guid jobId, Guid targetAgegroupId, Guid targetTeamId,
@@ -221,7 +240,14 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        reg.FeeBase = deposit > 0m ? deposit : balanceDue;
+        if (ctx.IsFullPaymentRequired)
+        {
+            reg.FeeBase = deposit + balanceDue;
+        }
+        else
+        {
+            reg.FeeBase = deposit > 0m ? deposit : balanceDue;
+        }
         // FeeDiscount / FeeLatefee / FeeDonation preserved
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);

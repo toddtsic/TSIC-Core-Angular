@@ -780,6 +780,17 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Registrations>> GetActivePlayerRegistrationsByJobAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Where(r => r.JobId == jobId
+                && r.BActive == true
+                && r.RoleId == RoleConstants.Player
+                && r.AssignedTeamId.HasValue)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> ZeroFeesForTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default)
     {
         var registrations = await _context.Registrations

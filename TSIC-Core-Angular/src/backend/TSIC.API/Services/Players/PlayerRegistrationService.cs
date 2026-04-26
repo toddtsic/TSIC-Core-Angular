@@ -31,6 +31,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         public Dictionary<Guid, int> TeamRosterCounts { get; init; } = new();
         public string RegistrationMode { get; init; } = "PP";
         public string? MetadataJson { get; init; }
+        public bool BPlayersFullPaymentRequired { get; init; }
         public Dictionary<string, string> NameToProperty { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, System.Reflection.PropertyInfo> WritableProps { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<Registrations>> ExistingByPlayer { get; init; } = new();
@@ -173,6 +174,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             TeamRosterCounts = teamRosterCounts,
             RegistrationMode = registrationMode,
             MetadataJson = metadataJson,
+            BPlayersFullPaymentRequired = jobEntity?.BPlayersFullPaymentRequired ?? false,
             NameToProperty = nameToProperty,
             WritableProps = writableProps,
             ExistingByPlayer = existingByPlayer,
@@ -339,7 +341,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 {
                     FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
                 }
-                await ApplyInitialFeesAsync(existing, team.JobId, team.AgegroupId, team.TeamId);
+                await ApplyInitialFeesAsync(existing, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
                 AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             }
             else
@@ -381,7 +383,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             }
-            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
         }
@@ -405,7 +407,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed - same cost).", false);
         }
         else
@@ -415,7 +417,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 var assigned = ctx.Teams.Find(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
                 if (assigned != null) regToUpdate.Assignment = $"Player: {assigned.TeamName}";
             }
-            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, regToUpdate.AssignedTeamId ?? team.TeamId);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, regToUpdate.AssignedTeamId ?? team.TeamId, ctx.BPlayersFullPaymentRequired);
             AddResult(teamResults, playerId, regToUpdate.AssignedTeamId ?? team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team change blocked after payment).", false);
         }
     }
@@ -429,7 +431,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             }
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
+            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             return;
         }
@@ -454,7 +456,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             }
-            await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId);
+            await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
             return;
@@ -466,7 +468,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         }
-        await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId);
+        await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
     }
 
@@ -489,12 +491,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         }
-        await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId);
+        await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
     }
 
-    private async Task ApplyInitialFeesAsync(Registrations reg, Guid jobId, Guid agegroupId, Guid teamId)
+    private async Task ApplyInitialFeesAsync(Registrations reg, Guid jobId, Guid agegroupId, Guid teamId, bool isFullPaymentRequired)
     {
         if (reg.PaidTotal > 0m) return;
 
@@ -502,7 +504,78 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         if (reg.FeeBase > 0m) return;
 
         await _feeService.ApplyNewRegistrationFeesAsync(
-            reg, jobId, agegroupId, teamId, new FeeApplicationContext());
+            reg, jobId, agegroupId, teamId,
+            new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired });
+    }
+
+    public async Task<int> RecalculatePlayerFeesAsync(Guid jobId, string userId, CancellationToken ct = default)
+    {
+        var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Job {jobId} not found.");
+        var isFullPaymentRequired = jobPaymentInfo.BPlayersFullPaymentRequired;
+
+        var registrations = await _registrations.GetActivePlayerRegistrationsByJobAsync(jobId, ct);
+        if (registrations.Count == 0)
+        {
+            _logger.LogInformation(
+                "No active player registrations to recalculate for job {JobId} (phase: {Phase})",
+                jobId, isFullPaymentRequired ? "full-payment" : "deposit");
+            return 0;
+        }
+
+        var updated = 0;
+        foreach (var reg in registrations)
+        {
+            if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
+
+            // Skip players already paid-in-full. Re-stamping FeeBase to deposit-only on
+            // an unflip (true→false) would produce OwedTotal < 0 (bogus credit) for
+            // voluntary-PIF registrations and any balance-due-phase registrant whose
+            // payment cleared before the director changed their mind. PIF intent is
+            // preserved by leaving these rows alone.
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobId, RoleConstants.Player, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value, ct);
+            var fullAmount = (resolved?.EffectiveDeposit ?? 0m) + (resolved?.EffectiveBalanceDue ?? 0m);
+            if (fullAmount > 0m && reg.PaidTotal >= fullAmount)
+            {
+                _logger.LogInformation(
+                    "Skipping player registration {RegistrationId}: PaidTotal {Paid} >= full {Full} (PIF or balance-due paid).",
+                    reg.RegistrationId, reg.PaidTotal, fullAmount);
+                continue;
+            }
+
+            var oldFeeBase = reg.FeeBase;
+            var oldFeeProcessing = reg.FeeProcessing;
+
+            await _feeService.ApplySwapFeesAsync(
+                reg, jobId, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value,
+                new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired }, ct);
+
+            if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing)
+            {
+                reg.LebUserId = userId;
+                reg.Modified = DateTime.UtcNow;
+                updated++;
+
+                _logger.LogInformation(
+                    "Player registration {RegistrationId}: FeeBase {OldFeeBase} -> {NewFeeBase}, FeeProcessing {OldFeeProcessing} -> {NewFeeProcessing}",
+                    reg.RegistrationId, oldFeeBase, reg.FeeBase, oldFeeProcessing, reg.FeeProcessing);
+            }
+        }
+
+        if (updated > 0)
+        {
+            await _registrations.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Recalculated {Count} player registration(s) for job {JobId} (phase: {Phase})",
+                updated, jobId, isFullPaymentRequired ? "full-payment" : "deposit");
+        }
+        else
+        {
+            _logger.LogInformation("No player registrations required fee updates for job {JobId}", jobId);
+        }
+
+        return updated;
     }
 
     // Removed unused ValidateAndAdjustNextTabAsync method (was retained for backward compatibility).

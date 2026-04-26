@@ -44,17 +44,23 @@
                 </button>
                 }
 
-                <!-- Desktop Job Name -->
+                <!-- Desktop Job Name — click navigates to role landing page -->
                 @if (jobName()) {
-                <div class="job-name-display-desktop d-none d-md-block ms-3">
+                <div class="job-name-display-desktop d-none d-md-block ms-3"
+                    role="button" tabindex="0"
+                    (click)="goHome()" (keydown.enter)="goHome()"
+                    title="Go to home page">
                     <span class="job-name-text">{{ jobName() }}</span>
                 </div>
                 }
             </div>
 
-            <!-- Mobile Job Name — inline two-line, truncates -->
+            <!-- Mobile Job Name — inline two-line, truncates; click navigates home -->
             @if (jobName()) {
-            <span class="mobile-job-name-inline d-md-none">
+            <span class="mobile-job-name-inline d-md-none"
+                role="button" tabindex="0"
+                (click)="goHome()" (keydown.enter)="goHome()"
+                title="Go to home page">
                 <span class="mobile-jn-line1">{{ jobNameLines()[0] }}</span>
                 @if (jobNameLines().length > 1) {
                 <span class="mobile-jn-line2">{{ jobNameLines()[1] }}</span>

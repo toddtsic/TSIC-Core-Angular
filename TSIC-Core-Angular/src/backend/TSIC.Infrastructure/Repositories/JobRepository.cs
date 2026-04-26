@@ -28,7 +28,8 @@ public class JobRepository : IJobRepository
                 PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
                 JsonOptions = j.JsonOptions,
                 CoreRegformPlayer = j.CoreRegformPlayer,
-                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF")
+                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF"),
+                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -44,7 +45,8 @@ public class JobRepository : IJobRepository
                 AdnArbbillingOccurences = j.AdnArbbillingOccurences,
                 AdnArbintervalLength = j.AdnArbintervalLength,
                 AdnArbstartDate = j.AdnArbstartDate,
-                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF")
+                AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF"),
+                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -143,7 +145,8 @@ public class JobRepository : IJobRepository
                 PayTo = jdo.Job.PayTo,
                 MailTo = jdo.Job.MailTo,
                 MailinPaymentWarning = jdo.Job.MailinPaymentWarning,
-                AllowPif = jdo.Job.CoreRegformPlayer != null && jdo.Job.CoreRegformPlayer.Contains("ALLOWPIF")
+                AllowPif = jdo.Job.CoreRegformPlayer != null && jdo.Job.CoreRegformPlayer.Contains("ALLOWPIF"),
+                BPlayersFullPaymentRequired = jdo.Job.BPlayersFullPaymentRequired
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -345,6 +348,15 @@ public class JobRepository : IJobRepository
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
             .Select(j => j.ProcessingFeePercent)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<decimal?> GetEcprocessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.EcprocessingFeePercent)
             .FirstOrDefaultAsync(cancellationToken);
     }
 

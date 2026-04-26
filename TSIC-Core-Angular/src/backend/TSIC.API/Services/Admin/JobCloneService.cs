@@ -393,6 +393,8 @@ public sealed class JobCloneService : IJobCloneService
             BClubRepAllowDelete = true,
             BClubRepAllowAdd = true,
             ProcessingFeePercent = FeeConstants.MinProcessingFeePercent,
+            EcprocessingFeePercent = FeeConstants.MinEcprocessingFeePercent,
+            BEnableEcheck = false,
 
             // Required strings — sensible defaults (wizard can override later)
             RegformNamePlayer = "Player Registration",
@@ -705,6 +707,9 @@ public sealed class JobCloneService : IJobCloneService
             // Processing rate reset to current floor (avoids stale-rate carryover).
             // Phase D wizard exposes Copy source / Use current / Custom.
             ProcessingFeePercent = FeeConstants.MinProcessingFeePercent,
+            // eCheck rate reset to floor; enable flag also reset (admin must re-opt in per clone).
+            EcprocessingFeePercent = FeeConstants.MinEcprocessingFeePercent,
+            BEnableEcheck = false,
 
             // ── Year-delta shifted date fields ──
             EventStartDate = ShiftByYears(source.EventStartDate, yearDelta),
@@ -752,6 +757,7 @@ public sealed class JobCloneService : IJobCloneService
             RegFormCcs = source.RegFormCcs,
             JobNameQbp = source.JobNameQbp,
             BTeamsFullPaymentRequired = source.BTeamsFullPaymentRequired,
+            BPlayersFullPaymentRequired = source.BPlayersFullPaymentRequired,
             BRestrictPlayerTeamsToAgerange = source.BRestrictPlayerTeamsToAgerange,
             Rescheduleemaillist = source.Rescheduleemaillist,
             Alwayscopyemaillist = source.Alwayscopyemaillist,

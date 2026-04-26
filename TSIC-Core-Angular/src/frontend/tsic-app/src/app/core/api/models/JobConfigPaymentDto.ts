@@ -7,6 +7,11 @@ export type JobConfigPaymentDto = {
     bAddProcessingFees: boolean;
     processingFeePercent: number | null;
     minProcessingFeePercent: number;
+    maxProcessingFeePercent: number;
+    bEnableEcheck: boolean;
+    ecprocessingFeePercent: number | null;
+    minEcprocessingFeePercent: number;
+    maxEcprocessingFeePercent: number;
     bApplyProcessingFeesToTeamDeposit: boolean | null;
     perPlayerCharge: number | null;
     perTeamCharge: number | null;
@@ -16,6 +21,7 @@ export type JobConfigPaymentDto = {
     mailinPaymentWarning: string | null;
     balancedueaspercent: string | null;
     bTeamsFullPaymentRequired: boolean | null;
+    bPlayersFullPaymentRequired: boolean;
     bAllowRefundsInPriorMonths: boolean | null;
     bAllowCreditAll: boolean | null;
     adnArb?: boolean | null;

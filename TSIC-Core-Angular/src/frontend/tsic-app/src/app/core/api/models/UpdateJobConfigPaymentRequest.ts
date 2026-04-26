@@ -6,6 +6,8 @@ export type UpdateJobConfigPaymentRequest = {
     paymentMethodsAllowedCode: number;
     bAddProcessingFees: boolean;
     processingFeePercent: number | null;
+    bEnableEcheck: boolean;
+    ecprocessingFeePercent: number | null;
     bApplyProcessingFeesToTeamDeposit: boolean | null;
     perPlayerCharge: number | null;
     perTeamCharge: number | null;
@@ -15,6 +17,7 @@ export type UpdateJobConfigPaymentRequest = {
     mailinPaymentWarning: string | null;
     balancedueaspercent: string | null;
     bTeamsFullPaymentRequired: boolean | null;
+    bPlayersFullPaymentRequired: boolean;
     bAllowRefundsInPriorMonths: boolean | null;
     bAllowCreditAll: boolean | null;
     adnArb?: boolean | null;
