@@ -114,7 +114,8 @@ public class JobsController : ControllerBase
             BAddProcessingFees = jobMetadata.BAddProcessingFees,
             PayTo = jobMetadata.PayTo,
             MailTo = jobMetadata.MailTo,
-            MailinPaymentWarning = jobMetadata.MailinPaymentWarning
+            MailinPaymentWarning = jobMetadata.MailinPaymentWarning,
+            BEnableEcheck = jobMetadata.BEnableEcheck
         };
 
         return Ok(response);

@@ -100,6 +100,12 @@ public record JobMetadataDto
     public string? MailinPaymentWarning { get; init; }
 
     /// <summary>
+    /// Per-job opt-in for eCheck (ACH) as a customer-facing payment method. When true,
+    /// the player and team checkout flows expose the Pay-by-eCheck UI alongside CC.
+    /// </summary>
+    public required bool BEnableEcheck { get; init; }
+
+    /// <summary>
     /// True when Jobs.CoreRegformPlayer contains the ALLOWPIF token.
     /// Gates whether the player checkout exposes the Pay In Full option.
     /// </summary>
@@ -322,6 +328,7 @@ public record JobFeeSettings
     public string? PayTo { get; init; }
     public string? MailTo { get; init; }
     public string? MailinPaymentWarning { get; init; }
+    public bool BEnableEcheck { get; init; }
 }
 
 public record JobTeamCapabilities

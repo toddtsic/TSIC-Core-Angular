@@ -147,7 +147,8 @@ public class JobRepository : IJobRepository
                 MailTo = jdo.Job.MailTo,
                 MailinPaymentWarning = jdo.Job.MailinPaymentWarning,
                 AllowPif = jdo.Job.CoreRegformPlayer != null && jdo.Job.CoreRegformPlayer.Contains("ALLOWPIF"),
-                BPlayersFullPaymentRequired = jdo.Job.BPlayersFullPaymentRequired
+                BPlayersFullPaymentRequired = jdo.Job.BPlayersFullPaymentRequired,
+                BEnableEcheck = jdo.Job.BEnableEcheck
             })
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -285,6 +286,7 @@ public class JobRepository : IJobRepository
                 PayTo = j.PayTo,
                 MailTo = j.MailTo,
                 MailinPaymentWarning = j.MailinPaymentWarning,
+                BEnableEcheck = j.BEnableEcheck,
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

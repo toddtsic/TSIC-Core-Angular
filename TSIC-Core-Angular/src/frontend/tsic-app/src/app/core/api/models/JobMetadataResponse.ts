@@ -44,5 +44,6 @@ export type JobMetadataResponse = {
     payTo?: string | null;
     mailTo?: string | null;
     mailinPaymentWarning?: string | null;
+    bEnableEcheck?: boolean;
 };
 

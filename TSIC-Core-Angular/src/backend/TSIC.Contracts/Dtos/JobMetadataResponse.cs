@@ -57,4 +57,7 @@ public class JobMetadataResponse
     public string? PayTo { get; set; }
     public string? MailTo { get; set; }
     public string? MailinPaymentWarning { get; set; }
+    // Per-job opt-in for eCheck (ACH) as a customer-facing payment method.
+    // When true, the player checkout shows the Pay-by-eCheck option alongside CC.
+    public bool BEnableEcheck { get; set; }
 }

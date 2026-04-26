@@ -410,6 +410,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             MailinPaymentWarning = job.MailinPaymentWarning,
             LopOptions = lopOptions,
             BWaiverSigned3 = registration.BWaiverSigned3,
+            BEnableEcheck = job.BEnableEcheck,
         };
     }
 

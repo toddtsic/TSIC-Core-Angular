@@ -96,6 +96,9 @@ public sealed record TeamsMetadataResponse
     public string? MailinPaymentWarning { get; init; }
     public required List<string> LopOptions { get; init; }
     public required bool BWaiverSigned3 { get; init; }
+    // Per-job opt-in for eCheck (ACH) as a customer-facing payment method.
+    // When true, the team checkout shows the Pay-by-eCheck option alongside CC.
+    public required bool BEnableEcheck { get; init; }
 }
 
 public sealed record ClubTeamDto

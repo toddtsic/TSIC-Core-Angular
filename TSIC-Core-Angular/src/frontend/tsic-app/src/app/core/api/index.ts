@@ -80,6 +80,7 @@ export type { AutoSeedFieldTimeslotsResult } from './models/AutoSeedFieldTimeslo
 export type { AutoSeedFromSourceRequest } from './models/AutoSeedFromSourceRequest';
 export type { AvailableTeamDto } from './models/AvailableTeamDto';
 export type { AvailableWidgetDto } from './models/AvailableWidgetDto';
+export type { BankAccountInfo } from './models/BankAccountInfo';
 export type { BatchEmailRequest } from './models/BatchEmailRequest';
 export type { BatchEmailResponse } from './models/BatchEmailResponse';
 export type { BatchParkRequest } from './models/BatchParkRequest';
@@ -596,6 +597,7 @@ export type { TeamCheckOrCorrectionRequest } from './models/TeamCheckOrCorrectio
 export type { TeamCheckOrCorrectionResponse } from './models/TeamCheckOrCorrectionResponse';
 export type { TeamDetailDto } from './models/TeamDetailDto';
 export type { TeamDiscountResult } from './models/TeamDiscountResult';
+export type { TeamEcheckPaymentRequestDto } from './models/TeamEcheckPaymentRequestDto';
 export type { TeamFeeUpdateDto } from './models/TeamFeeUpdateDto';
 export type { TeamFilterOptionsDto } from './models/TeamFilterOptionsDto';
 export type { TeamInsurancePurchaseRequestDto } from './models/TeamInsurancePurchaseRequestDto';
