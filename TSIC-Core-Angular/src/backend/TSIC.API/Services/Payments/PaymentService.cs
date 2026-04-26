@@ -193,6 +193,15 @@ public class PaymentService : IPaymentService
         {
             await _teams.SaveChangesAsync();
             await _acct.SaveChangesAsync();
+
+            // Re-aggregate the rep registration row from the new team financials.
+            // Single sync covers the whole batch — every team in this call belongs
+            // to the same rep (regId is the rep's RegistrationId from the JWT and
+            // matches Teams.ClubrepRegistrationid for every authorized team).
+            // Without this, rep.PaidTotal/OwedTotal stay at the pre-payment values
+            // while team rows hold the post-payment values, and downstream callers
+            // (TeamSearchService balance-due gate at line 564) read stale aggregates.
+            await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
         }
 
         // Build response
