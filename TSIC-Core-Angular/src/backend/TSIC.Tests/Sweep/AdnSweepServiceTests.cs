@@ -113,6 +113,20 @@ public class AdnSweepServiceTests
         };
     }
 
+    /// <summary>
+    /// Settled eCheck tx — no subscription / invoiceNumber so it won't match the ARB filter.
+    /// </summary>
+    private static transactionSummaryType EcheckSettledSummary(string txId, decimal settleAmount = 100m)
+    {
+        return new transactionSummaryType
+        {
+            transId = txId,
+            transactionStatus = "settledSuccessfully",
+            settleAmount = settleAmount,
+            submitTimeLocal = DateTime.Now
+        };
+    }
+
     private void StubArbTxDetails(string txId, string subId, decimal settleAmount, string cc4 = "1234", string ccExp = "12-2030")
     {
         _adn.Setup(a => a.ADN_GetTransactionDetails(
@@ -551,6 +565,145 @@ public class AdnSweepServiceTests
         html.Should().Contain("NSF", "the return reason should appear in the eCheck Returns table");
         html.Should().Contain("Bounce Job", "JobName should be populated for eCheck rows");
         html.Should().Contain("yes", "director-notified column should show 'yes' when alert succeeded");
+    }
+
+    // ── eCheck Pending → Settled ──────────────────────────────────────
+
+    [Fact(DisplayName = "eCheck settled tx matches Pending Settlement → Status flips to Settled, no money movement")]
+    public async Task EcheckSettled_MatchesPending_FlipsStatus()
+    {
+        var settlement = BuildSettlement("EC-SETTLED-1", payAmount: 100m);
+        var ra = settlement.RegistrationAccounting;
+        var reg = ra.Registration!;
+        var origPaid = reg.PaidTotal;
+        var origOwed = reg.OwedTotal;
+
+        StubSweepLogAndCreds();
+        StubBatchListWith(EcheckSettledSummary("EC-SETTLED-1", settleAmount: 100m));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains("EC-SETTLED-1")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.EcheckSettled.Should().Be(1);
+        result.Errored.Should().Be(0);
+        settlement.Status.Should().Be("Settled");
+        settlement.SettledAt.Should().NotBeNull();
+        settlement.LastCheckedAt.Should().NotBeNull();
+        // No money movement — already credited at submission time.
+        reg.PaidTotal.Should().Be(origPaid);
+        reg.OwedTotal.Should().Be(origOwed);
+        _accountingRepo.Verify(a => a.Add(It.IsAny<RegistrationAccounting>()), Times.Never);
+        _feeAdj.Verify(f => f.ReverseProcessingFeeForEcheckAsync(
+            It.IsAny<Registrations>(), It.IsAny<decimal>(), It.IsAny<Guid>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName = "eCheck settled tx with no matching Settlement → no-op (not ours)")]
+    public async Task EcheckSettled_NoMatch_NoOp()
+    {
+        StubSweepLogAndCreds();
+        StubBatchListWith(EcheckSettledSummary("EC-NOT-OURS"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.EcheckSettled.Should().Be(0);
+        result.Errored.Should().Be(0);
+    }
+
+    [Fact(DisplayName = "Settlement already in Settled status → skipped (idempotent)")]
+    public async Task EcheckSettled_AlreadySettled_Skipped()
+    {
+        var settlement = BuildSettlement("EC-DUP", payAmount: 100m);
+        settlement.Status = "Settled";
+        var origSettledAt = DateTime.UtcNow.AddDays(-2);
+        settlement.SettledAt = origSettledAt;
+
+        StubSweepLogAndCreds();
+        StubBatchListWith(EcheckSettledSummary("EC-DUP"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.EcheckSettled.Should().Be(0, "already-Settled rows are filtered out before the loop");
+        settlement.Status.Should().Be("Settled");
+        settlement.SettledAt.Should().Be(origSettledAt, "existing SettledAt must not be overwritten");
+    }
+
+    [Fact(DisplayName = "Returned settlement seen as settled in batch → not re-flipped to Settled")]
+    public async Task EcheckSettled_ReturnedSettlement_NotOverwritten()
+    {
+        // Edge case: a Settlement was previously marked "Returned" but its original tx id still
+        // appears in the batch list as settledSuccessfully. The status filter must protect us.
+        var settlement = BuildSettlement("EC-RETURNED", payAmount: 100m);
+        settlement.Status = "Returned";
+        settlement.ReturnReasonText = "NSF";
+
+        StubSweepLogAndCreds();
+        StubBatchListWith(EcheckSettledSummary("EC-RETURNED"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.EcheckSettled.Should().Be(0);
+        settlement.Status.Should().Be("Returned", "Returned status must not be flipped back to Settled");
+    }
+
+    [Fact(DisplayName = "SweepLog records the eCheck settled count, not the ARB count")]
+    public async Task SweepLog_RecordsEcheckSettledCount()
+    {
+        var settlement = BuildSettlement("EC-LOG", payAmount: 50m);
+        StubSweepLogAndCreds();
+        StubBatchListWith(EcheckSettledSummary("EC-LOG"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+
+        await BuildSut().RunAsync("Test");
+
+        _settleRepo.Verify(r => r.CompleteSweepLogAsync(
+            It.IsAny<SweepLog>(),
+            1,    // recordsChecked
+            1,    // recordsSettled — eCheck Pending → Settled count
+            0,    // recordsReturned
+            0,    // recordsErrored
+            null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "Digest email includes 'eCheck Settled' section with row data when transitions occurred")]
+    public async Task DigestEmail_IncludesSettledSection()
+    {
+        var settlement = BuildSettlement("EC-DIGEST", payAmount: 75m, jobName: "Spring League");
+        settlement.AccountLast4 = "1234";
+        StubSweepLogAndCreds();
+        StubBatchListWith(EcheckSettledSummary("EC-DIGEST"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+
+        var sentEmails = new List<EmailMessageDto>();
+        _email.Setup(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<EmailMessageDto, bool, CancellationToken>((m, _, _) => sentEmails.Add(m))
+            .ReturnsAsync(true);
+
+        await BuildSut().RunAsync("Test");
+
+        var digest = sentEmails.LastOrDefault(m => m.Subject!.StartsWith("AdnSweep"));
+        digest.Should().NotBeNull();
+        var html = digest!.HtmlBody!;
+        html.Should().Contain("eCheck Settled");
+        html.Should().Contain("EC-DIGEST");
+        html.Should().Contain("Spring League");
+        html.Should().Contain("****1234");
     }
 
     [Fact(DisplayName = "Sub-status sync skipped when ADN response is non-Ok")]

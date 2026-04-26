@@ -3,8 +3,9 @@ namespace TSIC.Contracts.Services;
 /// <summary>
 /// Daily reconciliation pass over the TSIC customer's settled ADN batches.
 ///
-/// One sweep handles BOTH:
+/// One sweep handles three paths:
 ///   • ARB recurring billing imports (subscription txs → RegistrationAccounting + status sync)
+///   • eCheck Pending → Settled transitions (settledSuccessfully txs that match our pending Settlement rows)
 ///   • eCheck return processing (returnedItem txs → reverse payment + email director)
 ///
 /// Mirrors the legacy AdnArbSweepService.DoWorkAsync flow with eCheck handling added.
@@ -24,6 +25,7 @@ public sealed record AdnSweepResult
 {
     public required int Checked { get; init; }
     public required int ArbImported { get; init; }
+    public required int EcheckSettled { get; init; }
     public required int EcheckReturnsProcessed { get; init; }
     public required int Errored { get; init; }
 }

@@ -69,6 +69,7 @@ public sealed class AdnSweepService : IAdnSweepService
         string? errorMessage = null;
         var arbRows = new List<ArbDigestRow>();
         var ecRows = new List<EcheckReturnDigestRow>();
+        var settledRows = new List<EcheckSettledDigestRow>();
 
         try
         {
@@ -99,7 +100,45 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // 3) Process eCheck returns.
+            // 3) Process eCheck Pending → Settled transitions.
+            // Walk batch txs that settled successfully and match against our pending Settlement
+            // rows. No per-tx API call is needed — presence in a settled batch is the proof of
+            // settlement. Settlement.Status flips to "Settled"; money movement already happened
+            // at submission time (optimistic credit), so no RegistrationAccounting changes here.
+            var settledTxIds = allTxs
+                .Where(t => t.transactionStatus == "settledSuccessfully" && !string.IsNullOrEmpty(t.transId))
+                .Select(t => t.transId)
+                .Distinct()
+                .ToList();
+            if (settledTxIds.Count > 0)
+            {
+                var pendingSettlements = (await _settleRepo.GetByAdnTransactionIdsAsync(settledTxIds, ct))
+                    .Where(s => s.Status == "Pending")
+                    .ToList();
+                foreach (var settlement in pendingSettlements)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var row = MarkEcheckSettled(settlement);
+                        if (row != null)
+                        {
+                            counts.EcheckSettled++;
+                            settledRows.Add(row);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "eCheck settled processing failed for settlement {Id}",
+                            settlement.SettlementId);
+                        counts.Errored++;
+                    }
+                }
+                if (counts.EcheckSettled > 0)
+                    await _settleRepo.SaveChangesAsync(ct);
+            }
+
+            // 4) Process eCheck returns.
             foreach (var tx in allTxs.Where(t => t.transactionStatus == "returnedItem"))
             {
                 ct.ThrowIfCancellationRequested();
@@ -119,8 +158,8 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // 4) Build + send digest email.
-            var html = BuildDigestHtml(arbRows, ecRows, counts);
+            // 5) Build + send digest email.
+            var html = BuildDigestHtml(arbRows, settledRows, ecRows, counts);
             await SendDigestAsync(html, ct);
         }
         catch (Exception ex)
@@ -130,12 +169,13 @@ public sealed class AdnSweepService : IAdnSweepService
         }
 
         await _settleRepo.CompleteSweepLogAsync(
-            log, counts.Checked, counts.ArbImported, counts.EcheckReturnsProcessed, counts.Errored, errorMessage, ct);
+            log, counts.Checked, counts.EcheckSettled, counts.EcheckReturnsProcessed, counts.Errored, errorMessage, ct);
 
         return new AdnSweepResult
         {
             Checked = counts.Checked,
             ArbImported = counts.ArbImported,
+            EcheckSettled = counts.EcheckSettled,
             EcheckReturnsProcessed = counts.EcheckReturnsProcessed,
             Errored = counts.Errored
         };
@@ -278,6 +318,37 @@ public sealed class AdnSweepService : IAdnSweepService
             NextInstallment = nextInstallment,
             Registrant = reg.UserId,
             RegistrantAssignment = reg.Assignment
+        };
+    }
+
+    // ── eCheck Pending → Settled ─────────────────────────────────────
+
+    private EcheckSettledDigestRow? MarkEcheckSettled(Settlement settlement)
+    {
+        var ra = settlement.RegistrationAccounting;
+        var reg = ra.Registration;
+        if (reg == null)
+        {
+            _logger.LogWarning("Settlement {Id}: no Registration loaded — corrupt state, skipping",
+                settlement.SettlementId);
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        settlement.Status = "Settled";
+        settlement.SettledAt = now;
+        settlement.LastCheckedAt = now;
+        settlement.Modified = now;
+
+        return new EcheckSettledDigestRow
+        {
+            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            TransId = settlement.AdnTransactionId,
+            Amount = ra.Payamt ?? 0m,
+            AccountLast4 = settlement.AccountLast4 ?? "",
+            Registrant = reg.UserId,
+            SubmittedAt = settlement.SubmittedAt,
+            SettledAt = now
         };
     }
 
@@ -459,7 +530,11 @@ public sealed class AdnSweepService : IAdnSweepService
 
     // ── Digest email ──────────────────────────────────────────────────
 
-    private string BuildDigestHtml(List<ArbDigestRow> arbRows, List<EcheckReturnDigestRow> ecRows, Counts counts)
+    private string BuildDigestHtml(
+        List<ArbDigestRow> arbRows,
+        List<EcheckSettledDigestRow> settledRows,
+        List<EcheckReturnDigestRow> ecRows,
+        Counts counts)
     {
         var envType = "PROD";
 #if DEBUG
@@ -467,7 +542,7 @@ public sealed class AdnSweepService : IAdnSweepService
 #endif
         var sb = new StringBuilder();
         sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
-        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck returns: {counts.EcheckReturnsProcessed}, Errored: {counts.Errored}</p>");
+        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Errored: {counts.Errored}</p>");
 
         // ── ARB Activity table ────────────────────────────────────────
         sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
@@ -495,6 +570,33 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{(r.NextInstallment.HasValue ? r.NextInstallment.Value.ToString("d") : "")}</td>")
                   .Append($"<td>{r.Registrant}</td>")
                   .Append($"<td>{r.RegistrantAssignment}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
+        // ── eCheck Settled table ──────────────────────────────────────
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Settled (Pending → Settled)</h4>");
+        if (settledRows.Count == 0)
+        {
+            sb.Append("<p style='font-size:9px;'>(no eCheck settlements transitioned this run)</p>");
+        }
+        else
+        {
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>Job</th><th>TransId</th><th>Amount</th><th>Acct ****</th><th>Registrant</th><th>Submitted</th><th>Settled</th></tr>");
+            for (int i = 0; i < settledRows.Count; i++)
+            {
+                var r = settledRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{r.JobName}</td>")
+                  .Append($"<td>{r.TransId}</td>")
+                  .Append($"<td>{r.Amount:C}</td>")
+                  .Append($"<td>****{r.AccountLast4}</td>")
+                  .Append($"<td>{r.Registrant}</td>")
+                  .Append($"<td>{r.SubmittedAt:g}</td>")
+                  .Append($"<td>{r.SettledAt:g}</td>")
                   .Append("</tr>");
             }
             sb.Append("</table>");
@@ -548,6 +650,7 @@ public sealed class AdnSweepService : IAdnSweepService
     {
         public int Checked;
         public int ArbImported;
+        public int EcheckSettled;
         public int EcheckReturnsProcessed;
         public int Errored;
     }
@@ -576,5 +679,16 @@ public sealed class AdnSweepService : IAdnSweepService
         public required decimal AmountReversed { get; init; }
         public required string? Registrant { get; init; }
         public required bool DirectorNotified { get; init; }
+    }
+
+    private sealed record EcheckSettledDigestRow
+    {
+        public required string JobName { get; init; }
+        public required string TransId { get; init; }
+        public required decimal Amount { get; init; }
+        public required string AccountLast4 { get; init; }
+        public required string? Registrant { get; init; }
+        public required DateTime SubmittedAt { get; init; }
+        public required DateTime SettledAt { get; init; }
     }
 }
