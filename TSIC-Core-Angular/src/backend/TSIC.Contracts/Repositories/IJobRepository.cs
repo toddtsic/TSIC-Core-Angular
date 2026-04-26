@@ -41,6 +41,12 @@ public record JobPaymentInfo
     /// accepts PaymentOption.PIF when this flag is true, regardless of AllowPif.
     /// </summary>
     public bool BPlayersFullPaymentRequired { get; init; }
+
+    /// <summary>
+    /// True when the job admin has opted in to eCheck (ACH) as a customer-facing
+    /// payment method. Gates whether PaymentService accepts BankAccount-bearing requests.
+    /// </summary>
+    public bool BEnableEcheck { get; init; }
 }
 
 public record JobMetadata

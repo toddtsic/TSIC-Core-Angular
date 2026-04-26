@@ -23,10 +23,15 @@ public class PaymentService : IPaymentService
     private readonly IEmailService? _email;
     private readonly IFamiliesRepository _families;
     private readonly IRegistrationAccountingRepository _acct;
+    private readonly IRegistrationFeeAdjustmentService _feeAdj;
+    private readonly IEcheckSettlementRepository _settleRepo;
 
-    private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif, bool BPlayersFullPaymentRequired);
+    // Well-known E-Check Payment method GUID (matches production seed data).
+    private static readonly Guid EcheckPaymentMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
 
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger)
+    private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif, bool BPlayersFullPaymentRequired, bool BEnableEcheck);
+
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger)
     {
         _jobs = jobs;
         _registrations = registrations;
@@ -36,12 +41,14 @@ public class PaymentService : IPaymentService
         _adnApiService = adnApiService;
         _feeService = feeService;
         _teamLookup = teamLookup;
+        _feeAdj = feeAdj;
+        _settleRepo = settleRepo;
         _logger = logger;
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
-        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
+        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, feeAdj, settleRepo, logger)
     {
         _confirmation = confirmation;
         _email = email;
@@ -275,6 +282,168 @@ public class PaymentService : IPaymentService
     }
 
     /// <summary>
+    /// eCheck (ACH) sibling of <see cref="ProcessPaymentAsync"/>. Same fee/charge math,
+    /// swaps CC validation + charge for bank-account validation + ADN_ChargeBankAccount,
+    /// and writes a Settlement row per RA so the daily sweep can detect both clearance
+    /// and NSF returns. ARB is rejected — eCheck-on-ARB is a separate ADN feature.
+    /// </summary>
+    public async Task<PaymentResponseDto> ProcessEcheckPaymentAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId)
+    {
+        if (request == null)
+            return Fail("Invalid request", "INVALID_REQUEST");
+        if (request.PaymentOption == PaymentOption.ARB)
+            return Fail("Recurring billing (ARB) is not available for eCheck payments.", "ARB_NOT_ECHECK");
+        var v = await ValidateEcheckPaymentRequestAsync(jobId, familyUserId, request);
+        if (v.Response != null) return v.Response;
+        var registrations = v.Registrations!;
+        var bank = v.Bank!;
+        await NormalizeFeesAsync(registrations, jobId);
+        if (request.PaymentOption == PaymentOption.PIF)
+            await UpgradeRegistrationsToPifAsync(registrations, jobId);
+        var charges = await ComputeChargesAsync(registrations, request.PaymentOption);
+        var total = charges.Values.Sum();
+        if (total <= 0m)
+            return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
+        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, total);
+    }
+
+    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
+    {
+        var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
+        if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
+        if (!jobPaymentInfo.BEnableEcheck) return (Fail("eCheck payments are not enabled for this job.", "ECHECK_NOT_ENABLED"), null, null, null);
+        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif, jobPaymentInfo.BPlayersFullPaymentRequired, jobPaymentInfo.BEnableEcheck);
+        var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
+        if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
+        if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
+        if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
+        var bank = request.BankAccount;
+        if (bank == null) return (Fail("Bank account required", "BANK_REQUIRED"), null, null, null);
+        var fields = new (string Name, string? Value)[]
+        {
+            ("accountType", bank.AccountType), ("routingNumber", bank.RoutingNumber), ("accountNumber", bank.AccountNumber),
+            ("nameOnAccount", bank.NameOnAccount), ("firstName", bank.FirstName), ("lastName", bank.LastName),
+            ("address", bank.Address), ("zip", bank.Zip), ("email", bank.Email), ("phone", bank.Phone)
+        };
+        var missing = fields.Where(f => string.IsNullOrWhiteSpace(f.Value)).Select(f => f.Name).ToList();
+        if (missing.Count > 0) return (Fail("Missing bank field(s): " + string.Join(", ", missing), "BANK_FIELDS_MISSING"), null, null, null);
+        var atype = bank.AccountType!.Trim().ToLowerInvariant();
+        if (atype is not ("checking" or "savings" or "businesschecking")) return (Fail("Invalid account type (checking, savings, or businessChecking).", "BANK_TYPE_INVALID"), null, null, null);
+        bank.RoutingNumber = new string((bank.RoutingNumber ?? "").Where(char.IsDigit).ToArray());
+        if (bank.RoutingNumber.Length != 9) return (Fail("Routing number must be 9 digits.", "BANK_ROUTING_INVALID"), null, null, null);
+        bank.AccountNumber = new string((bank.AccountNumber ?? "").Where(char.IsLetterOrDigit).ToArray());
+        if (bank.AccountNumber.Length is < 4 or > 17) return (Fail("Account number must be 4–17 characters.", "BANK_ACCOUNT_INVALID"), null, null, null);
+        if (bank.NameOnAccount!.Trim().Length > 22) return (Fail("Name on account exceeds 22 characters.", "BANK_NAME_INVALID"), null, null, null);
+        bank.Phone = new string((bank.Phone ?? "").Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(bank.Phone)) return (Fail("Invalid phone (digits required).", "BANK_PHONE_INVALID"), null, null, null);
+        if (string.IsNullOrWhiteSpace(bank.Email) || !bank.Email.Contains('@') || !bank.Email.Contains('.'))
+            return (Fail("Invalid email format.", "BANK_EMAIL_INVALID"), null, null, null);
+        return (null, job, registrations, bank);
+    }
+
+    private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges, decimal total)
+    {
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
+        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+            return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
+        var env = _adnApiService.GetADNEnvironment();
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey) && await IsDuplicateAsync(jobId, familyUserId, request))
+            return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent).", ErrorCode = "DUPLICATE_PREVENTED" };
+        var invoiceReg = registrations[0];
+        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
+        // Apply EC processing-fee credit (CC_rate − EC_rate) × charge per registration BEFORE charging,
+        // so the recorded eCheck amount matches the registration's now-reduced obligation.
+        foreach (var reg in registrations)
+        {
+            if (!charges.TryGetValue(reg.RegistrationId, out var chargeAmt) || chargeAmt <= 0m) continue;
+            await _feeAdj.ReduceProcessingFeeForEcheckAsync(reg, chargeAmt, jobId, userId);
+        }
+        var response = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+        {
+            Env = env,
+            LoginId = credentials.AdnLoginId!,
+            TransactionKey = credentials.AdnTransactionKey!,
+            AccountType = bank.AccountType!,
+            RoutingNumber = bank.RoutingNumber!,
+            AccountNumber = bank.AccountNumber!,
+            NameOnAccount = bank.NameOnAccount!.Trim(),
+            FirstName = bank.FirstName!,
+            LastName = bank.LastName!,
+            Address = bank.Address!,
+            Zip = bank.Zip!,
+            Email = bank.Email!,
+            Phone = bank.Phone!,
+            Amount = total,
+            InvoiceNumber = invoiceNumber,
+            Description = "Registration Payment"
+        });
+        if (response == null || response.messages == null)
+            return new PaymentResponseDto { Success = false, Message = "Payment gateway returned no response.", ErrorCode = "CHARGE_NULL_RESPONSE" };
+        if (response.messages.resultCode != messageTypeEnum.Ok)
+            return new PaymentResponseDto { Success = false, Message = response.transactionResponse?.errors?[0].errorText ?? "Payment failed", ErrorCode = "CHARGE_GATEWAY_ERROR" };
+        var transId = response.transactionResponse.transId;
+        UpdateRegistrationsForCharge(registrations, userId, charges);
+        var addedAccts = AddEcheckAccountingEntries(registrations, userId, transId, invoiceNumber, charges, bank);
+        await _registrations.SaveChangesAsync();
+        // Settlement rows reference RegistrationAccounting.AId, which is identity-generated —
+        // requires the RA inserts above to be saved first.
+        var nextCheckAt = DateTime.UtcNow.AddDays(1);
+        foreach (var ra in addedAccts)
+        {
+            _settleRepo.Add(new Settlement
+            {
+                SettlementId = Guid.NewGuid(),
+                RegistrationAccountingId = ra.AId,
+                AdnTransactionId = transId,
+                Status = "Pending",
+                SubmittedAt = DateTime.UtcNow,
+                NextCheckAt = nextCheckAt,
+                AccountLast4 = bank.AccountNumber!.Length >= 4 ? bank.AccountNumber[^4..] : bank.AccountNumber,
+                AccountType = bank.AccountType,
+                NameOnAccount = bank.NameOnAccount?.Trim(),
+                Modified = DateTime.UtcNow,
+                LebUserId = userId
+            });
+        }
+        await _settleRepo.SaveChangesAsync();
+        await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
+        return new PaymentResponseDto
+        {
+            Success = true,
+            Message = "eCheck submitted; settlement pending (typically 3–5 business days).",
+            TransactionId = transId
+        };
+    }
+
+    private List<RegistrationAccounting> AddEcheckAccountingEntries(IEnumerable<Registrations> registrations, string userId, string adnTransactionId, string invoiceNumber, IReadOnlyDictionary<Guid, decimal> charges, BankAccountInfo bank)
+    {
+        var added = new List<RegistrationAccounting>();
+        var last4 = bank.AccountNumber!.Length >= 4 ? bank.AccountNumber[^4..] : bank.AccountNumber;
+        foreach (var reg in registrations)
+        {
+            if (reg.RegistrationId == Guid.Empty) continue;
+            if (!charges.TryGetValue(reg.RegistrationId, out var payAmt) || payAmt <= 0m) continue;
+            var ra = new RegistrationAccounting
+            {
+                RegistrationId = reg.RegistrationId,
+                Payamt = payAmt,
+                Paymeth = $"eCheck Payment — pending settlement (acct ****{last4})",
+                PaymentMethodId = EcheckPaymentMethodId,
+                Active = true,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
+                LebUserId = userId,
+                AdnTransactionId = adnTransactionId,
+                AdnInvoiceNo = invoiceNumber,
+                Comment = "eCheck Registration Payment (Pending Settlement)"
+            };
+            _acct.Add(ra);
+            added.Add(ra);
+        }
+        return added;
+    }
+
+    /// <summary>
     /// Internal validation method accepting jobId and familyUserId parameters directly.
     /// Used by the overload to avoid DTO field dependencies.
     /// </summary>
@@ -283,7 +452,7 @@ public class PaymentService : IPaymentService
         if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
         var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
         if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
-        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif, jobPaymentInfo.BPlayersFullPaymentRequired);
+        var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif, jobPaymentInfo.BPlayersFullPaymentRequired, jobPaymentInfo.BEnableEcheck);
         var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
         if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
         // PIF allowed when ALLOWPIF token is set (parent-voluntary path) OR job is in

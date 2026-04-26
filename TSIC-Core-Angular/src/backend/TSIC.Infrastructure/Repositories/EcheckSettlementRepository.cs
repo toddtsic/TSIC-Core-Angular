@@ -57,6 +57,11 @@ public class EcheckSettlementRepository : IEcheckSettlementRepository
         await _context.SaveChangesAsync(ct);
     }
 
+    public void Add(Settlement settlement)
+    {
+        _context.Settlement.Add(settlement);
+    }
+
     public async Task SaveChangesAsync(CancellationToken ct = default)
     {
         await _context.SaveChangesAsync(ct);

@@ -30,6 +30,12 @@ public interface IEcheckSettlementRepository
         string? errorMessage,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Track a new Settlement row (does NOT save changes). Status is the caller's
+    /// responsibility — for fresh customer eCheck submissions use "Pending".
+    /// </summary>
+    void Add(Settlement settlement);
+
     /// <summary>Persist any pending tracked changes.</summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 }

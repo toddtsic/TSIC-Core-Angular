@@ -46,7 +46,8 @@ public class JobRepository : IJobRepository
                 AdnArbintervalLength = j.AdnArbintervalLength,
                 AdnArbstartDate = j.AdnArbstartDate,
                 AllowPif = j.CoreRegformPlayer != null && j.CoreRegformPlayer.Contains("ALLOWPIF"),
-                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired
+                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired,
+                BEnableEcheck = j.BEnableEcheck
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

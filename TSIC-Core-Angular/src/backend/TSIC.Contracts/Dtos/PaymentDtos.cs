@@ -16,6 +16,8 @@ public record PaymentRequestDto
     [Required, JsonRequired]
     public required PaymentOption PaymentOption { get; init; }
     public CreditCardInfo? CreditCard { get; init; }
+    // Set when the customer pays by eCheck (ACH bank-account debit). Mutually exclusive with CreditCard.
+    public BankAccountInfo? BankAccount { get; init; }
     public string? IdempotencyKey { get; init; }
     // Independent VerticalInsure (RegSaver) policy info: populated only when insurance was purchased separately
     public bool? ViConfirmed { get; init; }
@@ -39,6 +41,22 @@ public record CreditCardInfo
     public string? Number { get; init; }
     public string? Expiry { get; set; } // MMYY
     public string? Code { get; init; }
+    public string? FirstName { get; init; }
+    public string? LastName { get; init; }
+    public string? Address { get; init; }
+    public string? Zip { get; init; }
+    public string? Email { get; init; }
+    public string? Phone { get; set; }
+}
+
+// eCheck.Net (ACH) customer-facing bank account info. Sanitized in-place by the validator
+// (digits-only routing/account/phone). AccountType: "checking" | "savings" | "businessChecking".
+public record BankAccountInfo
+{
+    public string? AccountType { get; init; }
+    public string? RoutingNumber { get; set; }
+    public string? AccountNumber { get; set; }
+    public string? NameOnAccount { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
     public string? Address { get; init; }
