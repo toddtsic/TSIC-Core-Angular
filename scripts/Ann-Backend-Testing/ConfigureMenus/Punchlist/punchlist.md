@@ -38,6 +38,323 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-069: Job Settings / Mobile — confirm Store Contact Email is single-recipient; rename + tip if multi
+- **Refs**: PL-049/PL-050 (Comms tab CC/BCC/Reschedule/Always-Copy email list pattern with `(semi-colon between emails, no spaces)` tip)
+- **Area**: Menu Display / Job Settings → Mobile & Store tab → Store Settings
+- **What I did**: Asked whether Store Contact Email accepts a single email or a list
+- **What I expected**: Confirmation, then either keep single or rename "Store Contact Email List" with the Comms tip
+- **What happened**: Currently single-email by both technique and intent — but worth confirming the desired behavior
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Findings:
+  - **HTML technique**: `<input type="email">` ([mobile-store-tab.component.html:109](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/mobile-store-tab.component.html#L109)) — browser validator rejects semicolon-separated lists; only accepts a single valid email.
+  - **Legacy usage**: stored as `ViewBag.cStoreContactEmail` in `StoreFamilyController.cs:193` and shown to customers as the "contact us" display value — not used as an email recipient list.
+  - **New codebase**: no consumer of `storeContactEmail` for any automated send found; appears informational only.
+  - **Two paths**:
+    - **A. Keep single** — status quo, label stays "Store Contact Email", `type="email"` validation. Honest about the field's purpose (one canonical contact).
+    - **B. Make multi-email** — change `type="email"` → `type="text"`, rename to "Store Contact Email List", add tip `(semi-colon between emails, no spaces)`. **Plus**: update display surface that renders the email to handle multiple (show all? show first? "Contact: A or B"?).
+  - **Recommendation**: A. Customers who need multi-recipient contact can point this field at a distribution list address (e.g., `store@customer.com` → routes to multiple inboxes externally). Keeps TSIC out of the multi-recipient display logic.
+  - **Decision for Todd**: confirm A (single) is correct, or call out a use case that requires B.
+
+### PL-068: Job Settings / Mobile — Store Refund Policy and Store Pickup Details textareas need more height
+- **Refs**: PL-050 (Branding overlay textareas bumped from `rows="2"` to `rows="4"` — same pattern)
+- **Area**: Menu Display / Job Settings → Mobile & Store tab → Store Settings (SuperUser-only block)
+- **What I did**: Reviewed the Store Refund Policy and Store Pickup Details textareas
+- **What I expected**: Enough vertical space for Directors/SuperUsers to read multi-line policy text without scrolling within the field
+- **What happened**: Both textareas use `rows="2"` ([mobile-store-tab.component.html:115, 121](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/mobile-store-tab.component.html#L115)) — too cramped for the typical content these fields hold (refund policy paragraphs, pickup details with location + hours)
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Bump both to `rows="4"`. UI-only; no DB/DTO/service change. Same fix shape as PL-050 applied to the overlay headline/subheadline textareas. With the global `.field-input` line-height: 1.2 from the Branding session already in place, four rows reads as a tight, generous block.
+
+### PL-067: Job Settings / Mobile — break Mobile Features into TSIC-Events and TSIC-Teams subsections
+- **Refs**: PL-066 (Push Directors potentially landing on Mobile if restored — affects subsection placement)
+- **Area**: Menu Display / Job Settings → Mobile & Store tab
+- **What I did**: Reviewed the flat single-block Mobile Features section
+- **What I expected**: Two subsections (TSIC-Events and TSIC-Teams), each with its own Enabled master toggle, with related per-feature toggles grouped under one or the other (or shared)
+- **What happened**: All seven Director-visible Mobile fields render in one undifferentiated block, making it unclear which toggles affect which app
+- **Severity**: UX
+- **Status**: Open — Todd discussion needed for the field-to-subsection mapping
+- **Note**: Current Director-visible Mobile fields:
+  - `tsicEventsEnabled` (inverse of `bSuspendPublic`) — TSIC-Events master enable
+  - `bEnableTsicteams` — TSIC-Teams master enable
+  - `bEnableMobileRsvp` — Mobile RSVP
+  - `bEnableMobileTeamChat` — Mobile Team Chat
+  - `bAllowMobileLogin` — allow mobile login
+  - `bAllowMobileRegn` — allow mobile registration
+  - `mobileScoreHoursPastGameEligible` — score eligibility window (hours past game)
+  - **Suggested grouping (starting point — Todd to confirm against actual app consumption)**:
+    | Subsection | Master toggle | Sub-toggles |
+    |---|---|---|
+    | **TSIC-Events** | `tsicEventsEnabled` | `mobileScoreHoursPastGameEligible` (game scoring is events) |
+    | **TSIC-Teams** | `bEnableTsicteams` | `bEnableMobileRsvp` (RSVP = team event), `bEnableMobileTeamChat` (chat = team) |
+    | **Cross-cutting** | — | `bAllowMobileLogin`, `bAllowMobileRegn` (gate functionality across both) |
+  - **UI shape**: render as two distinct cards/fieldsets within the Mobile Features section. Each has its master toggle at the top; sub-toggles disable when master is off (parent-child toggle pattern, similar to how `bRegistrationAllowPlayer` parents `bPlayerRegRequiresToken` on the Player tab). Cross-cutting toggles in their own card below.
+  - **Todd decision points**:
+    1. Confirm the field-to-subsection mapping against actual app consumption (which flag does the Events app vs Teams app actually read).
+    2. Should cross-cutting toggles render in their own "Mobile App Access" subsection, or duplicate into both Events/Teams cards?
+    3. Master-toggle behavior: when the master is OFF, do sub-toggles auto-disable in the UI only, or should saving with the master OFF also clear the sub-flags in DB?
+    4. SuperUser-only Store fields stay on the same tab but in their existing dedicated section — no change needed there.
+
+### PL-066: "Push Directors" toggle — vestigial today; decide remove vs restore-and-move-to-Mobile
+- **Refs**: PL-061 (zombie-flag audit; currently recommends "remove" for `bTeamPushDirectors`); Legacy placement was on the Mobile tab
+- **Area**: Menu Display / Job Settings → Teams tab (current) → Mobile tab (Legacy / proposed if restored)
+- **What I did**: Reviewed where the "Push Directors" toggle should live — Legacy had it on Mobile, new version has it on Teams
+- **What I expected**: Move to Mobile to match Legacy
+- **What happened**: Confirmed `BTeamPushDirectors` is **vestigial** in the new codebase (no push-notification consumer). Push infrastructure exists (FirebaseMessaging, FcmToken in `TSIC.API/Program.cs` and `AspNetUsers` entity) but doesn't read this flag. So "move to Mobile" only makes sense if the underlying feature is restored.
+- **Severity**: Question (feature scope) + Cleanup
+- **Status**: Open
+- **Note**: Three paths:
+  - **A. Remove entirely** (PL-061's current recommendation) — honest about reality; toggle does nothing today; UI/DTO/service strip, keep DB column.
+  - **B. Restore + move to Mobile** — reimplement the push-notification logic in `TeamRegistrationService` (fire a Firebase push to job Directors when a team registers), then move the toggle to the Mobile tab where Director-facing push controls belong. Legacy parity at the cost of new code; needs Director FCM-token capture confirmed.
+  - **C. Move to Mobile but stay vestigial** — relocates a zombie; worst of both worlds.
+  - **Recommendation**: A unless Todd confirms the push-Directors feature is still desired. If desired, B (with an explicit feature-rebuild PR, not just a UI move). C is not recommended.
+  - **Decision sequence**: Todd answers "is push-on-team-registration to Directors a feature TSIC wants?" → if yes, plan the B work; if no, ship A as part of PL-061's atomic cleanup.
+
+### PL-065: Job Settings — move "Show Team Name Only in Schedules" from Teams tab to Scheduling tab (Legacy parity)
+- **Refs**: PL-061 (Team Options audit confirmed this is the one functional flag of four — needs help copy + placement decision)
+- **Area**: Menu Display / Job Settings → Teams tab (current) → Scheduling tab (proposed)
+- **What I did**: Compared placement of `bShowTeamNameOnlyInSchedules` in Legacy vs new
+- **What I expected**: Settings consumed by schedule rendering to live on the Scheduling tab where Directors naturally configure schedule appearance
+- **What happened**: Currently lives on Teams tab; in Legacy it was under Scheduling
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Three reasons to move:
+  1. **Behavior consumption point**: the flag drives schedule rendering at [ScheduleRepository.cs:42-47](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/ScheduleRepository.cs#L42-L47) — the visible effect happens when schedules render, not when teams are managed.
+  2. **Legacy parity**: Directors who learned the old layout will look in Scheduling first.
+  3. **Conceptual fit**: it's a display setting (how the team name appears on schedules), not a team property.
+  - **Three placement options**:
+    - **A. Move to Scheduling tab** — Legacy parity, conceptual fit. **Recommended.**
+    - **B. Keep on Teams tab** — current state; reflects "team-name-related" framing.
+    - **C. Both / cross-link** — render on Scheduling but expose a read-only mirror or link on Teams. Adds chrome without resolving where Directors actually edit.
+  - **Implementation (option A)**:
+    - Frontend: move the field signal from `teams-tab.component.ts:25` → `scheduling-tab.component.ts`; remove from teams-tab; add to scheduling-tab template.
+    - DTO: move `bShowTeamNameOnlyInSchedules` from `JobConfigTeamsDto` → `JobConfigSchedulingDto`.
+    - Service: `JobConfigService.UpdateSchedulingAsync` sets `Jobs.BShowTeamNameOnlyInSchedules`; strip from `UpdateTeamsAsync`.
+    - DB column unchanged.
+  - **Bundle with PL-061** since both deal with the same Teams Options cluster — atomic change for the audit + relocation.
+
+### PL-064: Job Settings / Coaches — Referee & Recruiter sections: confirm support, audit usage
+- **Refs**: PL-044 (Refund Policy removal from Coaches tab — separate item, already covered)
+- **Area**: Menu Display / Job Settings → Coaches tab
+- **What I did**: Reviewed the Referee Confirmations and Recruiter Confirmations sections on the Coaches tab and asked whether these registration types are still supported
+- **What I expected**: Confirmation that both roles are active (or removable as Legacy artifacts)
+- **What happened**: Both are **active registration types** with per-role fallback in the runtime — but it's worth deciding whether TSIC still onboards customers using them
+- **Severity**: Question
+- **Status**: Open — Todd discussion
+- **Note**: Findings:
+  - **Referee Confirmations** section at [coaches-tab.component.html:74](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L74): Confirmation Email + On-Screen RTE editors backed by `refereeRegConfirmationEmail` / `refereeRegConfirmationOnScreen`.
+  - **Recruiter Confirmations** section at [coaches-tab.component.html:100](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L100): same shape, backed by `recruiterRegConfirmationEmail` / `recruiterRegConfirmationOnScreen`.
+  - **Backend routes per role** with fallback at [AdultRegistrationService.cs:1319-1320](TSIC-Core-Angular/src/backend/TSIC.API/Services/Adults/AdultRegistrationService.cs#L1319-L1320):
+    ```csharp
+    AdultRoleType.Referee => job.RefereeRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
+    AdultRoleType.Recruiter => job.RecruiterRegConfirmationOnScreen ?? job.AdultRegConfirmationOnScreen,
+    ```
+    If the role-specific text is set, that's used; otherwise fall back to generic Adult confirmation.
+  - **Referee role has additional infrastructure**: `RefAssignmentService.cs` exists for referee assignment workflow — Referee isn't just a registration role, it's a feature with assignment logic.
+  - **Recruiter role**: only the confirmation routing was found in this scan; no equivalent assignment service. May be lighter-weight feature.
+  - **Decision points for Todd**:
+    1. **Are TSIC customers actively using Referee registration?** If yes, keep section as-is. If no, remove the two fields + section (keep DB columns for legacy data).
+    2. **Are TSIC customers actively using Recruiter registration?** Same question.
+    3. **Coaches tab structure**: if both stay, the tab covers Coach + Staff + Referee + Recruiter — possibly worth renaming the tab to "Coaches & Staff" (matches existing service-tier label at `job-config.service.ts:220`) or even "Adult Registrations" to capture the breadth.
+  - **Recommendation going in**: keep both unless Todd confirms zero customer usage, since they're functional and have working fallback semantics. UX polish (icons/help text on the sections) is low-priority versus the supported-vs-removed decision.
+
+### PL-063: Job Settings — gate all four "regform name" fields to SuperUser only (Legacy parity)
+- **Refs**: PL-053 (Registration Form `coreRegformPlayer` SuperUser-only — same theme, separate field)
+- **Area**: Menu Display / Job Settings → Player tab + Teams tab + Coaches tab
+- **What I did**: Identified four "Form Name" / regform-name fields exposed to Directors that were SuperUser-only in Legacy
+- **What I expected**: All four locked down to SuperUser, matching Legacy
+- **What happened**: All four render unconditionally on their respective tabs — Director can edit any of them today
+- **Severity**: Bug (role visibility)
+- **Status**: Open
+- **Note**: These are cosmetic admin-metadata labels for the underlying regforms — not the core regform identifier (PL-053 covers that separately for `coreRegformPlayer`). Four fields to gate together:
+  | Tab | Field | Current location |
+  |---|---|---|
+  | Player | `regformNamePlayer` | (renders unconditionally — saw earlier in PL-053 review; not part of PL-053's named scope) |
+  | Teams | `regformNameTeam` | unconditionally rendered |
+  | Teams | `regformNameClubRep` | unconditionally rendered |
+  | Coaches | `regformNameCoach` | [coaches-tab.component.html:8-12](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/coaches-tab.component.html#L8-L12) — flagged this pass |
+  - **Frontend fix**: wrap each field in `@if (svc.isSuperUser())`, OR move into the SuperUser-only block on each tab where one already exists. Mirror PL-053's approach.
+  - **Backend hardening**: `JobConfigService.UpdatePlayerAsync` / `UpdateTeamsAsync` / `UpdateCoachesAsync` must reject Director attempts to set these four properties — guard each in an `if (isSuperUser) { ... }` block, same pattern General uses for its SuperUser-only fields.
+  - **Bundle with PL-053** when shipping — same atomic change makes sense since both are role-gating cleanups on Player/Teams/Coaches tabs.
+
+### PL-062: Job Settings — clarify Club Rep confirmation text (currently shares Coaches templates via the Adult flow)
+- **Refs**: PL-058 (Roster Visibility move per role), PL-053 (role-targeted-content placement principle)
+- **Area**: Menu Display / Job Settings → Coaches tab + Club Reps/Teams tab; downstream team registration confirmation
+- **What I did**: Asked whether Club Reps should have their own Confirmation Text editor, or whether confirmation is hardcoded
+- **What I expected**: Answer + recommendation on per-role confirmation text vs. shared
+- **What happened**: Confirmed Team Registration uses `AdultRegConfirmationEmail` + `AdultRegConfirmationOnScreen` — the **same templates** edited on the Coaches tab. Not hardcoded; not duplicated; shared with Coaches via the Adult flow.
+- **Severity**: Question
+- **Status**: Open — Todd discussion
+- **Note**: Architecture today:
+  - **Schema**: only one set of Adult confirmation fields exists — `AdultRegConfirmationEmail` and `AdultRegConfirmationOnScreen` on the Jobs entity, edited on the Coaches tab.
+  - **Send pathway**: `TeamRegistrationService.SendClubRepConfirmationEmailAsync` (line 1408) reads `AdultRegConfirmationEmail`. The on-screen confirmation similarly reads `AdultRegConfirmationOnScreen`.
+  - **Frontend confirms**: comment in [team-registration.service.ts:208-210](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/services/team-registration.service.ts#L208) — *"Send confirmation email to club rep with substituted template. Uses AdultRegConfirmationEmail template from the Job"*.
+  - **The trade-off**: TSIC's "Adult" registration flow lumps Coaches, Staff, AND Club Reps together. Whatever the Director writes for the Adult confirmation reaches all three roles — so wording like "Welcome, Coach!" lands on a Club Rep registering teams.
+  - **Options**:
+    - **A. Status quo (keep shared)** — one Adult confirmation template covers all three roles. Simple; relies on neutral wording. No schema change.
+    - **B. Add separate Club Rep templates** — new fields `clubRepRegConfirmationEmail` / `clubRepRegConfirmationOnScreen`; new Confirmation Text card on the Club Reps/Teams tab; `TeamRegistrationService` switches to these. Cleanest UX per role; schema additions; clone path to update.
+    - **C. Single template + `!ROLE` token** — keep one Adult template; introduce `!ROLE` substitution token resolving to "Coach"/"Staff"/"Club Rep" at send time. Director writes once, gets correct role wording per recipient. Lightweight; matches TSIC's existing `!`-token pattern (e.g., `!INVITE_LINK`).
+  - **Recommendation**: **C** — keeps the architecture simple, removes the shared-text problem, fits the existing token convention. **B** if Todd wants Club Reps to have content distinct enough that token substitution isn't sufficient (e.g., team-management instructions that don't apply to Coaches).
+  - **Decision points for Todd**: (1) is the current Adult-flow shared-template behavior intentional or a Legacy quirk to fix? (2) if separating, is full text per role (B) or token substitution (C) the right path?
+
+### PL-061: Job Settings / Teams — audit four "Team Options" toggles: 2 vestigial, 1 misplaced, 1 needs explanation
+- **Refs**: PL-046 (other zombie flags Refunds-in-Prior-Months / Allow-Credit-All — same vestigial-flag pattern); PL-008 (teamEligibilityByAge flag drives Age Ranges menu visibility)
+- **Area**: Menu Display / Job Settings → Teams tab; downstream player registration + scheduling
+- **What I did**: Reviewed the four "Team Options" toggles — Restrict Players to Age Range, Use Waitlists, Push Directors, Show Team Name Only in Schedules — and traced each to find consumers
+- **What I expected**: Each toggle to either drive real behavior or be removed; placement to match where the behavior actually fires
+- **What happened**: Two are vestigial, one is misplaced (lives on Teams tab but only affects Players), one is functional but needs Director-facing copy
+- **Severity**: Bug (zombie settings) + UX
+- **Status**: Open
+- **Note**: Per-toggle findings:
+  - **`bRestrictPlayerTeamsToAgerange`** ("Restrict Players to Age Range") — **vestigial**. Only appears in CRUD plumbing (DTO, service, clone, entity); no runtime consumer in the new codebase. Legacy uses it in `PlayerBaseController.cs`. Plus: per Ann's note, this is a Player-tab concern conceptually — and tied to PL-008 (Age Ranges menu visibility, which is gated by the `teamEligibilityByAge` flag derived from `CoreRegformPlayer == 'BYAGERANGE'`). **Recommendation**: remove from UI/DTOs (keep DB column for legacy data). If revived in the future, it belongs on the Player tab and should ride the same `teamEligibilityByAge` flag as the Age Ranges menu.
+  - **`bUseWaitlists`** ("Use Waitlists") — **misplaced + likely vestigial for both flows**. Code at [TeamPlacementService.cs:71](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamPlacementService.cs#L71) explicitly comments: *"BUseWaitlists is a player-registration-only flag and is NOT checked here. Team registration always supports waitlists (driven by MaxTeams per agegroup)."* So for **teams**, the flag is irrelevant — waitlists are always created when agegroup hits max (test "BUseWaitlists OFF → still creates waitlist (teams always waitlist)" confirms). For **players**, I couldn't find any consumer either — likely also vestigial, needs deeper grep against the player registration flow. **Recommendation**: remove from Teams tab regardless. If a player consumer is found, move to Player tab; if not, full removal (keep DB column).
+  - **`bTeamPushDirectors`** ("Push Directors") — **vestigial**. Only CRUD plumbing in the new codebase; no consumer. Legacy has it. **Recommendation**: remove from UI/DTOs (keep DB column).
+  - **`bShowTeamNameOnlyInSchedules`** — **functional**, drives team-name display on schedules at [ScheduleRepository.cs:42-47](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/ScheduleRepository.cs#L42-L47). When true, shows just the team name on schedules; when false, presumably shows fuller club+team composition. **Action needed**: keep the toggle, add Director-facing help text explaining both states (e.g., *"When enabled, schedules show just the team name. When disabled, schedules show the full club + team composition."*). May also want to confirm with Todd what the OFF state actually displays.
+  - **Decision sequence**:
+    1. Confirm `bRestrictPlayerTeamsToAgerange` and `bTeamPushDirectors` are removable (no hidden consumers Todd remembers).
+    2. Trace `bUseWaitlists` against player registration code to confirm vestigial there too — if not, move to Player tab.
+    3. Add help copy to `bShowTeamNameOnlyInSchedules` after confirming the OFF-state display format with Todd.
+    4. Strip three toggles from UI/DTO/service/clone in one atomic change; keep DB columns.
+
+### PL-060: Job Settings / Teams — Club Rep permissions need post-registration auto-lock or time-based gating
+- **Area**: Menu Display / Job Settings → Teams tab; Teams Library; Team Registration flow
+- **What I did**: Reviewed how `bClubRepAllowEdit` / `bClubRepAllowDelete` / `bClubRepAllowAdd` are used and asked how Directors prevent Club Reps from changing teams (especially deleting them) **after** registration closes
+- **What I expected**: Some kind of automatic transition — either job-status driven (when reg closes, edit/delete locks) or time-based (toggle expires on a specified date)
+- **What happened**: All three flags are job-wide booleans with no time/status awareness. Set once; they apply forever until manually flipped. If a Director enables Edit/Delete during registration and forgets to flip them off post-close, Club Reps retain those permissions indefinitely.
+- **Severity**: Bug (operational risk) / Feature
+- **Status**: Open
+- **Note**: Confirmed how the flags work today:
+  - **Server-side enforcement**: `TeamRegistrationService` checks `capabilities.ClubRepAllowAdd` ([line 571](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamRegistrationService.cs#L571)) and `capabilities.ClubRepAllowDelete` ([line 784](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamRegistrationService.cs#L784)) before allowing Add/Delete; refuses with a clear error message if false.
+  - **Single source of truth**: both the Team Registration screen and the Teams Library go through the same backend gate, so the toggles aren't duplicated — moving them to either screen is a UX choice, not a behavior gap.
+  - **The gap**: no automatic post-registration lockdown. Director must manually disable Edit/Delete after reg closes, or Club Reps keep those permissions.
+  - **Fix options**:
+    - **A. Auto-lock on registration close** — when `capabilities.TeamRegistrationOpen = false`, deny Edit/Delete regardless of the flags. Default-safe; removes manual step. Loses flexibility for post-reg cleanup edits.
+    - **B. New "post-close" permission set** — `bClubRepAllowEditAfterRegClose` / `bClubRepAllowDeleteAfterRegClose` flags that take effect once registration closes. Most flexible; most schema sprawl.
+    - **C. Status quo + better copy + reminder** — keep manual toggles, add help text on the field labels, optionally fire a reminder email to Director when registration window is about to close ("Don't forget to disable Club Rep Edit/Delete if you want to lock teams").
+    - **D. Replace booleans with date fields** — "Allow Club Rep Edit until [date]" — auto-locks at midnight on the date. Self-documenting; no Director memory required. Matches how registration windows themselves are date-driven.
+  - **Recommendation**: D is the most TSIC-idiomatic (registration deadlines are already date-driven elsewhere), but it's a schema change. A is the quickest-and-safest default. Todd to decide.
+
+### PL-059: Job Settings / Teams — rename tab from "Teams" to "Club Reps/Teams"
+- **Area**: Menu Display / Job Settings → tab bar
+- **What I did**: Reviewed the tab label for the team configuration area
+- **What I expected**: Tab name to surface that it covers both Club Reps and Teams (sibling tab "Coaches & Staff" already does this for two-role pairings)
+- **What happened**: Tab label is just "Teams" ([job-config.component.ts:54](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.component.ts#L54)); the longer-form label used in dirty-state warnings is "Teams & Club Reps" ([job-config.service.ts:219](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.service.ts#L219)) — already inconsistent
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Three options (target wording: **"Club Reps/Teams"** — both plural, slash separator):
+  - **A. Tab only** — change tab to "Club Reps/Teams"; leave service label "Teams & Club Reps" untouched. Matches literal ask but preserves existing inconsistency.
+  - **B. Unify on "Club Reps/Teams"** — tab and service label both use the same slash format. Compact for tab bar.
+  - **C. Unify on "Club Reps & Teams"** — matches sibling tab `'Coaches & Staff'` ampersand convention; preserves "Club Reps first" word order. Most consistent across the tab family.
+  - **Recommendation**: B — matches Ann's exact wording everywhere; "/" reads tighter in the tab bar than "&"; minor tab-family inconsistency with "Coaches & Staff" is tolerable. UI-only, no DB/DTO/service touch.
+
+### PL-058: Job Settings — relocate Roster Visibility checkboxes to Player and Coaches tabs; add explanatory copy
+- **Refs**: PL-053 (Player-tab field gating discussion); same role-targeted-content placement principle
+- **Area**: Menu Display / Job Settings → Teams tab (current location) → Player + Coaches tabs (proposed)
+- **What I did**: Found the Roster Visibility section on the Teams tab with two checkboxes labeled simply "Adult" and "Player"
+- **What I expected**: Each role-gating checkbox to live with its role's settings (Player tab and Coaches tab), with clear language explaining what each toggle allows
+- **What happened**: Both currently live on the Teams tab ([teams-tab.component.html:98-113](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/teams-tab.component.html#L98-L113)) under "Roster Visibility", with one-word labels ("Adult" / "Player") and no help text
+- **Severity**: UX
+- **Status**: Open — Todd discussion needed
+- **Note**: Two-part change:
+  1. **Move per role**:
+    - `bAllowRosterViewPlayer` → Player tab (next to other player-facing settings)
+    - `bAllowRosterViewAdult` → Coaches tab (next to other coach/club-rep settings)
+    - DB columns (`Jobs.BAllowRosterViewPlayer`, `Jobs.BAllowRosterViewAdult`) stay put — only DTO/service mapping shifts.
+    - DTO: move `bAllowRosterViewPlayer` from `JobConfigTeamsDto` → `JobConfigPlayerDto`; `bAllowRosterViewAdult` from `JobConfigTeamsDto` → `JobConfigCoachesDto`.
+    - Service: `JobConfigService.UpdatePlayerAsync` sets `Jobs.BAllowRosterViewPlayer`; `UpdateCoachesAsync` sets `Jobs.BAllowRosterViewAdult`. Strip from `UpdateTeamsAsync`.
+    - Runtime gate (`MyRosterService.cs:42-43`) is unaffected — still reads from the same DB columns.
+  2. **Clarify language**: replace the bare "Adult" / "Player" labels with self-explanatory copy, e.g.:
+    - Player tab: **"Allow players to view their team roster"** with help: *"When enabled, registered players can see their teammates' names on their team page."*
+    - Coaches tab: **"Allow coaches & staff to view their team roster"** with help: *"When enabled, coaches and club reps can see all rostered players on their team page."*
+  - **Decision points for Todd**:
+    1. Confirm move per role is the right placement (vs. keep on Teams as a "team visibility" cluster).
+    2. Confirm the proposed labels match TSIC's terminology.
+    3. Audit whether any other fields on the Teams tab make more sense on a role-specific tab (e.g., `bShowTeamNameOnlyInSchedules` — affects what every viewer sees, probably stays on Teams; `bUseWaitlists` — Player or Coaches?).
+
+### PL-057: Job Settings / Player + Coaches — normalize oversized text in migrated Legacy RTE content
+- **Area**: Menu Display / Job Settings → Player tab + Coaches tab; downstream registration flows
+- **What I did**: Reviewed Release of Liability content (and similar) where headings render dramatically larger than body text — Legacy migration carried over `<h1>`/`<h2>`/`font-size` styles
+- **What I expected**: Body and headings in the same text box to render at consistent text size
+- **What happened**: Migrated content has heading tags baked in; new RTE toolbar already prevents new heading additions, but existing data renders oversized
+- **Severity**: UX / Data cleanup
+- **Status**: Open
+- **Note**:
+  - **Toolbar status (good news)**: [rte-config.ts:2-9](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/shared/rte-config.ts#L2-L9) already restricts to Bold/Italic/Underline/FontColor/BG/Lists/Link — no heading dropdown, no font-size picker. Future content stays clean automatically. Issue is only legacy migrated rows.
+  - **Affected fields** (10 RTE editors per job × all jobs):
+    - Player tab: `playerRegConfirmationEmail`, `playerRegConfirmationOnScreen`, `playerRegRefundPolicy`, `playerRegReleaseOfLiability`, `playerRegCodeOfConduct`, `playerRegCovid19Waiver` (being removed per PL-055)
+    - Coaches tab: `adultRegConfirmationEmail`, `adultRegConfirmationOnScreen`, `adultRegRefundPolicy`, `adultRegReleaseOfLiability`, `adultRegCodeOfConduct`
+  - **Fix options**:
+    - **A. One-time SQL cleanup** — strip `<h1>`–`<h6>` tags and inline `font-size:` styles across all affected rows. Replacement choice: `<strong>` (preserves emphasis) vs `<p>` (full normalization) for what was a heading. Permanent; touches data only.
+    - **B. Display-time sanitize pipe** — strip oversized formatting on render in the player/adult registration flows. Source preserved; registration display always reads clean.
+    - **C. Both A and B** — A so Directors see clean source when editing; B as a safety net for any future bad content.
+  - **Recommendation**: A — RTE toolbar already prevents new bad content, so a one-time data fix is sufficient. B is overkill if the toolbar holds. Run cleanup as a script in `scripts/` so it's auditable + repeatable.
+  - **Sample SQL approach** (rough draft, validate before running):
+    ```sql
+    UPDATE Jobs.Jobs SET
+      PlayerRegReleaseOfLiability = <strip-headings-fn>(PlayerRegReleaseOfLiability),
+      ... (all 10 fields)
+    WHERE PlayerRegReleaseOfLiability LIKE '%<h%' OR ...
+    ```
+    Better implemented in C# as a one-time migration that loads each row, runs `Regex.Replace` to strip heading tags + font-size styles, writes back. Safer than raw SQL pattern matching.
+  - **Decision points for Todd**: confirm replacement strategy (`<strong>` vs `<p>`), confirm scope is just these 10 fields (or also bulletins, banners, other RTE content?), confirm OK to rewrite all jobs in one pass.
+
+### PL-055: Job Settings / Player — remove COVID-19 Waiver field (no longer needed)
+- **Refs**: PL-044 (Refund Policy moves to Payment header — same Player-tab cleanup pass); PL-053 (Mom/Dad Label removal — same "keep DB column, strip UI/API" pattern)
+- **Area**: Menu Display / Job Settings → Player tab + downstream waiver flow
+- **What I did**: Identified the COVID-19 Waiver editor field on the Player tab as no longer relevant
+- **What I expected**: Cleanup of the field across the editor, registration wizard, and email substitution
+- **What happened**: Field is still wired across multiple layers — needs a sweep, not just a UI delete
+- **Severity**: Cleanup
+- **Status**: Open
+- **Note**: COVID-19 Waiver footprint:
+  - **Editor UI**: Player tab textarea (RTE) — strip from `player-tab.component.html` and `player-tab.component.ts`
+  - **DTOs**: drop `playerRegCovid19Waiver` from `JobConfigPlayerDto` and `UpdateJobConfigPlayerRequest`
+  - **Service**: `JobConfigService.UpdatePlayerAsync` — drop the field assignment + mapping
+  - **Clone**: `JobCloneService` — drop the carry-forward line
+  - **Repository**: `JobRepository` — drop from `JobMetadataResponse` mapping
+  - **Registration wizard**: `waiver-state.service.ts` (player registration flow) — drop the COVID step from the waiver chain
+  - **Email substitution token**: `!F-COVID-WAIVER-PLAYER` registered at [TextSubstitutionService.cs:397-398](TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/TextSubstitution/TextSubstitutionService.cs#L397-L398) — strip the registration. **Audit any email templates** (confirmation emails, batch emails) that still reference the token; replace with nothing or remove the surrounding block.
+  - **DB column**: keep `Jobs.PlayerRegCovid19Waiver` intact to preserve historical waiver text from past seasons — drop UI/API only. Same pattern as Mom/Dad Label removal in PL-053.
+  - **Sequence**: (1) backend DTO/service/clone/repo strip together (atomic API change), (2) regen frontend models, (3) frontend UI strip + waiver-state strip, (4) email template audit + token registration removal. One PR; lots of touchpoints.
+
+### PL-054: Job Settings / Player — review "Require Invitation Token" function with Todd; decide if SuperUser-only
+- **Refs**: PL-053 (companion role-gating decisions on the Player tab)
+- **Area**: Menu Display / Job Settings → Player tab
+- **What I did**: Reviewed the "Require Invitation Token" toggle's function and asked whether it should be locked to SuperUser
+- **What I expected**: Confirmation of what the flag does, then decision on visibility
+- **What happened**: Function confirmed real and active; visibility decision pending Todd review
+- **Severity**: Question
+- **Status**: Open
+- **Note**: Findings from walkthrough on 2026-04-25:
+  - **Function**: `bPlayerRegRequiresToken = true` → players must use a valid invite link to register; `false` → open registration. Drives [PlayerInviteController.ValidateInvite](TSIC-Core-Angular/src/backend/TSIC.API/Controllers/PlayerInviteController.cs#L48-L50) at the API gate.
+  - **Current UI** ([player-tab.component.html:22-32](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L22-L32)): renders for all roles, paired with "Allow Player Registration" parent toggle, has a clear tooltip explaining both states.
+  - **Companion**: `BTeamRegRequiresToken` exists on the Teams tab — same pattern. Whatever decision is made here should likely apply to that one too for consistency.
+  - **Decision points for Todd**:
+    1. Confirm function still works as designed (especially the `!INVITE_LINK` substitution token referenced in the tooltip).
+    2. Should this be **Director-controlled** (operational per-season decision) or **SuperUser-only** (registration-mode change with downstream impact)?
+       - **Director-controlled**: matches current behavior; Directors flip between invite-only and open seasons themselves. Needs the existing tooltip to be sufficient guardrail.
+       - **SuperUser-only**: Director flips registration on/off via "Allow Player Registration"; SuperUser controls the registration mode (open vs invite-only). Locks down a flag that affects the API pathway.
+    3. Apply same decision to `BTeamRegRequiresToken` on Teams tab so Player and Team flows stay aligned.
+  - **Recommendation going in**: Director-controlled — the tooltip already documents both states and it's a per-season operational choice. But Todd may have history with Directors mis-toggling this that argues for SuperUser-only.
+
+### PL-053: Job Settings / Player — move Registration Form, Multi-Player Min, Discount % to SuperUser-only; verify RegSaver placement
+- **Refs**: PL-039 (Branding tab SuperUser-only), PL-041 (Per-Unit Charges SuperUser-only), PL-043 (Processing Fee SuperUser-only) — same pattern across tabs
+- **Area**: Menu Display / Job Settings → Player tab
+- **What I did**: Reviewed which Player tab fields should be SuperUser-only
+- **What I expected**: Platform-level fields (form selection, multi-player discount math, insurance offer) gated to SuperUser; Director-level fields (waivers, confirmation copy) stay open
+- **What happened**: Three platform-level fields render for all roles today — only RegSaver Insurance + Mom/Dad Label are correctly SuperUser-gated
+- **Severity**: Bug (role visibility) + Question (function review)
+- **Status**: Open
+- **Note**:
+  - **Move into existing SuperUser block** ([player-tab.component.html:138-152](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L138-L152)):
+    1. **Registration Form** (`coreRegformPlayer`) at [lines 46-50](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L46-L50) — Directors shouldn't pick which regform their job uses; that's a platform/profile decision.
+    2. **Multi-Player Min** (`playerRegMultiPlayerDiscountMin`) at [lines 51-56](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L51-L56) — needs Todd review of function (does it actually drive the discount? trigger threshold semantics?) before locking.
+    3. **Discount %** (`playerRegMultiPlayerDiscountPercent`) at [lines 57-62](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L57-L62) — same — confirm the field actually applies the percent at registration time.
+  - **Already correctly placed** (no action needed, just confirming): **Offer RegSaver Insurance** lives inside the existing `@if (svc.isSuperUser())` block at [line 138](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L138). Stay put.
+  - **Remove entirely** — **Mom Label** (`momLabel`) and **Dad Label** (`dadLabel`) at [lines 153-160+](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L153) are no longer relevant. Strip from UI, DTO, service, and `UpdateJobConfigPlayerRequest`. Keep DB columns (`Jobs.momLabel` / `Jobs.dadLabel`) intact to preserve historical data — drop UI/API only. Anywhere else in the codebase still consumes them (player registration form labels, confirmation emails, etc.) needs to be checked + replaced with hardcoded "Mom" / "Dad" or whatever the new convention is — sweep needed before stripping.
+  - **Backend hardening required** (matches the pattern from PL-041/PL-043): `JobConfigService.UpdatePlayerAsync` (or equivalent) must reject Director attempts to set `coreRegformPlayer` / `playerRegMultiPlayerDiscountMin` / `playerRegMultiPlayerDiscountPercent` — wrap those assignments in an `if (isSuperUser) { ... }` guard like General does for its SuperUser-only fields.
+  - **Decision sequence**: (1) Todd review of Multi-Player Min / Discount % function before moving (or dropping); (2) sweep momLabel/dadLabel consumers before stripping; (3) one atomic change for all the moves + removals + backend gate.
+
 ### PL-052: Two-banner architecture — `client-banner` widget vs `dashboard-hero` inline; standardize or keep distinct
 - **Refs**: PL-040 (broader Branding ↔ Widget Editor architecture review); inline aspect-ratio fix shipped on `client-banner` 2026-04-25
 - **Area**: Branding / widget-dashboard / client-banner widget
@@ -184,6 +501,12 @@ Use these as a guide for what to walk through. You don't have to go in order.
     1. Confirm the JobTypeId mapping for "player sites."
     2. Confirm the "Club Rep / Team" label is preferred over existing "Adult" wording.
     3. Confirm Coaches tab survives after losing the refund field, or whether its other content should merge into an adjacent tab.
+  - **Consolidation question (added 2026-04-25)**: should Player and Team refund policies share **one editor** (one source of truth) or stay separate? In practice most clubs have one refund policy that covers all registrations — maintaining two synced fields is tedious. Three sub-options:
+    - **A. Keep two DB fields, one editor** — Payment-tab editor writes to **both** `playerRegRefundPolicy` and `adultRegRefundPolicy`. Downstream consumers unchanged. Cheapest, lowest-risk first step.
+    - **B. Drop `adultRegRefundPolicy`, use `playerRegRefundPolicy` for both** — single source of truth; Team Registration reads `playerRegRefundPolicy`. Cleanest schema; small migration.
+    - **C. One editor by default + "differentiate per role" toggle** — toggle reveals a second editor if a Director needs separate text. Most flexible; most code.
+    - **Recommendation**: **A** at first ship (zero risk, immediate UX win), then **B** as a follow-up cleanup once we confirm no consumer relies on per-role text divergence.
+    - **League-site impact** (the only job type with both flows visible): with A/B, one editor; with C, the toggle. With separate fields per the original PL-044 design, two editors stacked vertically.
 
 ### PL-043: Job Settings / Payment — hide Processing Fee fieldset entirely for non-SuperUsers
 - **Refs**: PL-039 (Branding tab SuperUser-only), PL-041 (Per-Unit Charges SuperUser-only) — same pattern on the same tab
