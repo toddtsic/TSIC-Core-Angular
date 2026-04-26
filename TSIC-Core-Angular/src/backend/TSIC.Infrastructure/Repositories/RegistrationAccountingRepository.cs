@@ -43,6 +43,13 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> AnyByAdnTransactionIdAsync(string adnTransactionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .AnyAsync(a => a.AdnTransactionId == adnTransactionId, cancellationToken);
+    }
+
     public async Task<Dictionary<Guid, PaymentSummary>> GetPaymentSummariesAsync(
         IReadOnlyCollection<Guid> registrationIds, CancellationToken cancellationToken = default)
     {

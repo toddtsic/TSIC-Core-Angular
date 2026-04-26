@@ -46,6 +46,7 @@ using TSIC.API.Services.Shared.Devices;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Email;
+using TSIC.API.Services.Sweep;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services;
 using TSIC.API.Services.Referees;
@@ -339,6 +340,12 @@ builder.Services.Configure<VerticalInsureSettings>(builder.Configuration.GetSect
 
 // Authorize.Net settings (sandbox credentials only - production comes from database)
 builder.Services.Configure<AdnSettings>(builder.Configuration.GetSection("AuthorizeNet"));
+
+// Daily ADN reconciliation sweep (ARB import + eCheck return processing)
+builder.Services.Configure<AdnSweepOptions>(builder.Configuration.GetSection("AdnSweep"));
+builder.Services.AddScoped<IEcheckSettlementRepository, EcheckSettlementRepository>();
+builder.Services.AddScoped<IAdnSweepService, AdnSweepService>();
+builder.Services.AddHostedService<AdnSweepBackgroundService>();
 
 // Profile Migration Services
 builder.Services.AddScoped<IGitHubProfileFetcher, GitHubProfileFetcher>();

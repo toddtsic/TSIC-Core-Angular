@@ -678,6 +678,12 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations.FindAsync(registrationId);
     }
 
+    public async Task<Registrations?> GetByAdnSubscriptionIdAsync(string adnSubscriptionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .FirstOrDefaultAsync(r => r.AdnSubscriptionId == adnSubscriptionId, cancellationToken);
+    }
+
     public async Task<List<Registrations>> GetByJobAndUserIdsAsync(Guid jobId, List<string> userIds, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

@@ -143,6 +143,12 @@ public interface IRegistrationRepository
     Task<Registrations?> GetByIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get tracked registration by ADN ARB subscription ID. Used by the daily sweep
+    /// to resolve subscription transactions back to the registration that owns them.
+    /// </summary>
+    Task<Registrations?> GetByAdnSubscriptionIdAsync(string adnSubscriptionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registrations by job ID and user IDs.
     /// Used for family registration queries.
     /// </summary>

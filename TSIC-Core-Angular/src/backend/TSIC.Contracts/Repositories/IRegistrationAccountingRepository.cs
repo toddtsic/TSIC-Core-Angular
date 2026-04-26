@@ -29,6 +29,12 @@ public interface IRegistrationAccountingRepository
     Task<string?> GetLatestAdnTransactionIdAsync(IEnumerable<Guid> registrationIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns true iff any RegistrationAccounting row already references this Authorize.Net
+    /// transaction ID. Used by the daily sweep to skip already-imported transactions.
+    /// </summary>
+    Task<bool> AnyByAdnTransactionIdAsync(string adnTransactionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get payment summaries (total payments and non-CC payments) for a batch of registrations.
     /// Used for fee recalculation — processing fees apply only to the CC-payable portion.
     /// </summary>
