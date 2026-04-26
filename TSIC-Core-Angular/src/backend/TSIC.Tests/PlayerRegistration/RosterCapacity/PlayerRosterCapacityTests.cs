@@ -253,6 +253,75 @@ public class PlayerRosterCapacityTests
             Times.Never, "capacity check should be skipped for unlimited teams");
     }
 
+    [Fact(DisplayName = "Reserve: new registrations land BActive=false (lock-to-check invariant)")]
+    public async Task Reserve_NewRegistrations_LandInactive()
+    {
+        // The pay-by-check submit endpoint is the ONLY surface that flips BActive=true
+        // at intake. All other create paths — including CC, ARB, and eCheck — must
+        // leave BActive=false until payment clears. This pins that invariant against
+        // future drift: if anyone ever sets BActive=true inside ReserveTeamsAsync /
+        // CreateNewRegistrationAsync, this test fails immediately.
+        var (svc, regRepo, teamRepo, _, _) = CreateService();
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 0);
+
+        Registrations? captured = null;
+        regRepo
+            .Setup(r => r.Add(It.IsAny<Registrations>()))
+            .Callback<Registrations>(reg => captured = reg);
+
+        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
+
+        result.TeamResults[0].IsFull.Should().BeFalse();
+        captured.Should().NotBeNull("a registration should have been added");
+        captured!.BActive.Should().Be(false,
+            "new registrations created via ReserveTeams must remain Inactive until payment clears " +
+            "(only the pay-by-check submit endpoint may flip BActive=true at intake)");
+        captured.PaymentMethodChosen.Should().BeNull(
+            "no payment method is chosen until the parent reaches the payment step");
+    }
+
+    [Fact(DisplayName = "Reserve: family submits 3 to team with 1 spot left → 1 placed, 2 marked full (no over-roster)")]
+    public async Task Reserve_FamilyOverflow_DoesNotOverRoster()
+    {
+        // Arrange — team has 1 spot left (MaxCount=10, currentRosterCount=9).
+        // A single family submits three players to that same team in one call.
+        // Expected: first player gets the spot; players 2 and 3 are told the team is full
+        // (no waitlist available — placement throws InvalidOperationException).
+        // Bug-before-fix: the in-memory roster snapshot in PreSubmitContext.TeamRosterCounts
+        // is read but never incremented after a successful create, so all three players
+        // see "1 spot left" and all three succeed → team ends with 12 (over-roster by 2).
+        var (svc, regRepo, teamRepo, placement, _) = CreateService();
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 9);
+
+        placement
+            .Setup(p => p.ResolveRosterPlacementAsync(
+                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Team roster is full"));
+
+        var request = new ReserveTeamsRequestDto
+        {
+            JobPath = "test-job",
+            TeamSelections = new List<ReserveTeamSelectionDto>
+            {
+                new() { PlayerId = "player-1", TeamId = team.TeamId },
+                new() { PlayerId = "player-2", TeamId = team.TeamId },
+                new() { PlayerId = "player-3", TeamId = team.TeamId },
+            }
+        };
+
+        // Act
+        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, request, TestFamilyUserId);
+
+        // Assert — exactly one succeeds, two are blocked
+        result.TeamResults.Should().HaveCount(3);
+        result.TeamResults.Count(r => !r.IsFull).Should().Be(1, "only one spot is available");
+        result.TeamResults.Count(r => r.IsFull).Should().Be(2, "two players must be told the team is full");
+        result.HasFullTeams.Should().BeTrue();
+
+        regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Once,
+            "exactly one registration should be added across the three siblings");
+    }
+
     [Fact(DisplayName = "PreSubmit: team full → NextTab = 'Team' (sends user back to team selection)")]
     public async Task PreSubmit_TeamFull_NextTabIsTeam()
     {

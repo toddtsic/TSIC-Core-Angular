@@ -847,32 +847,52 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     private finalizeCheckSubmit(): void {
         this.submitting.set(true);
 
-        if (this.isViCheckHybridFlow()) {
-            // Check for registration + CC for insurance premium
-            this.insuranceSvc.purchaseInsurance(this._creditCard(), (msg) => {
-                try {
+        // Backend stamp first \u2014 flips PaymentMethodChosen=3 + BActive=true so the roster
+        // spot is held while the check is in transit. Only advance the wizard on success.
+        this.paySvc.submitByCheck().subscribe({
+            next: (resp) => {
+                if (!resp?.success) {
+                    this.submitting.set(false);
+                    const msg = resp?.message || 'Could not record check submission. Please retry or switch to credit card.';
+                    this.lastError.set({ message: msg, errorCode: null });
+                    this.toast.show(msg, 'danger', 5000);
+                    return;
+                }
+
+                if (this.isViCheckHybridFlow()) {
+                    // Check for registration + CC for insurance premium
+                    this.insuranceSvc.purchaseInsurance(this._creditCard(), (vimsg) => {
+                        try {
+                            this.paymentState.setLastPayment({
+                                option: this.paymentState.paymentOption(),
+                                amount: this.checkTotal(),
+                                message: 'Payment by check \u2014 pending receipt. ' + (vimsg || ''),
+                                paymentMethod: 'Check',
+                                viPolicyNumber: this.insuranceState.viConsent()?.policyNumber ?? null,
+                                viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
+                            });
+                        } catch (e) { console.warn('[Payment] setLastPayment (check+VI) failed', e); }
+                        this.submitting.set(false);
+                        this.advance.emit();
+                    });
+                } else {
                     this.paymentState.setLastPayment({
                         option: this.paymentState.paymentOption(),
                         amount: this.checkTotal(),
-                        message: 'Payment by check \u2014 pending receipt. ' + (msg || ''),
+                        message: 'Payment by check \u2014 pending receipt',
                         paymentMethod: 'Check',
-                        viPolicyNumber: this.insuranceState.viConsent()?.policyNumber ?? null,
-                        viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
                     });
-                } catch (e) { console.warn('[Payment] setLastPayment (check+VI) failed', e); }
+                    this.submitting.set(false);
+                    this.advance.emit();
+                }
+            },
+            error: (err: HttpErrorResponse) => {
                 this.submitting.set(false);
-                this.advance.emit();
-            });
-        } else {
-            this.paymentState.setLastPayment({
-                option: this.paymentState.paymentOption(),
-                amount: this.checkTotal(),
-                message: 'Payment by check \u2014 pending receipt',
-                paymentMethod: 'Check',
-            });
-            this.submitting.set(false);
-            this.advance.emit();
-        }
+                const msg = err?.error?.message || 'Could not record check submission. Please retry or switch to credit card.';
+                this.lastError.set({ message: msg, errorCode: null });
+                this.toast.show(msg, 'danger', 5000);
+            },
+        });
     }
 
     // ── Payment option ──────────────────────────────────────────────────

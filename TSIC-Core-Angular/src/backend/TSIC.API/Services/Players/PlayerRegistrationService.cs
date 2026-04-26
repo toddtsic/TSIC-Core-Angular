@@ -275,6 +275,10 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         else
         {
             await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
+            // Increment the in-memory snapshot so siblings later in the same family
+            // submission see the spot consumed (DB count is BActive=true only and won't
+            // reflect a brand-new BActive=false row, but capacity must include it).
+            ctx.TeamRosterCounts[team.TeamId] = (ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var prev) ? prev : 0) + 1;
         }
 
         // Stamp waitlist state on any results added by the downstream methods
@@ -351,6 +355,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
                 await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
+                // See ProcessSingleTeamSelectionAsync — bump the snapshot so siblings
+                // later in the same family submission see the spot consumed.
+                ctx.TeamRosterCounts[team.TeamId] = (ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var prev) ? prev : 0) + 1;
             }
 
             // Stamp waitlist state on any results added above
@@ -581,6 +588,100 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
 
         return updated;
+    }
+
+    public async Task<SubmitByCheckResponseDto> SubmitByCheckAsync(
+        Guid jobId,
+        string familyUserId,
+        SubmitByCheckRequestDto request,
+        string callerUserId,
+        CancellationToken ct = default)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (request.RegistrationIds.Count == 0)
+        {
+            return new SubmitByCheckResponseDto
+            {
+                Success = false,
+                Message = "No registrations supplied.",
+                UpdatedRegistrationIds = new List<Guid>(),
+                Rejections = new List<SubmitByCheckRejectionDto>()
+            };
+        }
+
+        var rows = await _registrations.GetByIdsAsync(request.RegistrationIds, ct);
+        var updated = new List<Guid>();
+        var rejections = new List<SubmitByCheckRejectionDto>();
+        var changedCount = 0;
+        const int CheckMethodCode = 3;
+
+        foreach (var reg in rows)
+        {
+            // Family ownership + job scope: never act on rows outside the caller's family / job.
+            if (reg.FamilyUserId != familyUserId || reg.JobId != jobId)
+            {
+                rejections.Add(new SubmitByCheckRejectionDto
+                {
+                    RegistrationId = reg.RegistrationId,
+                    Reason = "Registration is not owned by the caller for this job."
+                });
+                continue;
+            }
+
+            // Lock to check path: reject rows already committed to a different payment method.
+            if (reg.PaymentMethodChosen.HasValue && reg.PaymentMethodChosen.Value != CheckMethodCode)
+            {
+                rejections.Add(new SubmitByCheckRejectionDto
+                {
+                    RegistrationId = reg.RegistrationId,
+                    Reason = $"Registration already committed to payment method {reg.PaymentMethodChosen.Value}."
+                });
+                continue;
+            }
+
+            // Idempotent: row already in target state (Check + Active) is a no-op success.
+            if (reg.PaymentMethodChosen == CheckMethodCode && reg.BActive == true)
+            {
+                updated.Add(reg.RegistrationId);
+                continue;
+            }
+
+            reg.PaymentMethodChosen = CheckMethodCode;
+            reg.BActive = true;
+            reg.Modified = DateTime.UtcNow;
+            reg.LebUserId = callerUserId;
+            updated.Add(reg.RegistrationId);
+            changedCount++;
+        }
+
+        // Detect rows missing entirely from the DB (caller passed an unknown id).
+        var foundIds = rows.Select(r => r.RegistrationId).ToHashSet();
+        foreach (var id in request.RegistrationIds.Where(id => !foundIds.Contains(id)))
+        {
+            rejections.Add(new SubmitByCheckRejectionDto
+            {
+                RegistrationId = id,
+                Reason = "Registration not found."
+            });
+        }
+
+        if (changedCount > 0)
+        {
+            await _registrations.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "SubmitByCheck stamped {Count} registration(s) Active for family {FamilyUserId} on job {JobId}.",
+                changedCount, familyUserId, jobId);
+        }
+
+        return new SubmitByCheckResponseDto
+        {
+            Success = rejections.Count == 0,
+            Message = rejections.Count == 0
+                ? $"Stamped {updated.Count} registration(s) as Pay-by-Check pending."
+                : $"Stamped {updated.Count}; {rejections.Count} rejected.",
+            UpdatedRegistrationIds = updated,
+            Rejections = rejections
+        };
     }
 
     // Removed unused ValidateAndAdjustNextTabAsync method (was retained for backward compatibility).

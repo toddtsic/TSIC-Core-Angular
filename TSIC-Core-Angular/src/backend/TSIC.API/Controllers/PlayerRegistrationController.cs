@@ -155,5 +155,32 @@ public class PlayerRegistrationController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Pay-by-check intake. Stamps PaymentMethodChosen=3 + BActive=true on the
+    /// listed registrations so the roster spot is held while the check is in
+    /// transit. No fee math. Idempotent. Strictly check-path: rejects rows
+    /// already committed to a different payment method.
+    /// </summary>
+    [HttpPost("submit-by-check")]
+    [Authorize]
+    [ProducesResponseType(typeof(TSIC.Contracts.Dtos.SubmitByCheckResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SubmitByCheck([FromBody] TSIC.Contracts.Dtos.SubmitByCheckRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.JobPath))
+            return BadRequest(new { message = "Invalid submit-by-check request" });
+
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var response = await _registrationService.SubmitByCheckAsync(jobId.Value, familyUserId, request, familyUserId);
+        return Ok(response);
+    }
+
     // (Validation and form-application logic moved into service)
 }

@@ -21,4 +21,18 @@ public interface IPlayerRegistrationService
     /// Returns the number of registrations updated.
     /// </summary>
     Task<int> RecalculatePlayerFeesAsync(Guid jobId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Pay-by-check intake: stamps PaymentMethodChosen=3 (Check) and BActive=true
+    /// on each registration in <paramref name="request"/>.RegistrationIds so the
+    /// roster spot is held while the check is in transit. No fee math performed.
+    /// Idempotent. Strictly check-path: rejects rows already committed to a
+    /// non-check method.
+    /// </summary>
+    Task<SubmitByCheckResponseDto> SubmitByCheckAsync(
+        Guid jobId,
+        string familyUserId,
+        SubmitByCheckRequestDto request,
+        string callerUserId,
+        CancellationToken ct = default);
 }

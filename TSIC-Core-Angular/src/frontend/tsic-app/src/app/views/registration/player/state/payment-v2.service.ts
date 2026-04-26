@@ -14,6 +14,8 @@ import type {
     PaymentRequestDto,
     PaymentResponseDto,
     RegistrationFinancialsDto,
+    SubmitByCheckRequestDto,
+    SubmitByCheckResponseDto,
 } from '@core/api';
 
 function toNumber(value: number | string | undefined | null): number {
@@ -271,6 +273,24 @@ export class PaymentV2Service {
                     this._discountMessage.set(formatHttpError(err));
                 },
             });
+    }
+
+    /**
+     * Pay-by-check intake. Collects the family's existing registration IDs for the
+     * current line items and asks the backend to stamp PaymentMethodChosen=3 +
+     * BActive=true on each — holds the roster spot while the check is in transit.
+     * Caller awaits this before advancing past the payment step.
+     */
+    submitByCheck(): Observable<SubmitByCheckResponseDto> {
+        const registrationIds = this.lineItems()
+            .map(li => this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.registrationId)
+            .filter((id): id is string => !!id);
+        const req: SubmitByCheckRequestDto = {
+            jobPath: this.jobCtx.jobPath(),
+            registrationIds,
+        };
+        return this.http.post<SubmitByCheckResponseDto>(
+            `${environment.apiUrl}/player-registration/submit-by-check`, req);
     }
 
     private getExistingRegistrationForTeam(playerId: string, teamId: string) {
