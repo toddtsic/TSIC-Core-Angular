@@ -163,7 +163,7 @@ public class AdnSweepServiceTests
             });
     }
 
-    private static Registrations BuildReg(decimal paid = 0, decimal owed = 100m)
+    private static Registrations BuildReg(decimal paid = 0, decimal owed = 100m, string jobName = "Test Tournament")
     {
         return new Registrations
         {
@@ -180,11 +180,12 @@ public class AdnSweepServiceTests
             FeeLatefee = 0m,
             FeeTotal = 100m,
             PaidTotal = paid,
-            OwedTotal = owed
+            OwedTotal = owed,
+            Job = new Jobs { JobId = Guid.NewGuid(), JobName = jobName, DisplayName = jobName }
         };
     }
 
-    private static Settlement BuildSettlement(string adnTxId, decimal payAmount = 100m)
+    private static Settlement BuildSettlement(string adnTxId, decimal payAmount = 100m, string jobName = "Bounce Job")
     {
         var ra = new RegistrationAccounting
         {
@@ -195,11 +196,13 @@ public class AdnSweepServiceTests
             {
                 RegistrationId = Guid.NewGuid(),
                 JobId = Guid.NewGuid(),
+                UserId = "bouncer-user",
                 FeeBase = 100m,
                 FeeProcessing = 0.40m,
                 FeeTotal = 100.40m,
                 PaidTotal = payAmount,
-                OwedTotal = 0m
+                OwedTotal = 0m,
+                Job = new Jobs { JobName = jobName, DisplayName = jobName }
             }
         };
         ra.RegistrationId = ra.Registration.RegistrationId;
@@ -497,5 +500,85 @@ public class AdnSweepServiceTests
         result.EcheckReturnsProcessed.Should().Be(1, "reversal must still complete despite email failure");
         result.Errored.Should().Be(0);
         settlement.Status.Should().Be("Returned");
+    }
+
+    [Fact(DisplayName = "Digest email body has BOTH ARB rows AND eCheck Returns rows when both happened")]
+    public async Task DigestEmail_IncludesBothArbAndEcheckTables()
+    {
+        var reg = BuildReg(jobName: "Spring Tournament");
+        var settlement = BuildSettlement("ORIG-99", payAmount: 60m, jobName: "Bounce Job");
+        var bouncer = settlement.RegistrationAccounting.Registration!;
+
+        StubSweepLogAndCreds();
+        var arbTx = ArbTxSummary("settledSuccessfully", 25m, "777", "ARB-DIGEST", "TSIC_1_2");
+        var ecTx = EcheckReturnSummary("RETURN-DIGEST");
+        StubBatchListWith(arbTx, ecTx);
+        StubArbTxDetails("ARB-DIGEST", "777", 25m);
+        StubSubStatus("777");
+        StubEcheckReturnDetails("RETURN-DIGEST", originalTxId: "ORIG-99", reasonCode: 252, reasonDesc: "NSF");
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("777", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reg);
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(bouncer.JobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DirectorContactInfo { Email = "director@example.com", PaymentPlan = false });
+
+        // Capture the digest email (last SendAsync call). Director alert uses a job-specific subject;
+        // the digest uses "AdnSweep" subject.
+        var sentEmails = new List<EmailMessageDto>();
+        _email.Setup(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<EmailMessageDto, bool, CancellationToken>((m, _, _) => sentEmails.Add(m))
+            .ReturnsAsync(true);
+
+        await BuildSut().RunAsync("Test");
+
+        var digest = sentEmails.LastOrDefault(m => m.Subject!.StartsWith("AdnSweep"));
+        digest.Should().NotBeNull("a digest email should always be sent");
+
+        var html = digest!.HtmlBody!;
+
+        // ARB section present and populated.
+        html.Should().Contain("ARB Activity");
+        html.Should().Contain("ARB-DIGEST", "the ARB tx id should appear in the ARB table");
+        html.Should().Contain("Spring Tournament", "JobName should be populated for ARB rows (was '' before fix)");
+
+        // eCheck Returns section present and populated.
+        html.Should().Contain("eCheck Returns");
+        html.Should().Contain("RETURN-DIGEST", "the return tx id should appear in the eCheck Returns table");
+        html.Should().Contain("ORIG-99", "the original tx id should appear in the eCheck Returns table");
+        html.Should().Contain("NSF", "the return reason should appear in the eCheck Returns table");
+        html.Should().Contain("Bounce Job", "JobName should be populated for eCheck rows");
+        html.Should().Contain("yes", "director-notified column should show 'yes' when alert succeeded");
+    }
+
+    [Fact(DisplayName = "Sub-status sync skipped when ADN response is non-Ok")]
+    public async Task SubStatus_NonOkResponse_DoesNotMutateLocal()
+    {
+        var reg = BuildReg();
+        reg.AdnSubscriptionStatus = "active";
+        StubSweepLogAndCreds();
+        var tx = ArbTxSummary("settledSuccessfully", 25m, "777", "TX-NONOK", "TSIC_1_2");
+        StubBatchListWith(tx);
+        StubArbTxDetails("TX-NONOK", "777", 25m);
+        // Sub-status returns Error result, not Ok.
+        _adn.Setup(a => a.GetSubscriptionStatus(
+                It.IsAny<AuthorizeNet.Environment>(), It.IsAny<string>(), It.IsAny<string>(), "777"))
+            .Returns(new ARBGetSubscriptionStatusResponse
+            {
+                messages = new messagesType { resultCode = messageTypeEnum.Error },
+                status = ARBSubscriptionStatusEnum.canceled
+            });
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("777", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reg);
+
+        await BuildSut().RunAsync("Test");
+
+        reg.AdnSubscriptionStatus.Should().Be("active", "non-Ok ADN response must not overwrite local status");
+        _arbRepo.Verify(a => a.UpdateSubscriptionStatusAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

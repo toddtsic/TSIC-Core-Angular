@@ -67,7 +67,8 @@ public sealed class AdnSweepService : IAdnSweepService
         var log = await _settleRepo.StartSweepLogAsync(triggeredBy, ct);
         var counts = new Counts();
         string? errorMessage = null;
-        var digestRows = new List<DigestRow>();
+        var arbRows = new List<ArbDigestRow>();
+        var ecRows = new List<EcheckReturnDigestRow>();
 
         try
         {
@@ -88,7 +89,7 @@ public sealed class AdnSweepService : IAdnSweepService
                     if (row != null)
                     {
                         counts.ArbImported++;
-                        digestRows.Add(row);
+                        arbRows.Add(row);
                     }
                 }
                 catch (Exception ex)
@@ -104,8 +105,12 @@ public sealed class AdnSweepService : IAdnSweepService
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    var processed = await ProcessEcheckReturnAsync(tx, env, creds, ct);
-                    if (processed) counts.EcheckReturnsProcessed++;
+                    var row = await ProcessEcheckReturnAsync(tx, env, creds, ct);
+                    if (row != null)
+                    {
+                        counts.EcheckReturnsProcessed++;
+                        ecRows.Add(row);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -115,7 +120,7 @@ public sealed class AdnSweepService : IAdnSweepService
             }
 
             // 4) Build + send digest email.
-            var html = BuildDigestHtml(digestRows, counts);
+            var html = BuildDigestHtml(arbRows, ecRows, counts);
             await SendDigestAsync(html, ct);
         }
         catch (Exception ex)
@@ -176,7 +181,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
     // ── ARB import (legacy parity) ────────────────────────────────────
 
-    private async Task<DigestRow?> ImportArbTransactionAsync(
+    private async Task<ArbDigestRow?> ImportArbTransactionAsync(
         transactionSummaryType tx, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
     {
         // Skip if already imported.
@@ -195,13 +200,21 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
-        // Sync ADN-known subscription status to registration record.
+        // Sync ADN-known subscription status to registration record (only on Ok response).
         var subStatusResp = _adn.GetSubscriptionStatus(env, creds.AdnLoginId!, creds.AdnTransactionKey!, reg.AdnSubscriptionId!);
-        var liveSubStatus = subStatusResp?.status.ToString();
-        if (!string.IsNullOrEmpty(liveSubStatus) && reg.AdnSubscriptionStatus != liveSubStatus)
+        if (subStatusResp?.messages?.resultCode == messageTypeEnum.Ok)
         {
-            await _arbRepo.UpdateSubscriptionStatusAsync(reg.RegistrationId, liveSubStatus, ct);
-            reg.AdnSubscriptionStatus = liveSubStatus;
+            var liveSubStatus = subStatusResp.status.ToString();
+            if (!string.IsNullOrEmpty(liveSubStatus) && reg.AdnSubscriptionStatus != liveSubStatus)
+            {
+                await _arbRepo.UpdateSubscriptionStatusAsync(reg.RegistrationId, liveSubStatus, ct);
+                reg.AdnSubscriptionStatus = liveSubStatus;
+            }
+        }
+        else
+        {
+            _logger.LogWarning("ARB tx {TxId}: GetSubscriptionStatus returned non-Ok ({Code}); leaving local status as-is",
+                tx.transId, subStatusResp?.messages?.resultCode);
         }
 
         // Pull tx details for CC last-4 / expiry.
@@ -252,9 +265,9 @@ public sealed class AdnSweepService : IAdnSweepService
         // Compute installment math for digest.
         var (owedNow, paymentXofY, nextInstallment) = ComputeInstallmentMath(reg);
 
-        return new DigestRow
+        return new ArbDigestRow
         {
-            JobName = "",  // Filled by caller if available; legacy reads via join.
+            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
             TransId = tx.transId,
             SubscriptionId = tx.subscription.id.ToString(),
             SubscriptionStatus = reg.AdnSubscriptionStatus,
@@ -270,14 +283,14 @@ public sealed class AdnSweepService : IAdnSweepService
 
     // ── eCheck return processing ──────────────────────────────────────
 
-    private async Task<bool> ProcessEcheckReturnAsync(
+    private async Task<EcheckReturnDigestRow?> ProcessEcheckReturnAsync(
         transactionSummaryType returnTx, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
     {
         // Skip if we already wrote a reversal for this return.
         if (await _accountingRepo.AnyByAdnTransactionIdAsync(returnTx.transId, ct))
         {
             _logger.LogDebug("eCheck return {TxId} already processed, skipping", returnTx.transId);
-            return false;
+            return null;
         }
 
         // GetTransactionDetails to find refTransId (the original we submitted).
@@ -285,14 +298,14 @@ public sealed class AdnSweepService : IAdnSweepService
         if (detail?.messages?.resultCode != messageTypeEnum.Ok || detail.transaction == null)
         {
             _logger.LogWarning("eCheck return {TxId}: GetTransactionDetails failed", returnTx.transId);
-            return false;
+            return null;
         }
 
         var originalTxId = detail.transaction.refTransId;
         if (string.IsNullOrEmpty(originalTxId))
         {
             _logger.LogWarning("eCheck return {TxId}: no refTransId — cannot link to original", returnTx.transId);
-            return false;
+            return null;
         }
 
         // Look up Settlement by original tx id.
@@ -302,7 +315,7 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             _logger.LogWarning("eCheck return {TxId}: original {OrigTxId} not in echeck.Settlement — not ours, skipping",
                 returnTx.transId, originalTxId);
-            return false;
+            return null;
         }
 
         var ra = settlement.RegistrationAccounting;
@@ -311,7 +324,7 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             _logger.LogWarning("Settlement {Id}: no Registration loaded — corrupt state, skipping",
                 settlement.SettlementId);
-            return false;
+            return null;
         }
 
         var amount = ra.Payamt ?? 0m;
@@ -319,7 +332,7 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             _logger.LogWarning("Settlement {Id} original payamt non-positive; reversal skipped",
                 settlement.SettlementId);
-            return false;
+            return null;
         }
 
         var now = DateTime.UtcNow;
@@ -331,18 +344,13 @@ public sealed class AdnSweepService : IAdnSweepService
         settlement.LastCheckedAt = now;
         settlement.Modified = now;
 
-        // Reverse payment on the registration.
+        // Reverse payment on the registration; recompute totals after fee restore.
         reg.PaidTotal -= amount;
-        reg.OwedTotal += amount;
-        reg.Modified = now;
-        reg.LebUserId = SystemUserId;
-
-        // Reverse the eCheck fee credit applied at submission.
         await _feeAdj.ReverseProcessingFeeForEcheckAsync(reg, amount, reg.JobId, SystemUserId);
-
-        // Recompute totals after fee restore.
         reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
         reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+        reg.Modified = now;
+        reg.LebUserId = SystemUserId;
 
         // Write the reversal RA row.
         _accountingRepo.Add(new RegistrationAccounting
@@ -362,27 +370,38 @@ public sealed class AdnSweepService : IAdnSweepService
 
         await _settleRepo.SaveChangesAsync(ct);
 
-        // Best-effort director email.
+        // Best-effort director email — capture success for the digest.
+        bool directorNotified;
         try
         {
-            await SendDirectorAlertAsync(reg.JobId, ra, settlement, ct);
+            directorNotified = await SendDirectorAlertAsync(reg.JobId, ra, settlement, ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "NSF director alert failed for settlement {Id}", settlement.SettlementId);
+            directorNotified = false;
         }
 
-        return true;
+        return new EcheckReturnDigestRow
+        {
+            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            ReturnTxId = returnTx.transId,
+            OriginalTxId = originalTxId,
+            Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
+            AmountReversed = amount,
+            Registrant = reg.UserId,
+            DirectorNotified = directorNotified
+        };
     }
 
-    private async Task SendDirectorAlertAsync(
+    private async Task<bool> SendDirectorAlertAsync(
         Guid jobId, RegistrationAccounting originalRa, Settlement settlement, CancellationToken ct)
     {
         var director = await _regRepo.GetDirectorContactForJobAsync(jobId, ct);
         if (director == null || string.IsNullOrEmpty(director.Email))
         {
             _logger.LogWarning("No director contact for job {JobId}; NSF alert not sent", jobId);
-            return;
+            return false;
         }
 
         var amountStr = (originalRa.Payamt ?? 0m).ToString("F2");
@@ -402,6 +421,7 @@ public sealed class AdnSweepService : IAdnSweepService
             Subject = $"eCheck NSF return — ${amountStr}",
             HtmlBody = body
         }, sendInDevelopment: false, cancellationToken: ct);
+        return true;
     }
 
     // ── Installment math (legacy parity) ──────────────────────────────
@@ -439,35 +459,74 @@ public sealed class AdnSweepService : IAdnSweepService
 
     // ── Digest email ──────────────────────────────────────────────────
 
-    private string BuildDigestHtml(List<DigestRow> rows, Counts counts)
+    private string BuildDigestHtml(List<ArbDigestRow> arbRows, List<EcheckReturnDigestRow> ecRows, Counts counts)
     {
         var envType = "PROD";
 #if DEBUG
         envType = "DEV";
 #endif
         var sb = new StringBuilder();
-        sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
-        sb.Append($"<caption style='caption-side:top;'>ARB + eCheck Sweep ({envType}, ADN Account: TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</caption>");
-        sb.Append("<tr><th>#</th><th>TransId</th><th>SubId</th><th>SubStatus</th><th>Amount</th><th>Status</th><th>OwedNow</th><th>PaymentXofY</th><th>NextInstallment</th><th>Registrant</th><th>Assignment</th></tr>");
-        for (int i = 0; i < rows.Count; i++)
+        sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
+        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck returns: {counts.EcheckReturnsProcessed}, Errored: {counts.Errored}</p>");
+
+        // ── ARB Activity table ────────────────────────────────────────
+        sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
+        if (arbRows.Count == 0)
         {
-            var r = rows[i];
-            sb.Append("<tr>")
-              .Append($"<td>{i + 1}</td>")
-              .Append($"<td>{r.TransId}</td>")
-              .Append($"<td>{r.SubscriptionId}</td>")
-              .Append($"<td>{r.SubscriptionStatus}</td>")
-              .Append($"<td>{r.SettleAmount:C}</td>")
-              .Append($"<td>{r.TransactionStatus}</td>")
-              .Append($"<td>{r.OwedNow:C}</td>")
-              .Append($"<td>{r.PaymentXofY}</td>")
-              .Append($"<td>{(r.NextInstallment.HasValue ? r.NextInstallment.Value.ToString("d") : "")}</td>")
-              .Append($"<td>{r.Registrant}</td>")
-              .Append($"<td>{r.RegistrantAssignment}</td>")
-              .Append("</tr>");
+            sb.Append("<p style='font-size:9px;'>(no ARB transactions imported this run)</p>");
         }
-        sb.Append("</table>");
-        sb.Append($"<p style='font-size:9px;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck returns: {counts.EcheckReturnsProcessed}, Errored: {counts.Errored}</p>");
+        else
+        {
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>Job</th><th>TransId</th><th>SubId</th><th>SubStatus</th><th>Amount</th><th>Status</th><th>OwedNow</th><th>PaymentXofY</th><th>NextInstallment</th><th>Registrant</th><th>Assignment</th></tr>");
+            for (int i = 0; i < arbRows.Count; i++)
+            {
+                var r = arbRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{r.JobName}</td>")
+                  .Append($"<td>{r.TransId}</td>")
+                  .Append($"<td>{r.SubscriptionId}</td>")
+                  .Append($"<td>{r.SubscriptionStatus}</td>")
+                  .Append($"<td>{r.SettleAmount:C}</td>")
+                  .Append($"<td>{r.TransactionStatus}</td>")
+                  .Append($"<td>{r.OwedNow:C}</td>")
+                  .Append($"<td>{r.PaymentXofY}</td>")
+                  .Append($"<td>{(r.NextInstallment.HasValue ? r.NextInstallment.Value.ToString("d") : "")}</td>")
+                  .Append($"<td>{r.Registrant}</td>")
+                  .Append($"<td>{r.RegistrantAssignment}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
+        // ── eCheck Returns table ──────────────────────────────────────
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Returns</h4>");
+        if (ecRows.Count == 0)
+        {
+            sb.Append("<p style='font-size:9px;'>(no eCheck returns this run)</p>");
+        }
+        else
+        {
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>Job</th><th>Original TransId</th><th>Return TransId</th><th>Reason</th><th>Amount Reversed</th><th>Registrant</th><th>Director Notified</th></tr>");
+            for (int i = 0; i < ecRows.Count; i++)
+            {
+                var r = ecRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{r.JobName}</td>")
+                  .Append($"<td>{r.OriginalTxId}</td>")
+                  .Append($"<td>{r.ReturnTxId}</td>")
+                  .Append($"<td>{r.Reason}</td>")
+                  .Append($"<td>{r.AmountReversed:C}</td>")
+                  .Append($"<td>{r.Registrant}</td>")
+                  .Append($"<td>{(r.DirectorNotified ? "yes" : "NO")}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
         return sb.ToString();
     }
 
@@ -493,7 +552,7 @@ public sealed class AdnSweepService : IAdnSweepService
         public int Errored;
     }
 
-    private sealed record DigestRow
+    private sealed record ArbDigestRow
     {
         public required string JobName { get; init; }
         public required string TransId { get; init; }
@@ -506,5 +565,16 @@ public sealed class AdnSweepService : IAdnSweepService
         public required DateTime? NextInstallment { get; init; }
         public required string? Registrant { get; init; }
         public required string? RegistrantAssignment { get; init; }
+    }
+
+    private sealed record EcheckReturnDigestRow
+    {
+        public required string JobName { get; init; }
+        public required string ReturnTxId { get; init; }
+        public required string OriginalTxId { get; init; }
+        public required string Reason { get; init; }
+        public required decimal AmountReversed { get; init; }
+        public required string? Registrant { get; init; }
+        public required bool DirectorNotified { get; init; }
     }
 }

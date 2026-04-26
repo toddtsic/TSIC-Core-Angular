@@ -681,6 +681,7 @@ public class RegistrationRepository : IRegistrationRepository
     public async Task<Registrations?> GetByAdnSubscriptionIdAsync(string adnSubscriptionId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
+            .Include(r => r.Job)
             .FirstOrDefaultAsync(r => r.AdnSubscriptionId == adnSubscriptionId, cancellationToken);
     }
 
