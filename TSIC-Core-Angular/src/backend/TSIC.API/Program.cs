@@ -45,7 +45,6 @@ using TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 using TSIC.API.Services.Shared.Devices;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
-using TSIC.API.Services.Echeck;
 using TSIC.API.Services.Email;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services;
@@ -340,12 +339,6 @@ builder.Services.Configure<VerticalInsureSettings>(builder.Configuration.GetSect
 
 // Authorize.Net settings (sandbox credentials only - production comes from database)
 builder.Services.Configure<AdnSettings>(builder.Configuration.GetSection("AuthorizeNet"));
-
-// eCheck settlement sweep (BackgroundService config; defaults apply if section absent)
-builder.Services.Configure<EcheckSweepOptions>(builder.Configuration.GetSection("EcheckSweep"));
-builder.Services.AddScoped<IEcheckSettlementRepository, EcheckSettlementRepository>();
-builder.Services.AddScoped<IEcheckSweepService, EcheckSweepService>();
-builder.Services.AddHostedService<EcheckSweepBackgroundService>();
 
 // Profile Migration Services
 builder.Services.AddScoped<IGitHubProfileFetcher, GitHubProfileFetcher>();
