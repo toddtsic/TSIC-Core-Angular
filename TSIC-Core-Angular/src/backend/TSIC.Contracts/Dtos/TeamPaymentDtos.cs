@@ -32,6 +32,27 @@ public class TeamPaymentRequestDtoValidator : AbstractValidator<TeamPaymentReque
 }
 
 /// <summary>
+/// eCheck (ACH) counterpart to <see cref="TeamPaymentRequestDto"/>. Same envelope,
+/// swap the credit-card field for bank-account info.
+/// </summary>
+public sealed record TeamEcheckPaymentRequestDto
+{
+    public required List<Guid> TeamIds { get; init; }
+    public required decimal TotalAmount { get; init; }
+    public required BankAccountInfo BankAccount { get; init; }
+}
+
+public class TeamEcheckPaymentRequestDtoValidator : AbstractValidator<TeamEcheckPaymentRequestDto>
+{
+    public TeamEcheckPaymentRequestDtoValidator()
+    {
+        RuleFor(x => x.TeamIds).NotEmpty().WithMessage("At least one team is required for payment");
+        RuleFor(x => x.TotalAmount).GreaterThan(0).WithMessage("Payment amount must be greater than zero");
+        RuleFor(x => x.BankAccount).NotNull().WithMessage("Bank account information is required");
+    }
+}
+
+/// <summary>
 /// Response from team payment processing.
 /// </summary>
 public sealed record TeamPaymentResponseDto

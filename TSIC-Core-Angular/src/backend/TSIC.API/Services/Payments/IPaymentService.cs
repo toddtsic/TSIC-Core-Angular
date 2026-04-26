@@ -27,4 +27,18 @@ public interface IPaymentService
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
         CreditCardInfo creditCard);
+
+    /// <summary>
+    /// eCheck (ACH) counterpart to <see cref="ProcessTeamPaymentAsync"/>. Charges each
+    /// team as a separate Authorize.Net debit (per-team invoice for refundability),
+    /// writes one RegistrationAccounting + Settlement (status Pending) per successful
+    /// debit. Job-level BEnableEcheck must be on; the per-team processing-fee credit
+    /// (CC_rate − EC_rate) is applied before the gateway call.
+    /// </summary>
+    Task<TeamPaymentResponseDto> ProcessTeamEcheckPaymentAsync(
+        Guid regId,
+        string userId,
+        IReadOnlyCollection<Guid> teamIds,
+        decimal totalAmount,
+        BankAccountInfo bankAccount);
 }

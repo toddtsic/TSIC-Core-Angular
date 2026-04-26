@@ -88,6 +88,35 @@ public class PlayerRegistrationPaymentController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Submit a player-side eCheck (ACH) payment. Settlement pending (typically 3–5 business days).
+    /// </summary>
+    [HttpPost("submit-echeck")]
+    [Authorize]
+    [ProducesResponseType(typeof(PaymentResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> SubmitEcheckPayment([FromBody] PaymentRequestDto request)
+    {
+        _logger.LogInformation("SubmitEcheckPayment invoked: jobPath={JobPath} option={Option}", request?.JobPath, request?.PaymentOption);
+        if (request == null || request.BankAccount == null || string.IsNullOrWhiteSpace(request.JobPath))
+        {
+            return BadRequest(new { message = "Invalid eCheck payment request" });
+        }
+
+        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(familyUserId)) return Unauthorized();
+
+        var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
+        if (jobId is null)
+            return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        var result = await _paymentService.ProcessEcheckPaymentAsync(jobId.Value, familyUserId, request, familyUserId);
+        _logger.LogInformation("SubmitEcheckPayment completed: success={Success} errorCode={ErrorCode} txn={Txn}", result.Success, result.ErrorCode, result.TransactionId);
+        // Mirror SubmitPayment: always 200 with structured DTO so UI surfaces gateway errors as messages.
+        return Ok(result);
+    }
+
     [HttpPost("apply-discount")]
     [Authorize]
     [ProducesResponseType(typeof(ApplyDiscountResponseDto), 200)]

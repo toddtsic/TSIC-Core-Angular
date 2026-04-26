@@ -242,6 +242,177 @@ public class PaymentService : IPaymentService
         }
     }
 
+    public async Task<TeamPaymentResponseDto> ProcessTeamEcheckPaymentAsync(
+        Guid regId,
+        string userId,
+        IReadOnlyCollection<Guid> teamIds,
+        decimal totalAmount,
+        BankAccountInfo bankAccount)
+    {
+        var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
+        if (jobId == null)
+            return new TeamPaymentResponseDto { Success = false, Error = "REG_NOT_FOUND", Message = "Registration not found" };
+        var jobIdValue = jobId.Value;
+
+        // Per-job opt-in for eCheck.
+        var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobIdValue);
+        if (jobPaymentInfo == null)
+            return new TeamPaymentResponseDto { Success = false, Error = "INVALID_JOB", Message = "Invalid job" };
+        if (!jobPaymentInfo.BEnableEcheck)
+            return new TeamPaymentResponseDto { Success = false, Error = "ECHECK_NOT_ENABLED", Message = "eCheck payments are not enabled for this job." };
+
+        var (bankErr, bankCode) = NormalizeAndValidateBankAccount(bankAccount);
+        if (bankErr != null)
+            return new TeamPaymentResponseDto { Success = false, Error = bankCode, Message = bankErr };
+
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobIdValue);
+        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+            return new TeamPaymentResponseDto { Success = false, Error = "MISSING_GATEWAY_CREDS", Message = "Payment gateway credentials not configured" };
+        var env = _adnApiService.GetADNEnvironment();
+
+        var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
+        if (teams.Count != teamIds.Count)
+            return new TeamPaymentResponseDto { Success = false, Error = "TEAM_NOT_FOUND", Message = "One or more teams not found" };
+
+        var perTeamAmount = totalAmount / teamIds.Count;
+        var last4 = bankAccount.AccountNumber!.Length >= 4 ? bankAccount.AccountNumber[^4..] : bankAccount.AccountNumber;
+        var nameOnAcct = bankAccount.NameOnAccount?.Trim();
+        string? firstTransactionId = null;
+        var failedCount = 0;
+        var pendingSettlements = new List<(RegistrationAccounting Ra, string TxId)>();
+
+        foreach (var team in teams)
+        {
+            var invoiceNumber = $"{team.Job.Customer.CustomerAi}_{team.Job.JobAi}_{team.TeamAi}";
+            if (invoiceNumber.Length > 20) invoiceNumber = $"{team.Job.JobAi}_{team.TeamAi}";
+            if (invoiceNumber.Length > 20) invoiceNumber = team.TeamAi.ToString();
+
+            var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
+
+            // Apply (CC − EC) processing-fee credit BEFORE the debit so the recorded eCheck
+            // amount matches the team's now-reduced obligation. Mirrors the player path.
+            await _feeAdj.ReduceTeamProcessingFeeForEcheckAsync(team, perTeamAmount, jobIdValue, userId);
+
+            var adnResponse = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+            {
+                Env = env,
+                LoginId = credentials.AdnLoginId!,
+                TransactionKey = credentials.AdnTransactionKey!,
+                AccountType = bankAccount.AccountType!,
+                RoutingNumber = bankAccount.RoutingNumber!,
+                AccountNumber = bankAccount.AccountNumber!,
+                NameOnAccount = nameOnAcct!,
+                FirstName = bankAccount.FirstName!,
+                LastName = bankAccount.LastName!,
+                Address = bankAccount.Address!,
+                Zip = bankAccount.Zip!,
+                Email = bankAccount.Email!,
+                Phone = bankAccount.Phone!,
+                Amount = perTeamAmount,
+                InvoiceNumber = invoiceNumber,
+                Description = description
+            });
+
+            if (adnResponse?.messages?.resultCode == messageTypeEnum.Ok
+                && adnResponse.transactionResponse?.messages != null
+                && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId))
+            {
+                var transId = adnResponse.transactionResponse.transId;
+                firstTransactionId ??= transId;
+
+                var ra = new RegistrationAccounting
+                {
+                    RegistrationId = regId,
+                    TeamId = team.TeamId,
+                    Payamt = perTeamAmount,
+                    Dueamt = perTeamAmount,
+                    Paymeth = $"eCheck pending settlement: {perTeamAmount:C} of {totalAmount:C} on {DateTime.Now:G} txID: {transId}",
+                    PaymentMethodId = EcheckPaymentMethodId,
+                    Active = true,
+                    Createdate = DateTime.Now,
+                    Modified = DateTime.Now,
+                    LebUserId = userId,
+                    AdnTransactionId = transId,
+                    AdnInvoiceNo = invoiceNumber,
+                    Comment = description
+                };
+                _acct.Add(ra);
+                pendingSettlements.Add((ra, transId));
+
+                team.PaidTotal += perTeamAmount;
+                team.OwedTotal -= perTeamAmount;
+                if (team.PaidTotal > team.FeeTotal)
+                {
+                    team.OwedTotal = 0;
+                    team.FeeTotal = team.PaidTotal;
+                }
+                team.Modified = DateTime.Now;
+                team.LebUserId = userId;
+
+                _logger.LogInformation("Team eCheck submitted: Team={TeamId} Amount={Amount} TransId={TransId}",
+                    team.TeamId, perTeamAmount, transId);
+            }
+            else
+            {
+                failedCount++;
+                var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                    ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
+                    ?? "Gateway transaction failed";
+                _logger.LogWarning("Team eCheck failed: Team={TeamId} Error={Error}", team.TeamId, errMsg);
+            }
+        }
+
+        if (failedCount < teams.Count)
+        {
+            await _teams.SaveChangesAsync();
+            await _acct.SaveChangesAsync();
+            // Settlement.RegistrationAccountingId is the identity-generated AId on RA;
+            // requires the RA inserts above to be saved first.
+            var nextCheckAt = DateTime.UtcNow.AddDays(1);
+            foreach (var (ra, txId) in pendingSettlements)
+            {
+                _settleRepo.Add(new Settlement
+                {
+                    SettlementId = Guid.NewGuid(),
+                    RegistrationAccountingId = ra.AId,
+                    AdnTransactionId = txId,
+                    Status = "Pending",
+                    SubmittedAt = DateTime.UtcNow,
+                    NextCheckAt = nextCheckAt,
+                    AccountLast4 = last4,
+                    AccountType = bankAccount.AccountType,
+                    NameOnAccount = nameOnAcct,
+                    Modified = DateTime.UtcNow,
+                    LebUserId = userId
+                });
+            }
+            await _settleRepo.SaveChangesAsync();
+            await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
+        }
+
+        if (failedCount == 0)
+            return new TeamPaymentResponseDto
+            {
+                Success = true,
+                Message = $"{teamIds.Count} team eCheck submission(s) accepted; settlement pending (typically 3–5 business days).",
+                TransactionId = firstTransactionId
+            };
+        if (failedCount < teams.Count)
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Error = "PARTIAL_SUCCESS",
+                Message = $"{teams.Count - failedCount} of {teamIds.Count} team eCheck submission(s) accepted; rest failed.",
+                TransactionId = firstTransactionId
+            };
+        return new TeamPaymentResponseDto
+        {
+            Success = false,
+            Error = "ALL_FAILED",
+            Message = "All team eCheck submissions failed"
+        };
+    }
+
     /// <summary>
     /// Overload that accepts jobId and familyUserId extracted from JWT claims.
     /// Creates a temporary request with these values to delegate to existing validation logic.
@@ -318,7 +489,18 @@ public class PaymentService : IPaymentService
         if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
         if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
         var bank = request.BankAccount;
-        if (bank == null) return (Fail("Bank account required", "BANK_REQUIRED"), null, null, null);
+        var (bankErr, bankCode) = NormalizeAndValidateBankAccount(bank);
+        if (bankErr != null) return (Fail(bankErr, bankCode!), null, null, null);
+        return (null, job, registrations, bank);
+    }
+
+    /// <summary>
+    /// Sanitize-in-place + validate a customer-supplied bank account. Used by both player
+    /// and team eCheck paths. Returns null Error on success.
+    /// </summary>
+    private static (string? Error, string? Code) NormalizeAndValidateBankAccount(BankAccountInfo? bank)
+    {
+        if (bank == null) return ("Bank account required", "BANK_REQUIRED");
         var fields = new (string Name, string? Value)[]
         {
             ("accountType", bank.AccountType), ("routingNumber", bank.RoutingNumber), ("accountNumber", bank.AccountNumber),
@@ -326,19 +508,20 @@ public class PaymentService : IPaymentService
             ("address", bank.Address), ("zip", bank.Zip), ("email", bank.Email), ("phone", bank.Phone)
         };
         var missing = fields.Where(f => string.IsNullOrWhiteSpace(f.Value)).Select(f => f.Name).ToList();
-        if (missing.Count > 0) return (Fail("Missing bank field(s): " + string.Join(", ", missing), "BANK_FIELDS_MISSING"), null, null, null);
+        if (missing.Count > 0) return ("Missing bank field(s): " + string.Join(", ", missing), "BANK_FIELDS_MISSING");
         var atype = bank.AccountType!.Trim().ToLowerInvariant();
-        if (atype is not ("checking" or "savings" or "businesschecking")) return (Fail("Invalid account type (checking, savings, or businessChecking).", "BANK_TYPE_INVALID"), null, null, null);
+        if (atype is not ("checking" or "savings" or "businesschecking"))
+            return ("Invalid account type (checking, savings, or businessChecking).", "BANK_TYPE_INVALID");
         bank.RoutingNumber = new string((bank.RoutingNumber ?? "").Where(char.IsDigit).ToArray());
-        if (bank.RoutingNumber.Length != 9) return (Fail("Routing number must be 9 digits.", "BANK_ROUTING_INVALID"), null, null, null);
+        if (bank.RoutingNumber.Length != 9) return ("Routing number must be 9 digits.", "BANK_ROUTING_INVALID");
         bank.AccountNumber = new string((bank.AccountNumber ?? "").Where(char.IsLetterOrDigit).ToArray());
-        if (bank.AccountNumber.Length is < 4 or > 17) return (Fail("Account number must be 4–17 characters.", "BANK_ACCOUNT_INVALID"), null, null, null);
-        if (bank.NameOnAccount!.Trim().Length > 22) return (Fail("Name on account exceeds 22 characters.", "BANK_NAME_INVALID"), null, null, null);
+        if (bank.AccountNumber.Length is < 4 or > 17) return ("Account number must be 4–17 characters.", "BANK_ACCOUNT_INVALID");
+        if (bank.NameOnAccount!.Trim().Length > 22) return ("Name on account exceeds 22 characters.", "BANK_NAME_INVALID");
         bank.Phone = new string((bank.Phone ?? "").Where(char.IsDigit).ToArray());
-        if (string.IsNullOrWhiteSpace(bank.Phone)) return (Fail("Invalid phone (digits required).", "BANK_PHONE_INVALID"), null, null, null);
+        if (string.IsNullOrWhiteSpace(bank.Phone)) return ("Invalid phone (digits required).", "BANK_PHONE_INVALID");
         if (string.IsNullOrWhiteSpace(bank.Email) || !bank.Email.Contains('@') || !bank.Email.Contains('.'))
-            return (Fail("Invalid email format.", "BANK_EMAIL_INVALID"), null, null, null);
-        return (null, job, registrations, bank);
+            return ("Invalid email format.", "BANK_EMAIL_INVALID");
+        return (null, null);
     }
 
     private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges, decimal total)

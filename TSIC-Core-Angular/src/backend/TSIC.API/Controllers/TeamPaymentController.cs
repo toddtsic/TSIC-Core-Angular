@@ -76,4 +76,49 @@ public class TeamPaymentController : ControllerBase
             return StatusCode(500, new { Message = "An error occurred while processing payment" });
         }
     }
+
+    /// <summary>
+    /// Process team registration payment via eCheck (ACH).
+    /// Per-team gateway call; settlement pending (typically 3–5 business days).
+    /// </summary>
+    [HttpPost("process-echeck")]
+    [ProducesResponseType(typeof(TeamPaymentResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> ProcessTeamEcheckPayment([FromBody] TeamEcheckPaymentRequestDto request)
+    {
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        }
+
+        try
+        {
+            var response = await _paymentService.ProcessTeamEcheckPaymentAsync(
+                regId,
+                userId,
+                request.TeamIds,
+                request.TotalAmount,
+                request.BankAccount);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to process team eCheck for user {UserId}, regId {RegId}", userId, regId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing team eCheck for user {UserId}, regId {RegId}", userId, regId);
+            return StatusCode(500, new { Message = "An error occurred while processing eCheck payment" });
+        }
+    }
 }
