@@ -10,7 +10,7 @@ export interface TeamPaymentSummary {
     transactionId?: string;
     viPolicyNumbers?: Record<string, string>; // teamId -> policyNumber
     message?: string | null;
-    paymentMethod?: 'CC' | 'Check';
+    paymentMethod?: 'CC' | 'Echeck' | 'Check';
 }
 
 @Injectable({ providedIn: 'root' })

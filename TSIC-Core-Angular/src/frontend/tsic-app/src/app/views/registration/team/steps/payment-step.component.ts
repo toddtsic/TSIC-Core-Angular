@@ -10,8 +10,11 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
 import { IdempotencyService } from '@views/registration/shared/services/idempotency.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
+import { BankAccountFormComponent } from '@views/registration/shared/components/bank-account-form.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
+import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
+import type { BankAccountInfo, TeamEcheckPaymentRequestDto } from '@core/api';
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 
@@ -23,7 +26,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 @Component({
     selector: 'app-trw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, FormsModule, CreditCardFormComponent, RegisteredTeamsGridComponent],
+    imports: [CurrencyPipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, RegisteredTeamsGridComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -96,21 +99,32 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             }
           }
 
-          <!-- ═══ PAYMENT METHOD SELECTOR (CC or Check) ═══ -->
+          <!-- ═══ PAYMENT METHOD SELECTOR (CC, eCheck, Check) ═══ -->
           @if (showMethodSelector()) {
             <div class="method-selector mb-3">
               <label class="form-label fw-semibold mb-2">Payment Method</label>
-              <div class="d-flex gap-2">
-                <button type="button" class="method-btn"
-                        [class.active]="isCc()"
-                        (click)="selectMethod('CC')">
-                  <i class="bi bi-credit-card me-2"></i>Credit Card
-                </button>
-                <button type="button" class="method-btn"
-                        [class.active]="isCheck()"
-                        (click)="selectMethod('Check')">
-                  <i class="bi bi-envelope-paper me-2"></i>Pay by Check
-                </button>
+              <div class="d-flex gap-2 flex-wrap">
+                @if (showCcButton()) {
+                  <button type="button" class="method-btn"
+                          [class.active]="isCc()"
+                          (click)="selectMethod('CC')">
+                    <i class="bi bi-credit-card me-2"></i>Credit Card
+                  </button>
+                }
+                @if (showEcheckButton()) {
+                  <button type="button" class="method-btn"
+                          [class.active]="isEcheck()"
+                          (click)="selectMethod('Echeck')">
+                    <i class="bi bi-bank me-2"></i>eCheck (ACH)
+                  </button>
+                }
+                @if (showCheckButton()) {
+                  <button type="button" class="method-btn"
+                          [class.active]="isCheck()"
+                          (click)="selectMethod('Check')">
+                    <i class="bi bi-envelope-paper me-2"></i>Pay by Check
+                  </button>
+                }
               </div>
             </div>
           }
@@ -144,6 +158,28 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     (click)="submit()"
                     [disabled]="!canSubmitCc()">
               {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' Now' }}
+            </button>
+          }
+
+          <!-- ═══ BANK ACCOUNT (eCheck) FORM ═══ -->
+          @if (isEcheck()) {
+            <section class="p-3 p-sm-4 mb-3 rounded-3"
+                     style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+              <app-bank-account-form
+                [defaultFirstName]="clubRepContact()?.firstName ?? null"
+                [defaultLastName]="clubRepContact()?.lastName ?? null"
+                [defaultAddress]="clubRepContact()?.streetAddress ?? null"
+                [defaultZip]="clubRepContact()?.postalCode ?? null"
+                [defaultEmail]="clubRepContact()?.email ?? null"
+                [defaultPhone]="clubRepContact()?.cellphone ?? clubRepContact()?.phone ?? null"
+                (validChange)="onBaValidChange($event)"
+                (valueChange)="onBaValueChange($event)" />
+            </section>
+
+            <button type="button" class="btn btn-primary"
+                    (click)="submitEcheck()"
+                    [disabled]="!canSubmitEcheck()">
+              {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' by eCheck' }}
             </button>
           }
 
@@ -277,6 +313,11 @@ export class TeamPaymentStepV2Component {
         firstName: '', lastName: '', address: '', zip: '', email: '', phone: '',
     });
     readonly ccValid = signal(false);
+    private readonly _bankAccount = signal<Record<string, string>>({
+        accountType: '', routingNumber: '', accountNumber: '', nameOnAccount: '',
+        firstName: '', lastName: '', address: '', zip: '', email: '', phone: '',
+    });
+    readonly bankAccountValid = signal(false);
     readonly submitting = signal(false);
     readonly lastError = signal<string | null>(null);
     readonly discountCode = signal('');
@@ -291,7 +332,11 @@ export class TeamPaymentStepV2Component {
     readonly allowsCc = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() !== 3);
     readonly allowsCheck = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() >= 2);
     readonly showMethodSelector = computed(() => this.state.teamPayment.showPaymentMethodSelector());
+    readonly showCcButton = computed(() => this.state.teamPayment.showCcButton());
+    readonly showEcheckButton = computed(() => this.state.teamPayment.showEcheckButton());
+    readonly showCheckButton = computed(() => this.state.teamPayment.showCheckButton());
     readonly isCc = computed(() => this.state.teamPayment.isCcPayment());
+    readonly isEcheck = computed(() => this.state.teamPayment.isEcheckPayment());
     readonly isCheck = computed(() => this.state.teamPayment.isCheckPayment());
     readonly processingFeeSavings = computed(() => this.state.teamPayment.processingFeeSavings());
     readonly checkAmount = computed(() => this.state.teamPayment.totalCkOwed());
@@ -318,7 +363,11 @@ export class TeamPaymentStepV2Component {
         this.hasBalance() && this.ccValid() && !this.submitting(),
     );
 
-    selectMethod(method: 'CC' | 'Check'): void {
+    readonly canSubmitEcheck = computed(() =>
+        this.hasBalance() && this.bankAccountValid() && !this.submitting(),
+    );
+
+    selectMethod(method: 'CC' | 'Echeck' | 'Check'): void {
         this.state.teamPayment.selectPaymentMethod(method);
         this.lastError.set(null);
     }
@@ -326,6 +375,11 @@ export class TeamPaymentStepV2Component {
     onCcValidChange(valid: boolean): void { this.ccValid.set(!!valid); }
     onCcValueChange(val: Partial<CreditCardFormValue>): void {
         this._creditCard.update(c => ({ ...c, ...val }));
+    }
+
+    onBaValidChange(valid: boolean): void { this.bankAccountValid.set(!!valid); }
+    onBaValueChange(val: Record<string, string>): void {
+        this._bankAccount.update(b => ({ ...b, ...val }));
     }
 
     applyDiscount(): void {
@@ -395,6 +449,71 @@ export class TeamPaymentStepV2Component {
                     } else {
                         this.lastError.set(resp?.message || 'Payment failed.');
                         this.toast.show(resp?.message || 'Payment failed.', 'danger', 6000);
+                    }
+                },
+                error: (err: HttpErrorResponse) => {
+                    this.submitting.set(false);
+                    const msg = (err.error && typeof err.error === 'object')
+                        ? (err.error.message || JSON.stringify(err.error))
+                        : (err.message || 'Network error');
+                    this.lastError.set(msg);
+                    this.toast.show(msg, 'danger', 6000);
+                },
+            });
+    }
+
+    submitEcheck(): void {
+        if (this.submitting()) return;
+        if (!this.canSubmitEcheck()) {
+            this.toast.show('Bank account form is invalid.', 'danger', 3000);
+            return;
+        }
+        this.submitting.set(true);
+        this.lastError.set(null);
+
+        if (!this.lastIdemKey) {
+            this.lastIdemKey = crypto?.randomUUID
+                ? crypto.randomUUID()
+                : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+        }
+
+        const ba = this._bankAccount();
+        const bankAccount: BankAccountInfo = {
+            accountType: (ba['accountType'] || '').trim() || null,
+            routingNumber: sanitizeRouting(ba['routingNumber']),
+            accountNumber: sanitizeAccount(ba['accountNumber']),
+            nameOnAccount: sanitizeNameOnAccount(ba['nameOnAccount']) || null,
+            firstName: ba['firstName']?.trim() || null,
+            lastName: ba['lastName']?.trim() || null,
+            address: ba['address']?.trim() || null,
+            zip: ba['zip']?.trim() || null,
+            email: ba['email']?.trim() || null,
+            phone: sanitizePhone(ba['phone']),
+        };
+        const teamIds = this.state.teamPayment.teamIdsWithBalance();
+        const request: TeamEcheckPaymentRequestDto = {
+            teamIds,
+            totalAmount: this.balanceDue(),
+            bankAccount,
+        };
+
+        this.state.teamPayment.submitEcheckPayment(request as unknown as Record<string, unknown>)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: resp => {
+                    this.submitting.set(false);
+                    if (resp?.success) {
+                        this.lastIdemKey = null;
+                        this.state.teamPaymentState.setLastPayment({
+                            transactionId: resp.transactionId || undefined,
+                            amount: this.balanceDue(),
+                            message: resp.message || 'eCheck submitted — pending settlement',
+                            paymentMethod: 'Echeck',
+                        });
+                        this.submitted.emit();
+                    } else {
+                        this.lastError.set(resp?.message || 'eCheck submission failed.');
+                        this.toast.show(resp?.message || 'eCheck submission failed.', 'danger', 6000);
                     }
                 },
                 error: (err: HttpErrorResponse) => {

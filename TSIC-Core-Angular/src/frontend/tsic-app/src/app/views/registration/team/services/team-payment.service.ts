@@ -37,8 +37,10 @@ export class TeamPaymentService {
     private readonly _paymentMethodsAllowedCode = signal<number>(1);
     private readonly _bAddProcessingFees = signal<boolean>(false);
     private readonly _bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
+    /** Per-job opt-in for eCheck (ACH). Independent of paymentMethodsAllowedCode. */
+    private readonly _bEnableEcheck = signal<boolean>(false);
     private readonly _jobPath = signal<string>('');
-    private readonly _selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
+    private readonly _selectedPaymentMethod = signal<'CC' | 'Echeck' | 'Check'>('CC');
     private readonly _payTo = signal<string | null>(null);
     private readonly _mailTo = signal<string | null>(null);
     private readonly _mailinPaymentWarning = signal<string | null>(null);
@@ -50,6 +52,7 @@ export class TeamPaymentService {
     readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
     readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
     readonly bApplyProcessingFeesToTeamDeposit = this._bApplyProcessingFeesToTeamDeposit.asReadonly();
+    readonly bEnableEcheck = this._bEnableEcheck.asReadonly();
     readonly jobPath = this._jobPath.asReadonly();
     readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
     readonly payTo = this._payTo.asReadonly();
@@ -66,18 +69,20 @@ export class TeamPaymentService {
     // Controlled mutators
     setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }
     setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean,
-        payTo?: string | null, mailTo?: string | null, mailinPaymentWarning?: string | null): void {
+        payTo?: string | null, mailTo?: string | null, mailinPaymentWarning?: string | null,
+        enableEcheck = false): void {
         this._paymentMethodsAllowedCode.set(code);
         this._bAddProcessingFees.set(addFees);
         this._bApplyProcessingFeesToTeamDeposit.set(applyToDeposit);
         this._payTo.set(payTo ?? null);
         this._mailTo.set(mailTo ?? null);
         this._mailinPaymentWarning.set(mailinPaymentWarning ?? null);
+        this._bEnableEcheck.set(enableEcheck);
         // Default to Check if check-only
         if (code === 3) this._selectedPaymentMethod.set('Check');
     }
     setJobPath(value: string): void { this._jobPath.set(value); }
-    selectPaymentMethod(method: 'CC' | 'Check'): void { this._selectedPaymentMethod.set(method); }
+    selectPaymentMethod(method: 'CC' | 'Echeck' | 'Check'): void { this._selectedPaymentMethod.set(method); }
 
     // Line items for all registered teams
     lineItems = computed<TeamLineItem[]>(() => {
@@ -113,7 +118,10 @@ export class TeamPaymentService {
     totalCcOwed = computed(() => this.lineItems().reduce((sum, item) => sum + item.ccOwedTotal, 0));
     totalCkOwed = computed(() => this.lineItems().reduce((sum, item) => sum + item.ckOwedTotal, 0));
 
-    // Amount to charge based on selected payment method
+    // Amount to charge based on selected payment method.
+    // CC and eCheck both incur processing fees (eCheck at the lower EC rate, applied
+    // server-side as a (CC − EC) credit before the debit), so we charge the CC owed
+    // total in both cases here. Check uses the no-processing-fee owed total.
     amountToCharge = computed(() =>
         this.selectedPaymentMethod() === 'Check' ? this.totalCkOwed() : this.totalCcOwed()
     );
@@ -134,10 +142,19 @@ export class TeamPaymentService {
     // Payment method state
     isCheckPayment = computed(() => this.selectedPaymentMethod() === 'Check');
     isCcPayment = computed(() => this.selectedPaymentMethod() === 'CC');
+    isEcheckPayment = computed(() => this.selectedPaymentMethod() === 'Echeck');
     isCheckOnly = computed(() => this.paymentMethodsAllowedCode() === 3);
 
-    // Column visibility flags
-    showPaymentMethodSelector = computed(() => this.paymentMethodsAllowedCode() === 2);
+    // Method visibility — eCheck is gated by per-job opt-in AND requires online payments.
+    showCcButton = computed(() => this.paymentMethodsAllowedCode() !== 3);
+    showEcheckButton = computed(() => this.bEnableEcheck() && this.paymentMethodsAllowedCode() !== 3);
+    showCheckButton = computed(() => this.paymentMethodsAllowedCode() !== 1);
+
+    // Column visibility flags. Selector appears when more than one method is available
+    // (eCheck adds a second option even on CC-only jobs).
+    showPaymentMethodSelector = computed(() =>
+        (this.showCcButton() ? 1 : 0) + (this.showEcheckButton() ? 1 : 0) + (this.showCheckButton() ? 1 : 0) >= 2
+    );
     showFeeProcessingColumn = computed(() => this.bAddProcessingFees());
     showCcOwedColumn = computed(() => this.paymentMethodsAllowedCode() !== 3); // Hide if Check only
     showCkOwedColumn = computed(() =>
@@ -219,11 +236,20 @@ export class TeamPaymentService {
         );
     }
 
+    /** eCheck (ACH) sibling of submitPayment — posts to /team-payment/process-echeck. */
+    submitEcheckPayment(request: Record<string, unknown>): Observable<TeamPaymentResponseDto> {
+        return this.http.post<TeamPaymentResponseDto>(
+            `${environment.apiUrl}/team-payment/process-echeck`,
+            request
+        );
+    }
+
     reset(): void {
         this._teams.set([]);
         this._paymentMethodsAllowedCode.set(1);
         this._bAddProcessingFees.set(false);
         this._bApplyProcessingFeesToTeamDeposit.set(false);
+        this._bEnableEcheck.set(false);
         this._selectedPaymentMethod.set('CC');
         this._jobPath.set('');
         this._payTo.set(null);

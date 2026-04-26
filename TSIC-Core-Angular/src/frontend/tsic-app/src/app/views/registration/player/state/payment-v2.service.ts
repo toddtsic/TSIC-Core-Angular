@@ -52,7 +52,7 @@ export class PaymentV2Service {
     private readonly _discountMessage = signal<string | null>(null);
     private readonly _discountApplying = signal(false);
     private readonly _discountAppliedOk = signal(false);
-    private readonly _selectedPaymentMethod = signal<'CC' | 'Check'>('CC');
+    private readonly _selectedPaymentMethod = signal<'CC' | 'Echeck' | 'Check'>('CC');
 
     readonly discountMessage = this._discountMessage.asReadonly();
     readonly discountApplying = this._discountApplying.asReadonly();
@@ -180,11 +180,18 @@ export class PaymentV2Service {
 
     monthLabel(): string { return this.arbIntervalLength() === 1 ? 'month' : 'months'; }
 
-    // ── Payment method (CC vs Check) ────────────────────────────────────
+    // ── Payment method (CC vs eCheck vs Check) ───────────────────────────
     isCheckOnly = computed(() => this.jobCtx.paymentMethodsAllowedCode() === 3);
-    showPaymentMethodSelector = computed(() => this.jobCtx.paymentMethodsAllowedCode() === 2);
     isCheckPayment = computed(() => this._selectedPaymentMethod() === 'Check');
     isCcPayment = computed(() => this._selectedPaymentMethod() === 'CC');
+    isEcheckPayment = computed(() => this._selectedPaymentMethod() === 'Echeck');
+    // Method visibility — eCheck is gated by the per-job opt-in AND requires online payments.
+    showCcButton = computed(() => this.jobCtx.paymentMethodsAllowedCode() !== 3);
+    showEcheckButton = computed(() => this.jobCtx.bEnableEcheck() && this.jobCtx.paymentMethodsAllowedCode() !== 3);
+    showCheckButton = computed(() => this.jobCtx.paymentMethodsAllowedCode() !== 1);
+    showPaymentMethodSelector = computed(() =>
+        (this.showCcButton() ? 1 : 0) + (this.showEcheckButton() ? 1 : 0) + (this.showCheckButton() ? 1 : 0) >= 2
+    );
     payTo = computed(() => this.jobCtx.payTo());
     mailTo = computed(() => this.jobCtx.mailTo());
     mailinPaymentWarning = computed(() => this.jobCtx.mailinPaymentWarning());
@@ -209,7 +216,7 @@ export class PaymentV2Service {
     /** Check payment amount (total minus processing fees). */
     checkTotal = computed(() => Math.max(0, this.currentTotal() - this.processingFeeSavings()));
 
-    selectPaymentMethod(method: 'CC' | 'Check'): void {
+    selectPaymentMethod(method: 'CC' | 'Echeck' | 'Check'): void {
         this._selectedPaymentMethod.set(method);
     }
 
@@ -437,5 +444,10 @@ export class PaymentV2Service {
 
     submitPayment(request: PaymentRequestDto): Observable<PaymentResponseDto> {
         return this.http.post<PaymentResponseDto>(`${environment.apiUrl}/player-registration/submit-payment`, request);
+    }
+
+    /** eCheck (ACH) sibling of submitPayment — posts to /player-registration/submit-echeck. */
+    submitEcheckPayment(request: PaymentRequestDto): Observable<PaymentResponseDto> {
+        return this.http.post<PaymentResponseDto>(`${environment.apiUrl}/player-registration/submit-echeck`, request);
     }
 }

@@ -14,11 +14,13 @@ import { InsuranceV2Service } from '../state/insurance-v2.service';
 import { JobContextService } from '../state/job-context.service';
 import { IdempotencyService } from '@views/registration/shared/services/idempotency.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
+import { BankAccountFormComponent } from '@views/registration/shared/components/bank-account-form.component';
 import { ViChargeConfirmModalComponent } from '@views/registration/shared/components/vi-charge-confirm-modal.component';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
-import type { PaymentResponseDto, PaymentRequestDto } from '@core/api';
+import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
+import type { BankAccountInfo, PaymentResponseDto, PaymentRequestDto } from '@core/api';
 import type { VIOfferData, CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import type { LineItem } from '../state/payment-v2.service';
 
@@ -29,7 +31,7 @@ import type { LineItem } from '../state/payment-v2.service';
 @Component({
     selector: 'app-prw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, ViChargeConfirmModalComponent, InfoTooltipComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, InfoTooltipComponent],
     template: `
     <!-- Centered hero -->
     <div class="welcome-hero">
@@ -349,21 +351,32 @@ import type { LineItem } from '../state/payment-v2.service';
           }
         }
 
-        <!-- ═══ PAYMENT METHOD SELECTOR (CC or Check) ═══ -->
+        <!-- ═══ PAYMENT METHOD SELECTOR (CC, eCheck, Check) ═══ -->
         @if (showMethodSelector()) {
           <div class="method-selector mb-3">
             <label class="form-label fw-semibold mb-2">Payment Method</label>
-            <div class="d-flex gap-2">
-              <button type="button" class="method-btn"
-                      [class.active]="isCc()"
-                      (click)="selectMethod('CC')">
-                <i class="bi bi-credit-card me-2"></i>Credit Card
-              </button>
-              <button type="button" class="method-btn"
-                      [class.active]="isCheck()"
-                      (click)="selectMethod('Check')">
-                <i class="bi bi-envelope-paper me-2"></i>Pay by Check
-              </button>
+            <div class="d-flex gap-2 flex-wrap">
+              @if (paySvc.showCcButton()) {
+                <button type="button" class="method-btn"
+                        [class.active]="isCc()"
+                        (click)="selectMethod('CC')">
+                  <i class="bi bi-credit-card me-2"></i>Credit Card
+                </button>
+              }
+              @if (paySvc.showEcheckButton()) {
+                <button type="button" class="method-btn"
+                        [class.active]="isEcheck()"
+                        (click)="selectMethod('Echeck')">
+                  <i class="bi bi-bank me-2"></i>eCheck (ACH)
+                </button>
+              }
+              @if (paySvc.showCheckButton()) {
+                <button type="button" class="method-btn"
+                        [class.active]="isCheck()"
+                        (click)="selectMethod('Check')">
+                  <i class="bi bi-envelope-paper me-2"></i>Pay by Check
+                </button>
+              }
             </div>
           </div>
         }
@@ -398,6 +411,19 @@ import type { LineItem } from '../state/payment-v2.service';
             (validChange)="onCcValidChange($event)"
             (valueChange)="onCcValueChange($event)"
             [viOnly]="isViCcOnlyFlow() || isViCheckHybridFlow()"
+            [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
+            [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
+            [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"
+            [defaultZip]="familyUser()?.zipCode ?? familyUser()?.zip ?? familyUser()?.ccInfo?.zip ?? null"
+            [defaultEmail]="familyUser()?.ccInfo?.email ?? familyUser()?.email ?? (familyUser()?.userName?.includes('@') ? familyUser()!.userName : null)"
+            [defaultPhone]="familyUser()?.ccInfo?.phone ?? familyUser()?.phone ?? null" />
+        }
+
+        <!-- ═══ BANK ACCOUNT (eCheck) FORM ═══ -->
+        @if (showEcheckSection()) {
+          <app-bank-account-form
+            (validChange)="onBaValidChange($event)"
+            (valueChange)="onBaValueChange($event)"
             [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
             [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
             [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"
@@ -465,6 +491,17 @@ import type { LineItem } from '../state/payment-v2.service';
                 <i class="bi bi-lock-fill me-2"></i>Start Recurring Billing &middot; {{ paySvc.arbOccurrences() }} × {{ paySvc.arbPerOccurrence() | currency }}
               } @else {
                 <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
+              }
+            </button>
+          }
+          @if (showEcheckSubmitButton()) {
+            <button type="button" class="btn btn-primary w-100"
+                    (click)="submitEcheck()"
+                    [disabled]="!canSubmitEcheck() || submitting()">
+              @if (submitting()) {
+                <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+              } @else {
+                <i class="bi bi-bank me-2"></i>Pay {{ currentTotal() | currency }} by eCheck
               }
             </button>
           }
@@ -710,6 +747,11 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     readonly creditCard = this._creditCard.asReadonly();
     readonly ccValid = signal(false);
+    private readonly _bankAccount = signal<Record<string, string>>({
+        accountType: '', routingNumber: '', accountNumber: '', nameOnAccount: '',
+        firstName: '', lastName: '', address: '', zip: '', email: '', phone: '',
+    });
+    readonly bankAccountValid = signal(false);
     readonly submitting = signal(false);
     readonly lastError = signal<{ message: string | null; errorCode: string | null } | null>(null);
     readonly showViChargeConfirm = signal(false);
@@ -758,14 +800,17 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     );
 
     readonly showPayNowButton = computed(() => this.tsicChargeDueNow() && this.paySvc.isCcPayment());
+    readonly showEcheckSubmitButton = computed(() => this.tsicChargeDueNow() && this.paySvc.isEcheckPayment());
     readonly showCcSection = computed(() =>
         (this.tsicChargeDueNow() && this.paySvc.isCcPayment())
         || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0),
     );
+    readonly showEcheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isEcheckPayment());
     readonly showCheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isCheckPayment());
     readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow());
     readonly showMethodSelector = computed(() => this.paySvc.showPaymentMethodSelector() && this.tsicChargeDueNow());
     readonly isCc = computed(() => this.paySvc.isCcPayment());
+    readonly isEcheck = computed(() => this.paySvc.isEcheckPayment());
     readonly isCheck = computed(() => this.paySvc.isCheckPayment());
     readonly processingFeeSavings = computed(() => this.paySvc.processingFeeSavings());
     readonly checkTotal = computed(() => this.paySvc.checkTotal());
@@ -779,6 +824,13 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         const ccOk = !ccNeeded || this.ccValid();
         return this.tsicChargeDueNow() && ccOk && !this.submitting();
     });
+
+    readonly canSubmitEcheck = computed(() =>
+        this.tsicChargeDueNow()
+        && this.paySvc.isEcheckPayment()
+        && this.bankAccountValid()
+        && !this.submitting()
+    );
 
     readonly canInsuranceOnlySubmit = computed(() => {
         if (!this.isViCcOnlyFlow()) return false;
@@ -823,8 +875,14 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         this._creditCard.update(c => ({ ...c, ...val }));
     }
 
-    // ── Payment method (CC vs Check) ───────────────────────────────────
-    selectMethod(method: 'CC' | 'Check'): void {
+    // ── Bank account form callbacks ──────────────────────────────────────
+    onBaValidChange(valid: boolean): void { this.bankAccountValid.set(!!valid); }
+    onBaValueChange(val: Record<string, string>): void {
+        this._bankAccount.update(b => ({ ...b, ...val }));
+    }
+
+    // ── Payment method (CC vs eCheck vs Check) ──────────────────────────
+    selectMethod(method: 'CC' | 'Echeck' | 'Check'): void {
         this.paySvc.selectPaymentMethod(method);
         this.lastError.set(null);
     }
@@ -1029,6 +1087,64 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         } else {
             this.continueSubmit();
         }
+    }
+
+    /**
+     * eCheck (ACH) submit — single path, no VI hybrid yet.
+     * If VI insurance is offered, it still purchases via the CC form (which is
+     * displayed separately when quotes > 0). For now, eCheck + insurance both
+     * run; future enhancement could prompt the user to confirm insurance via CC
+     * via the same modal pattern used for check+VI hybrid.
+     */
+    submitEcheck(): void {
+        if (this.submitting()) return;
+        if (!this.canSubmitEcheck()) {
+            this.toast.show('Bank account form is invalid.', 'danger', 3000);
+            return;
+        }
+        this.submitting.set(true);
+        this.lastError.set(null);
+
+        if (!this.lastIdemKey) {
+            const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+            this.lastIdemKey = newKey;
+            this.persistIdem(newKey);
+        }
+
+        const mapPaymentOption = (opt: string): number => {
+            switch (opt) {
+                case 'Deposit': return 1;
+                case 'ARB': return 2;
+                default: return 0;
+            }
+        };
+
+        const ba = this._bankAccount();
+        const bankAccount: BankAccountInfo = {
+            accountType: (ba['accountType'] || '').trim() || null,
+            routingNumber: sanitizeRouting(ba['routingNumber']),
+            accountNumber: sanitizeAccount(ba['accountNumber']),
+            nameOnAccount: sanitizeNameOnAccount(ba['nameOnAccount']) || null,
+            firstName: ba['firstName']?.trim() || null,
+            lastName: ba['lastName']?.trim() || null,
+            address: ba['address']?.trim() || null,
+            zip: ba['zip']?.trim() || null,
+            email: (ba['email'] || this.familyUser()?.userName || '').trim() || null,
+            phone: sanitizePhone(ba['phone']),
+        };
+        const request: PaymentRequestDto = {
+            jobPath: this.state.jobCtx.jobPath(),
+            paymentOption: mapPaymentOption(this.paymentState.paymentOption()),
+            bankAccount,
+            idempotencyKey: this.lastIdemKey,
+        };
+
+        this.paySvc.submitEcheckPayment(request)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: resp => this.handlePaymentResponse(resp, null),
+                error: (err: HttpErrorResponse) => this.handlePaymentHttpError(err),
+            });
     }
 
     // ── Internal submit ─────────────────────────────────────────────────

@@ -70,11 +70,14 @@ export class JobContextService {
     private readonly _payTo = signal<string | null>(null);
     private readonly _mailTo = signal<string | null>(null);
     private readonly _mailinPaymentWarning = signal<string | null>(null);
+    /** Per-job opt-in for eCheck (ACH). Independent of paymentMethodsAllowedCode. */
+    private readonly _bEnableEcheck = signal(false);
     readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
     readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
     readonly payTo = this._payTo.asReadonly();
     readonly mailTo = this._mailTo.asReadonly();
     readonly mailinPaymentWarning = this._mailinPaymentWarning.asReadonly();
+    readonly bEnableEcheck = this._bEnableEcheck.asReadonly();
 
     // ── Discount/Amex flags (from /family/players response) ───────────
     private readonly _jobHasActiveDiscountCodes = signal(false);
@@ -183,6 +186,7 @@ export class JobContextService {
                     this._payTo.set(getPropertyCI<string>(m, 'payTo') ?? null);
                     this._mailTo.set(getPropertyCI<string>(m, 'mailTo') ?? null);
                     this._mailinPaymentWarning.set(getPropertyCI<string>(m, 'mailinPaymentWarning') ?? null);
+                    this._bEnableEcheck.set(!!getPropertyCI<boolean>(m, 'bEnableEcheck'));
 
                     // RegSaver insurance offer flag
                     const offer = getPropertyCI<boolean>(m, 'offerPlayerRegsaverInsurance');
@@ -350,6 +354,7 @@ export class JobContextService {
         this._payTo.set(null);
         this._mailTo.set(null);
         this._mailinPaymentWarning.set(null);
+        this._bEnableEcheck.set(false);
         this._jobHasActiveDiscountCodes.set(false);
         this._jobUsesAmex.set(false);
         this._offerPlayerRegSaver.set(false);

@@ -98,6 +98,7 @@ export class TeamWizardStateService {
             meta.payTo,
             meta.mailTo,
             meta.mailinPaymentWarning,
+            meta.bEnableEcheck,
         );
         this._hasActiveDiscountCodes.set(meta.hasActiveDiscountCodes);
         this._fullPaymentRequired.set(meta.bTeamsFullPaymentRequired ?? true);
