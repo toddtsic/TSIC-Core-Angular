@@ -50,6 +50,25 @@ public interface IRegistrationFeeAdjustmentService
         string userId);
 
     /// <summary>
+    /// Reverse a prior eCheck fee credit. Use when an eCheck fails to settle
+    /// (NSF / returned). Adds back the (CC_rate − EC_rate) × echeckAmount that
+    /// <see cref="ReduceProcessingFeeForEcheckAsync"/> previously credited.
+    /// Caller is responsible for separately reversing PaidTotal/OwedTotal for
+    /// the payment itself; this method only handles the fee adjustment side.
+    /// Applies only if Job.BAddProcessingFees is true.
+    /// </summary>
+    /// <param name="registration">Registration entity to adjust (modified in-place)</param>
+    /// <param name="echeckAmount">eCheck amount that originally cleared (now bounced)</param>
+    /// <param name="jobId">Job to fetch BAddProcessingFees flag and both rates</param>
+    /// <param name="userId">User/system applying reversal (for audit trail)</param>
+    /// <returns>Actual amount by which processing fee was restored</returns>
+    Task<decimal> ReverseProcessingFeeForEcheckAsync(
+        Registrations registration,
+        decimal echeckAmount,
+        Guid jobId,
+        string userId);
+
+    /// <summary>
     /// Team mirror of <see cref="ReduceProcessingFeeProportionalAsync"/>. Full CC credit.
     /// </summary>
     /// <param name="team">Team entity to adjust (modified in-place)</param>
@@ -72,6 +91,21 @@ public interface IRegistrationFeeAdjustmentService
     /// <param name="userId">User applying adjustment (for audit trail)</param>
     /// <returns>Actual amount by which processing fee was reduced</returns>
     Task<decimal> ReduceTeamProcessingFeeForEcheckAsync(
+        TeamsEntity team,
+        decimal echeckAmount,
+        Guid jobId,
+        string userId);
+
+    /// <summary>
+    /// Team mirror of <see cref="ReverseProcessingFeeForEcheckAsync"/>. Reverses the
+    /// (CC − EC) credit applied when the eCheck originally cleared.
+    /// </summary>
+    /// <param name="team">Team entity to adjust (modified in-place)</param>
+    /// <param name="echeckAmount">eCheck amount that originally cleared (now bounced)</param>
+    /// <param name="jobId">Job to fetch BAddProcessingFees flag and both rates</param>
+    /// <param name="userId">User/system applying reversal (for audit trail)</param>
+    /// <returns>Actual amount by which processing fee was restored</returns>
+    Task<decimal> ReverseTeamProcessingFeeForEcheckAsync(
         TeamsEntity team,
         decimal echeckAmount,
         Guid jobId,
@@ -183,6 +217,44 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         return actualReduction;
     }
 
+    public async Task<decimal> ReverseProcessingFeeForEcheckAsync(
+        Registrations registration,
+        decimal echeckAmount,
+        Guid jobId,
+        string userId)
+    {
+        if (registration == null)
+            return 0m;
+
+        if (echeckAmount <= 0m)
+            return 0m;
+
+        // Guard: Job must still be configured to add processing fees
+        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
+        if (feeSettings == null || !(feeSettings.BAddProcessingFees ?? false))
+            return 0m;
+
+        // Compute the credit that was applied originally — same formula as Reduce.
+        // Uses CURRENT rates; if rates changed between submission and reversal the
+        // result will be slightly off. Acceptable since reversals happen within days
+        // and rates rarely change.
+        var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
+        var ecRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
+        var rateDiff = ccRate - ecRate;
+        if (rateDiff <= 0m)
+            return 0m;
+
+        var reversal = echeckAmount * rateDiff;
+        reversal = Math.Round(reversal, 2, MidpointRounding.AwayFromZero);
+
+        registration.FeeProcessing += reversal;
+        registration.OwedTotal += reversal;
+        registration.Modified = DateTime.UtcNow;
+        registration.LebUserId = userId;
+
+        return reversal;
+    }
+
     private static async Task<bool> IsDepositScenarioAsync()
     {
         // For now, return false since we don't have team lookup in this service
@@ -284,6 +356,39 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         }
 
         return actualReduction;
+    }
+
+    public async Task<decimal> ReverseTeamProcessingFeeForEcheckAsync(
+        TeamsEntity team,
+        decimal echeckAmount,
+        Guid jobId,
+        string userId)
+    {
+        if (team == null)
+            return 0m;
+
+        if (echeckAmount <= 0m)
+            return 0m;
+
+        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId);
+        if (feeSettings == null || !(feeSettings.BAddProcessingFees ?? false))
+            return 0m;
+
+        var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
+        var ecRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
+        var rateDiff = ccRate - ecRate;
+        if (rateDiff <= 0m)
+            return 0m;
+
+        var reversal = echeckAmount * rateDiff;
+        reversal = Math.Round(reversal, 2, MidpointRounding.AwayFromZero);
+
+        team.FeeProcessing = (team.FeeProcessing ?? 0m) + reversal;
+        team.OwedTotal = (team.OwedTotal ?? 0m) + reversal;
+        team.Modified = DateTime.UtcNow;
+        team.LebUserId = userId;
+
+        return reversal;
     }
 
     private static bool IsTeamDepositScenario(TeamsEntity team)
