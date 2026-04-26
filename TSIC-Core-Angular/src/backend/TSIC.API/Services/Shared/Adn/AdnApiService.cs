@@ -490,17 +490,20 @@ public class AdnApiService : IAdnApiService
         customerAddressType? BillTo = null,
         orderType? OrderInfo = null,
         string? RefTransId = null,
-        Action<transactionRequestType>? Configure = null);
+        Action<transactionRequestType>? Configure = null,
+        bankAccountType? BankAccount = null);
 
     private static createTransactionResponse ExecuteTransaction(ExecTxnArgs a)
     {
         ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = a.Env;
         SetupMerchantAuth(a.LoginId, a.TransactionKey);
 
+        // Exactly one of CreditCard / BankAccount may be set; both null = void/refund (no payment item).
+        object? paymentItem = a.CreditCard ?? (object?)a.BankAccount;
         var txnReq = new transactionRequestType
         {
             transactionType = a.TxnType.ToString(),
-            payment = a.CreditCard != null ? new paymentType { Item = a.CreditCard } : null,
+            payment = paymentItem != null ? new paymentType { Item = paymentItem } : null,
             billTo = a.BillTo,
             order = a.OrderInfo,
             refTransId = a.RefTransId
@@ -559,6 +562,47 @@ public class AdnApiService : IAdnApiService
                 txn.customer = new customerDataType { email = request.Email };
             }
         }));
+    }
+
+    public createTransactionResponse ADN_ChargeBankAccount(AdnChargeBankAccountRequest request)
+    {
+        var bank = BuildBankAccount(request.AccountType, request.RoutingNumber, request.AccountNumber, request.NameOnAccount);
+        var addr = new customerAddressType { firstName = request.FirstName.Trim(), lastName = request.LastName.Trim(), address = request.Address.Trim(), zip = request.Zip };
+        var order = new orderType { invoiceNumber = request.InvoiceNumber, description = request.Description.Trim() };
+        return ExecuteTransaction(new ExecTxnArgs(
+            request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.authCaptureTransaction,
+            request.Amount, CreditCard: null, addr, order, RefTransId: null,
+            Configure: txn =>
+            {
+                if (!string.IsNullOrWhiteSpace(request.Email))
+                {
+                    txn.customer = new customerDataType { email = request.Email };
+                }
+            },
+            BankAccount: bank));
+    }
+
+    private static bankAccountType BuildBankAccount(string accountType, string routingNumber, string accountNumber, string nameOnAccount)
+    {
+        // Per ADN bankAccountTypeEnum.
+        var accType = accountType?.Trim().ToLowerInvariant() switch
+        {
+            "checking" => bankAccountTypeEnum.checking,
+            "savings" => bankAccountTypeEnum.savings,
+            "businessChecking" or "businesschecking" => bankAccountTypeEnum.businessChecking,
+            _ => bankAccountTypeEnum.checking
+        };
+        return new bankAccountType
+        {
+            accountType = accType,
+            accountTypeSpecified = true,
+            routingNumber = (routingNumber ?? "").Trim(),
+            accountNumber = (accountNumber ?? "").Trim(),
+            nameOnAccount = (nameOnAccount ?? "").Trim(),
+            // Customer authorized via website form — fixed per NACHA classification.
+            echeckType = echeckTypeEnum.WEB,
+            echeckTypeSpecified = true
+        };
     }
 
     public createTransactionResponse ADN_Refund(AdnRefundRequest request)

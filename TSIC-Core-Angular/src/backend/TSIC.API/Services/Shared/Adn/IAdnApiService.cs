@@ -25,6 +25,7 @@ public interface IAdnApiService
 
     createTransactionResponse ADN_Authorize(AdnAuthorizeRequest request);
     createTransactionResponse ADN_Charge(AdnChargeRequest request);
+    createTransactionResponse ADN_ChargeBankAccount(AdnChargeBankAccountRequest request);
 
     createTransactionResponse ADN_ChargeCustomerProfile(
         AuthorizeNet.Environment env,
