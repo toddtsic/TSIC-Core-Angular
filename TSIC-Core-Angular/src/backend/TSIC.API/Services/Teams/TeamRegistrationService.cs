@@ -1224,6 +1224,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         var updates = new List<TeamFeeUpdateDto>();
         var skippedReasons = new List<string>();
+        var affectedClubRepIds = new HashSet<Guid>();
 
         Guid jobId;
         if (request.JobId.HasValue)
@@ -1275,6 +1276,24 @@ public class TeamRegistrationService : ITeamRegistrationService
                 continue;
             }
 
+            // Skip teams already paid-in-full. On a true→false unflip of
+            // BTeamsFullPaymentRequired, re-stamping FeeBase to deposit-only would
+            // shrink FeeTotal below PaidTotal — and FeeResolutionService computes
+            // OwedTotal = FeeTotal - PaidTotal with no clamp, producing a negative
+            // (bogus credit) that flows straight into the rep's pulse total.
+            // Symmetric to PlayerRegistrationService.RecalculatePlayerFeesAsync.
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
+            var fullAmount = (resolved?.EffectiveDeposit ?? 0m) + (resolved?.EffectiveBalanceDue ?? 0m);
+            if (fullAmount > 0m && (team.PaidTotal ?? 0m) >= fullAmount)
+            {
+                _logger.LogInformation(
+                    "Skipping team {TeamId} ({TeamName}): PaidTotal {Paid} >= full {Full} (PIF or balance-due paid).",
+                    team.TeamId, team.TeamName, team.PaidTotal, fullAmount);
+                skippedReasons.Add($"Team '{team.TeamName}' (paid-in-full: {team.PaidTotal:C} of {fullAmount:C})");
+                continue;
+            }
+
             var oldFeeBase = team.FeeBase ?? 0;
             var oldFeeProcessing = team.FeeProcessing ?? 0;
 
@@ -1294,6 +1313,11 @@ public class TeamRegistrationService : ITeamRegistrationService
             {
                 team.LebUserId = userId;
                 team.Modified = DateTime.UtcNow;
+
+                if (team.ClubrepRegistrationid.HasValue)
+                {
+                    affectedClubRepIds.Add(team.ClubrepRegistrationid.Value);
+                }
 
                 updates.Add(new TeamFeeUpdateDto
                 {
@@ -1318,6 +1342,23 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             await _teams.UpdateTeamFeesAsync(eligibleTeams);
             _logger.LogInformation("Successfully updated {UpdatedCount} teams", updates.Count);
+
+            // Re-aggregate the rep registration row for every rep whose teams changed.
+            // The rep row carries maintained sums of FeeBase/FeeProcessing/FeeTotal/
+            // OwedTotal/PaidTotal across active non-WAITLIST/non-DROPPED teams; without
+            // this call, the rep row drifts from its teams after a flag flip and
+            // downstream callers (e.g. TeamSearchService balance-due gates) read stale
+            // totals. Sequential awaits — same scoped DbContext.
+            foreach (var clubRepId in affectedClubRepIds)
+            {
+                await _registrations.SynchronizeClubRepFinancialsAsync(clubRepId, userId);
+            }
+            if (affectedClubRepIds.Count > 0)
+            {
+                _logger.LogInformation(
+                    "Re-aggregated financials for {RepCount} club rep registration(s)",
+                    affectedClubRepIds.Count);
+            }
         }
         else
         {

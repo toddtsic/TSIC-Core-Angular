@@ -274,6 +274,18 @@ public class PaymentFeeRecalcTests
         feeService.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingRate);
 
+        // PIF-skip guard in RecalculateTeamFeesAsync calls ResolveFeeAsync to compute
+        // the full owed amount per team. Return the same fixed Deposit/BalanceDue used
+        // by the AccountingDataBuilder so paid-in-full detection lines up with reality.
+        feeService.Setup(f => f.ResolveFeeAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TSIC.Contracts.Repositories.ResolvedFee
+            {
+                Deposit = Deposit,
+                BalanceDue = BalanceDue,
+            });
+
         feeService.Setup(f => f.ApplyTeamSwapFeesAsync(
                 It.IsAny<Teams>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                 It.IsAny<TeamFeeApplicationContext>(), It.IsAny<CancellationToken>()))
@@ -310,7 +322,7 @@ public class PaymentFeeRecalcTests
             new Mock<IJobLeagueRepository>().Object,
             new Mock<IAgeGroupRepository>().Object,
             teamRepo,
-            new Mock<IRegistrationRepository>().Object,
+            new RegistrationRepository(ctx),
             new Mock<IUserRepository>().Object,
             new Mock<ITokenService>().Object,
             MockUserManager(),
@@ -762,6 +774,101 @@ public class PaymentFeeRecalcTests
             t.FeeProcessing.Should().NotBeNull("processing fee should be recalculated"));
 
         PrintResult("Recalculation triggered by rate change. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TEST 10: Paid-in-full team skipped on Full Pay ON → OFF unflip
+    //   PIF team must NOT be re-stamped to deposit-only — that would
+    //   shrink FeeTotal below PaidTotal and produce a negative OwedTotal
+    //   (bogus credit) that propagates into the rep's pulse balance.
+    //   Symmetric to PlayersFullPayRequired_TurnedOff_TriggersPlayerRecalc.
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PaidInFullTeam_Skipped_OnFullPayUnflip()
+    {
+        var fullAmount = Deposit + BalanceDue; // 2000
+
+        PrintScenario("Paid-In-Full Team Skipped: Full Pay ON → OFF",
+            "1 PIF team (paid $2,000 of $2,000) + 1 unpaid team. Director disables full pay. " +
+            "PIF team must be left untouched; unpaid team reverts to deposit-only. " +
+            "Rep registration row must re-aggregate to match the new team sums.");
+
+        var (svc, ctx, jobId, teams) = await CreateServiceAsync(
+            bTeamsFullPaymentRequired: true,
+            teamCount: 2,
+            teamFeeBase: fullAmount,
+            teamPaidTotal: 0m); // builder default; we'll patch one team to PIF below
+
+        // Patch first team to be paid-in-full (FeeTotal=$2000, PaidTotal=$2000, Owed=$0).
+        var pifTeam = teams[0];
+        pifTeam.PaidTotal = fullAmount;
+        pifTeam.FeeTotal = fullAmount;
+        pifTeam.OwedTotal = 0m;
+
+        // Seed the rep registration with the matching pre-recalc aggregate so we can
+        // prove the post-recalc sync re-aggregates correctly (not just "happened to
+        // start at zero").
+        var repBefore = await ctx.Registrations
+            .FirstAsync(r => r.JobId == jobId && r.ClubName == "Test Club");
+        repBefore.FeeBase = fullAmount * 2;        // $4,000 (team 1 + team 2)
+        repBefore.FeeTotal = fullAmount * 2;       // $4,000
+        repBefore.PaidTotal = fullAmount;          // $2,000 (only team 1 paid)
+        repBefore.OwedTotal = fullAmount;          // $2,000 (only team 2 owes)
+        await ctx.SaveChangesAsync();
+
+        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
+        PrintTeamTable("BEFORE (Team 1 = PIF, Team 2 = unpaid full-pay)", before);
+
+        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: false);
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        var after = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
+        PrintTeamTable("AFTER (PIF preserved, unpaid reverted to deposit)", after);
+
+        var pifAfter = after.First(t => t.TeamId == pifTeam.TeamId);
+        var otherAfter = after.First(t => t.TeamId != pifTeam.TeamId);
+
+        // PIF team: untouched. FeeBase + PaidTotal + OwedTotal preserved.
+        pifAfter.FeeBase.Should().Be(fullAmount, "PIF team must not be re-stamped");
+        pifAfter.PaidTotal.Should().Be(fullAmount);
+        pifAfter.OwedTotal.Should().Be(0m, "PIF team must not develop a bogus credit");
+
+        // Unpaid team: reverted to deposit-only.
+        otherAfter.FeeBase.Should().Be(Deposit, "non-PIF team should revert");
+        otherAfter.OwedTotal.Should().Be(Deposit);
+
+        // Live SUM of team OwedTotal — must equal $500, not -$1500.
+        var teamSumOwed = after.Sum(t => t.OwedTotal ?? 0m);
+        teamSumOwed.Should().Be(Deposit,
+            "team-row aggregate must be positive after PIF guard");
+
+        // Rep registration row MUST be re-synced to match the new team aggregates.
+        // SynchronizeClubRepFinancialsAsync call inside RecalculateTeamFeesAsync is
+        // what guarantees this. Without that call, the rep row stays at the seeded
+        // pre-recalc state ($4,000 / $2,000 / $2,000) while teams hold the new totals
+        // ($2,500 / $2,000 / $500) — a silent drift that downstream callers
+        // (TeamSearchService balance-due gate, CC charge limits) read and act on.
+        var repAfter = await ctx.Registrations.AsNoTracking()
+            .FirstAsync(r => r.RegistrationId == repBefore.RegistrationId);
+        var expectedFeeBase = fullAmount + Deposit;       // $2,500
+        var expectedFeeTotal = expectedFeeBase;           // no processing in this scenario
+        var expectedPaidTotal = fullAmount;               // unchanged ($2,000)
+        var expectedOwedTotal = Deposit;                  // $500 from team 2
+
+        repAfter.FeeBase.Should().Be(expectedFeeBase, "rep.FeeBase must equal SUM(team.FeeBase)");
+        repAfter.FeeTotal.Should().Be(expectedFeeTotal, "rep.FeeTotal must equal SUM(team.FeeTotal)");
+        repAfter.PaidTotal.Should().Be(expectedPaidTotal, "rep.PaidTotal must equal SUM(team.PaidTotal)");
+        repAfter.OwedTotal.Should().Be(expectedOwedTotal, "rep.OwedTotal must equal SUM(team.OwedTotal)");
+
+        _out.WriteLine("");
+        _out.WriteLine($"  REP REGISTRATION SYNC:");
+        _out.WriteLine($"    FeeBase:    ${repBefore.FeeBase} → ${repAfter.FeeBase} (expected ${expectedFeeBase})");
+        _out.WriteLine($"    FeeTotal:   ${repBefore.FeeTotal} → ${repAfter.FeeTotal} (expected ${expectedFeeTotal})");
+        _out.WriteLine($"    PaidTotal:  ${repBefore.PaidTotal} → ${repAfter.PaidTotal} (expected ${expectedPaidTotal})");
+        _out.WriteLine($"    OwedTotal:  ${repBefore.OwedTotal} → ${repAfter.OwedTotal} (expected ${expectedOwedTotal})");
+
+        PrintResult($"PIF team preserved. Unpaid team reverted. Rep registration re-synced. PASS");
     }
 
     // ═══════════════════════════════════════════════════════════════
