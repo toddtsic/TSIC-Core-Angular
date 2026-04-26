@@ -35,7 +35,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private static readonly Guid CcCreditMethodId = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
-    private static readonly Guid EcheckMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
 
     public RegistrationSearchService(
         IRegistrationRepository registrationRepo,
@@ -360,14 +359,13 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "Registration not found or does not belong to this job." };
 
         var isCheck = string.Equals(request.PaymentType, "Check", StringComparison.OrdinalIgnoreCase);
-        var isEcheck = string.Equals(request.PaymentType, "ECheck", StringComparison.OrdinalIgnoreCase);
         var isCorrection = string.Equals(request.PaymentType, "Correction", StringComparison.OrdinalIgnoreCase);
 
-        if (!isCheck && !isEcheck && !isCorrection)
-            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "PaymentType must be 'Check', 'ECheck', or 'Correction'." };
+        if (!isCheck && !isCorrection)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "PaymentType must be 'Check' or 'Correction'." };
 
-        if ((isCheck || isEcheck) && request.Amount <= 0)
-            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check or eCheck payment must be > $0.00." };
+        if (isCheck && request.Amount <= 0)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check payment must be > $0.00." };
         if (isCorrection && request.Amount == 0)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
 
@@ -376,9 +374,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (regForValidation != null && request.Amount > regForValidation.OwedTotal)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Amount ${request.Amount:F2} exceeds the balance owed of ${regForValidation.OwedTotal:F2}." };
 
-        var paymentMethodId = isCheck ? CheckMethodId
-            : isEcheck ? EcheckMethodId
-            : CorrectionMethodId;
+        var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
 
         var entity = new RegistrationAccounting
         {
@@ -402,13 +398,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         reg.PaidTotal += request.Amount;
 
-        // Non-CC payments reduce processing fee proportionally (core accounting principle).
-        // ECheck still incurs its own (lower) processing rate, so the reduction is the DIFFERENCE
-        // between the CC rate (originally baked into FeeProcessing) and the eCheck rate.
-        if (isEcheck)
-            await _feeAdjustment.ReduceProcessingFeeForEcheckAsync(reg, request.Amount, jobId, userId);
-        else
-            await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
+        // Non-CC payments reduce processing fee proportionally (core accounting principle)
+        await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
 
         // Recalculate totals after processing fee change
         reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;

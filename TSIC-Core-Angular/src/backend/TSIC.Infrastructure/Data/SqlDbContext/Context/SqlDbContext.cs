@@ -300,6 +300,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<ScheduleTeamTypes> ScheduleTeamTypes { get; set; }
 
+    public virtual DbSet<Settlement> Settlement { get; set; }
+
     public virtual DbSet<Sliders> Sliders { get; set; }
 
     public virtual DbSet<Slides> Slides { get; set; }
@@ -339,6 +341,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<StoreSizes> StoreSizes { get; set; }
 
     public virtual DbSet<Stores> Stores { get; set; }
+
+    public virtual DbSet<SweepLog> SweepLog { get; set; }
 
     public virtual DbSet<TeamAttendanceEvents> TeamAttendanceEvents { get; set; }
 
@@ -5995,6 +5999,71 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("teamTypeDesc");
         });
 
+        modelBuilder.Entity<Settlement>(entity =>
+        {
+            entity.HasKey(e => e.SettlementId).HasName("PK_echeck_Settlement");
+
+            entity.ToTable("Settlement", "echeck");
+
+            entity.HasIndex(e => new { e.Status, e.NextCheckAt }, "IX_echeck_Settlement_status_nextCheck");
+
+            entity.HasIndex(e => e.RegistrationAccountingId, "UQ_echeck_Settlement_raID").IsUnique();
+
+            entity.HasIndex(e => e.AdnTransactionId, "UQ_echeck_Settlement_txID").IsUnique();
+
+            entity.Property(e => e.SettlementId)
+                .HasDefaultValueSql("(newsequentialid())", "DF_echeck_Settlement_id")
+                .HasColumnName("settlementID");
+            entity.Property(e => e.AccountLast4)
+                .HasMaxLength(4)
+                .HasColumnName("accountLast4");
+            entity.Property(e => e.AccountType)
+                .HasMaxLength(20)
+                .HasColumnName("accountType");
+            entity.Property(e => e.AdnTransactionId)
+                .HasMaxLength(50)
+                .HasColumnName("adnTransactionID");
+            entity.Property(e => e.LastCheckedAt)
+                .HasPrecision(0)
+                .HasColumnName("lastCheckedAt");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_echeck_Settlement_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.NameOnAccount)
+                .HasMaxLength(100)
+                .HasColumnName("nameOnAccount");
+            entity.Property(e => e.NextCheckAt)
+                .HasPrecision(0)
+                .HasColumnName("nextCheckAt");
+            entity.Property(e => e.RegistrationAccountingId).HasColumnName("registrationAccountingId");
+            entity.Property(e => e.ReturnReasonCode)
+                .HasMaxLength(50)
+                .HasColumnName("returnReasonCode");
+            entity.Property(e => e.ReturnReasonText)
+                .HasMaxLength(500)
+                .HasColumnName("returnReasonText");
+            entity.Property(e => e.SettledAt)
+                .HasPrecision(0)
+                .HasColumnName("settledAt");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .HasDefaultValue("Pending", "DF_echeck_Settlement_status")
+                .HasColumnName("status");
+            entity.Property(e => e.SubmittedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_echeck_Settlement_submittedAt")
+                .HasColumnName("submittedAt");
+
+            entity.HasOne(d => d.RegistrationAccounting).WithOne(p => p.Settlement)
+                .HasForeignKey<Settlement>(d => d.RegistrationAccountingId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_echeck_Settlement_RA");
+        });
+
         modelBuilder.Entity<Sliders>(entity =>
         {
             entity.HasKey(e => e.SliderId).HasName("PK__Sliders__24BC96F0A48FF23B");
@@ -6473,6 +6542,32 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.ParentStore).WithMany(p => p.InverseParentStore)
                 .HasForeignKey(d => d.ParentStoreId)
                 .HasConstraintName("FK__Stores__ParentSt__344C18E9");
+        });
+
+        modelBuilder.Entity<SweepLog>(entity =>
+        {
+            entity.HasKey(e => e.SweepLogId).HasName("PK_echeck_SweepLog");
+
+            entity.ToTable("SweepLog", "echeck");
+
+            entity.HasIndex(e => e.StartedAt, "IX_echeck_SweepLog_startedAt").IsDescending();
+
+            entity.Property(e => e.SweepLogId).HasColumnName("sweepLogID");
+            entity.Property(e => e.CompletedAt)
+                .HasPrecision(0)
+                .HasColumnName("completedAt");
+            entity.Property(e => e.ErrorMessage).HasColumnName("errorMessage");
+            entity.Property(e => e.RecordsChecked).HasColumnName("recordsChecked");
+            entity.Property(e => e.RecordsErrored).HasColumnName("recordsErrored");
+            entity.Property(e => e.RecordsReturned).HasColumnName("recordsReturned");
+            entity.Property(e => e.RecordsSettled).HasColumnName("recordsSettled");
+            entity.Property(e => e.StartedAt)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_echeck_SweepLog_startedAt")
+                .HasColumnName("startedAt");
+            entity.Property(e => e.TriggeredBy)
+                .HasMaxLength(20)
+                .HasColumnName("triggeredBy");
         });
 
         modelBuilder.Entity<TeamAttendanceEvents>(entity =>

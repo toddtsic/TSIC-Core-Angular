@@ -51,5 +51,7 @@ public partial class RegistrationAccounting
 
     public virtual Registrations? Registration { get; set; }
 
+    public virtual Settlement? Settlement { get; set; }
+
     public virtual Teams? Team { get; set; }
 }
