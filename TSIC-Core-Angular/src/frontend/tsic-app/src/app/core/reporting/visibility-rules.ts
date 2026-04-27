@@ -16,6 +16,7 @@ export interface VisibilityRules {
     jobTypes?: string[];
     customersDeny?: string[];
     requiresFlags?: string[];
+    requiresRoles?: string[];
 }
 
 export interface JobVisibilityContext {
@@ -23,6 +24,7 @@ export interface JobVisibilityContext {
     jobTypeName: string | null;
     customerName: string | null;
     activeFlags: ReadonlySet<string>;
+    callerRoles: ReadonlySet<string>;
 }
 
 /**
@@ -30,10 +32,15 @@ export interface JobVisibilityContext {
  * Frontend doesn't currently have customerName in scope — customersDeny
  * rules effectively fail-open here. If per-customer gating is needed
  * for a Type 1 report, do it server-side instead.
+ *
+ * `callerRoles` should be the active user's role set (typically [user.role]
+ * or user.roles when present). Items with `requiresRoles` are filtered out
+ * when none of the caller's roles match.
  */
 export function buildJobVisibilityContext(
     jobMetadata: JobMetadataResponse | null,
-    pulse: JobPulseDto | null
+    pulse: JobPulseDto | null,
+    callerRoles: Iterable<string>
 ): JobVisibilityContext {
     const flags = new Set<string>();
 
@@ -48,7 +55,8 @@ export function buildJobVisibilityContext(
         sportName: jobMetadata?.sportName ?? null,
         jobTypeName: jobMetadata?.jobTypeName ?? null,
         customerName: null,
-        activeFlags: flags
+        activeFlags: flags,
+        callerRoles: new Set(callerRoles)
     };
 }
 
@@ -84,6 +92,11 @@ export function passesVisibilityRules(
         for (const flag of parsed.requiresFlags) {
             if (!ctx.activeFlags.has(flag)) return false;
         }
+    }
+
+    if (parsed.requiresRoles?.length) {
+        const hasMatch = parsed.requiresRoles.some(r => ctx.callerRoles.has(r));
+        if (!hasMatch) return false;
     }
 
     return true;

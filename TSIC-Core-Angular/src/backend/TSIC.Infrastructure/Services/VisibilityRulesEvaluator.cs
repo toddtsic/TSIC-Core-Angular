@@ -31,7 +31,10 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
         _context = context;
     }
 
-    public async Task<JobNavContext?> BuildJobContextAsync(Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<JobNavContext?> BuildJobContextAsync(
+        Guid jobId,
+        IEnumerable<string> callerRoles,
+        CancellationToken cancellationToken = default)
     {
         var raw = await _context.Jobs
             .AsNoTracking()
@@ -66,7 +69,9 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
 
         if (raw.JobTypeId is 1 or 4 or 6) flags.Add("playerSiteOnly");
 
-        return new JobNavContext(raw.SportName, raw.JobTypeName, raw.CustomerName, flags);
+        var roleSet = new HashSet<string>(callerRoles, StringComparer.OrdinalIgnoreCase);
+
+        return new JobNavContext(raw.SportName, raw.JobTypeName, raw.CustomerName, flags, roleSet);
     }
 
     public bool Passes(string? rulesJson, JobNavContext context)
@@ -104,6 +109,10 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
                 if (!context.ActiveFlags.Contains(flag)) return false;
             }
         }
+
+        if (rules.RequiresRoles is { Count: > 0 }
+            && !rules.RequiresRoles.Any(r => context.CallerRoles.Contains(r)))
+            return false;
 
         return true;
     }

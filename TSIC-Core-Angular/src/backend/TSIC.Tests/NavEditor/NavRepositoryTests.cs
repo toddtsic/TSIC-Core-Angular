@@ -38,7 +38,7 @@ public class NavRepositoryTests
 
         // Act — no override nav exists for this job
         var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
-        var result = await repo.GetMergedNavAsync(Role, JobId);
+        var result = await repo.GetMergedNavAsync(Role, JobId, Array.Empty<string>());
 
         // Assert
         result.Should().NotBeNull();
@@ -74,7 +74,7 @@ public class NavRepositoryTests
 
         // Act
         var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
-        var result = await repo.GetMergedNavAsync(Role, JobId);
+        var result = await repo.GetMergedNavAsync(Role, JobId, Array.Empty<string>());
 
         // Assert
         result.Should().NotBeNull();
@@ -112,7 +112,7 @@ public class NavRepositoryTests
 
         // Act
         var repo   = new NavRepository(context, new VisibilityRulesEvaluator(context));
-        var result = await repo.GetMergedNavAsync(Role, JobId);
+        var result = await repo.GetMergedNavAsync(Role, JobId, Array.Empty<string>());
 
         // Assert
         result.Should().NotBeNull();

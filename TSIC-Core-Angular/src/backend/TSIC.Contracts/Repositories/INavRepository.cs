@@ -28,9 +28,14 @@ public interface INavRepository
     /// <summary>
     /// Get the merged nav for a role + job: platform default items
     /// plus any job override items appended.
+    /// <paramref name="callerRoles"/> is the caller's role-name set, used by the
+    /// visibility evaluator's <c>requiresRoles</c> axis. In normal use the caller's
+    /// role IS the requested role, but the parameter is kept distinct so the
+    /// evaluator stays decoupled from the SQL filter.
     /// </summary>
     Task<NavDto?> GetMergedNavAsync(
         string roleId,
         Guid jobId,
+        IEnumerable<string> callerRoles,
         CancellationToken cancellationToken = default);
 }

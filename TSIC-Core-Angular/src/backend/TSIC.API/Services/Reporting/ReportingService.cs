@@ -31,11 +31,12 @@ public sealed class ReportingService : IReportingService
 
     public async Task<List<ReportCatalogueEntryDto>> GetCatalogueForJobAsync(
         Guid jobId,
+        IEnumerable<string> callerRoles,
         CancellationToken cancellationToken = default)
     {
         var rows = await _reportingRepository.GetActiveCatalogueEntriesAsync(cancellationToken);
 
-        var jobCtx = await _visibilityEvaluator.BuildJobContextAsync(jobId, cancellationToken);
+        var jobCtx = await _visibilityEvaluator.BuildJobContextAsync(jobId, callerRoles, cancellationToken);
         if (jobCtx == null) return new List<ReportCatalogueEntryDto>();
 
         return rows

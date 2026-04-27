@@ -72,10 +72,11 @@ public class NavRepository : INavRepository
     public async Task<NavDto?> GetMergedNavAsync(
         string roleId,
         Guid jobId,
+        IEnumerable<string> callerRoles,
         CancellationToken cancellationToken = default)
     {
         // 0. Fetch job metadata for visibility rule evaluation
-        var jobCtx = await _visibilityEvaluator.BuildJobContextAsync(jobId, cancellationToken);
+        var jobCtx = await _visibilityEvaluator.BuildJobContextAsync(jobId, callerRoles, cancellationToken);
 
         // 1. Get platform default nav record
         var defaultNav = await _context.Nav

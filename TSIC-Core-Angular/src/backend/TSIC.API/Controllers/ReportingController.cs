@@ -62,7 +62,8 @@ public class ReportingController : ControllerBase
             return new List<ReportCatalogueEntryDto>();
         }
 
-        var catalogue = await _reportingService.GetCatalogueForJobAsync(jobId.Value, cancellationToken);
+        var callerRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
+        var catalogue = await _reportingService.GetCatalogueForJobAsync(jobId.Value, callerRoles, cancellationToken);
         return catalogue;
     }
 

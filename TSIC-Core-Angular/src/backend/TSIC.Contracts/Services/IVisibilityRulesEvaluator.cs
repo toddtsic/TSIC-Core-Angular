@@ -11,10 +11,14 @@ namespace TSIC.Contracts.Services;
 public interface IVisibilityRulesEvaluator
 {
     /// <summary>
-    /// Loads the job's sport / jobtype / customer / feature flags.
+    /// Loads the job's sport / jobtype / customer / feature flags and stores
+    /// the caller's roles for role-axis evaluation.
     /// Returns null if the job doesn't exist.
     /// </summary>
-    Task<JobNavContext?> BuildJobContextAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<JobNavContext?> BuildJobContextAsync(
+        Guid jobId,
+        IEnumerable<string> callerRoles,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns true when the rules allow visibility for this job context.
@@ -25,7 +29,7 @@ public interface IVisibilityRulesEvaluator
 }
 
 /// <summary>
-/// Cached view of a job's visibility-relevant metadata.
+/// Cached view of a job's visibility-relevant metadata + the caller's roles.
 /// Built by <see cref="IVisibilityRulesEvaluator.BuildJobContextAsync"/>;
 /// not exposed to the client.
 /// </summary>
@@ -33,4 +37,5 @@ public sealed record JobNavContext(
     string? SportName,
     string? JobTypeName,
     string? CustomerName,
-    HashSet<string> ActiveFlags);
+    HashSet<string> ActiveFlags,
+    HashSet<string> CallerRoles);

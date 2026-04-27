@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import type { ReportCatalogueEntryDto } from '@core/api';
 import { TYPE1_REPORT_CATALOG, Type1ReportEntry } from '@core/reporting/type1-report-catalog';
 import { buildJobVisibilityContext, passesVisibilityRules } from '@core/reporting/visibility-rules';
@@ -18,6 +19,27 @@ interface LibraryCard {
     readonly endpointPath?: string;
     // kind === 'type2'
     readonly storedProcName?: string;
+    readonly parametersJson?: string | null;
+}
+
+interface SpRunParams {
+    bUseJobId: boolean;
+    bUseDateUnscheduled: boolean;
+}
+
+const SP_RUN_DEFAULTS: SpRunParams = { bUseJobId: true, bUseDateUnscheduled: false };
+
+function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {
+    if (!parametersJson) return SP_RUN_DEFAULTS;
+    try {
+        const parsed = JSON.parse(parametersJson) as Partial<SpRunParams>;
+        return {
+            bUseJobId: parsed.bUseJobId ?? SP_RUN_DEFAULTS.bUseJobId,
+            bUseDateUnscheduled: parsed.bUseDateUnscheduled ?? SP_RUN_DEFAULTS.bUseDateUnscheduled
+        };
+    } catch {
+        return SP_RUN_DEFAULTS;
+    }
 }
 
 @Component({
@@ -32,6 +54,7 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly reportingService = inject(ReportingService);
     private readonly jobService = inject(JobService);
     private readonly pulseService = inject(JobPulseService);
+    private readonly authService = inject(AuthService);
 
     readonly type2Entries = signal<ReportCatalogueEntryDto[]>([]);
     readonly catalogueLoading = signal(false);
@@ -41,7 +64,9 @@ export class ReportsLibraryComponent implements OnInit {
     readonly filterText = signal('');
 
     readonly cards = computed<LibraryCard[]>(() => {
-        const ctx = buildJobVisibilityContext(this.jobService.currentJob(), this.pulseService.pulse());
+        const user = this.authService.currentUser();
+        const callerRoles = user?.roles ?? (user?.role ? [user.role] : []);
+        const ctx = buildJobVisibilityContext(this.jobService.currentJob(), this.pulseService.pulse(), callerRoles);
 
         const type1Visible = TYPE1_REPORT_CATALOG
             .filter(e => passesVisibilityRules(e.visibilityRules, ctx))
@@ -62,7 +87,8 @@ export class ReportsLibraryComponent implements OnInit {
             description: e.description,
             iconName: e.iconName,
             sortOrder: e.sortOrder,
-            storedProcName: e.storedProcName
+            storedProcName: e.storedProcName,
+            parametersJson: e.parametersJson
         }));
 
         const all = [...type2Cards, ...type1Visible].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -93,10 +119,14 @@ export class ReportsLibraryComponent implements OnInit {
 
         const download$ = card.kind === 'type1'
             ? this.reportingService.downloadReport(card.endpointPath!)
-            : this.reportingService.downloadReport('export-sp', {
-                spName: card.storedProcName!,
-                bUseJobId: 'true'
-            });
+            : (() => {
+                const sp = parseSpRunParams(card.parametersJson);
+                return this.reportingService.downloadReport('export-sp', {
+                    spName: card.storedProcName!,
+                    bUseJobId: String(sp.bUseJobId),
+                    bUseDateUnscheduled: String(sp.bUseDateUnscheduled)
+                });
+            })();
 
         download$.subscribe({
             next: response => {

@@ -3,9 +3,9 @@ namespace TSIC.Contracts.Dtos;
 // ── Visibility Rules ────────────────────────────────────────
 
 /// <summary>
-/// Deserialization model for the VisibilityRules JSON column on NavItem.
-/// Sports/JobTypes/RequiresFlags are allowlists (show only if match); CustomersDeny is a denylist (hide if match).
-/// Empty/null arrays = no filter on that dimension. All four AND-gated.
+/// Deserialization model for the VisibilityRules JSON column on NavItem and ReportCatalogue.
+/// Sports/JobTypes/RequiresFlags/RequiresRoles are allowlists (show only if match); CustomersDeny is a denylist (hide if match).
+/// Empty/null arrays = no filter on that dimension. All five AND-gated.
 /// </summary>
 public record NavItemVisibilityRules
 {
@@ -18,6 +18,13 @@ public record NavItemVisibilityRules
     /// mobileEnabled, teamEligibilityByAge, playerSiteOnly).
     /// </summary>
     public List<string>? RequiresFlags { get; init; }
+    /// <summary>
+    /// Caller-role allowlist. Item renders only if the caller holds at least one of these roles.
+    /// Role names match dbo.AspNetRoles.Name (e.g. "Superuser", "Director").
+    /// Primarily used on ReportCatalogue rows to gate cross-customer reports to Superuser;
+    /// on nav items it's redundant with the per-role manifest but kept consistent.
+    /// </summary>
+    public List<string>? RequiresRoles { get; init; }
 }
 
 /// <summary>

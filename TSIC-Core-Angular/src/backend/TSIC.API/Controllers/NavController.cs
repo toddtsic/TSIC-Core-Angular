@@ -67,7 +67,8 @@ public class NavController : ControllerBase
         if (!RoleNameToIdMap.TryGetValue(roleName, out var roleId))
             return BadRequest($"Unknown role: {roleName}");
 
-        var nav = await _navRepo.GetMergedNavAsync(roleId, jobId.Value);
+        var callerRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
+        var nav = await _navRepo.GetMergedNavAsync(roleId, jobId.Value, callerRoles);
         if (nav == null)
             return Ok(new NavDto
             {

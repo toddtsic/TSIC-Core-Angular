@@ -7,10 +7,12 @@ public interface IReportingService
     /// <summary>
     /// Returns the Type 2 report catalogue visible to the given job — active rows
     /// from <c>reporting.ReportCatalogue</c> that pass the shared visibility
-    /// evaluator against the job's sport / jobtype / customer / feature flags.
+    /// evaluator against the job's sport / jobtype / customer / feature flags
+    /// and the caller's roles (for cross-customer / SuperUser-only reports).
     /// </summary>
     Task<List<ReportCatalogueEntryDto>> GetCatalogueForJobAsync(
         Guid jobId,
+        IEnumerable<string> callerRoles,
         CancellationToken cancellationToken = default);
 
     // -------- SuperUser catalogue editor --------
