@@ -17,7 +17,6 @@ import type {
 	JobClonePreviewResponse,
 	JobCloneSourceDto,
 	ReleasableAdminDto,
-	SuspendedJobDto,
 } from '@core/api';
 
 type Mode = 'wizard' | 'release';
@@ -144,16 +143,6 @@ export class JobCloneComponent implements OnInit {
 	readonly devUndoConfirmOpen = signal(false);
 	readonly isDeletingClone = signal(false);
 
-	// ── Dev-only "leftover clones" panel on Step 1 ──
-	// Suspended jobs the user can cascade-delete without going through the celebrate flow.
-	// Distinct from the post-clone undo (no JWT switch needed — they're not in those jobs).
-	readonly suspendedJobs = signal<SuspendedJobDto[]>([]);
-	readonly isLoadingSuspended = signal(false);
-	// Tracks which suspended job the modal is acting on. Set when the user clicks Delete
-	// on a row; cleared when the modal closes. Drives the "leftover" branch in confirmDevUndo.
-	readonly leftoverTargetJobId = signal<string | null>(null);
-	readonly leftoverTargetJobName = signal<string | null>(null);
-
 	// ── Submit state ──
 	readonly isSubmitting = signal(false);
 	readonly error = signal<string | null>(null);
@@ -207,8 +196,6 @@ export class JobCloneComponent implements OnInit {
 		// Component opens directly to the wizard — SuperUser-only tooling,
 		// source picker lists all cloneable jobs.
 		this.loadSources();
-		// Dev-only: also fetch suspended jobs so the leftover-cleanup panel can populate.
-		if (this.isDev) this.loadSuspendedJobs();
 	}
 
 	// ══════════════════════════════════════════════════════════
@@ -716,56 +703,9 @@ export class JobCloneComponent implements OnInit {
 	}
 
 	openDevUndoConfirm(): void { this.devUndoConfirmOpen.set(true); }
-	cancelDevUndoConfirm(): void {
-		this.devUndoConfirmOpen.set(false);
-		this.leftoverTargetJobId.set(null);
-		this.leftoverTargetJobName.set(null);
-	}
-
-	private loadSuspendedJobs(): void {
-		this.isLoadingSuspended.set(true);
-		this.cloneService.getSuspended().subscribe({
-			next: jobs => {
-				this.suspendedJobs.set(jobs);
-				this.isLoadingSuspended.set(false);
-			},
-			error: () => {
-				// Silent — leftover panel is opt-in dev tooling. If the call fails the panel
-				// just shows nothing.
-				this.isLoadingSuspended.set(false);
-			},
-		});
-	}
-
-	openLeftoverUndo(jobId: string, jobName: string): void {
-		this.leftoverTargetJobId.set(jobId);
-		this.leftoverTargetJobName.set(jobName);
-		this.isLoadingUndoStatus.set(true);
-		this.cloneService.getDevUndoStatus(jobId).subscribe({
-			next: status => {
-				this.devUndoStatus.set(status);
-				this.isLoadingUndoStatus.set(false);
-				this.devUndoConfirmOpen.set(true);
-			},
-			error: err => {
-				this.isLoadingUndoStatus.set(false);
-				this.leftoverTargetJobId.set(null);
-				this.leftoverTargetJobName.set(null);
-				this.toast.show(err?.error?.message ?? 'Could not load undo status.', 'danger', 4000);
-			},
-		});
-	}
+	cancelDevUndoConfirm(): void { this.devUndoConfirmOpen.set(false); }
 
 	confirmDevUndo(): void {
-		// Two paths share the modal: post-clone (returns to source via JWT switch) and
-		// leftover-cleanup (no switch — user is operating from a different job already).
-		// leftoverTargetJobId being non-null marks the leftover path.
-		const leftoverJobId = this.leftoverTargetJobId();
-		if (leftoverJobId) {
-			this.confirmLeftoverDelete(leftoverJobId);
-			return;
-		}
-
 		const jobId = this.releaseJobId();
 		const sourcePath = this.sourceJobPathForReturn();
 		const sourceRegId = this.sourceRegIdForReturn();
@@ -790,26 +730,6 @@ export class JobCloneComponent implements OnInit {
 						this.toast.show(msg, 'warning', 5000);
 					},
 				});
-			},
-			error: err => {
-				this.isDeletingClone.set(false);
-				const msg = err?.error?.message ?? 'Delete failed.';
-				this.toast.show(msg, 'danger', 5000);
-			},
-		});
-	}
-
-	private confirmLeftoverDelete(jobId: string): void {
-		this.isDeletingClone.set(true);
-		this.cloneService.deleteClonedJob(jobId).subscribe({
-			next: () => {
-				this.isDeletingClone.set(false);
-				this.devUndoConfirmOpen.set(false);
-				this.toast.show('Leftover clone deleted.', 'success');
-				this.leftoverTargetJobId.set(null);
-				this.leftoverTargetJobName.set(null);
-				this.devUndoStatus.set(null);
-				this.loadSuspendedJobs();
 			},
 			error: err => {
 				this.isDeletingClone.set(false);

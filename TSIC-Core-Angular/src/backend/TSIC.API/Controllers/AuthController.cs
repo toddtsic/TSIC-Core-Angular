@@ -173,7 +173,7 @@ namespace TSIC.API.Controllers
             RegistrationDto? targetReg = null;
             if (!string.IsNullOrEmpty(request.RegId))
             {
-                targetReg = allRegs.Find(r => r.RegId == request.RegId);
+                targetReg = allRegs.Find(r => string.Equals(r.RegId, request.RegId, StringComparison.OrdinalIgnoreCase));
                 if (targetReg == null)
                     return BadRequest(new { Error = "Selected registration is not available for this user" });
             }
@@ -186,7 +186,7 @@ namespace TSIC.API.Controllers
             {
                 var registrationRole = registrations
                     .ToList()
-                    .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == targetReg.RegId));
+                    .Find(r => r.RoleRegistrations.Exists(reg => string.Equals(reg.RegId, targetReg.RegId, StringComparison.OrdinalIgnoreCase)));
                 var roleName = registrationRole?.RoleName ?? "User";
                 var jobPath = targetReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
 
@@ -277,13 +277,16 @@ namespace TSIC.API.Controllers
                 return Unauthorized(new { Error = "Invalid user" });
             }
 
-            // Verify the user has access to this registration
+            // Verify the user has access to this registration.
+            // GUID equality is case-insensitive by definition; storage casing is not stable
+            // (EF projects via SQL CAST which preserves DB casing, while System.Text.Json
+            // serializes new Guids lowercase) so always compare with OrdinalIgnoreCase.
             var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
             // Analyzer suggestion: prefer collection Find/Exists when underlying concrete lists are used
             var selectedReg = registrations
                 .SelectMany(r => r.RoleRegistrations)
                 .ToList()
-                .Find(reg => reg.RegId == request.RegId);
+                .Find(reg => string.Equals(reg.RegId, request.RegId, StringComparison.OrdinalIgnoreCase));
 
             if (selectedReg == null)
             {
@@ -293,7 +296,7 @@ namespace TSIC.API.Controllers
             // Determine the role name and jobPath from the registration
             var registrationRole = registrations
                 .ToList()
-                .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == request.RegId));
+                .Find(r => r.RoleRegistrations.Exists(reg => string.Equals(reg.RegId, request.RegId, StringComparison.OrdinalIgnoreCase)));
 
             var roleName = registrationRole?.RoleName ?? "User";
             var jobPath = selectedReg.JobPath ?? $"/{roleName.ToLowerInvariant()}/dashboard";
@@ -350,7 +353,7 @@ namespace TSIC.API.Controllers
             RegistrationDto? targetReg = null;
             if (!string.IsNullOrEmpty(request.RegId))
             {
-                targetReg = allRegs.Find(r => r.RegId == request.RegId);
+                targetReg = allRegs.Find(r => string.Equals(r.RegId, request.RegId, StringComparison.OrdinalIgnoreCase));
             }
             targetReg ??= allRegs
                 .OrderByDescending(reg => reg.RegId)
@@ -363,7 +366,7 @@ namespace TSIC.API.Controllers
                 // Regenerate enriched token preserving the original job/role context
                 var registrationRole = registrations
                     .ToList()
-                    .Find(r => r.RoleRegistrations.Exists(reg => reg.RegId == targetReg.RegId));
+                    .Find(r => r.RoleRegistrations.Exists(reg => string.Equals(reg.RegId, targetReg.RegId, StringComparison.OrdinalIgnoreCase)));
                 var roleName = registrationRole?.RoleName ?? "User";
 
                 newAccessToken = _tokenService.GenerateEnrichedJwtToken(user, targetReg.RegId, targetReg.JobPath, targetReg.JobLogo, roleName);

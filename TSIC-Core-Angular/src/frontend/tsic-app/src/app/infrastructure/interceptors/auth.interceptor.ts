@@ -129,15 +129,18 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
                     const isDev = !environment.production;
                     const endpoint = request.url.replace(environment.apiUrl, '');
 
+                    // statusText is intentionally NOT used: HTTP/2 (and dev proxies) often
+                    // strip the reason phrase, and Angular's HttpErrorResponse defaults
+                    // missing statusText to "OK" — producing nonsense like "400 OK".
                     if (error.status >= 500) {
                         const msg = isDev
-                            ? `Server error ${error.status} — ${error.statusText}\n${endpoint}`
+                            ? `Server error ${error.status} — ${endpoint}`
                             : 'Something went wrong. Please try again or contact support.';
                         toastService.show(msg, 'danger', 7000);
                     } else if (error.status >= 400) {
                         const detail = extractHttpErrorMessage(error, '');
                         const msg = isDev
-                            ? `${error.status} ${error.statusText} — ${endpoint}${detail ? '\n' + detail : ''}`
+                            ? `${error.status} — ${endpoint}${detail ? '\n' + detail : ''}`
                             : (detail || 'The request could not be completed.');
                         toastService.show(msg, 'warning', 5000);
                     }

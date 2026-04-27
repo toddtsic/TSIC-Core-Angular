@@ -14,7 +14,6 @@ import type {
 	ReleasableAdminDto,
 	ReleaseAdminsRequest,
 	ReleaseResponse,
-	SuspendedJobDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -47,10 +46,6 @@ export class JobCloneService {
 	}
 
 	// ── Release flow ──
-	getSuspended(): Observable<SuspendedJobDto[]> {
-		return this.http.get<SuspendedJobDto[]>(`${this.apiUrl}/suspended`);
-	}
-
 	getAdmins(jobId: string): Observable<ReleasableAdminDto[]> {
 		return this.http.get<ReleasableAdminDto[]>(`${this.apiUrl}/${jobId}/admins`);
 	}

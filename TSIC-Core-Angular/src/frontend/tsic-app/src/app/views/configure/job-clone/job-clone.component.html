@@ -98,38 +98,6 @@
 					<input id="sportId" type="text" class="field-input" [(ngModel)]="sportId"
 						placeholder="Sport GUID">
 				}
-
-				<!-- Dev-only leftover-clones cleanup. Hidden in prod via isDev. -->
-				@if (isDev) {
-					<section class="jc-panel jc-dev-panel" style="margin-top: var(--space-4)">
-						<h3>Dev only — leftover suspended clones</h3>
-						<p class="wizard-tip">
-							Suspended jobs that haven't been released yet. Cascade-deletes only run when
-							no rows other than admin registrations exist.
-						</p>
-						@if (isLoadingSuspended()) {
-							<p class="loading-text">Loading…</p>
-						} @else if (suspendedJobs().length === 0) {
-							<p class="empty-text">No suspended jobs.</p>
-						} @else {
-							<ul class="jc-admin-list">
-								@for (j of suspendedJobs(); track j.jobId) {
-									<li class="jc-leftover-row">
-										<span>
-											<strong>{{ j.jobName }}</strong>
-											<span class="jc-admin-meta">{{ j.jobPath }} · {{ j.year }} {{ j.season }}</span>
-										</span>
-										<button type="button" class="jc-btn-danger"
-											[disabled]="isLoadingUndoStatus() || isDeletingClone()"
-											(click)="openLeftoverUndo(j.jobId, j.jobName)">
-											Delete
-										</button>
-									</li>
-								}
-							</ul>
-						}
-					</section>
-				}
 			}
 
 			<!-- STEP 2 — Identity -->
@@ -685,15 +653,14 @@
 
 	}
 
-	<!-- Dev-undo confirm modal — lifted out of the switch so it works for both
-	     post-clone (release mode) and leftover-cleanup (wizard mode) entry points. -->
+	<!-- Dev-undo confirm modal for the post-clone (release mode) path. -->
 	@if (devUndoConfirmOpen()) {
 		<div class="jc-modal-backdrop" (click)="cancelDevUndoConfirm()">
 			<div class="jc-modal" (click)="$event.stopPropagation()">
 				<h3>Delete cloned job?</h3>
 				<p>
 					This permanently deletes
-					<strong>{{ leftoverTargetJobName() ?? releaseJobContext()?.jobName }}</strong>
+					<strong>{{ releaseJobContext()?.jobName }}</strong>
 					and every row that was created during the clone.
 				</p>
 				@if (devUndoStatus(); as s) {
@@ -712,11 +679,9 @@
 						</ul>
 					}
 				}
-				@if (!leftoverTargetJobId()) {
-					<p class="wizard-tip">
-						You'll be logged back into the source job afterwards.
-					</p>
-				}
+				<p class="wizard-tip">
+					You'll be logged back into the source job afterwards.
+				</p>
 				<div class="jc-modal-actions">
 					<button type="button" class="jc-btn-secondary"
 						[disabled]="isDeletingClone()"
@@ -728,7 +693,7 @@
 							[disabled]="isDeletingClone()"
 							(click)="confirmDevUndo()">
 							@if (isDeletingClone()) { <span class="spinner"></span> Deleting… }
-							@else { @if (leftoverTargetJobId()) { Delete } @else { Delete and return } }
+							@else { Delete and return }
 						</button>
 					}
 				</div>

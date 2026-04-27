@@ -162,6 +162,25 @@
 	margin-bottom: var(--space-2);
 }
 
+// Radio-choice text inside the wizard steps: match the .field-label aesthetic
+// of the category labels above each group (Step 4 LADT, Step 5 fees, etc.).
+// Scoped to .jc-step-body so it doesn't leak to .field-check uses elsewhere.
+.jc-step-body .field-check > span {
+	font-size: 10px;
+	font-weight: var(--font-weight-semibold);
+	color: var(--brand-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	line-height: var(--line-height-tight);
+}
+
+// Vertical spacing for bare-stacked field-checks (Step 6 checkboxes).
+// Scoped to direct children of .jc-step-body so radios inside .field-check-row
+// (Steps 4, 5) keep their horizontal layout untouched.
+.jc-step-body > .field-check + .field-check {
+	margin-top: var(--space-2);
+}
+
 // ══════════════ Preview ══════════════
 
 .jc-preview {
@@ -451,9 +470,3 @@
 	margin-top: var(--space-3);
 }
 
-.jc-leftover-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--space-3);
-}
