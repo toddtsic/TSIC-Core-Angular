@@ -589,7 +589,7 @@ public class PaymentService : IPaymentService
             });
         }
         await _settleRepo.SaveChangesAsync();
-        await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
+        await TrySendConfirmationEmailAsync(jobId, familyUserId, userId, isEcheckPending: true);
         return new PaymentResponseDto
         {
             Success = true,
@@ -1086,7 +1086,9 @@ public class PaymentService : IPaymentService
 
     // Builds and sends the registration confirmation email, then marks BConfirmationSent=true for any registrations not yet flagged.
     // This never suppresses sending; flag is purely informational. Guarded against missing optional services.
-    private async Task TrySendConfirmationEmailAsync(Guid jobId, string familyUserId, string userId)
+    // isEcheckPending=true makes the builder prepend a "settlement pending" banner to set the
+    // 3-to-5-business-day expectation that the standard receipt template doesn't carry.
+    private async Task TrySendConfirmationEmailAsync(Guid jobId, string familyUserId, string userId, bool isEcheckPending = false)
     {
         if (_confirmation == null || _email == null) return; // Backward compatibility.
         try
@@ -1097,7 +1099,7 @@ public class PaymentService : IPaymentService
                 _logger.LogInformation("[ConfirmationEmail] No recipient emails found jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
                 return;
             }
-            var message = await BuildConfirmationMessageAsync(jobId, familyUserId, toList);
+            var message = await BuildConfirmationMessageAsync(jobId, familyUserId, toList, isEcheckPending);
             if (message == null)
             {
                 _logger.LogWarning("[ConfirmationEmail] No HTML content jobId={JobId} familyUserId={FamilyUserId}", jobId, familyUserId);
@@ -1122,9 +1124,9 @@ public class PaymentService : IPaymentService
         return await _families.GetEmailsForFamilyAndPlayersAsync(jobId, familyUserId);
     }
 
-    private async Task<EmailMessageDto?> BuildConfirmationMessageAsync(Guid jobId, string familyUserId, List<string> toList)
+    private async Task<EmailMessageDto?> BuildConfirmationMessageAsync(Guid jobId, string familyUserId, List<string> toList, bool isEcheckPending = false)
     {
-        var (subject, html) = await _confirmation!.BuildEmailAsync(jobId, familyUserId, CancellationToken.None);
+        var (subject, html) = await _confirmation!.BuildEmailAsync(jobId, familyUserId, CancellationToken.None, isEcheckPending);
         if (string.IsNullOrWhiteSpace(html)) return null;
         var dto = new EmailMessageDto
         {
