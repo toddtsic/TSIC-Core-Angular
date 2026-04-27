@@ -185,10 +185,16 @@ export class PaymentV2Service {
     isCheckPayment = computed(() => this._selectedPaymentMethod() === 'Check');
     isCcPayment = computed(() => this._selectedPaymentMethod() === 'CC');
     isEcheckPayment = computed(() => this._selectedPaymentMethod() === 'Echeck');
-    // Method visibility — eCheck is gated by the per-job opt-in AND requires online payments.
+    // Method visibility:
+    //   • CC button: shown unless the job is check-only (code 3).
+    //   • eCheck button: per-job opt-in.
+    //   • Mail-in Check button: hidden when eCheck is enabled — eCheck is the
+    //     online replacement for paper check, so admins shouldn't offer both.
     showCcButton = computed(() => this.jobCtx.paymentMethodsAllowedCode() !== 3);
-    showEcheckButton = computed(() => this.jobCtx.bEnableEcheck() && this.jobCtx.paymentMethodsAllowedCode() !== 3);
-    showCheckButton = computed(() => this.jobCtx.paymentMethodsAllowedCode() !== 1);
+    showEcheckButton = computed(() => this.jobCtx.bEnableEcheck());
+    showCheckButton = computed(() =>
+        this.jobCtx.paymentMethodsAllowedCode() !== 1 && !this.jobCtx.bEnableEcheck()
+    );
     showPaymentMethodSelector = computed(() =>
         (this.showCcButton() ? 1 : 0) + (this.showEcheckButton() ? 1 : 0) + (this.showCheckButton() ? 1 : 0) >= 2
     );
@@ -222,13 +228,17 @@ export class PaymentV2Service {
 
     /**
      * Initialize payment method based on job config.
-     * Called after job metadata loads. Defaults to Check if check-only.
+     * Called after job metadata loads. Defaults to the first visible button in
+     * priority order CC > Echeck > Check, so we never land on a hidden method
+     * (e.g. check-only + eCheck enabled defaults to Echeck, not Check).
      */
     initPaymentMethod(): void {
-        if (this.jobCtx.paymentMethodsAllowedCode() === 3) {
-            this._selectedPaymentMethod.set('Check');
-        } else {
+        if (this.showCcButton()) {
             this._selectedPaymentMethod.set('CC');
+        } else if (this.showEcheckButton()) {
+            this._selectedPaymentMethod.set('Echeck');
+        } else {
+            this._selectedPaymentMethod.set('Check');
         }
     }
 

@@ -78,8 +78,15 @@ export class TeamPaymentService {
         this._mailTo.set(mailTo ?? null);
         this._mailinPaymentWarning.set(mailinPaymentWarning ?? null);
         this._bEnableEcheck.set(enableEcheck);
-        // Default to Check if check-only
-        if (code === 3) this._selectedPaymentMethod.set('Check');
+        // Default to the first visible button in priority order CC > Echeck > Check
+        // so we never land on a hidden method (e.g. check-only + eCheck enabled).
+        if (code !== 3) {
+            this._selectedPaymentMethod.set('CC');
+        } else if (enableEcheck) {
+            this._selectedPaymentMethod.set('Echeck');
+        } else {
+            this._selectedPaymentMethod.set('Check');
+        }
     }
     setJobPath(value: string): void { this._jobPath.set(value); }
     selectPaymentMethod(method: 'CC' | 'Echeck' | 'Check'): void { this._selectedPaymentMethod.set(method); }
@@ -145,10 +152,16 @@ export class TeamPaymentService {
     isEcheckPayment = computed(() => this.selectedPaymentMethod() === 'Echeck');
     isCheckOnly = computed(() => this.paymentMethodsAllowedCode() === 3);
 
-    // Method visibility — eCheck is gated by per-job opt-in AND requires online payments.
+    // Method visibility:
+    //   • CC button: shown unless the job is check-only (code 3).
+    //   • eCheck button: per-job opt-in.
+    //   • Mail-in Check button: hidden when eCheck is enabled — eCheck is the
+    //     online replacement for paper check, so admins shouldn't offer both.
     showCcButton = computed(() => this.paymentMethodsAllowedCode() !== 3);
-    showEcheckButton = computed(() => this.bEnableEcheck() && this.paymentMethodsAllowedCode() !== 3);
-    showCheckButton = computed(() => this.paymentMethodsAllowedCode() !== 1);
+    showEcheckButton = computed(() => this.bEnableEcheck());
+    showCheckButton = computed(() =>
+        this.paymentMethodsAllowedCode() !== 1 && !this.bEnableEcheck()
+    );
 
     // Column visibility flags. Selector appears when more than one method is available
     // (eCheck adds a second option even on CC-only jobs).

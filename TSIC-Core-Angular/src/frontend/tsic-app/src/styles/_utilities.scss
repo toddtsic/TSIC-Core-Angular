@@ -730,8 +730,9 @@ mark {
     }
 }
 
-/* Credit Card Form */
-.cc-form-section {
+/* Payment forms — Credit Card + Bank Account (eCheck) share the same shell */
+.cc-form-section,
+.ba-form-section {
     padding: var(--space-4) var(--space-4) var(--space-5);
     margin-bottom: var(--space-3);
     border-radius: var(--radius-md);
@@ -744,7 +745,8 @@ mark {
     }
 }
 
-.cc-form-heading {
+.cc-form-heading,
+.ba-form-heading {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-bold);
     color: var(--bs-primary);
@@ -759,19 +761,23 @@ mark {
     }
 }
 
-.cc-form-section .form-label {
+.cc-form-section .form-label,
+.ba-form-section .form-label {
     font-weight: var(--font-weight-medium);
     color: var(--brand-text);
 }
 
-.cc-form-section .form-text:not(.text-danger) {
+.cc-form-section .form-text:not(.text-danger),
+.ba-form-section .form-text:not(.text-danger) {
     font-size: var(--font-size-xs);
     font-style: italic;
     color: var(--neutral-400);
 }
 
 .cc-form-section .form-control:focus,
-.cc-form-section .form-select:focus {
+.cc-form-section .form-select:focus,
+.ba-form-section .form-control:focus,
+.ba-form-section .form-select:focus {
     border-color: var(--bs-primary);
     box-shadow: var(--shadow-focus);
 }
