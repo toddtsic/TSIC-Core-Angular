@@ -8,5 +8,6 @@ export type JobCloneResponse = {
     newJobPath: string;
     newJobName: string;
     summary: CloneSummary;
+    newSuperUserRegistrationId: string;
 };
 

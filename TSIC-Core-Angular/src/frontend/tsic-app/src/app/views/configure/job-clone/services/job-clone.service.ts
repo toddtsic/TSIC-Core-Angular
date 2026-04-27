@@ -5,6 +5,7 @@ import { environment } from '@environments/environment';
 import type {
 	BlankJobRequest,
 	BlankJobResponse,
+	DevUndoStatusResponse,
 	IdentityExistsResponse,
 	JobClonePreviewResponse,
 	JobCloneRequest,
@@ -13,6 +14,7 @@ import type {
 	ReleasableAdminDto,
 	ReleaseAdminsRequest,
 	ReleaseResponse,
+	SuspendedJobDto,
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +47,10 @@ export class JobCloneService {
 	}
 
 	// ── Release flow ──
+	getSuspended(): Observable<SuspendedJobDto[]> {
+		return this.http.get<SuspendedJobDto[]>(`${this.apiUrl}/suspended`);
+	}
+
 	getAdmins(jobId: string): Observable<ReleasableAdminDto[]> {
 		return this.http.get<ReleasableAdminDto[]>(`${this.apiUrl}/${jobId}/admins`);
 	}
@@ -55,5 +61,14 @@ export class JobCloneService {
 
 	releaseAdmins(jobId: string, request: ReleaseAdminsRequest): Observable<ReleaseResponse> {
 		return this.http.post<ReleaseResponse>(`${this.apiUrl}/${jobId}/release-admins`, request);
+	}
+
+	// ── Dev-only undo (404 in prod) ──
+	getDevUndoStatus(jobId: string): Observable<DevUndoStatusResponse> {
+		return this.http.get<DevUndoStatusResponse>(`${this.apiUrl}/${jobId}/dev-undo-status`);
+	}
+
+	deleteClonedJob(jobId: string): Observable<void> {
+		return this.http.delete<void>(`${this.apiUrl}/${jobId}/dev-undo`);
 	}
 }

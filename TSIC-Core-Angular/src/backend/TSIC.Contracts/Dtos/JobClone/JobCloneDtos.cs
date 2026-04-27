@@ -34,6 +34,34 @@ public record JobCloneRequest
     public bool SetDirectorsToInactive { get; init; }
 
     public bool NoParallaxSlide1 { get; init; }
+
+    // ── Step 4: LADT scope ──
+    // "none" = no League/Agegroup/Division (configure post-release)
+    // "lad"  = clone League + Agegroups + Divisions (Teams re-register each season)
+    // "ladt" = "lad" + clone Teams (filtered: exclude ClubRep-paid + WAITLIST/DROPPED)
+    public string LadtScope { get; init; } = "lad";
+
+    // ── Step 5: CC processing fee ──
+    // "source"  = copy source.ProcessingFeePercent
+    // "current" = reset to FeeConstants.MinProcessingFeePercent (recommended; default)
+    // "custom"  = use CustomProcessingFeePercent (must be in [Min,Max])
+    public string ProcessingFeeChoice { get; init; } = "current";
+    public decimal? CustomProcessingFeePercent { get; init; }
+
+    // ── Step 5: eCheck processing fee ──
+    // Same shape as ProcessingFeeChoice but for EcprocessingFeePercent.
+    public string EcheckProcessingFeeChoice { get; init; } = "current";
+    public decimal? CustomEcheckProcessingFeePercent { get; init; }
+
+    // ── Step 5: eCheck enable flag ──
+    // "off"    = BEnableEcheck=false on new job (recommended; admin re-opts in)
+    // "source" = copy source.BEnableEcheck
+    public string EnableEcheckChoice { get; init; } = "off";
+
+    // ── Step 5: Store ──
+    // "keep"    = copy source.BEnableStore
+    // "disable" = BEnableStore=false on new job (recommended — inventory never clones)
+    public string StoreChoice { get; init; } = "disable";
 }
 
 // ══════════════════════════════════════
@@ -46,6 +74,15 @@ public record JobCloneResponse
     public required string NewJobPath { get; init; }
     public required string NewJobName { get; init; }
     public required CloneSummary Summary { get; init; }
+
+    /// <summary>
+    /// The Superuser RegistrationId on the new job for the user who executed the clone.
+    /// The frontend uses this to call AuthService.selectRegistration() and re-mint the JWT
+    /// scoped to the new job, so the user is truly *in* the new job after a successful clone.
+    /// Always populated — if the actor had no source Registration to clone, the service
+    /// creates a fresh active Superuser Registration for them on the new job.
+    /// </summary>
+    public required Guid NewSuperUserRegistrationId { get; init; }
 }
 
 public record CloneSummary
@@ -58,6 +95,7 @@ public record CloneSummary
     public int LeaguesCloned { get; init; }
     public int AgegroupsCloned { get; init; }
     public int DivisionsCloned { get; init; }
+    public int TeamsCloned { get; init; }
     public int FeesCloned { get; init; }
 }
 
@@ -149,6 +187,10 @@ public record JobClonePreviewResponse
     public required string InferredLeagueName { get; init; }
     public required decimal CurrentProcessingFeePercent { get; init; }
     public decimal? SourceProcessingFeePercent { get; init; }
+    public required decimal CurrentEcheckProcessingFeePercent { get; init; }
+    public decimal? SourceEcheckProcessingFeePercent { get; init; }
+    public required bool SourceBEnableEcheck { get; init; }
+    public required bool SourceBEnableStore { get; init; }
 
     public DateShiftDto? EventStartShift { get; init; }
     public DateShiftDto? EventEndShift { get; init; }
@@ -156,6 +198,15 @@ public record JobClonePreviewResponse
 
     public required int AdminsToDeactivate { get; init; }
     public required int AdminsPreserved { get; init; }
+
+    /// <summary>
+    /// Number of source Teams that would be cloned under LadtScope="ladt".
+    /// Filtered: excludes ClubRep-paid teams and any with WAITLIST/DROPPED registration status.
+    /// Always populated so the wizard can show the count regardless of selected scope.
+    /// </summary>
+    public required int TeamsToClone { get; init; }
+    public required int TeamsExcludedPaid { get; init; }
+    public required int TeamsExcludedWaitlistDropped { get; init; }
 
     public List<BulletinShiftDto> Bulletins { get; init; } = [];
     public List<AgegroupPreviewDto> Agegroups { get; init; } = [];
@@ -240,6 +291,42 @@ public record ReleaseResponse
     public required Guid JobId { get; init; }
     public required bool BSuspendPublic { get; init; }
     public required int AdminsActivated { get; init; }
+}
+
+// ══════════════════════════════════════
+// Dev-only "Delete and return" — undo a clone in dev environment
+// ══════════════════════════════════════
+
+/// <summary>
+/// Status payload for the "Delete and return" button on the celebrate landing.
+/// CanUndo is true only when every safety predicate passes; Reasons enumerates
+/// any blocking conditions when CanUndo is false. Counts drive the confirm modal
+/// so the SuperUser can see the row impact before confirming.
+/// </summary>
+public record DevUndoStatusResponse
+{
+    public required bool CanUndo { get; init; }
+    public required List<string> Reasons { get; init; }
+    public required DevUndoCounts Counts { get; init; }
+}
+
+/// <summary>
+/// Row counts surfaced to the confirm modal. Anything that should be 0 for a
+/// fresh clone is broken out separately so the user sees which predicate failed.
+/// </summary>
+public record DevUndoCounts
+{
+    public required int AdminRegistrations { get; init; }
+    public required int NonAdminRegistrations { get; init; }
+    public required int RegistrationAccounting { get; init; }
+    public required int Teams { get; init; }
+    public required int JobFees { get; init; }
+    public required int FeeModifiers { get; init; }
+    public required int Bulletins { get; init; }
+    public required int Agegroups { get; init; }
+    public required int Divisions { get; init; }
+    /// <summary>Sum of rows across ancillary FK tables (CalendarEvents, EmailLogs, Schedule, etc.) — must be 0 to undo.</summary>
+    public required int AncillaryRows { get; init; }
 }
 
 /// <summary>

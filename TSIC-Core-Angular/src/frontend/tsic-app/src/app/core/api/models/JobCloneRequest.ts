@@ -16,5 +16,12 @@ export type JobCloneRequest = {
     upAgegroupNamesByOne?: boolean;
     setDirectorsToInactive?: boolean;
     noParallaxSlide1?: boolean;
+    ladtScope?: string;
+    processingFeeChoice?: string;
+    customProcessingFeePercent?: number | null;
+    echeckProcessingFeeChoice?: string;
+    customEcheckProcessingFeePercent?: number | null;
+    enableEcheckChoice?: string;
+    storeChoice?: string;
 };
 

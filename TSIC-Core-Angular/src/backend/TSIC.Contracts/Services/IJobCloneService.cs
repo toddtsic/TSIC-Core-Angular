@@ -109,4 +109,22 @@ public interface IJobCloneService
     /// uniqueness check alongside JobPathExistsAsync.
     /// </summary>
     Task<bool> JobNameExistsAsync(string jobName, CancellationToken ct = default);
+
+    // ── Dev-only undo (controller enforces IsDevelopment + SuperUser policy) ──
+
+    /// <summary>
+    /// Returns whether a freshly-cloned job can be safely deleted from dev DB, with row counts
+    /// for the confirm modal. CanUndo=true requires: only admin Registrations, zero
+    /// RegistrationAccounting, and zero rows in any ancillary FK table. Reasons enumerates
+    /// each blocking predicate when CanUndo=false.
+    /// </summary>
+    Task<DevUndoStatusResponse> GetDevUndoStatusAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cascade-deletes a freshly-cloned Job (and all entities the clone created) from dev DB.
+    /// Re-runs predicate checks inside the same transaction (TOCTOU defense). The cloned
+    /// Leagues row is only removed if it's exclusively owned by this job.
+    /// Throws InvalidOperationException with reasons if predicates fail at delete time.
+    /// </summary>
+    Task DeleteClonedJobAsync(Guid jobId, CancellationToken ct = default);
 }

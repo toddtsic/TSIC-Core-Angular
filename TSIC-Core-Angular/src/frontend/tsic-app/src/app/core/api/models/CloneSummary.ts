@@ -11,6 +11,7 @@ export type CloneSummary = {
     leaguesCloned?: number;
     agegroupsCloned?: number;
     divisionsCloned?: number;
+    teamsCloned?: number;
     feesCloned?: number;
 };
 

@@ -126,6 +126,21 @@ public class JobCloneRepository : IJobCloneRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<TeamCloneSource>> GetSourceTeamsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Joined to Agegroups so the service can apply the WAITLIST/DROPPED filter against
+        // the agegroup name (status tokens are encoded as substrings within the name).
+        return await (from t in _context.Teams.AsNoTracking()
+                      join ag in _context.Agegroups.AsNoTracking() on t.AgegroupId equals ag.AgegroupId
+                      where t.JobId == jobId
+                      select new TeamCloneSource
+                      {
+                          Team = t,
+                          AgegroupName = ag.AgegroupName,
+                      })
+            .ToListAsync(ct);
+    }
+
     // ══════════════════════════════════════
     // Validation
     // ══════════════════════════════════════
@@ -213,6 +228,9 @@ public class JobCloneRepository : IJobCloneRepository
     public void AddDivisions(IEnumerable<Divisions> divisions)
         => _context.Divisions.AddRange(divisions);
 
+    public void AddTeams(IEnumerable<Teams> teams)
+        => _context.Teams.AddRange(teams);
+
     // ══════════════════════════════════════
     // Transaction + commit
     // ══════════════════════════════════════
@@ -275,6 +293,200 @@ public class JobCloneRepository : IJobCloneRepository
                           BActive = r.BActive ?? false,
                       })
             .ToListAsync(ct);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Dev-only undo
+    // ══════════════════════════════════════════════════════════
+
+    private static readonly Guid[] AdminRoleGuids =
+    [
+        Guid.Parse(RoleConstants.Superuser),
+        Guid.Parse(RoleConstants.Director),
+        Guid.Parse(RoleConstants.SuperDirector),
+    ];
+
+    public async Task<DevUndoCounts> GetDevUndoCountsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Each count is a separate query. Sequential (not Task.WhenAll) per
+        // CLAUDE.md DbContext safety rule.
+        var allRegs = await _context.Registrations.AsNoTracking()
+            .Where(r => r.JobId == jobId).ToListAsync(ct);
+        var adminRegs = allRegs.Count(r =>
+            !string.IsNullOrEmpty(r.RoleId)
+            && AdminRoleGuids.Any(g => string.Equals(r.RoleId, g.ToString(), StringComparison.OrdinalIgnoreCase)));
+        var nonAdminRegs = allRegs.Count - adminRegs;
+
+        // RegistrationAccounting joins via Registrations.RegistrationId.
+        var regIds = allRegs.Select(r => r.RegistrationId).ToHashSet();
+        var regAccounting = regIds.Count == 0 ? 0
+            : await _context.RegistrationAccounting.AsNoTracking()
+                .CountAsync(ra => ra.RegistrationId != null && regIds.Contains(ra.RegistrationId.Value), ct);
+
+        var teams = await _context.Teams.AsNoTracking().CountAsync(t => t.JobId == jobId, ct);
+        var jobFees = await _context.JobFees.AsNoTracking().CountAsync(f => f.JobId == jobId, ct);
+        var feeModifierIds = await _context.JobFees.AsNoTracking()
+            .Where(f => f.JobId == jobId).Select(f => f.JobFeeId).ToListAsync(ct);
+        var feeMods = feeModifierIds.Count == 0 ? 0
+            : await _context.FeeModifiers.AsNoTracking()
+                .CountAsync(m => feeModifierIds.Contains(m.JobFeeId), ct);
+        var bulletins = await _context.Bulletins.AsNoTracking().CountAsync(b => b.JobId == jobId, ct);
+
+        var leagueIds = await _context.JobLeagues.AsNoTracking()
+            .Where(jl => jl.JobId == jobId).Select(jl => jl.LeagueId).ToListAsync(ct);
+        var agegroupIds = leagueIds.Count == 0 ? new List<Guid>()
+            : await _context.Agegroups.AsNoTracking()
+                .Where(a => leagueIds.Contains(a.LeagueId))
+                .Select(a => a.AgegroupId).ToListAsync(ct);
+        var agegroupCount = agegroupIds.Count;
+        var divisionCount = agegroupIds.Count == 0 ? 0
+            : await _context.Divisions.AsNoTracking()
+                .CountAsync(d => agegroupIds.Contains(d.AgegroupId), ct);
+
+        // Ancillary tables: anything with JobId FK that the clone does NOT write to.
+        // If any of these have rows, the job has been used post-clone — block undo.
+        var ancillary =
+            await _context.CalendarEvents.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.DeviceJobs.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.EmailFailures.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.EmailLogs.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.GameClockParams.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobAdminCharges.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobCalendar.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobCustomers.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobDiscountCodes.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobMessages.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobPushNotificationsToAll.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobSmsbroadcasts.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.JobWidget.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.Jobinvoices.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.MonthlyJobStats.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.Nav.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.PushSubscriptionJobs.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.RegForms.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.Schedule.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.Sliders.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
+            + await _context.Stores.AsNoTracking().CountAsync(x => x.JobId == jobId, ct);
+
+        return new DevUndoCounts
+        {
+            AdminRegistrations = adminRegs,
+            NonAdminRegistrations = nonAdminRegs,
+            RegistrationAccounting = regAccounting,
+            Teams = teams,
+            JobFees = jobFees,
+            FeeModifiers = feeMods,
+            Bulletins = bulletins,
+            Agegroups = agegroupCount,
+            Divisions = divisionCount,
+            AncillaryRows = ancillary,
+        };
+    }
+
+    public async Task<bool> IsLeagueExclusivelyOwnedByJobAsync(
+        Guid jobId, Guid leagueId, CancellationToken ct = default)
+    {
+        // True = no OTHER job links this league. Safe to delete the league with the job.
+        var otherJobLinks = await _context.JobLeagues.AsNoTracking()
+            .CountAsync(jl => jl.LeagueId == leagueId && jl.JobId != jobId, ct);
+        return otherJobLinks == 0;
+    }
+
+    public async Task<JobLeagues?> GetJobLeagueForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Tracked because callers will delete it.
+        return await _context.JobLeagues
+            .OrderByDescending(jl => jl.BIsPrimary)
+            .FirstOrDefaultAsync(jl => jl.JobId == jobId, ct);
+    }
+
+    public async Task CascadeDeleteJobAsync(Guid jobId, Guid? clonedLeagueId, CancellationToken ct = default)
+    {
+        // Delete order: leaves → root, respecting FK direction. Each step is a tracked load,
+        // RemoveRange, then SaveChanges to flush before the next step (avoids FK violations
+        // where the next delete depends on the prior step having actually run).
+
+        // 1. FeeModifiers (children of JobFees)
+        var jobFees = await _context.JobFees.Where(f => f.JobId == jobId).ToListAsync(ct);
+        if (jobFees.Count > 0)
+        {
+            var feeIds = jobFees.Select(f => f.JobFeeId).ToList();
+            var modifiers = await _context.FeeModifiers
+                .Where(m => feeIds.Contains(m.JobFeeId)).ToListAsync(ct);
+            if (modifiers.Count > 0) _context.FeeModifiers.RemoveRange(modifiers);
+            _context.JobFees.RemoveRange(jobFees);
+        }
+
+        // 2. Teams
+        var teams = await _context.Teams.Where(t => t.JobId == jobId).ToListAsync(ct);
+        if (teams.Count > 0) _context.Teams.RemoveRange(teams);
+
+        // 3. Divisions (children of Agegroups, which are children of Leagues)
+        // 4. Agegroups (children of Leagues)
+        if (clonedLeagueId.HasValue)
+        {
+            var agegroups = await _context.Agegroups
+                .Where(a => a.LeagueId == clonedLeagueId.Value).ToListAsync(ct);
+            if (agegroups.Count > 0)
+            {
+                var agIds = agegroups.Select(a => a.AgegroupId).ToList();
+                var divisions = await _context.Divisions
+                    .Where(d => agIds.Contains(d.AgegroupId)).ToListAsync(ct);
+                if (divisions.Count > 0) _context.Divisions.RemoveRange(divisions);
+                _context.Agegroups.RemoveRange(agegroups);
+            }
+        }
+
+        // 5. Registrations (admin-only by predicate; safe to delete all for this job)
+        var regs = await _context.Registrations.Where(r => r.JobId == jobId).ToListAsync(ct);
+        if (regs.Count > 0) _context.Registrations.RemoveRange(regs);
+
+        // 6. JobLeagues + the cloned Leagues (only if exclusively owned)
+        var jobLeagues = await _context.JobLeagues.Where(jl => jl.JobId == jobId).ToListAsync(ct);
+        if (jobLeagues.Count > 0) _context.JobLeagues.RemoveRange(jobLeagues);
+
+        // Flush so the JobLeagues delete completes before we attempt to delete Leagues
+        // (otherwise the FK from JobLeagues → Leagues blocks the parent delete).
+        await _context.SaveChangesAsync(ct);
+
+        if (clonedLeagueId.HasValue)
+        {
+            var league = await _context.Leagues
+                .FirstOrDefaultAsync(l => l.LeagueId == clonedLeagueId.Value, ct);
+            if (league != null) _context.Leagues.Remove(league);
+        }
+
+        // 7. Bulletins
+        var bulletins = await _context.Bulletins.Where(b => b.JobId == jobId).ToListAsync(ct);
+        if (bulletins.Count > 0) _context.Bulletins.RemoveRange(bulletins);
+
+        // 8. JobAgeRanges
+        var ageRanges = await _context.JobAgeRanges.Where(r => r.JobId == jobId).ToListAsync(ct);
+        if (ageRanges.Count > 0) _context.JobAgeRanges.RemoveRange(ageRanges);
+
+        // 9. JobMenus + JobMenuItems
+        var menus = await _context.JobMenus.Include(m => m.JobMenuItems)
+            .Where(m => m.JobId == jobId).ToListAsync(ct);
+        if (menus.Count > 0)
+        {
+            var allItems = menus.SelectMany(m => m.JobMenuItems).ToList();
+            if (allItems.Count > 0) _context.JobMenuItems.RemoveRange(allItems);
+            _context.JobMenus.RemoveRange(menus);
+        }
+
+        // 10. JobOwlImages
+        var owl = await _context.JobOwlImages.FirstOrDefaultAsync(o => o.JobId == jobId, ct);
+        if (owl != null) _context.JobOwlImages.Remove(owl);
+
+        // 11. JobDisplayOptions
+        var display = await _context.JobDisplayOptions.FirstOrDefaultAsync(d => d.JobId == jobId, ct);
+        if (display != null) _context.JobDisplayOptions.Remove(display);
+
+        // 12. Jobs (root)
+        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.JobId == jobId, ct);
+        if (job != null) _context.Jobs.Remove(job);
+
+        await _context.SaveChangesAsync(ct);
     }
 
     public async Task<List<SuspendedJobDto>> GetSuspendedJobsAsync(

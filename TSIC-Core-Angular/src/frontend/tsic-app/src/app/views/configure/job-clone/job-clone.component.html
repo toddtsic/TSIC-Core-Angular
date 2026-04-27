@@ -62,7 +62,8 @@
 						</p>
 
 						<label class="field-check" style="margin-top: var(--space-3)">
-							<input type="checkbox" [(ngModel)]="autoAdvanceYear">
+							<input type="checkbox" [(ngModel)]="autoAdvanceYear"
+								(ngModelChange)="autoAdvanceYearChanged()">
 							<span>Advance year by 1 for the new job</span>
 						</label>
 						<p class="field-help">
@@ -96,6 +97,38 @@
 					<label class="field-label" for="sportId">Sport ID</label>
 					<input id="sportId" type="text" class="field-input" [(ngModel)]="sportId"
 						placeholder="Sport GUID">
+				}
+
+				<!-- Dev-only leftover-clones cleanup. Hidden in prod via isDev. -->
+				@if (isDev) {
+					<section class="jc-panel jc-dev-panel" style="margin-top: var(--space-4)">
+						<h3>Dev only — leftover suspended clones</h3>
+						<p class="wizard-tip">
+							Suspended jobs that haven't been released yet. Cascade-deletes only run when
+							no rows other than admin registrations exist.
+						</p>
+						@if (isLoadingSuspended()) {
+							<p class="loading-text">Loading…</p>
+						} @else if (suspendedJobs().length === 0) {
+							<p class="empty-text">No suspended jobs.</p>
+						} @else {
+							<ul class="jc-admin-list">
+								@for (j of suspendedJobs(); track j.jobId) {
+									<li class="jc-leftover-row">
+										<span>
+											<strong>{{ j.jobName }}</strong>
+											<span class="jc-admin-meta">{{ j.jobPath }} · {{ j.year }} {{ j.season }}</span>
+										</span>
+										<button type="button" class="jc-btn-danger"
+											[disabled]="isLoadingUndoStatus() || isDeletingClone()"
+											(click)="openLeftoverUndo(j.jobId, j.jobName)">
+											Delete
+										</button>
+									</li>
+								}
+							</ul>
+						}
+					</section>
 				}
 			}
 
@@ -194,8 +227,11 @@
 							<p class="wizard-tip">
 								<strong>{{ p.adminsToDeactivate }}</strong> Director/SuperDirector reg(s) will land inactive.
 								<strong>{{ p.adminsPreserved }}</strong> Superuser reg(s) preserved.
-								Processing fee resets to <strong>{{ p.currentProcessingFeePercent }}%</strong>
-								(source was {{ p.sourceProcessingFeePercent ?? '—' }}%).
+								CC fee floor: <strong>{{ p.currentProcessingFeePercent }}%</strong>
+								(source: {{ p.sourceProcessingFeePercent ?? '—' }}%).
+								eCheck fee floor: <strong>{{ p.currentEcheckProcessingFeePercent }}%</strong>
+								(source: {{ p.sourceEcheckProcessingFeePercent ?? '—' }}%).
+								Final values determined by your Step 5 picks.
 							</p>
 
 							@if ((p.bulletins?.length ?? 0) > 0) {
@@ -276,23 +312,36 @@
 						<span><strong>LADT</strong> — add Teams, filtered (exclude ClubRep-paid + WAITLIST/DROPPED).</span>
 					</label>
 				</div>
-				<p class="field-help">
-					LADT filtering happens server-side; team-scoped preview is added in a follow-up.
-				</p>
+
+				@if (flavor() === 'clone' && preview(); as p) {
+					@if (ladtScope === 'ladt') {
+						<p class="wizard-tip" style="margin-top: var(--space-3)">
+							<strong>{{ p.teamsToClone }}</strong> team(s) will clone.
+							Excluded: <strong>{{ p.teamsExcludedPaid }}</strong> ClubRep-paid
+							+ <strong>{{ p.teamsExcludedWaitlistDropped }}</strong> WAITLIST/DROPPED.
+							ClubRep + Player registrations are NOT cloned (per business rule); team financials reset.
+						</p>
+					} @else if (ladtScope === 'lad') {
+						<p class="field-help" style="margin-top: var(--space-3)">
+							Source has <strong>{{ p.teamsToClone + p.teamsExcludedPaid + p.teamsExcludedWaitlistDropped }}</strong> team(s) — none will clone in LAD mode.
+							Switch to LADT to carry teams forward.
+						</p>
+					}
+				}
 			}
 
 			<!-- STEP 5 — Fees -->
 			@case (5) {
 				<h3>Fee defaults</h3>
 
+				<!-- ── Credit-card processing fee ── -->
+				<label class="field-label">Credit-card processing fee %</label>
 				@if (flavor() === 'clone' && preview()) {
-					<p class="wizard-tip">
+					<p class="field-help">
 						Current floor: <strong>{{ preview()?.currentProcessingFeePercent }}%</strong>.
 						Source had: <strong>{{ preview()?.sourceProcessingFeePercent ?? '—' }}%</strong>.
 					</p>
 				}
-
-				<label class="field-label">Processing fee %</label>
 				<div class="field-check-row">
 					<label class="field-check">
 						<input type="radio" name="procFee" value="source" [(ngModel)]="processingFeeChoice">
@@ -308,10 +357,64 @@
 					</label>
 				</div>
 				@if (processingFeeChoice === 'custom') {
-					<input type="number" step="0.1" class="field-input" [(ngModel)]="customProcessingFee">
+					<input type="number" step="0.1" min="3.5" max="4.0" class="field-input"
+						[(ngModel)]="customProcessingFee">
+					<p class="field-help">Allowed range: 3.5% – 4.0%.</p>
 				}
 
-				<label class="field-label" style="margin-top: var(--space-3)">Store</label>
+				<!-- ── eCheck processing fee ── -->
+				<label class="field-label" style="margin-top: var(--space-4)">eCheck processing fee %</label>
+				@if (flavor() === 'clone' && preview()) {
+					<p class="field-help">
+						Current floor: <strong>{{ preview()?.currentEcheckProcessingFeePercent }}%</strong>.
+						Source had: <strong>{{ preview()?.sourceEcheckProcessingFeePercent ?? '—' }}%</strong>.
+					</p>
+				}
+				<div class="field-check-row">
+					<label class="field-check">
+						<input type="radio" name="ecFee" value="source" [(ngModel)]="echeckProcessingFeeChoice">
+						<span>Copy source</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="ecFee" value="current" [(ngModel)]="echeckProcessingFeeChoice">
+						<span>Use current floor (recommended)</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="ecFee" value="custom" [(ngModel)]="echeckProcessingFeeChoice">
+						<span>Custom</span>
+					</label>
+				</div>
+				@if (echeckProcessingFeeChoice === 'custom') {
+					<input type="number" step="0.1" min="1.5" max="2.0" class="field-input"
+						[(ngModel)]="customEcheckProcessingFee">
+					<p class="field-help">Allowed range: 1.5% – 2.0%.</p>
+				}
+
+				<!-- ── eCheck enable ── -->
+				<label class="field-label" style="margin-top: var(--space-4)">eCheck payment method</label>
+				@if (flavor() === 'clone' && preview()) {
+					<p class="field-help">
+						Source had eCheck: <strong>{{ preview()?.sourceBEnableEcheck ? 'enabled' : 'disabled' }}</strong>.
+					</p>
+				}
+				<div class="field-check-row">
+					<label class="field-check">
+						<input type="radio" name="enableEc" value="off" [(ngModel)]="enableEcheckChoice">
+						<span>Disable on new job (recommended — admin re-opts in)</span>
+					</label>
+					<label class="field-check">
+						<input type="radio" name="enableEc" value="source" [(ngModel)]="enableEcheckChoice">
+						<span>Copy source setting</span>
+					</label>
+				</div>
+
+				<!-- ── Store ── -->
+				<label class="field-label" style="margin-top: var(--space-4)">Store</label>
+				@if (flavor() === 'clone' && preview()) {
+					<p class="field-help">
+						Source had store: <strong>{{ preview()?.sourceBEnableStore ? 'enabled' : 'disabled' }}</strong>.
+					</p>
+				}
 				<div class="field-check-row">
 					<label class="field-check">
 						<input type="radio" name="store" value="keep" [(ngModel)]="storeChoice">
@@ -323,7 +426,7 @@
 					</label>
 				</div>
 
-				<p class="field-help">
+				<p class="field-help" style="margin-top: var(--space-3)">
 					Fee-per-agegroup + fee modifiers are cloned with year-delta shift on windows (see Step 3 preview).
 				</p>
 			}
@@ -367,12 +470,22 @@
 					@if (flavor() === 'clone') {
 						<dt>League name</dt><dd>{{ preview()?.inferredLeagueName ?? leagueNameTarget }}</dd>
 					}
+					<dt>Admin expiry</dt><dd>{{ expiryAdmin || '—' }}</dd>
+					<dt>User expiry</dt><dd>{{ expiryUsers || '—' }}</dd>
 					<dt>LADT scope</dt><dd>{{ ladtScope | uppercase }}</dd>
-					<dt>Processing fee</dt><dd>{{ processingFeeChoice }}
+					<dt>CC processing fee</dt><dd>{{ processingFeeChoice }}
 						@if (processingFeeChoice === 'custom') { — {{ customProcessingFee }}% }
 					</dd>
+					<dt>eCheck processing fee</dt><dd>{{ echeckProcessingFeeChoice }}
+						@if (echeckProcessingFeeChoice === 'custom') { — {{ customEcheckProcessingFee }}% }
+					</dd>
+					<dt>eCheck on new job</dt><dd>{{ enableEcheckChoice === 'off' ? 'disabled' : 'copy source' }}</dd>
 					<dt>Store</dt><dd>{{ storeChoice }}</dd>
 					<dt>Advance agegroup years</dt><dd>{{ upAgegroupNamesByOne ? 'yes' : 'no' }}</dd>
+					<dt>Remove parallax slide 1</dt><dd>{{ noParallaxSlide1 ? 'yes' : 'no' }}</dd>
+					@if (regFormFrom) {
+						<dt>Reg form-from email</dt><dd>{{ regFormFrom }}</dd>
+					}
 				</dl>
 
 				<p class="wizard-tip">
@@ -429,14 +542,32 @@
 
 	<!-- ══════════════════ RELEASE ══════════════════ -->
 	@case ('release') {
-		<header class="jc-header">
-			<h2>Turn the new job on</h2>
-			<p class="jc-subtitle">
-				Two switches. Flip the first when you want the job visible to the public.
-				Flip the second when you want its directors to be able to log in.
-				You can do them in either order.
-			</p>
-		</header>
+		@if (freshCelebrate()) {
+			<header class="jc-header jc-celebrate">
+				<h2>🎉 Done — and you've moved.</h2>
+				<p class="jc-subtitle">
+					<strong>{{ releaseJobContext()?.jobName ?? 'Your new job' }}</strong>
+					is built, and you're now logged into it.
+				</p>
+				<p class="jc-subtitle">
+					Two things left when you're ready:
+					<strong>release the site</strong> so the public can see it,
+					and <strong>activate your directors</strong> so they can log in.
+				</p>
+				<p class="jc-subtitle">
+					Take your time. Nothing on this page is automatic.
+				</p>
+			</header>
+		} @else {
+			<header class="jc-header">
+				<h2>Turn the new job on</h2>
+				<p class="jc-subtitle">
+					Two switches. Flip the first when you want the job visible to the public.
+					Flip the second when you want its directors to be able to log in.
+					You can do them in either order.
+				</p>
+			</header>
+		}
 
 		@if (releaseJobContext(); as ctx) {
 			<section class="jc-panel">
@@ -519,7 +650,89 @@
 				</details>
 			}
 		</section>
+
+		<!-- Dev-only undo (Phase 10). Hidden in prod via isDev; backend endpoints 404 there too. -->
+		@if (isDev && freshCelebrate() && sourceJobPathForReturn() && sourceRegIdForReturn()) {
+			<section class="jc-panel jc-dev-panel">
+				<h3>Dev only — undo this clone</h3>
+				<p class="wizard-tip">
+					Cascade-deletes the cloned job and switches you back into the source.
+					Available only while no one but admins has touched the new site.
+				</p>
+
+				@if (isLoadingUndoStatus()) {
+					<p class="loading-text">Checking…</p>
+				} @else if (devUndoStatus(); as s) {
+					@if (s.canUndo) {
+						<button type="button" class="jc-btn-danger"
+							[disabled]="isDeletingClone()"
+							(click)="openDevUndoConfirm()">
+							Delete job and return to source
+						</button>
+					} @else {
+						<p class="empty-text">
+							Can't undo — the new job is no longer in a clean clone state:
+						</p>
+						<ul class="jc-admin-list">
+							@for (r of s.reasons; track r) { <li>{{ r }}</li> }
+						</ul>
+					}
+				}
+			</section>
+		}
+
 	}
 
+	}
+
+	<!-- Dev-undo confirm modal — lifted out of the switch so it works for both
+	     post-clone (release mode) and leftover-cleanup (wizard mode) entry points. -->
+	@if (devUndoConfirmOpen()) {
+		<div class="jc-modal-backdrop" (click)="cancelDevUndoConfirm()">
+			<div class="jc-modal" (click)="$event.stopPropagation()">
+				<h3>Delete cloned job?</h3>
+				<p>
+					This permanently deletes
+					<strong>{{ leftoverTargetJobName() ?? releaseJobContext()?.jobName }}</strong>
+					and every row that was created during the clone.
+				</p>
+				@if (devUndoStatus(); as s) {
+					@if (s.canUndo) {
+						<ul class="jc-undo-counts">
+							<li>Admin registrations: <strong>{{ s.counts.adminRegistrations }}</strong></li>
+							<li>Teams: <strong>{{ s.counts.teams }}</strong></li>
+							<li>Job fees: <strong>{{ s.counts.jobFees }}</strong> (+ {{ s.counts.feeModifiers }} modifiers)</li>
+							<li>Bulletins: <strong>{{ s.counts.bulletins }}</strong></li>
+							<li>Agegroups / divisions: <strong>{{ s.counts.agegroups }}</strong> / <strong>{{ s.counts.divisions }}</strong></li>
+						</ul>
+					} @else {
+						<p class="empty-text">Cannot delete — the job is no longer in a clean clone state:</p>
+						<ul class="jc-admin-list">
+							@for (r of s.reasons; track r) { <li>{{ r }}</li> }
+						</ul>
+					}
+				}
+				@if (!leftoverTargetJobId()) {
+					<p class="wizard-tip">
+						You'll be logged back into the source job afterwards.
+					</p>
+				}
+				<div class="jc-modal-actions">
+					<button type="button" class="jc-btn-secondary"
+						[disabled]="isDeletingClone()"
+						(click)="cancelDevUndoConfirm()">
+						Cancel
+					</button>
+					@if (devUndoStatus()?.canUndo) {
+						<button type="button" class="jc-btn-danger"
+							[disabled]="isDeletingClone()"
+							(click)="confirmDevUndo()">
+							@if (isDeletingClone()) { <span class="spinner"></span> Deleting… }
+							@else { @if (leftoverTargetJobId()) { Delete } @else { Delete and return } }
+						</button>
+					}
+				</div>
+			</div>
+		</div>
 	}
 </div>

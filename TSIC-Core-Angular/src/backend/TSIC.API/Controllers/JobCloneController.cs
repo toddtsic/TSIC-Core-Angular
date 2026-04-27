@@ -15,10 +15,12 @@ namespace TSIC.API.Controllers;
 public class JobCloneController : ControllerBase
 {
     private readonly IJobCloneService _cloneService;
+    private readonly IHostEnvironment _env;
 
-    public JobCloneController(IJobCloneService cloneService)
+    public JobCloneController(IJobCloneService cloneService, IHostEnvironment env)
     {
         _cloneService = cloneService;
+        _env = env;
     }
 
     /// <summary>
@@ -214,6 +216,51 @@ public class JobCloneController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+        }
+    }
+
+    // ── Dev-only undo (cascade delete a freshly-cloned job) ──
+    // Hard-gated by IsDevelopment() on top of SuperUserOnly. In prod, both endpoints 404
+    // so they don't appear in any tooling.
+
+    /// <summary>
+    /// Dev-only: returns whether a freshly-cloned job can be cascade-deleted, with row counts
+    /// for the confirm modal. CanUndo=true requires only admin Registrations, zero
+    /// RegistrationAccounting, and zero rows in any ancillary FK table.
+    /// </summary>
+    [HttpGet("{jobId:guid}/dev-undo-status")]
+    public async Task<ActionResult<DevUndoStatusResponse>> GetDevUndoStatus(
+        Guid jobId, CancellationToken ct)
+    {
+        if (!_env.IsDevelopment())
+            return NotFound();
+
+        var result = await _cloneService.GetDevUndoStatusAsync(jobId, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Dev-only: cascade-delete a freshly-cloned job. Re-runs predicate checks inside the
+    /// delete transaction (TOCTOU defense). Returns 409 if predicates fail at delete time.
+    /// </summary>
+    [HttpDelete("{jobId:guid}/dev-undo")]
+    public async Task<IActionResult> DeleteClonedJob(Guid jobId, CancellationToken ct)
+    {
+        if (!_env.IsDevelopment())
+            return NotFound();
+
+        try
+        {
+            await _cloneService.DeleteClonedJobAsync(jobId, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 }

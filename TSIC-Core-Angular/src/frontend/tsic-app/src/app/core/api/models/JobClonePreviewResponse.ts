@@ -11,11 +11,18 @@ export type JobClonePreviewResponse = {
     inferredLeagueName: string;
     currentProcessingFeePercent: number;
     sourceProcessingFeePercent?: number | null;
+    currentEcheckProcessingFeePercent: number;
+    sourceEcheckProcessingFeePercent?: number | null;
+    sourceBEnableEcheck: boolean;
+    sourceBEnableStore: boolean;
     eventStartShift?: (null | DateShiftDto);
     eventEndShift?: (null | DateShiftDto);
     adnArbStartShift?: (null | DateShiftDto);
     adminsToDeactivate: number;
     adminsPreserved: number;
+    teamsToClone: number;
+    teamsExcludedPaid: number;
+    teamsExcludedWaitlistDropped: number;
     bulletins?: Array<BulletinShiftDto>;
     agegroups?: Array<AgegroupPreviewDto>;
     feeModifiers?: Array<FeeModifierShiftDto>;

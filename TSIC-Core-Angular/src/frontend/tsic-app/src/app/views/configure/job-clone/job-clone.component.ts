@@ -1,19 +1,23 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { JobCloneService } from './services/job-clone.service';
 import { JobContextService } from '@infrastructure/services/job-context.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { environment } from '@environments/environment';
 import type {
 	AgegroupPreviewDto,
 	BlankJobRequest,
 	BulletinShiftDto,
 	DateShiftDto,
+	DevUndoStatusResponse,
 	FeeModifierShiftDto,
 	JobClonePreviewResponse,
 	JobCloneSourceDto,
 	ReleasableAdminDto,
+	SuspendedJobDto,
 } from '@core/api';
 
 type Mode = 'wizard' | 'release';
@@ -41,6 +45,8 @@ export class JobCloneComponent implements OnInit {
 	private readonly cloneService = inject(JobCloneService);
 	private readonly jobContext = inject(JobContextService);
 	private readonly route = inject(ActivatedRoute);
+	private readonly router = inject(Router);
+	private readonly authService = inject(AuthService);
 	private readonly toast = inject(ToastService);
 
 	readonly totalSteps = 7;
@@ -77,13 +83,27 @@ export class JobCloneComponent implements OnInit {
 	// Step 4 LADT scope
 	ladtScope: 'none' | 'lad' | 'ladt' = 'lad';
 
-	// Step 5 fee defaults (prompt-if-valued)
+	// Step 5 — CC processing fee
 	processingFeeChoice: 'source' | 'current' | 'custom' = 'current';
 	customProcessingFee = 3.5;
+
+	// Step 5 — eCheck processing fee
+	echeckProcessingFeeChoice: 'source' | 'current' | 'custom' = 'current';
+	customEcheckProcessingFee = 1.5;
+
+	// Step 5 — eCheck enable toggle ("off" = lockdown; "source" = inherit)
+	enableEcheckChoice: 'off' | 'source' = 'off';
+
+	// Step 5 — Store ("disable" recommended; inventory never clones)
 	storeChoice: 'keep' | 'disable' = 'disable';
 
 	// Step 1 toggle — controls whether the year-bump logic runs when advancing to Step 2.
 	autoAdvanceYear = true;
+
+	// Tracks whether populateStep2FromSource() has run for the current source/toggle combination.
+	// Prevents Step 1→2 from clobbering user edits when the user navigates back and re-advances.
+	// Reset by autoAdvanceYearChanged() (toggle flip should re-seed) and resetWizard().
+	private step2Populated = false;
 
 	// Step 6 people / options
 	upAgegroupNamesByOne = true;
@@ -107,6 +127,33 @@ export class JobCloneComponent implements OnInit {
 	readonly isActivatingAdmins = signal(false);
 	readonly sitePublic = signal<boolean | null>(null);
 
+	// ── Fresh-clone celebrate state ──
+	// True when arriving at this route immediately after a successful clone (set via
+	// history.state in ngOnInit). Drives the celebratory header on the release landing.
+	readonly freshCelebrate = signal(false);
+	// Captured BEFORE the JWT re-mint so the dev-only "Delete and return" flow (Phase 10)
+	// can switch the user back into the original source job.
+	readonly sourceJobPathForReturn = signal<string | null>(null);
+	readonly sourceRegIdForReturn = signal<string | null>(null);
+
+	// ── Dev-only undo state (Phase 10) ──
+	// `isDev` mirrors the prod build flag; never show the undo affordance in production.
+	readonly isDev = !environment.production;
+	readonly devUndoStatus = signal<DevUndoStatusResponse | null>(null);
+	readonly isLoadingUndoStatus = signal(false);
+	readonly devUndoConfirmOpen = signal(false);
+	readonly isDeletingClone = signal(false);
+
+	// ── Dev-only "leftover clones" panel on Step 1 ──
+	// Suspended jobs the user can cascade-delete without going through the celebrate flow.
+	// Distinct from the post-clone undo (no JWT switch needed — they're not in those jobs).
+	readonly suspendedJobs = signal<SuspendedJobDto[]>([]);
+	readonly isLoadingSuspended = signal(false);
+	// Tracks which suspended job the modal is acting on. Set when the user clicks Delete
+	// on a row; cleared when the modal closes. Drives the "leftover" branch in confirmDevUndo.
+	readonly leftoverTargetJobId = signal<string | null>(null);
+	readonly leftoverTargetJobName = signal<string | null>(null);
+
 	// ── Submit state ──
 	readonly isSubmitting = signal(false);
 	readonly error = signal<string | null>(null);
@@ -117,7 +164,12 @@ export class JobCloneComponent implements OnInit {
 	readonly nameCollision = signal(false);
 
 	// ── Computed ──
-	readonly canAdvance = computed(() => this.validateCurrentStep());
+	// canAdvance() is intentionally a method, NOT a computed — most wizard form fields
+	// are plain class fields bound via [(ngModel)] (not signals), so a computed wrapper
+	// would only re-run when its tracked signal deps change and silently cache for
+	// everything else. Method form re-evaluates on every CD pass (ngModel events trigger
+	// CD on this OnPush host), giving correct disabled-button behavior across all steps.
+	canAdvance(): boolean { return this.validateCurrentStep(); }
 	readonly inactiveAdmins = computed(() =>
 		this.releaseAdmins().filter(a => !a.bActive));
 	readonly activeAdmins = computed(() =>
@@ -125,9 +177,38 @@ export class JobCloneComponent implements OnInit {
 	readonly selectedCount = computed(() => this.releaseSelectedRegIds().size);
 
 	ngOnInit(): void {
+		// If we arrived via post-clone redirect, history.state carries the new-job context
+		// captured BEFORE the JWT re-mint. Drive into release mode with the celebratory
+		// header instead of the wizard. router.navigate({state: ...}) is read here via
+		// window.history.state because Angular Router doesn't expose ActivatedRoute state
+		// outside an interceptor.
+		const navState = (typeof history !== 'undefined' ? history.state : null) as
+			| { freshClone?: boolean; newJobId?: string; newJobName?: string;
+				newJobPath?: string; sourceJobPath?: string; sourceRegId?: string }
+			| null;
+		if (navState?.freshClone && navState.newJobId && navState.newJobPath) {
+			this.freshCelebrate.set(true);
+			this.sourceJobPathForReturn.set(navState.sourceJobPath ?? null);
+			this.sourceRegIdForReturn.set(navState.sourceRegId ?? null);
+			this.openRelease({
+				jobId: navState.newJobId,
+				jobPath: navState.newJobPath,
+				jobName: navState.newJobName ?? navState.newJobPath,
+			});
+			// Dev-only: fetch undo eligibility so the celebrate landing can show the
+			// "Delete & return to source" button. Endpoint 404s in prod — guarded
+			// by `isDev` here so we don't even fire the request.
+			if (this.isDev && this.sourceJobPathForReturn() && this.sourceRegIdForReturn()) {
+				this.loadDevUndoStatus(navState.newJobId);
+			}
+			return;
+		}
+
 		// Component opens directly to the wizard — SuperUser-only tooling,
 		// source picker lists all cloneable jobs.
 		this.loadSources();
+		// Dev-only: also fetch suspended jobs so the leftover-cleanup panel can populate.
+		if (this.isDev) this.loadSuspendedJobs();
 	}
 
 	// ══════════════════════════════════════════════════════════
@@ -269,11 +350,12 @@ export class JobCloneComponent implements OnInit {
 		const next = this.step() + 1;
 		if (next > this.totalSteps) return;
 
-		// Transitioning Step 1 → 2 in Clone flavor: populate target fields from source,
-		// honoring the autoAdvanceYear toggle. Fresh each time so flipping the toggle
-		// on Step 1 and moving forward re-seeds Step 2 cleanly.
-		if (this.step() === 1 && next === 2 && this.flavor() === 'clone') {
+		// Transitioning Step 1 → 2 in Clone flavor: populate target fields from source on
+		// the FIRST advance (or after autoAdvanceYear flip / wizard reset). Subsequent visits
+		// preserve whatever the user typed on Step 2.
+		if (this.step() === 1 && next === 2 && this.flavor() === 'clone' && !this.step2Populated) {
 			this.populateStep2FromSource();
+			this.step2Populated = true;
 		}
 
 		// Step 2 → 3: server-check jobPath + jobName uniqueness before advancing so
@@ -387,10 +469,13 @@ export class JobCloneComponent implements OnInit {
 
 		if (this.flavor() === 'clone') {
 			this.cloneService.cloneJob(this.buildCloneRequest()).subscribe({
-				next: response => this.onCreationSuccess(response.newJobId, response.newJobPath, response.newJobName),
+				next: response => this.onCloneSuccess(
+					response.newJobId, response.newJobPath, response.newJobName,
+					response.newSuperUserRegistrationId),
 				error: err => this.onCreationFailure(err),
 			});
 		} else {
+			// Blank flow — no source job to return to; legacy in-place release flow.
 			this.cloneService.createBlank(this.buildBlankRequest()).subscribe({
 				next: response => this.onCreationSuccess(response.newJobId, response.newJobPath, response.newJobName),
 				error: err => this.onCreationFailure(err),
@@ -398,10 +483,54 @@ export class JobCloneComponent implements OnInit {
 		}
 	}
 
+	/**
+	 * Post-clone success path: capture source jobPath + source regId from the CURRENT JWT
+	 * (before re-minting), then re-mint the JWT scoped to the new job and navigate to
+	 * the new job's clone-tool route. Component re-instantiates because :jobPath changed,
+	 * and ngOnInit reads history.state.freshClone to render the celebratory landing.
+	 *
+	 * Failure handling (option (a) per design): if selectRegistration fails after a
+	 * successful clone, fall back to the legacy in-place release UI on the SOURCE job's
+	 * URL (the JWT was untouched on failure). Toast surfaces the error.
+	 */
+	private onCloneSuccess(
+		newJobId: string, newJobPath: string, newJobName: string,
+		newSuperUserRegistrationId: string,
+	): void {
+		const currentUser = this.authService.getCurrentUser();
+		const sourceJobPath = currentUser?.jobPath ?? null;
+		const sourceRegId = currentUser?.regId ?? null;
+
+		this.authService.selectRegistration(newSuperUserRegistrationId).subscribe({
+			next: () => {
+				this.isSubmitting.set(false);
+				this.toast.show(`Cloned to ${newJobPath}`, 'success');
+				this.router.navigate(['/', newJobPath, 'configure', 'job-clone'], {
+					state: {
+						freshClone: true,
+						newJobId,
+						newJobName,
+						newJobPath,
+						sourceJobPath,
+						sourceRegId,
+					},
+				});
+			},
+			error: err => {
+				// Clone succeeded but JWT switch failed — leave user in source-job context,
+				// fall back to in-place release UI so they can still complete the release flow.
+				this.isSubmitting.set(false);
+				const msg = err?.error?.message ?? 'Could not log into new job; staying in current.';
+				this.toast.show(msg, 'warning', 5000);
+				this.openRelease({ jobId: newJobId, jobPath: newJobPath, jobName: newJobName });
+			},
+		});
+	}
+
 	private onCreationSuccess(newJobId: string, newJobPath: string, newJobName: string): void {
+		// Used by blank flow only — no source job to switch back to, so no JWT re-mint.
 		this.isSubmitting.set(false);
 		this.toast.show(`Job created: ${newJobPath}`, 'success');
-		// Transition directly into Release mode for the new job.
 		this.openRelease({ jobId: newJobId, jobPath: newJobPath, jobName: newJobName });
 	}
 
@@ -428,6 +557,16 @@ export class JobCloneComponent implements OnInit {
 			upAgegroupNamesByOne: this.upAgegroupNamesByOne,
 			setDirectorsToInactive: true, // dead field — server ignores
 			noParallaxSlide1: this.noParallaxSlide1,
+			// Step 4 + Step 5 user choices — wired in Phase 2/3.
+			ladtScope: this.ladtScope,
+			processingFeeChoice: this.processingFeeChoice,
+			customProcessingFeePercent: this.processingFeeChoice === 'custom'
+				? this.customProcessingFee : undefined,
+			echeckProcessingFeeChoice: this.echeckProcessingFeeChoice,
+			customEcheckProcessingFeePercent: this.echeckProcessingFeeChoice === 'custom'
+				? this.customEcheckProcessingFee : undefined,
+			enableEcheckChoice: this.enableEcheckChoice,
+			storeChoice: this.storeChoice,
 		};
 	}
 
@@ -549,12 +688,144 @@ export class JobCloneComponent implements OnInit {
 	trackModifier = (_: number, m: FeeModifierShiftDto) => m.sourceFeeModifierId;
 	trackAdmin = (_: number, a: ReleasableAdminDto) => a.registrationId;
 
+	autoAdvanceYearChanged(): void {
+		// Re-seed Step 2 next time the user advances — toggle flip means user wants
+		// the year-bump logic re-applied (or undone) against the source values.
+		this.step2Populated = false;
+	}
+
+	// ══════════════════════════════════════════════════════════
+	// Dev-only undo (Phase 10) — cascade-delete the freshly-cloned job and switch
+	// the user back into the source job. Endpoints 404 in prod; component additionally
+	// hides the affordance behind `isDev`.
+	// ══════════════════════════════════════════════════════════
+
+	private loadDevUndoStatus(jobId: string): void {
+		this.isLoadingUndoStatus.set(true);
+		this.cloneService.getDevUndoStatus(jobId).subscribe({
+			next: status => {
+				this.devUndoStatus.set(status);
+				this.isLoadingUndoStatus.set(false);
+			},
+			error: () => {
+				// Silent — undo is opt-in dev tooling. If status fails (e.g. token
+				// just rotated, transient network), the button stays hidden via canUndo.
+				this.isLoadingUndoStatus.set(false);
+			},
+		});
+	}
+
+	openDevUndoConfirm(): void { this.devUndoConfirmOpen.set(true); }
+	cancelDevUndoConfirm(): void {
+		this.devUndoConfirmOpen.set(false);
+		this.leftoverTargetJobId.set(null);
+		this.leftoverTargetJobName.set(null);
+	}
+
+	private loadSuspendedJobs(): void {
+		this.isLoadingSuspended.set(true);
+		this.cloneService.getSuspended().subscribe({
+			next: jobs => {
+				this.suspendedJobs.set(jobs);
+				this.isLoadingSuspended.set(false);
+			},
+			error: () => {
+				// Silent — leftover panel is opt-in dev tooling. If the call fails the panel
+				// just shows nothing.
+				this.isLoadingSuspended.set(false);
+			},
+		});
+	}
+
+	openLeftoverUndo(jobId: string, jobName: string): void {
+		this.leftoverTargetJobId.set(jobId);
+		this.leftoverTargetJobName.set(jobName);
+		this.isLoadingUndoStatus.set(true);
+		this.cloneService.getDevUndoStatus(jobId).subscribe({
+			next: status => {
+				this.devUndoStatus.set(status);
+				this.isLoadingUndoStatus.set(false);
+				this.devUndoConfirmOpen.set(true);
+			},
+			error: err => {
+				this.isLoadingUndoStatus.set(false);
+				this.leftoverTargetJobId.set(null);
+				this.leftoverTargetJobName.set(null);
+				this.toast.show(err?.error?.message ?? 'Could not load undo status.', 'danger', 4000);
+			},
+		});
+	}
+
+	confirmDevUndo(): void {
+		// Two paths share the modal: post-clone (returns to source via JWT switch) and
+		// leftover-cleanup (no switch — user is operating from a different job already).
+		// leftoverTargetJobId being non-null marks the leftover path.
+		const leftoverJobId = this.leftoverTargetJobId();
+		if (leftoverJobId) {
+			this.confirmLeftoverDelete(leftoverJobId);
+			return;
+		}
+
+		const jobId = this.releaseJobId();
+		const sourcePath = this.sourceJobPathForReturn();
+		const sourceRegId = this.sourceRegIdForReturn();
+		if (!jobId || !sourcePath || !sourceRegId) return;
+
+		this.isDeletingClone.set(true);
+		this.cloneService.deleteClonedJob(jobId).subscribe({
+			next: () => {
+				// Switch JWT back to the source-job registration captured pre-clone, then
+				// route to the source's wizard route fresh (no celebrate state).
+				this.authService.selectRegistration(sourceRegId).subscribe({
+					next: () => {
+						this.isDeletingClone.set(false);
+						this.devUndoConfirmOpen.set(false);
+						this.toast.show('Cloned job deleted; back in source.', 'success');
+						this.router.navigate(['/', sourcePath, 'configure', 'job-clone']);
+					},
+					error: err => {
+						this.isDeletingClone.set(false);
+						this.devUndoConfirmOpen.set(false);
+						const msg = err?.error?.message ?? 'Cloned job deleted; could not switch back automatically.';
+						this.toast.show(msg, 'warning', 5000);
+					},
+				});
+			},
+			error: err => {
+				this.isDeletingClone.set(false);
+				const msg = err?.error?.message ?? 'Delete failed.';
+				this.toast.show(msg, 'danger', 5000);
+			},
+		});
+	}
+
+	private confirmLeftoverDelete(jobId: string): void {
+		this.isDeletingClone.set(true);
+		this.cloneService.deleteClonedJob(jobId).subscribe({
+			next: () => {
+				this.isDeletingClone.set(false);
+				this.devUndoConfirmOpen.set(false);
+				this.toast.show('Leftover clone deleted.', 'success');
+				this.leftoverTargetJobId.set(null);
+				this.leftoverTargetJobName.set(null);
+				this.devUndoStatus.set(null);
+				this.loadSuspendedJobs();
+			},
+			error: err => {
+				this.isDeletingClone.set(false);
+				const msg = err?.error?.message ?? 'Delete failed.';
+				this.toast.show(msg, 'danger', 5000);
+			},
+		});
+	}
+
 	private resetWizard(): void {
 		this.step.set(1);
 		this.preview.set(null);
 		this.selectedSource.set(null);
 		this.error.set(null);
 		this.affirmationChecked = false;
+		this.step2Populated = false;
 		this.jobPathTarget = '';
 		this.jobNameTarget = '';
 		this.yearTarget = '';

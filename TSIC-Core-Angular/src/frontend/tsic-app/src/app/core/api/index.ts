@@ -204,6 +204,8 @@ export type { DeletePlayersRequest } from './models/DeletePlayersRequest';
 export type { DeleteRegistrationResponse } from './models/DeleteRegistrationResponse';
 export type { DeleteTeamResultDto } from './models/DeleteTeamResultDto';
 export type { DevResetRequest } from './models/DevResetRequest';
+export type { DevUndoCounts } from './models/DevUndoCounts';
+export type { DevUndoStatusResponse } from './models/DevUndoStatusResponse';
 export type { DiscountCodeDto } from './models/DiscountCodeDto';
 export type { DivisionBracketResponse } from './models/DivisionBracketResponse';
 export type { DivisionCascadeDto } from './models/DivisionCascadeDto';
