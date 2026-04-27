@@ -1,0 +1,74 @@
+.accounting-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4);
+}
+
+.run-card,
+.results-card {
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.run-card .card-body {
+    padding: var(--space-4);
+}
+
+.run-controls {
+    display: flex;
+    align-items: end;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+
+    .form-label {
+        margin-bottom: var(--space-1);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+    }
+
+    .days-input {
+        width: 5rem;
+    }
+}
+
+.results-card {
+    .card-header {
+        background: transparent;
+        border-bottom: 1px solid var(--border-color);
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .card-body {
+        padding: var(--space-4);
+    }
+}
+
+.result-summary {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.result-stat {
+    text-align: center;
+    min-width: 100px;
+
+    &__value {
+        display: block;
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+    }
+
+    &__label {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &--success .result-stat__value { color: var(--bs-success); }
+    &--warning .result-stat__value { color: var(--bs-warning); }
+    &--danger  .result-stat__value { color: var(--bs-danger); }
+}

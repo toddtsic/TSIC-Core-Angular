@@ -159,6 +159,12 @@ $adminManifest = @(
     # -- Store (single item; Store L1 inherits rulesStoreEnabled) ---------
     (New-AdminItem 'Store' 'shop' 8 'Store Admin' 'speedometer2' 'store/admin' 1 1 1 1 $rulesStoreEnabled)
 
+    # -- Accounting (SU-only, monthly-close workflows) --------------------
+    # Pure reports (Crystal + cross-customer SP runners) live in the reports
+    # library, NOT here. This section is for stateful workflow screens only.
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Manual ARB Sweep'             'arrow-clockwise' 'accounting/manual-arb-sweep'      1 0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Produce Last Month Invoices'  'file-earmark-text' 'accounting/produce-job-invoices' 2 0 0 1)
+
     # -- Tools -------------------------------------------------------------
     (New-AdminItem 'Tools' 'tools' 9 'US Lax Test'          'check-circle'  'tools/uslax-test'           1 1 1 1 $rulesLacrosse)
     (New-AdminItem 'Tools' 'tools' 9 'US Lax Rankings'      'trophy'        'tools/uslax-rankings'       2 1 1 1 $rulesLacrosse)

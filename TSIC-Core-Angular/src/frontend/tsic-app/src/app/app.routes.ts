@@ -357,6 +357,24 @@ export const routes: Routes = [
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.StoreAdmin] },
 				loadComponent: () => import('./views/store/admin/store-admin.component').then(m => m.StoreAdminComponent)
 			},
+			// Accounting (SuperUser-only workflow screens)
+			{
+				path: 'accounting',
+				children: [
+					{
+						path: 'manual-arb-sweep',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/manual-arb-sweep/manual-arb-sweep.component').then(m => m.ManualArbSweepComponent)
+					},
+					{
+						path: 'produce-job-invoices',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/produce-job-invoices/produce-job-invoices.component').then(m => m.ProduceJobInvoicesComponent)
+					}
+				]
+			},
 			// Reporting
 			{
 				path: 'reporting/reports-library',

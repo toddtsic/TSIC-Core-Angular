@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-23 06:54:25 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-04-27 12:14:01 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -149,6 +149,8 @@ INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results',
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 7, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Store', N'shop', 8, N'Store Admin', N'speedometer2', N'store/admin', 1, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}');
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Manual ARB Sweep', N'arrow-clockwise', N'accounting/manual-arb-sweep', 1, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Produce Last Month Invoices', N'file-earmark-text', N'accounting/produce-job-invoices', 2, 0, 0, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}');

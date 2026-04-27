@@ -1,0 +1,79 @@
+<div class="accounting-page">
+    <h2 class="page-title">Manual ARB Sweep</h2>
+    <p class="page-subtitle">
+        Pulls Authorize.Net settled batches for the last <em>N</em> days and applies any
+        new ARB charges, eCheck settlements, and eCheck returns to the database.
+        Mirrors the nightly background sweep but runs on demand.
+    </p>
+
+    <div class="card run-card">
+        <div class="card-body">
+            <h5 class="card-title">Run sweep</h5>
+            <p class="text-muted small mb-3">
+                Default <strong>1 day</strong> matches the nightly cadence. Increase for backfill —
+                e.g. after a settlement service outage or to verify a missed window.
+            </p>
+
+            <div class="run-controls">
+                <label for="daysPrior" class="form-label">Days prior</label>
+                <input
+                    id="daysPrior"
+                    type="number"
+                    class="form-control days-input"
+                    min="1"
+                    max="60"
+                    [(ngModel)]="daysPrior"
+                    [disabled]="isRunning()" />
+                <button
+                    class="btn btn-primary"
+                    [disabled]="isRunning()"
+                    (click)="run()">
+                    @if (isRunning()) {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        Running...
+                    } @else {
+                        <i class="bi bi-arrow-clockwise me-1"></i>Run Sweep
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (errorMessage()) {
+        <div class="alert alert-danger mt-3" role="alert">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ errorMessage() }}
+        </div>
+    }
+
+    @if (result(); as r) {
+        <div class="card results-card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Sweep Result</h5>
+            </div>
+            <div class="card-body">
+                <div class="result-summary">
+                    <div class="result-stat">
+                        <span class="result-stat__value">{{ r.checked }}</span>
+                        <span class="result-stat__label">Checked</span>
+                    </div>
+                    <div class="result-stat result-stat--success">
+                        <span class="result-stat__value">{{ r.arbImported }}</span>
+                        <span class="result-stat__label">ARB Imported</span>
+                    </div>
+                    <div class="result-stat result-stat--success">
+                        <span class="result-stat__value">{{ r.echeckSettled }}</span>
+                        <span class="result-stat__label">eCheck Settled</span>
+                    </div>
+                    <div class="result-stat result-stat--warning">
+                        <span class="result-stat__value">{{ r.echeckReturnsProcessed }}</span>
+                        <span class="result-stat__label">eCheck Returns</span>
+                    </div>
+                    <div class="result-stat result-stat--danger">
+                        <span class="result-stat__value">{{ r.errored }}</span>
+                        <span class="result-stat__label">Errored</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
