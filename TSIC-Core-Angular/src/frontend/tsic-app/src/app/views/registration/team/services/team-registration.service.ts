@@ -217,8 +217,9 @@ export class TeamRegistrationService {
         registrationId: string,
         forceResend: boolean = false,
         context?: HttpContext,
+        isEcheckPending: boolean = false,
     ): Observable<{ message: string }> {
-        const request = { registrationId, forceResend };
+        const request = { registrationId, forceResend, isEcheckPending };
         return this.http.post<{ message: string }>(
             `${this.apiUrl}/send-confirmation-email`,
             request,

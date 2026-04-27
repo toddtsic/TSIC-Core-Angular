@@ -718,7 +718,8 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            await _teamRegistrationService.SendConfirmationEmailAsync(request.RegistrationId, userId, request.ForceResend);
+            await _teamRegistrationService.SendConfirmationEmailAsync(
+                request.RegistrationId, userId, request.ForceResend, request.IsEcheckPending);
             return Ok(new { Message = "Confirmation email sent successfully" });
         }
         catch (KeyNotFoundException ex)
@@ -1001,4 +1002,10 @@ public class SendConfirmationEmailRequest
 {
     public Guid RegistrationId { get; set; }
     public bool ForceResend { get; set; } = false;
+    /// <summary>
+    /// When true, the email body is prefixed with a "settlement pending" banner that
+    /// sets the 3–5 business day expectation. Set this to true ONLY when the just-
+    /// completed payment was an eCheck (ACH) submission.
+    /// </summary>
+    public bool IsEcheckPending { get; set; } = false;
 }

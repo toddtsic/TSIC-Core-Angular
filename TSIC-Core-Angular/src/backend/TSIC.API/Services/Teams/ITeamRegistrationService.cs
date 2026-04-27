@@ -112,6 +112,9 @@ public interface ITeamRegistrationService
     /// Send confirmation email to club rep with substituted template.
     /// Sets bClubrep_NotificationSent flag on Registration.
     /// Uses AdultRegConfirmationEmail template.
+    /// When <paramref name="isEcheckPending"/> is true, prepends an inline-styled
+    /// "settlement pending" banner so club reps know the registration is held until
+    /// the bank confirms the debit (typically 3–5 business days).
     /// </summary>
-    Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false);
+    Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false);
 }

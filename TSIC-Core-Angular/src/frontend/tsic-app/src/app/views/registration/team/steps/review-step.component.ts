@@ -79,8 +79,11 @@ export class TeamReviewStepComponent implements OnInit {
                 },
             });
 
-        // Auto-send email on load — intentionally silent (no toast on failure)
-        this.teamReg.sendConfirmationEmail(regId, false, skipErrorToast())
+        // Auto-send email on load — intentionally silent (no toast on failure).
+        // Pass isEcheckPending so the BE prepends the settlement-pending banner when the
+        // just-completed payment was an eCheck submission.
+        const isEcheckPending = this.state.teamPaymentState.lastPayment()?.paymentMethod === 'Echeck';
+        this.teamReg.sendConfirmationEmail(regId, false, skipErrorToast(), isEcheckPending)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({ error: () => { /* ignore auto-send failure */ } });
     }
@@ -91,7 +94,8 @@ export class TeamReviewStepComponent implements OnInit {
         this.resending.set(true);
         const regId = this.state.clubRep.registrationId();
         if (!regId) { this.resending.set(false); return; }
-        this.teamReg.sendConfirmationEmail(regId, true)
+        const isEcheckPending = this.state.teamPaymentState.lastPayment()?.paymentMethod === 'Echeck';
+        this.teamReg.sendConfirmationEmail(regId, true, undefined, isEcheckPending)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {

@@ -1421,10 +1421,23 @@ public class TeamRegistrationService : ITeamRegistrationService
         }
     }
 
-    public async Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false)
+    // Inline-styled banner prepended to the confirmation email body when the club rep paid by
+    // eCheck. Mirror of EcheckPendingBanner in PlayerRegConfirmationService — keep these two
+    // string literals identical; if the copy changes, update both.
+    private const string EcheckPendingBanner =
+        "<div style=\"background:#fff7e6;border:1px solid #ffd591;border-left:4px solid #fa8c16;" +
+        "padding:14px 16px;margin:0 0 18px;border-radius:4px;font-family:Arial,sans-serif;color:#612500;\">" +
+        "<div style=\"font-weight:bold;margin-bottom:6px;font-size:14px;\">eCheck submission received — settlement pending</div>" +
+        "<div style=\"font-size:13px;line-height:1.5;\">" +
+        "Your eCheck has been submitted to the payment processor. " +
+        "<strong>Your registration is pending until your bank confirms the debit — typically 3 to 5 business days.</strong> " +
+        "If the debit is returned (insufficient funds or other), we will email you and your registration's balance will be restored automatically." +
+        "</div></div>";
+
+    public async Task SendConfirmationEmailAsync(Guid registrationId, string userId, bool forceResend = false, bool isEcheckPending = false)
     {
-        _logger.LogInformation("Sending confirmation email for registration {RegistrationId}, user {UserId}, forceResend {ForceResend}",
-            registrationId, userId, forceResend);
+        _logger.LogInformation("Sending confirmation email for registration {RegistrationId}, user {UserId}, forceResend {ForceResend}, isEcheckPending {IsEcheckPending}",
+            registrationId, userId, forceResend, isEcheckPending);
 
         var reg = await _registrations.GetByIdAsync(registrationId);
         if (reg == null)
@@ -1473,6 +1486,11 @@ public class TeamRegistrationService : ITeamRegistrationService
                 registrationId: registrationId,
                 familyUserId: string.Empty,
                 template: jobInfo.AdultRegConfirmationEmail);
+
+            if (isEcheckPending && !string.IsNullOrEmpty(emailHtml))
+            {
+                emailHtml = EcheckPendingBanner + emailHtml;
+            }
 
             var emailMessage = new EmailMessageDto
             {
