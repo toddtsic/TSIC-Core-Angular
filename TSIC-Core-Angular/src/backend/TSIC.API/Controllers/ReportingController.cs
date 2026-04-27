@@ -134,6 +134,13 @@ public class ReportingController : ControllerBase
         [FromQuery] bool bUseJobId,
         [FromQuery] bool bUseDateUnscheduled = false)
     {
+        // bUseJobId=false signals a cross-customer SP (no @jobId param); these are
+        // SuperUser-only by policy even though the endpoint is AdminOnly. The library
+        // pre-filters via requiresRoles, but a Director with the URL would otherwise
+        // pull cross-customer data. Enforce here.
+        if (!bUseJobId && !User.IsInRole("Superuser"))
+            return Forbid();
+
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService) ?? Guid.Empty;
         var regId = User.GetRegistrationId();
 
