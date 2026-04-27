@@ -712,7 +712,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Ability to drag a chip to a new position and have the order persist
 - **What happened**: No reorder mechanism — values render in insertion order, and the only mutations available are add (appends to end) and remove
 - **Severity**: UX / Feature
-- **Status**: Open
+- **Status**: Deferred (Superuser-only screen — release-push styling rule)
 - **Note**: Backend + data model already support ordered arrays — no schema change needed.
   - **Current plumbing**: `JobDdlOptionsDto` carries each category as a `string[]`; `GET`/`PUT` preserve array order; new values are appended via `existing.push(val)` ([ddl-options.component.ts:152](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/ddl-options/ddl-options.component.ts#L152)). Dirty detection compares JSON, so an array-order change already triggers the Save bar.
   - **Precedent in-repo**: `@angular/cdk@21.0.5` already a dep; `cdkDrag` / `cdkDropList` already used in widget-editor, profile-editor, options-panel, and schedule build-order-tab. Proven pattern.
@@ -837,7 +837,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All Configure pages to use the same tighter workspace styling Nav Editor uses — a centered card/heading with a capped width
 - **What happened**: Administrators and Customers stretch to the full viewport width, so the heading sits far left, the grid sprawls edge-to-edge, and the page feels loose. Nav Editor on the same viewport is visibly tighter and easier to scan. Evidence: [nav-editor.component.scss:7-11](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/nav-editor/nav-editor.component.scss#L7-L11) uses `max-width: 1200px; margin: 0 auto; padding: 2rem;`. Administrators / Customers don't constrain width at all.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Apply the Nav Editor layout pattern as the standard for every Configure page (Administrators, Customers, Customer Groups, Discount Codes, Age Ranges, Dropdown Options, Theme, Widget Editor, Job Clone, Report Catalogue, Job Settings). Ideal fix: promote the `max-width: 1200px; margin: 0 auto; padding: 2rem;` rule to a shared `.configure-page` utility (or reuse an existing one if already in `_utilities.scss`) so every Configure page inherits the same bounds — and future Configure pages pick it up automatically. Verify on wide monitors that the grid columns still breathe at 1200px; if not, revisit the cap.
 
 ### PL-021: Configure submenu items no longer in alphabetical order — confirm intended ordering logic
@@ -846,7 +846,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Alphabetical ordering as was the case previously, so items are predictable to find
 - **What happened**: Items appear in this order: Job Settings, Discount Codes, Age Ranges, Administrators, Customer Groups, Dropdown Options, Customers, Theme, Nav Editor, Widget Editor, Job Clone, Report Catalogue. Looking at `scripts/5) Re-Set Nav System.sql:117-128`, the list is grouped by role visibility — the first three are Director-visible and the rest are SuperUser-only — so there *is* a grouping rationale, but within each group the ordering is not alphabetical.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Two things to confirm with Todd:
   1. Is the **role-grouping** (Director-visible first, SuperUser-only second) intentional and worth keeping? If yes, call it out in a tooltip/section header so users don't read it as random.
   2. Within each group, should items be **alphabetized**? Current SuperUser-group order (Administrators, Customer Groups, Dropdown Options, Customers, Theme, Nav Editor, Widget Editor, Job Clone, Report Catalogue) is neither alphabetical nor obvious frequency-of-use. Alphabetizing within groups would restore the "predictable to find" property Ann expected without losing the grouping rationale.
@@ -863,7 +863,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Easy access for Directors in the context where they'd use it
 - **What happened**: Profile Editor is currently under Tools. Some of that info would be helpful to Directors under Job Settings > Player Registration subheader. Let's discuss placement and what Directors should see.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Findings from walkthrough on 2026-04-24 — decision needed with Todd:
   - **Placement today**: under Tools section ([5) Re-Set Nav System.sql:157](scripts/5%29%20Re-Set%20Nav%20System.sql#L157)).
   - **Role visibility today**: SuperUser-only at both nav level (`0,0` in director-visibility columns) and route level (`data: { roles: [Roles.Superuser] }` at [app.routes.ts:296-299](TSIC-Core-Angular/src/frontend/tsic-app/src/app/app.routes.ts#L296-L299)). Directors don't see it at all.
@@ -882,7 +882,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: It to only appear as a submenu under Job Configuration since it's already there
 - **What happened**: It's in both places — don't think it's needed at the root level
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Both locations confirmed on 2026-04-24:
   1. Root Configure menu entry at [5) Re-Set Nav System.sql:122](scripts/5%29%20Re-Set%20Nav%20System.sql#L122) routing to `configure/ddl-options` (SuperUser-only).
   2. Embedded as the `'ddlOptions'` tab in [job-config.component.html:63](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.component.html#L63) with label from [job-config.service.ts:223](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.service.ts#L223). Same `DdlOptionsComponent` surfaced in both places.
@@ -898,7 +898,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Arizona Time to be available (Arizona doesn't observe DST, so it's a distinct timezone)
 - **What happened**: No Arizona Time option in the dropdown
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Timezones is a small DB lookup table ([Timezones.cs](TSIC-Core-Angular/src/backend/TSIC.Domain/Entities/Timezones.cs)) — `TzId`/`TzName`/`UtcOffset`/`UtcOffsetHours`/audit fields. No seed script in repo; rows carried from Legacy. Fix (if Arizona is indeed missing — couldn't enumerate rows from codebase): one-row INSERT into `reference.Timezones`, e.g. `('US Arizona Time', -420, -7, NULL, GETDATE())` — Arizona uses MST year-round at UTC−7. Mirror whatever offset convention existing rows use before running.
   - **Linked to PL-015**. If PL-015 resolves as "remove the customer-level timezone field entirely," PL-018 becomes moot — resolve PL-015 first to avoid adding a row to a doomed table.
   - **DB change, not a code edit** — goes through Todd's preferred migration path (script in `scripts/`, run manually in prod).
@@ -909,7 +909,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Timezone in the popup to match what the table shows (Eastern Time)
 - **What happened**: Popup shows "Afghanistan Time" but the table reads "Eastern Time" — something is wrong with the timezone field defaulting or display
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Root cause isolated on 2026-04-24 — async-option-render race, not a data bug. The customer-dialog uses native `[value]=` binding on the `<select>` ([customer-dialog.component.html:38](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customers/customer-dialog/customer-dialog.component.html#L38)) while `timezones` arrives via parent `@Input()` on a separate HTTP call. Timezones return alphabetically sorted by `TzName` ([CustomerRepository.cs:91-101](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/CustomerRepository.cs#L91-L101)) → "Afghanistan Time" is option[0]. Sequence: dialog renders with empty options → detail HTTP sets `tzId` → timezones HTTP lands and mutates `<option>` set → browser drops selection and shows option[0]. Grid is correct (reads stored Eastern); dialog silently misleads. If user saves without touching the field, `(change)` never fires and Eastern stays in DB — but dialog has already "lied" about the current value.
   - **Fix**: swap native `[value]=` for `[ngModel]`:
     ```html
@@ -924,7 +924,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Easy way to distinguish active from inactive customers
 - **What happened**: Customers with 0 Jobs are effectively inactive but mixed in with active ones — creates noise. Split into two tables: "Active Customers" at the top and "Inactive Customers" below to clean it up.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: No `BActive`/`IsActive` field on the Customer entity — "inactive" is purely derived from `JobCount === 0` ([CustomerRepository.cs:69](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/CustomerRepository.cs#L69)). UI-only change, no backend/schema needed. Options:
   - **A. Two separate grids on the page** — Active (jobCount > 0) on top, Inactive (jobCount = 0) below. Two `<ejs-grid>` blocks fed from filtered arrays. Matches the ask literally; cleanest visual split.
   - **B. Single grid with Syncfusion grouping** by active/inactive — collapsible groups.
@@ -938,7 +938,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Correct time zones per customer, or no time zone if not needed
 - **What happened**: All customers show "Eastern Time" or "US Eastern Time" — even YJ Midwest. Is the time zone field needed at all?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Findings from walkthrough on 2026-04-24 — decision needed with Todd:
   - **Not a display bug.** The grid faithfully shows whatever `Customers.TzId` is in the database ([CustomerRepository.cs:68](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/CustomerRepository.cs#L68)). YJ Midwest reading "Eastern Time" means the DB row literally points at the Eastern `Tz` row — data quality issue from imports/defaults, not rendering.
   - **Field appears unused in the new system.** Every hit on `Customers.TzId` lives inside the Configure Customers CRUD path itself (repository, service, DTO, edit dialog). No scheduling logic, email send windows, display formatting, or job defaulting reads it. The only other reference is in legacy `reference/TSIC-Unify-2024/Controllers/Admin/CustomerController.cs` — not shipping. Effectively vestigial: collected, stored, displayed, validated, and never consulted.
@@ -955,7 +955,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Heading sized consistently with other pages, labeled simply "Customers"
 - **What happened**: Heading is too large (same issue as PL-007) and says "Customer Configure" — should just say "Customers"
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred (Superuser-only screen — release-push styling rule; rename portion already shipped)
 - **Note**: **Rename** done on 2026-04-24 — h2 at [customer-configure.component.html:3](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customers/customer-configure.component.html#L3) changed from "Customer Configure" → "Customers" (nav label already says "Customers", so the page now matches). **Heading size** half defers to PL-022 / PL-007 — same family of Configure-pages-heading-size standardization; will be resolved together.
 
 ### PL-013: Customer Groups — Add and Delete buttons too far from customer names in right table
@@ -964,7 +964,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Buttons positioned close to the customer names
 - **What happened**: Too much space between the buttons and the customer names — move them much closer
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred (Superuser-only screen — release-push styling rule)
 - **Note**: Cause isolated on 2026-04-24 — `.member-item` uses `justify-content: space-between` ([customer-groups.component.scss:168-172](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.scss#L168-L172)), which pins the × delete button to the far right of the 2fr-wide member panel. "Add" isn't per-row — it's a dropdown row at the top (`.add-member-row`), so this is effectively about the per-row Delete (×) placement. Fix: swap `justify-content: space-between` for `flex-start` and add `gap: var(--space-2)` so the × sits next to the customer name. Pair with PL-022 workspace pass if member-panel width is also narrowed.
 
 ### PL-012: Customer Groups — "Members of [group name]" header needs visual emphasis
@@ -973,7 +973,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The group name to stand out visually — highlighted, bold, or styled differently
 - **What happened**: Header doesn't stand out enough — needs some kind of highlighting so the group name is clearly visible
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred (Superuser-only screen — release-push styling rule)
 - **Note**: Current markup at [customer-groups.component.html:131](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.html#L131) — `<span class="panel-title">Members of "{{ selectedGroup()!.customerGroupName }}"</span>` — group name is inline literal text inside a flat span, no emphasis. Fix: split the name into its own element and style distinctly. Options: **(A)** bold via `<strong>`; **(B)** accent color (`var(--bs-primary)` / `var(--brand-text)`); **(C)** badge-style pill after the "Members of" prefix (closest to "highlighted"); **(D)** bold + accent (B+A combination). Pick during PL-022 workspace pass so typography choice stays coherent with the shared Configure page style.
 
 ### PL-011: Customer Groups — remove total group count, add column heading like "Member Jobs" or "Jobs Included"
@@ -982,7 +982,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A meaningful column heading above the job count numbers
 - **What happened**: Shows total number of groups (currently 5) which isn't useful. Remove it and instead add a heading above the numbers in each row, like "Member Jobs" or "Jobs Included", so it's clear what the numbers represent.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred (Superuser-only screen — release-push styling rule)
 - **Note**: Findings from walkthrough on 2026-04-24:
   - **Total-groups badge** to remove: [customer-groups.component.html:39](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.html#L39) — `<span class="badge bg-secondary">{{ groups().length }}</span>`.
   - **Per-row count** is on [line 77](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.html#L77) — `group.memberCount`.
@@ -997,7 +997,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Compact tables like Legacy
 - **What happened**: All tables under Configure have too much whitespace — rows, columns, and overall spacing should be much smaller. Legacy tables are a good reference for sizing.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
 - **Note**: Defer to PL-022. The `3ba0994a` refactor migrated 4 of 5 Configure list pages (Administrators, Customers, Discount Codes, Age Ranges) to Syncfusion `ejs-grid` with `cssClass="tsic-grid-tight"` — the app's maximum-compression density variant. Customer Groups was **not** migrated and still uses a hand-rolled layout; pick it up when PL-022's workspace standardization lands so every Configure page finishes on the same grid + density pattern.
 
 ### PL-009: Customer Groups — change subtitle to "Organize customers into named groups for Customer/Job Revenue reporting"
@@ -1024,7 +1024,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All page headings the same font size
 - **What happened**: Many headings are too large — should all match the size used for "Customer Groups"
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
+- **Note**: Resolved via global-only typography (no inline, no per-component overrides). Per Todd's call, font-size kept at the existing global `--font-size-lg` (not bumped to Customer Groups' 1.5rem reference). Three component overrides removed so global wins: `customer-groups.component.scss` `.page-title` block deleted; `job-config.component.scss` `.page-title` trimmed to layout-only (`text-align: center`); `push-notification.component.scss` `.page-title` trimmed to layout-only (`text-align: center; margin-bottom`). Director-visible Configure pages still using `<h2 class="mb-0">` switched to `<h2 class="page-title">`: `discount-codes.component.html`, `configure-age-ranges.component.html`. Administrators left untouched (Superuser-only — release-push styling rule).
 - **Note**: Defer to PL-022. Concrete target confirmed during walkthrough on 2026-04-24: Customer Groups uses `<h2 class="page-title">` with a local override (`font-size: 1.5rem; font-weight: 700;` per [customer-groups.component.scss:13-16](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/customer-groups/customer-groups.component.scss#L13-L16)). Other Configure pages render at three different sizes: Administrators/Widget Editor/Age Ranges/Discount Codes/Customer Configure at Bootstrap h2 default (~2rem) via `mb-0`; Job Config/DDL Options at `var(--font-size-lg)` (~1.125rem) via the global `.page-title`; Nav Editor at `<h1>`. Fix: promote Customer Groups' local override to the global `.page-title` in `_utilities.scss` (or introduce a `--page-title-font-size` token) and apply `class="page-title"` consistently to every Configure page — folds into PL-022's workspace standardization.
 
 ### PL-006: Add Administrator — how does someone become eligible in the Username search? Dropdown options seem random.
@@ -1033,7 +1034,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clear list of eligible users, or understanding of how someone becomes eligible to be added
 - **What happened**: Dropdown seems to have random options — not clear how a person registers or qualifies to appear in the Username search
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: Findings from walkthrough on 2026-04-24 — decision needed with Todd.
   - **Current behavior**: the search queries the **entire platform** — every `AspNetUsers` row, no role filter, no customer scope. Per [UserRepository.cs:166-190](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/UserRepository.cs#L166-L190): case-insensitive `contains` across `UserName`, `FirstName`, `LastName`, ordered by last name, top 10. Effective eligibility rule today: *"has an account anywhere in the TSIC platform"* — so parents, players, unrelated-customer staff, and platform-wide users all appear mixed together. The "random" feel is because the 10-result cap surfaces an arbitrary alphabetical slice once the query is loose.
   - **Concerns to resolve**:
@@ -1053,7 +1054,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Stars positioned before the name for easier scanning; clear understanding of default behavior
 - **What happened**: Three items: (1) Consider moving star icons to the left of the name, (2) Who is the default contact if none is selected? (3) Will the selected Director carry forward when cloning a job?
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: Findings from walkthrough on 2026-04-24:
   1. **Star position**: still in far-right Actions column, not next to the name — untouched.
   2. **Default contact**: no default exists. `Jobs.PrimaryContactRegistrationId` is nullable; the toggle either sets a specific `registrationId` or sets it back to `null` ([AdministratorService.cs:185-188](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/AdministratorService.cs#L185-L188)). Any downstream consumer (notifications, escalations) must handle "no primary contact" on its own. Decision needed: leave nullable, or add a deterministic fallback (e.g., oldest Director).
@@ -1067,7 +1068,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Compact table with items close together
 - **What happened**: Table has too much whitespace — rows and columns can be much smaller and tighter overall
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: Defer to PL-022 — overall table tightness folds into the broader "all Configure pages use the narrow Nav Editor workspace" fix. Resolve together.
 
 ### PL-003: Administrators table — use alternating row colors like Search Player table
@@ -1085,7 +1086,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Same font and size as the "Search Registrations" header
 - **What happened**: Heading is too large — should be consistent with other page headers
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred
 - **Note**: Refer to PL-022 — heading sizing folds into the broader "all Configure pages use the narrow Nav Editor workspace" fix. Resolve together.
 
 ### PL-001: Administrators table — match Search/Player table style and reorder columns
@@ -1094,4 +1095,4 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent look with the Search/Player menu table
 - **What happened**: Needs several changes: (1) Match column heading font and style to Search/Player table, (2) Change "Status" to "Active" and move it right after the Name column with "Yes" if active, (3) Column order should be: Name, Active, Role, Username, Registered
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred
