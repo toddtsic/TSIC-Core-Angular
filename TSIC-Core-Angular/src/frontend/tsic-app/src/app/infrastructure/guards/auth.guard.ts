@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { Router, type CanActivateFn } from '@angular/router';
+import { Router, type CanActivateFn, type CanMatchFn } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
@@ -87,7 +87,7 @@ export const authGuard: CanActivateFn = (route, state) => {
             } catch { /* malformed → fall through */ }
         }
 
-        return user?.jobPath && user.jobPath !== 'tsic'
+        return user?.regId && user.jobPath
             ? toJob(user.jobPath)
             : toRoleSelection();
     }
@@ -140,6 +140,17 @@ export const authGuard: CanActivateFn = (route, state) => {
     }
 
     return true;
+};
+
+/**
+ * Match guard for the standalone /tsic marketing landing.
+ * Returns false (route does not match) when the user has selected a role,
+ * so authenticated Phase 2 users fall through to :jobPath and see their
+ * workspace at /tsic instead of the corporate landing page.
+ */
+export const unselectedRoleMatch: CanMatchFn = () => {
+    const auth = inject(AuthService);
+    return !auth.hasSelectedRole();
 };
 
 function extractJobPathFromUrl(url: string): string | null {

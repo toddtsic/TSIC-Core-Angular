@@ -18,8 +18,7 @@ export class ThemeOverridesService {
         const tree: UrlTree = this.router.parseUrl(url);
         const primary = tree.root.children['primary'];
         const firstSeg = primary?.segments?.[0]?.path ?? '';
-        // Only apply for job-scoped routes (exclude TSIC area)
-        if (!firstSeg || firstSeg.toLowerCase() === 'tsic') {
+        if (!firstSeg) {
             return;
         }
         this.applyForJob(firstSeg);

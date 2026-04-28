@@ -143,7 +143,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Load nav when jobPath changes AND user has completed role selection (has regId)
     jobPath$.subscribe(jobPath => {
       const user = this.auth.currentUser();
-      if (jobPath && jobPath !== 'tsic' && user?.regId) {
+      if (jobPath && user?.regId) {
         this.jobService.loadNav();
       } else {
         this.jobService.clearNav();
@@ -159,7 +159,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
       )
       .subscribe(user => {
         const jobPath = this.getActiveJobPath();
-        if (jobPath && jobPath !== 'tsic') {
+        if (jobPath) {
           // Reload job metadata so currentJob stays in sync after role/job switch
           this.jobService.loadJobMetadata(jobPath);
           // Load nav if authenticated, clear if logged out
@@ -235,14 +235,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     // Next, try AuthService token claim
     const claimPath = this.auth.getJobPath();
     if (claimPath) return claimPath;
-    // Fallback: parse current URL for first non-empty segment that isn't 'tsic'
+    // Fallback: parse current URL for first non-empty segment
     const url = this.router.url || '';
     const seg = url.split('?')[0].split('#')[0].split('/').find(s => !!s) || '';
-    // Ignore known app shell segments like 'tsic'
-    const lower = seg.toLowerCase();
-    if (lower && lower !== 'tsic') return seg;
-    // Still unknown
-    if (claimPath) return claimPath;
+    if (seg) return seg;
     return null;
   }
 

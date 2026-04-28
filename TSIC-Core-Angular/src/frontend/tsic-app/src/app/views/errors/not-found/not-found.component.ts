@@ -42,7 +42,7 @@ export class NotFoundComponent {
   goHome(): void {
     const user = this.authService.getCurrentUser();
 
-    if (user?.jobPath && user.jobPath !== 'tsic') {
+    if (user?.jobPath) {
       this.router.navigate([user.jobPath]);
     } else {
       this.router.navigate(['tsic']);

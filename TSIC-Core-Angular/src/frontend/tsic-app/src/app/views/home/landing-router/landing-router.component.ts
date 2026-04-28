@@ -12,8 +12,9 @@ import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.c
  * - Job path + authenticated (Phase 1, no role) → redirect to role-selection
  * - Job path + unauthenticated → WidgetDashboardComponent (public mode)
  *
- * Note: The TSIC corporate landing (/tsic) has its own standalone route
- * and does NOT pass through this component.
+ * For jobPath='tsic': anonymous traffic is intercepted by the standalone
+ * /tsic marketing route. Authenticated Phase 2 users fall through to here
+ * and render the same authenticated dashboard as any other job.
  */
 @Component({
     selector: 'app-landing-router',
@@ -47,12 +48,12 @@ export class LandingRouterComponent implements OnInit {
     // Authenticated Phase 2 user — render hub dashboard inline
     readonly isAuthenticated = computed(() => {
         const path = this.jobPath();
-        return !!path && path !== 'tsic' && this.auth.hasSelectedRole();
+        return !!path && this.auth.hasSelectedRole();
     });
 
     ngOnInit(): void {
         const path = this.jobPath();
-        if (!path || path === 'tsic') return;
+        if (!path) return;
 
         const user = this.auth.currentUser();
         if (!user) return;

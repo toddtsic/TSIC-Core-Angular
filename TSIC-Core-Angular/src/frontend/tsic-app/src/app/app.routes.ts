@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './infrastructure/guards/auth.guard';
+import { authGuard, unselectedRoleMatch } from './infrastructure/guards/auth.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
 import { playerInviteGuard, teamInviteGuard } from './infrastructure/guards/registration-invite.guard';
@@ -10,9 +10,12 @@ export const routes: Routes = [
 	// Default route - redirect to last visited job or /tsic
 	{ path: '', redirectTo: '/tsic', pathMatch: 'full' },
 
-	// TSIC corporate landing — standalone marketing page (no layout chrome)
+	// TSIC corporate landing — standalone marketing page (no layout chrome).
+	// canMatch declines the match for authenticated Phase 2 users so /tsic
+	// falls through to :jobPath and resolves to their workspace (e.g. SU).
 	{
 		path: 'tsic',
+		canMatch: [unselectedRoleMatch],
 		canActivate: [authGuard],
 		data: { redirectAuthenticated: true },
 		loadComponent: () => import('./views/home/tsic-landing/tsic-landing.component').then(m => m.TsicLandingComponent)
