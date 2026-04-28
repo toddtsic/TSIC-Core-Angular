@@ -9,11 +9,10 @@
  * StoreAdmin / Superuser). Clicking a report the user can't access returns
  * 403 — the component surfaces that, doesn't pre-gate.
  *
- * visibilityRules.jobTypes is derived from legacy 2025-2027 usage observed
- * in scripts/7a-discover-legacy-reports.csv — each entry is only offered
- * on job types where it was historically used. Mapping legacy -> new
- * JobTypeName is in scripts/7d-jobtype-names.csv. Reports that spanned
- * all six JobTypes (e.g. Discounted Players) are left unfiltered.
+ * visibilityRules.jobTypes is derived from legacy 2025-2027 menu usage
+ * (Jobs.JobMenus + JobMenu_Items, Controller='Reporting') — each entry is
+ * only offered on job types where it was historically used. Reports that
+ * spanned all six JobTypes (e.g. Discounted Players) are left unfiltered.
  *
  * Sort order = descending by legacy usage (2025-2027 JobCount).
  */
