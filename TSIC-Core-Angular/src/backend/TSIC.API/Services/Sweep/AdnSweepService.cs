@@ -20,9 +20,10 @@ namespace TSIC.API.Services.Sweep;
 /// </summary>
 public sealed class AdnSweepService : IAdnSweepService
 {
-    // Match legacy hard-coded GUIDs.
+    // Match legacy hard-coded GUIDs (canonical reference.Accounting_PaymentMethods rows).
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-    private static readonly Guid EcheckReturnMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
+    // "Failed E-Check Payment" — used for NSF reversal RA rows.
+    private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
     private const string SystemUserId = "system-adn-sweep";
 
     private readonly IEcheckSettlementRepository _settleRepo;
@@ -428,7 +429,7 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             RegistrationId = ra.RegistrationId,
             TeamId = ra.TeamId,
-            PaymentMethodId = EcheckReturnMethodId,
+            PaymentMethodId = FailedEcheckPaymentMethodId,
             Payamt = -amount,
             Dueamt = 0,
             Comment = $"NSF return — original aID {ra.AId}, reason: {settlement.ReturnReasonCode} {settlement.ReturnReasonText}",

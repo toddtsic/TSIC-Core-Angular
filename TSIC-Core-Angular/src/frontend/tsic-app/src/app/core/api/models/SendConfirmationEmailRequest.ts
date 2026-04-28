@@ -5,5 +5,6 @@
 export type SendConfirmationEmailRequest = {
     registrationId?: string;
     forceResend?: boolean;
+    isEcheckPending?: boolean;
 };
 

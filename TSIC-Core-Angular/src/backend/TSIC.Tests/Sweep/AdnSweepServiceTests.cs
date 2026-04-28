@@ -33,7 +33,7 @@ namespace TSIC.Tests.Sweep;
 public class AdnSweepServiceTests
 {
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-    private static readonly Guid EcheckReturnMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
+    private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid TsicCustomerId = Guid.Parse("60660D3C-6C8C-DC11-8046-00137250256D");
 
     private readonly Mock<IEcheckSettlementRepository> _settleRepo = new();
@@ -360,7 +360,7 @@ public class AdnSweepServiceTests
         settlement.ReturnReasonText.Should().Be("NSF");
 
         capturedReversal.Should().NotBeNull();
-        capturedReversal!.PaymentMethodId.Should().Be(EcheckReturnMethodId);
+        capturedReversal!.PaymentMethodId.Should().Be(FailedEcheckPaymentMethodId);
         capturedReversal.Payamt.Should().Be(-100m);
         capturedReversal.AdnTransactionId.Should().Be("RETURN-TX-200");
 

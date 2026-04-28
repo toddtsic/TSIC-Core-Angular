@@ -1,10 +1,15 @@
 -- =====================================================================
 -- eCheck Settlement Tracking — Schema DDL
 -- =====================================================================
--- Adds: 1 payment method row, 1 new schema, 2 new tables, 2 indexes
+-- Adds: 1 new schema, 2 new tables, 2 indexes
 -- Risk: ZERO to existing schema (additive only, no alters / no backfills)
 -- Idempotent: every object guarded individually. Safe to re-run.
 -- =====================================================================
+--
+-- Payment method rows are NOT seeded here — they already exist in
+-- reference.Accounting_PaymentMethods (canonical 2012 seed):
+--   2EECA575-A268-E111-9D56-F04DA202060D  "E-Check Payment"
+--   2FECA575-A268-E111-9D56-F04DA202060D  "Failed E-Check Payment"
 --
 -- TWO MODES:
 --   1. Fresh install — just run the whole script.
@@ -25,30 +30,11 @@
 --     DROP TABLE echeck.SweepLog;
 -- IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'echeck')
 --     DROP SCHEMA echeck;
--- DELETE FROM reference.Accounting_PaymentMethods
---     WHERE paymentMethodID = '2FECA575-A268-E111-9D56-F04DA202060D';
 -- GO
 
 
 -- ---------------------------------------------------------------------
--- 1. Seed new payment method: "E-Check Return"
---    Used for NSF reversals + merchant-initiated refunds of cleared eChecks.
---    GUID 2FECA575-... pairs with eCheck Payment 2EECA575-...
---    (mirrors the CC Payment 30 / CC Credit 31 pattern)
--- ---------------------------------------------------------------------
-IF NOT EXISTS (
-    SELECT 1 FROM reference.Accounting_PaymentMethods
-    WHERE paymentMethodID = '2FECA575-A268-E111-9D56-F04DA202060D'
-)
-BEGIN
-    INSERT INTO reference.Accounting_PaymentMethods (paymentMethodID, paymentMethod, modified)
-    VALUES ('2FECA575-A268-E111-9D56-F04DA202060D', 'E-Check Return', SYSUTCDATETIME());
-END
-GO
-
-
--- ---------------------------------------------------------------------
--- 2. Schema: echeck
+-- 1. Schema: echeck
 -- ---------------------------------------------------------------------
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'echeck')
 BEGIN
@@ -58,7 +44,7 @@ GO
 
 
 -- ---------------------------------------------------------------------
--- 3. echeck.Settlement
+-- 2. echeck.Settlement
 --    One row per eCheck submission. Tracks lifecycle from submitted
 --    through settled or returned.
 --    1:1 with the paired Jobs.Registration_Accounting row
@@ -126,7 +112,7 @@ GO
 
 
 -- ---------------------------------------------------------------------
--- 4. echeck.SweepLog
+-- 3. echeck.SweepLog
 --    One row per sweep run (ops + audit). Lets us see when sweeps ran,
 --    what they did, and whether anything errored.
 -- ---------------------------------------------------------------------
@@ -174,9 +160,6 @@ GO
 -- ---------------------------------------------------------------------
 -- Verification (run manually after script completes)
 -- ---------------------------------------------------------------------
--- SELECT paymentMethod FROM reference.Accounting_PaymentMethods
---   WHERE paymentMethodID = '2FECA575-A268-E111-9D56-F04DA202060D';
---
 -- SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('echeck');
 --
 -- SELECT name FROM sys.indexes
@@ -209,5 +192,6 @@ GO
 -- getdate(); new schema = clean UTC start.
 --
 -- No paymentMethodID column on Settlement — the RA row already carries
--- it (always EcheckMethodId 2EECA575-...). Avoids redundancy.
+-- it (always "E-Check Payment" 2EECA575-...). Avoids redundancy.
+-- NSF reversal RA rows use "Failed E-Check Payment" 2FECA575-...
 -- =====================================================================
