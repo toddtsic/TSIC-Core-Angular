@@ -472,9 +472,14 @@ export class JobCloneComponent implements OnInit {
 
 	/**
 	 * Post-clone success path: capture source jobPath + source regId from the CURRENT JWT
-	 * (before re-minting), then re-mint the JWT scoped to the new job and navigate to
-	 * the new job's clone-tool route. Component re-instantiates because :jobPath changed,
-	 * and ngOnInit reads history.state.freshClone to render the celebratory landing.
+	 * (before re-minting), re-mint the JWT scoped to the new job, switch the visible UI
+	 * to the celebratory release landing, and update the URL to the new job.
+	 *
+	 * Why set state directly instead of relying on ngOnInit? Angular's default
+	 * RouteReuseStrategy reuses this component when only the `:jobPath` parameter
+	 * changes (route definition is identical), so router.navigate does NOT re-run
+	 * ngOnInit. The state payload on navigate() is still useful — it survives a
+	 * browser refresh and lets ngOnInit re-hydrate the celebrate view on reload.
 	 *
 	 * Failure handling (option (a) per design): if selectRegistration fails after a
 	 * successful clone, fall back to the legacy in-place release UI on the SOURCE job's
@@ -492,6 +497,19 @@ export class JobCloneComponent implements OnInit {
 			next: () => {
 				this.isSubmitting.set(false);
 				this.toast.show(`Cloned to ${newJobPath}`, 'success');
+
+				this.freshCelebrate.set(true);
+				this.sourceJobPathForReturn.set(sourceJobPath);
+				this.sourceRegIdForReturn.set(sourceRegId);
+				this.openRelease({
+					jobId: newJobId,
+					jobPath: newJobPath,
+					jobName: newJobName,
+				});
+				if (this.isDev && sourceJobPath && sourceRegId) {
+					this.loadDevUndoStatus(newJobId);
+				}
+
 				this.router.navigate(['/', newJobPath, 'configure', 'job-clone'], {
 					state: {
 						freshClone: true,
@@ -715,13 +733,34 @@ export class JobCloneComponent implements OnInit {
 		this.cloneService.deleteClonedJob(jobId).subscribe({
 			next: () => {
 				// Switch JWT back to the source-job registration captured pre-clone, then
-				// route to the source's wizard route fresh (no celebrate state).
+				// route to the source's wizard route. Component is reused across :jobPath
+				// changes (same Route definition), so ngOnInit does NOT re-fire — we have
+				// to reset the celebrate/release state and re-seed the wizard ourselves
+				// after the navigation resolves; otherwise the user lands on the source
+				// URL still showing the celebrate landing of the just-deleted clone.
 				this.authService.selectRegistration(sourceRegId).subscribe({
 					next: () => {
 						this.isDeletingClone.set(false);
 						this.devUndoConfirmOpen.set(false);
 						this.toast.show('Cloned job deleted; back in source.', 'success');
-						this.router.navigate(['/', sourcePath, 'configure', 'job-clone']);
+						this.router.navigate(['/', sourcePath, 'configure', 'job-clone']).then(navOk => {
+							if (!navOk) return;
+							this.freshCelebrate.set(false);
+							this.sourceJobPathForReturn.set(null);
+							this.sourceRegIdForReturn.set(null);
+							this.releaseJobId.set(null);
+							this.releaseJobContext.set(null);
+							this.releaseAdmins.set([]);
+							this.releaseSelectedRegIds.set(new Set());
+							this.sitePublic.set(null);
+							this.devUndoStatus.set(null);
+							this.mode.set('wizard');
+							this.flavor.set('clone');
+							this.resetWizard();
+							// loadSources() auto-selects the current job once the list arrives;
+							// by now the route has updated to sourcePath so the lookup hits.
+							this.loadSources();
+						});
 					},
 					error: err => {
 						this.isDeletingClone.set(false);
