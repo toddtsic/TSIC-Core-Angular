@@ -12,6 +12,7 @@ export type JobRevenueDataDto = {
     adminFees: Array<JobAdminFeeDto>;
     creditCardRecords: Array<JobPaymentRecordDto>;
     checkRecords: Array<JobPaymentRecordDto>;
+    echeckRecords: Array<JobPaymentRecordDto>;
     availableJobs: Array<string>;
 };
 

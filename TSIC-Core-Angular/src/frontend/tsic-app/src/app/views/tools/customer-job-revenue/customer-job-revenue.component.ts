@@ -39,7 +39,7 @@ export class CustomerJobRevenueComponent {
 	// UI state
 	isLoading = signal(false);
 	errorMessage = signal('');
-	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords'>('rollup');
+	activeTab = signal<'rollup' | 'counts' | 'adminFees' | 'ccRecords' | 'checkRecords' | 'echeckRecords'>('rollup');
 
 	// Data
 	revenueData = signal<JobRevenueDataDto | null>(null);
@@ -51,6 +51,7 @@ export class CustomerJobRevenueComponent {
 	adminFees = computed(() => this.revenueData()?.adminFees ?? []);
 	creditCardRecords = computed(() => this.revenueData()?.creditCardRecords ?? []);
 	checkRecords = computed(() => this.revenueData()?.checkRecords ?? []);
+	echeckRecords = computed(() => this.revenueData()?.echeckRecords ?? []);
 
 	// Date range options (monthly buckets from last month back to Jan 2022)
 	monthOptions: MonthOption[] = [];
@@ -98,6 +99,7 @@ export class CustomerJobRevenueComponent {
 	@ViewChild('adminFeesGrid') adminFeesGrid!: GridComponent;
 	@ViewChild('ccGrid') ccGrid!: GridComponent;
 	@ViewChild('checkGrid') checkGrid!: GridComponent;
+	@ViewChild('echeckGrid') echeckGrid!: GridComponent;
 
 	constructor() {
 		this.buildMonthOptions();
@@ -207,6 +209,12 @@ export class CustomerJobRevenueComponent {
 	onCheckToolbarClick(args: any): void {
 		if (args.item?.id?.includes('excelexport')) {
 			this.checkGrid.excelExport();
+		}
+	}
+
+	onEcheckToolbarClick(args: any): void {
+		if (args.item?.id?.includes('excelexport')) {
+			this.echeckGrid.excelExport();
 		}
 	}
 

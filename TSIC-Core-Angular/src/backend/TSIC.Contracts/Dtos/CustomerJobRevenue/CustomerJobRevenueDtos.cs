@@ -7,6 +7,7 @@ public record JobRevenueDataDto
     public required List<JobAdminFeeDto> AdminFees { get; init; }
     public required List<JobPaymentRecordDto> CreditCardRecords { get; init; }
     public required List<JobPaymentRecordDto> CheckRecords { get; init; }
+    public required List<JobPaymentRecordDto> EcheckRecords { get; init; }
     public required List<string> AvailableJobs { get; init; }
 }
 

@@ -101,7 +101,11 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         await reader.NextResultAsync(ct);
         var checkRecords = await ReadPaymentRecords(reader, ct);
 
-        // Result set 6: Available jobs
+        // Result set 6: E-Check records
+        await reader.NextResultAsync(ct);
+        var echeckRecords = await ReadPaymentRecords(reader, ct);
+
+        // Result set 7: Available jobs
         await reader.NextResultAsync(ct);
         var availableJobs = new List<string>();
         while (await reader.ReadAsync(ct))
@@ -116,6 +120,7 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
             AdminFees = adminFees,
             CreditCardRecords = ccRecords,
             CheckRecords = checkRecords,
+            EcheckRecords = echeckRecords,
             AvailableJobs = availableJobs
         };
     }

@@ -89,6 +89,11 @@
 					Check Records
 				</button>
 			</li>
+			<li class="nav-item">
+				<button class="nav-link" [class.active]="activeTab() === 'echeckRecords'" (click)="setTab('echeckRecords')">
+					E-Check Records
+				</button>
+			</li>
 		</ul>
 
 		<!-- Tab 1: Revenue Rollup (PivotView) -->
@@ -183,6 +188,26 @@
 				[allowExcelExport]="true"
 				[toolbar]="readOnlyToolbar"
 				(toolbarClick)="onCheckToolbarClick($event)">
+				<e-columns>
+					<e-column field="jobName" headerText="Job" width="120"></e-column>
+					<e-column field="year" headerText="Year" width="60"></e-column>
+					<e-column field="month" headerText="Month" width="60" textAlign="Right"></e-column>
+					<e-column field="registrant" headerText="Registrant" width="150"></e-column>
+					<e-column field="paymentMethod" headerText="Type" width="100"></e-column>
+					<e-column field="paymentDate" headerText="Date" width="150" type="date" format="yMd"></e-column>
+					<e-column field="paymentAmount" headerText="Payment" width="100" format="C2" textAlign="Right"></e-column>
+				</e-columns>
+			</ejs-grid>
+		}
+
+		<!-- Tab 6: E-Check Records -->
+		@if (activeTab() === 'echeckRecords') {
+			<ejs-grid #echeckGrid
+				[dataSource]="echeckRecords()"
+				cssClass="tsic-grid"
+				[allowExcelExport]="true"
+				[toolbar]="readOnlyToolbar"
+				(toolbarClick)="onEcheckToolbarClick($event)">
 				<e-columns>
 					<e-column field="jobName" headerText="Job" width="120"></e-column>
 					<e-column field="year" headerText="Year" width="60"></e-column>
