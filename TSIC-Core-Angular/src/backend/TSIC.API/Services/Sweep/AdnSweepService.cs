@@ -24,7 +24,9 @@ public sealed class AdnSweepService : IAdnSweepService
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
     // "Failed E-Check Payment" — used for NSF reversal RA rows.
     private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
-    private const string SystemUserId = "system-adn-sweep";
+    // Stamp system-written rows with TSICSuperUser (FK to dbo.AspNetUsers). Legacy
+    // wrote _appSettings.TSICParams.SuperUserId here for the same reason.
+    private const string SystemUserId = TsicConstants.SuperUserId;
 
     private readonly IEcheckSettlementRepository _settleRepo;
     private readonly IRegistrationAccountingRepository _accountingRepo;
