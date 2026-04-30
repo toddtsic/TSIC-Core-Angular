@@ -10,7 +10,11 @@ What's new is the product itself. The polish. The speed. And **AI woven right in
 
 Alongside those, a set of brand-new capabilities you'll want to explore: a **completely new concept: the Club Teams Library**, **E-Check payments**, **one-tap deposit + auto-billed balance for tournament team registrations**, **early-bird and late-fee modifiers on both player and team registrations**, **discount codes for team registrations** — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
 
-**End of May** is the target to flip the switch. That way users will already know their way around by the time they re-up for tournaments the day after this summer's events close. Before we do, **I'd like to invite you into the dev environment** — come explore, try things, push it around at your own pace. Your input between now and go-live will directly shape what ships — and even when it ships, if necessary. If something feels off, or you'd like to see a workflow behave differently, I'd love to hear about it while there's still room to act. **The first half of May is when feedback has the most room to land — after that, we're in polish-and-ship mode.**
+I'm confident I can be production ready by the **End of May**. I'm pushing hard on that deadline so that you can offer either E-Check or Autocharge Balance Due when you re-up your events the Monday after a tournament ends.  The heaviest usage during tournament season is from the mobile app (which remains unchanged).  The admin tournament/schedule functions and public views in the new system are solid, extremely fast, and I think having those used through tournament season will be a "familiarity bonus" going into re-up registration.  If that isn't a huge priority for you, or the prospect of switching before tournament season is just too scary, then I can either convert everyone in August after the tournament season ends or for those that want to go for it I can expose a new url, say "ai.teamsportsinfo.com" that will give you access to the new system while others remain on the legacy site. You could run this summer's tournaments on either system, but point next year's re-up registration at the new URL.
+
+So I need your vote! I've made the new system available on a separate machine in its own protected environment --  **dev.teamsportsinfo.com**.  I know how busy you are, but if you can make the time to explore/bang-on/test you could leap-frog your registrations for next year.
+ 
+Ann and I are rafting down the Grand Canyon May x-y.  Chelsea will be here, however, to answer any questions you might have.  Upon our return, I'll catch up with her and implement either 1) go live in August, 2) go live last week in May, or 3) implement the hybrid approach (ai.teamsportsinfo.com)
 
 **Where to go:** [dev.teamsportsinfo.com](https://dev.teamsportsinfo.com)
 
@@ -39,7 +43,7 @@ Todd
 
 **None of what's new asks you to learn a new way to work.** Your navigation, your registration wizards, your reports, your email flows — all of it is where you left it and behaves the way you remember. Fees, discount codes, modifiers, refunds, ARB, waivers, email tokens, admin roles, the login flow — match legacy to the penny.
 
-The new capabilities — autoscheduling, AI-composed emails, the Club Teams library, fly-in search panels — sit **on top** of the product you already know. Nothing you rely on has been moved, renamed, or retired.
+The new capabilities — autoscheduling, AI-composed emails, the Club Teams Library, fly-in search panels — sit **on top** of the product you already know. Nothing you rely on has been moved, renamed, or retired.
 
 ### Scheduling — vastly extended
 
