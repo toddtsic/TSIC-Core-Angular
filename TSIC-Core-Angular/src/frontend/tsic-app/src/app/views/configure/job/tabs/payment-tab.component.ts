@@ -53,6 +53,9 @@ export class PaymentTabComponent implements OnInit {
   adnArbTrial = linkedSignal(() => this.svc.payment()?.adnArbTrial ?? null);
   adnStartDateAfterTrial = linkedSignal(() => toDateOnly(this.svc.payment()?.adnStartDateAfterTrial) ?? null);
 
+  /** ARB owns the balance schedule when either flag is on — Full-Payment-Required toggles are inert. */
+  protected readonly arbControlsBalance = computed(() => !!this.adnArb() || !!this.adnArbTrial());
+
   private readonly cleanSnapshot = computed(() => {
     const p = this.svc.payment();
     if (!p) return '';

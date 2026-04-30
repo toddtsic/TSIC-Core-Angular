@@ -124,6 +124,16 @@ select::placeholder,
     .field-label {
         margin-bottom: 0;
     }
+
+    /* Modifier: control is non-editable due to a higher-precedence setting */
+    &.is-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+
+        .field-label {
+            cursor: not-allowed;
+        }
+    }
 }
 
 /* Horizontal row of field-checks */

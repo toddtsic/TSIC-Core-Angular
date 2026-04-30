@@ -229,10 +229,11 @@
         </div>
         <div class="row g-2 align-items-end mt-1">
           <div class="col-md-3 pb-1">
-            <label class="field-check">
+            <label class="field-check" [class.is-disabled]="!adnArb()">
               <input type="checkbox"
                 [ngModel]="adnArbTrial()"
-                (ngModelChange)="adnArbTrial.set($event); onFieldChange()" />
+                (ngModelChange)="adnArbTrial.set($event); onFieldChange()"
+                [disabled]="!adnArb()" />
               <span class="field-label mb-0">Deposit + Balance (Trial)</span>
             </label>
           </div>
@@ -240,7 +241,8 @@
             <label class="field-label">Balance Bill Date</label>
             <input type="date" class="field-input"
               [ngModel]="adnStartDateAfterTrial()"
-              (ngModelChange)="adnStartDateAfterTrial.set($event); onFieldChange()" />
+              (ngModelChange)="adnStartDateAfterTrial.set($event); onFieldChange()"
+              [disabled]="!adnArb()" />
           </div>
         </div>
       </div>
