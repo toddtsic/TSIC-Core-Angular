@@ -287,6 +287,9 @@ public class JobRepository : IJobRepository
                 MailTo = j.MailTo,
                 MailinPaymentWarning = j.MailinPaymentWarning,
                 BEnableEcheck = j.BEnableEcheck,
+                AdnArbTrial = j.AdnArbtrial,
+                AdnArbStartDate = j.AdnArbstartDate,
+                AdnStartDateAfterTrial = j.AdnStartDateAfterTrial,
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

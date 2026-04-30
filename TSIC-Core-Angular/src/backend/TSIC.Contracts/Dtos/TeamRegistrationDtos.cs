@@ -99,6 +99,12 @@ public sealed record TeamsMetadataResponse
     // Per-job opt-in for eCheck (ACH) as a customer-facing payment method.
     // When true, the team checkout shows the Pay-by-eCheck option alongside CC.
     public required bool BEnableEcheck { get; init; }
+    // ARB-Trial schedule. When AdnArbTrial=true, the wizard renders the
+    // deposit-tomorrow + balance-on-AdnStartDateAfterTrial flow; otherwise the
+    // flow runs unchanged. Dates are job-config and read at submit time.
+    public bool? AdnArbTrial { get; init; }
+    public DateTime? AdnArbStartDate { get; init; }
+    public DateTime? AdnStartDateAfterTrial { get; init; }
 }
 
 public sealed record ClubTeamDto

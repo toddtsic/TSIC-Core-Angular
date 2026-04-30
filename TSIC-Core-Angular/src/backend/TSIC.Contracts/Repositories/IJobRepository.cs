@@ -329,6 +329,9 @@ public record JobFeeSettings
     public string? MailTo { get; init; }
     public string? MailinPaymentWarning { get; init; }
     public bool BEnableEcheck { get; init; }
+    public bool? AdnArbTrial { get; init; }
+    public DateTime? AdnArbStartDate { get; init; }
+    public DateTime? AdnStartDateAfterTrial { get; init; }
 }
 
 public record JobTeamCapabilities

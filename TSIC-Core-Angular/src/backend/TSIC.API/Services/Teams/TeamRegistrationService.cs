@@ -411,6 +411,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             LopOptions = lopOptions,
             BWaiverSigned3 = registration.BWaiverSigned3,
             BEnableEcheck = job.BEnableEcheck,
+            AdnArbTrial = job.AdnArbTrial,
+            AdnArbStartDate = job.AdnArbStartDate,
+            AdnStartDateAfterTrial = job.AdnStartDateAfterTrial,
         };
     }
 

@@ -28,5 +28,8 @@ export type TeamsMetadataResponse = {
     lopOptions: Array<string>;
     bWaiverSigned3: boolean;
     bEnableEcheck: boolean;
+    adnArbTrial?: boolean | null;
+    adnArbStartDate?: string | null;
+    adnStartDateAfterTrial?: string | null;
 };
 
