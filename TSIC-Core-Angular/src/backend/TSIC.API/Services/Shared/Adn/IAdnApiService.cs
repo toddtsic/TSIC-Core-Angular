@@ -40,6 +40,12 @@ public interface IAdnApiService
     createTransactionResponse ADN_Refund(AdnRefundRequest request);
     createTransactionResponse ADN_Void(AdnVoidRequest request);
 
+    // Validates a card real-time by placing a $0.01 auth and immediately voiding it.
+    // The Amount on the request is ignored — helper always uses $0.01.
+    // Use before any operation that defers the real charge (ARB create, ARB card update),
+    // otherwise card declines don't surface until the next batch run.
+    AdnPennyVerifyResult ADN_VerifyCardWithPennyAuth(AdnAuthorizeRequest request);
+
     ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(AdnArbCreateRequest request);
     AdnArbCreateResult ADN_ARB_CreateMonthlySubscription_Result(AdnArbCreateRequest request);
 

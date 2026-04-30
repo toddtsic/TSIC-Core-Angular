@@ -344,8 +344,8 @@ public class ArbDefensiveService : IArbDefensiveService
 
         var expiry = $"{request.ExpirationMonth}{request.ExpirationYear[^2..]}";
 
-        // 1. Validate card
-        var authResponse = _adnApi.ADN_Authorize(new AdnAuthorizeRequest
+        // 1. Validate card via penny-auth + void
+        var verifyResult = _adnApi.ADN_VerifyCardWithPennyAuth(new AdnAuthorizeRequest
         {
             Env = env,
             LoginId = creds.AdnLoginId!,
@@ -360,16 +360,13 @@ public class ArbDefensiveService : IArbDefensiveService
             Amount = 0.01m
         });
 
-        if (authResponse?.messages?.resultCode != messageTypeEnum.Ok)
+        if (!verifyResult.Success)
         {
-            var errMsg = authResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                ?? authResponse?.messages?.message?.FirstOrDefault()?.text
-                ?? "Card validation failed.";
             return new ArbUpdateCcResultDto
             {
                 SubscriptionUpdated = false,
                 BalanceCharged = false,
-                Message = $"Card validation failed: {errMsg}"
+                Message = $"Card validation failed: {verifyResult.ErrorMessage}"
             };
         }
 

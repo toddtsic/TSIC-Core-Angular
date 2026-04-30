@@ -679,6 +679,28 @@ public class PaymentService : IPaymentService
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
         }
         var env = _adnApiService.GetADNEnvironment();
+
+        // ARB create only validates schema, not the card itself; declines wouldn't
+        // surface until occurrence #1 fires next-day batch — by which point the
+        // registration looks active with no money received. Penny-verify forces a
+        // synchronous decline at checkout.
+        var verifyResult = _adnApiService.ADN_VerifyCardWithPennyAuth(new AdnAuthorizeRequest
+        {
+            Env = env,
+            LoginId = credentials.AdnLoginId!,
+            TransactionKey = credentials.AdnTransactionKey!,
+            CardNumber = cc.Number!,
+            CardCode = cc.Code!,
+            Expiry = FormatExpiry(cc.Expiry!),
+            FirstName = cc.FirstName!,
+            LastName = cc.LastName!,
+            Address = cc.Address!,
+            Zip = cc.Zip!,
+            Amount = 0.01m
+        });
+        if (!verifyResult.Success)
+            return Fail($"Card validation failed: {verifyResult.ErrorMessage}", "CARD_VERIFY_FAILED");
+
         var schedule = BuildArbSchedule(job.AdnArbbillingOccurences, job.AdnArbintervalLength, job.AdnArbstartDate);
         var (occur, intervalLen, start) = schedule;
         NormalizeProcessingFees(registrations, jobId, userId);

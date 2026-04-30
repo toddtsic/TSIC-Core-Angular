@@ -543,7 +543,9 @@ public class AdnApiService : IAdnApiService
         return resp;
     }
     // New public request-based wrappers
-    public createTransactionResponse ADN_Authorize(AdnAuthorizeRequest request)
+    // Authorize and Void are virtual so the penny-verify orchestration in
+    // ADN_VerifyCardWithPennyAuth can be unit-tested without round-tripping the SDK.
+    public virtual createTransactionResponse ADN_Authorize(AdnAuthorizeRequest request)
     {
         var cc = BuildCreditCard(request.Env, request.CardNumber, request.CardCode, request.Expiry);
         var addr = new customerAddressType { firstName = request.FirstName, lastName = request.LastName, address = request.Address, zip = request.Zip };
@@ -614,9 +616,54 @@ public class AdnApiService : IAdnApiService
         return ExecuteTransaction(new ExecTxnArgs(request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.refundTransaction, request.Amount, creditCard, null, order, request.TransactionId));
     }
 
-    public createTransactionResponse ADN_Void(AdnVoidRequest request)
+    public virtual createTransactionResponse ADN_Void(AdnVoidRequest request)
     {
         return ExecuteTransaction(new ExecTxnArgs(request.Env, request.LoginId, request.TransactionKey, transactionTypeEnum.voidTransaction, null, null, null, null, request.TransactionId));
+    }
+
+    public AdnPennyVerifyResult ADN_VerifyCardWithPennyAuth(AdnAuthorizeRequest request)
+    {
+        // Force the amount to a penny regardless of caller-supplied value.
+        var verifyReq = request with { Amount = 0.01m };
+        var authResp = ADN_Authorize(verifyReq);
+
+        if (authResp?.messages?.resultCode != messageTypeEnum.Ok
+            || authResp.transactionResponse?.messages == null
+            || string.IsNullOrWhiteSpace(authResp.transactionResponse.transId))
+        {
+            var err = authResp?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                ?? authResp?.messages?.message?.FirstOrDefault()?.text
+                ?? "Card validation failed.";
+            return new AdnPennyVerifyResult { Success = false, ErrorMessage = err };
+        }
+
+        var authTxId = authResp.transactionResponse.transId;
+        var voidResp = ADN_Void(new AdnVoidRequest
+        {
+            Env = request.Env,
+            LoginId = request.LoginId,
+            TransactionKey = request.TransactionKey,
+            TransactionId = authTxId
+        });
+
+        if (voidResp?.messages?.resultCode != messageTypeEnum.Ok)
+        {
+            // Auth succeeded but void didn't — gateway is unstable. Bail rather than
+            // proceed with the deferred-charge operation; the auth hold will expire
+            // naturally in a few days.
+            var err = voidResp?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                ?? voidResp?.messages?.message?.FirstOrDefault()?.text
+                ?? "Penny auth void failed.";
+            _logger.LogWarning("Penny auth ok but void failed for tx {TxId}: {Error}", authTxId, err);
+            return new AdnPennyVerifyResult
+            {
+                Success = false,
+                ErrorMessage = $"Card validated but void failed: {err}",
+                AuthTransactionId = authTxId
+            };
+        }
+
+        return new AdnPennyVerifyResult { Success = true, AuthTransactionId = authTxId };
     }
 
     public ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(AdnArbCreateRequest request)

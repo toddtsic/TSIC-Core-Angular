@@ -143,3 +143,14 @@ public record AdnArbCreateResult
     public required string GatewayMessage { get; init; }
     public string? CardLast4 { get; init; }
 }
+
+// Result of a $0.01 auth-then-void card validation. Used as a synchronous
+// "is this card good?" check in front of operations whose actual charge is
+// deferred (ARB subscription creation, ARB card update) — without it, a
+// declined card wouldn't surface until the next-morning batch.
+public record AdnPennyVerifyResult
+{
+    public required bool Success { get; init; }
+    public string? ErrorMessage { get; init; }
+    public string? AuthTransactionId { get; init; }
+}
