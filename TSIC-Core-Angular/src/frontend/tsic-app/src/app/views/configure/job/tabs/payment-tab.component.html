@@ -157,16 +157,18 @@
         </div>
       </div>
       <div class="field-check-row mt-2">
-        <label class="field-check">
+        <label class="field-check" [class.is-disabled]="arbControlsBalance()">
           <input type="checkbox"
             [ngModel]="bTeamsFullPaymentRequired()"
-            (ngModelChange)="bTeamsFullPaymentRequired.set($event); onFieldChange()" />
+            (ngModelChange)="bTeamsFullPaymentRequired.set($event); onFieldChange()"
+            [disabled]="arbControlsBalance()" />
           <span class="field-label mb-0">Teams Full Payment Required</span>
         </label>
-        <label class="field-check">
+        <label class="field-check" [class.is-disabled]="arbControlsBalance()">
           <input type="checkbox"
             [ngModel]="bPlayersFullPaymentRequired()"
-            (ngModelChange)="bPlayersFullPaymentRequired.set($event); onFieldChange()" />
+            (ngModelChange)="bPlayersFullPaymentRequired.set($event); onFieldChange()"
+            [disabled]="arbControlsBalance()" />
           <span class="field-label mb-0">Players Full Payment Required</span>
         </label>
         <label class="field-check">
@@ -223,6 +225,22 @@
             <input type="number" class="field-input" step="0.01"
               [ngModel]="adnArbMinimumTotalCharge()"
               (ngModelChange)="adnArbMinimumTotalCharge.set($event); onFieldChange()" />
+          </div>
+        </div>
+        <div class="row g-2 align-items-end mt-1">
+          <div class="col-md-3 pb-1">
+            <label class="field-check">
+              <input type="checkbox"
+                [ngModel]="adnArbTrial()"
+                (ngModelChange)="adnArbTrial.set($event); onFieldChange()" />
+              <span class="field-label mb-0">Deposit + Balance (Trial)</span>
+            </label>
+          </div>
+          <div class="col-md-3">
+            <label class="field-label">Balance Bill Date</label>
+            <input type="date" class="field-input"
+              [ngModel]="adnStartDateAfterTrial()"
+              (ngModelChange)="adnStartDateAfterTrial.set($event); onFieldChange()" />
           </div>
         </div>
       </div>

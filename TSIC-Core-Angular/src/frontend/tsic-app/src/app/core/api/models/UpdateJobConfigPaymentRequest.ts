@@ -25,5 +25,7 @@ export type UpdateJobConfigPaymentRequest = {
     adnArbIntervalLength?: number | null;
     adnArbStartDate?: string | null;
     adnArbMinimumTotalCharge?: number | null;
+    adnArbTrial?: boolean | null;
+    adnStartDateAfterTrial?: string | null;
 };
 

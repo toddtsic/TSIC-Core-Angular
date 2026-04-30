@@ -50,6 +50,8 @@ export class PaymentTabComponent implements OnInit {
   adnArbIntervalLength = linkedSignal(() => this.svc.payment()?.adnArbIntervalLength);
   adnArbStartDate = linkedSignal(() => toDateOnly(this.svc.payment()?.adnArbStartDate) ?? null);
   adnArbMinimumTotalCharge = linkedSignal(() => this.svc.payment()?.adnArbMinimumTotalCharge);
+  adnArbTrial = linkedSignal(() => this.svc.payment()?.adnArbTrial ?? null);
+  adnStartDateAfterTrial = linkedSignal(() => toDateOnly(this.svc.payment()?.adnStartDateAfterTrial) ?? null);
 
   private readonly cleanSnapshot = computed(() => {
     const p = this.svc.payment();
@@ -79,6 +81,8 @@ export class PaymentTabComponent implements OnInit {
       req.adnArbIntervalLength = p.adnArbIntervalLength;
       req.adnArbStartDate = toDateOnly(p.adnArbStartDate) ?? null;
       req.adnArbMinimumTotalCharge = p.adnArbMinimumTotalCharge;
+      req.adnArbTrial = p.adnArbTrial ?? null;
+      req.adnStartDateAfterTrial = toDateOnly(p.adnStartDateAfterTrial) ?? null;
     }
     return JSON.stringify(req);
   });
@@ -154,6 +158,8 @@ export class PaymentTabComponent implements OnInit {
       req.adnArbIntervalLength = this.adnArbIntervalLength();
       req.adnArbStartDate = this.adnArbStartDate();
       req.adnArbMinimumTotalCharge = this.adnArbMinimumTotalCharge();
+      req.adnArbTrial = this.adnArbTrial();
+      req.adnStartDateAfterTrial = this.adnStartDateAfterTrial();
     }
     return req;
   }

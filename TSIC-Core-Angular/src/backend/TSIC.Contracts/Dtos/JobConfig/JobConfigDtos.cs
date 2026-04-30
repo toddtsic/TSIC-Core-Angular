@@ -117,6 +117,8 @@ public record JobConfigPaymentDto
     public int? AdnArbIntervalLength { get; init; }
     public DateTime? AdnArbStartDate { get; init; }
     public decimal? AdnArbMinimumTotalCharge { get; init; }
+    public bool? AdnArbTrial { get; init; }
+    public DateTime? AdnStartDateAfterTrial { get; init; }
 
     // SuperUser-only — admin charges summary
     public List<JobAdminChargeDto>? AdminCharges { get; init; }
@@ -148,6 +150,8 @@ public record UpdateJobConfigPaymentRequest
     public int? AdnArbIntervalLength { get; init; }
     public DateTime? AdnArbStartDate { get; init; }
     public decimal? AdnArbMinimumTotalCharge { get; init; }
+    public bool? AdnArbTrial { get; init; }
+    public DateTime? AdnStartDateAfterTrial { get; init; }
 }
 
 public record JobAdminChargeDto

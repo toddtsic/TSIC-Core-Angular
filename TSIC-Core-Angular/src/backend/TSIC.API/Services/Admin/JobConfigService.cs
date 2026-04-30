@@ -153,6 +153,8 @@ public class JobConfigService : IJobConfigService
             job.AdnArbintervalLength = req.AdnArbIntervalLength;
             job.AdnArbstartDate = req.AdnArbStartDate;
             job.AdnArbMinimunTotalCharge = req.AdnArbMinimumTotalCharge;
+            job.AdnArbtrial = req.AdnArbTrial;
+            job.AdnStartDateAfterTrial = req.AdnStartDateAfterTrial;
         }
 
         job.Modified = DateTime.UtcNow;
@@ -620,6 +622,8 @@ public class JobConfigService : IJobConfigService
         AdnArbIntervalLength = isSuperUser ? job.AdnArbintervalLength : null,
         AdnArbStartDate = isSuperUser ? job.AdnArbstartDate : null,
         AdnArbMinimumTotalCharge = isSuperUser ? job.AdnArbMinimunTotalCharge : null,
+        AdnArbTrial = isSuperUser ? job.AdnArbtrial : null,
+        AdnStartDateAfterTrial = isSuperUser ? job.AdnStartDateAfterTrial : null,
         AdminCharges = charges?.Select(c => new JobAdminChargeDto
         {
             Id = c.Id,

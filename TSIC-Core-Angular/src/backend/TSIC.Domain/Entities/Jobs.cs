@@ -239,6 +239,10 @@ public partial class Jobs
 
     public bool BPlayersFullPaymentRequired { get; set; }
 
+    public bool? AdnArbtrial { get; set; }
+
+    public DateTime? AdnStartDateAfterTrial { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

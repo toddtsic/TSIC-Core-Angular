@@ -8,7 +8,7 @@ Hi Directors!
 
 What's new is the product itself. The polish. The speed. And **AI woven right into the product**: a **dramatically expanded scheduling engine** with **autoscheduling that learns from your prior years' patterns**, **AI-assisted email composition** in search/registrations, **AI-assisted national rankings capture**.
 
-Alongside those, a set of brand-new capabilities you'll want to explore: a **completely reimagined Club Teams library**, **early-bird and late-fee modifiers on both player and team registrations**, **discount codes for team registrations** — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
+Alongside those, a set of brand-new capabilities you'll want to explore: a **completely new concept: the Club Teams Library**, **E-Check payments**, **one-tap deposit + auto-billed balance for tournament team registrations**, **early-bird and late-fee modifiers on both player and team registrations**, **discount codes for team registrations** — and dozens of thoughtful refinements throughout. **This isn't just built with AI. It runs with AI, too.**
 
 **End of May** is the target to flip the switch. That way users will already know their way around by the time they re-up for tournaments the day after this summer's events close. Before we do, **I'd like to invite you into the dev environment** — come explore, try things, push it around at your own pace. Your input between now and go-live will directly shape what ships — and even when it ships, if necessary. If something feels off, or you'd like to see a workflow behave differently, I'd love to hear about it while there's still room to act. **The first half of May is when feedback has the most room to land — after that, we're in polish-and-ship mode.**
 
@@ -47,7 +47,7 @@ The entire scheduling process has been enhanced — the flow is the same, but th
 
 A viewer upgrade worth calling out: **the game clock is now inline.** It's visible directly on the schedule view at all times — no more popup modal, no more clicking through to check the timer.
 
-### Club Teams library — completely reimagined
+### Club Teams Library — a brand-new concept
 
 A real structural leap, not a UI tweak. Club reps now build a **persistent, club-owned roster of teams** once, and reuse those entries across every tournament they register for — instead of re-typing the same team name, grad year, and level of play at every event.
 
@@ -56,6 +56,13 @@ A real structural leap, not a UI tweak. Club reps now build a **persistent, club
 1. **Registration friction drops dramatically for your club reps.** Set up a team in the library once; from then on, registering that team into any tournament is effectively a single click. Cleaner data in, fewer duplicate teams, faster setup for every event on your calendar.
 
 2. **Team identity persists across the ecosystem.** Each library team carries a stable, protected identity. Once that team appears on a schedule, its core attributes lock down automatically to preserve historical accuracy. **TSIC can now track the same team across every tournament it plays** — the foundation for cross-tournament stats, club profiles, and recruiting-friendly team pages is in this release.
+
+### New payment methods 🎺
+
+A genuine expansion of how money moves through the product:
+
+- **E-Check is live.** Full ACH support at checkout — registrants pay directly from a bank account. Lower processing fees, fewer card declines, same wizard flow you already know.
+- **One capture, two charges — for tournament team registrations.** A single credit card submission bills the **deposit** at registration and then **automatically charges the balance on a date you set**. The TD picks the auto-bill date when configuring the tournament; the system collects on schedule. No follow-up emails, no chasing club reps, no second checkout — your AR closes itself.
 
 ### AI in the product (not just behind it)
 

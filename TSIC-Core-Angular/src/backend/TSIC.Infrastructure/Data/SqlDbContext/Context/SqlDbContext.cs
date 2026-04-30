@@ -4479,6 +4479,10 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.AdnArbstartDate)
                 .HasColumnType("datetime")
                 .HasColumnName("adnARBStartDate");
+            entity.Property(e => e.AdnArbtrial).HasColumnName("adnARBTrial");
+            entity.Property(e => e.AdnStartDateAfterTrial)
+                .HasColumnType("datetime")
+                .HasColumnName("adnStartDateAfterTrial");
             entity.Property(e => e.AdultRegCodeOfConduct).HasColumnName("AdultReg_CodeOfConduct");
             entity.Property(e => e.AdultRegConfirmationEmail).HasColumnName("AdultReg_ConfirmationEmail");
             entity.Property(e => e.AdultRegConfirmationOnScreen).HasColumnName("AdultReg_ConfirmationOnScreen");
@@ -5803,7 +5807,7 @@ public partial class SqlDbContext : DbContext
 
         modelBuilder.Entity<ReportCatalogue>(entity =>
         {
-            entity.HasKey(e => e.ReportId).HasName("PK__ReportCa__D5BD4805FD3F9410");
+            entity.HasKey(e => e.ReportId).HasName("PK__ReportCa__D5BD4805C36E98AB");
 
             entity.ToTable("ReportCatalogue", "reporting");
 

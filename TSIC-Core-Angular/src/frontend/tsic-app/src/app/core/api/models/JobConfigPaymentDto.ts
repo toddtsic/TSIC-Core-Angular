@@ -29,6 +29,8 @@ export type JobConfigPaymentDto = {
     adnArbIntervalLength?: number | null;
     adnArbStartDate?: string | null;
     adnArbMinimumTotalCharge?: number | null;
+    adnArbTrial?: boolean | null;
+    adnStartDateAfterTrial?: string | null;
     adminCharges?: any[] | null;
 };
 
