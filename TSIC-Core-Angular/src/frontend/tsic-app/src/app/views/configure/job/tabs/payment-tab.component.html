@@ -203,18 +203,18 @@
             </label>
           </div>
           <div class="col-md-2">
-            <label class="field-label" [class.is-disabled]="!adnArb() || adnArbTrial()">Occurrences</label>
+            <label class="field-label" [class.is-disabled]="!adnArb() || !!adnArbTrial()">Occurrences</label>
             <input type="number" class="field-input"
               [ngModel]="adnArbBillingOccurrences()"
               (ngModelChange)="adnArbBillingOccurrences.set($event); onFieldChange()"
-              [disabled]="!adnArb() || adnArbTrial()" />
+              [disabled]="!adnArb() || !!adnArbTrial()" />
           </div>
           <div class="col-md-2">
-            <label class="field-label" [class.is-disabled]="!adnArb() || adnArbTrial()">Interval</label>
+            <label class="field-label" [class.is-disabled]="!adnArb() || !!adnArbTrial()">Interval</label>
             <input type="number" class="field-input"
               [ngModel]="adnArbIntervalLength()"
               (ngModelChange)="adnArbIntervalLength.set($event); onFieldChange()"
-              [disabled]="!adnArb() || adnArbTrial()" />
+              [disabled]="!adnArb() || !!adnArbTrial()" />
           </div>
           <div class="col-md-3 pb-1">
             <label class="field-check" [class.is-disabled]="!adnArb()">
