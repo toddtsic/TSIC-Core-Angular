@@ -203,31 +203,19 @@
             </label>
           </div>
           <div class="col-md-2">
-            <label class="field-label">Occurrences</label>
+            <label class="field-label" [class.is-disabled]="!adnArb() || adnArbTrial()">Occurrences</label>
             <input type="number" class="field-input"
               [ngModel]="adnArbBillingOccurrences()"
-              (ngModelChange)="adnArbBillingOccurrences.set($event); onFieldChange()" />
+              (ngModelChange)="adnArbBillingOccurrences.set($event); onFieldChange()"
+              [disabled]="!adnArb() || adnArbTrial()" />
           </div>
           <div class="col-md-2">
-            <label class="field-label">Interval</label>
+            <label class="field-label" [class.is-disabled]="!adnArb() || adnArbTrial()">Interval</label>
             <input type="number" class="field-input"
               [ngModel]="adnArbIntervalLength()"
-              (ngModelChange)="adnArbIntervalLength.set($event); onFieldChange()" />
+              (ngModelChange)="adnArbIntervalLength.set($event); onFieldChange()"
+              [disabled]="!adnArb() || adnArbTrial()" />
           </div>
-          <div class="col-md-3">
-            <label class="field-label">Start Date</label>
-            <input type="date" class="field-input"
-              [ngModel]="adnArbStartDate()"
-              (ngModelChange)="adnArbStartDate.set($event); onFieldChange()" />
-          </div>
-          <div class="col-md-3">
-            <label class="field-label">Min Total Charge</label>
-            <input type="number" class="field-input" step="0.01"
-              [ngModel]="adnArbMinimumTotalCharge()"
-              (ngModelChange)="adnArbMinimumTotalCharge.set($event); onFieldChange()" />
-          </div>
-        </div>
-        <div class="row g-2 align-items-end mt-1">
           <div class="col-md-3 pb-1">
             <label class="field-check" [class.is-disabled]="!adnArb()">
               <input type="checkbox"
@@ -238,11 +226,11 @@
             </label>
           </div>
           <div class="col-md-3">
-            <label class="field-label">Balance Bill Date</label>
+            <label class="field-label" [class.is-disabled]="!adnArb() || !adnArbTrial()">Balance Bill Date</label>
             <input type="date" class="field-input"
               [ngModel]="adnStartDateAfterTrial()"
               (ngModelChange)="adnStartDateAfterTrial.set($event); onFieldChange()"
-              [disabled]="!adnArb()" />
+              [disabled]="!adnArb() || !adnArbTrial()" />
           </div>
         </div>
       </div>
