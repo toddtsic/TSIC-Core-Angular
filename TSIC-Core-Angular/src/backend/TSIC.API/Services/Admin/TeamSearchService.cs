@@ -31,6 +31,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IFeeResolutionService _feeService;
     private readonly IAdnApiService _adnApi;
     private readonly ILadtService _ladtService;
+    private readonly IEmailService _emailService;
     private readonly ILogger<TeamSearchService> _logger;
 
     // Known payment method GUIDs (from AccountingPaymentMethods table)
@@ -47,6 +48,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IFeeResolutionService feeService,
         IAdnApiService adnApi,
         ILadtService ladtService,
+        IEmailService emailService,
         ILogger<TeamSearchService> logger)
     {
         _teamRepo = teamRepo;
@@ -56,6 +58,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _feeService = feeService;
         _adnApi = adnApi;
         _ladtService = ladtService;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -721,5 +724,158 @@ public sealed class TeamSearchService : ITeamSearchService
     public async Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default)
     {
         return await _accountingRepo.GetPaymentMethodOptionsAsync(ct);
+    }
+
+    // ── AUTOPAY FAILED triage queue: resend invoices ──
+
+    public async Task<ResendInvoicesResponse> ResendInvoicesAsync(
+        Guid jobId, string userId, ResendInvoicesRequest request, CancellationToken ct = default)
+    {
+        var probes = await _teamRepo.FindFlaggedTeamsForResendAsync(jobId, request.TeamIds, ct);
+        if (probes.Count == 0)
+        {
+            return new ResendInvoicesResponse
+            {
+                TeamsTargeted = 0,
+                TeamsEmailed = 0,
+                TeamsSkipped = 0,
+                RepsEmailed = 0,
+                Message = "No flagged teams found."
+            };
+        }
+
+        var jobInfo = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
+        var jobPath = jobInfo?.JobPath;
+        var jobName = jobInfo?.JobName ?? "your event";
+        if (string.IsNullOrWhiteSpace(jobPath))
+            return new ResendInvoicesResponse
+            {
+                TeamsTargeted = probes.Count,
+                TeamsEmailed = 0,
+                TeamsSkipped = probes.Count,
+                RepsEmailed = 0,
+                Message = "Job path missing — cannot build payment link."
+            };
+
+        var now = DateTime.UtcNow;
+        var cutoff = now.AddHours(-1);
+
+        var teamsTargeted = probes.Count;
+        var teamsSkipped = 0;
+        var teamsEmailed = 0;
+        var repsEmailed = 0;
+        var stampedTeamIds = new List<Guid>();
+
+        var paymentUrl = $"https://www.teamsportsinfo.com/{jobPath}/registration/team?step=payment";
+
+        // Group by rep so each rep gets one rolled-up email
+        foreach (var repGroup in probes.GroupBy(p => p.RepRegistrationId))
+        {
+            var repTeams = repGroup.ToList();
+            var rep = repTeams[0];
+
+            // Throttle: drop teams emailed within the last hour
+            var eligible = repTeams.Where(t =>
+                !t.LastInvoiceResend.HasValue || t.LastInvoiceResend.Value < cutoff).ToList();
+            teamsSkipped += repTeams.Count - eligible.Count;
+            if (eligible.Count == 0) continue;
+
+            // Rep-level skips count every team in the group as skipped
+            if (rep.RepEmailOptOut || string.IsNullOrWhiteSpace(rep.RepEmail))
+            {
+                teamsSkipped += eligible.Count;
+                continue;
+            }
+
+            var greetingName = !string.IsNullOrWhiteSpace(rep.RepFirstName)
+                ? rep.RepFirstName
+                : "Club Rep";
+
+            var rows = string.Join("", eligible.Select(t => $"""
+                <tr>
+                    <td style="padding:6px 12px; border-bottom:1px solid #eee;">{System.Net.WebUtility.HtmlEncode(t.TeamName)}</td>
+                    <td style="padding:6px 12px; border-bottom:1px solid #eee;">{System.Net.WebUtility.HtmlEncode(t.AgegroupName)}</td>
+                    <td style="padding:6px 12px; border-bottom:1px solid #eee; text-align:right;">{t.OwedTotal:C}</td>
+                </tr>
+                """));
+            var totalOwed = eligible.Sum(t => t.OwedTotal);
+
+            var html = $"""
+                <p>Hi {System.Net.WebUtility.HtmlEncode(greetingName)},</p>
+                <p>Your scheduled payment for <strong>{System.Net.WebUtility.HtmlEncode(jobName)}</strong>
+                did not go through. The team(s) below have an outstanding balance:</p>
+                <table style="border-collapse:collapse; margin:16px 0;">
+                    <thead>
+                        <tr style="background:#f7f7f7;">
+                            <th style="padding:6px 12px; text-align:left; border-bottom:2px solid #ddd;">Team</th>
+                            <th style="padding:6px 12px; text-align:left; border-bottom:2px solid #ddd;">Age Group</th>
+                            <th style="padding:6px 12px; text-align:right; border-bottom:2px solid #ddd;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2" style="padding:8px 12px; text-align:right; font-weight:600;">Total:</td>
+                            <td style="padding:8px 12px; text-align:right; font-weight:600;">{totalOwed:C}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <p>
+                    <a href="{paymentUrl}"
+                       style="display:inline-block; padding:10px 20px; background:#0d6efd; color:#fff;
+                              text-decoration:none; border-radius:4px;">
+                        Pay Balance Due
+                    </a>
+                </p>
+                <p style="color:#666; font-size:13px;">
+                    If the button does not work, copy and paste this link into your browser:<br/>
+                    <a href="{paymentUrl}">{paymentUrl}</a>
+                </p>
+                """;
+
+            var msg = new EmailMessageDto
+            {
+                Subject = $"Payment Reminder — {jobName}",
+                HtmlBody = html,
+                ToAddresses = new List<string> { rep.RepEmail!.Trim() }
+            };
+
+            try
+            {
+                var sent = await _emailService.SendAsync(msg, cancellationToken: ct);
+                if (sent)
+                {
+                    repsEmailed++;
+                    teamsEmailed += eligible.Count;
+                    stampedTeamIds.AddRange(eligible.Select(t => t.TeamId));
+                }
+                else
+                {
+                    teamsSkipped += eligible.Count;
+                    _logger.LogWarning("Resend invoice failed for rep {RegId} ({Email})",
+                        rep.RepRegistrationId, rep.RepEmail);
+                }
+            }
+            catch (Exception ex)
+            {
+                teamsSkipped += eligible.Count;
+                _logger.LogError(ex, "Resend invoice exception for rep {RegId}", rep.RepRegistrationId);
+            }
+        }
+
+        if (stampedTeamIds.Count > 0)
+            await _teamRepo.UpdateLastInvoiceResendAsync(stampedTeamIds, now, userId, ct);
+
+        var summary = $"Sent {teamsEmailed} team reminder(s) to {repsEmailed} rep(s)"
+                    + (teamsSkipped > 0 ? $"; skipped {teamsSkipped}." : ".");
+
+        return new ResendInvoicesResponse
+        {
+            TeamsTargeted = teamsTargeted,
+            TeamsEmailed = teamsEmailed,
+            TeamsSkipped = teamsSkipped,
+            RepsEmailed = repsEmailed,
+            Message = summary
+        };
     }
 }

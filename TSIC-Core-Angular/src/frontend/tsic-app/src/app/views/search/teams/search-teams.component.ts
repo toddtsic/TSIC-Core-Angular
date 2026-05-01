@@ -8,6 +8,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { TeamDetailPanelComponent } from './components/team-detail-panel.component';
 import { LadtTreeFilterComponent } from '../registrations/components/ladt-tree-filter.component';
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 import type {
 	TeamSearchRequest,
@@ -37,7 +38,8 @@ interface FilterChip {
 		DropDownListModule,
 		TeamDetailPanelComponent,
 		LadtTreeFilterComponent,
-		CadtTreeFilterComponent
+		CadtTreeFilterComponent,
+		ConfirmDialogComponent
 	],
 	schemas: [CUSTOM_ELEMENTS_SCHEMA],
 	providers: [CheckBoxSelectionService],
@@ -98,6 +100,29 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	// Detail panel state
 	selectedDetail = signal<TeamSearchDetailDto | null>(null);
 	isPanelOpen = signal(false);
+
+	// AUTOPAY FAILED resend modal state
+	isResendModalOpen = signal(false);
+	isResending = signal(false);
+	flaggedCount = computed(() =>
+		(this.searchResults()?.result ?? []).filter(r => r.paymentFlagged).length);
+	flaggedRepCount = computed(() => {
+		const flagged = (this.searchResults()?.result ?? []).filter(r => r.paymentFlagged);
+		const reps = new Set<string>();
+		for (const t of flagged) {
+			if (t.clubRepEmail) reps.add(t.clubRepEmail.trim().toLowerCase());
+		}
+		return reps.size;
+	});
+	resendDialogMessage = computed(() => {
+		const teams = this.flaggedCount();
+		const reps = this.flaggedRepCount();
+		const teamWord = teams === 1 ? 'team' : 'teams';
+		const repWord = reps === 1 ? 'rep' : 'reps';
+		return `Send a payment-reminder email to <strong>${reps}</strong> club ${repWord} `
+			+ `covering <strong>${teams}</strong> flagged ${teamWord}? `
+			+ `Recently-emailed teams (within the last hour) and opted-out reps will be skipped.`;
+	});
 
 	// Grid configuration
 	pageSettings: PageSettingsModel = { pageSize: 20, pageSizes: [20, 50, 100, 'All'] };
@@ -419,6 +444,34 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		if (this.grid && results) {
 			this.grid.excelExport({ dataSource: results.result });
 		}
+	}
+
+	openResendModal(): void {
+		if (this.flaggedCount() === 0) return;
+		this.isResendModalOpen.set(true);
+	}
+
+	cancelResend(): void {
+		this.isResendModalOpen.set(false);
+	}
+
+	confirmResend(): void {
+		if (this.isResending()) return;
+		this.isResending.set(true);
+		this.searchService.resendInvoices({ teamIds: null }).subscribe({
+			next: (res) => {
+				this.toast.show(res.message ?? 'Reminders sent.', 'success', 5000);
+				this.isResending.set(false);
+				this.isResendModalOpen.set(false);
+				this.executeSearch();
+			},
+			error: (err) => {
+				this.toast.show('Failed to send reminders.', 'danger', 4000);
+				console.error('resendInvoices error:', err);
+				this.isResending.set(false);
+				this.isResendModalOpen.set(false);
+			}
+		});
 	}
 
 	onLadtCheckedChange(checkedIds: Set<string>): void {

@@ -23,7 +23,9 @@ import type {
 	TransferAllTeamsRequest,
 	ClubOperationResultDto,
 	ClubRepAccountingDto,
-	DropTeamResultDto
+	DropTeamResultDto,
+	ResendInvoicesRequest,
+	ResendInvoicesResponse
 } from '@core/api';
 
 // Re-export for consumers
@@ -55,7 +57,9 @@ export type {
 	TransferAllTeamsRequest,
 	ClubOperationResultDto,
 	ClubRepAccountingDto,
-	DropTeamResultDto
+	DropTeamResultDto,
+	ResendInvoicesRequest,
+	ResendInvoicesResponse
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -141,5 +145,11 @@ export class TeamSearchService {
 
 	dropTeam(teamId: string): Observable<DropTeamResultDto> {
 		return this.http.post<DropTeamResultDto>(`${environment.apiUrl}/ladt/teams/${teamId}/drop`, null);
+	}
+
+	// ── AUTOPAY FAILED triage queue ──
+
+	resendInvoices(request: ResendInvoicesRequest): Observable<ResendInvoicesResponse> {
+		return this.http.post<ResendInvoicesResponse>(`${this.apiUrl}/resend-invoices`, request);
 	}
 }

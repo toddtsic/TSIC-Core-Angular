@@ -181,6 +181,13 @@ public partial class Teams
 
     public int? AdnSubscriptionIntervalLength { get; set; }
 
+    /// <summary>
+    /// Timestamp of the most recent admin-triggered "your autopay failed" reminder
+    /// email for this team. Used by the triage queue's resend action to throttle
+    /// rapid re-clicks (server skips teams emailed within the last hour).
+    /// </summary>
+    public DateTime? LastInvoiceResend { get; set; }
+
     public bool? BDoNotValidateUslaxNumber { get; set; }
 
     public string? ViPolicyId { get; set; }

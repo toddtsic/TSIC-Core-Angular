@@ -1203,6 +1203,61 @@ public class TeamRepository : ITeamRepository
         }).ToList();
     }
 
+    public async Task<List<TeamResendProbe>> FindFlaggedTeamsForResendAsync(
+        Guid jobId, List<Guid>? teamIds, CancellationToken ct = default)
+    {
+        var query = _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                && (t.Active ?? false)
+                && t.AdnSubscriptionId != null
+                && t.ClubrepRegistrationid != null
+                && (t.OwedTotal ?? 0m) > 0m
+                && (
+                    (t.AdnSubscriptionStatus != null && t.AdnSubscriptionStatus != "active")
+                    || _context.RegistrationAccounting.Any(a =>
+                        a.TeamId == t.TeamId
+                        && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                        && a.Active == true)
+                ));
+
+        if (teamIds is { Count: > 0 })
+            query = query.Where(t => teamIds.Contains(t.TeamId));
+
+        return await query
+            .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
+            .GroupJoin(_context.Registrations, x => x.t.ClubrepRegistrationid, r => r.RegistrationId, (x, regs) => new { x.t, x.ag, regs })
+            .SelectMany(x => x.regs.DefaultIfEmpty(), (x, r) => new { x.t, x.ag, r })
+            .GroupJoin(_context.AspNetUsers, x => x.r != null ? x.r.UserId : null, u => u.Id, (x, users) => new { x.t, x.ag, x.r, users })
+            .SelectMany(x => x.users.DefaultIfEmpty(), (x, u) => new TeamResendProbe
+            {
+                TeamId = x.t.TeamId,
+                TeamName = x.t.TeamName ?? "",
+                AgegroupName = x.ag.AgegroupName ?? "",
+                OwedTotal = x.t.OwedTotal ?? 0m,
+                LastInvoiceResend = x.t.LastInvoiceResend,
+                RepRegistrationId = x.t.ClubrepRegistrationid!.Value,
+                RepEmail = u != null ? u.Email : null,
+                RepFirstName = u != null ? u.FirstName : null,
+                RepLastName = u != null ? u.LastName : null,
+                RepEmailOptOut = x.r != null && x.r.BemailOptOut
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task UpdateLastInvoiceResendAsync(
+        List<Guid> teamIds, DateTime timestamp, string userId, CancellationToken ct = default)
+    {
+        if (teamIds.Count == 0) return;
+
+        await _context.Teams
+            .Where(t => teamIds.Contains(t.TeamId))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.LastInvoiceResend, timestamp)
+                .SetProperty(t => t.Modified, timestamp)
+                .SetProperty(t => t.LebUserId, userId), ct);
+    }
+
     public async Task<Dictionary<Guid, int>> GetTeamCountsByDivisionAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _context.Teams

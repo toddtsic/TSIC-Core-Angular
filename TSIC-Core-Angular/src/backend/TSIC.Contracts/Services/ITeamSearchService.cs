@@ -83,4 +83,15 @@ public interface ITeamSearchService
     // ── Shared ──
 
     Task<List<PaymentMethodOptionDto>> GetPaymentMethodOptionsAsync(CancellationToken ct = default);
+
+    // ── AUTOPAY FAILED triage queue ──
+
+    /// <summary>
+    /// Send "your scheduled payment failed" reminder emails to ClubReps owning flagged teams.
+    /// Groups teams by rep so each rep gets one rolled-up email. Throttles per-team:
+    /// teams with LastInvoiceResend within the last hour are skipped silently. Stamps
+    /// LastInvoiceResend on each team that was successfully emailed.
+    /// </summary>
+    Task<ResendInvoicesResponse> ResendInvoicesAsync(
+        Guid jobId, string userId, ResendInvoicesRequest request, CancellationToken ct = default);
 }

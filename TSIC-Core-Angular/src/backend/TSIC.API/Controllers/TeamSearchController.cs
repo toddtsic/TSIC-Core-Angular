@@ -245,4 +245,17 @@ public class TeamSearchController : ControllerBase
         var methods = await _teamSearchService.GetPaymentMethodOptionsAsync(ct);
         return Ok(methods);
     }
+
+    // ── AUTOPAY FAILED triage queue ──
+
+    [HttpPost("resend-invoices")]
+    public async Task<ActionResult<ResendInvoicesResponse>> ResendInvoices(
+        [FromBody] ResendInvoicesRequest request, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _teamSearchService.ResendInvoicesAsync(jobId!.Value, userId!, request, ct);
+        return Ok(result);
+    }
 }

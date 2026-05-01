@@ -1175,6 +1175,38 @@ mark {
     }
 }
 
+/* Send Invoice Reminders — red/alert pill matching money-flagged treatment.
+   Visible only when at least one team in the result set carries paymentFlagged. */
+.btn-results-resend {
+    background: rgba(239, 68, 68, 0.55);
+    border-color: rgba(239, 68, 68, 0.8);
+    color: var(--bs-white);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.72);
+        border-color: #ef4444;
+    }
+
+    .resend-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.85);
+        color: #b91c1c;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+    }
+}
+
 /* Email Selected — ghosted outline when idle, solid amber when rows selected */
 .btn-results-email-selected {
     background: transparent;

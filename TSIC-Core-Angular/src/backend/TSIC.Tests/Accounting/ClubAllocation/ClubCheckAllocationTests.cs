@@ -82,7 +82,8 @@ public class ClubCheckAllocationTests
 
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
-            feeService.Object, adnApi.Object, ladtService.Object, logger.Object);
+            feeService.Object, adnApi.Object, ladtService.Object,
+            new Mock<IEmailService>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId, ag.AgegroupId, clubRep.RegistrationId);
     }

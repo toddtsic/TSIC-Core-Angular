@@ -502,6 +502,8 @@ export type { ReorderNavItemsRequest } from './models/ReorderNavItemsRequest';
 export type { ReportCatalogueEntryDto } from './models/ReportCatalogueEntryDto';
 export type { ReportCatalogueWriteDto } from './models/ReportCatalogueWriteDto';
 export type { ReschedulerGridRequest } from './models/ReschedulerGridRequest';
+export type { ResendInvoicesRequest } from './models/ResendInvoicesRequest';
+export type { ResendInvoicesResponse } from './models/ResendInvoicesResponse';
 export type { ReserveTeamSelectionDto } from './models/ReserveTeamSelectionDto';
 export type { ReserveTeamsRequestDto } from './models/ReserveTeamsRequestDto';
 export type { ReserveTeamsResponseDto } from './models/ReserveTeamsResponseDto';

@@ -103,6 +103,30 @@ public record ClubTeamSummaryDto
     public bool PaymentFlagged { get; init; }
 }
 
+// ── Resend Invoice (AUTOPAY FAILED triage queue) ──
+
+/// <summary>
+/// Admin-triggered "your autopay failed" reminder. When TeamIds is empty/null,
+/// the server targets every flagged team for the current job.
+/// </summary>
+public record ResendInvoicesRequest
+{
+    public List<Guid>? TeamIds { get; init; }
+}
+
+/// <summary>
+/// Per-call summary of the resend operation. Counts let the toast message
+/// surface "sent X to N reps; skipped Y (recently emailed)".
+/// </summary>
+public record ResendInvoicesResponse
+{
+    public required int TeamsTargeted { get; init; }
+    public required int TeamsEmailed { get; init; }
+    public required int TeamsSkipped { get; init; }
+    public required int RepsEmailed { get; init; }
+    public string? Message { get; init; }
+}
+
 /// <summary>
 /// Request to edit team properties.
 /// </summary>
