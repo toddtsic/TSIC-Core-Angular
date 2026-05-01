@@ -1,0 +1,224 @@
+.accounting-page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4);
+}
+
+.page-header {
+    margin-bottom: var(--space-5);
+}
+
+.page-subtitle code {
+    background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+    color: var(--bs-primary);
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875em;
+}
+
+/* ----- Upload panel --------------------------------------------------- */
+
+.upload-panel {
+    background:
+        linear-gradient(180deg,
+            color-mix(in srgb, var(--bs-primary) 4%, var(--brand-surface)) 0%,
+            var(--brand-surface) 100%);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--bs-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-5);
+}
+
+.upload-panel__title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+    margin: 0 0 var(--space-2);
+    line-height: 1.2;
+}
+
+.upload-panel__hint {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+    margin: 0 0 var(--space-4);
+    line-height: 1.55;
+
+    code {
+        background: color-mix(in srgb, var(--brand-text) 6%, transparent);
+        color: var(--brand-text);
+        padding: 0.1rem 0.3rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.875em;
+    }
+}
+
+/* Drop zone */
+.drop-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--brand-text-muted);
+    background: var(--brand-surface);
+    transition: border-color 150ms ease, background-color 150ms ease;
+
+    .bi-file-earmark-spreadsheet {
+        font-size: 2rem;
+        color: var(--bs-success);
+    }
+
+    &:hover,
+    &.drag-over {
+        border-color: var(--bs-primary);
+        background: color-mix(in srgb, var(--bs-primary) 4%, var(--brand-surface));
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.drop-zone__hint {
+    font-size: var(--font-size-xs);
+    color: var(--brand-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.selected-file {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: color-mix(in srgb, var(--bs-success) 8%, var(--brand-surface));
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--bs-success) 25%, transparent);
+
+    .bi-file-earmark-check {
+        font-size: 1.25rem;
+    }
+
+    .file-name {
+        flex: 1;
+        font-weight: var(--font-weight-medium);
+        word-break: break-all;
+        color: var(--brand-text);
+    }
+}
+
+/* ----- Result panels (success / danger) ------------------------------- */
+
+.result-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-lg);
+    border: 1px solid transparent;
+    box-shadow: var(--shadow-sm);
+}
+
+.result-panel__icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.result-panel__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.result-panel__title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--space-1);
+}
+
+.result-panel__desc {
+    font-size: var(--font-size-sm);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.result-panel--success {
+    background: color-mix(in srgb, var(--bs-success) 8%, var(--brand-surface));
+    border-color: color-mix(in srgb, var(--bs-success) 35%, transparent);
+    border-left: 3px solid var(--bs-success);
+
+    .result-panel__icon  { color: var(--bs-success); }
+    .result-panel__title { color: color-mix(in srgb, var(--bs-success) 80%, var(--brand-text)); }
+    .result-panel__desc  { color: var(--brand-text); }
+}
+
+.result-panel--danger {
+    background: color-mix(in srgb, var(--bs-danger) 8%, var(--brand-surface));
+    border-color: color-mix(in srgb, var(--bs-danger) 35%, transparent);
+    border-left: 3px solid var(--bs-danger);
+
+    .result-panel__icon  { color: var(--bs-danger); }
+    .result-panel__title { color: color-mix(in srgb, var(--bs-danger) 80%, var(--brand-text)); }
+    .result-panel__desc  { color: var(--brand-text); }
+}
+
+/* ----- Result stats grid + error list --------------------------------- */
+
+.result-stats {
+    display: flex;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+    margin-top: var(--space-2);
+}
+
+.result-stat {
+    text-align: center;
+    min-width: 5.5rem;
+
+    &__value {
+        display: block;
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        line-height: 1.1;
+        color: var(--brand-text);
+    }
+
+    &__label {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    &--success .result-stat__value { color: var(--bs-success); }
+    &--danger  .result-stat__value { color: var(--bs-danger); }
+    &--muted   .result-stat__value { color: var(--brand-text-muted); }
+}
+
+.error-list__title {
+    margin: var(--space-4) 0 var(--space-2);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text);
+}
+
+.error-list {
+    th {
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--brand-text-muted);
+        border-bottom-width: 2px;
+    }
+
+    .error-list__col-row    { width: 4rem; }
+    .error-list__col-policy { width: 12rem; }
+}

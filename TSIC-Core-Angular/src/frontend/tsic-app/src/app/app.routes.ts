@@ -410,12 +410,8 @@ export const routes: Routes = [
 					{
 						path: 'upload-regsaver',
 						canActivate: [authGuard],
-						data: {
-							roles: [Roles.Superuser],
-							title: 'Import RegSaver Monthly Payouts',
-							legacyController: 'UploadRegSaverMonthlyPayouts/Index',
-						},
-						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/upload-regsaver/upload-regsaver.component').then(m => m.UploadRegSaverComponent)
 					},
 					{
 						path: 'last-months-job-stats',

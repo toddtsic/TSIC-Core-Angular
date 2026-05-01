@@ -1,0 +1,131 @@
+<div class="accounting-page">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-cloud-download page-title-icon"></i>
+                Import RegSaver Monthly Payouts
+            </h2>
+            <p class="page-subtitle">
+                Drop the monthly RegSaver (Vertical Insure) payout export here. New
+                policies are inserted into <code>Vertical-Insure-Payouts</code>; existing
+                <strong>PolicyNumber</strong> values are skipped as duplicates so a re-run
+                is safe.
+            </p>
+        </div>
+    </div>
+
+    <section class="upload-panel">
+        <h3 class="upload-panel__title">Upload monthly export</h3>
+        <p class="upload-panel__hint">
+            Required headers in row 1:
+            <code>PolicyNumber</code>, <code>PurchaseDate</code>, <code>EffectiveDate</code>,
+            <code>Premium</code>, <code>Payout</code>.
+        </p>
+
+        @if (!selectedFile()) {
+            <div
+                class="drop-zone"
+                [class.drag-over]="isDragOver()"
+                (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave()"
+                (drop)="onDrop($event)"
+                (click)="fileInput.click()">
+                <i class="bi bi-file-earmark-spreadsheet"></i>
+                <span>Drop .xlsx file here or click to browse</span>
+                <span class="drop-zone__hint">10 MB max</span>
+            </div>
+        } @else {
+            <div class="selected-file">
+                <i class="bi bi-file-earmark-check text-success"></i>
+                <span class="file-name">{{ selectedFile()!.name }}</span>
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    (click)="clearFile()"
+                    [disabled]="isUploading()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <button
+                type="button"
+                class="btn btn-success mt-3"
+                [disabled]="isUploading()"
+                (click)="upload()">
+                @if (isUploading()) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Importing&hellip;
+                } @else {
+                    <i class="bi bi-upload me-1"></i>Upload &amp; Import
+                }
+            </button>
+        }
+
+        <input
+            #fileInput
+            type="file"
+            class="d-none"
+            accept=".xlsx"
+            (change)="onFileSelected($event)" />
+    </section>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Upload failed</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (uploadResult(); as result) {
+        <section class="result-panel result-panel--success" role="status">
+            <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Import complete</h4>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <span class="result-stat__value">{{ result.totalRows }}</span>
+                        <span class="result-stat__label">Total Rows</span>
+                    </div>
+                    <div class="result-stat result-stat--success">
+                        <span class="result-stat__value">{{ result.importedCount }}</span>
+                        <span class="result-stat__label">Imported</span>
+                    </div>
+                    <div class="result-stat result-stat--muted">
+                        <span class="result-stat__value">{{ result.duplicateCount }}</span>
+                        <span class="result-stat__label">Duplicates</span>
+                    </div>
+                    <div class="result-stat result-stat--danger">
+                        <span class="result-stat__value">{{ result.errorCount }}</span>
+                        <span class="result-stat__label">Errors</span>
+                    </div>
+                </div>
+
+                @if (result.errors.length > 0) {
+                    <h5 class="error-list__title">Row errors</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm error-list">
+                            <thead>
+                                <tr>
+                                    <th class="error-list__col-row">Row</th>
+                                    <th class="error-list__col-policy">PolicyNumber</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (err of result.errors; track $index) {
+                                    <tr>
+                                        <td>{{ err.row }}</td>
+                                        <td class="font-monospace small">{{ err.policyNumber }}</td>
+                                        <td>{{ err.reason }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>

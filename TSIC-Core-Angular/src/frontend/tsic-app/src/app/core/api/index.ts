@@ -489,6 +489,8 @@ export type { RegistrationStatusResponse } from './models/RegistrationStatusResp
 export type { RegistrationTimeSeriesDto } from './models/RegistrationTimeSeriesDto';
 export type { RegistrationTrendSummaryDto } from './models/RegistrationTrendSummaryDto';
 export type { RegSaverDetailsDto } from './models/RegSaverDetailsDto';
+export type { RegSaverUploadResultDto } from './models/RegSaverUploadResultDto';
+export type { RegSaverUploadRowError } from './models/RegSaverUploadRowError';
 export type { ReleasableAdminDto } from './models/ReleasableAdminDto';
 export type { ReleaseAdminsRequest } from './models/ReleaseAdminsRequest';
 export type { ReleaseResponse } from './models/ReleaseResponse';
