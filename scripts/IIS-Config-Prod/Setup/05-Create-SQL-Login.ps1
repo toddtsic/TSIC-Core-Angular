@@ -43,7 +43,8 @@ END
 
 ALTER ROLE [db_datareader] ADD MEMBER [$loginName];
 ALTER ROLE [db_datawriter] ADD MEMBER [$loginName];
-PRINT 'Granted db_datareader and db_datawriter roles.';
+GRANT EXECUTE TO [$loginName];
+PRINT 'Granted db_datareader, db_datawriter, and EXECUTE (db-wide).';
 "@
 
 # Try Invoke-Sqlcmd first, fall back to sqlcmd
@@ -89,6 +90,7 @@ else {
     Write-Host "  CREATE USER [$loginName] FOR LOGIN [$loginName];" -ForegroundColor White
     Write-Host "  ALTER ROLE [db_datareader] ADD MEMBER [$loginName];" -ForegroundColor White
     Write-Host "  ALTER ROLE [db_datawriter] ADD MEMBER [$loginName];" -ForegroundColor White
+    Write-Host "  GRANT EXECUTE TO [$loginName];" -ForegroundColor White
 }
 
 Write-Host "[Step 5] Complete." -ForegroundColor Green

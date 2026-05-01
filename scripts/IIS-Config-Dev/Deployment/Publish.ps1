@@ -36,7 +36,7 @@ $ApiPublish  = Join-Path $PublishRoot "api"
 $AngPublish  = Join-Path $PublishRoot "angular"
 $WebConfigApiSrc = Join-Path $PSScriptRoot "..\web.config.api"
 $WebConfigAngSrc = Join-Path $PSScriptRoot "..\web.config.angular"
-$FixLoginSql     = Join-Path $PSScriptRoot "Fix-IIS-DbLogin.sql"
+$FixLoginSql     = Join-Path $PSScriptRoot "..\..\00-postdev-db-restore-apppooluser.sql"
 
 $PreservedDirs = @('logs', 'keys')
 
@@ -292,10 +292,10 @@ if (Test-Path $FixLoginSql) {
             Write-Host "  sqlcmd returned exit code $LASTEXITCODE - check SQL output above" -ForegroundColor Yellow
         }
     } catch {
-        Write-Host "  Could not run Fix-IIS-DbLogin.sql: $_" -ForegroundColor Yellow
+        Write-Host "  Could not run 00-postdev-db-restore-apppooluser.sql: $_" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  Fix-IIS-DbLogin.sql not found - skipping" -ForegroundColor Yellow
+    Write-Host "  00-postdev-db-restore-apppooluser.sql not found - skipping" -ForegroundColor Yellow
 }
 Write-Host ""
 

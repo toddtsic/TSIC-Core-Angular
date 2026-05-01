@@ -876,33 +876,22 @@ $sb.AppendLine("") | Out-Null
 # ████████████████████████████████████████████████████████████████████
 
 $sb.AppendLine("-- ========================================================================") | Out-Null
-$sb.AppendLine("-- SECTION 3: IIS APP POOL DB LOGIN") | Out-Null
-$sb.AppendLine("-- After a restore, the IIS app pool identity loses database access.") | Out-Null
-$sb.AppendLine("-- This idempotently creates the login + user mapping.") | Out-Null
+$sb.AppendLine("-- SECTION 3: IIS APP POOL DB LOGIN -- DEFERRED") | Out-Null
+$sb.AppendLine("-- IIS app pool DB user provisioning lives in a single canonical script:") | Out-Null
+$sb.AppendLine("--     scripts\00-postdev-db-restore-apppooluser.sql") | Out-Null
+$sb.AppendLine("-- That script creates dev-api + claude-api logins/users with the correct") | Out-Null
+$sb.AppendLine("-- role + EXECUTE grants. Run it BEFORE or AFTER this script -- both are") | Out-Null
+$sb.AppendLine("-- idempotent.") | Out-Null
 $sb.AppendLine("-- ========================================================================") | Out-Null
 $sb.AppendLine("") | Out-Null
-$sb.AppendLine("PRINT '-- 3: IIS App Pool DB Login';") | Out-Null
-$sb.AppendLine("") | Out-Null
-$sb.AppendLine("IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'IIS APPPOOL\TSIC.Api')") | Out-Null
-$sb.AppendLine("    CREATE LOGIN [IIS APPPOOL\TSIC.Api] FROM WINDOWS;") | Out-Null
-$sb.AppendLine("") | Out-Null
-$sb.AppendLine("IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'IIS APPPOOL\TSIC.Api')") | Out-Null
-$sb.AppendLine("    CREATE USER [IIS APPPOOL\TSIC.Api] FOR LOGIN [IIS APPPOOL\TSIC.Api];") | Out-Null
-$sb.AppendLine("ELSE") | Out-Null
-$sb.AppendLine("    ALTER USER [IIS APPPOOL\TSIC.Api] WITH LOGIN = [IIS APPPOOL\TSIC.Api];") | Out-Null
-$sb.AppendLine("") | Out-Null
-$sb.AppendLine("ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\TSIC.Api];") | Out-Null
-$sb.AppendLine("ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\TSIC.Api];") | Out-Null
-$sb.AppendLine("") | Out-Null
-$sb.AppendLine("PRINT '  IIS APPPOOL\TSIC.Api login ensured.';") | Out-Null
-$sb.AppendLine("PRINT '  Section 3 complete.';") | Out-Null
-$sb.AppendLine("GO") | Out-Null
+$sb.AppendLine("PRINT '-- 3: IIS App Pool DB Login -- DEFERRED to 00-postdev-db-restore-apppooluser.sql';") | Out-Null
 $sb.AppendLine("") | Out-Null
 
 $sb.AppendLine("PRINT '';") | Out-Null
 $sb.AppendLine("PRINT '==========================================================';") | Out-Null
 $sb.AppendLine("PRINT '  0-Restore-DevConfig-PROD.sql -- COMPLETE';") | Out-Null
-$sb.AppendLine("PRINT '  All schemas, tables, dev config, and IIS login are in place.';") | Out-Null
+$sb.AppendLine("PRINT '  Schemas, tables, and dev config are in place.';") | Out-Null
+$sb.AppendLine("PRINT '  Run 00-postdev-db-restore-apppooluser.sql for IIS app pool DB access.';") | Out-Null
 $sb.AppendLine("PRINT '  Legacy tables were NOT modified.';") | Out-Null
 $sb.AppendLine("PRINT '==========================================================';") | Out-Null
 $sb.AppendLine("") | Out-Null

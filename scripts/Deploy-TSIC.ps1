@@ -230,7 +230,7 @@ try {
     " -b
     Write-Host "✓ DB login verified" -ForegroundColor Green
 } catch {
-    Write-Host "⚠ Could not verify DB login. Run Fix-IIS-DbLogin.sql in SSMS if login fails." -ForegroundColor Yellow
+    Write-Host "⚠ Could not verify DB login. Run scripts\IIS-Config-Prod\Deployment\Fix-IIS-DbLogin.sql in SSMS if login fails." -ForegroundColor Yellow
 }
 '@
 

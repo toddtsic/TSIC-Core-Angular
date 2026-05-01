@@ -982,32 +982,21 @@ SELECT 'widgets.Widget.DefaultConfig',
     CASE WHEN COL_LENGTH('widgets.Widget', 'DefaultConfig') IS NOT NULL THEN 'EXISTS' ELSE 'MISSING' END;
 
 -- ========================================================================
--- SECTION 3: IIS APP POOL DB LOGIN
--- After a restore, the IIS app pool identity loses database access.
--- This idempotently creates the login + user mapping.
+-- SECTION 3: IIS APP POOL DB LOGIN -- DEFERRED
+-- IIS app pool DB user provisioning lives in a single canonical script:
+--     scripts\00-postdev-db-restore-apppooluser.sql
+-- That script creates dev-api + claude-api logins/users with the correct
+-- role + EXECUTE grants. Run it BEFORE or AFTER this script -- both are
+-- idempotent.
 -- ========================================================================
 
-PRINT '-- 3: IIS App Pool DB Login';
-
-IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
-    CREATE LOGIN [IIS APPPOOL\TSIC.Api] FROM WINDOWS;
-
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'IIS APPPOOL\TSIC.Api')
-    CREATE USER [IIS APPPOOL\TSIC.Api] FOR LOGIN [IIS APPPOOL\TSIC.Api];
-ELSE
-    ALTER USER [IIS APPPOOL\TSIC.Api] WITH LOGIN = [IIS APPPOOL\TSIC.Api];
-
-ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\TSIC.Api];
-ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\TSIC.Api];
-
-PRINT '  IIS APPPOOL\TSIC.Api login ensured.';
-PRINT '  Section 3 complete.';
-GO
+PRINT '-- 3: IIS App Pool DB Login -- DEFERRED to 00-postdev-db-restore-apppooluser.sql';
 
 PRINT '';
 PRINT '==========================================================';
 PRINT '  0-Restore-DevConfig-PROD.sql -- COMPLETE';
-PRINT '  All schemas, tables, dev config, and IIS login are in place.';
+PRINT '  Schemas, tables, and dev config are in place.';
+PRINT '  Run 00-postdev-db-restore-apppooluser.sql for IIS app pool DB access.';
 PRINT '  Legacy tables were NOT modified.';
 PRINT '==========================================================';
 

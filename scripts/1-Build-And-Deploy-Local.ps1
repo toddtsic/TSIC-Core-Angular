@@ -173,7 +173,7 @@ Write-Host ""
 # After a database restore, the IIS app pool login gets orphaned.
 # This idempotently ensures the login + user mapping exists.
 Write-Host "Step 6: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
-$fixLoginSql = Join-Path $PSScriptRoot "Fix-IIS-DbLogin.sql"
+$fixLoginSql = Join-Path $PSScriptRoot "00-postdev-db-restore-apppooluser.sql"
 if (Test-Path $fixLoginSql) {
     try {
         sqlcmd -S ".\SS2016" -E -i $fixLoginSql -b
@@ -183,11 +183,11 @@ if (Test-Path $fixLoginSql) {
             Write-Host "  sqlcmd returned exit code $LASTEXITCODE - check SQL output above" -ForegroundColor Yellow
         }
     } catch {
-        Write-Host "  Could not run Fix-IIS-DbLogin.sql: $_" -ForegroundColor Yellow
-        Write-Host "  If login fails after deploy, run scripts\Fix-IIS-DbLogin.sql manually in SSMS" -ForegroundColor Yellow
+        Write-Host "  Could not run 00-postdev-db-restore-apppooluser.sql: $_" -ForegroundColor Yellow
+        Write-Host "  If login fails after deploy, run scripts\00-postdev-db-restore-apppooluser.sql manually in SSMS" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  Fix-IIS-DbLogin.sql not found - skipping DB login check" -ForegroundColor Yellow
+    Write-Host "  00-postdev-db-restore-apppooluser.sql not found - skipping DB login check" -ForegroundColor Yellow
 }
 Write-Host ""
 

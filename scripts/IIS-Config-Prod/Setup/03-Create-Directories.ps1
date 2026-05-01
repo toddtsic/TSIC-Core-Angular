@@ -59,4 +59,27 @@ foreach ($subdir in @('logs', 'keys')) {
     Write-Host "  Granted '$($Config.ApiPoolName)' Modify on $subdirPath" -ForegroundColor White
 }
 
+# Statics subfolders the API pool writes user-uploaded files into.
+# Must exist and grant the API pool Modify before any upload endpoint will work.
+# Inheritance flags propagate Modify to nested subfolders (e.g. RegFileUploads\MedForms,
+# RegFileUploads\VaccineCards) so we only need to grant at the top level.
+if (-not (Test-Path $Config.StaticsPath)) {
+    New-Item -ItemType Directory -Path $Config.StaticsPath -Force | Out-Null
+    Write-Host "  Created: $($Config.StaticsPath)" -ForegroundColor Green
+}
+
+foreach ($subdir in @('BannerFiles', 'RegFileUploads')) {
+    $subdirPath = Join-Path $Config.StaticsPath $subdir
+    if (-not (Test-Path $subdirPath)) {
+        New-Item -ItemType Directory -Path $subdirPath -Force | Out-Null
+        Write-Host "  Created: $subdirPath" -ForegroundColor Green
+    }
+    $acl = Get-Acl $subdirPath
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "IIS AppPool\$($Config.ApiPoolName)", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.SetAccessRule($rule)
+    Set-Acl -Path $subdirPath -AclObject $acl
+    Write-Host "  Granted '$($Config.ApiPoolName)' Modify on $subdirPath" -ForegroundColor White
+}
+
 Write-Host "[Step 3] Complete." -ForegroundColor Green

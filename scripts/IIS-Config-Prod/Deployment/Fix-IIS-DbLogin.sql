@@ -29,4 +29,10 @@ ELSE
 ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\claude-api];
 ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\claude-api];
 
+-- Grant EXECUTE on stored procedures (db-wide).
+-- db_datareader/db_datawriter cover SELECT/INSERT/UPDATE/DELETE only -- NOT EXEC.
+-- Symptom if skipped: "EXECUTE permission was denied on the object '<sproc>'..."
+-- on any endpoint that calls a sproc (e.g. tools/customer-job-revenue).
+GRANT EXECUTE TO [IIS APPPOOL\claude-api];
+
 PRINT 'IIS APPPOOL\claude-api login fixed for TSICV5.';

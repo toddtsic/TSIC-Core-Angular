@@ -238,7 +238,7 @@ Write-Host ""
 
 # ── Step 8: Ensure IIS app pool has DB access ─────────────────────────
 Write-Host "Step 8: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
-$fixLoginSql = Join-Path $PSScriptRoot "Fix-IIS-DbLogin.sql"
+$fixLoginSql = Join-Path $PSScriptRoot "IIS-Config-Prod\Deployment\Fix-IIS-DbLogin.sql"
 if (Test-Path $fixLoginSql) {
     try {
         sqlcmd -S ".\SS2016" -E -i $fixLoginSql -b
@@ -249,10 +249,10 @@ if (Test-Path $fixLoginSql) {
         }
     } catch {
         Write-Host "  Could not run Fix-IIS-DbLogin.sql: $_" -ForegroundColor Yellow
-        Write-Host "  If login fails after deploy, run scripts\Fix-IIS-DbLogin.sql manually in SSMS" -ForegroundColor Yellow
+        Write-Host "  If login fails after deploy, run scripts\IIS-Config-Prod\Deployment\Fix-IIS-DbLogin.sql manually in SSMS" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  Fix-IIS-DbLogin.sql not found - skipping DB login check" -ForegroundColor Yellow
+    Write-Host "  IIS-Config-Prod\Deployment\Fix-IIS-DbLogin.sql not found - skipping DB login check" -ForegroundColor Yellow
 }
 Write-Host ""
 
